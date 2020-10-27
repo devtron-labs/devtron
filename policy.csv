@@ -1,0 +1,12 @@
+p, anonymous, /, *
+p, anonymous, /login, *
+p, anonymous, /callback, *
+
+p, admin, /*, *
+
+p, member, /, *
+p, member, /login, *
+p, member, /logout, *
+p, member, /member/*, *
+
+p, member, /app/*, *

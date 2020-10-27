@@ -1,0 +1,211 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Swagger Petstore
+  description: A sample API that uses a petstore as an example to demonstrate features in the OpenAPI 3.0 specification
+  termsOfService: http://swagger.io/terms/
+  contact:
+    name: Swagger API Team
+    email: apiteam@swagger.io
+    url: http://swagger.io
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://petstore.swagger.io/api
+paths:
+  /user/role/group:
+    get:
+      summary: Returns all group policies
+      description: all the template group policies
+      operationId: findGroupPolicy
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Creates a new Group Policy
+      description: create chart group api, with multiple environment in one row of policy, plus chart group additional type of policy.
+      operationId: addGroupPolicy
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleGroup'
+      responses:
+        '200':
+          description: create group policy response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: update a new pet
+      description: Creates a new pet in the store. Duplicates are allowed
+      operationId: updateGroupPolicy
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/RoleGroup'
+                - type: object
+                  required:
+                    - id
+                  properties:
+                    id:
+                      type: integer
+                      format: int64
+      responses:
+        '200':
+          description: group response
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/RoleGroup'
+                  - type: object
+                    properties:
+                      id:
+                        type: integer
+                        format: int64
+
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/role/group/search:
+    get:
+      summary: search a group policies by NAME
+      description: search group policy by group name
+      operationId: findRoleGroupByName
+      parameters:
+        - name: name
+          in: query
+          description: json as request body
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/role/group/{id}:
+    delete:
+      summary: Deletes a group policy by ID
+      description: deletes a single group policy based on the ID supplied
+      operationId: deleteGroupPolicy
+      parameters:
+        - name: id
+          in: path
+          description: ID of group policy
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: group deleted
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    RoleGroup:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: integer
+          description: Unique id of role group
+        name:
+          type: string
+          description: Unique name of group
+        description:
+          type: string
+          description: description
+        roleFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/roleFilter'
+          description: role filters objects
+
+
+    roleFilter:
+      type: object
+      required:
+        - action
+      properties:
+        entity:
+          type: string
+          description: global entity name, i.e chart-group, git, docker, cluster etc. if this key is present than field team, application and environment are ignored.
+          enum:
+            - chart-group
+            - docker
+            - git
+            - cluster
+            - notification
+        team:
+           type: string
+           description: team name
+        entityName:
+           type: string
+           description: global entity name item name, i.e chart-group ("abc"), git("devtron-gt") etc.
+        environment:
+          type: string
+          description: comma saperated environments names.
+        action:
+          type: string
+          description: action is type of role, i.e manager, admin, trigger, view, etc.
+
+
+
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message

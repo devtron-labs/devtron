@@ -1,0 +1,1353 @@
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create"
+  }
+}
+
+---
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+
+  	}
+  }
+}
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf1"
+  	}
+  }
+}
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	}
+  }
+}
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				}
+  			}
+  		}
+  	]
+  }
+}
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "qa",
+  						"type": "BranchFixed"
+  					}
+  				}
+  				]
+  			}
+  		}
+  	]
+  }
+}
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "qa",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com"
+  				}
+  				]
+  			}
+  		}
+  	]
+  }
+}
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "qa",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				]
+  			}
+  		}
+  	]
+  }
+}
+
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "qa",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				],
+  				"trigger": "manual",
+  				"dockerArguments": {
+  					"key1": "value1",
+  					"key2": "value2"
+  				}
+  			}
+  		}
+  	]
+  }
+}
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "qa",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				],
+  				"trigger": "manual",
+  				"dockerArguments": {
+  					"key1": "value1",
+  					"key2": "value2"
+  				},
+  				"preBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out"
+  						}
+  					]
+  				}
+
+  			}
+  		}
+  	]
+  }
+}
+
+
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "qa",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				],
+  				"trigger": "manual",
+  				"dockerArguments": {
+  					"key1": "value1",
+  					"key2": "value2"
+  				},
+  				"preBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					]
+  				},
+				"postBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 1
+  						}
+  					]
+  				}
+  			}
+  		}
+  	]
+  }
+}
+
+
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "qa",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				],
+  				"trigger": "manual",
+  				"dockerArguments": {
+  					"key1": "value1",
+  					"key2": "value2"
+  				},
+  				"preBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					]
+  				},
+				"postBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					]
+  				}
+  			}
+  		}
+  	]
+  }
+}
+
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "qa",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				],
+  				"trigger": "manual",
+  				"dockerArguments": {
+  					"key1": "value1",
+  					"key2": "value2"
+  				},
+  				"preBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					]
+  				},
+				"postBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					]
+  				}
+  			}
+  		},
+  		{
+  			"deployment": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-deploy"
+  				}
+
+  			}
+  		}
+  	]
+  }
+}
+
+
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "qa",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				],
+  				"trigger": "manual",
+  				"dockerArguments": {
+  					"key1": "value1",
+  					"key2": "value2"
+  				},
+  				"preBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					]
+  				},
+				"postBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 3",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 4",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					]
+  				}
+  			}
+  		},
+  		{
+  			"deployment": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-deploy",
+  					"environment": "amit-env2"
+  				},
+  				"strategy": {
+  					"recreate":{},
+  					"default": "RECREATE"
+  				},
+  				"trigger": "manual"
+  			}
+  		}
+  	]
+  }
+}
+
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "qa",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				],
+  				"trigger": "manual",
+  				"dockerArguments": {
+  					"key1": "value1",
+  					"key2": "value2"
+  				},
+  				"preBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					]
+  				},
+				"postBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 3",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 4",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					]
+  				}
+  			}
+  		},
+  		{
+  			"deployment": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-deploy",
+  					"environment": "amit-env2"
+  				},
+  				"strategy": {
+  					"recreate":{},
+  					"default": "RECREATE"
+  				},
+  				"trigger": "manual",
+  				"previousPipeline": {
+  					"build": {
+  						"destination": {
+  							"pipeline": "test-c-build"
+  						}
+  					}
+  				}
+  			}
+  		}
+  	]
+  }
+}
+
+
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "qa",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				],
+  				"trigger": "manual",
+  				"dockerArguments": {
+  					"key1": "value1",
+  					"key2": "value2"
+  				},
+  				"preBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					]
+  				},
+				"postBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 3",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 4",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					]
+  				}
+  			}
+  		},
+  		{
+  			"deployment": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-deploy",
+  					"environment": "amit-env"
+  				},
+  				"strategy": {
+  					"recreate":{},
+  					"blueGreen":{
+  						"autoPromotionSeconds": 30,
+		                "scaleDownDelaySeconds": 30,
+		                "previewReplicaCount": 1,
+		                "autoPromotionEnabled": false
+  					},
+  					"default": "RECREATE"
+  				},
+  				"trigger": "manual",
+  				"previousPipeline": {
+  					"build": {
+  						"destination": {
+  							"pipeline": "test-c-build"
+  						}
+  					}
+  				}
+  			}
+  		}
+  	]
+  }
+}
+
+
+
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "master",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				],
+  				"trigger": "manual",
+  				"dockerArguments": {
+  					"key1": "value1",
+  					"key2": "value2"
+  				},
+  				"preBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					]
+  				},
+				"postBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 3",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 4",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					]
+  				}
+  			}
+  		},
+  		{
+  			"deployment": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-deploy",
+  					"environment": "amit-env"
+  				},
+  				"strategy": {
+  					"recreate":{},
+  					"blueGreen":{
+  						"autoPromotionSeconds": 30,
+		                "scaleDownDelaySeconds": 30,
+		                "previewReplicaCount": 1,
+		                "autoPromotionEnabled": false
+  					},
+  					"default": "RECREATE"
+  				},
+  				"trigger": "manual",
+  				"previousPipeline": {
+  					"build": {
+  						"destination": {
+  							"pipeline": "test-c-build"
+  						}
+  					}
+  				},
+
+  				"preDeployment": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					]
+  				},
+				"postDeployment": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 3",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 4",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					]
+  				}
+  			}
+  		}
+  	]
+  }
+}
+
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "master",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				],
+  				"trigger": "manual",
+  				"dockerArguments": {
+  					"key1": "value1",
+  					"key2": "value2"
+  				},
+  				"preBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					]
+  				},
+				"postBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 3",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 4",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					]
+  				}
+  			}
+  		},
+  		{
+  			"deployment": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-deploy",
+  					"environment": "amit-env"
+  				},
+  				"strategy": {
+  					"recreate":{},
+  					"blueGreen":{
+  						"autoPromotionSeconds": 30,
+		                "scaleDownDelaySeconds": 30,
+		                "previewReplicaCount": 1,
+		                "autoPromotionEnabled": false
+  					},
+  					"default": "RECREATE"
+  				},
+  				"trigger": "manual",
+  				"previousPipeline": {
+  					"build": {
+  						"destination": {
+  							"pipeline": "test-c-build"
+  						}
+  					}
+  				},
+
+  				"preDeployment": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					],
+  					"configMaps":["random-cm"]
+  				},
+				"postDeployment": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 3",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 4",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					],
+  					"configMaps":["random-cm"]
+  				},
+  				"configMaps": [{
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"operation": "create",
+  					"type": "volume",
+  					"mountPath": "/app/values.txt",
+  					"destination": {
+  						"configMap": "random-cm"
+  					},
+  					"data": {
+  						"key1": "value1",
+  						"key2": "value2"
+  					}
+  				}],
+  				"secrets": [{
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"operation": "create",
+  					"type": "environment",
+  					"externalType": "AWSSecretsManager",
+  					"destination": {
+  						"secret": "random-cs"
+  					},
+  					"data": {
+  						"key1": "value1",
+  						"key2": "value2"
+  					}
+  				}]
+  			}
+  		}
+  	]
+  }
+}
+
+
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "master",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				],
+  				"trigger": "manual",
+  				"dockerArguments": {
+  					"key1": "value1",
+  					"key2": "value2"
+  				},
+  				"preBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					]
+  				},
+				"postBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 3",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 4",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					]
+  				}
+  			}
+  		},
+  		{
+  			"deployment": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-deploy",
+  					"environment": "amit-env"
+  				},
+  				"strategy": {
+  					"recreate":{},
+  					"blueGreen":{
+  						"autoPromotionSeconds": 30,
+		                "scaleDownDelaySeconds": 30,
+		                "previewReplicaCount": 1,
+		                "autoPromotionEnabled": false
+  					},
+  					"default": "RECREATE"
+  				},
+  				"trigger": "manual",
+  				"previousPipeline": {
+  					"build": {
+  						"destination": {
+  							"pipeline": "test-c-build"
+  						}
+  					}
+  				},
+
+  				"preDeployment": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					],
+  					"configMaps":["random-cm"]
+  				},
+				"postDeployment": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 3",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 4",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					],
+  					"configMaps":["random-cm"],
+  					"secrets": ["random-cs"]
+  				},
+  				"configMaps": [{
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"operation": "create",
+  					"type": "volume",
+  					"mountPath": "/app/values.txt",
+  					"destination": {
+  						"configMap": "random-cm"
+  					},
+  					"data": {
+  						"key1": "value1",
+  						"key2": "value2"
+  					}
+  				}],
+  				"secrets": [{
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"operation": "create",
+  					"type": "environment",
+  					"destination": {
+  						"secret": "random-cs"
+  					},
+  					"data": {
+  						"key1": "value1",
+  						"key2": "value2"
+  					}
+  				}]
+  			}
+  		}
+  	]
+  }
+}
+
+
+
+
+{
+  "workflow": {
+  	"apiVersion": "github.com/devtron-labs/v1",
+  	"operation": "create",
+  	"destination": {
+  		"app": "test-pr2",
+  		"workflow": "wf3"
+  	},
+  	"pipelines": [
+  		{
+  			"build": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-build"
+  				},
+  				"buildMaterials": [{
+  					"source": {
+  						"value": "master",
+  						"type": "BranchFixed"
+  					},
+  					"gitMaterialUrl": "https://github.com/vikram1601/getting-started-nodejs.git"
+  				}
+  				],
+  				"trigger": "manual",
+  				"dockerArguments": {
+  					"key1": "value1",
+  					"key2": "value2"
+  				},
+  				"preBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					]
+  				},
+				"postBuild": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 3",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 4",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					]
+  				}
+  			}
+  		},
+  		{
+  			"deployment": {
+  				"apiVersion": "github.com/devtron-labs/v1",
+  				"operation": "create",
+  				"destination": {
+  					"pipeline": "test-c-deploy",
+  					"environment": "amit-env"
+  				},
+  				"strategy": {
+  					"recreate":{},
+  					"blueGreen":{
+  						"autoPromotionSeconds": 30,
+		                "scaleDownDelaySeconds": 30,
+		                "previewReplicaCount": 1,
+		                "autoPromotionEnabled": false
+  					},
+  					"default": "RECREATE"
+  				},
+  				"trigger": "manual",
+  				"previousPipeline": {
+  					"build": {
+  						"destination": {
+  							"pipeline": "test-c-build"
+  						}
+  					}
+  				},
+
+  				"preDeployment": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 1",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out"
+  						},
+  						{
+  							"name": "test 2",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2"
+  						}
+  					],
+  					"configMaps":["random-cm"]
+  				},
+				"postDeployment": {
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"trigger": "automatic",
+  					"stages": [
+  						{
+  							"name": "test 3",
+  							"script": "echo \"hello\" > out",
+  							"outputLocation": "./out",
+  							"position": 1
+  						},
+  						{
+  							"name": "test 4",
+  							"script": "echo \"hello2\" > out2",
+  							"outputLocation": "./out2",
+  							"position": 2
+  						}
+  					],
+  					"configMaps":["random-cm"],
+  					"secrets": ["random-cs"]
+  				},
+  				"configMaps": [{
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"operation": "create",
+  					"type": "volume",
+  					"mountPath": "/app/values.txt",
+  					"destination": {
+  						"configMap": "random-cm"
+  					},
+  					"data": {
+  						"key1": "value1",
+  						"key2": "value2"
+  					}
+  				}],
+  				"secrets": [{
+  					"apiVersion": "github.com/devtron-labs/v1",
+  					"operation": "create",
+  					"type": "environment",
+  					"destination": {
+  						"secret": "random-cs"
+  					},
+  					"data": {
+  						"key1": "value1",
+  						"key2": "value2"
+  					}
+  				}]
+  			}
+  		}
+  	]
+  }
+}

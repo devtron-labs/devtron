@@ -1,0 +1,107 @@
+# Default values for myapp.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+MinReadySeconds: 60
+MaxSurge: 1
+MaxUnavailable: 0
+GracePeriod: 30
+ContainerPort:
+  - name: wms-coms
+    port: 9010
+    servicePort: 80
+
+productionSlot: green 
+Spec:
+ Affinity: 
+  key: 
+#  Key: kops.k8s.io/instancegroup 
+  Values: nodes
+
+
+image:
+  pullPolicy: IfNotPresent
+
+autoscaling:
+  enabled: false
+  MinReplicas: 1
+  MaxReplicas: 3 
+  TargetCPUUtilizationPercentage: 60
+  TargetMemoryUtilizationPercentage: 60
+
+service:
+  type: ClusterIP
+
+server:
+ deployment:
+   - slot: green
+     image_tag: IMAGE_TAG
+     image: IMAGE_REPO
+     enabled: false
+
+   - slot: blue
+     image_tag: IMAGE_TAG
+     image: IMAGE_REPO
+     enabled: false 
+
+EnvVariables: []
+#  - name: FLASK_ENV
+#    value: qa
+
+LivenessProbe:
+  Path:
+  port: 5000
+
+ReadinessProbe:
+  Path:
+  port: 5000
+
+prometheus:
+  release: monitoring
+
+ingress:
+  enabled: false
+  annotations: {}
+#     kubernetes.io/ingress.class: nginx
+#     kubernetes.io/tls-acme: "true"
+#    nginx.ingress.kubernetes.io/canary: "true"
+#    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  path: /
+  host: 
+  stagehost: 
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+   limits:
+    cpu: 1
+    memory: 200Mi
+   requests:
+    cpu: 0.10
+    memory: 100Mi
+
+volumeMounts: [] 
+#     - name: log-volume
+#       mountPath: /var/log
+
+volumes: []
+#     - name: log-volume
+#       emptyDir: {}
+
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+#used for deployment algo selection
+orchestrator.deploymant.algo: 1

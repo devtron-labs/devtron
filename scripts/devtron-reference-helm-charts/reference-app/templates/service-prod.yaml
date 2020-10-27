@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template ".Chart.Name .fullname" . }}-service-prod
+  labels:
+    app: {{ template ".Chart.Name .name" . }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    {{- range .Values.ContainerPort }}
+      {{- if .servicePort }}
+    - port: {{ .servicePort }}
+      {{- else }}
+    - port: {{ .port }}
+       {{- end }}
+      targetPort: {{ .name }}
+      protocol: TCP
+      name: {{ .name }}
+    {{- end }}
+  selector:
+    app: {{ template ".Chart.Name .name" . }}
+    release: {{ .Release.Name }}
+    slot: {{ .Values.productionSlot }}

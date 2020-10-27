@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+
+patchesStrategicMerge:
+- overlays/argocd-repo-server-deployment.yaml
+- overlays/argocd-server-deployment.yaml
+- overlays/argocd-application-controller-deployment.yaml
+
+bases:
+- ../../base/application-controller
+- ../../base/dex
+- ../../base/repo-server
+- ../../base/server
+- ../../base/config
+- ./redis-ha
+
+images:
+- name: argoproj/argocd
+  newName: argoproj/argocd
+  newTag: v1.2.3
+- name: argoproj/argocd-ui
+  newName: argoproj/argocd-ui
+  newTag: v1.2.3
