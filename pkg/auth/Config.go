@@ -17,14 +17,11 @@
 
 package auth
 
-import "github.com/caarlos0/env"
-
 type Config struct {
-	AuthEnabled bool `env:"AUTH_ENABLED" envDefault:"true"`
+	AuthEnabled bool
 }
 
-func GetConfig() (*Config, error) {
-	cfg := &Config{}
-	err := env.Parse(cfg)
-	return cfg, err
+func GetConfig() *Config {
+	cfg := &Config{AuthEnabled: true}
+	return cfg
 }

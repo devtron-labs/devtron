@@ -133,7 +133,7 @@ type GitSensorClient interface {
 //----------------------impl
 type GitSensorConfig struct {
 	Url     string `env:"GIT_SENSOR_URL" envDefault:"http://localhost:9999"`
-	Timeout int    `env:"ACD_TIMEOUT" envDefault:"0"` // in seconds
+	Timeout int    `env:"GIT_SENSOR_TIMEOUT" envDefault:"0"` // in seconds
 }
 
 type GitSensorClientImpl struct {

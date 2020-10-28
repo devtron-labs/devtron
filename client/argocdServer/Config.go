@@ -25,7 +25,6 @@ type Config struct {
 	Host        string `env:"CD_HOST" envDefault:"localhost"`
 	Port        string `env:"CD_PORT" envDefault:"8000"`
 	Namespace   string `env:"CD_NAMESPACE" envDefault:"devtroncd"`
-	Environment string `env:"CD_ENVIRONMENT" envDefault:"DEV"` //TODO: make this config global
 }
 
 func GetConfig() (*Config, error) {

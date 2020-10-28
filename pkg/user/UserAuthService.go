@@ -19,12 +19,6 @@ package user
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/api/bean"
-	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
-	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/auth"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -33,6 +27,12 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/casbin/casbin"
 	"github.com/coreos/go-oidc"
+	"github.com/devtron-labs/devtron/api/bean"
+	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
+	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
@@ -356,10 +356,8 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 			//users = append(users, "anonymous")
 			authEnabled := true
 			pass := false
-			config, err := auth.GetConfig()
-			if err == nil {
-				authEnabled = config.AuthEnabled
-			}
+			config := auth.GetConfig()
+			authEnabled = config.AuthEnabled
 			if len(token) != 0 && authEnabled && !contains(r.URL.Path) {
 				_, err := sessionManager.VerifyToken(token)
 				if err != nil {
