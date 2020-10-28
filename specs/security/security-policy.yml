@@ -1,0 +1,243 @@
+openapi: '3.0.2'
+info:
+  title: API Title
+  version: '1.0'
+servers:
+  - url: http://localhost:3000/orchestrator
+paths:
+  /security/cve/control/list:
+    get:
+      description: Fetch current security policy for global, cluster, environment and application level.
+      operationId: FetchPolicy
+      parameters:
+        - name: level
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceLevel'
+        - name: id
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        'default':
+          description: Error or security policy for global, cluster, environment and application.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetVulnerabilityPolicyResponse'
+    delete:
+      description: Delete policy
+      operationId: DeletePolicy
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        'default':
+          description: Deleted response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteVulnerabilityPolicyResponse'
+    post:
+      description: Update policy
+      operationId: UpdatePolicy
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: action
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - block
+              - allow
+      responses:
+        'default':
+          description: Update response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateVulnerabilityPolicyResponse'
+    put:
+      description: create policy
+      operationId: CreatePolicy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVulnerabilityPolicyRequest'
+      responses:
+        'default':
+          description: Create response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateVulnerabilityPolicyResponse'
+components:
+  schemas:
+    Error:
+      description: Error object
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+    PolicyLevel:
+      description: Policy Level can be one of global, cluster, environment, application
+      type: string
+      enum:
+        - Global
+        - Gluster
+        - Environment
+        - Application
+    VulnerabilityAction:
+      description: actions which can be taken on vulnerabilities
+      type: string
+      enum:
+        - block
+        - allow
+    VulnerabilityPermission:
+      description: Whether vulnerability is allowed or blocked and is it inherited or is it overriden
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          $ref: '#/components/schemas/VulnerabilityAction'
+        inherited:
+          type: boolean
+        isOverriden:
+          type: boolean
+    SeverityPolicy:
+      description: Severity related information
+      type: object
+      required:
+        - severity
+        - policyOrigin
+        - policy
+        - id
+      properties:
+        id:
+          type: integer
+        severity:
+          type: string
+          enum:
+            - high
+            - medium
+            - low
+        policyOrigin:
+          type: string
+        policy:
+          $ref: '#/components/schemas/VulnerabilityPermission'
+    CvePolicy:
+      description: CVE related information
+      allOf:
+        - $ref: '#/components/schemas/SeverityPolicy'
+        - type: object
+          properties:
+            name:
+              description: In case of CVE policy this is same as cve name else it is blank
+              type: string
+    VulnerabilityPolicy:
+      type: object
+      required:
+        - severities
+        - cves
+      properties:
+        name:
+          type: string
+          description: Is name of cluster or environment or application/environment
+        envId:
+          type: integer
+          description: environment id in case of application
+        severities:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeverityPolicy'
+        cves:
+          type: array
+          items:
+            $ref: '#/components/schemas/CvePolicy'
+    GetVulnerabilityPolicyResult:
+      type: object
+      required:
+        - level
+        - policies
+      properties:
+        level:
+          $ref: '#/components/schemas/ResourceLevel'
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/VulnerabilityPolicy'
+    GetVulnerabilityPolicyResponse:
+      description: Only one of result or error will be present
+      type: object
+      properties:
+        result:
+          $ref: '#/components/schemas/GetVulnerabilityPolicyResult'
+        error:
+          $ref: '#/components/schemas/Error'
+    IdVulnerabilityPolicyResult:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+    DeleteVulnerabilityPolicyResponse:
+      description: Only one of result or error will be present
+      type: object
+      properties:
+        result:
+          $ref: '#/components/schemas/IdVulnerabilityPolicyResult'
+        error:
+          $ref: '#/components/schemas/Error'
+    UpdateVulnerabilityPolicyResponse:
+      description: Only one of result or error will be present
+      type: object
+      properties:
+        result:
+          $ref: '#/components/schemas/IdVulnerabilityPolicyResult'
+        error:
+          $ref: '#/components/schemas/Error'
+    CreateVulnerabilityPolicyResponse:
+      description: Only one of result or error will be present
+      type: object
+      properties:
+        result:
+          $ref: '#/components/schemas/IdVulnerabilityPolicyResult'
+        error:
+          $ref: '#/components/schemas/Error'
+    CreateVulnerabilityPolicyRequest:
+      description: Request object for vulnerability policy. For global policy dont set clusterId, envId and appId. For cluster set clusterId, for environment set envId, for app set appId and envId. Only one of severity or cve should be set.
+      type: object
+      properties:
+        clusterId:
+          type: integer
+        envId:
+          type: integer
+        appId:
+          type: integer
+        severity:
+          type: string
+        cveId:
+          type: string
+        action:
+          $ref: '#/components/schemas/VulnerabilityAction'

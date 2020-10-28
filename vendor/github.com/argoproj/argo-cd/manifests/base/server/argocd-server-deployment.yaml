@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: server
+  name: argocd-server
+spec:
+  selector:
+   matchLabels:
+    app.kubernetes.io/name: argocd-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-server
+    spec:
+      serviceAccountName: argocd-server
+      containers:
+      - name: argocd-server
+        image: argoproj/argocd:latest
+        imagePullPolicy: Always
+        command: [argocd-server, --staticassets, /shared/app]
+        volumeMounts:
+        - name: ssh-known-hosts
+          mountPath: /app/config/ssh
+        - name: tls-certs
+          mountPath: /app/config/tls
+        ports:
+        - containerPort: 8080
+        - containerPort: 8083
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 30
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 30
+      volumes:
+      - emptyDir: {}
+        name: static-files
+      - name: ssh-known-hosts
+        configMap:
+          name: argocd-ssh-known-hosts-cm
+      - name: tls-certs
+        configMap:
+          name: argocd-tls-certs-cm

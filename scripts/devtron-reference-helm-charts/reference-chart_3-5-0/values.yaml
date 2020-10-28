@@ -1,0 +1,224 @@
+# Default values for myapp.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+MinReadySeconds: 5
+MaxSurge: 1
+MaxUnavailable: 0
+GracePeriod: 30
+ContainerPort:
+  - name: app
+    port: 8080
+    servicePort: 80
+
+pauseForSecondsBeforeSwitchActive: 30
+waitForSecondsBeforeScalingDown: 30
+autoPromotionSeconds: 30
+
+Spec:
+ Affinity:
+  Key:
+#  Key: kops.k8s.io/instancegroup 
+  Values:
+
+
+image:
+  pullPolicy: IfNotPresent
+
+autoscaling:
+  enabled: true 
+  MinReplicas: 1
+  MaxReplicas: 2
+  TargetCPUUtilizationPercentage: 90
+  TargetMemoryUtilizationPercentage: 80
+
+secret:
+  enabled: false
+
+service:
+  type: ClusterIP
+#  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
+  annotations: {}
+    # test1: test2
+    # test3: test4
+
+server:
+ deployment:
+   image_tag: 1-95af053
+   image: ""
+
+
+EnvVariables:
+  - name: FLASK_ENV
+    value: qa
+
+LivenessProbe:
+  Path: /
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+ReadinessProbe:
+  Path: /
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+prometheus:
+  release: monitoring
+
+servicemonitor:
+  enabled: false
+
+ingress:
+  enabled: false
+  annotations: {}
+#    nginx.ingress.kubernetes.io/rewrite-target: /
+#    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+#    kubernetes.io/ingress.class: nginx
+#    kubernetes.io/tls-acme: "true"
+#    nginx.ingress.kubernetes.io/canary: "true"
+#    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  path: '/path(/|$)(.*)'
+  host: ""
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+ingressInternal:
+  enabled: false
+  annotations: {}
+ #    kubernetes.io/ingress.class: nginx
+ #    kubernetes.io/tls-acme: "true"
+ #    nginx.ingress.kubernetes.io/canary: "true"
+ #    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  path: ""
+  host: ""
+  tls: []
+ #  - secretName: chart-example-tls
+ #    hosts:
+ #      - chart-example.local
+
+dbMigrationConfig:
+  enabled: false
+
+command:
+ enabled: false
+ value: []
+
+args:
+ enabled: false
+ value: []
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+   limits:
+    cpu: 1
+    memory: 200Mi
+   requests:
+    cpu: 0.10
+    memory: 100Mi
+
+volumeMounts: []
+#     - name: log-volume
+#       mountPath: /var/log
+
+volumes: []
+#     - name: log-volume
+#       emptyDir: {}
+
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+#used for deployment algo selection
+orchestrator.deploymant.algo: 1
+
+ConfigMaps:
+ enabled: false
+ maps: []
+#  - name: config-map-1
+#    type: environment
+#    external: false
+#    data:
+#     key1: key1value-1
+#     key2: key2value-1
+#     key3: key3value-1
+#  - name: config-map-2
+#    type: volume
+#    external: false
+#    mountPath: /etc/config/2
+#    data:
+#     key1: |
+#      club : manchester utd
+#      nation : england
+#     key2: abc-2
+#     key3: abc-2
+#  - name: config-map-3
+#    type: environment
+#    external: true
+#    mountPath: /etc/config/3
+#    data: []
+#  - name: config-map-4
+#    type: volume
+#    external: true
+#    mountPath: /etc/config/4
+#    data: []
+
+
+ConfigSecrets:
+ enabled: false
+ secrets: []
+#  - name: config-secret-1
+#    type: environment
+#    external: false
+#    data:
+#     key1: key1value-1
+#     key2: key2value-1
+#     key3: key3value-1
+#  - name: config-secret-2
+#    type: volume
+#    external: false
+#    mountPath: /etc/config/2
+#    data:
+#     key1: |
+#      club : manchester utd
+#      nation : england
+#     key2: abc-2
+
+
+initContainers: []
+  ## Additional init containers to run before the Scheduler pods.
+  ## for example, be used to run a sidecar that chown Logs storage .
+  #- name: volume-mount-hack
+  #  image: busybox
+  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #  volumeMounts:
+  #    - mountPath: /usr/local/airflow/logs
+  #      name: logs-data
+
+containers: []
+  ## Additional init containers to run before the Scheduler pods.
+  ## for example, be used to run a sidecar that chown Logs storage .
+  #- name: volume-mount-hack
+  #  image: busybox
+  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #  volumeMounts:
+  #    - mountPath: /usr/local/airflow/logs
+  #      name: logs-data

@@ -1,0 +1,74 @@
+openapi: '3.0.2'
+info:
+  title: API Title
+  version: '1.0'
+servers:
+  - url: https://api.server.test/v1
+paths:
+  /security/scan/executionDetail:
+    get:
+      summary: fetch image scan execution result, by multiple ways for different use case
+      description: params are option but at least one is required
+      operationId: executionDetail
+      parameters:
+        - name: scanExecutionId
+          in: query
+          description: scan execution history id, optional for fetch.
+          required: false
+          schema:
+            type: integer
+        - name: artifactId
+          in: query
+          description: ci artifact id, to fetch scan result for image, option for fetch.
+          required: false
+          schema:
+            type: integer
+        - name: image
+          in: query
+          description: to fetch scan result for image, option for fetch.
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageScanResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Error:
+      description: Error object
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+    ImageScanRequest:
+      description: Resource Level can be one of global, cluster, environment, application
+      type: string
+      enum:
+        - global
+        - cluster
+        - environment
+        - application
+    ImageScanResponse:
+      description: Whether CVE is allowed or not
+      type: string
+      enum:
+        - BLOCK
+        - ALLOW

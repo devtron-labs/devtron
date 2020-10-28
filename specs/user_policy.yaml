@@ -1,0 +1,205 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Swagger Petstore
+  description: A sample API that uses a petstore as an example to demonstrate features in the OpenAPI 3.0 specification
+  termsOfService: http://swagger.io/terms/
+  contact:
+    name: Swagger API Team
+    email: apiteam@swagger.io
+    url: http://swagger.io
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://petstore.swagger.io/api
+paths:
+  /user:
+    get:
+      summary: Returns all users
+      description: all the template users
+      operationId: findAllUsers
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/User'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Creates a new User
+      description: create user api, with multiple environment in one row of policy, plus chart group additional type of policy.
+      operationId: addUser
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: create user response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: update a new pet
+      description: Creates a new pet in the store. Duplicates are allowed
+      operationId: updateUser
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: user response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/email:
+    get:
+      summary: search a user list by name
+      description: search user detail by name
+      operationId: findUserByEmail
+      parameters:
+        - name: email-id
+          in: query
+          description: ID of pet to delete
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/{id}:
+    get:
+      summary: Returns user detail with role filter
+      description: all the template group policies
+      operationId: findUserById
+      parameters:
+        - name: id
+          in: path
+          description: ID of user id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: user detail response
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/User'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - email_id
+      properties:
+        id:
+          type: integer
+          description: Unique id of user
+        email_id:
+          type: string
+          description: Unique valid email-id of user
+        groups:
+          type: array
+          items:
+            type: string
+        roleFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/roleFilter'
+          description: role filters objects
+
+
+    roleFilter:
+      type: object
+      required:
+        - action
+      properties:
+        entity:
+          type: string
+          description: global entity name, i.e chart-group, git, docker, cluster etc. if this key is present than field team, application and environment are ignored.
+          enum:
+            - chart-group
+            - docker
+            - git
+            - cluster
+            - notification
+        team:
+          type: string
+          description: team name
+        entityName:
+          type: string
+          description: global entity name item name, i.e chart-group ("abc"), git("devtron-gt") etc.
+        environment:
+          type: string
+          description: comma saperated environments names.
+        action:
+          type: string
+          description: action is type of role, i.e manager, admin, trigger, view, etc.
+
+
+
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message

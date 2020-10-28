@@ -1,0 +1,541 @@
+components:
+  schemas:
+    buildMaterial:
+      type: object
+      required:
+        - source
+        - gitMaterialUrl
+      properties:
+        source:
+          type: object
+          required:
+            - type
+            - value
+          properties:
+            type:
+              type: string
+            value:
+              type: string
+              enum:
+                - BranchFixed
+                - BranchRegex
+                - TagAny
+                - TagRegex
+        gitMaterialUrl:
+          type: string
+    dockerConfig:
+      type: object
+      required:
+        - dockerFilePath
+        - dockerFileRepository
+        - dockerFileRelativePath
+        - gitMaterial
+        - args
+      properties:
+        dockerFilePath:
+          type: string
+        dockerFileRepository:
+          type: string
+        dockerFileRelativePath:
+          type: string
+        gitMaterial:
+          type: string
+        args:
+          type: object
+    app:
+      description: Application configuration
+      type: object
+      required:
+        - apiVersion
+        - operation
+        - team
+        - repo
+        - dockerConfig
+        - dockerRegistry
+        - dockerRepo
+        - configMaps
+        - secrets
+      properties:
+        apiVersion:
+          description: API version of this configuration
+          type: string
+        source:
+          description: Optionally mention the source from where to clone, in case operation is clone and source is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        destination:
+          description: Optionally mention the destination, in case operation is clone/update/delete and destination is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        operation:
+          description: Action to be taken on this component. This is used along with source and destination of pipeline.
+          $ref: '#/components/schemas/operation'
+        workflow:
+          type: array
+          description: Workflow for app
+          items:
+            $ref: '#/components/schemas/workflow'
+        team:
+          type: string
+        repo:
+          type: array
+          items:
+            $ref: '#/components/schemas/repo'
+        dockerRegistry:
+          type: string
+        dockerRepo:
+          type: string
+        dockerConfig:
+          $ref: '#/components/schemas/dockerConfig'
+        configMaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/dataHolder'
+        secrets:
+          type: array
+          items:
+            $ref: '#/components/schemas/dataHolder'
+    workflow:
+      description: Workflow of the application
+      type: object
+      required:
+        - apiVersion
+        - operation
+      properties:
+        apiVersion:
+          description: API version of this configuration
+          type: string
+        source:
+          description: Optionally mention the source from where to clone, in case operation is clone and source is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        destination:
+          description: Optionally mention the destination, in case operation is clone/update/delete and destination is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        operation:
+          description: Action to be taken on this component. This is used along with source and destination of pipeline.
+          $ref: '#/components/schemas/operation'
+        pipelines:
+          type: array
+          description: Entries can be of type build or deployment
+          items:
+            $ref: '#/components/schemas/pipeline'
+    deploymentStrategy:
+      description: Strategy as defined by devtron template, this overrides at environment level
+      type: object
+      required:
+        - default
+      properties:
+        blueGreen:
+          $ref: '#/components/schemas/blueGreenStrategy'
+        canary:
+          $ref: '#/components/schemas/canaryStrategy'
+        rolling:
+          $ref: '#/components/schemas/rollingStrategy'
+        recreate:
+          $ref: '#/components/schemas/recreateStrategy'
+        default:
+          type: string
+          enum:
+            - BLUE-GREEN
+            - ROLLING
+            - CANARY
+            - RECREATE
+    inheritedProps:
+      type: object
+      required:
+        - operation
+      properties:
+        source:
+          $ref: '#/components/schemas/resourcePath'
+        destination:
+          $ref: '#/components/schemas/resourcePath'
+        operation:
+          $ref: '#/components/schemas/operation'
+    blueGreenStrategy:
+      type: object
+      required:
+        - autoPromotionSeconds
+        - scaleDownDelaySeconds
+        - previewReplicaCount
+        - autoPromotionEnabled
+      properties:
+        autoPromotionSeconds:
+          type: integer
+          format: int32
+        scaleDownDelaySeconds:
+          type: integer
+          format: int32
+        previewReplicaCount:
+          type: integer
+          format: int32
+        autoPromotionEnabled:
+          type: boolean
+    canaryStrategy:
+      type: object
+      required:
+        - maxSurge
+        - maxUnavailable
+        - steps
+      properties:
+        maxSurge:
+          type: string
+        maxUnavailable:
+          type: integer
+          format: int32
+        steps:
+          type: array
+          items:
+            setWeight:
+              type: integer
+              format: int32
+            pause:
+              type: object
+              properties:
+                duration:
+                  type: integer
+                  format: int32
+    recreateStrategy:
+      type: object
+    rollingStrategy:
+      type: object
+      required:
+        - maxSurge
+        - maxUnavailable
+      properties:
+        maxSurge:
+          type: string
+        maxUnavailable:
+          type: integer
+          format: int32
+    pipeline:
+      type: object
+      properties:
+        build:
+          $ref: '#/components/schemas/build'
+        deployment:
+          $ref: '#/components/schemas/deployment'
+    operation:
+      type: string
+      description: Action to be taken on the component
+      enum:
+        - create
+        - delete
+        - update
+        - append
+        - clone
+    trigger:
+      type: string
+      description: How will this action be initiated
+      enum:
+        - manual
+        - automatic
+    resourcePath:
+      description: Unique identification of resource
+      type: object
+      properties:
+        app:
+          type: string
+        workflow:
+          type: string
+        pipeline:
+          type: string
+        configMap:
+          type: string
+        secret:
+          type: string
+        environment:
+          type: string
+        uid:
+          type: string
+    repo:
+      description: git repo to use in this build
+      type: object
+      properties:
+        url:
+          description: git url
+          type: string
+        branch:
+          description: branch to build
+          type: string
+        path:
+          description: path to checkout
+          type: string
+    stage:
+      type: object
+      required:
+        - operation
+        - name
+      properties:
+        operation:
+          $ref: '#/components/schemas/operation'
+        name:
+          type: string
+        position:
+          type: integer
+          format: int32
+        script:
+          type: string
+        outputLocation:
+          type: string
+    task:
+      type: object
+      required:
+        - apiVersion
+        - operation
+        - stages
+        - configMaps
+        - secrets
+      properties:
+        apiVersion:
+          description: API version of this configuration
+          type: string
+        source:
+          description: Optionally mention the source from where to clone, in case operation is clone and source is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        destination:
+          description: Optionally mention the destination, in case operation is clone/update/delete and destination is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        operation:
+          description: Action to be taken on this component. This is used along with source and destination of pipeline.
+          $ref: '#/components/schemas/operation'
+        stages:
+          description: Different stages in this step
+          type: array
+          items:
+            $ref: '#/components/schemas/stage'
+        trigger:
+          $ref: '#/components/schemas/trigger'
+        configMaps:
+          type: array
+          items:
+            type: string
+        secrets:
+          type: array
+          items:
+            type: string
+    dataHolder:
+      type: object
+      required:
+        - operation
+        - data
+        - apiVersion
+        - type
+        - global
+        - externalType
+        - mountPath
+        - external
+      properties:
+        apiVersion:
+          description: API version of this configuration
+          type: string
+        operation:
+          description: Action to be taken on this component. This is used along with source and destination of pipeline. In case operation is delete then only source or destination can be present. If source is present then its skipping in cloning, if destination is present then it is deleted from database.
+          $ref: '#/components/schemas/operation'
+        type:
+          type: string
+        external:
+          type: boolean
+        mountPath:
+          type: string
+        global:
+          type: boolean
+        externalType:
+          type: string
+        source:
+          description: Optionally mention the source from where to clone, in case operation is clone and source is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        destination:
+          description: Optionally mention the destination, in case operation is clone/update/delete and destination is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        data:
+          description: If operation is clone, leaving value empty results in deletion of key in destination.
+          type: object
+    preBuild:
+      $ref: '#/components/schemas/task'
+    postBuild:
+      $ref: '#/components/schemas/task'
+    build:
+      type: object
+      required:
+        - apiVersion
+        - operation
+        - dockerArguments
+        - repo
+        - trigger
+        - buildMaterials
+      properties:
+        apiVersion:
+          description: API version of this configuration
+          type: string
+        source:
+          description: Optionally mention the source from where to clone, in case operation is clone and source is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        destination:
+          description: Optionally mention the destination, in case operation is clone/update/delete and destination is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        repo:
+          type: array
+          items:
+            $ref: '#/components/schemas/repo'
+        operation:
+          description: Action to be taken on this component. This is used along with source and destination of pipeline.
+          $ref: '#/components/schemas/operation'
+        dockerArguments:
+          type: object
+        trigger:
+          $ref: '#/components/schemas/trigger'
+        preBuild:
+          $ref: '#/components/schemas/task'
+        postBuild:
+          $ref: '#/components/schemas/task'
+        nextPipeline:
+          description: This can be either of type build or deployment
+          $ref: '#/components/schemas/pipeline'
+        webHookUrl:
+          type: string
+        payload:
+          type: string
+        accessKey:
+          type: string
+        buildMaterials:
+          type: array
+          items:
+            $ref: '#/components/schemas/buildMaterial'
+    preDeployment:
+      $ref: '#/components/schemas/task'
+    postDeployment:
+      $ref: '#/components/schemas/task'
+    deployment:
+      type: object
+      required:
+        - apiVersion
+        - operation
+        - configMaps
+        - secrets
+        - strategy
+        - runPostStageInEnv
+        - runPreStageInEnv
+      properties:
+        apiVersion:
+          description: API version of this configuration
+          type: string
+        source:
+          description: Optionally mention the source from where to clone, in case operation is clone and source is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        destination:
+          description: Optionally mention the destination, in case operation is clone/update/delete and destination is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        operation:
+          description: Action to be taken on this component. This is used along with source and destination of pipeline.
+          $ref: '#/components/schemas/operation'
+        trigger:
+          $ref: '#/components/schemas/trigger'
+        template:
+          description: Deployment template as defined by devtron template, these are applied at environment level
+          $ref: '#/components/schemas/deploymentTemplate'
+        strategy:
+          $ref: '#/components/schemas/deploymentStrategy'
+        configMaps:
+          description: These are applied for environment
+          type: array
+          items:
+            $ref: '#/components/schemas/dataHolder'
+        secrets:
+          description: These are applied for environment
+          type: array
+          items:
+            $ref: '#/components/schemas/dataHolder'
+        postDeployment:
+          $ref: '#/components/schemas/task'
+        preDeployment:
+          $ref: '#/components/schemas/task'
+        previousPipeline:
+          description: This can be either of type build or deployment
+          $ref: '#/components/schemas/pipeline'
+        nextPipeline:
+          description: This can be either of type build or deployment
+          $ref: '#/components/schemas/pipeline'
+        runPostStageInEnv:
+          type: boolean
+        runPreStageInEnv:
+          type: boolean
+    pipelineRequest:
+      type: object
+      required:
+        - apiVersion
+        - pipelines
+      properties:
+        apiVersion:
+          description: API version of this configuration
+          type: string
+        pipelines:
+          type: array
+          description: Entries can be of type build or deployment
+          items:
+            $ref: '#/components/schemas/pipeline'
+    configMaps:
+      $ref: '#/components/schemas/dataHolder'
+    secrets:
+      $ref: '#/components/schemas/dataHolder'
+    deploymentTemplate:
+      type: object
+      required:
+        - apiVersion
+        - operation
+        - refChartTemplate
+        - refChartTemplateVersion
+        - chartRefId
+        - isAppMetricsEnabled
+        - valuesOverride
+        - defaultAppOverride
+      properties:
+        apiVersion:
+          description: API version of this configuration
+          type: string
+        source:
+          description: Optionally mention the source from where to clone, in case operation is clone and source is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        destination:
+          description: Optionally mention the destination, in case operation is clone/update/delete and destination is missing it is inherited from parent pipeline.
+          $ref: '#/components/schemas/resourcePath'
+        operation:
+          description: Action to be taken on this component. This is used along with source and destination of pipeline.
+          $ref: '#/components/schemas/operation'
+        refChartTemplate:
+          type: string
+        refChartTemplateVersion:
+          type: string
+        chartRefId:
+          type: integer
+          format: int32
+        isAppMetricsEnabled:
+          type: boolean
+        defaultAppOverride:
+          type: object
+        valuesOverride:
+          type: object
+
+
+paths:
+  /batch/pipeline:
+    post:
+      requestBody:
+        description: payload to generate temporary token for this user
+        content:
+          'application/json':
+            schema:
+              pipelineRequest:
+                $ref: '#/components/schemas/pipelineRequest'
+      responses:
+        '200':
+          description: token generated successfully
+          result:
+            type: object
+            properites:
+              success:
+                type: string
+  /batch/workflow:
+    get:
+
+    post:
+
+
+

@@ -1,0 +1,106 @@
+{{- range  $deploymentname := .Values.server.deployment }}
+  {{if $deploymentname.enabled }}
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: {{ include ".Chart.Name .fullname" $ }}-{{ $deploymentname.slot }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}-{{ $deploymentname.slot }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+spec:
+#  selector:
+#    matchLabels:
+#      app: {{ template ".Chart.Name .name" $ }}-{{ $deploymentname.slot }}
+  replicas: {{ $.Values.replicaCount }}
+  minReadySeconds: {{ $.Values.MinReadySeconds }}
+  strategy:
+   rollingUpdate:
+    maxSurge: {{ $.Values.MaxSurge  }}
+    maxUnavailable: {{ $.Values.MaxUnavailable }}
+  template:
+    metadata:
+      labels:
+        app: {{ template ".Chart.Name .name" $ }}
+        release: {{ $.Release.Name }}
+        slot: {{ $deploymentname.slot }}
+    spec:
+      terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
+      restartPolicy: Always
+{{- if $.Values.Spec.Affinity.Key }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ $.Values.Spec.Affinity.Key  }}
+                operator: In
+                values:
+                - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
+{{- end }}
+      containers:
+        - name: {{ $.Chart.Name }}-{{ $deploymentname.slot }}
+          image: "{{ $deploymentname.image }}:{{ $deploymentname.image_tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+          {{- range $.Values.ContainerPort }}
+            - name: {{ .name}}
+              containerPort: {{ .port  }}
+              protocol: TCP
+          {{- end}}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          {{- range $.Values.EnvVariables }}
+            - name: {{ .name}}
+              value: {{ .value }}
+          {{- end}}
+{{- if $.Values.LivenessProbe.Path }}
+          livenessProbe:
+            httpGet:
+              path: {{ $.Values.LivenessProbe.Path  }}
+              port: {{ $.Values.LivenessProbe.port }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            failureThreshold: 3
+{{- end }}
+{{- if $.Values.ReadinessProbe.Path }}
+          readinessProbe:
+            httpGet:
+              path: {{ $.Values.ReadinessProbe.Path  }}
+              port: {{ $.Values.ReadinessProbe.port }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            failureThreshold: 3
+{{- end }}
+          resources:
+{{ toYaml $.Values.resources | indent 12 }}
+        {{- with $.Values.volumeMounts }}
+          volumeMounts:
+{{ toYaml . | indent 10 }}
+    {{- end }}
+    {{- with $.Values.volumes }}
+      volumes:
+{{ toYaml . | indent 10 }}
+    {{- end }}
+{{/*    {{- with $.Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{ end }}
+    {{- with $.Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with $.Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }} */}}
+---
+   {{- end }}
+{{- end }}
