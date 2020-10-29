@@ -102,8 +102,13 @@ type DexConfig struct {
 	JwtExpirationTime    int    `env:"JwtExpirationTime" envDefault:"120"`
 }
 
+type WebhookToken struct {
+	WebhookToken string `env:"WEBHOOK_TOKEN" envDefault:""`
+}
+
 func NewUserAuthServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
-	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository) *UserAuthServiceImpl {
+	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
+	) *UserAuthServiceImpl {
 	serviceImpl := &UserAuthServiceImpl{
 		userAuthRepository: userAuthRepository,
 		sessionManager:     sessionManager,
@@ -117,6 +122,12 @@ func NewUserAuthServiceImpl(userAuthRepository repository.UserAuthRepository, se
 
 func GetConfig() (*DexConfig, error) {
 	cfg := &DexConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
+func GetWebhookToken() (*WebhookToken, error) {
+	cfg := &WebhookToken{}
 	err := env.Parse(cfg)
 	return cfg, err
 }
@@ -374,7 +385,8 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 			} else if contains(r.URL.Path) {
 				if r.URL.Path == "/app/ci-pipeline/github-webhook/trigger" {
 					apiKey := r.Header.Get("api-key")
-					if apiKey != "a4cb51e05124406fd4ab21e5d20add52" {
+					t, err:=GetWebhookToken()
+					if err!=nil || len(t.WebhookToken)==0|| t.WebhookToken!=apiKey{
 						writeResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, errors.New("unauthenticated"))
 						return
 					}
