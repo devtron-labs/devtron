@@ -19,11 +19,11 @@ package grafana
 
 import (
 	"bytes"
-	"github.com/devtron-labs/devtron/internal/util"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/internal/util"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
@@ -204,7 +204,7 @@ func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDa
 	req.Header.Set("X-Grafana-Org-Id", strconv.Itoa(impl.config.GrafanaOrgId))
 	resp, err := impl.client.Do(req)
 	if err != nil {
-		impl.logger.Errorw("err", err)
+		impl.logger.Errorw("err","err", err)
 		return nil, err
 	}
 	status := StatusCode(resp.StatusCode)
@@ -217,14 +217,13 @@ func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDa
 		}
 		err = json.Unmarshal(resBody, apiRes)
 		if err != nil {
-			impl.logger.Errorw("error in grafana resp unmarshalling ", "err", err)
+			impl.logger.Errorw("error in grafana resp unmarshal ", "err", err)
 			return nil, err
 		}
 	} else {
 		impl.logger.Errorw("api err", "res", string(resBody))
 		return nil, fmt.Errorf("res not success, code: %d ,response body: %s", status, string(resBody))
 	}
-
 	impl.logger.Debugw("grafana resp", "body", apiRes)
 	return apiRes, nil
 }
@@ -329,12 +328,6 @@ func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDa
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	/*dump, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Can't dump HTTP request %s\n", err.Error())
-	} else {
-		fmt.Fprintf(os.Stderr, "----> HTTP REQUEST:\n%s\n", string(dump[:]))
-	}*/
 	resp, err := impl.client.Do(req)
 	if err != nil {
 		impl.logger.Errorw("err", err)

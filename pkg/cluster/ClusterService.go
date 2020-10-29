@@ -18,12 +18,12 @@
 package cluster
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
-	"fmt"
 	"go.uber.org/zap"
 	"net/http"
 	"time"
@@ -336,9 +336,17 @@ func (impl ClusterServiceImpl) Update(bean *ClusterBean, userId int32) (*Cluster
 
 	// TODO: Can be called in goroutines if performance issue
 	for _, env := range envs {
+		if env.GrafanaDatasourceId == 0 {
+			grafanaDatasourceId, _ := impl.createGrafanaDataSource(bean, env)
+			if grafanaDatasourceId == 0 {
+				impl.logger.Errorw("unable to create data source for environment which doesn't exists", "env", env)
+				continue
+			}
+			env.GrafanaDatasourceId = grafanaDatasourceId
+		}
 		promDatasource, err := impl.grafanaClient.GetDatasource(env.GrafanaDatasourceId)
 		if err != nil {
-			impl.logger.Error(err)
+			impl.logger.Errorw("error on getting data source", "err", err)
 			return nil, err
 		}
 
@@ -407,4 +415,53 @@ func (impl ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) {
 		})
 	}
 	return beans, nil
+}
+
+func (impl ClusterServiceImpl) createGrafanaDataSource(clusterBean *ClusterBean, env cluster.Environment) (int, error) {
+	grafanaDatasourceId := env.GrafanaDatasourceId
+	if grafanaDatasourceId == 0 {
+		//starts grafana creation
+		createDatasourceReq := grafana.CreateDatasourceRequest{
+			Name:      "Prometheus-" + env.Name,
+			Type:      "prometheus",
+			Url:       clusterBean.PrometheusUrl,
+			Access:    "proxy",
+			BasicAuth: true,
+		}
+
+		if clusterBean.PrometheusAuth != nil {
+			secureJsonData := &grafana.SecureJsonData{}
+			if len(clusterBean.PrometheusAuth.UserName) > 0 {
+				createDatasourceReq.BasicAuthUser = clusterBean.PrometheusAuth.UserName
+				createDatasourceReq.BasicAuthPassword = clusterBean.PrometheusAuth.Password
+				secureJsonData.BasicAuthPassword = clusterBean.PrometheusAuth.Password
+			}
+			if len(clusterBean.PrometheusAuth.TlsClientCert) > 0 {
+				secureJsonData.TlsClientCert = clusterBean.PrometheusAuth.TlsClientCert
+				secureJsonData.TlsClientKey = clusterBean.PrometheusAuth.TlsClientKey
+
+				jsonData := &grafana.JsonData{
+					HttpMethod: http.MethodGet,
+					TlsAuth:    true,
+				}
+				createDatasourceReq.JsonData = jsonData
+			}
+			createDatasourceReq.SecureJsonData = secureJsonData
+		}
+
+		grafanaResp, err := impl.grafanaClient.CreateDatasource(createDatasourceReq)
+		if err != nil {
+			impl.logger.Errorw("error on create grafana datasource", "err", err)
+			return 0, err
+		}
+		//ends grafana creation
+		grafanaDatasourceId = grafanaResp.Id
+	}
+	env.GrafanaDatasourceId = grafanaDatasourceId
+	err := impl.environmentRepository.Update(&env)
+	if err != nil {
+		impl.logger.Errorw("error in updating environment", "err", err)
+		return 0, err
+	}
+	return grafanaDatasourceId, nil
 }
