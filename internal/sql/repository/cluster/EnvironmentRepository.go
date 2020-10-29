@@ -44,7 +44,7 @@ type EnvironmentRepository interface {
 	FindById(id int) (*Environment, error)
 	Update(mappings *Environment) error
 	FindByName(name string) (*Environment, error)
-	FindByClusterId(clusterId int) ([]Environment, error)
+	FindByClusterId(clusterId int) ([]*Environment, error)
 	FindByIds(ids []*int) ([]*Environment, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*Environment, error)
 }
@@ -138,8 +138,8 @@ func (repositoryImpl EnvironmentRepositoryImpl) Update(mappings *Environment) er
 	return repositoryImpl.dbConnection.Update(mappings)
 }
 
-func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterId(clusterId int) ([]Environment, error) {
-	var mappings []Environment
+func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterId(clusterId int) ([]*Environment, error) {
+	var mappings []*Environment
 	err := repositoryImpl.
 		dbConnection.Model(&mappings).
 		Where("environment.active = ?", true).
