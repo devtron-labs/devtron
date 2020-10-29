@@ -24,7 +24,8 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 </details>
 <details>
 <summary>Application debugging dashboard</summary>
-
+ <br>
+  
 - One place for all historical kubernetes events
 - Access all manifests securely for eg secret obfuscation
 - Auto identify new and old pods
