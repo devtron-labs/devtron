@@ -109,7 +109,7 @@ func (c ServiceClientImpl) Get(ctx context.Context, query *cluster.ClusterQuery)
 }
 
 func (c ServiceClientImpl) Update(ctx context.Context, query *cluster.ClusterUpdateRequest) (*v1alpha1.Cluster, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	client, err := getService(ctx, c.settings)
 	if err != nil {
