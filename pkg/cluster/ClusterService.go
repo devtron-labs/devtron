@@ -70,6 +70,7 @@ type ClusterService interface {
 	Delete(bean *ClusterBean, userId int32) error
 
 	FindAllForAutoComplete() ([]ClusterBean, error)
+	CreateGrafanaDataSource(clusterBean *ClusterBean, env *cluster.Environment) (int, error)
 }
 
 type ClusterServiceImpl struct {
@@ -337,7 +338,7 @@ func (impl ClusterServiceImpl) Update(bean *ClusterBean, userId int32) (*Cluster
 	// TODO: Can be called in goroutines if performance issue
 	for _, env := range envs {
 		if env.GrafanaDatasourceId == 0 {
-			grafanaDatasourceId, _ := impl.createGrafanaDataSource(bean, env)
+			grafanaDatasourceId, _ := impl.CreateGrafanaDataSource(bean, env)
 			if grafanaDatasourceId == 0 {
 				impl.logger.Errorw("unable to create data source for environment which doesn't exists", "env", env)
 				continue
@@ -417,7 +418,7 @@ func (impl ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) {
 	return beans, nil
 }
 
-func (impl ClusterServiceImpl) createGrafanaDataSource(clusterBean *ClusterBean, env cluster.Environment) (int, error) {
+func (impl ClusterServiceImpl) CreateGrafanaDataSource(clusterBean *ClusterBean, env *cluster.Environment) (int, error) {
 	grafanaDatasourceId := env.GrafanaDatasourceId
 	if grafanaDatasourceId == 0 {
 		//starts grafana creation
@@ -458,10 +459,12 @@ func (impl ClusterServiceImpl) createGrafanaDataSource(clusterBean *ClusterBean,
 		grafanaDatasourceId = grafanaResp.Id
 	}
 	env.GrafanaDatasourceId = grafanaDatasourceId
-	err := impl.environmentRepository.Update(&env)
+	err := impl.environmentRepository.Update(env)
 	if err != nil {
 		impl.logger.Errorw("error in updating environment", "err", err)
 		return 0, err
 	}
 	return grafanaDatasourceId, nil
 }
+
+
