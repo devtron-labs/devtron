@@ -79,7 +79,7 @@ func (c ServiceClientImpl) List(ctx context.Context, query *cluster.ClusterQuery
 }
 
 func (c ServiceClientImpl) Create(ctx context.Context, query *cluster.ClusterCreateRequest) (*v1alpha1.Cluster, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	client, err := getService(ctx, c.settings)
 	if err != nil {
@@ -89,7 +89,7 @@ func (c ServiceClientImpl) Create(ctx context.Context, query *cluster.ClusterCre
 }
 
 func (c ServiceClientImpl) CreateFromKubeConfig(ctx context.Context, query *cluster.ClusterCreateRequest) (*v1alpha1.Cluster, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	client, err := getService(ctx, c.settings)
 	if err != nil {
@@ -109,7 +109,7 @@ func (c ServiceClientImpl) Get(ctx context.Context, query *cluster.ClusterQuery)
 }
 
 func (c ServiceClientImpl) Update(ctx context.Context, query *cluster.ClusterUpdateRequest) (*v1alpha1.Cluster, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	client, err := getService(ctx, c.settings)
 	if err != nil {
@@ -119,7 +119,7 @@ func (c ServiceClientImpl) Update(ctx context.Context, query *cluster.ClusterUpd
 }
 
 func (c ServiceClientImpl) Delete(ctx context.Context, query *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	client, err := getService(ctx, c.settings)
 	if err != nil {

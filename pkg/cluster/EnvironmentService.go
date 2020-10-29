@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"net/http"
 	"time"
 )
 
@@ -96,49 +95,12 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		return nil, err
 	}
 
-	//starts grafana creation
-	createDatasourceReq := grafana.CreateDatasourceRequest{
-		Name:      "Prometheus-" + mappings.Environment,
-		Type:      "prometheus",
-		Url:       clusterBean.PrometheusUrl,
-		Access:    "proxy",
-		BasicAuth: true,
-	}
-
-	if clusterBean.PrometheusAuth != nil {
-		secureJsonData := &grafana.SecureJsonData{}
-		if len(clusterBean.PrometheusAuth.UserName) > 0 {
-			createDatasourceReq.BasicAuthUser = clusterBean.PrometheusAuth.UserName
-			createDatasourceReq.BasicAuthPassword = clusterBean.PrometheusAuth.Password
-			secureJsonData.BasicAuthPassword = clusterBean.PrometheusAuth.Password
-		}
-		if len(clusterBean.PrometheusAuth.TlsClientCert) > 0 {
-			secureJsonData.TlsClientCert = clusterBean.PrometheusAuth.TlsClientCert
-			secureJsonData.TlsClientKey = clusterBean.PrometheusAuth.TlsClientKey
-
-			jsonData := &grafana.JsonData{
-				HttpMethod: http.MethodGet,
-				TlsAuth:    true,
-			}
-			createDatasourceReq.JsonData = jsonData
-		}
-		createDatasourceReq.SecureJsonData = secureJsonData
-	}
-
-	grafanaResp, err := impl.grafanaClient.CreateDatasource(createDatasourceReq)
-	if err != nil {
-		impl.logger.Errorw("err", err)
-		return nil, err
-	}
-	//ends grafana creation
-
 	model := &cluster.Environment{
-		Name:                mappings.Environment,
-		ClusterId:           mappings.ClusterId,
-		Active:              mappings.Active,
-		Namespace:           mappings.Namespace,
-		GrafanaDatasourceId: grafanaResp.Id,
-		Default:             mappings.Default,
+		Name:      mappings.Environment,
+		ClusterId: mappings.ClusterId,
+		Active:    mappings.Active,
+		Namespace: mappings.Namespace,
+		Default:   mappings.Default,
 	}
 	model.CreatedBy = userId
 	model.UpdatedBy = userId
@@ -158,6 +120,11 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 			impl.logger.Errorw("error in creating ns", "ns", model.Namespace, "err", err)
 		}
 
+	}
+
+	_, err = impl.clusterService.CreateGrafanaDataSource(clusterBean, model)
+	if err != nil {
+		impl.logger.Errorw("unable to create grafana data source", "env", model)
 	}
 
 	mappings.Id = model.Id
@@ -310,42 +277,10 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 	grafanaDatasourceId := model.GrafanaDatasourceId
 	//grafana datasource create if not exist
 	if grafanaDatasourceId == 0 {
-		//starts grafana creation
-		createDatasourceReq := grafana.CreateDatasourceRequest{
-			Name:      "Prometheus-" + mappings.Environment,
-			Type:      "prometheus",
-			Url:       clusterBean.PrometheusUrl,
-			Access:    "proxy",
-			BasicAuth: true,
-		}
-
-		if clusterBean.PrometheusAuth != nil {
-			secureJsonData := &grafana.SecureJsonData{}
-			if len(clusterBean.PrometheusAuth.UserName) > 0 {
-				createDatasourceReq.BasicAuthUser = clusterBean.PrometheusAuth.UserName
-				createDatasourceReq.BasicAuthPassword = clusterBean.PrometheusAuth.Password
-				secureJsonData.BasicAuthPassword = clusterBean.PrometheusAuth.Password
-			}
-			if len(clusterBean.PrometheusAuth.TlsClientCert) > 0 {
-				secureJsonData.TlsClientCert = clusterBean.PrometheusAuth.TlsClientCert
-				secureJsonData.TlsClientKey = clusterBean.PrometheusAuth.TlsClientKey
-
-				jsonData := &grafana.JsonData{
-					HttpMethod: http.MethodGet,
-					TlsAuth:    true,
-				}
-				createDatasourceReq.JsonData = jsonData
-			}
-			createDatasourceReq.SecureJsonData = secureJsonData
-		}
-
-		grafanaResp, err := impl.grafanaClient.CreateDatasource(createDatasourceReq)
+		grafanaDatasourceId, err = impl.clusterService.CreateGrafanaDataSource(clusterBean, model)
 		if err != nil {
-			impl.logger.Errorw("err", err)
-			return nil, err
+			impl.logger.Errorw("unable to create grafana data source for missing env", "env", model)
 		}
-		//ends grafana creation
-		grafanaDatasourceId = grafanaResp.Id
 	}
 	model.GrafanaDatasourceId = grafanaDatasourceId
 	err = impl.environmentRepository.Update(model)
@@ -392,7 +327,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) validateNamespaces(namespace string, envs []cluster.Environment) error {
+func (impl EnvironmentServiceImpl) validateNamespaces(namespace string, envs []*cluster.Environment) error {
 	if len(envs) >= 1 {
 		if namespace == "" {
 			impl.logger.Errorw("namespace cannot be empty")
