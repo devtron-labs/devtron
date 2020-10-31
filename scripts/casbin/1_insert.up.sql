@@ -15,8 +15,6 @@
  *
  */
 
-CREATE DATABASE casbin;
-
 -- Table Definition
 CREATE TABLE "public"."casbin_rule" (
     "p_type" varchar(100) NOT NULL DEFAULT ''::character varying,
