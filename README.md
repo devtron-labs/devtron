@@ -15,6 +15,9 @@
 
 ## What is Devtron?
 Devtron is an open source **software delivery workflow** for kubernetes written in go.
+<br>
+<br>
+<img src="https://i.postimg.cc/ncQWNV1p/Screenshot-2020-11-02-at-3-42-27-PM.png">
 
 ## Why Devtron?
 It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on kubernetes in a developer friendly way. 
@@ -105,19 +108,19 @@ Devtron can be installed through command
 **TODO**
 
 
-## Discussion
+## Community
 
-Feature requests, bug reports, and enhancements are welcome. Contributors, maintainers, and users are encouraged to collaborate through these communication channels:
+Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
 
- - [Discord](https://discord.gg/72JDKy4) 
- - [Twitter](https://twitter.com/DevtronL)
- - [GitHub issues](https://github.com/devtron-labs/devtron/issues)
+ - Join the [Discord Community](https://discord.gg/72JDKy4) 
+ - Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
+ - Raise feature requests, suggest enhancements, report bugs at [GitHub issues](https://github.com/devtron-labs/devtron/issues)
+ - Read the [Devtron blog](https://devtron.ai/blog/)
 
 
-## Contributing
+## Contribute
 
-We are so excited to have you!
-- See [CONTRIBUTING.md](CONTRIBUTING.md) for an overview of our processes
+Check out our [contributing guidelines](CONTRIBUTING.md). Included are directions for opening issues, coding standards, and notes on our development processes.
 
 ## Vulnerability Reporting
 
@@ -125,5 +128,5 @@ We at Devtron take security and our users' trust very seriously. If you believe 
 
 ## License
 
-devtron is available under the [Apache License, Version 2.0](LICENSE)
+Devtron is available under the [Apache License, Version 2.0](LICENSE)
 
