@@ -24,23 +24,32 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 
 #### Some of the benefits  provided by devtron are: 
-<details>
-<summary>Zero code software delivery workflow</summary>
 <br>
-  
-- Workflow which understands the domain of kubernetes and testing so that you dont have to write scripts to handle it
-- Reusable and composable components so that workflows are easy to contruct and reason through
-</details>
 
-<details>
-<summary>Multi cloud deployment</summary>
-</details>
-<details>
-<summary>Easy dev-sec-ops integration</summary>
-</details>
+|Zero code software delivery workflow|
+| ------------- |
+| Workflow which understands the domain of kubernetes and testing so that you dont have to write scripts to handle it |
+| Reusable and composable components so that workflows are easy to contruct and reason through |
+<br>
+<br>
+
+| Multi cloud deployment |
+| -----------------|
+| Devtron allows multi deployment|
+| Multi level security policy at global, cluster, environment and application for efficient hierarchical policy management |
+<br>
+<br>
+
+| Easy dev-sec-ops integration |
+| ---------------- |
+| Deployment metrics to measure success of agile process. It captures mttr, change failure rate, deployment frequency, deployment size out of the box |
+| Auto identify new and old pods |
+| Auto identify new and old pods Auto identify new and old pods|
+<br>
+<br>
 
 | Application debugging dashboard |
-| ------------- |
+| ------------ |
 | One place for all historical kubernetes events |
 | Access all manifests securely for eg secret obfuscation |
 | Auto identify new and old pods |
@@ -48,38 +57,39 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 | **Advanced logging** with grep and json search |
 | Intelligent **correlation between events, logs** for faster triangulation of issue |
 | Auto issue identification |
+<br>
+<br>
 
-<details>
-<summary>Enterprise Grade security and compliances</summary>
+| Enterprise Grade security and compliances |
+| ----------- |
+| Fine grained access control; control who can edit configuration and who can deploy. |
+| Audit log to know who did what and when |
+| History of all CI and CD events |
+| Kubernetes events impacting application |
+| Relevant cloud events and their impact on applications |
+| Multi level security policy at global, cluster, environment and application for efficient hierarchical policy management |
+| Behavior driven security policy |
+| Define policies and exception for kubernetes resources |
+| Define policies for events for faster resolution |
+| Advanced workflow policies like blackout window, branch environment relationship to secure build and deployment pipelines |
+<br>
+<br>
 
-- Fine grained access control; control who can edit configuration and who can deploy.
-- Audit log to know who did what and when
-- History of all CI and CD events
-- Kubernetes events impacting application
-- Relevant cloud events and their impact on applications
-- Multi level security policy at global, cluster, environment and application for efficient hierarchical policy management
-- Behavior driven security policy
-- Define policies and exception for kubernetes resources
-- Define policies for events for faster resolution
-- Advanced workflow policies like blackout window, branch environment relationship to secure build and deployment pipelines
-</details>
-<details>
-<summary>Gitops aware</summary>
+| Gitops aware |
+| --------------- |
+| Gitops exposed through API and UI so that you dont have to interact with git cli |
+| Gitops backed by postgres for easier analysis |
+| Enforce finer access control than git |
+<br>
+<br>
 
-- Gitops exposed through API and UI so that you dont have to interact with git cli
-- Gitops backed by postgres for easier analysis
-- Enforce finer access control than git
-
-</details>
-<details>
-<summary>Operational insights</summary>
-
-- Deployment metrics to measure success of agile process. It captures mttr, change failure rate, deployment frequency, deployment size out of the box.
-- Audit log to understand the failure causes
-- Monitor changes across deployments and revert easily
-
-</details>
-
+| Operational insights |
+| --------------- |
+| Deployment metrics to measure success of agile process. It captures mttr, change failure rate, deployment frequency, deployment size out of the box. |
+| Audit log to understand the failure causes |
+| Monitor changes across deployments and revert easily |
+<br>
+<br>
 
 ## To start using Devtron
 <details>
