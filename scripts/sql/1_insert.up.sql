@@ -5966,7 +5966,14 @@ INSERT INTO "public"."users" ("id", "fname", "lname", "password", "access_token"
 INSERT INTO "public"."user_roles" ("id", "user_id", "role_id", "created_by", "created_on", "updated_by", "updated_on") VALUES
 ('1', '2', '1', NULL, NULL, NULL, NULL);
 
+INSERT INTO "public"."git_provider" ("id", "name", "url", "user_name", "password", "ssh_key", "access_token", "auth_mode", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
+('1', 'Github Public', 'github.com', NULL, NULL, NULL, NULL, 'ANONYMOUS', 't', 'now()', '1', 'now()', '1');
 
+INSERT INTO "public"."team" ("id", "name", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
+('1', 'devtron', 't', 'now()', '1', 'now()', '1');
+
+INSERT INTO "public"."environment" ("id", "environment_name", "cluster_id", "active", "created_on", "created_by", "updated_on", "updated_by", "default", "namespace", "grafana_datasource_id") VALUES
+('1', 'devtron', '1', 't', 'now()', '1', 'now()', '1', 'f', 'devtron', '0');
 --
 -- PostgreSQL database dump complete
 --
