@@ -218,7 +218,7 @@ func NewGitSensorSession(config *GitSensorConfig, logger *zap.SugaredLogger) (se
 	if err != nil {
 		return nil, err
 	}
-	client := &http.Client{Timeout: time.Duration(config.Timeout)}
+	client := &http.Client{Timeout: time.Duration(config.Timeout)* time.Second}
 	return &GitSensorClientImpl{httpClient: client, logger: logger, baseUrl: baseUrl}, nil
 }
 

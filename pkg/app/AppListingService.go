@@ -19,6 +19,10 @@ package app
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/argoproj/argo-cd/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -29,10 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/prometheus"
-	"encoding/json"
-	"fmt"
-	"github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/api/prometheus/v1"
@@ -228,61 +228,65 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	for _, p := range pipelinesAll {
 		pipelineIds = append(pipelineIds, p.Id)
 	}
-	if pipelineIds == nil || len(pipelineIds) == 0 {
+
+	/*if pipelineIds == nil || len(pipelineIds) == 0 {
 		return appEnvMapping, err
-	}
-	// from all the active pipeline, get all the cd workflow
-	cdWorkflowAll, err := impl.cdWorkflowRepository.FindLatestCdWorkflowByPipelineIdV2(pipelineIds) //TODO - OPTIMIZE 2
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Error(err)
-		return nil, err
-	}
+	}*/
 
-	//here to build a map of pipelines list for each (appId and envId)
-	for _, p := range pipelinesAll {
-		key := fmt.Sprintf("%d-%d", p.AppId, p.EnvironmentId)
-		if _, ok := appEnvPipelinesMap[key]; !ok {
-			var appEnvPipelines []*pipelineConfig.Pipeline
-			appEnvPipelines = append(appEnvPipelines, p)
-			appEnvPipelinesMap[key] = appEnvPipelines
-		} else {
-			appEnvPipelinesMap[key] = append(appEnvPipelinesMap[key], p)
+	if len(pipelineIds) > 0 {
+		// from all the active pipeline, get all the cd workflow
+		cdWorkflowAll, err := impl.cdWorkflowRepository.FindLatestCdWorkflowByPipelineIdV2(pipelineIds) //TODO - OPTIMIZE 2
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Error(err)
+			return nil, err
 		}
-	}
 
-	// find and build a map of latest cd workflow for each (appId and envId), single latest CDWF for any of the cd pipelines.
-	var wfIds []int
-	for key, v := range appEnvPipelinesMap {
-		if _, ok := appEnvCdWorkflowMap[key]; !ok {
-			for _, itemW := range cdWorkflowAll {
-				for _, itemP := range v {
-					if itemW.PipelineId == itemP.Id {
-						// GOT LATEST CD WF, AND PUT INTO MAP
-						appEnvCdWorkflowMap[key] = itemW
-						wfIds = append(wfIds, itemW.Id)
+		//here to build a map of pipelines list for each (appId and envId)
+		for _, p := range pipelinesAll {
+			key := fmt.Sprintf("%d-%d", p.AppId, p.EnvironmentId)
+			if _, ok := appEnvPipelinesMap[key]; !ok {
+				var appEnvPipelines []*pipelineConfig.Pipeline
+				appEnvPipelines = append(appEnvPipelines, p)
+				appEnvPipelinesMap[key] = appEnvPipelines
+			} else {
+				appEnvPipelinesMap[key] = append(appEnvPipelinesMap[key], p)
+			}
+		}
+
+		// find and build a map of latest cd workflow for each (appId and envId), single latest CDWF for any of the cd pipelines.
+		var wfIds []int
+		for key, v := range appEnvPipelinesMap {
+			if _, ok := appEnvCdWorkflowMap[key]; !ok {
+				for _, itemW := range cdWorkflowAll {
+					for _, itemP := range v {
+						if itemW.PipelineId == itemP.Id {
+							// GOT LATEST CD WF, AND PUT INTO MAP
+							appEnvCdWorkflowMap[key] = itemW
+							wfIds = append(wfIds, itemW.Id)
+						}
 					}
 				}
-			}
-			//if no cd wf found for appid-envid, add it into map with nil
-			if _, ok := appEnvCdWorkflowMap[key]; !ok {
-				appEnvCdWorkflowMap[key] = nil
+				//if no cd wf found for appid-envid, add it into map with nil
+				if _, ok := appEnvCdWorkflowMap[key]; !ok {
+					appEnvCdWorkflowMap[key] = nil
+				}
 			}
 		}
-	}
 
-	//fetch all the cd workflow runner from cdWF ids,
-	cdWorkflowRunnersAll, err := impl.cdWorkflowRepository.FindWorkflowRunnerByCdWorkflowId(wfIds) //TODO - OPTIMIZE 3
-	if err != nil {
-		impl.Logger.Errorw("error in getting wf", "err", err)
-	}
-	//build a map with key cdWF containing cdWFRunner List, which are later put in map for further requirement
-	for _, item := range cdWorkflowRunnersAll {
-		if _, ok := appEnvCdWorkflowRunnerMap[item.CdWorkflowId]; !ok {
-			var cdWorkflowRunners []*pipelineConfig.CdWorkflowRunner
-			cdWorkflowRunners = append(cdWorkflowRunners, item)
-			appEnvCdWorkflowRunnerMap[item.CdWorkflowId] = cdWorkflowRunners
-		} else {
-			appEnvCdWorkflowRunnerMap[item.CdWorkflowId] = append(appEnvCdWorkflowRunnerMap[item.CdWorkflowId], item)
+		//fetch all the cd workflow runner from cdWF ids,
+		cdWorkflowRunnersAll, err := impl.cdWorkflowRepository.FindWorkflowRunnerByCdWorkflowId(wfIds) //TODO - OPTIMIZE 3
+		if err != nil {
+			impl.Logger.Errorw("error in getting wf", "err", err)
+		}
+		//build a map with key cdWF containing cdWFRunner List, which are later put in map for further requirement
+		for _, item := range cdWorkflowRunnersAll {
+			if _, ok := appEnvCdWorkflowRunnerMap[item.CdWorkflowId]; !ok {
+				var cdWorkflowRunners []*pipelineConfig.CdWorkflowRunner
+				cdWorkflowRunners = append(cdWorkflowRunners, item)
+				appEnvCdWorkflowRunnerMap[item.CdWorkflowId] = cdWorkflowRunners
+			} else {
+				appEnvCdWorkflowRunnerMap[item.CdWorkflowId] = append(appEnvCdWorkflowRunnerMap[item.CdWorkflowId], item)
+			}
 		}
 	}
 

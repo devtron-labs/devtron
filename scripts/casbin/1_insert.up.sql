@@ -15,6 +15,18 @@
  *
  */
 
+-- Table Definition
+CREATE TABLE "public"."casbin_rule" (
+    "p_type" varchar(100) NOT NULL DEFAULT ''::character varying,
+    "v0" varchar(100) NOT NULL DEFAULT ''::character varying,
+    "v1" varchar(100) NOT NULL DEFAULT ''::character varying,
+    "v2" varchar(100) NOT NULL DEFAULT ''::character varying,
+    "v3" varchar(100) NOT NULL DEFAULT ''::character varying,
+    "v4" varchar(100) NOT NULL DEFAULT ''::character varying,
+    "v5" varchar(100) NOT NULL DEFAULT ''::character varying
+);
+
+
 INSERT INTO "public"."casbin_rule" ("p_type", "v0", "v1", "v2", "v3", "v4", "v5") VALUES ('p', 'role:super-admin___', 'docker', '*', '*', 'allow', '');
 INSERT INTO "public"."casbin_rule" ("p_type", "v0", "v1", "v2", "v3", "v4", "v5") VALUES ('p', 'role:super-admin___', 'team', '*', '*', 'allow', '');
 INSERT INTO "public"."casbin_rule" ("p_type", "v0", "v1", "v2", "v3", "v4", "v5") VALUES ('p', 'role:super-admin___', 'admin', '*', '*', 'allow', '');

@@ -38,7 +38,7 @@ type CiPipeline struct {
 	Deleted          bool   `sql:"deleted,notnull"`
 	IsManual         bool   `sql:"manual,notnull"`
 	IsExternal       bool   `sql:"external,notnull"`
-	ParentCiPipeline int    `sql:"parent_ci_pipeline,notnull"`
+	ParentCiPipeline int    `sql:"parent_ci_pipeline"`
 	ScanEnabled      bool   `sql:"scan_enabled,notnull"`
 	models.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
