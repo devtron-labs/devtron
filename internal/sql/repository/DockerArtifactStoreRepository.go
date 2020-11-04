@@ -70,14 +70,14 @@ func NewDockerArtifactStoreRepositoryImpl(dbConnection *pg.DB) *DockerArtifactSt
 func (impl DockerArtifactStoreRepositoryImpl) Save(artifactStore *DockerArtifactStore) error {
 	//TODO check for unique default
 	//there can be only one default
-	if artifactStore.IsDefault == true {
-		model, err := impl.FindActiveDefaultStore()
-		if err == nil && model.Id != artifactStore.Id {
-			model.IsDefault = false
-			err = impl.Update(model)
-			if err != nil {
-				return err
-			}
+	model, err := impl.FindActiveDefaultStore()
+	if err == pg.ErrNoRows {
+		artifactStore.IsDefault = true
+	} else if err == nil && model.Id != artifactStore.Id && artifactStore.IsDefault == true {
+		model.IsDefault = false
+		err = impl.Update(model)
+		if err != nil {
+			return err
 		}
 	}
 	return impl.dbConnection.Insert(artifactStore)
