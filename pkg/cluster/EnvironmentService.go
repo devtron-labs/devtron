@@ -242,7 +242,7 @@ func (impl EnvironmentServiceImpl) getClusterConfig(cluster *ClusterBean) (*util
 			bearerToken = string(content)
 		}
 	}
-	impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 1, "bearerToken", bearerTokens)
+	impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 1, "bearerToken", bearerToken)
 	clusterCfg := &util.ClusterConfig{Host: host, BearerToken: bearerToken}
 	return clusterCfg, nil
 }
