@@ -318,12 +318,25 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 	if err != nil {
 		return nil, err
 	}
+	actionUserRoles, err := impl.CheckUserRoles(userInfo.UserId)
+	if err != nil {
+		return nil, err
+	}
+	//if request comes to make user as a super admin, action performing user also be super admin
+	if userInfo.SuperAdmin {
+		for _, item := range actionUserRoles {
+			if item == bean.SUPERADMIN {
+				isSuperAdmin = true
+			}
+		}
+		if isSuperAdmin == false {
+			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to update super admin type user"}
+			return nil, err
+		}
+	}
+	//if user which going to updated is super admin, action performing user also be super admin
 	for _, item := range userCasbinRoles {
 		if item == bean.SUPERADMIN {
-			actionUserRoles, err := impl.CheckUserRoles(userInfo.UserId)
-			if err != nil {
-				return nil, err
-			}
 			for _, item := range actionUserRoles {
 				if item == bean.SUPERADMIN {
 					isSuperAdmin = true
