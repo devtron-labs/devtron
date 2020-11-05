@@ -94,7 +94,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 ## How to start using Devtron
 
-#### Installing devtron wuth Helm 
+#### Installing devtron with Helm 
 
 ```bash
 $ git clone https://github.com/devtron-labs/devtron-installation-script.git
@@ -102,6 +102,7 @@ $ cd devtron-installation-script/charts
 $ #modify values in values.yaml
 $ helm install devtron . -f values.yaml
 ```
+For detail instructions checkout [devtron installation project](https://github.com/devtron-labs/devtron-installation-script/)
 
 
 #### Access Devtron dashboard
