@@ -36,6 +36,12 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 </details>
 <details>
  <summary> <b> Easy dev-sec-ops integration </b> </summary>
+<br>
+ 
+- Multi level security policy at global, cluster, environment and application for efficient hierarchical policy management
+- Behavior driven security policy
+- Define policies and exception for kubernetes resources
+- Define policies for events for faster resolution
 </details>
 
 <details>
@@ -59,10 +65,6 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 - History of all CI and CD events
 - Kubernetes events impacting application
 - Relevant cloud events and their impact on applications
-- Multi level security policy at global, cluster, environment and application for efficient hierarchical policy management
-- Behavior driven security policy
-- Define policies and exception for kubernetes resources
-- Define policies for events for faster resolution
 - Advanced workflow policies like blackout window, branch environment relationship to secure build and deployment pipelines
 </details>
 <details>
