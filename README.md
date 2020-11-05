@@ -44,9 +44,9 @@ It is designed as a self-serve platform for operationalizing and maintaining app
  
 - One place for all historical kubernetes events 
 - Access all manifests securely for eg secret obfuscation 
-- **Application metrics** for cpu, ram, http status code and latency with comparison between new and old 
-- **Advanced logging** with grep and json search 
-- Intelligent **correlation between events, logs** for faster triangulation of issue 
+- ***Application metrics*** for cpu, ram, http status code and latency with comparison between new and old 
+- ***Advanced logging*** with grep and json search 
+- Intelligent ***correlation between events, logs*** for faster triangulation of issue 
 - Auto issue identification 
 </details>
 
