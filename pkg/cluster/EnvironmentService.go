@@ -244,8 +244,6 @@ func (impl EnvironmentServiceImpl) getClusterConfig(cluster *ClusterBean) (*util
 			impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 5.2, "bearerToken", bearerToken)
 		}
 	}
-	impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 5.3, "bearerToken", bearerToken)
-	bearerToken = "ZXlKaGJHY2lPaUpTVXpJMU5pSXNJbXRwWkNJNklpSjkuZXlKcGMzTWlPaUpyZFdKbGNtNWxkR1Z6TDNObGNuWnBZMlZoWTJOdmRXNTBJaXdpYTNWaVpYSnVaWFJsY3k1cGJ5OXpaWEoyYVdObFlXTmpiM1Z1ZEM5dVlXMWxjM0JoWTJVaU9pSmtaWFowY205dVkyUWlMQ0pyZFdKbGNtNWxkR1Z6TG1sdkwzTmxjblpwWTJWaFkyTnZkVzUwTDNObFkzSmxkQzV1WVcxbElqb2liM0pqYUdWemRISmhkRzl5TFhSdmEyVnVMV3RuTmpsc0lpd2lhM1ZpWlhKdVpYUmxjeTVwYnk5elpYSjJhV05sWVdOamIzVnVkQzl6WlhKMmFXTmxMV0ZqWTI5MWJuUXVibUZ0WlNJNkltOXlZMmhsYzNSeVlYUnZjaUlzSW10MVltVnlibVYwWlhNdWFXOHZjMlZ5ZG1salpXRmpZMjkxYm5RdmMyVnlkbWxqWlMxaFkyTnZkVzUwTG5WcFpDSTZJbUl3TTJJMU1HTXpMVGxpTm1VdE1URmxZUzA1WlRsbUxUQXlaRGxsWTJaa09XSmpOaUlzSW5OMVlpSTZJbk41YzNSbGJUcHpaWEoyYVdObFlXTmpiM1Z1ZERwa1pYWjBjbTl1WTJRNmIzSmphR1Z6ZEhKaGRHOXlJbjAuaFhlX2JoWGNGSDhOc0xHWWpoWFhFRTNVVTVWdHNubTNWSExGUHZqLWMzN0VWVTN3ZjdOYmVuLXl4ajZwUTNUd0pzbVhzRXYybmh5RXk0V21WWVo0dWFRQkRJd1ZsQTlFWUhuTDZfZ01WdFZ0OURrNVE0bkFkazVIVks5RnUySWlZWlRyckgzajF0Mzd5YUs5YUZrcHI0M0RXOWdNeWhMbXVod1NTZndCcnlGekhlZzhqQVdFOVpBbU50U2Q2Sk91ZWpKd2xYbW5iYWp4YXBVbTFfeTFHa2t4ZHN0S0NhWGdYSV9CVGIzWmZXYTZQRjhNaDRSSVJTdUdwVXVFNm8xZFhpZmhwN3pkZHJKRVBTelN5eVNVcU1vdEd2RlJkal9nRnBfdVctSWZjanBlTU05WEZrZ3NaOXBDSnBHWTNwUHk5NEhKbldORTA4UXJjNExqUXliV3hB"
 	impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 6, "bearerToken", bearerToken)
 	clusterCfg := &util.ClusterConfig{Host: host, BearerToken: bearerToken}
 	impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 7, "clusterCfg", clusterCfg)
