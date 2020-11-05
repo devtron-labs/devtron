@@ -93,25 +93,26 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 
 ## To start using Devtron
-<details>
-<summary> <b>Installing devtron </b></summary>
+
+#### Installing devtron
+
 
 Devtron can be installed through command 
 
 > sh install.sh
 
 - [Detail configuration options] (https://docs.devtron.ai/)
-</details>
 
-<details>
-<summary>Using devtron</summary>
+
+
+#### Using devtron
   
 - [Deploying first application](https://docs.devtron.ai/docs/reference/creating-application/)
 - [Deploying Helm charts](https://docs.devtron.ai/docs/reference/deploy-chart/overview/)
 - [Configure Security policy](https://docs.devtron.ai/)
 - [Detail Userguide](https://docs.devtron.ai/)
 
-</details>
+
 
 <!--
 ## Why another Deployment tool? 
