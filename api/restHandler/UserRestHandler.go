@@ -18,14 +18,14 @@
 package restHandler
 
 import (
+	"encoding/json"
+	"errors"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
-	"encoding/json"
-	"errors"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -211,13 +211,17 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
+		authPass := false
 		for _, filter := range res.RoleFilters {
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, filter.Team); !ok {
-					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
-					return
+				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, filter.Team); ok {
+					authPass = true
 				}
 			}
+		}
+		if authPass == false {
+			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+			return
 		}
 	}
 	//RBAC enforcer Ends
