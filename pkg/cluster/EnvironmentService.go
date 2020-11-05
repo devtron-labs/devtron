@@ -18,12 +18,15 @@
 package cluster
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"io/ioutil"
+	"os"
 	"time"
 )
 
@@ -219,6 +222,27 @@ func (impl EnvironmentServiceImpl) getClusterConfig(cluster *ClusterBean) (*util
 	host := cluster.ServerUrl
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
+	const ClusterName = "default_cluster"
+	impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 1)
+	if cluster.Id == 1 || cluster.ClusterName == ClusterName {
+		const TOKEN_FILE_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+		impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 2, "TOKEN_FILE_PATH", TOKEN_FILE_PATH)
+		if _, err := os.Stat(TOKEN_FILE_PATH); os.IsNotExist(err) {
+			impl.logger.Errorw("no directory or file exists", "TOKEN_FILE_PATH", TOKEN_FILE_PATH, "err", err)
+			impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 3, "err", err)
+			return nil, err
+		} else {
+			content, err := ioutil.ReadFile(fmt.Sprintf("%s", TOKEN_FILE_PATH))
+			if err != nil {
+				impl.logger.Errorw("error on reading file", "err", err)
+				impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 4, "err", err)
+				return nil, err
+			}
+			impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 4, "content", content)
+			bearerToken = string(content)
+		}
+	}
+	impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 1, "bearerToken", bearerTokens)
 	clusterCfg := &util.ClusterConfig{Host: host, BearerToken: bearerToken}
 	return clusterCfg, nil
 }
