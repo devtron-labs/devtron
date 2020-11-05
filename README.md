@@ -101,7 +101,7 @@ Devtron can be installed through command
 
 > sh install.sh
 
-- [Detail configuration options] (https://docs.devtron.ai/)
+- [Detail configuration options](https://docs.devtron.ai/)
 
 
 
