@@ -7,7 +7,9 @@
     "docker": "./scripts/build_docker.sh",
     "build": "rm -rf dist && webpack --config ./src/app/webpack.config.js",
     "lint": "tslint -p ./src/app",
-    "test": "jest"
+    "test": "jest",
+    "snyk-protect": "snyk protect",
+    "prepare": "yarn run snyk-protect"
   },
   "dependencies": {
     "@types/classnames": "^2.2.3",
@@ -35,7 +37,7 @@
     "classnames": "^2.2.5",
     "color": "^3.1.0",
     "cookie": "^0.3.1",
-    "copy-webpack-plugin": "^4.3.1",
+    "copy-webpack-plugin": "^5.1.2",
     "dagre": "^0.8.2",
     "deepmerge": "^3.2.0",
     "foundation-sites": "^6.4.3",
@@ -51,7 +53,7 @@
     "moment": "^2.24.0",
     "monaco-editor": "^0.15.6",
     "monaco-editor-webpack-plugin": "^1.7.0",
-    "node-sass": "^4.7.2",
+    "node-sass": "^4.13.1",
     "prop-types": "^15.6.0",
     "raw-loader": "^0.5.1",
     "react": "^16.8.3",
@@ -80,7 +82,8 @@
     "unidiff": "^1.0.2",
     "webpack": "^4.29.5",
     "webpack-cli": "^3.2.3",
-    "webpack-dev-server": "^3.2.1"
+    "webpack-dev-server": "^3.11.0",
+    "snyk": "^1.424.4"
   },
   "resolutions": {
     "@types/react": "16.8.5",
@@ -92,5 +95,6 @@
     "jest": "^24.8.0",
     "ts-jest": "^24.0.2",
     "yarn": "^1.16.0"
-  }
+  },
+  "snyk": true
 }
