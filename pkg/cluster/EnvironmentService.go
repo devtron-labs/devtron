@@ -224,7 +224,7 @@ func (impl EnvironmentServiceImpl) getClusterConfig(cluster *ClusterBean) (*util
 	bearerToken := configMap["bearer_token"]
 	const ClusterName = "default_cluster"
 	impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 1)
-	if cluster.Id == 1000 && cluster.ClusterName == ClusterName {
+	if cluster.Id == 1 && cluster.ClusterName == ClusterName {
 		const TOKEN_FILE_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 		impl.logger.Infow("TESTING CLUSTER TOKEN ...", "R", 2, "TOKEN_FILE_PATH", TOKEN_FILE_PATH)
 		if _, err := os.Stat(TOKEN_FILE_PATH); os.IsNotExist(err) {
