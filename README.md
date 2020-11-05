@@ -94,16 +94,30 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 ## How to start using Devtron
 
-#### Installing devtron
+### Installing devtron
+
+***Install with Helm***
+
+```bash
+$ git clone https://github.com/devtron-labs/devtron-installation-script.git
+$ cd devtron-installation-script/charts
+$ #modify values in values.yaml
+$ helm install devtron . -f values.yaml
+```
 
 
-Devtron can be installed through command 
+## Access Devtron dashboard
 
-> sh install.sh
-
-- [Detail configuration options](https://docs.devtron.ai/)
+Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` same as provided in `values.yaml`
 
 
+*****For login use username:`admin` and for password run command mentioned below.
+
+```bash
+$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+```
+
+- [Detail configuration options](https://docs.devtron.ai/setup/install#configuration)
 
 #### Using devtron
   
