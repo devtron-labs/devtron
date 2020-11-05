@@ -109,7 +109,7 @@ $ helm install devtron . -f values.yaml
 Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` same as provided in `values.yaml`
 
 
-*****For login use username:`admin` and for password run command mentioned below.****
+*****For login use username:`admin` and for password run command mentioned below.*****
 
 ```bash
 $ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
