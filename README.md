@@ -27,7 +27,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
   </summary>
 <br>
 
-- Workflow which understands the domain of kubernetes and testing so that you dont have to write scripts to handle it
+- Workflow which understands the domain of **kubernetes, testing, CD, SecOps** so that you dont have to write scripts
 - Reusable and composable components so that workflows are easy to contruct and reason through
 </details>
 
@@ -44,7 +44,6 @@ It is designed as a self-serve platform for operationalizing and maintaining app
  
 - One place for all historical kubernetes events 
 - Access all manifests securely for eg secret obfuscation 
-- Auto identify new and old pods 
 - **Application metrics** for cpu, ram, http status code and latency with comparison between new and old 
 - **Advanced logging** with grep and json search 
 - Intelligent **correlation between events, logs** for faster triangulation of issue 
