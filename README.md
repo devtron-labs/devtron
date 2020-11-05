@@ -23,7 +23,7 @@ Devtron is an open source **software delivery workflow** for kubernetes written 
 
 ## Why Devtron?
 It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on kubernetes in a developer friendly way. 
-<img src="https://i.postimg.cc/ncQWNV1p/Screenshot-2020-11-02-at-3-42-27-PM.png">
+<img src="./preview.gif">
 
 #### Some of the benefits  provided by devtron are: 
 <details>
