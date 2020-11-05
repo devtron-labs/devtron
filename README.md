@@ -104,7 +104,7 @@ $ helm install devtron . -f values.yaml
 ```
 
 
-## Access Devtron dashboard
+#### Access Devtron dashboard
 
 Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` same as provided in `values.yaml`
 
