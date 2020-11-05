@@ -36,7 +36,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
  <br> 
  
  - deploy to multiple kubernetes cluster
- - test on aws clud 
+ - test on aws cloud 
    > comming soon: support for GCP and microsoft azure  
 </details>
 <details>
