@@ -37,7 +37,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
  
  - deploy to multiple kubernetes cluster
  - test on aws cloud 
-   > comming soon: support for GCP and microsoft azure  
+   > coming soon: support for GCP and microsoft azure  
 </details>
 <details>
  <summary> <b> Easy dev-sec-ops integration </b> </summary>
@@ -119,6 +119,12 @@ Devtron can be installed through command
 
 **TODO**
 -->
+
+## Compatibility notes
+
+- Only AWS kubernetes cluster is supported as of now
+- It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/).
+- application metrics only works for k8s 1.16+
 
 ## Community
 
