@@ -13,50 +13,43 @@
 <a href="https://twitter.com/DevtronL">Twitter</a>
 </p>
 
-<!---
-## What is Devtron?
-Devtron is an open source **software delivery workflow** for kubernetes written in go.
-<br>
-<br>
-<img src="https://i.postimg.cc/ncQWNV1p/Screenshot-2020-11-02-at-3-42-27-PM.png">
--->
-
 ## Why Devtron?
 It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on kubernetes in a developer friendly way. 
 <br>
 <br>
 <img src="./preview.gif">
-
-#### Some of the benefits  provided by devtron are: 
+<br>
+<br>
+### Some of the benefits  provided by devtron are: 
 <details>
 <summary> 
-  ** Zero code software delivery workflow **
+ <b> Zero code software delivery workflow </b>
   </summary>
 <br>
-  
-  *** Zero code software delivery workflow ***
-  
-  
+
 - Workflow which understands the domain of kubernetes and testing so that you dont have to write scripts to handle it
 - Reusable and composable components so that workflows are easy to contruct and reason through
 </details>
 
 <details>
-<summary>Multi cloud deployment</summary>
+<summary> <b> Multi cloud deployment </b></summary>
 </details>
 <details>
-<summary>Easy dev-sec-ops integration</summary>
+ <summary> <b> Easy dev-sec-ops integration </b> </summary>
 </details>
 
-| Application debugging dashboard |
-| ------------- |
-| One place for all historical kubernetes events |
-| Access all manifests securely for eg secret obfuscation |
-| Auto identify new and old pods |
-| **Application metrics** for cpu, ram, http status code and latency with comparison between new and old |
-| **Advanced logging** with grep and json search |
-| Intelligent **correlation between events, logs** for faster triangulation of issue |
-| Auto issue identification |
+<details>
+ <summary> <b> Application debugging dashboard </b> </summary>
+<br>
+ 
+- One place for all historical kubernetes events 
+- Access all manifests securely for eg secret obfuscation 
+- Auto identify new and old pods 
+- **Application metrics** for cpu, ram, http status code and latency with comparison between new and old 
+- **Advanced logging** with grep and json search 
+- Intelligent **correlation between events, logs** for faster triangulation of issue 
+- Auto issue identification 
+</details>
 
 <details>
 <summary>Enterprise Grade security and compliances</summary>
