@@ -33,6 +33,11 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 <details>
 <summary> <b> Multi cloud deployment </b></summary>
+ <br> 
+ 
+ - deploy to multiple kubernetes cluster
+ - test on aws clud 
+   > comming soon: support for GCP and microsoft azure  
 </details>
 <details>
  <summary> <b> Easy dev-sec-ops integration </b> </summary>
