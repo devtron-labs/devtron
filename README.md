@@ -52,8 +52,9 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 </details>
 
 <details>
-<summary>Enterprise Grade security and compliances</summary>
-
+<summary> <b>Enterprise Grade security and compliances </b></summary>
+<br>
+ 
 - Fine grained access control; control who can edit configuration and who can deploy.
 - Audit log to know who did what and when
 - History of all CI and CD events
@@ -66,16 +67,18 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 - Advanced workflow policies like blackout window, branch environment relationship to secure build and deployment pipelines
 </details>
 <details>
-<summary>Gitops aware</summary>
-
+<summary> <b> Gitops aware  </b></summary>
+<br>
+ 
 - Gitops exposed through API and UI so that you dont have to interact with git cli
 - Gitops backed by postgres for easier analysis
 - Enforce finer access control than git
 
 </details>
 <details>
-<summary>Operational insights</summary>
-
+<summary> <b>Operational insights  </b></summary>
+<br>
+ 
 - Deployment metrics to measure success of agile process. It captures mttr, change failure rate, deployment frequency, deployment size out of the box.
 - Audit log to understand the failure causes
 - Monitor changes across deployments and revert easily
@@ -85,7 +88,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 ## To start using Devtron
 <details>
-<summary>Installing devtron</summary>
+<summary> <b>Installing devtron </b></summary>
 
 Devtron can be installed through command 
 
