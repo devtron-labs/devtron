@@ -1,4 +1,4 @@
-<p align="center"><img width="200" height="156" src="https://i.postimg.cc/tgQPgnBg/devtron-readme-logo.png"></p>
+<p align="center"><img width="200" height="156" src="./assets/logo.png"></p>
 <p align="center">Devtron is an open source software delivery workflow for kubernetes written in go.
 <br>
 <a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
@@ -17,7 +17,7 @@
 It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on kubernetes in a developer friendly way. 
 <br>
 <br>
-<img src="./preview.gif">
+<img src="./assets/preview.gif">
 <br>
 <br>
 ### Some of the benefits  provided by devtron are: 
