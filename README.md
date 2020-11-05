@@ -113,11 +113,11 @@ Devtron can be installed through command
 
 </details>
 
-
+<!--
 ## Why another Deployment tool? 
 
 **TODO**
-
+-->
 
 ## Community
 
