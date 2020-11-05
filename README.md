@@ -29,8 +29,13 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 #### Some of the benefits  provided by devtron are: 
 <details>
-<summary>Zero code software delivery workflow</summary>
+<summary> 
+  ** Zero code software delivery workflow **
+  </summary>
 <br>
+  
+  *** Zero code software delivery workflow ***
+  
   
 - Workflow which understands the domain of kubernetes and testing so that you dont have to write scripts to handle it
 - Reusable and composable components so that workflows are easy to contruct and reason through
