@@ -120,6 +120,12 @@ Devtron can be installed through command
 **TODO**
 -->
 
+## Compatibility notes
+
+- Only AWS kubernetes cluster is supported as of now
+- It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/).
+- application metrics only works for k8s 1.16+
+
 ## Community
 
 Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
