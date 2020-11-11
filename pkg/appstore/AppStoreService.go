@@ -173,6 +173,7 @@ func (impl *AppStoreServiceImpl) FindAppDetailsForAppstoreApplication(installedA
 		EnvironmentName:               installedAppVerison.InstalledApp.Environment.Name,
 		LastDeployedTime:              installedAppVerison.UpdatedOn.Format(bean2.LayoutRFC3339),
 		Namespace:                     installedAppVerison.InstalledApp.Environment.Namespace,
+		Deprecated:                    installedAppVerison.AppStoreApplicationVersion.Deprecated,
 	}
 	userInfo, err := impl.userService.GetById(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {

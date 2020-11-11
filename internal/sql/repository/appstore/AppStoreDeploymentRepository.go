@@ -121,6 +121,7 @@ type InstalledAppsWithChartDetails struct {
 	UpdatedOn                    time.Time `json:"updated_on"`
 	Id                           int       `json:"id"`
 	EnvironmentId                int       `json:"environment_id"`
+	Deprecated                   bool      `json:"deprecated"`
 }
 
 type InstalledAppAndEnvDetails struct {
@@ -212,10 +213,10 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(envIds []int) ([]Inst
 	var queryTemp string
 	if len(envIds) > 0 {
 		queryTemp = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name, env.environment_name, env.id as environment_id, a.app_name, asav.icon, asav.name as app_store_application_name, asav.id as app_store_application_version_id, ia.id " +
-			" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id inner join app a on a.id = ia.app_id inner join environment env on ia.environment_id = env.id inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id inner join app_store aps on aps.id = asav.app_store_id inner join chart_repo ch on ch.id = aps.chart_repo_id where ia.active=true and env.id in (" + sqlIntSeq(envIds) + ")"
+			", asav.deprecated from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id inner join app a on a.id = ia.app_id inner join environment env on ia.environment_id = env.id inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id inner join app_store aps on aps.id = asav.app_store_id inner join chart_repo ch on ch.id = aps.chart_repo_id where ia.active=true and env.id in (" + sqlIntSeq(envIds) + ")"
 	} else {
 		queryTemp = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name, env.environment_name, env.id as environment_id, a.app_name, asav.icon, asav.name as app_store_application_name, asav.id as app_store_application_version_id, ia.id " +
-			" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id inner join app a on a.id = ia.app_id inner join environment env on ia.environment_id = env.id inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id inner join app_store aps on aps.id = asav.app_store_id inner join chart_repo ch on ch.id = aps.chart_repo_id where ia.active=true"
+			", asav.deprecated from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id inner join app a on a.id = ia.app_id inner join environment env on ia.environment_id = env.id inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id inner join app_store aps on aps.id = asav.app_store_id inner join chart_repo ch on ch.id = aps.chart_repo_id where ia.active=true"
 	}
 	_, err := impl.dbConnection.Query(&installedAppsWithChartDetails, queryTemp)
 	if err != nil {
