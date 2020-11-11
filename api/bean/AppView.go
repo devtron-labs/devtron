@@ -18,9 +18,9 @@
 package bean
 
 import (
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"encoding/json"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/devtron/client/argocdServer/application"
 )
 
 type AppContainer struct {
@@ -97,6 +97,7 @@ type DeploymentDetailContainer struct {
 	Default              bool            `json:"default,omitempty"`
 	DataSource           string          `json:"dataSource,omitempty"`
 	LastDeployedPipeline string          `json:"lastDeployedPipeline,omitempty"`
+	Deprecated           bool            `json:"deprecated"`
 }
 
 type AppDetailContainer struct {

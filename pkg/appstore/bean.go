@@ -18,9 +18,9 @@
 package appstore
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
-	"encoding/json"
 	"time"
 )
 
@@ -90,6 +90,7 @@ type InstalledAppsResponse struct {
 	InstalledAppsId              int       `json:"installedAppId"`
 	Readme                       string    `json:"readme"`
 	EnvironmentId                int       `json:"environmentId"`
+	Deprecated                   bool      `json:"deprecated"`
 }
 
 type AppNames struct {
