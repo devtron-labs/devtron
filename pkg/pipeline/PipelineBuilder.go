@@ -19,6 +19,11 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -31,11 +36,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"encoding/json"
-	"fmt"
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/caarlos0/env"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -114,6 +114,7 @@ type PipelineBuilderImpl struct {
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	appService                    app.AppService
 	imageScanResultRepository     security.ImageScanResultRepository
+	GitClient                     util.GitClient
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -138,6 +139,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	appService app.AppService,
 	imageScanResultRepository security.ImageScanResultRepository,
+	GitClient util.GitClient,
 ) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
@@ -162,6 +164,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciConfig:                      ciConfig,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		imageScanResultRepository:     imageScanResultRepository,
+		GitClient:                     GitClient,
 	}
 }
 
@@ -663,22 +666,22 @@ func (impl PipelineBuilderImpl) addpipelineToTemplate(createRequest *bean.CiConf
 		pipelineNames = append(pipelineNames, pipeline.Name)
 	}
 	/*
-	if pipelineNames != nil && len(pipelineNames) > 0 {
-		found, err := impl.ciPipelineRepository.PipelineExistsByName(pipelineNames)
-		if err != nil {
-			impl.logger.Errorw("err in duplicate check for ci pipeline", "app", createRequest.AppName, "names", pipelineNames, "err", err)
-			return nil, err
-		} else if found != nil && len(found) > 0 {
-			impl.logger.Warnw("duplicate pipelins ", "app", createRequest.AppName, "duplicates", found)
-			//return nil,  errors.AlreadyExistsf("pipelines exists %s", found)
-			return nil, &util.ApiError{
-				HttpStatusCode:    409,
-				Code:              "0409",
-				InternalMessage:   "pipeline already exists",
-				UserDetailMessage: fmt.Sprintf("pipeline already exists %s", found),
-				UserMessage:       fmt.Sprintf("pipeline already exists %s", found)}
+		if pipelineNames != nil && len(pipelineNames) > 0 {
+			found, err := impl.ciPipelineRepository.PipelineExistsByName(pipelineNames)
+			if err != nil {
+				impl.logger.Errorw("err in duplicate check for ci pipeline", "app", createRequest.AppName, "names", pipelineNames, "err", err)
+				return nil, err
+			} else if found != nil && len(found) > 0 {
+				impl.logger.Warnw("duplicate pipelins ", "app", createRequest.AppName, "duplicates", found)
+				//return nil,  errors.AlreadyExistsf("pipelines exists %s", found)
+				return nil, &util.ApiError{
+					HttpStatusCode:    409,
+					Code:              "0409",
+					InternalMessage:   "pipeline already exists",
+					UserDetailMessage: fmt.Sprintf("pipeline already exists %s", found),
+					UserMessage:       fmt.Sprintf("pipeline already exists %s", found)}
+			}
 		}
-	}
 	*/
 	if err != nil {
 		impl.logger.Errorw("error in creating pipeline group", "err", err)
@@ -1028,6 +1031,19 @@ func (impl PipelineBuilderImpl) createCdPipeline(app *pipelineConfig.App, pipeli
 	if exists {
 		return 0, errors.AlreadyExistsf("pipeline already exists name:%s", pipeline.Name)
 	}*/
+
+	chartGitAttr := &util.ChartConfig{
+		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
+		FileContent:    string("initial commit"),
+		ChartName:      envOverride.Chart.ChartName,
+		ChartLocation:  envOverride.Chart.ChartLocation,
+		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
+	}
+	_, err = impl.GitClient.CommitValues(chartGitAttr)
+	if err != nil {
+		impl.logger.Errorw("error in git commit", "err", err)
+		return 0, err
+	}
 
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
