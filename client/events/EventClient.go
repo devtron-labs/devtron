@@ -19,15 +19,15 @@ package client
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util "github.com/devtron-labs/devtron/util/event"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"github.com/caarlos0/env"
 	"go.uber.org/zap"
 	"net/http"
 	"time"
@@ -84,6 +84,7 @@ type Payload struct {
 	DownloadLink          string               `json:"downloadLink"`
 	BuildHistoryLink      string               `json:"buildHistoryLink"`
 	MaterialTriggerInfo   *MaterialTriggerInfo `json:"material"`
+	Message               string               `json:"message"`
 }
 
 type CiPipelineMaterialResponse struct {

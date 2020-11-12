@@ -19,6 +19,9 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
@@ -34,9 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"encoding/json"
-	"fmt"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/go-pg/pg"
 	"github.com/nats-io/stan"
 	"go.uber.org/zap"
@@ -647,6 +647,17 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		if err != nil {
 			return err
 		}
+
+		//TODO SEND EVENT
+		event := impl.eventFactory.Build(util2.Fail, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util2.CD)
+		impl.logger.Debugw("event WriteCDFailureEvent", "event", event)
+		event.Payload = &client.Payload{Message: "Deployment did not start as blocked vulnerabilities were found in the image."}
+		event = impl.eventFactory.BuildExtraCDData(event, nil, 0, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		_, evtErr := impl.eventClient.WriteEvent(event)
+		if evtErr != nil {
+			impl.logger.Errorw("error in writing event", "err", evtErr)
+		}
+
 		return nil
 	}
 

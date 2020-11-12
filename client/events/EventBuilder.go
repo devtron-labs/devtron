@@ -91,6 +91,8 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		payload = &Payload{}
 		payload.Stage = string(stage)
 		event.Payload = payload
+	} else {
+		payload.Stage = string(stage)
 	}
 	if wfr != nil {
 		material, err := impl.getCiMaterialInfo(wfr.CdWorkflow.Pipeline.CiPipelineId, wfr.CdWorkflow.CiArtifactId)
