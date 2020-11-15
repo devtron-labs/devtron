@@ -3,6 +3,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 [![made-with-Go](https://img.shields.io/badge/Made%20with-Go-1f425f.svg)](http://golang.org)
 [![Website devtron.ai](https://img.shields.io/website-up-down-green-red/http/shields.io.svg)](http://devtron.ai/)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4411/badge)](https://bestpractices.coreinfrastructure.org/projects/4411)
 
 
 
