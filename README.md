@@ -1,9 +1,9 @@
 [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/72JDKy4)
 [![Go Report Card](https://goreportcard.com/badge/github.com/devtron-labs/devtron)](https://goreportcard.com/report/github.com/devtron-labs/devtron)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4411/badge)](https://bestpractices.coreinfrastructure.org/projects/4411)
 [![made-with-Go](https://img.shields.io/badge/Made%20with-Go-1f425f.svg)](http://golang.org)
 [![Website devtron.ai](https://img.shields.io/website-up-down-green-red/http/shields.io.svg)](http://devtron.ai/)
-[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4411/badge)](https://bestpractices.coreinfrastructure.org/projects/4411)
 
 
 
