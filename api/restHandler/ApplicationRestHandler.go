@@ -19,15 +19,15 @@ package restHandler
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"encoding/json"
-	"fmt"
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"

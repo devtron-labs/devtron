@@ -21,10 +21,10 @@
 package repository
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"encoding/json"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"

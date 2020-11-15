@@ -41,7 +41,7 @@ type SESNotificationServiceImpl struct {
 }
 
 type SESChannelConfig struct {
-	Channel       util2.Channel  `json:"channel" validate:"required"`
+	Channel       util2.Channel   `json:"channel" validate:"required"`
 	SESConfigDtos []*SESConfigDto `json:"configs"`
 }
 
@@ -180,7 +180,7 @@ func (impl *SESNotificationServiceImpl) FetchAllSESNotificationConfigAutocomplet
 	for _, sesConfig := range sesConfigs {
 		sesConfigDto := &NotificationChannelAutoResponse{
 			Id:         sesConfig.Id,
-			ConfigName: sesConfig.ConfigName,}
+			ConfigName: sesConfig.ConfigName}
 		responseDto = append(responseDto, sesConfigDto)
 	}
 	return responseDto, nil

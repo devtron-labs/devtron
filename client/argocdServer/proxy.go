@@ -49,7 +49,7 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 					if err != nil || userId == 0 {
 						//no user found remove
 						resp.Header.Set("Set-Cookie", "")
-						resp.Header.Set("Location","/dashboard/login?err=NO_USER")
+						resp.Header.Set("Location", "/dashboard/login?err=NO_USER")
 					} else {
 						flags := []string{"path=/"}
 						components := []string{

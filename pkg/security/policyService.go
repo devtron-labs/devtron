@@ -19,6 +19,8 @@ package security
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -27,8 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"encoding/json"
-	"fmt"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"

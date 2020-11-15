@@ -18,11 +18,11 @@
 package jira
 
 import (
+	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	jiraUtil "github.com/devtron-labs/devtron/internal/util/JiraUtil"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
-	"errors"
 	"go.uber.org/zap"
 	"time"
 )

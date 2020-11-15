@@ -38,7 +38,7 @@ func GetLogger() *zap.SugaredLogger {
 }
 
 type LogConfig struct {
-	Level         int `env:"LOG_LEVEL" envDefault:"0"`
+	Level int `env:"LOG_LEVEL" envDefault:"0"`
 }
 
 func init() {

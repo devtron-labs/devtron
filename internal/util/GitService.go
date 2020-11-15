@@ -325,7 +325,7 @@ func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string,
 	if err != nil {
 		return "", err
 	}
- 	err = ioutil.WriteFile(filepath.Join(gitDir, config.ChartLocation, config.FileName), []byte(config.FileContent), 0600)
+	err = ioutil.WriteFile(filepath.Join(gitDir, config.ChartLocation, config.FileName), []byte(config.FileContent), 0600)
 	if err != nil {
 		return "", err
 	}
@@ -473,14 +473,14 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string) (validate
 	for count < 3 && !verified {
 		count = count + 1
 		_, err := impl.GetRepoUrl(projectName)
-		if err==nil{
+		if err == nil {
 			return true, nil
 		}
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
 			impl.logger.Errorw("error in validating repo", "err", err)
 			return validated, err
-		}else {
+		} else {
 			impl.logger.Errorw("error in validating repo", "err", err)
 		}
 		time.Sleep(10 * time.Second)

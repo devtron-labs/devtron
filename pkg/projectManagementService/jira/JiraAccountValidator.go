@@ -18,8 +18,8 @@
 package jira
 
 import (
-	"github.com/devtron-labs/devtron/client/jira"
 	"errors"
+	"github.com/devtron-labs/devtron/client/jira"
 	"go.uber.org/zap"
 )
 

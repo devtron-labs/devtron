@@ -18,9 +18,9 @@
 package restHandler
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"encoding/json"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"

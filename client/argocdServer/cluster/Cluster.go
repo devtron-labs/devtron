@@ -19,11 +19,11 @@ package cluster
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/client/argocdServer"
 	"errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"go.uber.org/zap"
 	"time"
 )

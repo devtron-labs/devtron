@@ -18,10 +18,10 @@
 package connector
 
 import (
-	"github.com/devtron-labs/devtron/api/bean"
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/gogo/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/juju/errors"

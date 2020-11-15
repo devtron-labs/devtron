@@ -1,4 +1,3 @@
-
 //+build wireinject
 
 /*
@@ -17,8 +16,6 @@
  * limitations under the License.
  *
  */
-
-
 
 package main
 

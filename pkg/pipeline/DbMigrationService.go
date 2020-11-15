@@ -18,9 +18,9 @@
 package pipeline
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"fmt"
 	"go.uber.org/zap"
 	"time"
 )

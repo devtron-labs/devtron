@@ -405,7 +405,7 @@ func executeDataHolderCreate(impl DataHolderActionImpl, holder *v1.DataHolder, d
 	configData := &pipeline.ConfigDataRequest{
 		AppId:         app.Id,
 		EnvironmentId: envId,
-		ConfigData: configDataArr,
+		ConfigData:    configDataArr,
 		UserId:        1,
 	}
 

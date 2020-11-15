@@ -18,9 +18,9 @@
 package restHandler
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"encoding/json"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"

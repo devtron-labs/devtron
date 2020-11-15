@@ -18,8 +18,8 @@
 package response
 
 import (
-	"github.com/devtron-labs/devtron/internal/util"
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/util"
 	"net/http"
 )
 

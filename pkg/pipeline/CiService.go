@@ -18,14 +18,14 @@
 package pipeline
 
 import (
+	"fmt"
+	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	util2 "github.com/devtron-labs/devtron/util/event"
-	"fmt"
-	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	"go.uber.org/zap"
 	"path/filepath"
 	"strconv"

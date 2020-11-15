@@ -18,10 +18,10 @@
 package rbac
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/team"
-	"fmt"
 	"go.uber.org/zap"
 	"strings"
 )
@@ -51,7 +51,7 @@ type EnforcerUtilImpl struct {
 func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
 	appRepo pipelineConfig.AppRepository, environmentRepository cluster.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository) *EnforcerUtilImpl {
-	return &EnforcerUtilImpl {
+	return &EnforcerUtilImpl{
 		logger:                logger,
 		teamRepository:        teamRepository,
 		appRepo:               appRepo,

@@ -18,12 +18,12 @@
 package appWorkflow
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"fmt"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"

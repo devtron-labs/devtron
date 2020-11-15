@@ -19,10 +19,10 @@ package gitSensor
 
 import (
 	"bytes"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -218,7 +218,7 @@ func NewGitSensorSession(config *GitSensorConfig, logger *zap.SugaredLogger) (se
 	if err != nil {
 		return nil, err
 	}
-	client := &http.Client{Timeout: time.Duration(config.Timeout)* time.Second}
+	client := &http.Client{Timeout: time.Duration(config.Timeout) * time.Second}
 	return &GitSensorClientImpl{httpClient: client, logger: logger, baseUrl: baseUrl}, nil
 }
 
