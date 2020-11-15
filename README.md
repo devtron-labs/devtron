@@ -1,5 +1,6 @@
 [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/72JDKy4)
 [![Website devtron.ai](https://img.shields.io/website-up-down-green-red/http/shields.io.svg)](http://devtron.ai/)
+[![Go Report Card](https://goreportcard.com/badge/github.com/devtron-labs/devtron)](https://goreportcard.com/report/github.com/devtron-labs/devtron)
 
 
 <p align="center"><img width="200" height="156" src="./assets/logo.png"></p>
