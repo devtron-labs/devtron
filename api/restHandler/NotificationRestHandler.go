@@ -19,6 +19,9 @@ package restHandler
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/notifier"
@@ -28,9 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"

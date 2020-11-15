@@ -18,10 +18,10 @@
 package router
 
 import (
+	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/dex"
-	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/gorilla/mux"
 )
 

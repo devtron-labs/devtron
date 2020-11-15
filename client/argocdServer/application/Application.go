@@ -19,8 +19,6 @@ package application
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/util"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +26,8 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	v12 "k8s.io/api/apps/v1"

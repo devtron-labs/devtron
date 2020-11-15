@@ -81,7 +81,7 @@ type ImageScanHistoryResponse struct {
 	Name                  string         `json:"name"`
 	Type                  string         `json:"type"`
 	Environment           string         `json:"environment"`
-	LastChecked           *time.Time      `json:"lastChecked"`
+	LastChecked           *time.Time     `json:"lastChecked"`
 	Image                 string         `json:"image,omitempty"`
 	SeverityCount         *SeverityCount `json:"severityCount,omitempty"`
 }

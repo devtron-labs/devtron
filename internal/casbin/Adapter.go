@@ -18,10 +18,10 @@
 package casbin
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"fmt"
 	"github.com/casbin/casbin"
 	"github.com/casbin/xorm-adapter"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
 	"strings"

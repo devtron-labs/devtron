@@ -18,9 +18,9 @@
 package restHandler
 
 import (
-	"github.com/devtron-labs/devtron/internal/util"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/juju/errors"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -96,7 +96,7 @@ func writeJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_, err = w.Write(b)
-	if err !=nil {
+	if err != nil {
 		util.GetLogger().Error(err)
 	}
 

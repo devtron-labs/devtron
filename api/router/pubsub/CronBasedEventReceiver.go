@@ -18,10 +18,10 @@
 package pubsub
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/event"
-	"encoding/json"
 	"github.com/nats-io/stan"
 	"go.uber.org/zap"
 	"time"

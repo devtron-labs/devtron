@@ -18,9 +18,9 @@
 package pipeline
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"fmt"
 	"go.uber.org/zap"
 	"time"
 )
@@ -81,7 +81,7 @@ func (impl DbConfigServiceImpl) Save(dbConfigBean *DbConfigBean) (dbConfig *DbCo
 	}
 	err = impl.configRepo.Save(config)
 	if err != nil {
-		impl.logger.Errorw("error in saving db config", "err",err)
+		impl.logger.Errorw("error in saving db config", "err", err)
 		return nil, err
 	}
 	dbConfigBean.Id = config.Id

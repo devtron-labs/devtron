@@ -18,8 +18,8 @@
 package security
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 )

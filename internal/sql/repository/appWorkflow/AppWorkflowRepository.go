@@ -18,8 +18,8 @@
 package appWorkflow
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )

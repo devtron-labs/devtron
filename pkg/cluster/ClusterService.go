@@ -466,5 +466,3 @@ func (impl ClusterServiceImpl) CreateGrafanaDataSource(clusterBean *ClusterBean,
 	}
 	return grafanaDatasourceId, nil
 }
-
-

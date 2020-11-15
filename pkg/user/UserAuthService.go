@@ -108,7 +108,7 @@ type WebhookToken struct {
 
 func NewUserAuthServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
 	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
-	) *UserAuthServiceImpl {
+) *UserAuthServiceImpl {
 	serviceImpl := &UserAuthServiceImpl{
 		userAuthRepository: userAuthRepository,
 		sessionManager:     sessionManager,
@@ -385,8 +385,8 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 			} else if contains(r.URL.Path) {
 				if r.URL.Path == "/app/ci-pipeline/github-webhook/trigger" {
 					apiKey := r.Header.Get("api-key")
-					t, err:=GetWebhookToken()
-					if err!=nil || len(t.WebhookToken)==0|| t.WebhookToken!=apiKey{
+					t, err := GetWebhookToken()
+					if err != nil || len(t.WebhookToken) == 0 || t.WebhookToken != apiKey {
 						writeResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, errors.New("unauthenticated"))
 						return
 					}

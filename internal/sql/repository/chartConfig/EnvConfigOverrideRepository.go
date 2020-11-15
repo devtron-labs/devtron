@@ -99,13 +99,11 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 		" ec.id as id, ec.chart_id as chart_id," +
 		" ec.target_environment as target_environment, ec.env_override_yaml as env_override_yaml, ec.status as status, ec.reviewed as reviewed," +
 		" ec.active as active, ec.namespace as namespace, ec.latest as latest," +
-
 		" ch.chart_name as chart_name," +
 		" ch.chart_location as chart_location," +
 		" ch.global_override as global_override, ch.chart_version as chart_version," +
 		" ch.image_descriptor_template as image_descriptor_template," +
 		" en.environment_name as environment_name, ec.is_override, ch.chart_ref_id" +
-
 		" FROM chart_env_config_override ec" +
 		" LEFT JOIN charts ch on ec.chart_id=ch.id" +
 		" LEFT JOIN environment en on en.id=ec.target_environment" +

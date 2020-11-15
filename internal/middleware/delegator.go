@@ -1,5 +1,3 @@
-
-
 /*
  * Copyright (c) 2020 Devtron Labs
  *
@@ -20,10 +18,10 @@
 package middleware
 
 import (
-"bufio"
-"io"
-"net"
-"net/http"
+	"bufio"
+	"io"
+	"net"
+	"net/http"
 )
 
 const (
@@ -374,4 +372,3 @@ func newDelegator(w http.ResponseWriter, observeWriteHeaderFunc func(int)) deleg
 
 	return pickDelegator[id](d)
 }
-

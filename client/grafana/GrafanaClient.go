@@ -204,7 +204,7 @@ func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDa
 	req.Header.Set("X-Grafana-Org-Id", strconv.Itoa(impl.config.GrafanaOrgId))
 	resp, err := impl.client.Do(req)
 	if err != nil {
-		impl.logger.Errorw("err","err", err)
+		impl.logger.Errorw("err", "err", err)
 		return nil, err
 	}
 	status := StatusCode(resp.StatusCode)

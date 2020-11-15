@@ -18,6 +18,8 @@
 package deploymentGroup
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
@@ -25,8 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"encoding/json"
-	"fmt"
 	"go.uber.org/zap"
 	"strings"
 	"time"

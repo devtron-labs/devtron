@@ -19,6 +19,11 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -31,11 +36,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"encoding/json"
-	"fmt"
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/caarlos0/env"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -663,22 +663,22 @@ func (impl PipelineBuilderImpl) addpipelineToTemplate(createRequest *bean.CiConf
 		pipelineNames = append(pipelineNames, pipeline.Name)
 	}
 	/*
-	if pipelineNames != nil && len(pipelineNames) > 0 {
-		found, err := impl.ciPipelineRepository.PipelineExistsByName(pipelineNames)
-		if err != nil {
-			impl.logger.Errorw("err in duplicate check for ci pipeline", "app", createRequest.AppName, "names", pipelineNames, "err", err)
-			return nil, err
-		} else if found != nil && len(found) > 0 {
-			impl.logger.Warnw("duplicate pipelins ", "app", createRequest.AppName, "duplicates", found)
-			//return nil,  errors.AlreadyExistsf("pipelines exists %s", found)
-			return nil, &util.ApiError{
-				HttpStatusCode:    409,
-				Code:              "0409",
-				InternalMessage:   "pipeline already exists",
-				UserDetailMessage: fmt.Sprintf("pipeline already exists %s", found),
-				UserMessage:       fmt.Sprintf("pipeline already exists %s", found)}
+		if pipelineNames != nil && len(pipelineNames) > 0 {
+			found, err := impl.ciPipelineRepository.PipelineExistsByName(pipelineNames)
+			if err != nil {
+				impl.logger.Errorw("err in duplicate check for ci pipeline", "app", createRequest.AppName, "names", pipelineNames, "err", err)
+				return nil, err
+			} else if found != nil && len(found) > 0 {
+				impl.logger.Warnw("duplicate pipelins ", "app", createRequest.AppName, "duplicates", found)
+				//return nil,  errors.AlreadyExistsf("pipelines exists %s", found)
+				return nil, &util.ApiError{
+					HttpStatusCode:    409,
+					Code:              "0409",
+					InternalMessage:   "pipeline already exists",
+					UserDetailMessage: fmt.Sprintf("pipeline already exists %s", found),
+					UserMessage:       fmt.Sprintf("pipeline already exists %s", found)}
+			}
 		}
-	}
 	*/
 	if err != nil {
 		impl.logger.Errorw("error in creating pipeline group", "err", err)
@@ -1731,11 +1731,11 @@ func (impl PipelineBuilderImpl) GetAppListByTeamIds(teamIds []int) ([]*TeamAppBe
 	}
 	for _, app := range apps {
 		if _, ok := teamMap[app.TeamId]; ok {
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName,})
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
 		} else {
 
-			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name,}
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName,})
+			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
 		}
 	}
 

@@ -18,9 +18,9 @@
 package notifier
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/util/event"
-	"encoding/json"
 	"go.uber.org/zap"
 	"strings"
 	"time"

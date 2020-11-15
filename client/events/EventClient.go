@@ -19,15 +19,15 @@ package client
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util "github.com/devtron-labs/devtron/util/event"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"github.com/caarlos0/env"
 	"go.uber.org/zap"
 	"net/http"
 	"time"
@@ -120,7 +120,7 @@ type EventRESTClientImpl struct {
 func NewEventRESTClientImpl(logger *zap.SugaredLogger, client *http.Client, config *EventClientConfig, pubsubClient *pubsub.PubSubClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) *EventRESTClientImpl {
 	return &EventRESTClientImpl{logger: logger, client: client, config: config, pubsubClient: pubsubClient,
-		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,}
+		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository}
 }
 
 func (impl *EventRESTClientImpl) buildFinalPayload(event Event, cdPipeline *pipelineConfig.Pipeline, ciPipeline *pipelineConfig.CiPipeline) *Payload {

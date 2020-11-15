@@ -18,15 +18,15 @@
 package user
 
 import (
+	"fmt"
+	jwt2 "github.com/argoproj/argo-cd/util/jwt"
+	"github.com/argoproj/argo-cd/util/session"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	casbin2 "github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
-	"fmt"
-	jwt2 "github.com/argoproj/argo-cd/util/jwt"
-	"github.com/argoproj/argo-cd/util/session"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"

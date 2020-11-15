@@ -18,15 +18,15 @@
 package restHandler
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"

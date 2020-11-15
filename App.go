@@ -19,15 +19,15 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"github.com/argoproj/argo-cd/util/session"
+	"github.com/casbin/casbin"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"fmt"
-	"github.com/argoproj/argo-cd/util/session"
-	"github.com/casbin/casbin"
 	"github.com/go-pg/pg"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"

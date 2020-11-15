@@ -33,7 +33,7 @@ type ConfigSecretRootJson struct {
 	ConfigSecretJson ConfigSecretJson `json:"ConfigSecrets"`
 }
 type ConfigSecretJson struct {
-	Enabled bool  `json:"enabled"`
+	Enabled bool   `json:"enabled"`
 	Secrets []*Map `json:"secrets"`
 }
 

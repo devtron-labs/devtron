@@ -18,11 +18,11 @@
 package pubsub
 
 import (
+	"encoding/json"
+	v1alpha12 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"encoding/json"
-	v1alpha12 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/nats-io/stan"
 	"go.uber.org/zap"
 	"time"
