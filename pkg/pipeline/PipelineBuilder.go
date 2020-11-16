@@ -1340,10 +1340,10 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(app *pipelineConfig
 			Application: gocdApplication,
 			Upsert:      &upsert,
 		}
-		impl.logger.Debugw("ass create req", "req", create)
+		impl.logger.Infow("ass create req", "req", create)
 		appRes, err := impl.application.Create(ctx, create)
 		if err != nil {
-			impl.logger.Errorw("error in creating argo pipeline ", "err", err, "name", pipeline.Name)
+			impl.logger.Errorw("error in creating argo pipeline", "name", pipeline.Name, "err", err)
 			return "", err
 		}
 		impl.logger.Debugw("pipeline create res ", "res", appRes)
