@@ -473,16 +473,14 @@ func (impl GitHubClient) GetRepoUrl(projectName string) (repoUrl string, err err
 func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl string) (validated bool, err error) {
 	count := 0
 	verified := false
-	pass := 0
 	impl.logger.Infow("ensureProjectAvailability", "count", count, "repoUrl", repoUrl)
 	for count < 3 && !verified {
 		count = count + 1
 		_, err := impl.GetRepoUrl(projectName)
 		if err == nil {
 			impl.logger.Infow("ensureProjectAvailability pass", "count", count, "repoUrl", repoUrl)
-			pass = 1
-			break
-			//return true, nil
+			time.Sleep(60 * time.Second)
+			return true, nil
 		}
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
@@ -493,7 +491,7 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		}
 		time.Sleep(10 * time.Second)
 	}
-	count = 0
+	/*count = 0
 	for count < 3 && !verified {
 		count = count + 1
 		impl.logger.Infow("ensureProjectAvailability", "count", count, "repoUrl", repoUrl)
@@ -506,6 +504,6 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 			impl.logger.Errorw("error on ensure Availability for clone", "err", err)
 		}
 		time.Sleep(10 * time.Second)
-	}
+	}*/
 	return false, nil
 }
