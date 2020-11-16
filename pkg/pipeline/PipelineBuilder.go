@@ -1829,60 +1829,71 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
 	}
 	pipelineOverride := chart.PipelineOverride
-	rollingConfig, err := impl.filterDeploymentTemplate("ROLLING", pipelineOverride)
-	if err != nil {
-		return pipelineStrategiesResponse, err
-	}
-	pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
-		DeploymentTemplate: "ROLLING",
-		Config:             []byte(rollingConfig),
-		Default:            true,
-	})
-	bgConfig, err := impl.filterDeploymentTemplate("BLUE-GREEN", pipelineOverride)
-	if err != nil {
-		return pipelineStrategiesResponse, err
-	}
-	pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
-		DeploymentTemplate: "BLUE-GREEN",
-		Config:             []byte(bgConfig),
-		Default:            false,
-	})
-
-	chartVersion := chart.ChartVersion
-	chartMajorVersion, err := strconv.Atoi(chartVersion[:1])
+	var deploymentType DeploymentType
+	err = json.Unmarshal([]byte(pipelineOverride), &deploymentType)
 	if err != nil {
 		impl.logger.Errorw("err", err)
 		return pipelineStrategiesResponse, err
 	}
-	chartMinorVersion, err := strconv.Atoi(chartVersion[2:3])
-	if err != nil {
-		impl.logger.Errorw("err", err)
-		return pipelineStrategiesResponse, err
+	if deploymentType.Deployment.Strategy.Rolling != nil {
+		rollingConfig, err := impl.filterDeploymentTemplate("ROLLING", pipelineOverride)
+		if err != nil {
+			return pipelineStrategiesResponse, err
+		}
+		pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
+			DeploymentTemplate: "ROLLING",
+			Config:             []byte(rollingConfig),
+			Default:            true,
+		})
 	}
-	if chartMajorVersion <= 3 && chartMinorVersion < 2 {
-		return pipelineStrategiesResponse, nil
-	}
+	if deploymentType.Deployment.Strategy.BlueGreen != nil {
+		bgConfig, err := impl.filterDeploymentTemplate("BLUE-GREEN", pipelineOverride)
+		if err != nil {
+			return pipelineStrategiesResponse, err
+		}
+		pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
+			DeploymentTemplate: "BLUE-GREEN",
+			Config:             []byte(bgConfig),
+			Default:            false,
+		})
 
-	canaryConfig, err := impl.filterDeploymentTemplate("CANARY", pipelineOverride)
-	if err != nil {
-		return pipelineStrategiesResponse, err
+		chartVersion := chart.ChartVersion
+		chartMajorVersion, err := strconv.Atoi(chartVersion[:1])
+		if err != nil {
+			impl.logger.Errorw("err", err)
+			return pipelineStrategiesResponse, err
+		}
+		chartMinorVersion, err := strconv.Atoi(chartVersion[2:3])
+		if err != nil {
+			impl.logger.Errorw("err", err)
+			return pipelineStrategiesResponse, err
+		}
+		if chartMajorVersion <= 3 && chartMinorVersion < 2 {
+			return pipelineStrategiesResponse, nil
+		}
 	}
-	pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
-		DeploymentTemplate: "CANARY",
-		Config:             []byte(canaryConfig),
-		Default:            false,
-	})
-
-	recreateConfig, err := impl.filterDeploymentTemplate("RECREATE", pipelineOverride)
-	if err != nil {
-		return pipelineStrategiesResponse, err
+	if deploymentType.Deployment.Strategy.Canary != nil {
+		canaryConfig, err := impl.filterDeploymentTemplate("CANARY", pipelineOverride)
+		if err != nil {
+			return pipelineStrategiesResponse, err
+		}
+		pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
+			DeploymentTemplate: "CANARY",
+			Config:             []byte(canaryConfig),
+			Default:            false,
+		})
 	}
-	pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
-		DeploymentTemplate: "RECREATE",
-		Config:             []byte(recreateConfig),
-		Default:            false,
-	})
-
+	if deploymentType.Deployment.Strategy.Recreate != nil {
+		recreateConfig, err := impl.filterDeploymentTemplate("RECREATE", pipelineOverride)
+		if err != nil {
+			return pipelineStrategiesResponse, err
+		}
+		pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
+			DeploymentTemplate: "RECREATE",
+			Config:             []byte(recreateConfig),
+			Default:            false,
+		})
+	}
 	return pipelineStrategiesResponse, nil
 }
 
