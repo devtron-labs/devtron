@@ -401,7 +401,7 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 	}
 	logger.Infow("repo created ", "r", r.CloneURL)
 
-	validated, err := impl.ensureProjectAvailability(name, url)
+	validated, err := impl.ensureProjectAvailability(name, *r.CloneURL)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
 		return "", true, err
@@ -479,6 +479,7 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		count = count + 1
 		_, err := impl.GetRepoUrl(projectName)
 		if err == nil {
+			impl.logger.Infow("ensureProjectAvailability pass", "count", count, "repoUrl", repoUrl)
 			pass = 1
 			//return true, nil
 		}
@@ -497,6 +498,7 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		impl.logger.Infow("ensureProjectAvailability", "count", count, "repoUrl", repoUrl)
 		_, err = impl.gitService.Clone(repoUrl, fmt.Sprintf("/tmp/ensure-clone/%s", projectName))
 		if err == nil && pass == 1 {
+			impl.logger.Infow("ensureProjectAvailability passed", "count", count, "repoUrl", repoUrl)
 			return true, nil
 		}
 		if err != nil {
