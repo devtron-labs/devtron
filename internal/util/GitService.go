@@ -473,6 +473,7 @@ func (impl GitHubClient) GetRepoUrl(projectName string) (repoUrl string, err err
 func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl string) (validated bool, err error) {
 	count := 0
 	verified := false
+	impl.logger.Infow("ensureProjectAvailability", "count", count, "repoUrl", repoUrl)
 	for count < 3 && !verified {
 		count = count + 1
 		_, err := impl.GetRepoUrl(projectName)
@@ -488,7 +489,7 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		}
 		time.Sleep(10 * time.Second)
 	}
-
+	count = 0
 	for count < 3 && !verified {
 		count = count + 1
 		impl.logger.Infow("ensureProjectAvailability", "count", count, "repoUrl", repoUrl)
