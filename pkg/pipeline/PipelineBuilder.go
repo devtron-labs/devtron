@@ -1035,8 +1035,8 @@ func (impl PipelineBuilderImpl) createCdPipeline(app *pipelineConfig.App, pipeli
 	chartGitAttr := &util.ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
 		FileContent:    string("initial commit"),
-		ChartName:      envOverride.Chart.ChartName,
-		ChartLocation:  envOverride.Chart.ChartLocation,
+		ChartName:      chart.ChartName,
+		ChartLocation:  chart.ChartLocation,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
 	}
 	_, err = impl.GitClient.CommitValues(chartGitAttr)

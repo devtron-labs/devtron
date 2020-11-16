@@ -64,21 +64,23 @@ func GetGitConfig() (*GitConfig, error) {
 }
 
 type GitLabClient struct {
-	client *gitlab.Client
-	config *GitConfig
-	logger *zap.SugaredLogger
+	client     *gitlab.Client
+	config     *GitConfig
+	logger     *zap.SugaredLogger
+	gitService GitService
 }
 
-func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger) (GitClient, error) {
+func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
 	if config.GitProvider == "GITLAB" {
 		git := gitlab.NewClient(nil, config.GitToken)
 		return &GitLabClient{
-			client: git,
-			config: config,
-			logger: logger,
+			client:     git,
+			config:     config,
+			logger:     logger,
+			gitService: gitService,
 		}, nil
 	} else if config.GitProvider == "GITHUB" {
-		return NewGithubClient(config.GitToken, config.GithubOrganization, logger), nil
+		return NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService), nil
 	} else {
 		return nil, fmt.Errorf("unsupported git provider %s, supported values are  GITHUB, GITLAB", config.GitProvider)
 	}
@@ -325,7 +327,7 @@ func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string,
 	if err != nil {
 		return "", err
 	}
- 	err = ioutil.WriteFile(filepath.Join(gitDir, config.ChartLocation, config.FileName), []byte(config.FileContent), 0600)
+	err = ioutil.WriteFile(filepath.Join(gitDir, config.ChartLocation, config.FileName), []byte(config.FileContent), 0600)
 	if err != nil {
 		return "", err
 	}
@@ -355,11 +357,12 @@ type GitHubClient struct {
 	client *github.Client
 
 	//config *GitConfig
-	logger *zap.SugaredLogger
-	org    string
+	logger     *zap.SugaredLogger
+	org        string
+	gitService GitService
 }
 
-func NewGithubClient(token string, org string, logger *zap.SugaredLogger) GitHubClient {
+func NewGithubClient(token string, org string, logger *zap.SugaredLogger, gitService GitService) GitHubClient {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
@@ -367,7 +370,7 @@ func NewGithubClient(token string, org string, logger *zap.SugaredLogger) GitHub
 	tc := oauth2.NewClient(ctx, ts)
 
 	client := github.NewClient(tc)
-	return GitHubClient{client: client, org: org, logger: logger}
+	return GitHubClient{client: client, org: org, logger: logger, gitService: gitService}
 }
 func (impl GitHubClient) CreateRepository(name, description string) (url string, isNew bool, err error) {
 	ctx := context.Background()
@@ -398,7 +401,7 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 	}
 	logger.Infow("repo created ", "r", r.CloneURL)
 
-	validated, err := impl.ensureProjectAvailability(name)
+	validated, err := impl.ensureProjectAvailability(name, url)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
 		return "", true, err
@@ -467,21 +470,34 @@ func (impl GitHubClient) GetRepoUrl(projectName string) (repoUrl string, err err
 	return *repo.CloneURL, nil
 }
 
-func (impl GitHubClient) ensureProjectAvailability(projectName string) (validated bool, err error) {
+func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl string) (validated bool, err error) {
 	count := 0
 	verified := false
 	for count < 3 && !verified {
 		count = count + 1
 		_, err := impl.GetRepoUrl(projectName)
-		if err==nil{
+		if err == nil {
 			return true, nil
 		}
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
 			impl.logger.Errorw("error in validating repo", "err", err)
 			return validated, err
-		}else {
+		} else {
 			impl.logger.Errorw("error in validating repo", "err", err)
+		}
+		time.Sleep(10 * time.Second)
+	}
+
+	for count < 3 && !verified {
+		count = count + 1
+		impl.logger.Infow("ensureProjectAvailability", "count", count, "repoUrl", repoUrl)
+		_, err = impl.gitService.Clone(repoUrl, fmt.Sprintf("/tmp/ensure-clone/%s", projectName))
+		if err == nil {
+			return true, nil
+		}
+		if err != nil {
+			impl.logger.Errorw("error on ensure Availability for clone", "err", err)
 		}
 		time.Sleep(10 * time.Second)
 	}
