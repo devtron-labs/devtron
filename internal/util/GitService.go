@@ -481,6 +481,7 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		if err == nil {
 			impl.logger.Infow("ensureProjectAvailability pass", "count", count, "repoUrl", repoUrl)
 			pass = 1
+			break
 			//return true, nil
 		}
 		responseErr, ok := err.(*github.ErrorResponse)
