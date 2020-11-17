@@ -872,7 +872,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines,
 	}
 
 	for _, pipeline := range cdPipelines.Pipelines {
-		id, err := impl.createCdPipeline(app, pipeline, cdPipelines.UserId, ctx)
+		id, err := impl.createCdPipeline(ctx, app, pipeline, cdPipelines.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating pipeline", "name", pipeline.Name, "err", err)
 			return nil, err
@@ -893,7 +893,7 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 	case bean.CD_CREATE:
 		return impl.CreateCdPipelines(pipelineRequest, ctx)
 	case bean.CD_UPDATE:
-		err := impl.updateCdPipeline(cdPipelines.Pipeline, cdPipelines.UserId, ctx)
+		err := impl.updateCdPipeline(ctx, cdPipelines.Pipeline, cdPipelines.UserId)
 		return pipelineRequest, err
 	case bean.CD_DELETE:
 		err := impl.deleteCdPipeline(cdPipelines.Pipeline.Id, cdPipelines.UserId, ctx)
@@ -1015,7 +1015,7 @@ type Rolling struct {
 	MaxUnavailable int    `json:"maxUnavailable"`
 }
 
-func (impl PipelineBuilderImpl) createCdPipeline(app *pipelineConfig.App, pipeline *bean.CDPipelineConfigObject, userID int32, ctx context.Context) (pipelineRes int, err error) {
+func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipelineConfig.App, pipeline *bean.CDPipelineConfigObject, userID int32) (pipelineRes int, err error) {
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 	if err != nil {
 		return 0, err
@@ -1056,7 +1056,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(app *pipelineConfig.App, pipeli
 
 	//new pipeline
 	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
-	name, err := impl.createArgoPipelineIfRequired(app, pipeline, envOverride, ctx)
+	name, err := impl.createArgoPipelineIfRequired(ctx, app, pipeline, envOverride)
 	if err != nil {
 		return 0, err
 	}
@@ -1125,7 +1125,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(app *pipelineConfig.App, pipeli
 	return pipelineId, nil
 }
 
-func (impl PipelineBuilderImpl) updateCdPipeline(pipeline *bean.CDPipelineConfigObject, userID int32, ctx context.Context) (err error) {
+func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {
 
 	if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
 		err = &util.ApiError{
@@ -1294,7 +1294,7 @@ func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate pipe
 	return pipelineOverride, nil
 }
 
-func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(app *pipelineConfig.App, pipeline *bean.CDPipelineConfigObject, envConfigOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error) {
+func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context, app *pipelineConfig.App, pipeline *bean.CDPipelineConfigObject, envConfigOverride *chartConfig.EnvConfigOverride) (string, error) {
 	//repo has been registered while helm create
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 	if err != nil {
