@@ -73,7 +73,7 @@ func GetACDAuthConfig() (*ACDAuthConfig, error) {
 		return nil, fmt.Errorf("ACD_PASSWORD is not present in environment")
 	}
 	if len(cfg.ACDUsername) ==0{
-		return nil, fmt.Errorf("ACD_PASSWORD is not present in environment")
+		return nil, fmt.Errorf("ACD_USERNAME is not present in environment")
 	}
 	return cfg, err
 }
