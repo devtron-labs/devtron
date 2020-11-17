@@ -398,13 +398,24 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 		})
 	if err != nil {
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
+		return "", true, err
 	}
 	logger.Infow("repo created ", "r", r.CloneURL)
 
-	validated, err := impl.ensureProjectAvailability(name, *r.CloneURL)
+	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		return "", true, err
+		return *r.CloneURL, true, err
+	}
+	_, err = impl.createReadme(name)
+	if err != nil {
+		impl.logger.Errorw("error in creating readme", "err", err)
+		return *r.CloneURL, true, err
+	}
+	validated, err = impl.ensureProjectAvailabilityOnSsh(name, *r.CloneURL)
+	if err != nil {
+		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
+		return *r.CloneURL, true, err
 	}
 	if !validated {
 		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
@@ -470,15 +481,14 @@ func (impl GitHubClient) GetRepoUrl(projectName string) (repoUrl string, err err
 	return *repo.CloneURL, nil
 }
 
-func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl string) (validated bool, err error) {
+func (impl GitHubClient) ensureProjectAvailabilityOnHttp(projectName string) (validated bool, err error) {
 	count := 0
 	verified := false
 	for count < 3 && !verified {
 		count = count + 1
 		_, err := impl.GetRepoUrl(projectName)
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability repo url passed", "count", count, "repoUrl", repoUrl)
-			break
+			return true, nil
 		}
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
@@ -489,11 +499,12 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		}
 		time.Sleep(10 * time.Second)
 	}
-	_, err = impl.createReadme(projectName)
-	if err != nil {
-		impl.logger.Errorw("error in creating readme", "err", err)
-		return false, err
-	}
+	return false, nil
+}
+
+func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (validated bool, err error) {
+	count := 0
+	verified := false
 	count = 0
 	for count < 3 && !verified {
 		count = count + 1

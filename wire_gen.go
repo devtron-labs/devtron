@@ -84,7 +84,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	gitClient, err := util.NewGitLabClient(gitConfig, sugaredLogger)
+	gitServiceImpl := util.NewGitServiceImpl(gitConfig, sugaredLogger)
+	gitClient, err := util.NewGitLabClient(gitConfig, sugaredLogger, gitServiceImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +206,6 @@ func InitializeApp() (*App, error) {
 	sseSSE := sse.NewSSE()
 	helmRouterImpl := router.NewHelmRouter(pipelineTriggerRestHandlerImpl, sseSSE)
 	chartWorkingDir := _wireChartWorkingDirValue
-	gitServiceImpl := util.NewGitServiceImpl(gitConfig, sugaredLogger)
 	chartTemplateServiceImpl := util.NewChartTemplateServiceImpl(sugaredLogger, chartWorkingDir, gitClient, gitServiceImpl, httpClient)
 	chartRepoRepositoryImpl := chartConfig.NewChartRepoRepositoryImpl(db)
 	refChartDir := _wireRefChartDirValue
