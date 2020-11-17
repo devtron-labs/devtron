@@ -308,6 +308,7 @@ func (impl AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, ar
 	ctx, err := impl.buildACDSynchContext()
 	if err != nil {
 		impl.logger.Errorw("error in creating acd synch context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
+		return err
 	}
 
 	id, err := impl.TriggerRelease(request, ctx)
