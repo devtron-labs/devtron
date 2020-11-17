@@ -114,6 +114,7 @@ type PipelineBuilderImpl struct {
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	appService                    app.AppService
 	imageScanResultRepository     security.ImageScanResultRepository
+	GitClient                     util.GitClient
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -138,6 +139,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	appService app.AppService,
 	imageScanResultRepository security.ImageScanResultRepository,
+	GitClient util.GitClient,
 ) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
@@ -162,6 +164,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciConfig:                      ciConfig,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		imageScanResultRepository:     imageScanResultRepository,
+		GitClient:                     GitClient,
 	}
 }
 
@@ -1029,6 +1032,20 @@ func (impl PipelineBuilderImpl) createCdPipeline(app *pipelineConfig.App, pipeli
 		return 0, errors.AlreadyExistsf("pipeline already exists name:%s", pipeline.Name)
 	}*/
 
+	values := []byte(`{"ConfigMaps":{"enabled":false},"ConfigSecrets":{"enabled":false},"ContainerPort":[],"EnvVariables":[],"GracePeriod":30,"LivenessProbe":{},"MaxSurge":1,"MaxUnavailable":0,"MinReadySeconds":60,"ReadinessProbe":{},"Spec":{"Affinity":{"Values":"nodes","key":""}},"app":"13","appMetrics":false,"args":{},"autoscaling":{},"command":{"enabled":false,"value":[]},"containers":[],"dbMigrationConfig":{"enabled":false},"deployment":{"strategy":{"rolling":{"maxSurge":"25%","maxUnavailable":1}}},"deploymentType":"ROLLING","env":"1","envoyproxy":{"configMapName":"","image":"","resources":{"limits":{"cpu":"50m","memory":"50Mi"},"requests":{"cpu":"50m","memory":"50Mi"}}},"image":{"pullPolicy":"IfNotPresent"},"ingress":{},"ingressInternal":{"annotations":{},"enabled":false,"host":"","path":"","tls":[]},"initContainers":[],"pauseForSecondsBeforeSwitchActive":30,"pipelineName":"","prometheus":{"release":"monitoring"},"rawYaml":[],"releaseVersion":"1","replicaCount":1,"resources":{"limits":{"cpu":"0.05","memory":"50Mi"},"requests":{"cpu":"0.01","memory":"10Mi"}},"secret":{"data":{},"enabled":false},"server":{"deployment":{"image":"","image_tag":""}},"service":{"annotations":{},"type":"ClusterIP"},"servicemonitor":{"additionalLabels":{}},"tolerations":[],"volumeMounts":[],"volumes":[],"waitForSecondsBeforeScalingDown":30}`)
+	chartGitAttr := &util.ChartConfig{
+		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
+		FileContent:    string(values),
+		ChartName:      chart.ChartName,
+		ChartLocation:  chart.ChartLocation,
+		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
+	}
+	_, err = impl.GitClient.CommitValues(chartGitAttr)
+	if err != nil {
+		impl.logger.Errorw("error in git commit", "err", err)
+		return 0, err
+	}
+
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -1324,10 +1341,10 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(app *pipelineConfig
 			Application: gocdApplication,
 			Upsert:      &upsert,
 		}
-		impl.logger.Debugw("ass create req", "req", create)
+		impl.logger.Infow("ass create req", "req", create)
 		appRes, err := impl.application.Create(ctx, create)
 		if err != nil {
-			impl.logger.Errorw("error in creating argo pipeline ", "err", err, "name", pipeline.Name)
+			impl.logger.Errorw("error in creating argo pipeline", "name", pipeline.Name, "err", err)
 			return "", err
 		}
 		impl.logger.Debugw("pipeline create res ", "res", appRes)
@@ -1731,11 +1748,11 @@ func (impl PipelineBuilderImpl) GetAppListByTeamIds(teamIds []int) ([]*TeamAppBe
 	}
 	for _, app := range apps {
 		if _, ok := teamMap[app.TeamId]; ok {
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName,})
 		} else {
 
-			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
+			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name,}
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName,})
 		}
 	}
 
