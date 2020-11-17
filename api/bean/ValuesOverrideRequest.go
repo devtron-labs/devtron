@@ -18,8 +18,8 @@
 package bean
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 )
 
 type CdWorkflowType string

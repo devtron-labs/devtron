@@ -18,10 +18,10 @@
 package router
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
-	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"

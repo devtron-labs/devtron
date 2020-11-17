@@ -78,6 +78,7 @@ type AppStoreWithVersion struct {
 	CreatedOn                    time.Time `json:"created_on"`
 	UpdatedOn                    time.Time `json:"updated_on"`
 	Version                      string    `json:"version"`
+	Deprecated                   bool      `json:"deprecated"`
 }
 
 func (impl AppStoreApplicationVersionRepositoryImpl) GetReadMeById(id int) (*AppStoreApplicationVersion, error) {
@@ -89,7 +90,7 @@ func (impl AppStoreApplicationVersionRepositoryImpl) GetReadMeById(id int) (*App
 
 func (impl *AppStoreApplicationVersionRepositoryImpl) FindAll() ([]AppStoreWithVersion, error) {
 	var appStoreWithVersion []AppStoreWithVersion
-	queryTemp := "select asv.version, asv.icon,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name from app_store_application_version asv inner join app_store aps on asv.app_store_id = aps.id inner join chart_repo ch on aps.chart_repo_id = ch.id where asv.latest is TRUE order by aps.name asc;"
+	queryTemp := "select asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name from app_store_application_version asv inner join app_store aps on asv.app_store_id = aps.id inner join chart_repo ch on aps.chart_repo_id = ch.id where asv.latest is TRUE order by aps.name asc;"
 	_, err := impl.dbConnection.Query(&appStoreWithVersion, queryTemp)
 	if err != nil {
 		return nil, err

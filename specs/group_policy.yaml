@@ -183,11 +183,11 @@ components:
             - cluster
             - notification
         team:
-           type: string
-           description: team name
+          type: string
+          description: team name
         entityName:
-           type: string
-           description: global entity name item name, i.e chart-group ("abc"), git("devtron-gt") etc.
+          type: string
+          description: global entity name item name, i.e chart-group ("abc"), git("devtron-gt") etc.
         environment:
           type: string
           description: comma saperated environments names.

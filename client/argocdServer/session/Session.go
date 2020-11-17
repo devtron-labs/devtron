@@ -19,9 +19,9 @@ package session
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/argoproj/argo-cd/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"time"
 )
 

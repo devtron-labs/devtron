@@ -19,6 +19,9 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
@@ -34,9 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"encoding/json"
-	"fmt"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/go-pg/pg"
 	"github.com/nats-io/stan"
 	"go.uber.org/zap"

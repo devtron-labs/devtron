@@ -18,11 +18,11 @@
 package appstore
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"encoding/json"
-	"fmt"
 	"go.uber.org/zap"
 	"time"
 )

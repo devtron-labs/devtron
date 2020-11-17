@@ -18,9 +18,9 @@
 package util
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/util"
-	"encoding/json"
 	"github.com/evanphx/json-patch"
 	"go.uber.org/zap"
 )

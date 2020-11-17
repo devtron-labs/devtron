@@ -19,6 +19,10 @@ package restHandler
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -28,10 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"encoding/json"
-	"fmt"
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"

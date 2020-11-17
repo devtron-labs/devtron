@@ -18,8 +18,8 @@
 package cluster
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"go.uber.org/zap"
 	"time"
 )

@@ -18,12 +18,12 @@
 package notifier
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util/event"
-	"encoding/json"
 	"go.uber.org/zap"
 	"strings"
 	"time"
@@ -205,7 +205,7 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 		result := &NotificationRecipientListingResponse{
 			ConfigId:  sesConfig.Id,
 			Recipient: sesConfig.ConfigName,
-			Dest:      util2.Slack,}
+			Dest:      util2.Slack}
 		results = append(results, result)
 	}
 
@@ -218,7 +218,7 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 		result := &NotificationRecipientListingResponse{
 			ConfigId:  int(item.Id),
 			Recipient: item.EmailId,
-			Dest:      util2.SES,}
+			Dest:      util2.SES}
 		results = append(results, result)
 	}
 

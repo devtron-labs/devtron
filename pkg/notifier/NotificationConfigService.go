@@ -18,13 +18,13 @@
 package notifier
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/util/event"
-	"encoding/json"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
@@ -83,13 +83,13 @@ type NSDeleteRequest struct {
 }
 
 type NotificationRequest struct {
-	UpdateType                util.UpdateType             `json:"updateType,omitempty"`
-	SesConfigId               int                         `json:"sesConfigId,omitempty"`
-	Providers                 []*Provider                 `json:"providers"`
+	UpdateType                util.UpdateType              `json:"updateType,omitempty"`
+	SesConfigId               int                          `json:"sesConfigId,omitempty"`
+	Providers                 []*Provider                  `json:"providers"`
 	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
 }
 type NotificationUpdateRequest struct {
-	UpdateType                util.UpdateType             `json:"updateType,omitempty"`
+	UpdateType                util.UpdateType              `json:"updateType,omitempty"`
 	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
 }
 type NotificationConfigRequest struct {
@@ -390,9 +390,9 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			}
 			for _, item := range directRecipients {
 				if strings.Contains(item, "https://") {
-					providerConfigs = append(providerConfigs, &ProvidersConfig{Dest: string(util.Slack), Recipient: item,})
+					providerConfigs = append(providerConfigs, &ProvidersConfig{Dest: string(util.Slack), Recipient: item})
 				} else {
-					providerConfigs = append(providerConfigs, &ProvidersConfig{Dest: string(util.SES), Recipient: item,})
+					providerConfigs = append(providerConfigs, &ProvidersConfig{Dest: string(util.SES), Recipient: item})
 				}
 			}
 			notificationSettingsResponse.ProvidersConfig = providerConfigs

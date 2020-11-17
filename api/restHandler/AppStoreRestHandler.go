@@ -19,6 +19,8 @@ package restHandler
 
 import (
 	"context"
+	"fmt"
+	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -26,8 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"fmt"
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -195,7 +195,7 @@ func (handler *AppStoreRestHandlerImpl) FetchAppDetailsForInstalledApp(w http.Re
 		elapsed := time.Since(start)
 		handler.Logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, installedAppId, envId)
 		if err != nil {
-			handler.Logger.Errorw("service err, FetchAppDetailsForInstalledApp, fetching resource tree", "err", err,"installedAppId", installedAppId, "envId", envId)
+			handler.Logger.Errorw("service err, FetchAppDetailsForInstalledApp, fetching resource tree", "err", err, "installedAppId", installedAppId, "envId", envId)
 			err = &util.ApiError{
 				Code:            constants.AppDetailResourceTreeNotFound,
 				InternalMessage: "app detail fetched, failed to get resource tree from acd",
@@ -230,7 +230,7 @@ func (handler *AppStoreRestHandlerImpl) GetReadme(w http.ResponseWriter, r *http
 	handler.Logger.Infow("request payload, GetReadme, app store", "appStoreApplicationVersionId", id)
 	res, err := handler.appStoreService.GetReadMeByAppStoreApplicationVersionId(id)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetReadme, fetching resource tree", "err", err,"appStoreApplicationVersionId", id)
+		handler.Logger.Errorw("service err, GetReadme, fetching resource tree", "err", err, "appStoreApplicationVersionId", id)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

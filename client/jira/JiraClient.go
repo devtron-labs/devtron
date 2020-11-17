@@ -19,9 +19,9 @@ package client
 
 import (
 	"bytes"
-	"github.com/devtron-labs/devtron/internal/util/JiraUtil"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util/JiraUtil"
 	"go.uber.org/zap"
 	"net/http"
 )

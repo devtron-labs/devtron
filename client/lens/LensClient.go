@@ -60,7 +60,7 @@ func NewLensClientImpl(config *LensConfig, logger *zap.SugaredLogger) (*LensClie
 	if err != nil {
 		return nil, err
 	}
-	client := &http.Client{Timeout: time.Duration(config.Timeout)* time.Second}
+	client := &http.Client{Timeout: time.Duration(config.Timeout) * time.Second}
 	return &LensClientImpl{httpClient: client, logger: logger, baseUrl: baseUrl}, nil
 }
 

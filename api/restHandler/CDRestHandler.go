@@ -18,8 +18,8 @@
 package restHandler
 
 import (
-	"github.com/devtron-labs/devtron/internal/util/ArgoUtil"
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/util/ArgoUtil"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"

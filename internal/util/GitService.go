@@ -477,9 +477,9 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		count = count + 1
 		_, err := impl.GetRepoUrl(projectName)
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability-1 passed", "count", count, "repoUrl", repoUrl)
-			time.Sleep(30 * time.Second)
-			return true, nil
+			impl.logger.Infow("ensureProjectAvailability passed 1", "count", count, "repoUrl", repoUrl)
+			//return true, nil
+			break
 		}
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
@@ -489,21 +489,20 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 			impl.logger.Errorw("error in validating repo", "err", err)
 		}
 		time.Sleep(10 * time.Second)
-	}/*
+	}
+
 	count = 0
 	for count < 3 && !verified {
 		count = count + 1
-		impl.logger.Infow("ensureProjectAvailability-2", "count", count, "repoUrl", repoUrl)
-		_, err := git.PlainOpen(repoUrl)
-		//_, err = impl.gitService.Clone(repoUrl, fmt.Sprintf("/tmp/ensure-clone/%s", projectName))
+		_, err = impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
 			impl.logger.Infow("ensureProjectAvailability-2 passed", "count", count, "repoUrl", repoUrl)
 			return true, nil
 		}
 		if err != nil {
-			impl.logger.Errorw("error on ensure Availability for clone", "err", err)
+			impl.logger.Errorw("ensureProjectAvailability-2 failed", "count", count, "err", err)
 		}
 		time.Sleep(10 * time.Second)
-	}*/
+	}
 	return false, nil
 }

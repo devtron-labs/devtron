@@ -59,13 +59,13 @@ type Role struct {
 }
 
 type RoleData struct {
-	Id             int      `json:"id" validate:"number"`
-	Role           string   `json:"role" validate:"required"`
-	Entity         string   `json:"entity"`
-	Team           string   `json:"team"`
-	EntityName     string   `json:"entityName"`
-	Environment    string   `json:"environment"`
-	Action         string   `json:"action"`
+	Id          int    `json:"id" validate:"number"`
+	Role        string `json:"role" validate:"required"`
+	Entity      string `json:"entity"`
+	Team        string `json:"team"`
+	EntityName  string `json:"entityName"`
+	Environment string `json:"environment"`
+	Action      string `json:"action"`
 }
 
 const (

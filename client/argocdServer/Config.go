@@ -22,9 +22,9 @@ import (
 )
 
 type Config struct {
-	Host        string `env:"CD_HOST" envDefault:"localhost"`
-	Port        string `env:"CD_PORT" envDefault:"8000"`
-	Namespace   string `env:"CD_NAMESPACE" envDefault:"devtroncd"`
+	Host      string `env:"CD_HOST" envDefault:"localhost"`
+	Port      string `env:"CD_PORT" envDefault:"8000"`
+	Namespace string `env:"CD_NAMESPACE" envDefault:"devtroncd"`
 }
 
 func GetConfig() (*Config, error) {

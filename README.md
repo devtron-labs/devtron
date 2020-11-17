@@ -1,3 +1,12 @@
+[![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/72JDKy4)
+[![Go Report Card](https://goreportcard.com/badge/github.com/devtron-labs/devtron)](https://goreportcard.com/report/github.com/devtron-labs/devtron)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4411/badge)](https://bestpractices.coreinfrastructure.org/projects/4411)
+[![made-with-Go](https://img.shields.io/badge/Made%20with-Go-1f425f.svg)](http://golang.org)
+[![Website devtron.ai](https://img.shields.io/website-up-down-green-red/http/shields.io.svg)](http://devtron.ai/)
+
+
+
 <p align="center"><img width="200" height="156" src="./assets/logo.png"></p>
 <p align="center">Devtron is an open source software delivery workflow for kubernetes written in go.
 <br>
@@ -35,9 +44,9 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 <summary> <b> Multi cloud deployment </b></summary>
  <br> 
  
- - deploy to multiple kubernetes cluster
- - test on aws cloud 
-   > comming soon: support for GCP and microsoft azure  
+ - Deploy to multiple kubernetes cluster
+ - Test on aws cloud 
+   > coming soon: support for GCP and microsoft azure  
 </details>
 <details>
  <summary> <b> Easy dev-sec-ops integration </b> </summary>
@@ -54,7 +63,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 <br>
  
 - One place for all historical kubernetes events 
-- Access all manifests securely for eg secret obfuscation 
+- Access all manifests securely for e.g. secret obfuscation 
 - ***Application metrics*** for cpu, ram, http status code and latency with comparison between new and old 
 - ***Advanced logging*** with grep and json search 
 - Intelligent ***correlation between events, logs*** for faster triangulation of issue 
@@ -62,10 +71,10 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 </details>
 
 <details>
-<summary> <b>Enterprise Grade security and compliances </b></summary>
+<summary> <b>Enterprise grade security and compliances </b></summary>
 <br>
  
-- Fine grained access control; control who can edit configuration and who can deploy.
+- Fine grained access control; control who can edit configuration and who can deploy
 - Audit log to know who did what and when
 - History of all CI and CD events
 - Kubernetes events impacting application
@@ -92,25 +101,38 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 </details>
 
 
-## To start using Devtron
+## How to start using Devtron
 
-#### Installing devtron
+#### Installing devtron with Helm 
+
+```bash
+$ git clone https://github.com/devtron-labs/devtron-installation-script.git
+$ cd devtron-installation-script/charts
+$ #modify values in values.yaml
+$ helm install devtron . -f values.yaml
+```
+For detail instructions checkout [devtron installation project](https://github.com/devtron-labs/devtron-installation-script/)
 
 
-Devtron can be installed through command 
+#### Access Devtron dashboard
 
-> sh install.sh
-
-- [Detail configuration options] (https://docs.devtron.ai/)
+Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` same as provided in `values.yaml`
 
 
+*****For login use username:`admin` and for password run command mentioned below.*****
+
+```bash
+$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+```
+
+*****[Detail configuration options](https://docs.devtron.ai/setup/install#configuration)*****
 
 #### Using devtron
   
-- [Deploying first application](https://docs.devtron.ai/docs/reference/creating-application/)
-- [Deploying Helm charts](https://docs.devtron.ai/docs/reference/deploy-chart/overview/)
-- [Configure Security policy](https://docs.devtron.ai/)
-- [Detail Userguide](https://docs.devtron.ai/)
+- [Deploying First Application](https://docs.devtron.ai/user-guide/creating-application)
+- [Deploying Helm charts](https://docs.devtron.ai/user-guide/deploy-chart)
+- [Configure Security policy](https://docs.devtron.ai/user-guide/security-features)
+- [Detail Userguide](https://docs.devtron.ai)
 
 
 
@@ -119,6 +141,12 @@ Devtron can be installed through command
 
 **TODO**
 -->
+
+## Compatibility notes
+
+- Only AWS kubernetes cluster is supported as of now
+- It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
+- Application metrics only works for k8s 1.16+
 
 ## Community
 
@@ -136,7 +164,7 @@ Check out our [contributing guidelines](CONTRIBUTING.md). Included are direction
 
 ## Vulnerability Reporting
 
-We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose by contacting us at security@devtron.ai.
+We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose us at security@devtron.ai.
 
 ## License
 

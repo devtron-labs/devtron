@@ -21,10 +21,10 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strconv"

@@ -19,6 +19,10 @@ package pipeline
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -26,10 +30,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/util/event"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
-	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"

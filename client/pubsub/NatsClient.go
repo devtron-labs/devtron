@@ -43,6 +43,7 @@ type PubSubConfig struct {
 }
 
 const CD_SUCCESS = "ORCHESTRATOR.CD.TRIGGER"
+
 /* #nosec */
 func NewPubSubClient(logger *zap.SugaredLogger) (*PubSubClient, error) {
 
@@ -58,7 +59,6 @@ func NewPubSubClient(logger *zap.SugaredLogger) (*PubSubClient, error) {
 		logger.Error("err", err)
 		return &PubSubClient{}, err
 	}
-
 
 	s := rand.NewSource(time.Now().UnixNano())
 	uuid := rand.New(s)

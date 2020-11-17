@@ -18,14 +18,14 @@
 package pubsub
 
 import (
+	"encoding/json"
+	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util/event"
-	"encoding/json"
-	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	"github.com/nats-io/stan"
 	"go.uber.org/zap"
 	"time"

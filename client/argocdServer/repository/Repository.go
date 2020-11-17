@@ -19,12 +19,12 @@ package repository
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/client/argocdServer"
 	"errors"
 	repository2 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"go.uber.org/zap"
 	"time"
 )

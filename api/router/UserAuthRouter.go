@@ -18,11 +18,11 @@
 package router
 
 import (
+	"fmt"
+	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"fmt"
-	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net"

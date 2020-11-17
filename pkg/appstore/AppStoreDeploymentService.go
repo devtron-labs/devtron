@@ -22,6 +22,12 @@ import (
 	"context"
 	/* #nosec */
 	"crypto/sha1"
+	"encoding/json"
+	"fmt"
+	"github.com/Pallinder/go-randomdata"
+	"github.com/argoproj/argo-cd/pkg/apiclient/application"
+	repository2 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/client/pubsub"
@@ -37,12 +43,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"encoding/json"
-	"fmt"
-	"github.com/Pallinder/go-randomdata"
-	"github.com/argoproj/argo-cd/pkg/apiclient/application"
-	repository2 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/nats-io/stan"
@@ -279,6 +279,7 @@ func (impl InstalledAppServiceImpl) GetAll(environments []int) ([]InstalledAppsR
 			InstalledAppVersionId:        a.InstalledAppVersionId,
 			AppStoreApplicationVersionId: a.AppStoreApplicationVersionId,
 			InstalledAppsId:              a.Id,
+			Deprecated:                   a.Deprecated,
 		}
 		installedAppsResponse = append(installedAppsResponse, installedAppRes)
 	}
