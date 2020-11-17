@@ -19,6 +19,7 @@ package user
 
 import (
 	"context"
+	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -65,5 +66,14 @@ type ACDAuthConfig struct {
 func GetACDAuthConfig() (*ACDAuthConfig, error) {
 	cfg := &ACDAuthConfig{}
 	err := env.Parse(cfg)
+	if err!=nil{
+		return nil, err
+	}
+	if len(cfg.ACDPassword) ==0{
+		return nil, fmt.Errorf("ACD_PASSWORD is not present in environment")
+	}
+	if len(cfg.ACDUsername) ==0{
+		return nil, fmt.Errorf("ACD_USERNAME is not present in environment")
+	}
 	return cfg, err
 }
