@@ -1075,10 +1075,10 @@ func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 			UserId:        deploymentGroupAppWithEnv.UserId,
 			RequestType:   deploymentGroupAppWithEnv.RequestType,
 		}
-		// TODO: Build ctx
 		ctx, err := impl.buildACDSynchContext()
 		if err != nil {
 			impl.logger.Errorw("error in creating acd synch context", "err", err)
+			return
 		}
 		_, err = impl.StopStartApp(stopAppRequest, ctx)
 	}, stan.DurableName(BULK_HIBERNATE_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(180)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))

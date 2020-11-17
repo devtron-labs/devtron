@@ -409,7 +409,7 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 	if !validated {
 		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
 	}
-	_, err = impl.createReadme(name)
+	//_, err = impl.createReadme(name)
 	return *r.CloneURL, true, err
 }
 
@@ -477,8 +477,7 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		count = count + 1
 		_, err := impl.GetRepoUrl(projectName)
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability passed 1", "count", count, "repoUrl", repoUrl)
-			//return true, nil
+			impl.logger.Infow("ensureProjectAvailability repo url passed", "count", count, "repoUrl", repoUrl)
 			break
 		}
 		responseErr, ok := err.(*github.ErrorResponse)
@@ -491,19 +490,20 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		time.Sleep(10 * time.Second)
 	}
 	_, err = impl.createReadme(projectName)
-	if err == nil {
+	if err != nil {
 		impl.logger.Errorw("error in creating readme", "err", err)
+		return false, err
 	}
 	count = 0
 	for count < 3 && !verified {
 		count = count + 1
 		_, err = impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability-2 passed", "count", count, "repoUrl", repoUrl)
+			impl.logger.Infow("ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
 			return true, nil
 		}
 		if err != nil {
-			impl.logger.Errorw("ensureProjectAvailability-2 failed", "count", count, "err", err)
+			impl.logger.Errorw("ensureProjectAvailability clone failed", "try count", count, "err", err)
 		}
 		time.Sleep(10 * time.Second)
 	}
