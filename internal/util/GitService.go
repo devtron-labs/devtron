@@ -455,7 +455,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, e
 	}
 	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartName, path, options)
 	if err != nil {
-		impl.logger.Errorw("erorr in commit", "err", err)
+		impl.logger.Errorw("error in commit", "err", err)
 		return "", err
 	}
 	return *c.SHA, nil
@@ -473,14 +473,14 @@ func (impl GitHubClient) GetRepoUrl(projectName string) (repoUrl string, err err
 func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl string) (validated bool, err error) {
 	count := 0
 	verified := false
-	impl.logger.Infow("ensureProjectAvailability", "count", count, "repoUrl", repoUrl)
 	for count < 3 && !verified {
 		count = count + 1
 		_, err := impl.GetRepoUrl(projectName)
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability pass", "count", count, "repoUrl", repoUrl)
-			time.Sleep(60 * time.Second)
-			return true, nil
+			//time.Sleep(30 * time.Second)
+			//return true, nil
+			impl.logger.Infow("ensureProjectAvailability-1 passed", "count", count, "repoUrl", repoUrl)
+			break
 		}
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
@@ -491,19 +491,20 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		}
 		time.Sleep(10 * time.Second)
 	}
-	/*count = 0
+	count = 0
 	for count < 3 && !verified {
 		count = count + 1
-		impl.logger.Infow("ensureProjectAvailability", "count", count, "repoUrl", repoUrl)
-		_, err = impl.gitService.Clone(repoUrl, fmt.Sprintf("/tmp/ensure-clone/%s", projectName))
-		if err == nil && pass == 1 {
-			impl.logger.Infow("ensureProjectAvailability passed", "count", count, "repoUrl", repoUrl)
+		impl.logger.Infow("ensureProjectAvailability-2", "count", count, "repoUrl", repoUrl)
+		_, err := git.PlainOpen(repoUrl)
+		//_, err = impl.gitService.Clone(repoUrl, fmt.Sprintf("/tmp/ensure-clone/%s", projectName))
+		if err == nil {
+			impl.logger.Infow("ensureProjectAvailability-2 passed", "count", count, "repoUrl", repoUrl)
 			return true, nil
 		}
 		if err != nil {
 			impl.logger.Errorw("error on ensure Availability for clone", "err", err)
 		}
 		time.Sleep(10 * time.Second)
-	}*/
+	}
 	return false, nil
 }
