@@ -259,6 +259,7 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 		URL:  url,
 		Auth: impl.Auth,
 	})
+
 	if err != nil {
 		impl.logger.Errorw("error in git checkout ", "url", url, "targetDir", targetDir, "err", err)
 		return "", err
@@ -491,7 +492,7 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		}
 		time.Sleep(10 * time.Second)
 	}
-	/*count = 0
+	count = 0
 	for count < 3 && !verified {
 		count = count + 1
 		impl.logger.Infow("ensureProjectAvailability", "count", count, "repoUrl", repoUrl)
@@ -504,6 +505,6 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 			impl.logger.Errorw("error on ensure Availability for clone", "err", err)
 		}
 		time.Sleep(10 * time.Second)
-	}*/
+	}
 	return false, nil
 }
