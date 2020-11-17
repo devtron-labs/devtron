@@ -477,7 +477,7 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		count = count + 1
 		_, err := impl.GetRepoUrl(projectName)
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability passed 1", "count", count, "repoUrl", repoUrl)
+			impl.logger.Infow("ensureProjectAvailability repo url passed", "count", count, "repoUrl", repoUrl)
 			break
 		}
 		responseErr, ok := err.(*github.ErrorResponse)
@@ -499,11 +499,11 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		count = count + 1
 		_, err = impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability-2 passed", "try count", count, "repoUrl", repoUrl)
+			impl.logger.Infow("ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
 			return true, nil
 		}
 		if err != nil {
-			impl.logger.Errorw("ensureProjectAvailability-2 failed", "try count", count, "err", err)
+			impl.logger.Errorw("ensureProjectAvailability clone failed", "try count", count, "err", err)
 		}
 		time.Sleep(10 * time.Second)
 	}
