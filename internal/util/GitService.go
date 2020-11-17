@@ -407,6 +407,9 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
 		return *r.CloneURL, true, err
 	}
+	if !validated {
+		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
+	}
 	_, err = impl.createReadme(name)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme", "err", err)
@@ -481,10 +484,9 @@ func (impl GitHubClient) GetRepoUrl(projectName string) (repoUrl string, err err
 	return *repo.CloneURL, nil
 }
 
-func (impl GitHubClient) ensureProjectAvailabilityOnHttp(projectName string) (validated bool, err error) {
+func (impl GitHubClient) ensureProjectAvailabilityOnHttp(projectName string) (bool, error) {
 	count := 0
-	verified := false
-	for count < 3 && !verified {
+	for count < 3 {
 		count = count + 1
 		_, err := impl.GetRepoUrl(projectName)
 		if err == nil {
@@ -493,7 +495,7 @@ func (impl GitHubClient) ensureProjectAvailabilityOnHttp(projectName string) (va
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
 			impl.logger.Errorw("error in validating repo", "err", err)
-			return validated, err
+			return false, err
 		} else {
 			impl.logger.Errorw("error in validating repo", "err", err)
 		}
@@ -502,13 +504,11 @@ func (impl GitHubClient) ensureProjectAvailabilityOnHttp(projectName string) (va
 	return false, nil
 }
 
-func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (validated bool, err error) {
+func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (bool, error) {
 	count := 0
-	verified := false
-	count = 0
-	for count < 3 && !verified {
+	for count < 3 {
 		count = count + 1
-		_, err = impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
+		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
 			impl.logger.Infow("ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
 			return true, nil
