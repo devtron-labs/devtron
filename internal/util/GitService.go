@@ -490,7 +490,10 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string, repoUrl s
 		}
 		time.Sleep(10 * time.Second)
 	}
-
+	_, err = impl.createReadme(projectName)
+	if err == nil {
+		impl.logger.Errorw("error in creating readme", "err", err)
+	}
 	count = 0
 	for count < 3 && !verified {
 		count = count + 1
