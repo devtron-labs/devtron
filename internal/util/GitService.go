@@ -64,21 +64,23 @@ func GetGitConfig() (*GitConfig, error) {
 }
 
 type GitLabClient struct {
-	client *gitlab.Client
-	config *GitConfig
-	logger *zap.SugaredLogger
+	client     *gitlab.Client
+	config     *GitConfig
+	logger     *zap.SugaredLogger
+	gitService GitService
 }
 
-func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger) (GitClient, error) {
+func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
 	if config.GitProvider == "GITLAB" {
 		git := gitlab.NewClient(nil, config.GitToken)
 		return &GitLabClient{
-			client: git,
-			config: config,
-			logger: logger,
+			client:     git,
+			config:     config,
+			logger:     logger,
+			gitService: gitService,
 		}, nil
 	} else if config.GitProvider == "GITHUB" {
-		return NewGithubClient(config.GitToken, config.GithubOrganization, logger), nil
+		return NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService), nil
 	} else {
 		return nil, fmt.Errorf("unsupported git provider %s, supported values are  GITHUB, GITLAB", config.GitProvider)
 	}
@@ -99,7 +101,7 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 			return "", true, err
 		}
 	}
-
+	repoUrl = url
 	validated, err := impl.ensureProjectAvailability(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
@@ -112,6 +114,14 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 	if err != nil {
 		impl.logger.Errorw("error in creating readme ", "project", name, "err", err)
 		return "", true, err
+	}
+	validated, err = impl.ensureProjectAvailabilityOnSsh(name, repoUrl)
+	if err != nil {
+		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
+		return "", true, err
+	}
+	if !validated {
+		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
 	}
 	return url, true, nil
 }
@@ -141,11 +151,10 @@ func (impl GitLabClient) createProject(name, description string) (url string, er
 	return project.HTTPURLToRepo, nil
 }
 
-func (impl GitLabClient) ensureProjectAvailability(projectName string) (validated bool, err error) {
+func (impl GitLabClient) ensureProjectAvailability(projectName string) (bool, error) {
 	pid := fmt.Sprintf("%s/%s", impl.config.GitlabNamespaceName, projectName)
 	count := 0
 	verified := false
-
 	for count < 3 && !verified {
 		count = count + 1
 		_, res, err := impl.client.Projects.GetProject(pid, &gitlab.GetProjectOptions{})
@@ -159,8 +168,25 @@ func (impl GitLabClient) ensureProjectAvailability(projectName string) (validate
 		time.Sleep(10 * time.Second)
 	}
 	return false, nil
-
 }
+
+func (impl GitLabClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (bool, error) {
+	count := 0
+	for count < 3 {
+		count = count + 1
+		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
+		if err == nil {
+			impl.logger.Infow("ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
+			return true, nil
+		}
+		if err != nil {
+			impl.logger.Errorw("ensureProjectAvailability clone failed", "try count", count, "err", err)
+		}
+		time.Sleep(10 * time.Second)
+	}
+	return false, nil
+}
+
 func (impl GitLabClient) GetRepoUrl(projectName string) (repoUrl string, err error) {
 	pid := fmt.Sprintf("%s/%s", impl.config.GitlabNamespaceName, projectName)
 	prop, res, err := impl.client.Projects.GetProject(pid, &gitlab.GetProjectOptions{})
@@ -355,11 +381,12 @@ type GitHubClient struct {
 	client *github.Client
 
 	//config *GitConfig
-	logger *zap.SugaredLogger
-	org    string
+	logger     *zap.SugaredLogger
+	org        string
+	gitService GitService
 }
 
-func NewGithubClient(token string, org string, logger *zap.SugaredLogger) GitHubClient {
+func NewGithubClient(token string, org string, logger *zap.SugaredLogger, gitService GitService) GitHubClient {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
@@ -367,7 +394,7 @@ func NewGithubClient(token string, org string, logger *zap.SugaredLogger) GitHub
 	tc := oauth2.NewClient(ctx, ts)
 
 	client := github.NewClient(tc)
-	return GitHubClient{client: client, org: org, logger: logger}
+	return GitHubClient{client: client, org: org, logger: logger, gitService: gitService}
 }
 func (impl GitHubClient) CreateRepository(name, description string) (url string, isNew bool, err error) {
 	ctx := context.Background()
@@ -395,18 +422,32 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 		})
 	if err != nil {
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
+		return "", true, err
 	}
 	logger.Infow("repo created ", "r", r.CloneURL)
 
-	validated, err := impl.ensureProjectAvailability(name)
+	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		return "", true, err
+		return *r.CloneURL, true, err
 	}
 	if !validated {
 		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
 	}
 	_, err = impl.createReadme(name)
+	if err != nil {
+		impl.logger.Errorw("error in creating readme", "err", err)
+		return *r.CloneURL, true, err
+	}
+	validated, err = impl.ensureProjectAvailabilityOnSsh(name, *r.CloneURL)
+	if err != nil {
+		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
+		return *r.CloneURL, true, err
+	}
+	if !validated {
+		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
+	}
+	//_, err = impl.createReadme(name)
 	return *r.CloneURL, true, err
 }
 
@@ -452,7 +493,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, e
 	}
 	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartName, path, options)
 	if err != nil {
-		impl.logger.Errorw("erorr in commit", "err", err)
+		impl.logger.Errorw("error in commit", "err", err)
 		return "", err
 	}
 	return *c.SHA, nil
@@ -467,10 +508,9 @@ func (impl GitHubClient) GetRepoUrl(projectName string) (repoUrl string, err err
 	return *repo.CloneURL, nil
 }
 
-func (impl GitHubClient) ensureProjectAvailability(projectName string) (validated bool, err error) {
+func (impl GitHubClient) ensureProjectAvailabilityOnHttp(projectName string) (bool, error) {
 	count := 0
-	verified := false
-	for count < 3 && !verified {
+	for count < 3 {
 		count = count + 1
 		_, err := impl.GetRepoUrl(projectName)
 		if err == nil {
@@ -479,9 +519,26 @@ func (impl GitHubClient) ensureProjectAvailability(projectName string) (validate
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
 			impl.logger.Errorw("error in validating repo", "err", err)
-			return validated, err
+			return false, err
 		} else {
 			impl.logger.Errorw("error in validating repo", "err", err)
+		}
+		time.Sleep(10 * time.Second)
+	}
+	return false, nil
+}
+
+func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (bool, error) {
+	count := 0
+	for count < 3 {
+		count = count + 1
+		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
+		if err == nil {
+			impl.logger.Infow("ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
+			return true, nil
+		}
+		if err != nil {
+			impl.logger.Errorw("ensureProjectAvailability clone failed", "try count", count, "err", err)
 		}
 		time.Sleep(10 * time.Second)
 	}
