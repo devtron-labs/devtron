@@ -101,7 +101,7 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 			return "", true, err
 		}
 	}
-
+	repoUrl = url
 	validated, err := impl.ensureProjectAvailability(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
