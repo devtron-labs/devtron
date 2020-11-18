@@ -67,7 +67,7 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 			if err != nil {
 				panic(err)
 			}
-			logger.Infow("query time",
+			logger.Debugw("query time",
 				"duration", time.Since(event.StartTime),
 				"query", query)
 		})

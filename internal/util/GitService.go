@@ -101,7 +101,7 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 			return "", true, err
 		}
 	}
-
+	repoUrl = url
 	validated, err := impl.ensureProjectAvailability(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
@@ -114,6 +114,14 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 	if err != nil {
 		impl.logger.Errorw("error in creating readme ", "project", name, "err", err)
 		return "", true, err
+	}
+	validated, err = impl.ensureProjectAvailabilityOnSsh(name, repoUrl)
+	if err != nil {
+		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
+		return "", true, err
+	}
+	if !validated {
+		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
 	}
 	return url, true, nil
 }
@@ -143,11 +151,10 @@ func (impl GitLabClient) createProject(name, description string) (url string, er
 	return project.HTTPURLToRepo, nil
 }
 
-func (impl GitLabClient) ensureProjectAvailability(projectName string) (validated bool, err error) {
+func (impl GitLabClient) ensureProjectAvailability(projectName string) (bool, error) {
 	pid := fmt.Sprintf("%s/%s", impl.config.GitlabNamespaceName, projectName)
 	count := 0
 	verified := false
-
 	for count < 3 && !verified {
 		count = count + 1
 		_, res, err := impl.client.Projects.GetProject(pid, &gitlab.GetProjectOptions{})
@@ -161,8 +168,25 @@ func (impl GitLabClient) ensureProjectAvailability(projectName string) (validate
 		time.Sleep(10 * time.Second)
 	}
 	return false, nil
-
 }
+
+func (impl GitLabClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (bool, error) {
+	count := 0
+	for count < 3 {
+		count = count + 1
+		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
+		if err == nil {
+			impl.logger.Infow("ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
+			return true, nil
+		}
+		if err != nil {
+			impl.logger.Errorw("ensureProjectAvailability clone failed", "try count", count, "err", err)
+		}
+		time.Sleep(10 * time.Second)
+	}
+	return false, nil
+}
+
 func (impl GitLabClient) GetRepoUrl(projectName string) (repoUrl string, err error) {
 	pid := fmt.Sprintf("%s/%s", impl.config.GitlabNamespaceName, projectName)
 	prop, res, err := impl.client.Projects.GetProject(pid, &gitlab.GetProjectOptions{})
