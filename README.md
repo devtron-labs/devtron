@@ -24,7 +24,7 @@
 
 </p>
 
-## Menu
+## :book: Menu
 
 - [Why Devtron](https://github.com/devtron-labs/devtron#why-devtron) 
 - [Features](https://twitter.com/DevtronL)
@@ -36,14 +36,14 @@
 - [Vulnerability Reporting](https://github.com/devtron-labs/devtron#vulnerability-reporting)
 - [License](https://github.com/devtron-labs/devtron#license)
  
-## Why Devtron?
+## :bulb: Why Devtron?
 It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on kubernetes in a developer friendly way. 
 <br>
 <br>
 <img src="./assets/preview.gif">
 <br>
 <br>
-## Features
+## :tada: Features
 <details>
 <summary> 
  <b> Zero code software delivery workflow </b>
@@ -115,7 +115,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 </details>
 
 
-## Getting Started
+## :rocket: Getting Started
 
 #### Installing devtron with Helm 
 
@@ -128,7 +128,7 @@ $ helm install devtron . -f values.yaml
 For detail instructions checkout [devtron installation project](https://github.com/devtron-labs/devtron-installation-script/)
 
 
-#### Access Devtron dashboard
+#### :key: Access Devtron dashboard
 
 Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` same as provided in `values.yaml`
 
@@ -156,13 +156,13 @@ $ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWOR
 **TODO**
 -->
 
-## Compatibility notes
+## :memo: Compatibility notes
 
 - Only AWS kubernetes cluster is supported as of now
 - It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
 - Application metrics only works for k8s 1.16+
 
-## Community
+## :busts_in_silhouette: Community
 
 Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
 
@@ -172,15 +172,15 @@ Get updates on Devtron's development and chat with the project maintainers, cont
  - Read the [Devtron blog](https://devtron.ai/blog/)
 
 
-## Contribute
+## :handshake: Contribute
 
 Check out our [contributing guidelines](CONTRIBUTING.md). Included are directions for opening issues, coding standards, and notes on our development processes.
 
-## Vulnerability Reporting
+## :beetle: Vulnerability Reporting
 
 We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose us at security@devtron.ai.
 
-## License
+## :bookmark: License
 
 Devtron is available under the [Apache License, Version 2.0](LICENSE)
 
