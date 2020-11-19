@@ -255,6 +255,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int) (*InstallAppV
 		ReferenceValueId:   app.ReferenceValueId,
 		AppStoreVersion:    app.AppStoreApplicationVersionId, //check viki
 		Status:             app.InstalledApp.Status,
+		AppStoreId:         app.AppStoreApplicationVersion.AppStoreId,
 		AppStoreName:       app.AppStoreApplicationVersion.AppStore.Name,
 	}
 	return installAppVersion, err
