@@ -11,11 +11,9 @@
 <a href="https://discord.gg/72JDKy4">Join Discord</a>
 ·
 <a href="https://twitter.com/DevtronL">Twitter</a>
-</p>
 
-<p style="text-align: center;">
  
- hello
+ 
  
 [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/72JDKy4)
 [![Go Report Card](https://goreportcard.com/badge/github.com/devtron-labs/devtron)](https://goreportcard.com/report/github.com/devtron-labs/devtron)
