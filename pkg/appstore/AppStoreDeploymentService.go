@@ -164,30 +164,71 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 
 func (impl InstalledAppServiceImpl) UpdateInstalledApp(installAppVersionRequest *InstallAppVersionDTO, ctx context.Context) (*InstallAppVersionDTO, error) {
 
-	app, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
 	if err != nil {
 		return nil, err
 	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 
-	environment, err := impl.environmentRepository.FindById(app.InstalledApp.EnvironmentId)
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installAppVersionRequest.InstalledAppId)
 	if err != nil {
-		impl.logger.Errorw("fetching error", "err", err)
+		return nil, err
 	}
-	impl.logger.Debug(environment.Name)
+	var installedAppVersion *appstore.InstalledAppVersions
+	if installAppVersionRequest.Id == 0 {
+		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
+		if err != nil {
+			impl.logger.Errorw("fetching error", "err", err)
+			return nil, err
+		}
+		installedAppVersion = &appstore.InstalledAppVersions{
+			InstalledAppId:               installAppVersionRequest.InstalledAppId,
+			AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
+			ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
+			Values:                       "{}",
+		}
+		installedAppVersion.CreatedBy = installAppVersionRequest.UserId
+		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
+		installedAppVersion.CreatedOn = time.Now()
+		installedAppVersion.UpdatedOn = time.Now()
+		installedAppVersion.Active = true
+		installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
+		installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
+		_, err = impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, tx)
+		if err != nil {
+			impl.logger.Errorw("error while fetching from db", "error", err)
+			return nil, err
+		}
+		installAppVersionRequest.Id = installedAppVersion.Id
+		installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
+	} else {
+		installedAppVersion, err = impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	team, err := impl.teamRepository.FindOne(app.InstalledApp.App.TeamId)
+	environment, err := impl.environmentRepository.FindById(installedApp.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
+		return nil, err
+	}
+	team, err := impl.teamRepository.FindOne(installedApp.App.TeamId)
+	if err != nil {
+		impl.logger.Errorw("fetching error", "err", err)
+		return nil, err
 	}
 	impl.logger.Debug(team.Name)
 
 	//update requirements yaml
-	argocdAppName := app.InstalledApp.App.AppName + "-" + environment.Name
+	argocdAppName := installedApp.App.AppName + "-" + environment.Name
 	var dat map[string]interface{}
 	err = json.Unmarshal(installAppVersionRequest.ValuesOverride, &dat)
 
 	valuesMap := make(map[string]map[string]interface{})
-	valuesMap[app.AppStoreApplicationVersion.AppStore.Name] = dat
+	valuesMap[installedAppVersion.AppStoreApplicationVersion.AppStore.Name] = dat
 	valuesByte, err := json.Marshal(valuesMap)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling", "err", err)
@@ -196,9 +237,9 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(installAppVersionRequest 
 	valuesYaml := &util.ChartConfig{
 		FileName:       VALUES_YAML_FILE,
 		FileContent:    string(valuesByte),
-		ChartName:      app.AppStoreApplicationVersion.AppStore.Name,
+		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ChartLocation:  argocdAppName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", app.AppStoreApplicationVersion.Id, environment.Id),
+		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
 	}
 	_, err = impl.GitClient.CommitValues(valuesYaml)
 	if err != nil {
@@ -208,19 +249,22 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(installAppVersionRequest 
 
 	impl.syncACD(argocdAppName, ctx)
 
-	app.Values = string(installAppVersionRequest.ValuesOverride)
-	app.ValuesYaml = installAppVersionRequest.ValuesOverrideYaml
-	app.UpdatedOn = time.Now()
-	app.UpdatedBy = installAppVersionRequest.UserId
-	app.ReferenceValueId = installAppVersionRequest.ReferenceValueId
-	app.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
-	_, err = impl.installedAppRepository.UpdateInstalledAppVersion(app)
+	installedAppVersion.Values = string(installAppVersionRequest.ValuesOverride)
+	installedAppVersion.ValuesYaml = installAppVersionRequest.ValuesOverrideYaml
+	installedAppVersion.UpdatedOn = time.Now()
+	installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
+	installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
+	installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
+	_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
 	//STEP 8: finish with return response
-
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
 	return installAppVersionRequest, nil
 }
 
@@ -519,7 +563,13 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(installAppVersionRequest 
 		return nil, err
 	}
 
-	//TODO - soft delete app from app table
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 
 	app, err := impl.appRepository.FindById(installAppVersionRequest.AppId)
 	if err != nil {
@@ -542,7 +592,7 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(installAppVersionRequest 
 	model.Active = false
 	model.UpdatedBy = installAppVersionRequest.UserId
 	model.UpdatedOn = time.Now()
-	_, err = impl.installedAppRepository.UpdateInstalledApp(model)
+	_, err = impl.installedAppRepository.UpdateInstalledApp(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error while creating install app", "error", err)
 		return nil, err
@@ -556,7 +606,7 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(installAppVersionRequest 
 		item.Active = false
 		item.UpdatedBy = installAppVersionRequest.UserId
 		item.UpdatedOn = time.Now()
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item)
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
 		if err != nil {
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
@@ -584,6 +634,10 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(installAppVersionRequest 
 			impl.logger.Errorw("error in mapping delete", "err", err)
 			return nil, err
 		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
 	}
 	return installAppVersionRequest, nil
 }
@@ -1079,16 +1133,26 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionR
 }
 
 func (impl InstalledAppServiceImpl) AppStoreDeployOperationStatusUpdate(installAppId int, status appstore.AppstoreDeploymentStatus) (bool, error) {
-
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return false, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 	installedApp, err := impl.installedAppRepository.GetInstalledApp(installAppId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
 	installedApp.Status = status
-	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp)
+	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
+		return false, err
+	}
+	err = tx.Commit()
+	if err != nil {
 		return false, err
 	}
 	return true, nil

@@ -30,8 +30,8 @@ import (
 type InstalledAppRepository interface {
 	CreateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error)
 	CreateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
-	UpdateInstalledApp(model *InstalledApps) (*InstalledApps, error)
-	UpdateInstalledAppVersion(model *InstalledAppVersions) (*InstalledAppVersions, error)
+	UpdateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error)
+	UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
 	GetInstalledApp(id int) (*InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(envIds []int) ([]InstalledAppsWithChartDetails, error)
@@ -153,8 +153,8 @@ func (impl InstalledAppRepositoryImpl) CreateInstalledAppVersion(model *Installe
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) UpdateInstalledApp(model *InstalledApps) (*InstalledApps, error) {
-	err := impl.dbConnection.Update(model)
+func (impl InstalledAppRepositoryImpl) UpdateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error) {
+	err := tx.Update(model)
 	if err != nil {
 		impl.Logger.Error(err)
 		return model, err
@@ -162,8 +162,8 @@ func (impl InstalledAppRepositoryImpl) UpdateInstalledApp(model *InstalledApps) 
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *InstalledAppVersions) (*InstalledAppVersions, error) {
-	err := impl.dbConnection.Update(model)
+func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error) {
+	err := tx.Update(model)
 	if err != nil {
 		impl.Logger.Error(err)
 		return model, err
