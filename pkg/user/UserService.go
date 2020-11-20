@@ -49,6 +49,7 @@ type UserService interface {
 	CheckUserRoles(id int32) ([]string, error)
 	SyncOrchestratorToCasbin() (bool, error)
 	GetUserByToken(token string) (int32, error)
+	IsSuperAdmin(userId int) (bool, error)
 }
 
 type UserServiceImpl struct {
@@ -311,41 +312,27 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 }
 
 func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo, error) {
-
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
-	isSuperAdmin := false
-	userCasbinRoles, err := impl.CheckUserRoles(userInfo.Id)
+	isUserSuperAdmin, err := impl.IsSuperAdmin(int(userInfo.Id))
 	if err != nil {
 		return nil, err
 	}
-	actionUserRoles, err := impl.CheckUserRoles(userInfo.UserId)
+	isActionPerformingUserSuperAdmin, err := impl.IsSuperAdmin(int(userInfo.UserId))
 	if err != nil {
 		return nil, err
 	}
 	//if request comes to make user as a super admin, action performing user also be super admin
 	if userInfo.SuperAdmin {
-		for _, item := range actionUserRoles {
-			if item == bean.SUPERADMIN {
-				isSuperAdmin = true
-			}
-		}
-		if isSuperAdmin == false {
+		if !isUserSuperAdmin {
 			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to update super admin type user"}
 			return nil, err
 		}
 	}
 	//if user which going to updated is super admin, action performing user also be super admin
-	for _, item := range userCasbinRoles {
-		if item == bean.SUPERADMIN {
-			for _, item := range actionUserRoles {
-				if item == bean.SUPERADMIN {
-					isSuperAdmin = true
-				}
-			}
-			if isSuperAdmin == false {
-				err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to update super admin type user"}
-				return nil, err
-			}
+	if isUserSuperAdmin {
+		if !isActionPerformingUserSuperAdmin {
+			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to update super admin type user"}
+			return nil, err
 		}
 	}
 
@@ -525,6 +512,10 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 		//ROLE GROUP SETUP
 		newGroupMap := make(map[string]string)
 		oldGroupMap := make(map[string]string)
+		userCasbinRoles, err := impl.CheckUserRoles(userInfo.Id)
+		if err != nil {
+			return nil, err
+		}
 		for _, oldItem := range userCasbinRoles {
 			oldGroupMap[oldItem] = oldItem
 		}
@@ -943,4 +934,21 @@ func (impl UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 		return false, err
 	}*/
 	return true, nil
+}
+
+func (impl UserServiceImpl) IsSuperAdmin(userId int) (bool, error) {
+	//validating if action user is not admin and trying to update user who has super admin polices, return 403
+	isSuperAdmin := false
+	userCasbinRoles, err := impl.CheckUserRoles(int32(userId))
+	if err != nil {
+		return isSuperAdmin, err
+	}
+	//if user which going to updated is super admin, action performing user also be super admin
+	for _, item := range userCasbinRoles {
+		if item == bean.SUPERADMIN {
+			isSuperAdmin = true
+			break
+		}
+	}
+	return isSuperAdmin, nil
 }
