@@ -211,7 +211,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 		writeJsonResp(w, err, "Failed to get by id", http.StatusInternalServerError)
 		return
 	}
-	actionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		handler.logger.Errorw("service err, GetById", "err", err, "id", id)
 		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
@@ -229,7 +229,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 				}
 			}
 		}
-		if actionUserSuperAdmin == true {
+		if isActionUserSuperAdmin {
 			authPass = true
 		}
 		if authPass == false {
