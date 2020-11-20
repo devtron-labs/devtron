@@ -90,4 +90,8 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 		HandlerFunc(router.appStoreValuesRestHandler.FetchTemplateValuesByAppStoreId).Methods("GET")
 	configRouter.Path("/chart/selected/metadata").
 		HandlerFunc(router.appStoreValuesRestHandler.GetSelectedChartMetadata).Methods("POST")
+
+	configRouter.Path("/search").
+		HandlerFunc(router.appStoreRestHandler.SearchAppStoreChartByName).Queries("chartName", "{chartName}").
+		Methods("GET")
 }

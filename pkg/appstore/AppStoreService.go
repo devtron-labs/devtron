@@ -68,6 +68,8 @@ type AppStoreService interface {
 	FindChartVersionsByAppStoreId(appStoreId int) ([]AppStoreVersionsResponse, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean.AppDetailContainer, error)
 	GetReadMeByAppStoreApplicationVersionId(id int) (*ReadmeRes, error)
+
+	SearchAppStoreChartByName(chartName string) ([]*appstore.ChartRepoSearch, error)
 }
 
 type AppStoreVersionsResponse struct {
@@ -197,4 +199,12 @@ func (impl *AppStoreServiceImpl) GetReadMeByAppStoreApplicationVersionId(id int)
 		Readme:                       appVersion.Readme,
 	}
 	return readme, nil
+}
+
+func (impl *AppStoreServiceImpl) SearchAppStoreChartByName(chartName string) ([]*appstore.ChartRepoSearch, error) {
+	appStoreApplications, err := impl.appStoreApplicationRepository.SearchAppStoreChartByName(chartName)
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}
+	return appStoreApplications, nil
 }

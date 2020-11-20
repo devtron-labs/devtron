@@ -45,7 +45,8 @@ type InstallAppVersionDTO struct {
 	ChartGroupEntryId       int                               `json:"-"`
 	DefaultClusterComponent bool                              `json:"-"`
 	Status                  appstore.AppstoreDeploymentStatus `json:"-"`
-	AppStoreName            string                            `json:"-"`
+	AppStoreId              int                               `json:"appStoreId"`
+	AppStoreName            string                            `json:"appStoreName"`
 }
 
 /// bean for v2
