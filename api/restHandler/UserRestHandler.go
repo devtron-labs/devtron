@@ -219,6 +219,9 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 				}
 			}
 		}
+		if res.SuperAdmin == true {
+			authPass = true
+		}
 		if authPass == false {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
