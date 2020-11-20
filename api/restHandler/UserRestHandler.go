@@ -192,6 +192,11 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 }
 
 func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	vars := mux.Vars(r)
 	/* #nosec */
 	id, err := strconv.Atoi(vars["id"])
@@ -206,7 +211,12 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 		writeJsonResp(w, err, "Failed to get by id", http.StatusInternalServerError)
 		return
 	}
-
+	actionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.logger.Errorw("service err, GetById", "err", err, "id", id)
+		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
 	// NOTE: if no role assigned, user will be visible to all manager.
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
@@ -219,7 +229,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 				}
 			}
 		}
-		if res.SuperAdmin == true {
+		if actionUserSuperAdmin == true {
 			authPass = true
 		}
 		if authPass == false {
