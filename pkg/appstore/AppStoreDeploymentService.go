@@ -202,7 +202,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(installAppVersionRequest 
 			InstalledAppId:               installAppVersionRequest.InstalledAppId,
 			AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
 			ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
-			Values:                       "{}",
+			//Values:                       "{}",
 		}
 		installedAppVersion.CreatedBy = installAppVersionRequest.UserId
 		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
@@ -239,9 +239,20 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(installAppVersionRequest 
 
 	//update requirements yaml
 	argocdAppName := installedApp.App.AppName + "-" + environment.Name
-	var dat map[string]interface{}
-	err = json.Unmarshal(installAppVersionRequest.ValuesOverride, &dat)
 
+
+	//update values yaml in chart
+	valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
+	if err != nil {
+		impl.logger.Errorw("error in json patch", "err", err)
+		return nil, err
+	}
+	var dat map[string]interface{}
+	err = json.Unmarshal(valuesOverrideByte, &dat)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return nil, err
+	}
 	valuesMap := make(map[string]map[string]interface{})
 	valuesMap[installedAppVersion.AppStoreApplicationVersion.AppStore.Name] = dat
 	valuesByte, err := json.Marshal(valuesMap)
@@ -265,7 +276,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(installAppVersionRequest 
 
 	impl.syncACD(argocdAppName, ctx)
 
-	installedAppVersion.Values = string(installAppVersionRequest.ValuesOverride)
+	//installedAppVersion.Values = string(installAppVersionRequest.ValuesOverride)
 	installedAppVersion.ValuesYaml = installAppVersionRequest.ValuesOverrideYaml
 	installedAppVersion.UpdatedOn = time.Now()
 	installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
@@ -308,7 +319,6 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int) (*InstallAppV
 		Id:                 app.Id,
 		TeamId:             app.InstalledApp.App.TeamId,
 		EnvironmentId:      app.InstalledApp.EnvironmentId,
-		ValuesOverride:     []byte(app.Values),
 		ValuesOverrideYaml: app.ValuesYaml,
 		Readme:             app.AppStoreApplicationVersion.Readme,
 		ReferenceValueKind: app.ReferenceValueKind,
@@ -426,7 +436,7 @@ func (impl InstalledAppServiceImpl) chartAdaptor(chart *appstore.InstalledAppVer
 		InstalledAppId:  chart.InstalledAppId,
 		Id:              chart.Id,
 		AppStoreVersion: chart.AppStoreApplicationVersionId,
-		ValuesOverride:  []byte(chart.Values),
+		ValuesOverrideYaml:  chart.ValuesYaml,
 	}, nil
 }
 
@@ -1114,7 +1124,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionR
 		InstalledAppId:               installAppVersionRequest.InstalledAppId,
 		AppStoreApplicationVersionId: appStoreAppVersion.Id,
 		ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
-		Values:                       "{}",
+		//Values:                       "{}",
 	}
 	installedAppVersions.CreatedBy = installAppVersionRequest.UserId
 	installedAppVersions.UpdatedBy = installAppVersionRequest.UserId

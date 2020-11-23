@@ -18,7 +18,6 @@
 package appstore
 
 import (
-	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"time"
@@ -34,7 +33,7 @@ type InstallAppVersionDTO struct {
 	InstalledAppId          int                               `json:"installedAppId,omitempty,notnull"`
 	InstalledAppVersionId   int                               `json:"installedAppVersionId,omitempty,notnull"`
 	AppStoreVersion         int                               `json:"appStoreVersion,omitempty,notnull"`
-	ValuesOverride          json.RawMessage                   `json:"valuesOverride,omitempty"` //json format user value
+	//ValuesOverride          json.RawMessage                   `json:"valuesOverride,omitempty"` //json format user value
 	ValuesOverrideYaml      string                            `json:"valuesOverrideYaml,omitempty"`
 	Readme                  string                            `json:"readme,omitempty"`
 	UserId                  int32                             `json:"-"`
