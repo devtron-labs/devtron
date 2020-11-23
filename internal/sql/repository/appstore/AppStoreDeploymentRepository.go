@@ -98,7 +98,6 @@ type InstalledAppVersions struct {
 	Id                           int      `sql:"id,pk"`
 	InstalledAppId               int      `sql:"installed_app_id,notnull"`
 	AppStoreApplicationVersionId int      `sql:"app_store_application_version_id,notnull"`
-	Values                       string   `sql:"values_yaml"`
 	ValuesYaml                   string   `sql:"values_yaml_raw"`
 	Active                       bool     `sql:"active, notnull"`
 	ReferenceValueId             int      `sql:"reference_value_id"`
