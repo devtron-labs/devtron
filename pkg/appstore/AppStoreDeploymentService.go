@@ -65,12 +65,12 @@ const DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT string = "devtron"
 const CLUSTER_COMPONENT_DIR_PATH string = "/cluster/component"
 
 type InstalledAppService interface {
-	UpdateInstalledApp(installAppVersionRequest *InstallAppVersionDTO, ctx context.Context) (*InstallAppVersionDTO, error)
+	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO) (*InstallAppVersionDTO, error)
 	GetInstalledApp(id int) (*InstallAppVersionDTO, error)
 	GetInstalledAppVersion(id int) (*InstallAppVersionDTO, error)
 	GetAll(environments []int) ([]InstalledAppsResponse, error)
 	GetAllInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request, token string, appStoreId int) ([]InstalledAppsResponse, error)
-	DeleteInstalledApp(installAppVersionRequest *InstallAppVersionDTO, ctx context.Context) (*InstallAppVersionDTO, error)
+	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO) (*InstallAppVersionDTO, error)
 
 	DeployBulk(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error)
 
@@ -162,7 +162,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	return impl, nil
 }
 
-func (impl InstalledAppServiceImpl) UpdateInstalledApp(installAppVersionRequest *InstallAppVersionDTO, ctx context.Context) (*InstallAppVersionDTO, error) {
+func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO) (*InstallAppVersionDTO, error) {
 
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -239,7 +239,6 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(installAppVersionRequest 
 
 	//update requirements yaml
 	argocdAppName := installedApp.App.AppName + "-" + environment.Name
-
 
 	//update values yaml in chart
 	valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
@@ -433,10 +432,10 @@ func (impl InstalledAppServiceImpl) getACDStatus(a appstore.InstalledAppAndEnvDe
 func (impl InstalledAppServiceImpl) chartAdaptor(chart *appstore.InstalledAppVersions) (*InstallAppVersionDTO, error) {
 
 	return &InstallAppVersionDTO{
-		InstalledAppId:  chart.InstalledAppId,
-		Id:              chart.Id,
-		AppStoreVersion: chart.AppStoreApplicationVersionId,
-		ValuesOverrideYaml:  chart.ValuesYaml,
+		InstalledAppId:     chart.InstalledAppId,
+		Id:                 chart.Id,
+		AppStoreVersion:    chart.AppStoreApplicationVersionId,
+		ValuesOverrideYaml: chart.ValuesYaml,
 	}, nil
 }
 
@@ -581,7 +580,7 @@ func (impl InstalledAppServiceImpl) deleteACD(acdAppName string, ctx context.Con
 	return nil
 }
 
-func (impl InstalledAppServiceImpl) DeleteInstalledApp(installAppVersionRequest *InstallAppVersionDTO, ctx context.Context) (*InstallAppVersionDTO, error) {
+func (impl InstalledAppServiceImpl) DeleteInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO) (*InstallAppVersionDTO, error) {
 
 	environment, err := impl.environmentRepository.FindById(installAppVersionRequest.EnvironmentId)
 	if err != nil {

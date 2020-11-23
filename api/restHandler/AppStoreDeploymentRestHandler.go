@@ -199,7 +199,7 @@ func (handler InstalledAppRestHandlerImpl) UpdateInstalledApp(w http.ResponseWri
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	ctx = context.WithValue(r.Context(), "token", token)
-	res, err := handler.installedAppService.UpdateInstalledApp(&request, ctx)
+	res, err := handler.installedAppService.UpdateInstalledApp(ctx, &request)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -383,7 +383,7 @@ func (handler InstalledAppRestHandlerImpl) DeleteInstalledApp(w http.ResponseWri
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	ctx = context.WithValue(r.Context(), "token", token)
-	res, err := handler.installedAppService.DeleteInstalledApp(&request, ctx)
+	res, err := handler.installedAppService.DeleteInstalledApp(ctx, &request)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteInstalledApp", "err", err, "installAppId", installAppId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
