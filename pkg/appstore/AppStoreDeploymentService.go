@@ -249,24 +249,22 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(installAppVersionRequest 
 		impl.logger.Errorw("error in marshaling", "err", err)
 		return nil, err
 	}
-	fmt.Println(argocdAppName)
-	fmt.Println(valuesByte)
-	/*
-		valuesYaml := &util.ChartConfig{
-			FileName:       VALUES_YAML_FILE,
-			FileContent:    string(valuesByte),
-			ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
-			ChartLocation:  argocdAppName,
-			ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
-		}
-		_, err = impl.GitClient.CommitValues(valuesYaml)
-		if err != nil {
-			impl.logger.Errorw("error in git commit", "err", err)
-			return nil, err
-		}
 
-		impl.syncACD(argocdAppName, ctx)
-	*/
+	valuesYaml := &util.ChartConfig{
+		FileName:       VALUES_YAML_FILE,
+		FileContent:    string(valuesByte),
+		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+		ChartLocation:  argocdAppName,
+		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
+	}
+	_, err = impl.GitClient.CommitValues(valuesYaml)
+	if err != nil {
+		impl.logger.Errorw("error in git commit", "err", err)
+		return nil, err
+	}
+
+	impl.syncACD(argocdAppName, ctx)
+
 	installedAppVersion.Values = string(installAppVersionRequest.ValuesOverride)
 	installedAppVersion.ValuesYaml = installAppVersionRequest.ValuesOverrideYaml
 	installedAppVersion.UpdatedOn = time.Now()
