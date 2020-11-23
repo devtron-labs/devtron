@@ -45,6 +45,7 @@ type InstallAppVersionDTO struct {
 	Status                  appstore.AppstoreDeploymentStatus `json:"-"`
 	AppStoreId              int                               `json:"appStoreId"`
 	AppStoreName            string                            `json:"appStoreName"`
+	Deprecated              bool                              `json:"deprecated"`
 }
 
 /// bean for v2

@@ -326,6 +326,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int) (*InstallAppV
 		Status:             app.InstalledApp.Status,
 		AppStoreId:         app.AppStoreApplicationVersion.AppStoreId,
 		AppStoreName:       app.AppStoreApplicationVersion.AppStore.Name,
+		Deprecated:         app.AppStoreApplicationVersion.Deprecated,
 	}
 	return installAppVersion, err
 }
