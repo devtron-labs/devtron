@@ -77,7 +77,7 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 		HandlerFunc(router.appStoreValuesRestHandler.CreateAppStoreVersionValues).Methods("POST")
 	configRouter.Path("/template/values").
 		HandlerFunc(router.appStoreValuesRestHandler.UpdateAppStoreVersionValues).Methods("PUT")
-	configRouter.Path("/template/values").Queries("appStoreValueId", "{appStoreValueId}", "kind", "{kind}").
+	configRouter.Path("/template/values").Queries("referenceId", "{referenceId}", "kind", "{kind}").
 		HandlerFunc(router.appStoreValuesRestHandler.FindValuesById).Methods("GET")
 	configRouter.Path("/template/values/{appStoreValueId}").
 		HandlerFunc(router.appStoreValuesRestHandler.DeleteAppStoreVersionValues).Methods("DELETE")

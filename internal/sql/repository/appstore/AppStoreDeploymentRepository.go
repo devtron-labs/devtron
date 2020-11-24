@@ -34,6 +34,7 @@ type InstalledAppRepository interface {
 	UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
 	GetInstalledApp(id int) (*InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
+	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(envIds []int) ([]InstalledAppsWithChartDetails, error)
 	GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
 	GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error)
@@ -204,6 +205,15 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*Installe
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore").
 		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
 		Where("installed_app_versions.id = ?", id).Where("installed_app_versions.active = true").Select()
+	return model, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error) {
+	model := &InstalledAppVersions{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore").
+		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
+		Where("installed_app_versions.id = ?", id).Select()
 	return model, err
 }
 
