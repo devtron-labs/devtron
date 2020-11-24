@@ -30,6 +30,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type TestSuitRestHandler interface {
@@ -88,6 +89,39 @@ func (impl TestSuitRestHandlerImpl) SuitesProxy(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	token := r.Header.Get("token")
+	var ciPipelineId int
+	if strings.Contains(bean.Link, "/testsuite/") {
+		data := strings.Split(bean.Link, "/")
+		ciPipelineId, err = strconv.Atoi(data[1])
+	} else if strings.Contains(bean.Link, "/testsuite") {
+		data := strings.Split(bean.Link, "/")
+		ciPipelineId, err = strconv.Atoi(data[1])
+	} else if strings.Contains(bean.Link, "/testcase/") {
+		data := strings.Split(bean.Link, "/")
+		ciPipelineId, err = strconv.Atoi(data[1])
+	} else if strings.Contains(bean.Link, "/testcase") {
+		data := strings.Split(bean.Link, "/")
+		ciPipelineId, err = strconv.Atoi(data[1])
+	} else if strings.Contains(bean.Link, "/triggers/") && len(bean.Link) > 10 {
+		data := strings.Split(bean.Link, "/")
+		ciPipelineId, err = strconv.Atoi(data[1])
+	} else if strings.Contains(bean.Link, "/triggers/") {
+		data := strings.Split(bean.Link, "/")
+		ciPipelineId, err = strconv.Atoi(data[1])
+	} else if strings.Contains(bean.Link, "/filters/") && len(bean.Link) > 9 {
+		data := strings.Split(bean.Link, "/")
+		ciPipelineId, err = strconv.Atoi(data[1])
+	} else if strings.Contains(bean.Link, "/filters/") {
+		data := strings.Split(bean.Link, "/")
+		ciPipelineId, err = strconv.Atoi(data[1])
+	}
+
+	resourceName := impl.enforcerUtil.GetTeamRbacObjectByCiPipelineId(ciPipelineId)
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); !ok {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
 	link := fmt.Sprintf("%s/%s", impl.config.TestSuitURL, bean.Link)
 	res, err := impl.HttpGet(link)
 	if err != nil {
