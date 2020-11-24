@@ -37,7 +37,7 @@ type InstallAppVersionDTO struct {
 	Readme                  string                            `json:"readme,omitempty"`
 	UserId                  int32                             `json:"-"`
 	ReferenceValueId        int                               `json:"referenceValueId, omitempty" validate:"required,number"`
-	ReferenceValueKind      string                            `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED"`
+	ReferenceValueKind      string                            `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
 	ACDAppName              string                            `json:"-"`
 	Environment             *cluster.Environment              `json:"-"`
 	ChartGroupEntryId       int                               `json:"-"`
