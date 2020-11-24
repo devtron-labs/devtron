@@ -209,7 +209,7 @@ func (r MuxRouter) Init() {
 	chartGroupRouter := r.Router.PathPrefix("/chart-group").Subrouter()
 	r.chartGroupRouter.initChartGroupRouter(chartGroupRouter)
 
-	testSuitRouter := r.Router.PathPrefix("/test").Subrouter()
+	testSuitRouter := r.Router.PathPrefix("/test-report").Subrouter()
 	r.testSuitRouter.InitTestSuitRouter(testSuitRouter)
 
 	imageScanRouter := r.Router.PathPrefix("/security/scan").Subrouter()

@@ -40,8 +40,11 @@ type TestSuitRestHandler interface {
 	GetAllSuitByID(w http.ResponseWriter, r *http.Request)
 	GetAllTestCases(w http.ResponseWriter, r *http.Request)
 	GetTestCaseByID(w http.ResponseWriter, r *http.Request)
-	RedirectTriggerForApp(w http.ResponseWriter, r *http.Request)
-	RedirectTriggerForEnv(w http.ResponseWriter, r *http.Request)
+	RedirectTriggerForPipeline(w http.ResponseWriter, r *http.Request)
+	RedirectTriggerForBuild(w http.ResponseWriter, r *http.Request)
+
+	RedirectFilterForPipeline(w http.ResponseWriter, r *http.Request)
+	RedirectFilterForBuild(w http.ResponseWriter, r *http.Request)
 }
 
 type TestSuitRestHandlerImpl struct {
@@ -246,6 +249,60 @@ func (impl TestSuitRestHandlerImpl) RedirectTriggerForApp(w http.ResponseWriter,
 }
 
 func (impl TestSuitRestHandlerImpl) RedirectTriggerForEnv(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	impl.logger.Debugw("request for user", "userId", userId)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["pipelineId"])
+	if err != nil {
+		impl.logger.Error(err)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envId, err := strconv.Atoi(vars["triggerId"])
+	if err != nil {
+		impl.logger.Error(err)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	link := fmt.Sprintf("%s/%s/%d/%d", impl.config.TestSuitURL, "triggers", appId, envId)
+	res, err := impl.HttpGet(link)
+	if err != nil {
+		impl.logger.Error(err)
+	}
+	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+
+func (impl TestSuitRestHandlerImpl) RedirectFilterForPipeline(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	impl.logger.Debugw("request for user", "userId", userId)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["pipelineId"])
+	if err != nil {
+		impl.logger.Error(err)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	link := fmt.Sprintf("%s/%s/%d", impl.config.TestSuitURL, "triggers", appId)
+	impl.logger.Debugw("redirect to link", "link", link)
+	res, err := impl.HttpGet(link)
+	if err != nil {
+		impl.logger.Error(err)
+	}
+	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (impl TestSuitRestHandlerImpl) RedirectFilterForTrigger(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	impl.logger.Debugw("request for user", "userId", userId)
 	if userId == 0 || err != nil {
