@@ -41,7 +41,7 @@ type AppStoreValuesService interface {
 const REFERENCE_TYPE_DEFAULT string = "DEFAULT"
 const REFERENCE_TYPE_TEMPLATE string = "TEMPLATE"
 const REFERENCE_TYPE_DEPLOYED string = "DEPLOYED"
-const REFERENCE_TYPE_EXISTING string = "DEPLOYED"
+const REFERENCE_TYPE_EXISTING string = "EXISTING"
 
 type AppStoreVersionValuesDTO struct {
 	Id                int    `json:"id,omitempty"`
