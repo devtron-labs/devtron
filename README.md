@@ -25,15 +25,15 @@
 
 ## :book: Menu
 
-- [Why Devtron](https://github.com/devtron-labs/devtron#why-devtron) 
-- [Features](https://twitter.com/DevtronL)
-- [Getting Started](https://github.com/devtron-labs/devtron#getting-started)
+- [Why Devtron](https://github.com/devtron-labs/devtron#bulb-why-devtron) 
+- [Features](https://github.com/devtron-labs/devtron#tada-features)
+- [Getting Started](https://github.com/devtron-labs/devtron#rocket-getting-started)
 - [Documentation](https://docs.devtron.ai/)
-- [Compatibility Notes](https://github.com/devtron-labs/devtron#compatibility-notes)
-- [Community](https://github.com/devtron-labs/devtron#community)
-- [Contribute](https://github.com/devtron-labs/devtron#contribute)
-- [Vulnerability Reporting](https://github.com/devtron-labs/devtron#vulnerability-reporting)
-- [License](https://github.com/devtron-labs/devtron#license)
+- [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
+- [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
+- [Contribute](https://github.com/devtron-labs/devtron#handshake-contribute)
+- [Vulnerability Reporting](https://github.com/devtron-labs/devtron#beetle-vulnerability-reporting)
+- [License](https://github.com/devtron-labs/devtron#bookmark-license)
  
 ## :bulb: Why Devtron?
 It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on kubernetes in a developer friendly way. 
