@@ -202,7 +202,6 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 			InstalledAppId:               installAppVersionRequest.InstalledAppId,
 			AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
 			ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
-			//Values:                       "{}",
 		}
 		installedAppVersion.CreatedBy = installAppVersionRequest.UserId
 		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
@@ -216,7 +215,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
 		}
-		installAppVersionRequest.Id = installedAppVersion.Id
+		//installAppVersionRequest.Id = installedAppVersion.Id
 		installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 	} else {
 		installedAppVersion, err = impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
@@ -225,6 +224,8 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		}
 	}
 
+	installAppVersionRequest.EnvironmentId = installedApp.EnvironmentId
+	installAppVersionRequest.AppName = installedApp.App.AppName
 	if installAppVersionRequest.Id == 0 {
 		//step 2 git operation pull push
 		installAppVersionRequest, chartGitAttr, err := impl.AppStoreDeployOperationGIT(installAppVersionRequest)
