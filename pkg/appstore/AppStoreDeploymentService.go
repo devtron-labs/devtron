@@ -225,67 +225,94 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		}
 	}
 
-	environment, err := impl.environmentRepository.FindById(installedApp.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("fetching error", "err", err)
-		return nil, err
-	}
-	team, err := impl.teamRepository.FindOne(installedApp.App.TeamId)
-	if err != nil {
-		impl.logger.Errorw("fetching error", "err", err)
-		return nil, err
-	}
-	impl.logger.Debug(team.Name)
+	if installAppVersionRequest.Id == 0 {
+		//step 2 git operation pull push
+		installAppVersionRequest, chartGitAttr, err := impl.AppStoreDeployOperationGIT(installAppVersionRequest)
+		if err != nil {
+			impl.logger.Errorw(" error", "err", err)
+			return nil, err
+		}
 
-	//update requirements yaml
-	argocdAppName := installedApp.App.AppName + "-" + environment.Name
+		//step 3 acd operation register, sync
+		installAppVersionRequest, err = impl.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
+		if err != nil {
+			impl.logger.Errorw(" error", "err", err)
+			return nil, err
+		}
 
-	//update values yaml in chart
-	valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
-	if err != nil {
-		impl.logger.Errorw("error in json patch", "err", err)
-		return nil, err
-	}
-	var dat map[string]interface{}
-	err = json.Unmarshal(valuesOverrideByte, &dat)
-	if err != nil {
-		impl.logger.Errorw("error in unmarshal", "err", err)
-		return nil, err
-	}
-	valuesMap := make(map[string]map[string]interface{})
-	valuesMap[installedAppVersion.AppStoreApplicationVersion.AppStore.Name] = dat
-	valuesByte, err := json.Marshal(valuesMap)
-	if err != nil {
-		impl.logger.Errorw("error in marshaling", "err", err)
-		return nil, err
+		//step 4 db operation status triggered
+		_, err = impl.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appstore.DEPLOY_SUCCESS)
+		if err != nil {
+			impl.logger.Errorw(" error", "err", err)
+			return nil, err
+		}
+	} else {
+		environment, err := impl.environmentRepository.FindById(installedApp.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("fetching error", "err", err)
+			return nil, err
+		}
+		team, err := impl.teamRepository.FindOne(installedApp.App.TeamId)
+		if err != nil {
+			impl.logger.Errorw("fetching error", "err", err)
+			return nil, err
+		}
+		impl.logger.Debug(team.Name)
+
+		//update requirements yaml
+		argocdAppName := installedApp.App.AppName + "-" + environment.Name
+		//update values yaml in chart
+		valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
+		if err != nil {
+			impl.logger.Errorw("error in json patch", "err", err)
+			return nil, err
+		}
+		var dat map[string]interface{}
+		err = json.Unmarshal(valuesOverrideByte, &dat)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshal", "err", err)
+			return nil, err
+		}
+		valuesMap := make(map[string]map[string]interface{})
+		valuesMap[installedAppVersion.AppStoreApplicationVersion.AppStore.Name] = dat
+		valuesByte, err := json.Marshal(valuesMap)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling", "err", err)
+			return nil, err
+		}
+
+		valuesYaml := &util.ChartConfig{
+			FileName:       VALUES_YAML_FILE,
+			FileContent:    string(valuesByte),
+			ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+			ChartLocation:  argocdAppName,
+			ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
+		}
+		_, err = impl.GitClient.CommitValues(valuesYaml)
+		if err != nil {
+			impl.logger.Errorw("error in git commit", "err", err)
+			return nil, err
+		}
+
+		installAppVersionRequest.ACDAppName = argocdAppName
+		installAppVersionRequest.Environment = environment
+
+		//ACD sync operation
+		impl.syncACD(installAppVersionRequest.ACDAppName, ctx)
+
+		//DB operation
+		installedAppVersion.ValuesYaml = installAppVersionRequest.ValuesOverrideYaml
+		installedAppVersion.UpdatedOn = time.Now()
+		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
+		installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
+		installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
+		if err != nil {
+			impl.logger.Errorw("error while fetching from db", "error", err)
+			return nil, err
+		}
 	}
 
-	valuesYaml := &util.ChartConfig{
-		FileName:       VALUES_YAML_FILE,
-		FileContent:    string(valuesByte),
-		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
-		ChartLocation:  argocdAppName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
-	}
-	_, err = impl.GitClient.CommitValues(valuesYaml)
-	if err != nil {
-		impl.logger.Errorw("error in git commit", "err", err)
-		return nil, err
-	}
-
-	impl.syncACD(argocdAppName, ctx)
-
-	//installedAppVersion.Values = string(installAppVersionRequest.ValuesOverride)
-	installedAppVersion.ValuesYaml = installAppVersionRequest.ValuesOverrideYaml
-	installedAppVersion.UpdatedOn = time.Now()
-	installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
-	installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
-	installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
-	_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return nil, err
-	}
 	//STEP 8: finish with return response
 	err = tx.Commit()
 	if err != nil {
