@@ -30,10 +30,10 @@ import (
 type AppStoreValuesService interface {
 	CreateAppStoreVersionValues(model *AppStoreVersionValuesDTO) (*AppStoreVersionValuesDTO, error)
 	UpdateAppStoreVersionValues(model *AppStoreVersionValuesDTO) (*AppStoreVersionValuesDTO, error)
-	FindValuesByIdAndKind(appStoreValueId int, kind string) (*AppStoreVersionValuesDTO, error)
+	FindValuesByIdAndKind(referenceId int, kind string) (*AppStoreVersionValuesDTO, error)
 	DeleteAppStoreVersionValues(appStoreValueId int) (bool, error)
 
-	FindValuesByAppStoreId(appStoreVersionId int) (*AppSotoreVersionDTOWrapper, error)
+	FindValuesByAppStoreId(appStoreId int, installedAppVersionId int) (*AppSotoreVersionDTOWrapper, error)
 	FindValuesByAppStoreIdAndReferenceType(appStoreVersionId int, referenceType string) ([]*AppStoreVersionValuesDTO, error)
 	GetSelectedChartMetaData(req *ChartMetaDataRequestWrapper) ([]*ChartMetaDataResponse, error)
 }
@@ -41,6 +41,7 @@ type AppStoreValuesService interface {
 const REFERENCE_TYPE_DEFAULT string = "DEFAULT"
 const REFERENCE_TYPE_TEMPLATE string = "TEMPLATE"
 const REFERENCE_TYPE_DEPLOYED string = "DEPLOYED"
+const REFERENCE_TYPE_EXISTING string = "EXISTING"
 
 type AppStoreVersionValuesDTO struct {
 	Id                int    `json:"id,omitempty"`
@@ -55,9 +56,6 @@ type AppStoreVersionValuesDTO struct {
 type AppStoreVersionValuesCategoryWiseDTO struct {
 	Values []*AppStoreVersionValuesDTO `json:"values"`
 	Kind   string                      `json:"kind"`
-	/*	ValuesTypes           []string `json:"valuesTypes"`
-		InstalledEnvironments []string `json:"installedEnvironments"`*/
-
 }
 
 type AppSotoreVersionDTOWrapper struct {
@@ -145,9 +143,9 @@ func (impl AppStoreValuesServiceImpl) UpdateAppStoreVersionValues(request *AppSt
 	return request, nil
 }
 
-func (impl AppStoreValuesServiceImpl) FindValuesByIdAndKind(appStoreValueId int, kind string) (*AppStoreVersionValuesDTO, error) {
+func (impl AppStoreValuesServiceImpl) FindValuesByIdAndKind(referenceId int, kind string) (*AppStoreVersionValuesDTO, error) {
 	if kind == REFERENCE_TYPE_TEMPLATE {
-		appStoreVersionValues, err := impl.appStoreVersionValuesRepository.FindById(appStoreValueId)
+		appStoreVersionValues, err := impl.appStoreVersionValuesRepository.FindById(referenceId)
 		if err != nil {
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
@@ -159,7 +157,7 @@ func (impl AppStoreValuesServiceImpl) FindValuesByIdAndKind(appStoreValueId int,
 		}
 		return filterItem, err
 	} else if kind == REFERENCE_TYPE_DEFAULT {
-		applicationVersion, err := impl.appStoreApplicationRepository.FindById(appStoreValueId)
+		applicationVersion, err := impl.appStoreApplicationRepository.FindById(referenceId)
 		if err != nil {
 			impl.logger.Errorw("error while fetching AppStoreApplicationVersion from db", "error", err)
 			return nil, err
@@ -173,16 +171,29 @@ func (impl AppStoreValuesServiceImpl) FindValuesByIdAndKind(appStoreValueId int,
 		}
 		return valDto, err
 	} else if kind == REFERENCE_TYPE_DEPLOYED {
-		installedApp, err := impl.installedAppRepository.GetInstalledAppVersion(appStoreValueId)
+		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(referenceId)
 		if err != nil {
-			impl.logger.Errorw("error in fetching installed App", "id", appStoreValueId, "err", err)
+			impl.logger.Errorw("error in fetching installed App", "id", referenceId, "err", err)
 		}
 		valDto := &AppStoreVersionValuesDTO{
 			Name:              REFERENCE_TYPE_DEPLOYED,
-			Id:                installedApp.Id,
-			Values:            installedApp.ValuesYaml,
-			ChartVersion:      installedApp.AppStoreApplicationVersion.Version,
-			AppStoreVersionId: installedApp.AppStoreApplicationVersionId,
+			Id:                installedAppVersion.Id,
+			Values:            installedAppVersion.ValuesYaml,
+			ChartVersion:      installedAppVersion.AppStoreApplicationVersion.Version,
+			AppStoreVersionId: installedAppVersion.AppStoreApplicationVersionId,
+		}
+		return valDto, err
+	} else if kind == REFERENCE_TYPE_EXISTING {
+		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(referenceId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching installed App", "id", referenceId, "err", err)
+		}
+		valDto := &AppStoreVersionValuesDTO{
+			Name:              REFERENCE_TYPE_EXISTING,
+			Id:                installedAppVersion.Id,
+			Values:            installedAppVersion.ValuesYaml,
+			ChartVersion:      installedAppVersion.AppStoreApplicationVersion.Version,
+			AppStoreVersionId: installedAppVersion.AppStoreApplicationVersionId,
 		}
 		return valDto, err
 	} else {
@@ -207,7 +218,7 @@ func (impl AppStoreValuesServiceImpl) DeleteAppStoreVersionValues(appStoreValueI
 	return true, nil
 }
 
-func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreId(appStoreId int) (*AppSotoreVersionDTOWrapper, error) {
+func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreId(appStoreId int, installedAppVersionId int) (*AppSotoreVersionDTOWrapper, error) {
 	appStoreVersionValues, err := impl.appStoreVersionValuesRepository.FindValuesByAppStoreId(appStoreId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -264,8 +275,29 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreId(appStoreId int) (*A
 		}
 		installedVal.Values = append(installedVal.Values, appStoreVersion)
 	}
+
+	existingVal := &AppStoreVersionValuesCategoryWiseDTO{
+		Values: []*AppStoreVersionValuesDTO{},
+		Kind:   REFERENCE_TYPE_EXISTING,
+	}
+	if installedAppVersionId > 0 {
+		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching installed app", "appStoreVersionId", appStoreId, "err", err)
+			return nil, err
+		}
+		appStoreVersion := &AppStoreVersionValuesDTO{
+			Id:                installedAppVersion.Id,
+			AppStoreVersionId: installedAppVersion.AppStoreApplicationVersionId,
+			Name:              installedAppVersion.InstalledApp.App.AppName,
+			ChartVersion:      installedAppVersion.AppStoreApplicationVersion.Version,
+			EnvironmentName:   installedAppVersion.InstalledApp.Environment.Name,
+		}
+		existingVal.Values = append(existingVal.Values, appStoreVersion)
+	}
+
 	///-------- installed app end
-	res := &AppSotoreVersionDTOWrapper{Values: []*AppStoreVersionValuesCategoryWiseDTO{defaultVal, templateVal, installedVal}} //order is important.
+	res := &AppSotoreVersionDTOWrapper{Values: []*AppStoreVersionValuesCategoryWiseDTO{defaultVal, templateVal, installedVal, existingVal}} //order is important.
 	return res, err
 }
 

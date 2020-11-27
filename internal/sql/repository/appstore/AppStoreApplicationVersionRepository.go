@@ -32,6 +32,7 @@ type AppStoreApplicationVersionRepository interface {
 	FindByIds(ids []int) ([]*AppStoreApplicationVersion, error)
 	GetReadMeById(id int) (*AppStoreApplicationVersion, error)
 	FindByAppStoreName(name string) (*AppStoreWithVersion, error)
+	SearchAppStoreChartByName(chartName string) ([]*ChartRepoSearch, error)
 }
 
 type AppStoreApplicationVersionRepositoryImpl struct {
@@ -79,6 +80,16 @@ type AppStoreWithVersion struct {
 	UpdatedOn                    time.Time `json:"updated_on"`
 	Version                      string    `json:"version"`
 	Deprecated                   bool      `json:"deprecated"`
+}
+
+type ChartRepoSearch struct {
+	AppStoreApplicationVersionId int    `json:"appStoreApplicationVersionId"`
+	ChartId                      int    `json:"chartId"`
+	ChartName                    string `json:"chartName"`
+	ChartRepoId                  int    `json:"chartRepoId"`
+	ChartRepoName                string `json:"chartRepoName"`
+	Version                      string `json:"version"`
+	Deprecated                   bool   `json:"deprecated"`
 }
 
 func (impl AppStoreApplicationVersionRepositoryImpl) GetReadMeById(id int) (*AppStoreApplicationVersion, error) {
@@ -153,4 +164,20 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindByAppStoreName(name st
 		return nil, err
 	}
 	return &appStoreWithVersion, err
+}
+
+func (impl *AppStoreApplicationVersionRepositoryImpl) SearchAppStoreChartByName(chartName string) ([]*ChartRepoSearch, error) {
+	var chartRepos []*ChartRepoSearch
+	//eryTemp := "select asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name from app_store_application_version asv inner join app_store aps on asv.app_store_id = aps.id inner join chart_repo ch on aps.chart_repo_id = ch.id where asv.latest is TRUE order by aps.name asc;"
+	queryTemp := "select asv.id as app_store_application_version_id, asv.version, asv.deprecated, aps.id as chart_id," +
+		" aps.name as chart_name, chr.id as chart_repo_id, chr.name as chart_repo_name" +
+		" from app_store_application_version asv" +
+		" inner join app_store aps on asv.app_store_id = aps.id" +
+		" inner join chart_repo chr on aps.chart_repo_id = chr.id" +
+		" where aps.name like '%" + chartName + "%' and asv.latest is TRUE order by aps.name asc;"
+	_, err := impl.dbConnection.Query(&chartRepos, queryTemp)
+	if err != nil {
+		return nil, err
+	}
+	return chartRepos, err
 }

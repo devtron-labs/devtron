@@ -65,12 +65,12 @@ const DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT string = "devtron"
 const CLUSTER_COMPONENT_DIR_PATH string = "/cluster/component"
 
 type InstalledAppService interface {
-	UpdateInstalledApp(installAppVersionRequest *InstallAppVersionDTO, ctx context.Context) (*InstallAppVersionDTO, error)
+	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO) (*InstallAppVersionDTO, error)
 	GetInstalledApp(id int) (*InstallAppVersionDTO, error)
 	GetInstalledAppVersion(id int) (*InstallAppVersionDTO, error)
 	GetAll(environments []int) ([]InstalledAppsResponse, error)
 	GetAllInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request, token string, appStoreId int) ([]InstalledAppsResponse, error)
-	DeleteInstalledApp(installAppVersionRequest *InstallAppVersionDTO, ctx context.Context) (*InstallAppVersionDTO, error)
+	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO) (*InstallAppVersionDTO, error)
 
 	DeployBulk(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error)
 
@@ -162,66 +162,207 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	return impl, nil
 }
 
-func (impl InstalledAppServiceImpl) UpdateInstalledApp(installAppVersionRequest *InstallAppVersionDTO, ctx context.Context) (*InstallAppVersionDTO, error) {
+func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO) (*InstallAppVersionDTO, error) {
 
-	app, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
 	if err != nil {
 		return nil, err
 	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 
-	environment, err := impl.environmentRepository.FindById(app.InstalledApp.EnvironmentId)
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installAppVersionRequest.InstalledAppId)
+	if err != nil {
+		return nil, err
+	}
+	installAppVersionRequest.EnvironmentId = installedApp.EnvironmentId
+	installAppVersionRequest.AppName = installedApp.App.AppName
+
+	if installAppVersionRequest.Id == 0 {
+		// upgrade chart to other repo
+		_, _, err := impl.upgradeInstalledApp(ctx, installAppVersionRequest, tx)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// update same chart or upgrade its version only
+		var installedAppVersion *appstore.InstalledAppVersions
+		installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
+		if err != nil {
+			return nil, err
+		}
+		if installedAppVersionModel.AppStoreApplicationVersionId != installAppVersionRequest.AppStoreVersion {
+			installedAppVersionModel.Active = false
+			installedAppVersionModel.UpdatedOn = time.Now()
+			installedAppVersionModel.UpdatedBy = installAppVersionRequest.UserId
+			_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
+			if err != nil {
+				impl.logger.Errorw("error while fetching from db", "error", err)
+				return nil, err
+			}
+			appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
+			if err != nil {
+				impl.logger.Errorw("fetching error", "err", err)
+				return nil, err
+			}
+			installedAppVersion = &appstore.InstalledAppVersions{
+				InstalledAppId:               installAppVersionRequest.InstalledAppId,
+				AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
+				ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
+			}
+			installedAppVersion.CreatedBy = installAppVersionRequest.UserId
+			installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
+			installedAppVersion.CreatedOn = time.Now()
+			installedAppVersion.UpdatedOn = time.Now()
+			installedAppVersion.Active = true
+			installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
+			installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
+			_, err = impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, tx)
+			if err != nil {
+				impl.logger.Errorw("error while fetching from db", "error", err)
+				return nil, err
+			}
+			installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
+		} else {
+			installedAppVersion = installedAppVersionModel
+		}
+
+		environment, err := impl.environmentRepository.FindById(installedApp.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("fetching error", "err", err)
+			return nil, err
+		}
+		team, err := impl.teamRepository.FindOne(installedApp.App.TeamId)
+		if err != nil {
+			impl.logger.Errorw("fetching error", "err", err)
+			return nil, err
+		}
+		impl.logger.Debug(team.Name)
+
+		argocdAppName := installedApp.App.AppName + "-" + environment.Name
+
+		//update values yaml in chart
+		valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
+		if err != nil {
+			impl.logger.Errorw("error in json patch", "err", err)
+			return nil, err
+		}
+		var dat map[string]interface{}
+		err = json.Unmarshal(valuesOverrideByte, &dat)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshal", "err", err)
+			return nil, err
+		}
+		valuesMap := make(map[string]map[string]interface{})
+		valuesMap[installedAppVersion.AppStoreApplicationVersion.AppStore.Name] = dat
+		valuesByte, err := json.Marshal(valuesMap)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling", "err", err)
+			return nil, err
+		}
+		valuesYaml := &util.ChartConfig{
+			FileName:       VALUES_YAML_FILE,
+			FileContent:    string(valuesByte),
+			ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+			ChartLocation:  argocdAppName,
+			ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
+		}
+		_, err = impl.GitClient.CommitValues(valuesYaml)
+		if err != nil {
+			impl.logger.Errorw("error in git commit", "err", err)
+			return nil, err
+		}
+
+		installAppVersionRequest.ACDAppName = argocdAppName
+		installAppVersionRequest.Environment = environment
+
+		//ACD sync operation
+		impl.syncACD(installAppVersionRequest.ACDAppName, ctx)
+
+		//DB operation
+		installedAppVersion.ValuesYaml = installAppVersionRequest.ValuesOverrideYaml
+		installedAppVersion.UpdatedOn = time.Now()
+		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
+		installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
+		installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
+		if err != nil {
+			impl.logger.Errorw("error while fetching from db", "error", err)
+			return nil, err
+		}
+	}
+
+	//STEP 8: finish with return response
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+	return installAppVersionRequest, nil
+}
+
+func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO, tx *pg.Tx) (*InstallAppVersionDTO, *appstore.InstalledAppVersions, error) {
+	var installedAppVersion *appstore.InstalledAppVersions
+	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
+	if err != nil {
+		return installAppVersionRequest, installedAppVersion, err
+	}
+	for _, installedAppVersionModel := range installedAppVersions {
+		installedAppVersionModel.Active = false
+		installedAppVersionModel.UpdatedOn = time.Now()
+		installedAppVersionModel.UpdatedBy = installAppVersionRequest.UserId
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
+		if err != nil {
+			impl.logger.Errorw("error while fetching from db", "error", err)
+			return installAppVersionRequest, installedAppVersion, err
+		}
+	}
+
+	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
+		return installAppVersionRequest, installedAppVersion, err
 	}
-	impl.logger.Debug(environment.Name)
-
-	team, err := impl.teamRepository.FindOne(app.InstalledApp.App.TeamId)
-	if err != nil {
-		impl.logger.Errorw("fetching error", "err", err)
+	installedAppVersion = &appstore.InstalledAppVersions{
+		InstalledAppId:               installAppVersionRequest.InstalledAppId,
+		AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
+		ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
 	}
-	impl.logger.Debug(team.Name)
-
-	//update requirements yaml
-	argocdAppName := app.InstalledApp.App.AppName + "-" + environment.Name
-	var dat map[string]interface{}
-	err = json.Unmarshal(installAppVersionRequest.ValuesOverride, &dat)
-
-	valuesMap := make(map[string]map[string]interface{})
-	valuesMap[app.AppStoreApplicationVersion.AppStore.Name] = dat
-	valuesByte, err := json.Marshal(valuesMap)
-	if err != nil {
-		impl.logger.Errorw("error in marshaling", "err", err)
-		return nil, err
-	}
-	valuesYaml := &util.ChartConfig{
-		FileName:       VALUES_YAML_FILE,
-		FileContent:    string(valuesByte),
-		ChartName:      app.AppStoreApplicationVersion.AppStore.Name,
-		ChartLocation:  argocdAppName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", app.AppStoreApplicationVersion.Id, environment.Id),
-	}
-	_, err = impl.GitClient.CommitValues(valuesYaml)
-	if err != nil {
-		impl.logger.Errorw("error in git commit", "err", err)
-		return nil, err
-	}
-
-	impl.syncACD(argocdAppName, ctx)
-
-	app.Values = string(installAppVersionRequest.ValuesOverride)
-	app.ValuesYaml = installAppVersionRequest.ValuesOverrideYaml
-	app.UpdatedOn = time.Now()
-	app.UpdatedBy = installAppVersionRequest.UserId
-	app.ReferenceValueId = installAppVersionRequest.ReferenceValueId
-	app.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
-	_, err = impl.installedAppRepository.UpdateInstalledAppVersion(app)
+	installedAppVersion.CreatedBy = installAppVersionRequest.UserId
+	installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
+	installedAppVersion.CreatedOn = time.Now()
+	installedAppVersion.UpdatedOn = time.Now()
+	installedAppVersion.Active = true
+	installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
+	installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
+	_, err = impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
-		return nil, err
+		return installAppVersionRequest, installedAppVersion, err
 	}
-	//STEP 8: finish with return response
+	installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 
-	return installAppVersionRequest, nil
+	//step 2 git operation pull push
+	installAppVersionRequest, chartGitAttr, err := impl.AppStoreDeployOperationGIT(installAppVersionRequest)
+	if err != nil {
+		impl.logger.Errorw(" error", "err", err)
+		return installAppVersionRequest, installedAppVersion, err
+	}
+
+	//step 3 acd operation register, sync
+	installAppVersionRequest, err = impl.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
+	if err != nil {
+		impl.logger.Errorw(" error", "err", err)
+		return installAppVersionRequest, installedAppVersion, err
+	}
+
+	//step 4 db operation status triggered
+	_, err = impl.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appstore.DEPLOY_SUCCESS)
+	if err != nil {
+		impl.logger.Errorw(" error", "err", err)
+		return installAppVersionRequest, installedAppVersion, err
+	}
+	return installAppVersionRequest, installedAppVersion, err
 }
 
 func (impl InstalledAppServiceImpl) GetInstalledApp(id int) (*InstallAppVersionDTO, error) {
@@ -248,14 +389,15 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int) (*InstallAppV
 		Id:                 app.Id,
 		TeamId:             app.InstalledApp.App.TeamId,
 		EnvironmentId:      app.InstalledApp.EnvironmentId,
-		ValuesOverride:     []byte(app.Values),
 		ValuesOverrideYaml: app.ValuesYaml,
 		Readme:             app.AppStoreApplicationVersion.Readme,
 		ReferenceValueKind: app.ReferenceValueKind,
 		ReferenceValueId:   app.ReferenceValueId,
 		AppStoreVersion:    app.AppStoreApplicationVersionId, //check viki
 		Status:             app.InstalledApp.Status,
+		AppStoreId:         app.AppStoreApplicationVersion.AppStoreId,
 		AppStoreName:       app.AppStoreApplicationVersion.AppStore.Name,
+		Deprecated:         app.AppStoreApplicationVersion.Deprecated,
 	}
 	return installAppVersion, err
 }
@@ -362,10 +504,10 @@ func (impl InstalledAppServiceImpl) getACDStatus(a appstore.InstalledAppAndEnvDe
 func (impl InstalledAppServiceImpl) chartAdaptor(chart *appstore.InstalledAppVersions) (*InstallAppVersionDTO, error) {
 
 	return &InstallAppVersionDTO{
-		InstalledAppId:  chart.InstalledAppId,
-		Id:              chart.Id,
-		AppStoreVersion: chart.AppStoreApplicationVersionId,
-		ValuesOverride:  []byte(chart.Values),
+		InstalledAppId:     chart.InstalledAppId,
+		Id:                 chart.Id,
+		AppStoreVersion:    chart.AppStoreApplicationVersionId,
+		ValuesOverrideYaml: chart.ValuesYaml,
 	}, nil
 }
 
@@ -510,7 +652,7 @@ func (impl InstalledAppServiceImpl) deleteACD(acdAppName string, ctx context.Con
 	return nil
 }
 
-func (impl InstalledAppServiceImpl) DeleteInstalledApp(installAppVersionRequest *InstallAppVersionDTO, ctx context.Context) (*InstallAppVersionDTO, error) {
+func (impl InstalledAppServiceImpl) DeleteInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO) (*InstallAppVersionDTO, error) {
 
 	environment, err := impl.environmentRepository.FindById(installAppVersionRequest.EnvironmentId)
 	if err != nil {
@@ -518,7 +660,13 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(installAppVersionRequest 
 		return nil, err
 	}
 
-	//TODO - soft delete app from app table
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 
 	app, err := impl.appRepository.FindById(installAppVersionRequest.AppId)
 	if err != nil {
@@ -541,7 +689,7 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(installAppVersionRequest 
 	model.Active = false
 	model.UpdatedBy = installAppVersionRequest.UserId
 	model.UpdatedOn = time.Now()
-	_, err = impl.installedAppRepository.UpdateInstalledApp(model)
+	_, err = impl.installedAppRepository.UpdateInstalledApp(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error while creating install app", "error", err)
 		return nil, err
@@ -555,7 +703,7 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(installAppVersionRequest 
 		item.Active = false
 		item.UpdatedBy = installAppVersionRequest.UserId
 		item.UpdatedOn = time.Now()
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item)
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
 		if err != nil {
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
@@ -583,6 +731,10 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(installAppVersionRequest 
 			impl.logger.Errorw("error in mapping delete", "err", err)
 			return nil, err
 		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
 	}
 	return installAppVersionRequest, nil
 }
@@ -1043,7 +1195,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionR
 		InstalledAppId:               installAppVersionRequest.InstalledAppId,
 		AppStoreApplicationVersionId: appStoreAppVersion.Id,
 		ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
-		Values:                       "{}",
+		//Values:                       "{}",
 	}
 	installedAppVersions.CreatedBy = installAppVersionRequest.UserId
 	installedAppVersions.UpdatedBy = installAppVersionRequest.UserId
@@ -1078,16 +1230,26 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionR
 }
 
 func (impl InstalledAppServiceImpl) AppStoreDeployOperationStatusUpdate(installAppId int, status appstore.AppstoreDeploymentStatus) (bool, error) {
-
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return false, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 	installedApp, err := impl.installedAppRepository.GetInstalledApp(installAppId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
 	installedApp.Status = status
-	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp)
+	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
+		return false, err
+	}
+	err = tx.Commit()
+	if err != nil {
 		return false, err
 	}
 	return true, nil

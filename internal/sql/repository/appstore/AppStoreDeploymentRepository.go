@@ -30,10 +30,11 @@ import (
 type InstalledAppRepository interface {
 	CreateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error)
 	CreateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
-	UpdateInstalledApp(model *InstalledApps) (*InstalledApps, error)
-	UpdateInstalledAppVersion(model *InstalledAppVersions) (*InstalledAppVersions, error)
+	UpdateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error)
+	UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
 	GetInstalledApp(id int) (*InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
+	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(envIds []int) ([]InstalledAppsWithChartDetails, error)
 	GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
 	GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error)
@@ -98,7 +99,6 @@ type InstalledAppVersions struct {
 	Id                           int      `sql:"id,pk"`
 	InstalledAppId               int      `sql:"installed_app_id,notnull"`
 	AppStoreApplicationVersionId int      `sql:"app_store_application_version_id,notnull"`
-	Values                       string   `sql:"values_yaml"`
 	ValuesYaml                   string   `sql:"values_yaml_raw"`
 	Active                       bool     `sql:"active, notnull"`
 	ReferenceValueId             int      `sql:"reference_value_id"`
@@ -153,8 +153,8 @@ func (impl InstalledAppRepositoryImpl) CreateInstalledAppVersion(model *Installe
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) UpdateInstalledApp(model *InstalledApps) (*InstalledApps, error) {
-	err := impl.dbConnection.Update(model)
+func (impl InstalledAppRepositoryImpl) UpdateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error) {
+	err := tx.Update(model)
 	if err != nil {
 		impl.Logger.Error(err)
 		return model, err
@@ -162,8 +162,8 @@ func (impl InstalledAppRepositoryImpl) UpdateInstalledApp(model *InstalledApps) 
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *InstalledAppVersions) (*InstalledAppVersions, error) {
-	err := impl.dbConnection.Update(model)
+func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error) {
+	err := tx.Update(model)
 	if err != nil {
 		impl.Logger.Error(err)
 		return model, err
@@ -208,15 +208,24 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*Installe
 	return model, err
 }
 
+func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error) {
+	model := &InstalledAppVersions{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore").
+		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
+		Where("installed_app_versions.id = ?", id).Select()
+	return model, err
+}
+
 func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(envIds []int) ([]InstalledAppsWithChartDetails, error) {
 	var installedAppsWithChartDetails []InstalledAppsWithChartDetails
 	var queryTemp string
 	if len(envIds) > 0 {
 		queryTemp = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name, env.environment_name, env.id as environment_id, a.app_name, asav.icon, asav.name as app_store_application_name, asav.id as app_store_application_version_id, ia.id " +
-			", asav.deprecated from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id inner join app a on a.id = ia.app_id inner join environment env on ia.environment_id = env.id inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id inner join app_store aps on aps.id = asav.app_store_id inner join chart_repo ch on ch.id = aps.chart_repo_id where ia.active=true and env.id in (" + sqlIntSeq(envIds) + ")"
+			", asav.deprecated from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id inner join app a on a.id = ia.app_id inner join environment env on ia.environment_id = env.id inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id inner join app_store aps on aps.id = asav.app_store_id inner join chart_repo ch on ch.id = aps.chart_repo_id where ia.active=true and env.id in (" + sqlIntSeq(envIds) + ") and iav.active=true"
 	} else {
 		queryTemp = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name, env.environment_name, env.id as environment_id, a.app_name, asav.icon, asav.name as app_store_application_name, asav.id as app_store_application_version_id, ia.id " +
-			", asav.deprecated from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id inner join app a on a.id = ia.app_id inner join environment env on ia.environment_id = env.id inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id inner join app_store aps on aps.id = asav.app_store_id inner join chart_repo ch on ch.id = aps.chart_repo_id where ia.active=true"
+			", asav.deprecated from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id inner join app a on a.id = ia.app_id inner join environment env on ia.environment_id = env.id inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id inner join app_store aps on aps.id = asav.app_store_id inner join chart_repo ch on ch.id = aps.chart_repo_id where ia.active=true and iav.active=true"
 	}
 	_, err := impl.dbConnection.Query(&installedAppsWithChartDetails, queryTemp)
 	if err != nil {
@@ -235,7 +244,7 @@ func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId
 		" inner join app_store aps on asav.app_store_id = aps.id " +
 		" inner join environment env on ia.environment_id = env.id " +
 		" left join users u on u.id = ia.updated_by " +
-		" where aps.id = " + strconv.Itoa(appStoreId) + " and ia.active=true"
+		" where aps.id = " + strconv.Itoa(appStoreId) + " and ia.active=true and iav.active=true"
 	_, err := impl.dbConnection.Query(&installedAppAndEnvDetails, queryTemp)
 	if err != nil {
 		return nil, err
@@ -251,7 +260,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdAnd
 		Join("inner join installed_apps ia on ia.id = installed_app_versions.installed_app_id").
 		Where("ia.id = ?", installedAppId).
 		Where("ia.environment_id = ?", envId).
-		Where("ia.active = true").
+		Where("ia.active = true").Where("installed_app_versions.active = true").
 		Limit(1).
 		Select()
 	return installedAppVersion, err
@@ -329,7 +338,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByAppIdAndEnvId(app
 		Join("inner join installed_apps ia on ia.id = installed_app_versions.installed_app_id").
 		Where("ia.app_id = ?", appId).
 		Where("ia.environment_id = ?", envId).
-		Where("ia.active = true").
+		Where("ia.active = true").Where("installed_app_versions.active = true").
 		Order("installed_app_versions.id DESC").
 		Limit(1).
 		Select()
@@ -343,7 +352,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIds(cluste
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore", "AppStoreApplicationVersion.AppStore.ChartRepo").
 		Join("inner join installed_apps ia on ia.id = installed_app_versions.installed_app_id").
 		Join("inner join environment env on env.id = ia.environment_id").
-		Where("ia.active = true").Where("env.cluster_id in (?)", pg.In(clusterIds)).
+		Where("ia.active = true").Where("installed_app_versions.active = true").Where("env.cluster_id in (?)", pg.In(clusterIds)).
 		Order("installed_app_versions.id desc").
 		Select()
 	return installedAppVersions, err
@@ -356,7 +365,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIdsV2(clus
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore", "AppStoreApplicationVersion.AppStore.ChartRepo").
 		Join("inner join installed_apps ia on ia.id = installed_app_versions.installed_app_id").
 		Join("inner join cluster_installed_apps cia on cia.installed_app_id = ia.id").
-		Where("ia.active = true").Where("cia.cluster_id in (?)", pg.In(clusterIds)).
+		Where("ia.active = true").Where("installed_app_versions.active = true").Where("cia.cluster_id in (?)", pg.In(clusterIds)).
 		Order("installed_app_versions.id desc").
 		Select()
 	return installedAppVersions, err

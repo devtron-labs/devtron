@@ -132,23 +132,22 @@ func (handler AppStoreValuesRestHandlerImpl) FindValuesById(w http.ResponseWrite
 		return
 	}
 	vars := mux.Vars(r)
-	appStoreValueId, err := strconv.Atoi(vars["appStoreValueId"])
-	if err != nil || appStoreValueId == 0 {
-		handler.Logger.Errorw("request err, FindValuesById", "err", err, "appStoreValueId", appStoreValueId)
+	referenceId, err := strconv.Atoi(vars["referenceId"])
+	if err != nil || referenceId == 0 {
+		handler.Logger.Errorw("request err, FindValuesById", "err", err, "referenceId", referenceId)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, FindValuesById", "appStoreValueId", appStoreValueId)
 	kind := vars["kind"]
-	if len(kind) == 0 || (kind != appstore.REFERENCE_TYPE_DEPLOYED && kind != appstore.REFERENCE_TYPE_DEFAULT && kind != appstore.REFERENCE_TYPE_TEMPLATE) {
+	if len(kind) == 0 || (kind != appstore.REFERENCE_TYPE_DEPLOYED && kind != appstore.REFERENCE_TYPE_DEFAULT && kind != appstore.REFERENCE_TYPE_TEMPLATE && kind != appstore.REFERENCE_TYPE_EXISTING) {
 		handler.Logger.Error(err)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	res, err := handler.appStoreValuesService.FindValuesByIdAndKind(appStoreValueId, kind)
+	handler.Logger.Infow("request payload, FindValuesById", "referenceId", referenceId, "kind", kind)
+	res, err := handler.appStoreValuesService.FindValuesByIdAndKind(referenceId, kind)
 	if err != nil {
-		handler.Logger.Errorw("service err, FindValuesById", "err", err, "payload", appStoreValueId)
+		handler.Logger.Errorw("service err, FindValuesById", "err", err, "payload", referenceId, "kind", kind)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -216,8 +215,21 @@ func (handler AppStoreValuesRestHandlerImpl) FetchTemplateValuesByAppStoreId(w h
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	v := r.URL.Query()
+	var installedAppVersionId int
+	installedAppVersionIds := v.Get("installedAppVersionId")
+	if len(installedAppVersionIds) > 0 {
+		installedAppVersionId, err = strconv.Atoi(installedAppVersionIds)
+		if err != nil {
+			handler.Logger.Errorw("request err, FetchTemplateValuesByAppStoreId", "err", err, "installedAppVersionIds", installedAppVersionIds)
+			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
 	handler.Logger.Infow("request payload, FetchTemplateValuesByAppStoreId", "appStoreId", appStoreId)
-	res, err := handler.appStoreValuesService.FindValuesByAppStoreId(appStoreId)
+	res, err := handler.appStoreValuesService.FindValuesByAppStoreId(appStoreId, installedAppVersionId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchTemplateValuesByAppStoreId", "err", err, "appStoreId", appStoreId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
