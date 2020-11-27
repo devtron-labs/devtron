@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -139,7 +140,10 @@ func (handler InstalledAppRestHandlerImpl) CreateInstalledApp(w http.ResponseWri
 	defer cancel()
 	res, err := handler.installedAppService.CreateInstalledAppV2(&request, ctx)
 	if err != nil {
-		handler.Logger.Errorw("service err, UpdateCiTemplate", "err", err, "payload", request)
+		if strings.Contains(err.Error(), "application spec is invalid") {
+			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}
+		}
+		handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -201,6 +205,9 @@ func (handler InstalledAppRestHandlerImpl) UpdateInstalledApp(w http.ResponseWri
 	ctx = context.WithValue(r.Context(), "token", token)
 	res, err := handler.installedAppService.UpdateInstalledApp(ctx, &request)
 	if err != nil {
+		if strings.Contains(err.Error(), "application spec is invalid") {
+			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}
+		}
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
