@@ -176,18 +176,18 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	if err != nil {
 		return nil, err
 	}
-	var installedAppVersion *appstore.InstalledAppVersions
 	installAppVersionRequest.EnvironmentId = installedApp.EnvironmentId
 	installAppVersionRequest.AppName = installedApp.App.AppName
 
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
-		_, installedAppVersion, err = impl.upgradeInstalledApp(ctx, installAppVersionRequest, tx)
+		_, _, err := impl.upgradeInstalledApp(ctx, installAppVersionRequest, tx)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		// update same chart or upgrade its version only
+		var installedAppVersion *appstore.InstalledAppVersions
 		installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
 		if err != nil {
 			return nil, err
