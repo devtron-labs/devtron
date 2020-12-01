@@ -18,7 +18,6 @@
 package appstore
 
 import (
-	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"time"
@@ -34,18 +33,19 @@ type InstallAppVersionDTO struct {
 	InstalledAppId          int                               `json:"installedAppId,omitempty,notnull"`
 	InstalledAppVersionId   int                               `json:"installedAppVersionId,omitempty,notnull"`
 	AppStoreVersion         int                               `json:"appStoreVersion,omitempty,notnull"`
-	ValuesOverride          json.RawMessage                   `json:"valuesOverride,omitempty"` //json format user value
 	ValuesOverrideYaml      string                            `json:"valuesOverrideYaml,omitempty"`
 	Readme                  string                            `json:"readme,omitempty"`
 	UserId                  int32                             `json:"-"`
 	ReferenceValueId        int                               `json:"referenceValueId, omitempty" validate:"required,number"`
-	ReferenceValueKind      string                            `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED"`
+	ReferenceValueKind      string                            `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
 	ACDAppName              string                            `json:"-"`
 	Environment             *cluster.Environment              `json:"-"`
 	ChartGroupEntryId       int                               `json:"-"`
 	DefaultClusterComponent bool                              `json:"-"`
 	Status                  appstore.AppstoreDeploymentStatus `json:"-"`
-	AppStoreName            string                            `json:"-"`
+	AppStoreId              int                               `json:"appStoreId"`
+	AppStoreName            string                            `json:"appStoreName"`
+	Deprecated              bool                              `json:"deprecated"`
 }
 
 /// bean for v2

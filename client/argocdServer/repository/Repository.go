@@ -25,8 +25,8 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ServiceClient interface {
@@ -70,7 +70,7 @@ func getService(ctx context.Context, settings *settings.ArgoCDSettings) (reposit
 }
 
 func (r ServiceClientImpl) List(ctx context.Context, query *repository2.RepoQuery) (*v1alpha1.RepositoryList, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, application.TimeoutFast)
 	defer cancel()
 	client, err := getService(ctx, r.settings)
 	if err != nil {
@@ -80,7 +80,7 @@ func (r ServiceClientImpl) List(ctx context.Context, query *repository2.RepoQuer
 }
 
 func (r ServiceClientImpl) ListApps(ctx context.Context, query *repository2.RepoAppsQuery) (*repository2.RepoAppsResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, application.TimeoutFast)
 	defer cancel()
 	client, err := getService(ctx, r.settings)
 	if err != nil {
@@ -90,7 +90,7 @@ func (r ServiceClientImpl) ListApps(ctx context.Context, query *repository2.Repo
 }
 
 func (r ServiceClientImpl) GetAppDetails(ctx context.Context, query *repository2.RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, application.TimeoutFast)
 	defer cancel()
 	client, err := getService(ctx, r.settings)
 	if err != nil {
@@ -100,7 +100,7 @@ func (r ServiceClientImpl) GetAppDetails(ctx context.Context, query *repository2
 }
 
 func (r ServiceClientImpl) Create(ctx context.Context, query *repository2.RepoCreateRequest) (*v1alpha1.Repository, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, application.TimeoutSlow)
 	defer cancel()
 	client, err := getService(ctx, r.settings)
 	if err != nil {
@@ -110,7 +110,7 @@ func (r ServiceClientImpl) Create(ctx context.Context, query *repository2.RepoCr
 }
 
 func (r ServiceClientImpl) Update(ctx context.Context, query *repository2.RepoUpdateRequest) (*v1alpha1.Repository, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, application.TimeoutSlow)
 	defer cancel()
 	client, err := getService(ctx, r.settings)
 	if err != nil {
@@ -120,7 +120,7 @@ func (r ServiceClientImpl) Update(ctx context.Context, query *repository2.RepoUp
 }
 
 func (r ServiceClientImpl) Delete(ctx context.Context, query *repository2.RepoQuery) (*repository2.RepoResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, application.TimeoutSlow)
 	defer cancel()
 	client, err := getService(ctx, r.settings)
 	if err != nil {

@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -139,7 +140,10 @@ func (handler InstalledAppRestHandlerImpl) CreateInstalledApp(w http.ResponseWri
 	defer cancel()
 	res, err := handler.installedAppService.CreateInstalledAppV2(&request, ctx)
 	if err != nil {
-		handler.Logger.Errorw("service err, UpdateCiTemplate", "err", err, "payload", request)
+		if strings.Contains(err.Error(), "application spec is invalid") {
+			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}
+		}
+		handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -168,20 +172,19 @@ func (handler InstalledAppRestHandlerImpl) UpdateInstalledApp(w http.ResponseWri
 	}
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, UpdateInstalledApp", "payload", request)
-	installedAppVersion, err := handler.installedAppService.GetInstalledAppVersion(request.Id)
+	installedApp, err := handler.installedAppService.GetInstalledApp(request.InstalledAppId)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	//rbac block starts from here
-	object := handler.enforcerUtil.GetAppRBACName(installedAppVersion.AppName)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(installedApp.AppId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, object); !ok {
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(installedAppVersion.AppName, installedAppVersion.EnvironmentId)
+	object = handler.enforcerUtil.GetEnvRBACNameByAppId(installedApp.AppId, installedApp.EnvironmentId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
@@ -200,8 +203,11 @@ func (handler InstalledAppRestHandlerImpl) UpdateInstalledApp(w http.ResponseWri
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	ctx = context.WithValue(r.Context(), "token", token)
-	res, err := handler.installedAppService.UpdateInstalledApp(&request, ctx)
+	res, err := handler.installedAppService.UpdateInstalledApp(ctx, &request)
 	if err != nil {
+		if strings.Contains(err.Error(), "application spec is invalid") {
+			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}
+		}
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -384,7 +390,7 @@ func (handler InstalledAppRestHandlerImpl) DeleteInstalledApp(w http.ResponseWri
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	ctx = context.WithValue(r.Context(), "token", token)
-	res, err := handler.installedAppService.DeleteInstalledApp(&request, ctx)
+	res, err := handler.installedAppService.DeleteInstalledApp(ctx, &request)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteInstalledApp", "err", err, "installAppId", installAppId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)

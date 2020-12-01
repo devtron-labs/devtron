@@ -234,7 +234,7 @@ func (c ServiceClientImpl) Sync(ctxt context.Context, query *application.Applica
 }
 
 func (c ServiceClientImpl) TerminateOperation(ctxt context.Context, query *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, TimeoutSlow)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -262,7 +262,7 @@ func (c ServiceClientImpl) PatchResource(ctxt context.Context, query *applicatio
 }
 
 func (c ServiceClientImpl) DeleteResource(ctxt context.Context, query *application.ApplicationResourceDeleteRequest) (*application.ApplicationResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, TimeoutSlow)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -321,7 +321,7 @@ func (c ServiceClientImpl) GetResource(ctxt context.Context, query *application.
 }
 
 func (c ServiceClientImpl) Delete(ctxt context.Context, query *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, TimeoutSlow)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -348,7 +348,7 @@ func (c ServiceClientImpl) ListResourceEvents(ctxt context.Context, query *appli
 }
 
 func (c ServiceClientImpl) Create(ctxt context.Context, query *application.ApplicationCreateRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, TimeoutSlow)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {

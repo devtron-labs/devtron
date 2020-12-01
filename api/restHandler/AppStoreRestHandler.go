@@ -41,6 +41,7 @@ type AppStoreRestHandler interface {
 	GetChartVersions(w http.ResponseWriter, r *http.Request)
 	FetchAppDetailsForInstalledApp(w http.ResponseWriter, r *http.Request)
 	GetReadme(w http.ResponseWriter, r *http.Request)
+	SearchAppStoreChartByName(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreRestHandlerImpl struct {
@@ -231,6 +232,24 @@ func (handler *AppStoreRestHandlerImpl) GetReadme(w http.ResponseWriter, r *http
 	res, err := handler.appStoreService.GetReadMeByAppStoreApplicationVersionId(id)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetReadme, fetching resource tree", "err", err, "appStoreApplicationVersionId", id)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *AppStoreRestHandlerImpl) SearchAppStoreChartByName(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	chartName := vars["chartName"]
+	handler.Logger.Infow("request payload, SearchAppStoreChartByName, app store", "chartName", chartName)
+	res, err := handler.appStoreService.SearchAppStoreChartByName(chartName)
+	if err != nil {
+		handler.Logger.Errorw("service err, FindAllApps, app store", "err", err, "userId", userId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

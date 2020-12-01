@@ -1,12 +1,3 @@
-[![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/72JDKy4)
-[![Go Report Card](https://goreportcard.com/badge/github.com/devtron-labs/devtron)](https://goreportcard.com/report/github.com/devtron-labs/devtron)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
-[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4411/badge)](https://bestpractices.coreinfrastructure.org/projects/4411)
-[![made-with-Go](https://img.shields.io/badge/Made%20with-Go-1f425f.svg)](http://golang.org)
-[![Website devtron.ai](https://img.shields.io/website-up-down-green-red/http/shields.io.svg)](http://devtron.ai/)
-
-
-
 <p align="center"><img width="200" height="156" src="./assets/logo.png"></p>
 <p align="center">Devtron is an open source software delivery workflow for kubernetes written in go.
 <br>
@@ -20,16 +11,38 @@
 <a href="https://discord.gg/72JDKy4">Join Discord</a>
 ·
 <a href="https://twitter.com/DevtronL">Twitter</a>
+
+</p>
+<p align="center">
+<a href="https://discord.gg/72JDKy4"><img src="https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg" alt="Join Discord"></a>
+<a href="https://goreportcard.com/badge/github.com/devtron-labs/devtron"><img src="https://goreportcard.com/badge/github.com/devtron-labs/devtron" alt="Go Report Card"></a>
+<a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+<a href="https://bestpractices.coreinfrastructure.org/projects/4411"><img src="https://bestpractices.coreinfrastructure.org/projects/4411/badge" alt="CII Best Practices"></a>
+<a href="http://golang.org"><img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go"></a>
+<a href="http://devtron.ai/"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
+
 </p>
 
-## Why Devtron?
+## :book: Menu
+
+- [Why Devtron](https://github.com/devtron-labs/devtron#bulb-why-devtron) 
+- [Features](https://github.com/devtron-labs/devtron#tada-features)
+- [Getting Started](https://github.com/devtron-labs/devtron#rocket-getting-started)
+- [Documentation](https://docs.devtron.ai/)
+- [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
+- [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
+- [Contribute](https://github.com/devtron-labs/devtron#handshake-contribute)
+- [Vulnerability Reporting](https://github.com/devtron-labs/devtron#beetle-vulnerability-reporting)
+- [License](https://github.com/devtron-labs/devtron#bookmark-license)
+ 
+## :bulb: Why Devtron?
 It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on kubernetes in a developer friendly way. 
 <br>
 <br>
 <img src="./assets/preview.gif">
 <br>
 <br>
-### Some of the benefits  provided by devtron are: 
+## :tada: Features
 <details>
 <summary> 
  <b> Zero code software delivery workflow </b>
@@ -101,7 +114,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 </details>
 
 
-## How to start using Devtron
+## :rocket: Getting Started
 
 #### Installing devtron with Helm 
 
@@ -114,7 +127,7 @@ $ helm install devtron . -f values.yaml
 For detail instructions checkout [devtron installation project](https://github.com/devtron-labs/devtron-installation-script/)
 
 
-#### Access Devtron dashboard
+#### :key: Access Devtron dashboard
 
 Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` same as provided in `values.yaml`
 
@@ -142,13 +155,13 @@ $ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWOR
 **TODO**
 -->
 
-## Compatibility notes
+## :memo: Compatibility notes
 
 - Only AWS kubernetes cluster is supported as of now
 - It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
 - Application metrics only works for k8s 1.16+
 
-## Community
+## :busts_in_silhouette: Community
 
 Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
 
@@ -158,15 +171,15 @@ Get updates on Devtron's development and chat with the project maintainers, cont
  - Read the [Devtron blog](https://devtron.ai/blog/)
 
 
-## Contribute
+## :handshake: Contribute
 
 Check out our [contributing guidelines](CONTRIBUTING.md). Included are directions for opening issues, coding standards, and notes on our development processes.
 
-## Vulnerability Reporting
+## :beetle: Vulnerability Reporting
 
 We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose us at security@devtron.ai.
 
-## License
+## :bookmark: License
 
 Devtron is available under the [Apache License, Version 2.0](LICENSE)
 

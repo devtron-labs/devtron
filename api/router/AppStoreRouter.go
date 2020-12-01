@@ -77,7 +77,7 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 		HandlerFunc(router.appStoreValuesRestHandler.CreateAppStoreVersionValues).Methods("POST")
 	configRouter.Path("/template/values").
 		HandlerFunc(router.appStoreValuesRestHandler.UpdateAppStoreVersionValues).Methods("PUT")
-	configRouter.Path("/template/values").Queries("appStoreValueId", "{appStoreValueId}", "kind", "{kind}").
+	configRouter.Path("/template/values").Queries("referenceId", "{referenceId}", "kind", "{kind}").
 		HandlerFunc(router.appStoreValuesRestHandler.FindValuesById).Methods("GET")
 	configRouter.Path("/template/values/{appStoreValueId}").
 		HandlerFunc(router.appStoreValuesRestHandler.DeleteAppStoreVersionValues).Methods("DELETE")
@@ -90,4 +90,8 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 		HandlerFunc(router.appStoreValuesRestHandler.FetchTemplateValuesByAppStoreId).Methods("GET")
 	configRouter.Path("/chart/selected/metadata").
 		HandlerFunc(router.appStoreValuesRestHandler.GetSelectedChartMetadata).Methods("POST")
+
+	configRouter.Path("/search").
+		HandlerFunc(router.appStoreRestHandler.SearchAppStoreChartByName).Queries("chartName", "{chartName}").
+		Methods("GET")
 }
