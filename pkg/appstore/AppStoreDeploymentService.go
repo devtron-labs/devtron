@@ -83,6 +83,7 @@ type InstalledAppService interface {
 	CheckAppExists(appNames []*AppNames) ([]*AppNames, error)
 
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
+	IsChartRepoActive(appStoreVersionId int) (bool, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -1429,4 +1430,13 @@ type ChartComponents struct {
 type ChartComponent struct {
 	Name   string `json:"name"`
 	Values string `json:"values"`
+}
+
+func (impl *InstalledAppServiceImpl) IsChartRepoActive(appStoreVersionId int) (bool, error) {
+	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreVersionId)
+	if err != nil {
+		impl.logger.Errorw("fetching error", "err", err)
+		return false, err
+	}
+	return appStoreAppVersion.AppStore.ChartRepo.Active, nil
 }

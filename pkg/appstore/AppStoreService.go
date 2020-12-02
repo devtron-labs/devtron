@@ -66,7 +66,7 @@ type AppStoreApplicationVersionResponse struct {
 	RawValues               string    `json:"rawValues"`
 	Readme                  string    `json:"readme"`
 	UpdatedOn               time.Time `json:"updatedOn"`
-	ChartRepoStatus         bool      `json:"chartRepoStatus"`
+	IsChartRepoActive       bool      `json:"isChartRepoActive"`
 }
 
 type HelmRepositoriesData struct {
@@ -178,7 +178,7 @@ func (impl *AppStoreServiceImpl) FindChartDetailsById(id int) (AppStoreApplicati
 		UpdatedOn:               chartDetails.UpdatedOn,
 		RawValues:               chartDetails.RawValues,
 		Readme:                  chartDetails.Readme,
-		ChartRepoStatus:         chartDetails.AppStore.ChartRepo.Active,
+		IsChartRepoActive:       chartDetails.AppStore.ChartRepo.Active,
 	}
 	return appStoreApplicationVersion, nil
 }
