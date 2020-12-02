@@ -284,7 +284,14 @@ func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionCreate, ""); !ok {
+	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateChartRepo", "err", err, "id", userId)
+		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+
+	if !isActionUserSuperAdmin {
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
@@ -333,7 +340,14 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionUpdate, ""); !ok {
+	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateChartRepo", "err", err, "id", userId)
+		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+
+	if !isActionUserSuperAdmin {
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}

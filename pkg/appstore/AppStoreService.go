@@ -19,7 +19,6 @@ package appstore
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -264,12 +263,11 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	chartRepo.SshKey = request.SshKey
 	chartRepo.Active = true
 	chartRepo.Default = false
-	/*err := impl.repoRepository.Save(chartRepo)
+	err := impl.repoRepository.Save(chartRepo)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
-	}*/
+	}
 
-	//TODO - config map update - patch
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
 		return nil, err
@@ -284,9 +282,7 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	} else {
 		//return chartRepo, nil
 	}
-	impl.logger.Info(cm.Data)
 	data := impl.updateData(cm.Data, request)
-	impl.logger.Info(data)
 	_, err = impl.K8sUtil.PatchConfigMap(ChartRepoConfigMapNamespace, cfg, ChartRepoConfigMap, data)
 	if err != nil {
 		return nil, err
@@ -309,8 +305,6 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	}
 	found := false
 	for _, item := range helmRepositories {
-		a := fmt.Sprintf("%s/%s", request.Name, item.Name)
-		fmt.Println(a, found)
 		if request.Name == item.Name {
 			item.Url = request.Url
 			found = true
@@ -319,8 +313,7 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 
 	// add new only if not found
 	if !found {
-		helmRepository := &HelmRepositoriesData{Name: "devtron-charts-1001", Url: "https://devtron-charts.s3.us-east-2.amazonaws.com/charts-1001",
-		}
+		helmRepository := &HelmRepositoriesData{Name: request.Name, Url: request.Url}
 		helmRepositories = append(helmRepositories, helmRepository)
 	}
 
@@ -362,9 +355,9 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	}
 
 	if !found {
-		usernameSecret := &KeyDto{Name: "my-secret-123000", Key: "username"}
-		passwordSecret := &KeyDto{Name: "my-secret-1230000", Key: "password"}
-		repository := &RepositoriesData{PasswordSecret: passwordSecret, UsernameSecret: usernameSecret,}
+		usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
+		passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
+		repository := &RepositoriesData{PasswordSecret: passwordSecret, UsernameSecret: usernameSecret}
 		repositories = append(repositories, repository)
 	}
 	rb, err = json.Marshal(repositories)
@@ -405,7 +398,6 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 		return nil, err
 	}
 
-	//TODO - config map update - patch
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
 		return nil, err
@@ -417,12 +409,8 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	cm, err := impl.K8sUtil.GetConfigMap(ChartRepoConfigMapNamespace, ChartRepoConfigMap, cfg)
 	if err != nil {
 		return nil, err
-	} else {
-		//return chartRepo, nil
 	}
-	impl.logger.Info(cm.Data)
 	data := impl.updateData(cm.Data, request)
-	impl.logger.Info(data)
 	_, err = impl.K8sUtil.PatchConfigMap(ChartRepoConfigMapNamespace, cfg, ChartRepoConfigMap, data)
 	if err != nil {
 		return nil, err
