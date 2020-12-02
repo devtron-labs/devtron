@@ -18,11 +18,18 @@
 package appstore
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	"time"
 )
@@ -62,6 +69,26 @@ type AppStoreApplicationVersionResponse struct {
 	UpdatedOn               time.Time `json:"updatedOn"`
 }
 
+type HelmRepositoriesData struct {
+	Name string `json:"name,omitempty"`
+	Url  string `json:"url,omitempty"`
+}
+
+type KeyDto struct {
+	Name string `json:"name,omitempty"`
+	Key  string `json:"key,omitempty"`
+	Url  string `json:"url,omitempty"`
+}
+
+type RepositoriesData struct {
+	UsernameSecret *KeyDto `json:"usernameSecret,omitempty"`
+	PasswordSecret *KeyDto `json:"passwordSecret,omitempty"`
+	CaSecret       *KeyDto `json:"caSecret,omitempty"`
+	CertSecret     *KeyDto `json:"certSecret,omitempty"`
+	KeySecret      *KeyDto `json:"keySecret,omitempty"`
+	Url            string  `json:"url,omitempty"`
+}
+
 type AppStoreService interface {
 	FindAllApps() ([]appstore.AppStoreWithVersion, error)
 	FindChartDetailsById(id int) (AppStoreApplicationVersionResponse, error)
@@ -70,7 +97,12 @@ type AppStoreService interface {
 	GetReadMeByAppStoreApplicationVersionId(id int) (*ReadmeRes, error)
 
 	SearchAppStoreChartByName(chartName string) ([]*appstore.ChartRepoSearch, error)
+	CreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error)
+	UpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error)
 }
+
+const ChartRepoConfigMap string = "argocd-test-cm"
+const ChartRepoConfigMapNamespace string = "default"
 
 type AppStoreVersionsResponse struct {
 	Version string `json:"version"`
@@ -87,15 +119,26 @@ type AppStoreServiceImpl struct {
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository
 	installedAppRepository        appstore.InstalledAppRepository
 	userService                   user.UserService
+	repoRepository                chartConfig.ChartRepoRepository
+	K8sUtil                       *util.K8sUtil
+	clusterService                cluster.ClusterService
+	envService                    cluster.EnvironmentService
 }
 
-func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository, appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository, userService user.UserService) *AppStoreServiceImpl {
+func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
+	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
+	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
+	clusterService cluster.ClusterService, envService cluster.EnvironmentService) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
 		appStoreApplicationRepository: appStoreApplicationRepository,
 		installedAppRepository:        installedAppRepository,
 		userService:                   userService,
+		repoRepository:                repoRepository,
+		K8sUtil:                       K8sUtil,
+		clusterService:                clusterService,
+		envService:                    envService,
 	}
 }
 
@@ -207,4 +250,227 @@ func (impl *AppStoreServiceImpl) SearchAppStoreChartByName(chartName string) ([]
 		return nil, err
 	}
 	return appStoreApplications, nil
+}
+
+func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error) {
+	chartRepo := &chartConfig.ChartRepo{AuditLog: models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},}
+	chartRepo.Name = request.Name
+	chartRepo.Url = request.Url
+	chartRepo.AuthMode = request.AuthMode
+	chartRepo.UserName = request.UserName
+	chartRepo.Password = request.Password
+	chartRepo.Active = request.Active
+	chartRepo.AccessToken = request.AccessToken
+	chartRepo.SshKey = request.SshKey
+	chartRepo.Active = true
+	chartRepo.Default = false
+	/*err := impl.repoRepository.Save(chartRepo)
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}*/
+
+	//TODO - config map update - patch
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := impl.envService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return nil, err
+	}
+	cm, err := impl.K8sUtil.GetConfigMap(ChartRepoConfigMapNamespace, ChartRepoConfigMap, cfg)
+	if err != nil {
+		return nil, err
+	} else {
+		//return chartRepo, nil
+	}
+	impl.logger.Info(cm.Data)
+	data := impl.updateData(cm.Data, request)
+	impl.logger.Info(data)
+	_, err = impl.K8sUtil.PatchConfigMap(ChartRepoConfigMapNamespace, cfg, ChartRepoConfigMap, data)
+	if err != nil {
+		return nil, err
+	}
+	return chartRepo, nil
+}
+
+func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *ChartRepoDto) map[string]interface{} {
+
+	helmRepoStr := data["helm.repositories"]
+	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
+	if err != nil {
+		panic(err)
+	}
+	//helmRepositories := make([]map[string]interface{}, 0)
+	var helmRepositories []*HelmRepositoriesData
+	err = json.Unmarshal(helmRepoByte, &helmRepositories)
+	if err != nil {
+		panic(err)
+	}
+	found := false
+	for _, item := range helmRepositories {
+		a := fmt.Sprintf("%s/%s", request.Name, item.Name)
+		fmt.Println(a, found)
+		if request.Name == item.Name {
+			item.Url = request.Url
+			found = true
+		}
+	}
+
+	// add new only if not found
+	if !found {
+		helmRepository := &HelmRepositoriesData{Name: "devtron-charts-1001", Url: "https://devtron-charts.s3.us-east-2.amazonaws.com/charts-1001",
+		}
+		helmRepositories = append(helmRepositories, helmRepository)
+	}
+
+	rb, err := json.Marshal(helmRepositories)
+	if err != nil {
+		panic(err)
+	}
+	helmRepositoriesYamlByte, err := yaml.JSONToYAML(rb)
+	if err != nil {
+		panic(err)
+	}
+
+	var repositories []*RepositoriesData
+	repoStr := data["repositories"]
+	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(repoByte, &repositories)
+	if err != nil {
+		panic(err)
+	}
+	found = false
+	for _, item := range repositories {
+		if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+			passwordSecret := item.PasswordSecret
+			usernameSecret := item.UsernameSecret
+			if passwordSecret.Name == request.Password {
+				found = true
+			}
+			if usernameSecret.Name == request.UserName {
+				found = true
+			}
+		} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+
+		} else if request.AuthMode == repository.AUTH_MODE_SSH {
+
+		}
+	}
+
+	if !found {
+		usernameSecret := &KeyDto{Name: "my-secret-123000", Key: "username"}
+		passwordSecret := &KeyDto{Name: "my-secret-1230000", Key: "password"}
+		repository := &RepositoriesData{PasswordSecret: passwordSecret, UsernameSecret: usernameSecret,}
+		repositories = append(repositories, repository)
+	}
+	rb, err = json.Marshal(repositories)
+	if err != nil {
+		panic(err)
+	}
+	repositoriesYamlByte, err := yaml.JSONToYAML(rb)
+	if err != nil {
+		panic(err)
+	}
+
+	mergedData := map[string]interface{}{}
+	mergedData["helm.repositories"] = string(helmRepositoriesYamlByte)
+	mergedData["repositories"] = string(repositoriesYamlByte)
+
+	newDataFinal := map[string]interface{}{}
+	newDataFinal["data"] = mergedData
+	return newDataFinal
+}
+
+func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error) {
+	chartRepo, err := impl.repoRepository.FindById(request.Id)
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}
+	chartRepo.Url = request.Url
+	chartRepo.AuthMode = request.AuthMode
+	chartRepo.UserName = request.UserName
+	chartRepo.Password = request.Password
+	chartRepo.Active = request.Active
+	chartRepo.AccessToken = request.AccessToken
+	chartRepo.SshKey = request.SshKey
+	chartRepo.Active = request.Active
+	chartRepo.UpdatedBy = request.UserId
+	chartRepo.UpdatedOn = time.Now()
+	err = impl.repoRepository.Update(chartRepo)
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}
+
+	//TODO - config map update - patch
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := impl.envService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return nil, err
+	}
+	cm, err := impl.K8sUtil.GetConfigMap(ChartRepoConfigMapNamespace, ChartRepoConfigMap, cfg)
+	if err != nil {
+		return nil, err
+	} else {
+		//return chartRepo, nil
+	}
+	impl.logger.Info(cm.Data)
+	data := impl.updateData(cm.Data, request)
+	impl.logger.Info(data)
+	_, err = impl.K8sUtil.PatchConfigMap(ChartRepoConfigMapNamespace, cfg, ChartRepoConfigMap, data)
+	if err != nil {
+		return nil, err
+	}
+
+	if request.Active == false {
+		// TODO - handle existing charts and charts group
+	}
+
+	return chartRepo, nil
+}
+
+func (impl *AppStoreServiceImpl) updateDataSample(data map[string]string, request *ChartRepoDto) map[string]interface{} {
+	var helmRepositories []map[string]interface{}
+	helmRepository := map[string]interface{}{}
+	helmRepository["name"] = "devtron-charts-1001"
+	helmRepository["url"] = "https://devtron-charts.s3.us-east-2.amazonaws.com/charts-1001"
+	helmRepositories = append(helmRepositories, helmRepository)
+
+	usernameSecret := map[string]interface{}{}
+	usernameSecret["name"] = "my-secret-123"
+	usernameSecret["key"] = "username"
+
+	passwordSecret := map[string]interface{}{}
+	passwordSecret["name"] = "my-secret-123"
+	passwordSecret["key"] = "password"
+
+	repository := map[string]interface{}{}
+	repository["passwordSecret"] = passwordSecret
+	repository["usernameSecret"] = usernameSecret
+
+	var repositories []map[string]interface{}
+	repositories = append(repositories, repository)
+
+	rb, err := json.Marshal(repositories)
+	if err != nil {
+		panic(err)
+	}
+	yamlByte, err := yaml.JSONToYAML(rb)
+	if err != nil {
+		panic(err)
+	}
+
+	newData := map[string]interface{}{}
+	newData["repositories"] = string(yamlByte)
+	newData["helm.repositories"] = helmRepositories
+
+	newDataFinal := map[string]interface{}{}
+	newDataFinal["data"] = newData
+	return newDataFinal
 }

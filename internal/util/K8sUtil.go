@@ -18,10 +18,12 @@
 package util
 
 import (
+	"encoding/json"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 )
@@ -76,6 +78,7 @@ func (impl K8sUtil) checkIfNsExists(namespace string, client *v12.CoreV1Client) 
 	} else {
 		return true, nil
 	}
+
 }
 
 func (impl K8sUtil) createNs(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, err error) {
@@ -91,4 +94,40 @@ func (impl K8sUtil) createNs(namespace string, client *v12.CoreV1Client) (ns *v1
 func (impl K8sUtil) deleteNs(namespace string, client *v12.CoreV1Client) error {
 	err := client.Namespaces().Delete(namespace, &metav1.DeleteOptions{})
 	return err
+}
+
+func (impl K8sUtil) GetConfigMap(namespace string, name string, clusterConfig *ClusterConfig) (*v1.ConfigMap, error) {
+	client, err := impl.getClient(clusterConfig)
+	if err != nil {
+		return nil, err
+	}
+	cm, err := client.ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
+}
+
+func (impl K8sUtil) PatchConfigMap(namespace string, clusterConfig *ClusterConfig, name string, data map[string]interface{}) (*v1.ConfigMap, error) {
+	client, err := impl.getClient(clusterConfig)
+	if err != nil {
+		return nil, err
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
+	/*	yamlByte, err := yaml.JSONToYAML(b)
+		if err != nil {
+			panic(err)
+		}*/
+	//fmt.Println(string(b))
+	cm, err := client.ConfigMaps(namespace).Patch(name, types.PatchType(types.MergePatchType), b)
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
+	return cm, nil
 }
