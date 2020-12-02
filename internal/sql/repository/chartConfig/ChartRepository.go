@@ -19,6 +19,7 @@ package chartConfig
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 )
 
@@ -196,17 +197,23 @@ func (repositoryImpl ChartRepositoryImpl) FindById(id int) (chart *Chart, err er
 //---------------------------chart repository------------------
 
 type ChartRepo struct {
-	tableName struct{} `sql:"chart_repo"`
-	Id        int      `sql:"id,pk"`
-	Name      string   `sql:"name"`
-	Url       string   `sql:"url"`
-	Active    bool     `sql:"active"`
-	Default   bool     `sql:"is_default"`
+	tableName   struct{}            `sql:"chart_repo"`
+	Id          int                 `sql:"id,pk"`
+	Name        string              `sql:"name"`
+	Url         string              `sql:"url"`
+	Active      bool                `sql:"active"`
+	Default     bool                `sql:"is_default,notnull"`
+	UserName    string              `sql:"user_name"`
+	Password    string              `sql:"password"`
+	SshKey      string              `sql:"ssh_key"`
+	AccessToken string              `sql:"access_token"`
+	AuthMode    repository.AuthMode `sql:"auth_mode,notnull"`
 	models.AuditLog
 }
 
 type ChartRepoRepository interface {
 	Save(chartRepo *ChartRepo) error
+	Update(chartRepo *ChartRepo) error
 	GetDefault() (*ChartRepo, error)
 	FindById(id int) (*ChartRepo, error)
 }
@@ -223,6 +230,11 @@ func NewChartRepoRepositoryImpl(dbConnection *pg.DB) *ChartRepoRepositoryImpl {
 func (impl ChartRepoRepositoryImpl) Save(chartRepo *ChartRepo) error {
 	return impl.dbConnection.Insert(chartRepo)
 }
+
+func (impl ChartRepoRepositoryImpl) Update(chartRepo *ChartRepo) error {
+	return impl.dbConnection.Update(chartRepo)
+}
+
 func (impl ChartRepoRepositoryImpl) GetDefault() (*ChartRepo, error) {
 	repo := &ChartRepo{}
 	err := impl.dbConnection.Model(repo).

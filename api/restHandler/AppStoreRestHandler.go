@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -30,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 	"time"
@@ -42,6 +44,8 @@ type AppStoreRestHandler interface {
 	FetchAppDetailsForInstalledApp(w http.ResponseWriter, r *http.Request)
 	GetReadme(w http.ResponseWriter, r *http.Request)
 	SearchAppStoreChartByName(w http.ResponseWriter, r *http.Request)
+	CreateChartRepo(w http.ResponseWriter, r *http.Request)
+	UpdateChartRepo(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreRestHandlerImpl struct {
@@ -52,11 +56,13 @@ type AppStoreRestHandlerImpl struct {
 	enforcer         rbac.Enforcer
 	acdServiceClient application.ServiceClient
 	enforcerUtil     rbac.EnforcerUtil
+	validator        *validator.Validate
 }
 
 func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appStoreService appstore.AppStoreService,
 	acdServiceClient application.ServiceClient, teamService team.TeamService,
-	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil) *AppStoreRestHandlerImpl {
+	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil,
+	validator *validator.Validate) *AppStoreRestHandlerImpl {
 	return &AppStoreRestHandlerImpl{
 		Logger:           Logger,
 		appStoreService:  appStoreService,
@@ -65,6 +71,7 @@ func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.
 		acdServiceClient: acdServiceClient,
 		enforcer:         enforcer,
 		enforcerUtil:     enforcerUtil,
+		validator:        validator,
 	}
 }
 
@@ -250,6 +257,104 @@ func (handler *AppStoreRestHandlerImpl) SearchAppStoreChartByName(w http.Respons
 	res, err := handler.appStoreService.SearchAppStoreChartByName(chartName)
 	if err != nil {
 		handler.Logger.Errorw("service err, FindAllApps, app store", "err", err, "userId", userId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var request *appstore.ChartRepoDto
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, CreateChartRepo", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, CreateChartRepo", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionCreate, ""); !ok {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rback block ends here
+	request.UserId = userId
+	handler.Logger.Infow("request payload, CreateChartRepo", "payload", request)
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	ctx = context.WithValue(r.Context(), "token", token)
+	defer cancel()
+	res, err := handler.appStoreService.CreateChartRepo(request)
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateChartRepo", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var request *appstore.ChartRepoDto
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, UpdateChartRepo", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, UpdateChartRepo", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionUpdate, ""); !ok {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rback block ends here
+	request.UserId = userId
+	handler.Logger.Infow("request payload, UpdateChartRepo", "payload", request)
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	ctx = context.WithValue(r.Context(), "token", token)
+	defer cancel()
+	res, err := handler.appStoreService.UpdateChartRepo(request)
+	if err != nil {
+		handler.Logger.Errorw("service err, UpdateChartRepo", "err", err, "payload", request)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
