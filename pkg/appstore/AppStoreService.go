@@ -80,15 +80,15 @@ type KeyDto struct {
 	Url  string `json:"url,omitempty"`
 }
 
-type RepositoriesData struct {
+type AcdConfigMapRepositoriesDto struct {
+	Type           string  `json:"type,omitempty"`
+	Name           string  `json:"name,omitempty"`
+	Url            string  `json:"url,omitempty"`
 	UsernameSecret *KeyDto `json:"usernameSecret,omitempty"`
 	PasswordSecret *KeyDto `json:"passwordSecret,omitempty"`
 	CaSecret       *KeyDto `json:"caSecret,omitempty"`
 	CertSecret     *KeyDto `json:"certSecret,omitempty"`
 	KeySecret      *KeyDto `json:"keySecret,omitempty"`
-	Url            string  `json:"url,omitempty"`
-	Type           string  `json:"type,omitempty"`
-	Name           string  `json:"name,omitempty"`
 }
 
 type AppStoreService interface {
@@ -372,23 +372,35 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 		panic(err)
 	}
 	//helmRepositories := make([]map[string]interface{}, 0)
-	var helmRepositories []*HelmRepositoriesData
+	var helmRepositories []*AcdConfigMapRepositoriesDto
 	err = json.Unmarshal(helmRepoByte, &helmRepositories)
 	if err != nil {
 		panic(err)
 	}
 	found := false
 	for _, item := range helmRepositories {
-		if request.Name == item.Name {
+		//if request chart repo found, than update its values
+		if item.Name == request.Name {
+			if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD && item.PasswordSecret != nil {
+				usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
+				passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
+				item.PasswordSecret = passwordSecret
+				item.UsernameSecret = usernameSecret
+			} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+				// TODO - is it access token or ca cert nd secret
+			} else if request.AuthMode == repository.AUTH_MODE_SSH && item.KeySecret != nil {
+				keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
+				item.KeySecret = keySecret
+			}
 			item.Url = request.Url
 			found = true
 		}
 	}
-
-	// add new only if not found
+	
+	// if request chart repo not found, add new one
 	if !found {
-		helmRepository := &HelmRepositoriesData{Name: request.Name, Url: request.Url}
-		helmRepositories = append(helmRepositories, helmRepository)
+		repoData := impl.createRepoElement(true, request)
+		helmRepositories = append(helmRepositories, repoData)
 	}
 
 	rb, err := json.Marshal(helmRepositories)
@@ -400,7 +412,7 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 		panic(err)
 	}
 
-	var repositories []*RepositoriesData
+	var repositories []*AcdConfigMapRepositoriesDto
 	repoStr := data["repositories"]
 	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
 	if err != nil {
@@ -412,38 +424,27 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	}
 	found = false
 	for _, item := range repositories {
-		if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
-			passwordSecret := item.PasswordSecret
-			usernameSecret := item.UsernameSecret
-			if item.PasswordSecret != nil && passwordSecret.Name == request.Password {
-				found = true
+		//if request chart repo found, than update its values
+		if item.Name == request.Name {
+			if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+				usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
+				passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
+				item.PasswordSecret = passwordSecret
+				item.UsernameSecret = usernameSecret
+			} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+				// TODO - is it access token or ca cert nd secret
+			} else if request.AuthMode == repository.AUTH_MODE_SSH {
+				keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
+				item.KeySecret = keySecret
 			}
-			if item.UsernameSecret != nil && usernameSecret.Name == request.UserName {
-				found = true
-			}
-		} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
-			// TODO - is it access token or ca cert nd secret
-		} else if request.AuthMode == repository.AUTH_MODE_SSH {
-			if item.KeySecret != nil && item.KeySecret.Name == request.SshKey {
-				found = true
-			}
+			item.Url = request.Url
+			found = true
 		}
 	}
 
+	// if request chart repo not found, add new one
 	if !found {
-		repoData := &RepositoriesData{}
-		if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
-			usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
-			passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
-			repoData.PasswordSecret = passwordSecret
-			repoData.UsernameSecret = usernameSecret
-		} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
-			// TODO - is it access token or ca cert nd secret
-		} else if request.AuthMode == repository.AUTH_MODE_SSH {
-			keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
-			repoData.KeySecret = keySecret
-		}
-		repoData.Url = request.Url
+		repoData := impl.createRepoElement(true, request)
 		repositories = append(repositories, repoData)
 	}
 	rb, err = json.Marshal(repositories)
@@ -462,4 +463,25 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	newDataFinal := map[string]interface{}{}
 	newDataFinal["data"] = mergedData
 	return newDataFinal
+}
+
+func (impl *AppStoreServiceImpl) createRepoElement(isTypeHelm bool, request *ChartRepoDto) *AcdConfigMapRepositoriesDto {
+	repoData := &AcdConfigMapRepositoriesDto{}
+	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+		usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
+		passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
+		repoData.PasswordSecret = passwordSecret
+		repoData.UsernameSecret = usernameSecret
+	} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+		// TODO - is it access token or ca cert nd secret
+	} else if request.AuthMode == repository.AUTH_MODE_SSH {
+		keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
+		repoData.KeySecret = keySecret
+	}
+	repoData.Url = request.Url
+	repoData.Name = request.Name
+	if isTypeHelm {
+		repoData.Type = "helm"
+	}
+	return repoData
 }
