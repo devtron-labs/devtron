@@ -87,6 +87,8 @@ type RepositoriesData struct {
 	CertSecret     *KeyDto `json:"certSecret,omitempty"`
 	KeySecret      *KeyDto `json:"keySecret,omitempty"`
 	Url            string  `json:"url,omitempty"`
+	Type           string  `json:"type,omitempty"`
+	Name           string  `json:"name,omitempty"`
 }
 
 type AppStoreService interface {
@@ -254,6 +256,15 @@ func (impl *AppStoreServiceImpl) SearchAppStoreChartByName(chartName string) ([]
 }
 
 func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error) {
+
+	dbConnection := impl.repoRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
 	chartRepo := &chartConfig.ChartRepo{AuditLog: models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},}
 	chartRepo.Name = request.Name
 	chartRepo.Url = request.Url
@@ -265,7 +276,7 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	chartRepo.SshKey = request.SshKey
 	chartRepo.Active = true
 	chartRepo.Default = false
-	err := impl.repoRepository.Save(chartRepo)
+	err = impl.repoRepository.Save(chartRepo)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
@@ -287,6 +298,69 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	if err != nil {
 		return nil, err
 	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return chartRepo, nil
+}
+
+func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error) {
+
+	dbConnection := impl.repoRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	chartRepo, err := impl.repoRepository.FindById(request.Id)
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}
+
+	chartRepo.Url = request.Url
+	chartRepo.AuthMode = request.AuthMode
+	chartRepo.UserName = request.UserName
+	chartRepo.Password = request.Password
+	chartRepo.Active = request.Active
+	chartRepo.AccessToken = request.AccessToken
+	chartRepo.SshKey = request.SshKey
+	chartRepo.Active = request.Active
+	chartRepo.UpdatedBy = request.UserId
+	chartRepo.UpdatedOn = time.Now()
+	err = impl.repoRepository.Update(chartRepo)
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}
+
+	// modify configmap
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := impl.envService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return nil, err
+	}
+	cm, err := impl.K8sUtil.GetConfigMap(ChartRepoConfigMapNamespace, ChartRepoConfigMap, cfg)
+	if err != nil {
+		return nil, err
+	}
+	data := impl.updateData(cm.Data, request)
+	_, err = impl.K8sUtil.PatchConfigMap(ChartRepoConfigMapNamespace, cfg, ChartRepoConfigMap, data)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
 	return chartRepo, nil
 }
 
@@ -341,16 +415,16 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 		if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
 			passwordSecret := item.PasswordSecret
 			usernameSecret := item.UsernameSecret
-			if passwordSecret.Name == request.Password {
+			if item.PasswordSecret != nil && passwordSecret.Name == request.Password {
 				found = true
 			}
-			if usernameSecret.Name == request.UserName {
+			if item.UsernameSecret != nil && usernameSecret.Name == request.UserName {
 				found = true
 			}
 		} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
 			// TODO - is it access token or ca cert nd secret
 		} else if request.AuthMode == repository.AUTH_MODE_SSH {
-			if item.KeySecret.Name == request.SshKey {
+			if item.KeySecret != nil && item.KeySecret.Name == request.SshKey {
 				found = true
 			}
 		}
@@ -388,45 +462,4 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	newDataFinal := map[string]interface{}{}
 	newDataFinal["data"] = mergedData
 	return newDataFinal
-}
-
-func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error) {
-	chartRepo, err := impl.repoRepository.FindById(request.Id)
-	if err != nil && !util.IsErrNoRows(err) {
-		return nil, err
-	}
-	chartRepo.Url = request.Url
-	chartRepo.AuthMode = request.AuthMode
-	chartRepo.UserName = request.UserName
-	chartRepo.Password = request.Password
-	chartRepo.Active = request.Active
-	chartRepo.AccessToken = request.AccessToken
-	chartRepo.SshKey = request.SshKey
-	chartRepo.Active = request.Active
-	chartRepo.UpdatedBy = request.UserId
-	chartRepo.UpdatedOn = time.Now()
-	err = impl.repoRepository.Update(chartRepo)
-	if err != nil && !util.IsErrNoRows(err) {
-		return nil, err
-	}
-
-	// modify configmap
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
-	if err != nil {
-		return nil, err
-	}
-	cfg, err := impl.envService.GetClusterConfig(clusterBean)
-	if err != nil {
-		return nil, err
-	}
-	cm, err := impl.K8sUtil.GetConfigMap(ChartRepoConfigMapNamespace, ChartRepoConfigMap, cfg)
-	if err != nil {
-		return nil, err
-	}
-	data := impl.updateData(cm.Data, request)
-	_, err = impl.K8sUtil.PatchConfigMap(ChartRepoConfigMapNamespace, cfg, ChartRepoConfigMap, data)
-	if err != nil {
-		return nil, err
-	}
-	return chartRepo, nil
 }

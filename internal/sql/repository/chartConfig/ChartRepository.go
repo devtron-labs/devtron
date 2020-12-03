@@ -216,6 +216,7 @@ type ChartRepoRepository interface {
 	Update(chartRepo *ChartRepo) error
 	GetDefault() (*ChartRepo, error)
 	FindById(id int) (*ChartRepo, error)
+	GetConnection() *pg.DB
 }
 type ChartRepoRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -225,6 +226,10 @@ func NewChartRepoRepositoryImpl(dbConnection *pg.DB) *ChartRepoRepositoryImpl {
 	return &ChartRepoRepositoryImpl{
 		dbConnection: dbConnection,
 	}
+}
+
+func (impl ChartRepoRepositoryImpl) GetConnection() *pg.DB {
+	return impl.dbConnection
 }
 
 func (impl ChartRepoRepositoryImpl) Save(chartRepo *ChartRepo) error {
