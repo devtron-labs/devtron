@@ -252,7 +252,7 @@ func (impl TestSuitRestHandlerImpl) RedirectTriggerForPipeline(w http.ResponseWr
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	link := fmt.Sprintf("%s/%s/%d", impl.config.TestSuitURL, "triggers", pipelineId)
+	link := fmt.Sprintf("%s/%s/%d?%s", impl.config.TestSuitURL, "triggers", pipelineId, r.URL.RawQuery)
 	impl.logger.Debugw("redirect to link", "link", link)
 	res, err := impl.HttpGet(link)
 	if err != nil {
@@ -269,6 +269,9 @@ func (impl TestSuitRestHandlerImpl) RedirectTriggerForBuild(w http.ResponseWrite
 		return
 	}
 
+	//v := r.URL.Query()
+	//startDate := v.Get("auth")
+	//endDate := v.Get("auth")
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -294,7 +297,7 @@ func (impl TestSuitRestHandlerImpl) RedirectTriggerForBuild(w http.ResponseWrite
 		return
 	}
 
-	link := fmt.Sprintf("%s/%s/%d/%d", impl.config.TestSuitURL, "triggers", pipelineId, triggerId)
+	link := fmt.Sprintf("%s/%s/%d/%d?%s", impl.config.TestSuitURL, "triggers", pipelineId, triggerId, r.URL.RawQuery)
 	res, err := impl.HttpGet(link)
 	if err != nil {
 		impl.logger.Error(err)
