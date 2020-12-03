@@ -281,8 +281,6 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	cm, err := impl.K8sUtil.GetConfigMap(ChartRepoConfigMapNamespace, ChartRepoConfigMap, cfg)
 	if err != nil {
 		return nil, err
-	} else {
-		//return chartRepo, nil
 	}
 	data := impl.updateData(cm.Data, request)
 	_, err = impl.K8sUtil.PatchConfigMap(ChartRepoConfigMapNamespace, cfg, ChartRepoConfigMap, data)
@@ -350,17 +348,29 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 				found = true
 			}
 		} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
-
+			// TODO - is it access token or ca cert nd secret
 		} else if request.AuthMode == repository.AUTH_MODE_SSH {
-
+			if item.KeySecret.Name == request.SshKey {
+				found = true
+			}
 		}
 	}
 
 	if !found {
-		usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
-		passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
-		repository := &RepositoriesData{PasswordSecret: passwordSecret, UsernameSecret: usernameSecret}
-		repositories = append(repositories, repository)
+		repoData := &RepositoriesData{}
+		if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+			usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
+			passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
+			repoData.PasswordSecret = passwordSecret
+			repoData.UsernameSecret = usernameSecret
+		} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+			// TODO - is it access token or ca cert nd secret
+		} else if request.AuthMode == repository.AUTH_MODE_SSH {
+			keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
+			repoData.KeySecret = keySecret
+		}
+		repoData.Url = request.Url
+		repositories = append(repositories, repoData)
 	}
 	rb, err = json.Marshal(repositories)
 	if err != nil {
@@ -400,6 +410,7 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 		return nil, err
 	}
 
+	// modify configmap
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
 		return nil, err
@@ -417,50 +428,5 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	if err != nil {
 		return nil, err
 	}
-
-	if request.Active == false {
-		// TODO - handle existing charts and charts group
-	}
-
 	return chartRepo, nil
-}
-
-func (impl *AppStoreServiceImpl) updateDataSample(data map[string]string, request *ChartRepoDto) map[string]interface{} {
-	var helmRepositories []map[string]interface{}
-	helmRepository := map[string]interface{}{}
-	helmRepository["name"] = "devtron-charts-1001"
-	helmRepository["url"] = "https://devtron-charts.s3.us-east-2.amazonaws.com/charts-1001"
-	helmRepositories = append(helmRepositories, helmRepository)
-
-	usernameSecret := map[string]interface{}{}
-	usernameSecret["name"] = "my-secret-123"
-	usernameSecret["key"] = "username"
-
-	passwordSecret := map[string]interface{}{}
-	passwordSecret["name"] = "my-secret-123"
-	passwordSecret["key"] = "password"
-
-	repository := map[string]interface{}{}
-	repository["passwordSecret"] = passwordSecret
-	repository["usernameSecret"] = usernameSecret
-
-	var repositories []map[string]interface{}
-	repositories = append(repositories, repository)
-
-	rb, err := json.Marshal(repositories)
-	if err != nil {
-		panic(err)
-	}
-	yamlByte, err := yaml.JSONToYAML(rb)
-	if err != nil {
-		panic(err)
-	}
-
-	newData := map[string]interface{}{}
-	newData["repositories"] = string(yamlByte)
-	newData["helm.repositories"] = helmRepositories
-
-	newDataFinal := map[string]interface{}{}
-	newDataFinal["data"] = newData
-	return newDataFinal
 }

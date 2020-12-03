@@ -283,7 +283,6 @@ func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	token := r.Header.Get("token")
 	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateChartRepo", "err", err, "id", userId)
@@ -298,18 +297,6 @@ func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r
 	//rback block ends here
 	request.UserId = userId
 	handler.Logger.Infow("request payload, CreateChartRepo", "payload", request)
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(r.Context(), "token", token)
-	defer cancel()
 	res, err := handler.appStoreService.CreateChartRepo(request)
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateChartRepo", "err", err, "payload", request)
@@ -339,7 +326,6 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	token := r.Header.Get("token")
 	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateChartRepo", "err", err, "id", userId)
@@ -354,18 +340,6 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 	//rback block ends here
 	request.UserId = userId
 	handler.Logger.Infow("request payload, UpdateChartRepo", "payload", request)
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(r.Context(), "token", token)
-	defer cancel()
 	res, err := handler.appStoreService.UpdateChartRepo(request)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateChartRepo", "err", err, "payload", request)
