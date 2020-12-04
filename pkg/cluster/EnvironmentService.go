@@ -43,6 +43,7 @@ type EnvironmentBean struct {
 
 const ClusterName = "default_cluster"
 const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+//const TokenFilePath = "/Users/vikram/meratoken"
 
 type EnvironmentService interface {
 	FindOne(environment string) (*EnvironmentBean, error)

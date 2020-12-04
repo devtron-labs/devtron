@@ -20,6 +20,7 @@ package appstore
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
@@ -30,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
+	"strconv"
 	"time"
 )
 
@@ -91,6 +93,11 @@ type AcdConfigMapRepositoriesDto struct {
 	KeySecret      *KeyDto `json:"keySecret,omitempty"`
 }
 
+type ConfigMapDataDto struct {
+	HelmRepositories *AcdConfigMapRepositoriesDto `json:"helm.repositories,omitempty"`
+	Repositories     *AcdConfigMapRepositoriesDto `json:"repositories,omitempty"`
+}
+
 type AppStoreService interface {
 	FindAllApps() ([]appstore.AppStoreWithVersion, error)
 	FindChartDetailsById(id int) (AppStoreApplicationVersionResponse, error)
@@ -125,12 +132,14 @@ type AppStoreServiceImpl struct {
 	K8sUtil                       *util.K8sUtil
 	clusterService                cluster.ClusterService
 	envService                    cluster.EnvironmentService
+	versionService                argocdServer.VersionService
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
-	clusterService cluster.ClusterService, envService cluster.EnvironmentService) *AppStoreServiceImpl {
+	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
+	versionService argocdServer.VersionService) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -141,6 +150,7 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		K8sUtil:                       K8sUtil,
 		clusterService:                clusterService,
 		envService:                    envService,
+		versionService:                versionService,
 	}
 }
 
@@ -256,7 +266,6 @@ func (impl *AppStoreServiceImpl) SearchAppStoreChartByName(chartName string) ([]
 }
 
 func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error) {
-
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -365,6 +374,12 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 }
 
 func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *ChartRepoDto) map[string]interface{} {
+	apiVersion, err := impl.versionService.GetVersion()
+	apiMinorVersion, err := strconv.Atoi(apiVersion[3:4])
+	if err != nil {
+		impl.logger.Errorw("err", "err", err)
+		return nil
+	}
 
 	helmRepoStr := data["helm.repositories"]
 	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
@@ -377,32 +392,33 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	if err != nil {
 		panic(err)
 	}
-	found := false
-	for _, item := range helmRepositories {
-		//if request chart repo found, than update its values
-		if item.Name == request.Name {
-			if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
-				usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
-				passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
-				item.PasswordSecret = passwordSecret
-				item.UsernameSecret = usernameSecret
-			} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
-				// TODO - is it access token or ca cert nd secret
-			} else if request.AuthMode == repository.AUTH_MODE_SSH {
-				keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
-				item.KeySecret = keySecret
+	if apiMinorVersion < 3 {
+		found := false
+		for _, item := range helmRepositories {
+			//if request chart repo found, than update its values
+			if item.Name == request.Name {
+				if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+					usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
+					passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
+					item.PasswordSecret = passwordSecret
+					item.UsernameSecret = usernameSecret
+				} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+					// TODO - is it access token or ca cert nd secret
+				} else if request.AuthMode == repository.AUTH_MODE_SSH {
+					keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
+					item.KeySecret = keySecret
+				}
+				item.Url = request.Url
+				found = true
 			}
-			item.Url = request.Url
-			found = true
+		}
+
+		// if request chart repo not found, add new one
+		if !found {
+			repoData := impl.createRepoElement(true, request)
+			helmRepositories = append(helmRepositories, repoData)
 		}
 	}
-	
-	// if request chart repo not found, add new one
-	if !found {
-		repoData := impl.createRepoElement(true, request)
-		helmRepositories = append(helmRepositories, repoData)
-	}
-
 	rb, err := json.Marshal(helmRepositories)
 	if err != nil {
 		panic(err)
@@ -412,6 +428,7 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 		panic(err)
 	}
 
+	//SETUP for repositories
 	var repositories []*AcdConfigMapRepositoriesDto
 	repoStr := data["repositories"]
 	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
@@ -422,30 +439,32 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	if err != nil {
 		panic(err)
 	}
-	found = false
-	for _, item := range repositories {
-		//if request chart repo found, than update its values
-		if item.Name == request.Name {
-			if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
-				usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
-				passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
-				item.PasswordSecret = passwordSecret
-				item.UsernameSecret = usernameSecret
-			} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
-				// TODO - is it access token or ca cert nd secret
-			} else if request.AuthMode == repository.AUTH_MODE_SSH {
-				keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
-				item.KeySecret = keySecret
+	if apiMinorVersion >= 3 {
+		found := false
+		for _, item := range repositories {
+			//if request chart repo found, than update its values
+			if item.Name == request.Name {
+				if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+					usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
+					passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
+					item.PasswordSecret = passwordSecret
+					item.UsernameSecret = usernameSecret
+				} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+					// TODO - is it access token or ca cert nd secret
+				} else if request.AuthMode == repository.AUTH_MODE_SSH {
+					keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
+					item.KeySecret = keySecret
+				}
+				item.Url = request.Url
+				found = true
 			}
-			item.Url = request.Url
-			found = true
 		}
-	}
 
-	// if request chart repo not found, add new one
-	if !found {
-		repoData := impl.createRepoElement(true, request)
-		repositories = append(repositories, repoData)
+		// if request chart repo not found, add new one
+		if !found {
+			repoData := impl.createRepoElement(true, request)
+			repositories = append(repositories, repoData)
+		}
 	}
 	rb, err = json.Marshal(repositories)
 	if err != nil {
@@ -459,7 +478,6 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	mergedData := map[string]interface{}{}
 	mergedData["helm.repositories"] = string(helmRepositoriesYamlByte)
 	mergedData["repositories"] = string(repositoriesYamlByte)
-
 	newDataFinal := map[string]interface{}{}
 	newDataFinal["data"] = mergedData
 	return newDataFinal
