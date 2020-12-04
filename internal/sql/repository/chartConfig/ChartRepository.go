@@ -208,6 +208,7 @@ type ChartRepo struct {
 	SshKey      string              `sql:"ssh_key"`
 	AccessToken string              `sql:"access_token"`
 	AuthMode    repository.AuthMode `sql:"auth_mode,notnull"`
+	External    bool                `sql:"external,notnull"`
 	models.AuditLog
 }
 
