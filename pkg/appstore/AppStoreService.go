@@ -285,6 +285,7 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	chartRepo.SshKey = request.SshKey
 	chartRepo.Active = true
 	chartRepo.Default = false
+	chartRepo.External = true
 	err = impl.repoRepository.Save(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
