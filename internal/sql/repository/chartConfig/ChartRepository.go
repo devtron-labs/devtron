@@ -212,8 +212,8 @@ type ChartRepo struct {
 }
 
 type ChartRepoRepository interface {
-	Save(chartRepo *ChartRepo) error
-	Update(chartRepo *ChartRepo) error
+	Save(chartRepo *ChartRepo, tx *pg.Tx) error
+	Update(chartRepo *ChartRepo, tx *pg.Tx) error
 	GetDefault() (*ChartRepo, error)
 	FindById(id int) (*ChartRepo, error)
 	GetConnection() *pg.DB
@@ -232,12 +232,12 @@ func (impl ChartRepoRepositoryImpl) GetConnection() *pg.DB {
 	return impl.dbConnection
 }
 
-func (impl ChartRepoRepositoryImpl) Save(chartRepo *ChartRepo) error {
-	return impl.dbConnection.Insert(chartRepo)
+func (impl ChartRepoRepositoryImpl) Save(chartRepo *ChartRepo, tx *pg.Tx) error {
+	return tx.Insert(chartRepo)
 }
 
-func (impl ChartRepoRepositoryImpl) Update(chartRepo *ChartRepo) error {
-	return impl.dbConnection.Update(chartRepo)
+func (impl ChartRepoRepositoryImpl) Update(chartRepo *ChartRepo, tx *pg.Tx) error {
+	return tx.Update(chartRepo)
 }
 
 func (impl ChartRepoRepositoryImpl) GetDefault() (*ChartRepo, error) {
