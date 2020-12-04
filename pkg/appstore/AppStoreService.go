@@ -415,7 +415,7 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 
 		// if request chart repo not found, add new one
 		if !found {
-			repoData := impl.createRepoElement(true, request)
+			repoData := impl.createRepoElement(apiMinorVersion, request)
 			helmRepositories = append(helmRepositories, repoData)
 		}
 	}
@@ -462,7 +462,7 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 
 		// if request chart repo not found, add new one
 		if !found {
-			repoData := impl.createRepoElement(true, request)
+			repoData := impl.createRepoElement(apiMinorVersion, request)
 			repositories = append(repositories, repoData)
 		}
 	}
@@ -483,7 +483,7 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	return newDataFinal
 }
 
-func (impl *AppStoreServiceImpl) createRepoElement(isTypeHelm bool, request *ChartRepoDto) *AcdConfigMapRepositoriesDto {
+func (impl *AppStoreServiceImpl) createRepoElement(apiMinorVersion int, request *ChartRepoDto) *AcdConfigMapRepositoriesDto {
 	repoData := &AcdConfigMapRepositoriesDto{}
 	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
 		usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
@@ -498,7 +498,7 @@ func (impl *AppStoreServiceImpl) createRepoElement(isTypeHelm bool, request *Cha
 	}
 	repoData.Url = request.Url
 	repoData.Name = request.Name
-	if isTypeHelm {
+	if apiMinorVersion >= 3 {
 		repoData.Type = "helm"
 	}
 	return repoData
