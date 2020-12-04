@@ -103,8 +103,8 @@ type AppStoreService interface {
 	UpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error)
 }
 
-const ChartRepoConfigMap string = "argocd-test-cm"
-const ChartRepoConfigMapNamespace string = "default"
+const ChartRepoConfigMap string = "argocd-cm"
+const ChartRepoConfigMapNamespace string = "devtroncd"
 
 type AppStoreVersionsResponse struct {
 	Version string `json:"version"`
@@ -276,7 +276,7 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	chartRepo.SshKey = request.SshKey
 	chartRepo.Active = true
 	chartRepo.Default = false
-	err = impl.repoRepository.Save(chartRepo)
+	err = impl.repoRepository.Save(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
@@ -332,7 +332,7 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	chartRepo.Active = request.Active
 	chartRepo.UpdatedBy = request.UserId
 	chartRepo.UpdatedOn = time.Now()
-	err = impl.repoRepository.Update(chartRepo)
+	err = impl.repoRepository.Update(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
@@ -381,14 +381,14 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	for _, item := range helmRepositories {
 		//if request chart repo found, than update its values
 		if item.Name == request.Name {
-			if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD && item.PasswordSecret != nil {
+			if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
 				usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
 				passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
 				item.PasswordSecret = passwordSecret
 				item.UsernameSecret = usernameSecret
 			} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
 				// TODO - is it access token or ca cert nd secret
-			} else if request.AuthMode == repository.AUTH_MODE_SSH && item.KeySecret != nil {
+			} else if request.AuthMode == repository.AUTH_MODE_SSH {
 				keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
 				item.KeySecret = keySecret
 			}
