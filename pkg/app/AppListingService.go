@@ -522,7 +522,7 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 	}
 
 	appDetailContainer.LinkOuts = linkouts
-
+	appDetailContainer.AppId = appId
 	return appDetailContainer, nil
 }
 
