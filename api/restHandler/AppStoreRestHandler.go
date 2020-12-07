@@ -19,11 +19,13 @@ package restHandler
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -57,12 +59,13 @@ type AppStoreRestHandlerImpl struct {
 	acdServiceClient application.ServiceClient
 	enforcerUtil     rbac.EnforcerUtil
 	validator        *validator.Validate
+	client           *http.Client
 }
 
 func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appStoreService appstore.AppStoreService,
 	acdServiceClient application.ServiceClient, teamService team.TeamService,
 	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil,
-	validator *validator.Validate) *AppStoreRestHandlerImpl {
+	validator *validator.Validate, client *http.Client) *AppStoreRestHandlerImpl {
 	return &AppStoreRestHandlerImpl{
 		Logger:           Logger,
 		appStoreService:  appStoreService,
@@ -72,6 +75,7 @@ func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.
 		enforcer:         enforcer,
 		enforcerUtil:     enforcerUtil,
 		validator:        validator,
+		client:           client,
 	}
 }
 
@@ -294,6 +298,13 @@ func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
+	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+		valid := handler.ValidateRepo(request)
+		if !valid {
+			writeJsonResp(w, fmt.Errorf("invalid chart repo"), nil, http.StatusBadRequest)
+			return
+		}
+	}
 	//rback block ends here
 	request.UserId = userId
 	handler.Logger.Infow("request payload, CreateChartRepo", "payload", request)
@@ -337,6 +348,15 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
+
+	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+		valid := handler.ValidateRepo(request)
+		if !valid {
+			writeJsonResp(w, fmt.Errorf("invalid chart repo"), nil, http.StatusBadRequest)
+			return
+		}
+	}
+
 	//rback block ends here
 	request.UserId = userId
 	handler.Logger.Infow("request payload, UpdateChartRepo", "payload", request)
@@ -347,4 +367,25 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 		return
 	}
 	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *AppStoreRestHandlerImpl) ValidateRepo(request *appstore.ChartRepoDto) bool {
+	req, err := http.NewRequest(http.MethodGet, request.Url, nil)
+	if err != nil {
+		return false
+	}
+	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+		auth := request.UserName + ":" + request.Password
+		basicAuth := base64.StdEncoding.EncodeToString([]byte(auth))
+		req.Header.Add("Authorization", "Basic "+basicAuth)
+		res, err := handler.client.Do(req)
+		if err != nil {
+			return false
+		}
+		if res.StatusCode >= 200 && res.StatusCode <= 299 {
+			return true
+		}
+
+	}
+	return false
 }
