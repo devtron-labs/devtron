@@ -76,7 +76,10 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 	if config.GitProvider == "GITLAB" {
 		git := gitlab.NewClient(nil, config.GitToken)
 		if len(config.GitHost) > 0 {
-			_ = git.SetBaseURL(config.GitHost)
+			err := git.SetBaseURL(config.GitHost)
+			if err != nil {
+				return nil, err
+			}
 		}
 		return &GitLabClient{
 			client:     git,
@@ -141,7 +144,7 @@ func (impl GitLabClient) DeleteProject(projectName string) (err error) {
 	return err
 }
 func (impl GitLabClient) createProject(name, description string) (url string, err error) {
-	var namespace = impl.config.GitlabNamespaceID
+	//var namespace = impl.config.GitlabNamespaceID
 	// Create new project
 	p := &gitlab.CreateProjectOptions{
 		Name:                 gitlab.String(name),
@@ -149,7 +152,7 @@ func (impl GitLabClient) createProject(name, description string) (url string, er
 		MergeRequestsEnabled: gitlab.Bool(true),
 		SnippetsEnabled:      gitlab.Bool(false),
 		Visibility:           gitlab.Visibility(gitlab.PrivateVisibility),
-		NamespaceID:          &namespace,
+		//NamespaceID:          &namespace,
 	}
 	project, _, err := impl.client.Projects.CreateProject(p)
 	if err != nil {
