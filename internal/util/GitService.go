@@ -30,6 +30,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"io/ioutil"
+	"net/url"
 	"path/filepath"
 	"time"
 )
@@ -48,6 +49,7 @@ type GitConfig struct {
 	GitWorkingDir       string `env:"GIT_WORKING_DIRECTORY" envDefault:"/tmp/gitops/"` //working directory for git. might use pvc
 	GithubOrganization  string `env:"GITHUB_ORGANIZATION"`
 	GitProvider         string `env:"GIT_PROVIDER" envDefault:"GITHUB"` // SUPPORTED VALUES  GITHUB, GITLAB
+	GitHost             string `env:"GIT_HOST" envDefault:""`
 }
 
 func (cfg *GitConfig) GetUserName() (userName string) {
@@ -73,6 +75,9 @@ type GitLabClient struct {
 func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
 	if config.GitProvider == "GITLAB" {
 		git := gitlab.NewClient(nil, config.GitToken)
+		if len(config.GitHost) > 0 {
+			_ = git.SetBaseURL(config.GitHost)
+		}
 		return &GitLabClient{
 			client:     git,
 			config:     config,
@@ -80,7 +85,11 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 			gitService: gitService,
 		}, nil
 	} else if config.GitProvider == "GITHUB" {
-		return NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService), nil
+		gitHubClient := NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService)
+		if len(config.GitHost) > 0 {
+			gitHubClient.client.BaseURL = &url.URL{Host: config.GitHost}
+		}
+		return gitHubClient, nil
 	} else {
 		return nil, fmt.Errorf("unsupported git provider %s, supported values are  GITHUB, GITLAB", config.GitProvider)
 	}
