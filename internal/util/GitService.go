@@ -30,7 +30,6 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"io/ioutil"
-	"net/url"
 	"path/filepath"
 	"time"
 )
@@ -76,7 +75,8 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 	if config.GitProvider == "GITLAB" {
 		git := gitlab.NewClient(nil, config.GitToken)
 		if len(config.GitHost) > 0 {
-			_ = git.SetBaseURL(config.GitHost)
+			err := git.SetBaseURL(config.GitHost)
+			return nil, err
 		}
 		return &GitLabClient{
 			client:     git,
@@ -86,9 +86,6 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		}, nil
 	} else if config.GitProvider == "GITHUB" {
 		gitHubClient := NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService)
-		if len(config.GitHost) > 0 {
-			gitHubClient.client.BaseURL = &url.URL{Host: config.GitHost}
-		}
 		return gitHubClient, nil
 	} else {
 		return nil, fmt.Errorf("unsupported git provider %s, supported values are  GITHUB, GITLAB", config.GitProvider)
