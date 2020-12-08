@@ -30,7 +30,6 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"io/ioutil"
-	"net/url"
 	"path/filepath"
 	"time"
 )
@@ -89,9 +88,6 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		}, nil
 	} else if config.GitProvider == "GITHUB" {
 		gitHubClient := NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService)
-		if len(config.GitHost) > 0 {
-			gitHubClient.client.BaseURL = &url.URL{Host: config.GitHost}
-		}
 		return gitHubClient, nil
 	} else {
 		return nil, fmt.Errorf("unsupported git provider %s, supported values are  GITHUB, GITLAB", config.GitProvider)
@@ -144,7 +140,7 @@ func (impl GitLabClient) DeleteProject(projectName string) (err error) {
 	return err
 }
 func (impl GitLabClient) createProject(name, description string) (url string, err error) {
-	//var namespace = impl.config.GitlabNamespaceID
+	var namespace = impl.config.GitlabNamespaceID
 	// Create new project
 	p := &gitlab.CreateProjectOptions{
 		Name:                 gitlab.String(name),
@@ -152,7 +148,7 @@ func (impl GitLabClient) createProject(name, description string) (url string, er
 		MergeRequestsEnabled: gitlab.Bool(true),
 		SnippetsEnabled:      gitlab.Bool(false),
 		Visibility:           gitlab.Visibility(gitlab.PrivateVisibility),
-		//NamespaceID:          &namespace,
+		NamespaceID:          &namespace,
 	}
 	project, _, err := impl.client.Projects.CreateProject(p)
 	if err != nil {
