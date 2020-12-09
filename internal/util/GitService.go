@@ -89,7 +89,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		if err != nil {
 			return nil, err
 		}
-		if len(groups) > 0 {
+		if groups == nil || len(groups) == 0 {
 			return nil, fmt.Errorf("no matching namespace found for gitlab")
 		}
 		for _, group := range groups {
