@@ -30,6 +30,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"io/ioutil"
+	"net/url"
 	"path/filepath"
 	"time"
 )
@@ -75,8 +76,26 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 	if config.GitProvider == "GITLAB" {
 		git := gitlab.NewClient(nil, config.GitToken)
 		if len(config.GitHost) > 0 {
-			err := git.SetBaseURL(config.GitHost)
+			_, err := url.ParseRequestURI(config.GitHost)
+			if err != nil {
+				return nil, err
+			}
+			err = git.SetBaseURL(config.GitHost)
+			if err != nil {
+				return nil, err
+			}
+		}
+		groups, _, err := git.Groups.SearchGroup(config.GitlabNamespaceName)
+		if err != nil {
 			return nil, err
+		}
+		if len(groups) > 0 {
+			return nil, fmt.Errorf("no matching namespace found for gitlab")
+		}
+		for _, group := range groups {
+			if config.GitlabNamespaceName == group.Name {
+				config.GitlabNamespaceID = group.ID
+			}
 		}
 		return &GitLabClient{
 			client:     git,
