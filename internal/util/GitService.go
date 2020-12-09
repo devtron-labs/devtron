@@ -157,18 +157,20 @@ func (impl GitLabClient) DeleteProject(projectName string) (err error) {
 	return err
 }
 func (impl GitLabClient) createProject(name, description string) (url string, err error) {
-	groups, res, err := impl.client.Groups.SearchGroup(impl.config.GitlabNamespaceName)
-	if err != nil {
-		logger.Errorw("error connecting to gitlab", "status code", res.StatusCode, "err", err.Error())
-		return "", err
-	}
-	if len(groups) == 0 {
-		logger.Errorw("no matching namespace found for gitlab")
-		return "", err
-	}
-	for _, group := range groups {
-		if impl.config.GitlabNamespaceName == group.Name {
-			impl.config.GitlabNamespaceID = group.ID
+	if impl.config.GitlabNamespaceID == 0 {
+		groups, res, err := impl.client.Groups.SearchGroup(impl.config.GitlabNamespaceName)
+		if err != nil {
+			logger.Errorw("error connecting to gitlab", "status code", res.StatusCode, "err", err.Error())
+			return "", err
+		}
+		if len(groups) == 0 {
+			logger.Errorw("no matching namespace found for gitlab")
+			return "", err
+		}
+		for _, group := range groups {
+			if impl.config.GitlabNamespaceName == group.Name {
+				impl.config.GitlabNamespaceID = group.ID
+			}
 		}
 	}
 	var namespace = impl.config.GitlabNamespaceID
