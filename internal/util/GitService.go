@@ -42,7 +42,7 @@ type GitClient interface {
 }
 
 type GitConfig struct {
-	GitlabNamespaceID   int    `env:"GITLAB_NAMESPACE_ID" `                            //not null //local
+	GitlabNamespaceID   int                                                            //not null //local
 	GitlabNamespaceName string `env:"GITLAB_NAMESPACE_NAME" `                          //local
 	GitToken            string `env:"GIT_TOKEN" `                                      //not null  // public
 	GitUserName         string `env:"GIT_USERNAME" `                                   //not null  // public
