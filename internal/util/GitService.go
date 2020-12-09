@@ -85,12 +85,12 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 				return nil, err
 			}
 		}
-		groups, _, err := git.Groups.SearchGroup(config.GitlabNamespaceName)
+		groups, res, err := git.Groups.SearchGroup(config.GitlabNamespaceName)
 		if err != nil {
-			return nil, err
+			logger.Warnw("error connecting to gitlab", "status code", res.StatusCode, "err", err.Error())
 		}
 		if len(groups) == 0 {
-			return nil, fmt.Errorf("no matching namespace found for gitlab")
+			logger.Warn("no matching namespace found for gitlab")
 		}
 		for _, group := range groups {
 			if config.GitlabNamespaceName == group.Name {
@@ -157,6 +157,20 @@ func (impl GitLabClient) DeleteProject(projectName string) (err error) {
 	return err
 }
 func (impl GitLabClient) createProject(name, description string) (url string, err error) {
+	groups, res, err := impl.client.Groups.SearchGroup(impl.config.GitlabNamespaceName)
+	if err != nil {
+		logger.Errorw("error connecting to gitlab", "status code", res.StatusCode, "err", err.Error())
+		return "", err
+	}
+	if len(groups) == 0 {
+		logger.Errorw("no matching namespace found for gitlab")
+		return "", err
+	}
+	for _, group := range groups {
+		if impl.config.GitlabNamespaceName == group.Name {
+			impl.config.GitlabNamespaceID = group.ID
+		}
+	}
 	var namespace = impl.config.GitlabNamespaceID
 	// Create new project
 	p := &gitlab.CreateProjectOptions{
