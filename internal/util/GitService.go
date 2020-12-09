@@ -30,6 +30,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"io/ioutil"
+	"net/url"
 	"path/filepath"
 	"time"
 )
@@ -41,13 +42,14 @@ type GitClient interface {
 }
 
 type GitConfig struct {
-	GitlabNamespaceID   int    `env:"GITLAB_NAMESPACE_ID" `                            //not null //local
+	GitlabNamespaceID   int                                                            //not null //local
 	GitlabNamespaceName string `env:"GITLAB_NAMESPACE_NAME" `                          //local
 	GitToken            string `env:"GIT_TOKEN" `                                      //not null  // public
 	GitUserName         string `env:"GIT_USERNAME" `                                   //not null  // public
 	GitWorkingDir       string `env:"GIT_WORKING_DIRECTORY" envDefault:"/tmp/gitops/"` //working directory for git. might use pvc
 	GithubOrganization  string `env:"GITHUB_ORGANIZATION"`
 	GitProvider         string `env:"GIT_PROVIDER" envDefault:"GITHUB"` // SUPPORTED VALUES  GITHUB, GITLAB
+	GitHost             string `env:"GIT_HOST" envDefault:""`
 }
 
 func (cfg *GitConfig) GetUserName() (userName string) {
@@ -73,6 +75,28 @@ type GitLabClient struct {
 func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
 	if config.GitProvider == "GITLAB" {
 		git := gitlab.NewClient(nil, config.GitToken)
+		if len(config.GitHost) > 0 {
+			_, err := url.ParseRequestURI(config.GitHost)
+			if err != nil {
+				return nil, err
+			}
+			err = git.SetBaseURL(config.GitHost)
+			if err != nil {
+				return nil, err
+			}
+		}
+		groups, res, err := git.Groups.SearchGroup(config.GitlabNamespaceName)
+		if err != nil {
+			logger.Warnw("error connecting to gitlab", "status code", res.StatusCode, "err", err.Error())
+		}
+		if len(groups) == 0 {
+			logger.Warn("no matching namespace found for gitlab")
+		}
+		for _, group := range groups {
+			if config.GitlabNamespaceName == group.Name {
+				config.GitlabNamespaceID = group.ID
+			}
+		}
 		return &GitLabClient{
 			client:     git,
 			config:     config,
@@ -80,7 +104,8 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 			gitService: gitService,
 		}, nil
 	} else if config.GitProvider == "GITHUB" {
-		return NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService), nil
+		gitHubClient := NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService)
+		return gitHubClient, nil
 	} else {
 		return nil, fmt.Errorf("unsupported git provider %s, supported values are  GITHUB, GITLAB", config.GitProvider)
 	}
@@ -132,6 +157,22 @@ func (impl GitLabClient) DeleteProject(projectName string) (err error) {
 	return err
 }
 func (impl GitLabClient) createProject(name, description string) (url string, err error) {
+	if impl.config.GitlabNamespaceID == 0 {
+		groups, res, err := impl.client.Groups.SearchGroup(impl.config.GitlabNamespaceName)
+		if err != nil {
+			logger.Errorw("error connecting to gitlab", "status code", res.StatusCode, "err", err.Error())
+			return "", err
+		}
+		if len(groups) == 0 {
+			logger.Errorw("no matching namespace found for gitlab")
+			return "", err
+		}
+		for _, group := range groups {
+			if impl.config.GitlabNamespaceName == group.Name {
+				impl.config.GitlabNamespaceID = group.ID
+			}
+		}
+	}
 	var namespace = impl.config.GitlabNamespaceID
 	// Create new project
 	p := &gitlab.CreateProjectOptions{
