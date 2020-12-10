@@ -123,11 +123,46 @@ func (impl K8sUtil) PatchConfigMap(namespace string, clusterConfig *ClusterConfi
 			panic(err)
 		}*/
 	//fmt.Println(string(b))
-	cm, err := client.ConfigMaps(namespace).Patch(name, types.PatchType(types.MergePatchType), b)
+	cm, err := client.ConfigMaps(namespace).Patch(name, types.PatchType(types.JSONPatchType), b)
 	if err != nil {
 		return nil, err
 	} else {
 		return cm, nil
 	}
 	return cm, nil
+}
+
+func (impl K8sUtil) PatchConfigMapJsonType(namespace string, clusterConfig *ClusterConfig, name string, data map[string]interface{}, apiMinorVersion int) (*v1.ConfigMap, error) {
+	client, err := impl.getClient(clusterConfig)
+	if err != nil {
+		return nil, err
+	}
+	patch := JsonPatchType{
+		Op: "replace",
+	}
+	if apiMinorVersion >= 3 {
+		patch.Path = "/data/repositories"
+		patch.Value = data["repositories"]
+	} else {
+		patch.Path = "/data/helm.repositories"
+		patch.Value = data["helm.repositories"]
+	}
+	b, err := json.Marshal(patch)
+	if err != nil {
+		panic(err)
+	}
+
+	cm, err := client.ConfigMaps(namespace).Patch(name, types.PatchType(types.JSONPatchType), b)
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
+	return cm, nil
+}
+
+type JsonPatchType struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value"`
 }

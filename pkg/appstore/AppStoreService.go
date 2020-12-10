@@ -110,7 +110,7 @@ type AppStoreService interface {
 	UpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error)
 }
 
-const ChartRepoConfigMap string = "argocd-cm"
+const ChartRepoConfigMap string = "argocd-test-cm"
 const ChartRepoConfigMapNamespace string = "devtroncd"
 
 type AppStoreVersionsResponse struct {
@@ -477,8 +477,15 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	}
 
 	mergedData := map[string]interface{}{}
-	mergedData["helm.repositories"] = string(helmRepositoriesYamlByte)
-	mergedData["repositories"] = string(repositoriesYamlByte)
+	if apiMinorVersion >= 3 {
+		mergedData["repositories"] = string(repositoriesYamlByte)
+		return mergedData
+	} else {
+		mergedData["helm.repositories"] = string(helmRepositoriesYamlByte)
+		return mergedData
+	}
+	//mergedData["helm.repositories"] = string(helmRepositoriesYamlByte)
+	//mergedData["repositories"] = string(repositoriesYamlByte)
 	newDataFinal := map[string]interface{}{}
 	newDataFinal["data"] = mergedData
 	return newDataFinal
