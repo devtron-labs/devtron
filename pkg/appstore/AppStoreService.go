@@ -19,6 +19,7 @@ package appstore
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -94,8 +95,8 @@ type AcdConfigMapRepositoriesDto struct {
 }
 
 type ConfigMapDataDto struct {
-	HelmRepositories *AcdConfigMapRepositoriesDto `json:"helm.repositories,omitempty"`
-	Repositories     *AcdConfigMapRepositoriesDto `json:"repositories,omitempty"`
+	HelmRepositories string `json:"helm.repositories,omitempty"`
+	Repositories     string `json:"repositories,omitempty"`
 }
 
 type AppStoreService interface {
@@ -110,7 +111,7 @@ type AppStoreService interface {
 	UpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error)
 }
 
-const ChartRepoConfigMap string = "argocd-test-cm"
+const ChartRepoConfigMap string = "argocd-cm"
 const ChartRepoConfigMapNamespace string = "devtroncd"
 
 type AppStoreVersionsResponse struct {
@@ -299,16 +300,40 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	if err != nil {
 		return nil, err
 	}
-	cm, err := impl.K8sUtil.GetConfigMap(ChartRepoConfigMapNamespace, ChartRepoConfigMap, cfg)
+
+	apiVersion, err := impl.versionService.GetVersion()
+	apiMinorVersion, err := strconv.Atoi(apiVersion[3:4])
 	if err != nil {
+		impl.logger.Errorw("err", "err", err)
 		return nil, err
 	}
-	data := impl.updateData(cm.Data, request)
-	_, err = impl.K8sUtil.PatchConfigMap(ChartRepoConfigMapNamespace, cfg, ChartRepoConfigMap, data)
+	client, err := impl.K8sUtil.GetClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 
+	updateSuccess := false
+	retryCount := 0
+	for !updateSuccess && retryCount < 3 {
+		retryCount = retryCount + 1
+
+		cm, err := impl.K8sUtil.GetConfigMapFast(ChartRepoConfigMapNamespace, ChartRepoConfigMap, client)
+		if err != nil {
+			return nil, err
+		}
+		data := impl.updateData(cm.Data, request, apiMinorVersion)
+		cm.Data = data["data"]
+		_, err = impl.K8sUtil.UpdateConfigMapFast(ChartRepoConfigMapNamespace, cm, client)
+		if err != nil {
+			continue
+		}
+		if err == nil {
+			updateSuccess = true
+		}
+	}
+	if !updateSuccess {
+		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+	}
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -318,7 +343,6 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 }
 
 func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error) {
-
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -356,16 +380,41 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	if err != nil {
 		return nil, err
 	}
-	cm, err := impl.K8sUtil.GetConfigMap(ChartRepoConfigMapNamespace, ChartRepoConfigMap, cfg)
-	if err != nil {
-		return nil, err
-	}
-	data := impl.updateData(cm.Data, request)
-	_, err = impl.K8sUtil.PatchConfigMap(ChartRepoConfigMapNamespace, cfg, ChartRepoConfigMap, data)
-	if err != nil {
-		return nil, err
-	}
 
+	apiVersion, err := impl.versionService.GetVersion()
+	apiMinorVersion, err := strconv.Atoi(apiVersion[3:4])
+	if err != nil {
+		impl.logger.Errorw("err", "err", err)
+		return nil, err
+	}
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	updateSuccess := false
+	retryCount := 0
+	for !updateSuccess && retryCount < 3 {
+		retryCount = retryCount + 1
+
+		cm, err := impl.K8sUtil.GetConfigMapFast(ChartRepoConfigMapNamespace, ChartRepoConfigMap, client)
+		if err != nil {
+			return nil, err
+		}
+		data := impl.updateData(cm.Data, request, apiMinorVersion)
+		cm.Data = data["data"]
+		_, err = impl.K8sUtil.UpdateConfigMapFast(ChartRepoConfigMapNamespace, cm, client)
+		if err != nil {
+			impl.logger.Warnw(" config map failed", "err", err)
+			continue
+		}
+		if err == nil {
+			impl.logger.Warnw(" config map apply succeeded", "on retryCount", retryCount)
+			updateSuccess = true
+		}
+	}
+	if !updateSuccess {
+		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+	}
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -374,20 +423,12 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	return chartRepo, nil
 }
 
-func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *ChartRepoDto) map[string]interface{} {
-	apiVersion, err := impl.versionService.GetVersion()
-	apiMinorVersion, err := strconv.Atoi(apiVersion[3:4])
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil
-	}
-
+func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *ChartRepoDto, apiMinorVersion int) map[string]map[string]string {
 	helmRepoStr := data["helm.repositories"]
 	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
 	if err != nil {
 		panic(err)
 	}
-	//helmRepositories := make([]map[string]interface{}, 0)
 	var helmRepositories []*AcdConfigMapRepositoriesDto
 	err = json.Unmarshal(helmRepoByte, &helmRepositories)
 	if err != nil {
@@ -476,17 +517,10 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 		panic(err)
 	}
 
-	mergedData := map[string]interface{}{}
-	if apiMinorVersion >= 3 {
-		mergedData["repositories"] = string(repositoriesYamlByte)
-		return mergedData
-	} else {
-		mergedData["helm.repositories"] = string(helmRepositoriesYamlByte)
-		return mergedData
-	}
-	//mergedData["helm.repositories"] = string(helmRepositoriesYamlByte)
-	//mergedData["repositories"] = string(repositoriesYamlByte)
-	newDataFinal := map[string]interface{}{}
+	mergedData := map[string]string{}
+	mergedData["helm.repositories"] = string(helmRepositoriesYamlByte)
+	mergedData["repositories"] = string(repositoriesYamlByte)
+	newDataFinal := map[string]map[string]string{}
 	newDataFinal["data"] = mergedData
 	return newDataFinal
 }
