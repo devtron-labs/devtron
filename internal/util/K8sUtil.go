@@ -41,7 +41,7 @@ func NewK8sUtil(logger *zap.SugaredLogger) *K8sUtil {
 	return &K8sUtil{logger: logger}
 }
 
-func (impl K8sUtil) getClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
+func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
 	cfg := &rest.Config{}
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
@@ -51,7 +51,7 @@ func (impl K8sUtil) getClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 }
 
 func (impl K8sUtil) CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (err error) {
-	client, err := impl.getClient(clusterConfig)
+	client, err := impl.GetClient(clusterConfig)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (impl K8sUtil) deleteNs(namespace string, client *v12.CoreV1Client) error {
 }
 
 func (impl K8sUtil) GetConfigMap(namespace string, name string, clusterConfig *ClusterConfig) (*v1.ConfigMap, error) {
-	client, err := impl.getClient(clusterConfig)
+	client, err := impl.GetClient(clusterConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -109,8 +109,39 @@ func (impl K8sUtil) GetConfigMap(namespace string, name string, clusterConfig *C
 	}
 }
 
+func (impl K8sUtil) GetConfigMapFast(namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
+	cm, err := client.ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
+}
+
+func (impl K8sUtil) UpdateConfigMap(namespace string, cm *v1.ConfigMap, clusterConfig *ClusterConfig) (*v1.ConfigMap, error) {
+	client, err := impl.GetClient(clusterConfig)
+	if err != nil {
+		return nil, err
+	}
+	cm, err = client.ConfigMaps(namespace).Update(cm)
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
+}
+
+func (impl K8sUtil) UpdateConfigMapFast(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
+	cm, err := client.ConfigMaps(namespace).Update(cm)
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
+}
+
 func (impl K8sUtil) PatchConfigMap(namespace string, clusterConfig *ClusterConfig, name string, data map[string]interface{}) (*v1.ConfigMap, error) {
-	client, err := impl.getClient(clusterConfig)
+	client, err := impl.GetClient(clusterConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -118,11 +149,6 @@ func (impl K8sUtil) PatchConfigMap(namespace string, clusterConfig *ClusterConfi
 	if err != nil {
 		panic(err)
 	}
-	/*	yamlByte, err := yaml.JSONToYAML(b)
-		if err != nil {
-			panic(err)
-		}*/
-	//fmt.Println(string(b))
 	cm, err := client.ConfigMaps(namespace).Patch(name, types.PatchType(types.MergePatchType), b)
 	if err != nil {
 		return nil, err
@@ -130,4 +156,36 @@ func (impl K8sUtil) PatchConfigMap(namespace string, clusterConfig *ClusterConfi
 		return cm, nil
 	}
 	return cm, nil
+}
+
+func (impl K8sUtil) PatchConfigMapJsonType(namespace string, clusterConfig *ClusterConfig, name string, data interface{}, path string) (*v1.ConfigMap, error) {
+	client, err := impl.GetClient(clusterConfig)
+	if err != nil {
+		return nil, err
+	}
+	var patches []*JsonPatchType
+	patch := &JsonPatchType{
+		Op:    "replace",
+		Path:  path,
+		Value: data,
+	}
+	patches = append(patches, patch)
+	b, err := json.Marshal(patches)
+	if err != nil {
+		panic(err)
+	}
+
+	cm, err := client.ConfigMaps(namespace).Patch(name, types.PatchType(types.JSONPatchType), b)
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
+	return cm, nil
+}
+
+type JsonPatchType struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value"`
 }
