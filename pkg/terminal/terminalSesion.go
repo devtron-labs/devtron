@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package main
+package terminal
 
 import (
 	"crypto/rand"
@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/emicklei/go-restful"
 	"io"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"net/http"
 	"sync"
@@ -211,10 +212,11 @@ func CreateAttachHandler(path string) http.Handler {
 
 // startProcess is called by handleAttach
 // Executed cmd in the container specified in request and connects it up with the ptyHandler (a session)
-func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, /*request *restful.Request, */ cmd []string, ptyHandler PtyHandler) error {
-	namespace := "default"                                                //request.PathParameter("namespace")
-	podName := "queenly-numbat-nginx-ingress-controller-8648f4b785-7j9z4" //request.PathParameter("pod")
-	containerName := ""                                                   //request.PathParameter("container")
+func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
+	cmd []string, ptyHandler PtyHandler, sessionRequest *TerminalSessionRequest) error {
+	namespace := sessionRequest.namespace
+	podName := sessionRequest.podName
+	containerName := sessionRequest.containerName
 
 	req := k8sClient.CoreV1().RESTClient().Post().
 		Resource("pods").
@@ -274,38 +276,67 @@ func isValidShell(validShells []string, shell string) bool {
 	return false
 }
 
+type TerminalSessionRequest struct {
+	shell         string
+	sessionId     string
+	namespace     string
+	podName       string
+	containerName string
+}
+
 // WaitForTerminal is called from apihandler.handleAttach as a goroutine
 // Waits for the SockJS connection to be opened by the client the session to be bound in handleTerminalSession
-func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config,request *restful.Request , sessionId string) {
-	shell := "sh" //request.QueryParameter("shell")
+func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *TerminalSessionRequest) {
 
 	select {
-	case <-terminalSessions.Get(sessionId).bound:
-		close(terminalSessions.Get(sessionId).bound)
+	case <-terminalSessions.Get(request.sessionId).bound:
+		close(terminalSessions.Get(request.sessionId).bound)
 
 		var err error
 		validShells := []string{"bash", "sh", "powershell", "cmd"}
 
-		if isValidShell(validShells, shell) {
-			cmd := []string{shell}
+		if isValidShell(validShells, request.shell) {
+			cmd := []string{request.shell}
 
-			err = startProcess(k8sClient, cfg, cmd, terminalSessions.Get(sessionId))
+			err = startProcess(k8sClient, cfg, cmd, terminalSessions.Get(request.sessionId), request)
 		} else {
 			// No shell given or it was not valid: try some shells until one succeeds or all fail
 			// FIXME: if the first shell fails then the first keyboard event is lost
 			for _, testShell := range validShells {
 				cmd := []string{testShell}
-				if err = startProcess(k8sClient, cfg, cmd, terminalSessions.Get(sessionId)); err == nil {
+				if err = startProcess(k8sClient, cfg, cmd, terminalSessions.Get(request.sessionId), request); err == nil {
 					break
 				}
 			}
 		}
 
 		if err != nil {
-			terminalSessions.Close(sessionId, 2, err.Error())
+			terminalSessions.Close(request.sessionId, 2, err.Error())
 			return
 		}
 
-		terminalSessions.Close(sessionId, 1, "Process exited")
+		terminalSessions.Close(request.sessionId, 1, "Process exited")
 	}
+}
+
+func GetTerminalSession(request *restful.Request, response *restful.Response, req *TerminalSessionRequest) {
+	sessionID, err := genTerminalSessionId()
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		statusError, ok := err.(*errors.StatusError)
+		if ok && statusError.Status().Code > 0 {
+			statusCode = int(statusError.Status().Code)
+		}
+		response.AddHeader("Content-Type", "text/plain")
+		response.WriteErrorString(statusCode, err.Error()+"\n")
+	}
+
+	terminalSessions.Set(sessionID, TerminalSession{
+		id:       sessionID,
+		bound:    make(chan error),
+		sizeChan: make(chan remotecommand.TerminalSize),
+	})
+	go WaitForTerminal(clientset, restcfg, req)
+	response.WriteHeaderAndEntity(http.StatusOK, TerminalMessage{SessionID: sessionID})
+
 }

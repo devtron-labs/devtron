@@ -28,6 +28,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/devtron-labs/devtron/pkg/terminal"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -84,6 +86,11 @@ func NewApplicationRestHandlerImpl(client application.ServiceClient,
 		environmentService: environmentService,
 		enforcerUtil:       enforcerUtil,
 	}
+}
+
+func (impl ApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
+	//terminal.TerminalSessionRequest{}
+	//vars := mux.Vars(r)
 }
 
 func (impl ApplicationRestHandlerImpl) Watch(w http.ResponseWriter, r *http.Request) {

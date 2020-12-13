@@ -1,14 +1,12 @@
-package main
+package terminal
 
 import (
 	"flag"
 	"fmt"
 	"github.com/emicklei/go-restful"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/tools/remotecommand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -41,7 +39,7 @@ func serveSocJs() {
 }
 
 func handleExecShell(request *restful.Request, response *restful.Response) {
-	sessionID, err := genTerminalSessionId()
+	/*sessionID, err := genTerminalSessionId()
 	if err != nil {
 		statusCode := http.StatusInternalServerError
 		statusError, ok := err.(*errors.StatusError)
@@ -59,7 +57,7 @@ func handleExecShell(request *restful.Request, response *restful.Response) {
 	})
 	go WaitForTerminal(clientset, restcfg, request, sessionID)
 	response.WriteHeaderAndEntity(http.StatusOK, TerminalMessage{SessionID: sessionID})
-
+*/
 }
 func main() {
 	fmt.Println("starting main")
