@@ -176,14 +176,6 @@
   version = "v1.25.16"
 
 [[projects]]
-  digest = "1:611cb9192ba39e783f947742bf63c877e6aa8e6d68061319cf9603b176a043cb"
-  name = "github.com/beamly/go-gocd"
-  packages = ["gocd"]
-  pruneopts = "UT"
-  revision = "85f6378ff4085fce8ae63cd907c391b507b84049"
-  version = "0.7.19"
-
-[[projects]]
   digest = "1:d6afaeed1502aa28e80a4ed0981d570ad91b2579193404256ce672ed0a609e0d"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
@@ -263,17 +255,6 @@
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:55be843c9c6d61f6fe1c2cf28663d8f39c51a815c0ac57aece22fcd9cfb7c9db"
-  name = "github.com/deepmap/oapi-codegen"
-  packages = [
-    "pkg/runtime",
-    "pkg/types",
-  ]
-  pruneopts = "UT"
-  revision = "564d6ada942160191aab79628d710dc1d4e923a9"
-  version = "v1.3.11"
-
-[[projects]]
   digest = "1:76dc72490af7174349349838f2fe118996381b31ea83243812a97e5a0fd5ed55"
   name = "github.com/dgrijalva/jwt-go"
   packages = ["."]
@@ -325,17 +306,6 @@
   pruneopts = "UT"
   revision = "026c730a0dcc5d11f93f1cf1cc65b01247ea7b6f"
   version = "v4.5.0"
-
-[[projects]]
-  digest = "1:87433930ab8e6540f0572a0c68642aa6bc0d11ed5972ad825ccfa6242e3c5795"
-  name = "github.com/getkin/kin-openapi"
-  packages = [
-    "jsoninfo",
-    "openapi3",
-  ]
-  pruneopts = "UT"
-  revision = "2392e46f8ad6050d797390cb1859623f0994f710"
-  version = "v0.20.0"
 
 [[projects]]
   digest = "1:2cd7915ab26ede7d95b8749e6b1f933f1c6d5398030684e6505940a10f31cfda"
@@ -713,14 +683,6 @@
   pruneopts = "UT"
   revision = "4f571afc59f3043a65f8fe6bf46d887b10a01d43"
   version = "v1.0.1"
-
-[[projects]]
-  digest = "1:88e0b0baeb9072f0a4afbcf12dda615fc8be001d1802357538591155998da21b"
-  name = "github.com/hashicorp/go-version"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "ac23dc3fea5d1a983c43f6a0f6e2c13f0195d8bd"
-  version = "v1.2.0"
 
 [[projects]]
   digest = "1:c77361e611524ec8f2ad37c408c3c916111a70b6acf806a1200855696bf8fa4d"
@@ -1442,6 +1404,14 @@
   version = "v9.30.0"
 
 [[projects]]
+  digest = "1:4fd9c30d871fcaf9749586071a3a7aa96a09128aabcad5496756963438d07714"
+  name = "gopkg.in/igm/sockjs-go.v3"
+  packages = ["sockjs"]
+  pruneopts = "UT"
+  revision = "db9cf16b3bc8cea2af07b69b85bbdd4e025956f3"
+  version = "v3.0.0"
+
+[[projects]]
   digest = "1:2d1fbdc6777e5408cabeb02bf336305e724b925ff4546ded0fa8715a7267922a"
   name = "gopkg.in/inf.v0"
   packages = ["."]
@@ -1917,16 +1887,14 @@
     "github.com/aws/aws-sdk-go/service/ecr",
     "github.com/aws/aws-sdk-go/service/s3",
     "github.com/aws/aws-sdk-go/service/s3/s3manager",
-    "github.com/beamly/go-gocd/gocd",
     "github.com/caarlos0/env",
     "github.com/casbin/casbin",
     "github.com/casbin/xorm-adapter",
     "github.com/coreos/go-oidc",
     "github.com/davecgh/go-spew/spew",
-    "github.com/deepmap/oapi-codegen/pkg/runtime",
     "github.com/dgrijalva/jwt-go",
+    "github.com/emicklei/go-restful",
     "github.com/evanphx/json-patch",
-    "github.com/getkin/kin-openapi/openapi3",
     "github.com/ghodss/yaml",
     "github.com/go-pg/pg",
     "github.com/go-pg/pg/orm",
@@ -1961,6 +1929,7 @@
     "github.com/stretchr/testify/assert",
     "github.com/xanzy/go-gitlab",
     "go.uber.org/zap",
+    "go.uber.org/zap/zapcore",
     "golang.org/x/oauth2",
     "golang.org/x/sync/errgroup",
     "google.golang.org/grpc",
@@ -1968,6 +1937,7 @@
     "google.golang.org/grpc/credentials",
     "google.golang.org/grpc/status",
     "gopkg.in/go-playground/validator.v9",
+    "gopkg.in/igm/sockjs-go.v3/sockjs",
     "gopkg.in/src-d/go-git.v4",
     "gopkg.in/src-d/go-git.v4/plumbing/object",
     "gopkg.in/src-d/go-git.v4/plumbing/transport",
@@ -1979,9 +1949,11 @@
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/client-go/kubernetes",
+    "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/kubernetes/typed/core/v1",
     "k8s.io/client-go/rest",
     "k8s.io/client-go/tools/clientcmd",
+    "k8s.io/client-go/tools/remotecommand",
     "k8s.io/code-generator/cmd/go-to-protobuf",
     "k8s.io/helm/pkg/chartutil",
     "k8s.io/helm/pkg/proto/hapi/chart",
