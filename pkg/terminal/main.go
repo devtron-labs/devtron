@@ -25,7 +25,7 @@ func serveSocJs() {
 		Produces(restful.MIME_JSON)
 	wsContainer.Add(apiV1Ws)
 	apiV1Ws.Route(
-		apiV1Ws.GET("/pod/{namespace}/{pod}/shell/{container}").
+		apiV1Ws.GET("/pod/{namespace}/{pod}/Shell/{container}").
 			To(handleExecShell))
 
 	http.Handle("/api/", wsContainer)

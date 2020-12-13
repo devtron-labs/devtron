@@ -18,7 +18,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/emicklei/go-restful"
 	"io"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
@@ -214,9 +213,9 @@ func CreateAttachHandler(path string) http.Handler {
 // Executed cmd in the container specified in request and connects it up with the ptyHandler (a session)
 func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 	cmd []string, ptyHandler PtyHandler, sessionRequest *TerminalSessionRequest) error {
-	namespace := sessionRequest.namespace
-	podName := sessionRequest.podName
-	containerName := sessionRequest.containerName
+	namespace := sessionRequest.Namespace
+	podName := sessionRequest.PodName
+	containerName := sessionRequest.ContainerName
 
 	req := k8sClient.CoreV1().RESTClient().Post().
 		Resource("pods").
@@ -266,7 +265,7 @@ func genTerminalSessionId() (string, error) {
 	return string(id), nil
 }
 
-// isValidShell checks if the shell is an allowed one
+// isValidShell checks if the Shell is an allowed one
 func isValidShell(validShells []string, shell string) bool {
 	for _, validShell := range validShells {
 		if validShell == shell {
@@ -277,11 +276,11 @@ func isValidShell(validShells []string, shell string) bool {
 }
 
 type TerminalSessionRequest struct {
-	shell         string
-	sessionId     string
-	namespace     string
-	podName       string
-	containerName string
+	Shell         string
+	SessionId     string
+	Namespace     string
+	PodName       string
+	ContainerName string
 }
 
 // WaitForTerminal is called from apihandler.handleAttach as a goroutine
@@ -289,37 +288,37 @@ type TerminalSessionRequest struct {
 func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *TerminalSessionRequest) {
 
 	select {
-	case <-terminalSessions.Get(request.sessionId).bound:
-		close(terminalSessions.Get(request.sessionId).bound)
+	case <-terminalSessions.Get(request.SessionId).bound:
+		close(terminalSessions.Get(request.SessionId).bound)
 
 		var err error
 		validShells := []string{"bash", "sh", "powershell", "cmd"}
 
-		if isValidShell(validShells, request.shell) {
-			cmd := []string{request.shell}
+		if isValidShell(validShells, request.Shell) {
+			cmd := []string{request.Shell}
 
-			err = startProcess(k8sClient, cfg, cmd, terminalSessions.Get(request.sessionId), request)
+			err = startProcess(k8sClient, cfg, cmd, terminalSessions.Get(request.SessionId), request)
 		} else {
-			// No shell given or it was not valid: try some shells until one succeeds or all fail
-			// FIXME: if the first shell fails then the first keyboard event is lost
+			// No Shell given or it was not valid: try some shells until one succeeds or all fail
+			// FIXME: if the first Shell fails then the first keyboard event is lost
 			for _, testShell := range validShells {
 				cmd := []string{testShell}
-				if err = startProcess(k8sClient, cfg, cmd, terminalSessions.Get(request.sessionId), request); err == nil {
+				if err = startProcess(k8sClient, cfg, cmd, terminalSessions.Get(request.SessionId), request); err == nil {
 					break
 				}
 			}
 		}
 
 		if err != nil {
-			terminalSessions.Close(request.sessionId, 2, err.Error())
+			terminalSessions.Close(request.SessionId, 2, err.Error())
 			return
 		}
 
-		terminalSessions.Close(request.sessionId, 1, "Process exited")
+		terminalSessions.Close(request.SessionId, 1, "Process exited")
 	}
 }
 
-func GetTerminalSession(request *restful.Request, response *restful.Response, req *TerminalSessionRequest) {
+func GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error) {
 	sessionID, err := genTerminalSessionId()
 	if err != nil {
 		statusCode := http.StatusInternalServerError
@@ -327,16 +326,14 @@ func GetTerminalSession(request *restful.Request, response *restful.Response, re
 		if ok && statusError.Status().Code > 0 {
 			statusCode = int(statusError.Status().Code)
 		}
-		response.AddHeader("Content-Type", "text/plain")
-		response.WriteErrorString(statusCode, err.Error()+"\n")
+		return statusCode, nil, err
 	}
-
+	req.SessionId = sessionID
 	terminalSessions.Set(sessionID, TerminalSession{
 		id:       sessionID,
 		bound:    make(chan error),
 		sizeChan: make(chan remotecommand.TerminalSize),
 	})
 	go WaitForTerminal(clientset, restcfg, req)
-	response.WriteHeaderAndEntity(http.StatusOK, TerminalMessage{SessionID: sessionID})
-
+	return statusCode, &TerminalMessage{SessionID: sessionID}, nil
 }

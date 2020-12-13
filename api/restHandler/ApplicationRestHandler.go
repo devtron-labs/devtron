@@ -26,9 +26,9 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/devtron-labs/devtron/pkg/terminal"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/mux"
@@ -59,6 +59,7 @@ type ApplicationRestHandler interface {
 	DeleteResource(w http.ResponseWriter, r *http.Request)
 
 	GetServiceLink(w http.ResponseWriter, r *http.Request)
+	GetTerminalSession(w http.ResponseWriter, r *http.Request)
 }
 
 type ApplicationRestHandlerImpl struct {
@@ -89,8 +90,15 @@ func NewApplicationRestHandlerImpl(client application.ServiceClient,
 }
 
 func (impl ApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
-	//terminal.TerminalSessionRequest{}
-	//vars := mux.Vars(r)
+	request := &terminal.TerminalSessionRequest{}
+	vars := mux.Vars(r)
+	request.ContainerName = vars["container"]
+	request.Namespace = vars["namespace"]
+	request.PodName = vars["pod"]
+	request.Shell = vars["shell"]
+	//TODO apply validation
+	status, message, err := terminal.GetTerminalSession(request)
+	writeJsonResp(w, err, message, status)
 }
 
 func (impl ApplicationRestHandlerImpl) Watch(w http.ResponseWriter, r *http.Request) {
