@@ -24,8 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"os"
 	"time"
 )
 
@@ -57,6 +55,7 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*cluster.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
+	GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -117,7 +116,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		return mappings, err
 	}
 	if len(model.Namespace) > 0 {
-		cfg, err := impl.getClusterConfig(clusterBean)
+		cfg, err := impl.GetClusterConfig(clusterBean)
 		if err != nil {
 			return nil, err
 		}
@@ -220,11 +219,12 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*EnvironmentBean, error) {
 	return bean, nil
 }
 
-func (impl EnvironmentServiceImpl) getClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error) {
+func (impl EnvironmentServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error) {
 	host := cluster.ServerUrl
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
-	if cluster.Id == 1 && cluster.ClusterName == ClusterName {
+	//FIXME uncomment this
+	/*if cluster.Id == 1 && cluster.ClusterName == ClusterName {
 		if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
 			impl.logger.Errorw("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
 			return nil, err
@@ -236,7 +236,7 @@ func (impl EnvironmentServiceImpl) getClusterConfig(cluster *ClusterBean) (*util
 			}
 			bearerToken = string(content)
 		}
-	}
+	}*/
 	clusterCfg := &util.ClusterConfig{Host: host, BearerToken: bearerToken}
 	return clusterCfg, nil
 }
@@ -266,7 +266,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 
 	//namespace create if not exist
 	if len(model.Namespace) > 0 {
-		cfg, err := impl.getClusterConfig(clusterBean)
+		cfg, err := impl.GetClusterConfig(clusterBean)
 		if err != nil {
 			return nil, err
 		}

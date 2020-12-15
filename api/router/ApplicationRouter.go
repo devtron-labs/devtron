@@ -110,7 +110,7 @@ func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
 	router.Path("/{name}/service-link").
 		Methods("GET").
 		HandlerFunc(r.handler.GetServiceLink)
-	router.Path("/pod/exec/session/{namespace}/{pod}/{shell}/{container}").
+	router.Path("/pod/exec/session/{appId}/{environmentId}/{namespace}/{pod}/{shell}/{container}").
 		Methods("GET").
 		HandlerFunc(r.handler.GetTerminalSession)
 	router.Path("/pod/exec/sockjs/ws/").Handler(terminal.CreateAttachHandler("/api/v1/applications/pod/exec/sockjs/ws/"))

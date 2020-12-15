@@ -18,6 +18,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"go.uber.org/zap"
 	"io"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
@@ -281,6 +283,8 @@ type TerminalSessionRequest struct {
 	Namespace     string
 	PodName       string
 	ContainerName string
+	EnvironmentId int
+	AppId         int
 }
 
 // WaitForTerminal is called from apihandler.handleAttach as a goroutine
@@ -318,7 +322,22 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 	}
 }
 
-func GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error) {
+type TerminalSessionHandler interface {
+	GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error)
+}
+type TerminalSessionHandlerImpl struct {
+	environmentService cluster.EnvironmentService
+	logger             *zap.SugaredLogger
+}
+
+func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService,
+	logger *zap.SugaredLogger) *TerminalSessionHandlerImpl {
+	return &TerminalSessionHandlerImpl{
+		environmentService: environmentService,
+		logger:             logger,
+	}
+}
+func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error) {
 	sessionID, err := genTerminalSessionId()
 	if err != nil {
 		statusCode := http.StatusInternalServerError
@@ -334,7 +353,34 @@ func GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *T
 		bound:    make(chan error),
 		sizeChan: make(chan remotecommand.TerminalSize),
 	})
-	c, cfg:=GetClientConfig()
-	go WaitForTerminal(c, cfg, req)
+	config, client, err := impl.getClientConfig(req.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching config", "err", err)
+		return http.StatusInternalServerError, nil, err
+	}
+	go WaitForTerminal(client, config, req)
 	return http.StatusOK, &TerminalMessage{SessionID: sessionID}, nil
+}
+
+func (impl *TerminalSessionHandlerImpl) getClientConfig(envId int) (*rest.Config, *kubernetes.Clientset, error) {
+	cluster, err := impl.environmentService.FindClusterByEnvId(envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "envId", envId, "err", err)
+		return nil, nil, err
+	}
+	config, err := impl.environmentService.GetClusterConfig(cluster)
+	if err != nil {
+		impl.logger.Errorw("error in config", "err", err)
+		return nil, nil, err
+	}
+	cfg := &rest.Config{}
+	cfg.Host = config.Host
+	cfg.BearerToken = config.BearerToken
+	cfg.Insecure = true
+	clientSet, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		impl.logger.Errorw("error in clientSet", "err", err)
+		return nil, nil, err
+	}
+	return cfg, clientSet, nil
 }
