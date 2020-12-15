@@ -302,6 +302,10 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	}
 
 	apiVersion, err := impl.versionService.GetVersion()
+	if err != nil {
+		impl.logger.Errorw("err", "err", err)
+		return nil, err
+	}
 	apiMinorVersion, err := strconv.Atoi(apiVersion[3:4])
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
@@ -382,6 +386,10 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	}
 
 	apiVersion, err := impl.versionService.GetVersion()
+	if err != nil {
+		impl.logger.Errorw("err", "err", err)
+		return nil, err
+	}
 	apiMinorVersion, err := strconv.Atoi(apiVersion[3:4])
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
