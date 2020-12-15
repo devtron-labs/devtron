@@ -334,6 +334,7 @@ func GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *T
 		bound:    make(chan error),
 		sizeChan: make(chan remotecommand.TerminalSize),
 	})
-	go WaitForTerminal(clientset, restcfg, req)
-	return statusCode, &TerminalMessage{SessionID: sessionID}, nil
+	c, cfg:=GetClientConfig()
+	go WaitForTerminal(c, cfg, req)
+	return http.StatusOK, &TerminalMessage{SessionID: sessionID}, nil
 }
