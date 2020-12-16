@@ -123,6 +123,13 @@ func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) 
 
 	userAuthRouter.Path("/devtron/auth/verify").
 		HandlerFunc(router.userAuthHandler.AuthVerification).Methods("GET")
+
+	userAuthRouter.Path("/sso/create").
+		HandlerFunc(router.userAuthHandler.CreateSSOLoginConfig).Methods("POST")
+	userAuthRouter.Path("/sso/update").
+		HandlerFunc(router.userAuthHandler.UpdateSSOLoginConfig).Methods("PUT")
+	userAuthRouter.Path("/sso/list}").
+		HandlerFunc(router.userAuthHandler.GetAllSSOLoginConfig).Methods("GET")
 }
 
 func (router UserAuthRouterImpl) writeSuccess(message string, w http.ResponseWriter) {
