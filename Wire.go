@@ -607,6 +607,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appstore2.ClusterInstalledAppsRepository), new(*appstore2.ClusterInstalledAppsRepositoryImpl)),
 		terminal.NewTerminalSessionHandlerImpl,
 		wire.Bind(new(terminal.TerminalSessionHandler), new(*terminal.TerminalSessionHandlerImpl)),
+		user2.NewSSOLoginServiceImpl,
+		wire.Bind(new(user2.SSOLoginService), new(*user2.SSOLoginServiceImpl)),
+		repository.NewSSOLoginRepositoryImpl,
+		wire.Bind(new(repository.SSOLoginRepository), new(*repository.SSOLoginRepositoryImpl)),
 	)
 	return &App{}, nil
 }

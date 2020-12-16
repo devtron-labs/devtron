@@ -60,6 +60,9 @@ type UserAuthHandler interface {
 	AddDefaultPolicyAndRoles(w http.ResponseWriter, r *http.Request)
 	Subscribe() error
 	AuthVerification(w http.ResponseWriter, r *http.Request)
+	CreateSSOLoginConfig(w http.ResponseWriter, r *http.Request)
+	UpdateSSOLoginConfig(w http.ResponseWriter, r *http.Request)
+	GetAllSSOLoginConfig(w http.ResponseWriter, r *http.Request)
 }
 
 type UserAuthHandlerImpl struct {
@@ -69,14 +72,16 @@ type UserAuthHandlerImpl struct {
 	enforcer        rbac.Enforcer
 	natsClient      *pubsub.PubSubClient
 	userService     user.UserService
+	ssoLoginService user.SSOLoginService
 }
 
 const POLICY_UPDATE_TOPIC = "Policy.Update"
 
 func NewUserAuthHandlerImpl(userAuthService user.UserAuthService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService) *UserAuthHandlerImpl {
+	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService,
+	ssoLoginService user.SSOLoginService) *UserAuthHandlerImpl {
 	userAuthHandler := &UserAuthHandlerImpl{userAuthService: userAuthService, validator: validator, logger: logger,
-		enforcer: enforcer, natsClient: natsClient, userService: userService}
+		enforcer: enforcer, natsClient: natsClient, userService: userService, ssoLoginService: ssoLoginService}
 
 	err := userAuthHandler.Subscribe()
 	if err != nil {
@@ -475,6 +480,53 @@ func (handler UserAuthHandlerImpl) AuthVerification(w http.ResponseWriter, r *ht
 	res, err := handler.userAuthService.AuthVerification(r)
 	if err != nil {
 		handler.logger.Errorw("service err, AuthVerification", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, nil, res, http.StatusOK)
+}
+
+func (handler UserAuthHandlerImpl) CreateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var dto bean.SSOLoginDto
+	err := decoder.Decode(&dto)
+	if err != nil {
+		handler.logger.Errorw("request err, CreateSSOLoginConfig", "err", err, "payload", dto)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.logger.Infow("request payload, CreateSSOLoginConfig", "payload", dto)
+	_, err = handler.ssoLoginService.CreateSSOLogin(&dto)
+	if err != nil {
+		handler.logger.Errorw("service err, CreateSSOLoginConfig", "err", err, "payload", dto)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, nil, nil, http.StatusOK)
+}
+func (handler UserAuthHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var dto bean.SSOLoginDto
+	err := decoder.Decode(&dto)
+	if err != nil {
+		handler.logger.Errorw("request err, UpdateSSOLoginConfig", "err", err, "payload", dto)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.logger.Infow("request payload, UpdateSSOLoginConfig", "payload", dto)
+	_, err = handler.ssoLoginService.UpdateSSOLogin(&dto)
+	if err != nil {
+		handler.logger.Errorw("service err, UpdateSSOLoginConfig", "err", err, "payload", dto)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, nil, nil, http.StatusOK)
+}
+
+func (handler UserAuthHandlerImpl) GetAllSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
+	res, err := handler.ssoLoginService.GetAll()
+	if err != nil {
+		handler.logger.Errorw("service err, GetAllSSOLoginConfig", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
