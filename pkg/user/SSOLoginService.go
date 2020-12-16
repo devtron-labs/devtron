@@ -18,6 +18,7 @@
 package user
 
 import (
+	"encoding/json"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
@@ -31,7 +32,7 @@ type SSOLoginService interface {
 	CreateSSOLogin(userInfo *bean.SSOLoginDto) (*bean.SSOLoginDto, error)
 	UpdateSSOLogin(userInfo *bean.SSOLoginDto) (*bean.SSOLoginDto, error)
 	GetById(id int32) (*bean.SSOLoginDto, error)
-	GetAll() ([]bean.SSOLoginDto, error)
+	GetAll() ([]*bean.SSOLoginDto, error)
 }
 
 type SSOLoginServiceImpl struct {
@@ -68,9 +69,29 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
+
+	configDataByte, err := json.Marshal(request.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	existingModel, err := impl.ssoLoginRepository.GetActive()
+	if err != nil {
+		impl.logger.Errorw("error in creating new sso login config", "error", err)
+		return nil, err
+	}
+	existingModel.Active = false
+	existingModel.UpdatedOn = time.Now()
+	existingModel.UpdatedBy = request.UserId
+	_, err = impl.ssoLoginRepository.Update(existingModel, tx)
+	if err != nil {
+		impl.logger.Errorw("error in creating new sso login config", "error", err)
+		return nil, err
+	}
+
 	model := &repository.SSOLoginModel{
 		Name:   request.Name,
-		Config: request.Config,
+		Config: string(configDataByte),
 	}
 	model.Active = true
 	model.CreatedBy = request.UserId
@@ -83,6 +104,8 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 		return nil, err
 	}
 
+	//TODO- update argocd-cm
+	
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -98,13 +121,18 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
+
+	configDataByte, err := json.Marshal(request.Config)
+	if err != nil {
+		return nil, err
+	}
 	model, err := impl.ssoLoginRepository.GetById(request.Id)
 	if err != nil {
 		impl.logger.Errorw("error in update new sso login config", "error", err)
 		return nil, err
 	}
 	model.Url = request.Url
-	model.Config = request.Config
+	model.Config = string(configDataByte)
 	model.Active = request.Active
 	model.UpdatedBy = request.UserId
 	model.UpdatedOn = time.Now()
@@ -114,29 +142,46 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		return nil, err
 	}
 
+	//TODO- update argocd-cm
+
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
 	}
 	return request, nil
 }
+
+func (impl SSOLoginServiceImpl) updateSSODexConfigOnAcdConfigMap(request *bean.SSOLoginDto) (*bean.SSOLoginDto, error) {
+
+	//todo - impl
+
+	return request, nil
+}
+
 func (impl SSOLoginServiceImpl) GetById(id int32) (*bean.SSOLoginDto, error) {
 	model, err := impl.ssoLoginRepository.GetById(id)
 	if err != nil {
 		impl.logger.Errorw("error in update new sso login config", "error", err)
 		return nil, err
 	}
+
+	var config json.RawMessage
+	err = json.Unmarshal([]byte(model.Config), config)
+	if err != nil {
+		impl.logger.Warnw("error while Unmarshal", "error", err)
+	}
+
 	ssoLoginDto := &bean.SSOLoginDto{
 		Id:     model.Id,
 		Name:   model.Name,
 		Url:    model.Url,
 		Active: model.Active,
-		Config: model.Config,
+		Config: config,
 	}
 	return ssoLoginDto, nil
 }
 
-func (impl SSOLoginServiceImpl) GetAll() ([]bean.SSOLoginDto, error) {
+func (impl SSOLoginServiceImpl) GetAll() ([]*bean.SSOLoginDto, error) {
 
 	models, err := impl.ssoLoginRepository.GetAll()
 	if err != nil {
@@ -144,16 +189,23 @@ func (impl SSOLoginServiceImpl) GetAll() ([]bean.SSOLoginDto, error) {
 		return nil, err
 	}
 
-	var ssoLoginDtos []bean.SSOLoginDto
+	var ssoLoginDtos []*bean.SSOLoginDto
 	for _, model := range models {
+
+		var config json.RawMessage
+		err = json.Unmarshal([]byte(model.Config), config)
+		if err != nil {
+			impl.logger.Warnw("error while Unmarshal", "error", err)
+		}
+
 		ssoLoginDto := &bean.SSOLoginDto{
 			Id:     model.Id,
 			Name:   model.Name,
 			Url:    model.Url,
 			Active: model.Active,
-			Config: model.Config,
+			Config: config,
 		}
-		ssoLoginDtos = append(ssoLoginDtos, *ssoLoginDto)
+		ssoLoginDtos = append(ssoLoginDtos, ssoLoginDto)
 	}
 	return ssoLoginDtos, nil
 }

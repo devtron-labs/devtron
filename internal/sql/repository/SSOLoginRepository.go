@@ -32,7 +32,7 @@ type SSOLoginRepository interface {
 	Update(userModel *SSOLoginModel, tx *pg.Tx) (*SSOLoginModel, error)
 	GetById(id int32) (*SSOLoginModel, error)
 	GetAll() ([]SSOLoginModel, error)
-	GetByIds(ids []int32) ([]SSOLoginModel, error)
+	GetActive() (*SSOLoginModel, error)
 	Delete(userModel *SSOLoginModel, tx *pg.Tx) (bool, error)
 
 	GetConnection() (dbConnection *pg.DB)
@@ -85,10 +85,10 @@ func (impl SSOLoginRepositoryImpl) GetAll() ([]SSOLoginModel, error) {
 	return userModel, err
 }
 
-func (impl SSOLoginRepositoryImpl) GetByIds(ids []int32) ([]SSOLoginModel, error) {
-	var model []SSOLoginModel
-	err := impl.dbConnection.Model(&model).Where("id in (?)", pg.In(ids)).Where("active = ?", true).Select()
-	return model, err
+func (impl SSOLoginRepositoryImpl) GetActive() (*SSOLoginModel, error) {
+	var model SSOLoginModel
+	err := impl.dbConnection.Model(&model).Where("active = ?", true).Limit(1).Select()
+	return &model, err
 }
 
 func (impl SSOLoginRepositoryImpl) Delete(userModel *SSOLoginModel, tx *pg.Tx) (bool, error) {
