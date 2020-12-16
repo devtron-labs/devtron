@@ -68,6 +68,15 @@ type RoleData struct {
 	Action      string `json:"action"`
 }
 
+type SSOLoginDto struct {
+	Id     int32  `json:"id,pk"`
+	Name   string `json:"name,omitempty"`
+	Url    string `json:"url,omitempty"`
+	Config string `json:"config,omitempty"`
+	Active bool   `json:"active,notnull"`
+	UserId int32  `json:"-"`
+}
+
 const (
 	NOCHARTEXIST string = "NOCHARTEXIST"
 )
