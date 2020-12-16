@@ -193,11 +193,13 @@ func handleTerminalSession(session sockjs.Session) {
 
 	if msg.Op != "bind" {
 		log.Printf("handleTerminalSession: expected 'bind' message, got: %s", buf)
+		session.Close(http.StatusBadRequest,fmt.Sprintf("expected 'bind' message, got '%s'", buf))
 		return
 	}
 
 	if terminalSession = terminalSessions.Get(msg.SessionID); terminalSession.id == "" {
 		log.Printf("handleTerminalSession: can't find session '%s'", msg.SessionID)
+		session.Close(http.StatusGone,fmt.Sprintf("handleTerminalSession: can't find session '%s'", msg.SessionID))
 		return
 	}
 
