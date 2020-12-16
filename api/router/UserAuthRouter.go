@@ -128,7 +128,7 @@ func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) 
 		HandlerFunc(router.userAuthHandler.CreateSSOLoginConfig).Methods("POST")
 	userAuthRouter.Path("/sso/update").
 		HandlerFunc(router.userAuthHandler.UpdateSSOLoginConfig).Methods("PUT")
-	userAuthRouter.Path("/sso/list}").
+	userAuthRouter.Path("/sso/list").
 		HandlerFunc(router.userAuthHandler.GetAllSSOLoginConfig).Methods("GET")
 }
 
