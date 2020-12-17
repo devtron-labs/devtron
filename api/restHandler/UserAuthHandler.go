@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/casbin"
+	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
@@ -72,14 +73,14 @@ type UserAuthHandlerImpl struct {
 	enforcer        rbac.Enforcer
 	natsClient      *pubsub.PubSubClient
 	userService     user.UserService
-	ssoLoginService user.SSOLoginService
+	ssoLoginService sso.SSOLoginService
 }
 
 const POLICY_UPDATE_TOPIC = "Policy.Update"
 
 func NewUserAuthHandlerImpl(userAuthService user.UserAuthService, validator *validator.Validate,
 	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService,
-	ssoLoginService user.SSOLoginService) *UserAuthHandlerImpl {
+	ssoLoginService sso.SSOLoginService) *UserAuthHandlerImpl {
 	userAuthHandler := &UserAuthHandlerImpl{userAuthService: userAuthService, validator: validator, logger: logger,
 		enforcer: enforcer, natsClient: natsClient, userService: userService, ssoLoginService: ssoLoginService}
 

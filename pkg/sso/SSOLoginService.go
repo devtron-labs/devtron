@@ -15,15 +15,18 @@
  *
  */
 
-package user
+package sso
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/gorilla/sessions"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	"time"
 )
@@ -43,11 +46,15 @@ type SSOLoginServiceImpl struct {
 	userRepository      repository.UserRepository
 	roleGroupRepository repository.RoleGroupRepository
 	ssoLoginRepository  repository.SSOLoginRepository
+	K8sUtil             *util.K8sUtil
+	clusterService      cluster.ClusterService
+	envService          cluster.EnvironmentService
 }
 
 func NewSSOLoginServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
 	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
-	userGroupRepository repository.RoleGroupRepository, ssoLoginRepository repository.SSOLoginRepository) *SSOLoginServiceImpl {
+	userGroupRepository repository.RoleGroupRepository, ssoLoginRepository repository.SSOLoginRepository,
+	K8sUtil *util.K8sUtil, clusterService cluster.ClusterService, envService cluster.EnvironmentService) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		userAuthRepository:  userAuthRepository,
 		sessionManager:      sessionManager,
@@ -56,10 +63,15 @@ func NewSSOLoginServiceImpl(userAuthRepository repository.UserAuthRepository, se
 		userRepository:      userRepository,
 		roleGroupRepository: userGroupRepository,
 		ssoLoginRepository:  ssoLoginRepository,
+		K8sUtil:             K8sUtil,
+		clusterService:      clusterService,
+		envService:          envService,
 	}
-	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
 }
+
+const ArgocdConfigMap string = "argocd-cm"
+const ArgocdConfigMapNamespace string = "devtroncd"
 
 func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean.SSOLoginDto, error) {
 	dbConnection := impl.userRepository.GetConnection()
@@ -105,7 +117,51 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 	}
 
 	//TODO- update argocd-cm
-	
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := impl.envService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	updateSuccess := false
+	retryCount := 0
+	for !updateSuccess && retryCount < 3 {
+		retryCount = retryCount + 1
+
+		cm, err := impl.K8sUtil.GetConfigMapFast(ArgocdConfigMapNamespace, ArgocdConfigMap, client)
+		if err != nil {
+			return nil, err
+		}
+		updatedData, err := impl.updateSSODexConfigOnAcdConfigMap(request.Config)
+		if err != nil {
+			return nil, err
+		}
+		data := cm.Data
+		data["dex.config"] = updatedData["dex.config"]
+		cm.Data = data
+		_, err = impl.K8sUtil.UpdateConfigMapFast(ArgocdConfigMapNamespace, cm, client)
+		if err != nil {
+			impl.logger.Warnw(" config map failed", "err", err)
+			continue
+		}
+		if err == nil {
+			impl.logger.Warnw(" config map apply succeeded", "on retryCount", retryCount)
+			updateSuccess = true
+		}
+	}
+	if !updateSuccess {
+		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+	}
+
+	// TODO - END
+
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -143,6 +199,50 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 	}
 
 	//TODO- update argocd-cm
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := impl.envService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	updateSuccess := false
+	retryCount := 0
+	for !updateSuccess && retryCount < 3 {
+		retryCount = retryCount + 1
+
+		cm, err := impl.K8sUtil.GetConfigMapFast(ArgocdConfigMapNamespace, ArgocdConfigMap, client)
+		if err != nil {
+			return nil, err
+		}
+		updatedData, err := impl.updateSSODexConfigOnAcdConfigMap(request.Config)
+		if err != nil {
+			return nil, err
+		}
+		data := cm.Data
+		data["dex.config"] = updatedData["dex.config"]
+		cm.Data = data
+		_, err = impl.K8sUtil.UpdateConfigMapFast(ArgocdConfigMapNamespace, cm, client)
+		if err != nil {
+			impl.logger.Warnw(" config map failed", "err", err)
+			continue
+		}
+		if err == nil {
+			impl.logger.Warnw(" config map apply succeeded", "on retryCount", retryCount)
+			updateSuccess = true
+		}
+	}
+	if !updateSuccess {
+		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+	}
+
+	// TODO - END
 
 	err = tx.Commit()
 	if err != nil {
@@ -151,11 +251,21 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 	return request, nil
 }
 
-func (impl SSOLoginServiceImpl) updateSSODexConfigOnAcdConfigMap(request *bean.SSOLoginDto) (*bean.SSOLoginDto, error) {
+func (impl SSOLoginServiceImpl) updateSSODexConfigOnAcdConfigMap(config json.RawMessage) (map[string]string, error) {
 
-	//todo - impl
-
-	return request, nil
+	var connectors []json.RawMessage
+	connectors = append(connectors, config)
+	connectorsJsonByte, err := json.Marshal(connectors)
+	if err != nil {
+		panic(err)
+	}
+	connectorsYamlByte, err := yaml.JSONToYAML(connectorsJsonByte)
+	if err != nil {
+		panic(err)
+	}
+	updatedData := map[string]string{}
+	updatedData["dex.config"] = string(connectorsYamlByte)
+	return updatedData, nil
 }
 
 func (impl SSOLoginServiceImpl) GetById(id int32) (*bean.SSOLoginDto, error) {
