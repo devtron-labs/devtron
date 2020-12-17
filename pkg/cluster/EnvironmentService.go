@@ -24,8 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"os"
 	"time"
 )
 
