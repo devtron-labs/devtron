@@ -71,11 +71,11 @@ type RoleData struct {
 }
 
 type SSOLoginDto struct {
-	Id     int32           `json:"id,pk"`
+	Id     int32           `json:"id"`
 	Name   string          `json:"name,omitempty"`
 	Url    string          `json:"url,omitempty"`
 	Config json.RawMessage `json:"config,omitempty"`
-	Active bool            `json:"active,notnull"`
+	Active bool            `json:"active"`
 	UserId int32           `json:"-"`
 }
 
