@@ -54,6 +54,7 @@ import (
 	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	team2 "github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/session"
@@ -278,7 +279,8 @@ func InitializeApp() (*App, error) {
 	userAuthHandlerImpl := restHandler.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, userServiceImpl, ssoLoginServiceImpl)
 	userAuthRouterImpl := router.NewUserAuthRouterImpl(sugaredLogger, userAuthHandlerImpl, argocdServerConfig, argoCDSettings, userServiceImpl)
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
-	applicationRestHandlerImpl := restHandler.NewApplicationRestHandlerImpl(serviceClientImpl, pumpImpl, enforcerImpl, teamServiceImpl, environmentServiceImpl, sugaredLogger, enforcerUtilImpl)
+	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, sugaredLogger)
+	applicationRestHandlerImpl := restHandler.NewApplicationRestHandlerImpl(serviceClientImpl, pumpImpl, enforcerImpl, teamServiceImpl, environmentServiceImpl, sugaredLogger, enforcerUtilImpl, terminalSessionHandlerImpl)
 	applicationRouterImpl := router.NewApplicationRouterImpl(applicationRestHandlerImpl, sugaredLogger)
 	argoConfig, err := ArgoUtil.GetArgoConfig()
 	if err != nil {

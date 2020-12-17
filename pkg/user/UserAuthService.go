@@ -425,8 +425,14 @@ func contains(url string) bool {
 			return true
 		}
 	}
-	if strings.Contains(url, "/webhook/ext-ci/") {
-		return true
+	prefixUrls:=[]string{
+		"/webhook/ext-ci/"	,
+		"/api/vi/pod/exec/ws",
+	}
+	for _, a := range prefixUrls {
+		if strings.Contains(url, a) {
+			return true
+		}
 	}
 	return false
 }
