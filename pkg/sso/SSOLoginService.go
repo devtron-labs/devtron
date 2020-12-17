@@ -252,10 +252,11 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 }
 
 func (impl SSOLoginServiceImpl) updateSSODexConfigOnAcdConfigMap(config json.RawMessage) (map[string]string, error) {
-
+	connectorConfig := map[string][]json.RawMessage{}
 	var connectors []json.RawMessage
 	connectors = append(connectors, config)
-	connectorsJsonByte, err := json.Marshal(connectors)
+	connectorConfig["connectors"] = connectors
+	connectorsJsonByte, err := json.Marshal(connectorConfig)
 	if err != nil {
 		panic(err)
 	}
@@ -263,9 +264,9 @@ func (impl SSOLoginServiceImpl) updateSSODexConfigOnAcdConfigMap(config json.Raw
 	if err != nil {
 		panic(err)
 	}
-	updatedData := map[string]string{}
-	updatedData["dex.config"] = string(connectorsYamlByte)
-	return updatedData, nil
+	dexConfig := map[string]string{}
+	dexConfig["dex.config"] = string(connectorsYamlByte)
+	return dexConfig, nil
 }
 
 func (impl SSOLoginServiceImpl) GetById(id int32) (*bean.SSOLoginDto, error) {
