@@ -110,7 +110,7 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 	model.UpdatedBy = request.UserId
 	model.CreatedOn = time.Now()
 	model.UpdatedOn = time.Now()
-	model, err = impl.ssoLoginRepository.Create(model, tx)
+	_, err = impl.ssoLoginRepository.Create(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
 		return nil, err
@@ -192,7 +192,7 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 	model.Active = request.Active
 	model.UpdatedBy = request.UserId
 	model.UpdatedOn = time.Now()
-	model, err = impl.ssoLoginRepository.Update(model, tx)
+	_, err = impl.ssoLoginRepository.Update(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
 		return nil, err
@@ -277,7 +277,7 @@ func (impl SSOLoginServiceImpl) GetById(id int32) (*bean.SSOLoginDto, error) {
 	}
 
 	var config json.RawMessage
-	err = json.Unmarshal([]byte(model.Config), config)
+	err = json.Unmarshal([]byte(model.Config), &config)
 	if err != nil {
 		impl.logger.Warnw("error while Unmarshal", "error", err)
 	}
@@ -304,7 +304,7 @@ func (impl SSOLoginServiceImpl) GetAll() ([]*bean.SSOLoginDto, error) {
 	for _, model := range models {
 
 		var config json.RawMessage
-		err = json.Unmarshal([]byte(model.Config), config)
+		err = json.Unmarshal([]byte(model.Config), &config)
 		if err != nil {
 			impl.logger.Warnw("error while Unmarshal", "error", err)
 		}
