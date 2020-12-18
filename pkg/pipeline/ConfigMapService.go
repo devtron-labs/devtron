@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -56,13 +57,31 @@ type BulkPatchRequest struct {
 	Name        string              `json:"name"`
 	Key         string              `json:"key"`
 	Value       string              `json:"value"`
-	PatchAction int                 `json:"patchAction"`
+	PatchAction int                 `json:"patchAction"` // 1=add, 2=update, 0=delete
 	UserId      int32               `json:"-"`
 }
 
 type BulkPatchPayload struct {
 	AppId int `json:"appId"`
 	EnvId int `json:"envId"`
+}
+
+type BulkPatchRequestV2 struct {
+	Payload     *BulkPatchPayloadV2 `json:"payload"`
+	ProjectId   int                 `json:"projectId"`
+	Global      bool                `json:"global"`
+	Type        string              `json:"type"`
+	Name        string              `json:"name"`
+	Key         string              `json:"key"`
+	Value       string              `json:"value"`
+	PatchAction int                 `json:"patchAction"`
+	UserId      int32               `json:"-"`
+}
+
+type BulkPatchPayloadV2 struct {
+	AppNameIncludes string `json:"appNameIncludes"`
+	AppNameExcludes string `json:"appNameExcludes"`
+	EnvId           int    `json:"envId"`
 }
 
 type ExternalSecret struct {
@@ -137,6 +156,7 @@ type ConfigMapServiceImpl struct {
 	configMapRepository         chartConfig.ConfigMapRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	commonService               commonService.CommonService
+	appRepository               pipelineConfig.AppRepository
 }
 
 func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -145,7 +165,7 @@ func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
 	mergeUtil util.MergeUtil,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
-	commonService commonService.CommonService) *ConfigMapServiceImpl {
+	commonService commonService.CommonService, appRepository pipelineConfig.AppRepository) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
 		chartRepository:             chartRepository,
 		logger:                      logger,
@@ -155,6 +175,7 @@ func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
 		configMapRepository:         configMapRepository,
 		environmentConfigRepository: environmentConfigRepository,
 		commonService:               commonService,
+		appRepository:               appRepository,
 	}
 }
 
@@ -1596,4 +1617,17 @@ func (impl ConfigMapServiceImpl) validateExternalSecretChartCompatibility(appId 
 		}
 	}
 	return true, nil
+}
+
+func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchRequestV2) ([]*BulkPatchPayload, error) {
+	var payload []*BulkPatchPayload
+	apps, err := impl.appRepository.FetchAppsByFilter(bulkPatchRequest.Payload.AppNameIncludes, bulkPatchRequest.Payload.AppNameExcludes)
+	if err != nil {
+		impl.logger.Errorw("chart version parsing", "err", err)
+		return payload, err
+	}
+	for _, item := range apps {
+		payload = append(payload, &BulkPatchPayload{AppId: item.Id, EnvId: bulkPatchRequest.Payload.EnvId})
+	}
+	return payload, nil
 }
