@@ -51,7 +51,6 @@ type ConfigMapRestHandler interface {
 	CSGlobalFetchForEdit(w http.ResponseWriter, r *http.Request)
 	CSEnvironmentFetchForEdit(w http.ResponseWriter, r *http.Request)
 	ConfigSecretBulkPatch(w http.ResponseWriter, r *http.Request)
-	ConfigSecretBulkPatchV2(w http.ResponseWriter, r *http.Request)
 }
 
 type ConfigMapRestHandlerImpl struct {
@@ -650,74 +649,6 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentFetchForEdit(w http.Respons
 }
 
 func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	//AUTH - check from casbin db
-	roles, err := handler.userAuthService.CheckUserRoles(userId)
-	if err != nil {
-		writeJsonResp(w, err, []byte("Failed to get user by id"), http.StatusInternalServerError)
-		return
-	}
-	superAdmin := false
-	for _, item := range roles {
-		if item == bean.SUPERADMIN {
-			superAdmin = true
-		}
-	}
-	if superAdmin == false {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
-	//AUTH
-
-	var bulkPatchRequest pipeline.BulkPatchRequest
-	err = decoder.Decode(&bulkPatchRequest)
-	if err != nil {
-		handler.Logger.Errorw("request err, ConfigSecretBulkPatch", "err", err, "payload", bulkPatchRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.Logger.Errorw("request payload, ConfigSecretBulkPatch", "payload", bulkPatchRequest)
-
-	if bulkPatchRequest.ProjectId > 0 && bulkPatchRequest.Global {
-		apps, err := handler.pipelineBuilder.FindAppsByTeamId(bulkPatchRequest.ProjectId)
-		if err != nil {
-			handler.Logger.Errorw("service err, ConfigSecretBulkPatch", "err", err, "payload", bulkPatchRequest)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		var payload []*pipeline.BulkPatchPayload
-		for _, app := range apps {
-			payload = append(payload, &pipeline.BulkPatchPayload{AppId: app.Id})
-		}
-		bulkPatchRequest.Payload = payload
-	}
-
-	bulkPatchRequest.UserId = userId
-	if bulkPatchRequest.Global {
-		_, err := handler.configMapService.ConfigSecretGlobalBulkPatch(&bulkPatchRequest)
-		if err != nil {
-			handler.Logger.Errorw("service err, ConfigSecretBulkPatch", "err", err, "payload", bulkPatchRequest)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-	} else {
-		_, err := handler.configMapService.ConfigSecretEnvironmentBulkPatch(&bulkPatchRequest)
-		if err != nil {
-			handler.Logger.Errorw("service err, ConfigSecretBulkPatch", "err", err, "payload", bulkPatchRequest)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-	}
-	writeJsonResp(w, err, true, http.StatusOK)
-}
-
-func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatchV2(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {

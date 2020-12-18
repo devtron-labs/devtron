@@ -51,6 +51,7 @@ type ConfigDataRequest struct {
 
 type BulkPatchRequest struct {
 	Payload     []*BulkPatchPayload `json:"payload"`
+	Filter      *BulkPatchFilter    `json:"filter,omitempty"`
 	ProjectId   int                 `json:"projectId"`
 	Global      bool                `json:"global"`
 	Type        string              `json:"type"`
@@ -66,22 +67,10 @@ type BulkPatchPayload struct {
 	EnvId int `json:"envId"`
 }
 
-type BulkPatchRequestV2 struct {
-	Payload     *BulkPatchPayloadV2 `json:"payload"`
-	ProjectId   int                 `json:"projectId"`
-	Global      bool                `json:"global"`
-	Type        string              `json:"type"`
-	Name        string              `json:"name"`
-	Key         string              `json:"key"`
-	Value       string              `json:"value"`
-	PatchAction int                 `json:"patchAction"`
-	UserId      int32               `json:"-"`
-}
-
-type BulkPatchPayloadV2 struct {
-	AppNameIncludes string `json:"appNameIncludes"`
-	AppNameExcludes string `json:"appNameExcludes"`
-	EnvId           int    `json:"envId"`
+type BulkPatchFilter struct {
+	AppNameIncludes string `json:"appNameIncludes,omitempty"`
+	AppNameExcludes string `json:"appNameExcludes,omitempty"`
+	EnvId           int    `json:"envId,omitempty"`
 }
 
 type ExternalSecret struct {
@@ -1441,6 +1430,16 @@ func (impl ConfigMapServiceImpl) updateConfigData(configData *ConfigData, syncRe
 }
 
 func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error) {
+
+	if bulkPatchRequest.Filter != nil && len(bulkPatchRequest.Filter.AppNameIncludes) > 0 {
+		payload, err := impl.buildBulkPayload(bulkPatchRequest)
+		if err != nil {
+			impl.logger.Errorw("service err, ConfigSecretGlobalBulkPatch", "err", err, "payload", bulkPatchRequest)
+			return nil, fmt.Errorf("")
+		}
+		bulkPatchRequest.Payload = payload
+	}
+
 	if len(bulkPatchRequest.Payload) == 0 {
 		return nil, fmt.Errorf("invalid request no payload found for sync")
 	}
@@ -1516,6 +1515,14 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *B
 }
 
 func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error) {
+	if bulkPatchRequest.Filter != nil && len(bulkPatchRequest.Filter.AppNameIncludes) > 0 {
+		payload, err := impl.buildBulkPayload(bulkPatchRequest)
+		if err != nil {
+			impl.logger.Errorw("service err, ConfigSecretGlobalBulkPatch", "err", err, "payload", bulkPatchRequest)
+			return nil, fmt.Errorf("")
+		}
+		bulkPatchRequest.Payload = payload
+	}
 	if len(bulkPatchRequest.Payload) == 0 {
 		return nil, fmt.Errorf("invalid request no payload found for sync")
 	}
@@ -1619,15 +1626,19 @@ func (impl ConfigMapServiceImpl) validateExternalSecretChartCompatibility(appId 
 	return true, nil
 }
 
-func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchRequestV2) ([]*BulkPatchPayload, error) {
+func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchRequest) ([]*BulkPatchPayload, error) {
 	var payload []*BulkPatchPayload
-	apps, err := impl.appRepository.FetchAppsByFilter(bulkPatchRequest.Payload.AppNameIncludes, bulkPatchRequest.Payload.AppNameExcludes)
+	apps, err := impl.appRepository.FetchAppsByFilter(bulkPatchRequest.Filter.AppNameIncludes, bulkPatchRequest.Filter.AppNameExcludes)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
 		return payload, err
 	}
 	for _, item := range apps {
-		payload = append(payload, &BulkPatchPayload{AppId: item.Id, EnvId: bulkPatchRequest.Payload.EnvId})
+		if bulkPatchRequest.Global {
+			payload = append(payload, &BulkPatchPayload{AppId: item.Id})
+		} else {
+			payload = append(payload, &BulkPatchPayload{AppId: item.Id, EnvId: bulkPatchRequest.Filter.EnvId})
+		}
 	}
 	return payload, nil
 }
