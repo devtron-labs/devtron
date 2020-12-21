@@ -251,16 +251,18 @@ type ConnectedPipelinesMap struct {
 
 func (impl CiPipelineRepositoryImpl) FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*CiPipeline, int, error) {
 	pipeline := &CiPipeline{}
-	var count int
-	query := "SELECT count(p.*) as count FROM pipeline p" +
-		" WHERE p.ci_pipeline_id in (" + sqlIntSeq(childCiPipelineIds) + ") and p.deleted = FALSE"
-	impl.logger.Debugw("query:", query)
-	_, err := impl.dbConnection.Query(&count, query)
-	if err != nil {
-		impl.logger.Error("error in fetching other environment", "error", err)
+	count := 0
+	if len(childCiPipelineIds) > 0 {
+		query := "SELECT count(p.*) as count FROM pipeline p" +
+			" WHERE p.ci_pipeline_id in (" + sqlIntSeq(childCiPipelineIds) + ") and p.deleted = FALSE"
+		impl.logger.Debugw("query:", query)
+		_, err := impl.dbConnection.Query(&count, query)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Error("error in fetching other environment", "error", err)
+			return nil, 0, err
+		}
 	}
-
-	err = impl.dbConnection.Model(pipeline).
+	err := impl.dbConnection.Model(pipeline).
 		Column("ci_pipeline.*", "CiPipelineMaterials", "CiPipelineMaterials.GitMaterial").
 		Where("ci_pipeline.id = ?", parentId).
 		Where("ci_pipeline.deleted = ? ", false).
