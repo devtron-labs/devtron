@@ -116,51 +116,11 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 		return nil, err
 	}
 
-	//TODO- update argocd-cm
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	_, err = impl.updateArgocdConfigMapForDexConfig(request)
 	if err != nil {
+		impl.logger.Errorw("error in creating new sso login config", "error", err)
 		return nil, err
 	}
-	cfg, err := impl.envService.GetClusterConfig(clusterBean)
-	if err != nil {
-		return nil, err
-	}
-
-	client, err := impl.K8sUtil.GetClient(cfg)
-	if err != nil {
-		return nil, err
-	}
-	updateSuccess := false
-	retryCount := 0
-	for !updateSuccess && retryCount < 3 {
-		retryCount = retryCount + 1
-
-		cm, err := impl.K8sUtil.GetConfigMapFast(ArgocdConfigMapNamespace, ArgocdConfigMap, client)
-		if err != nil {
-			return nil, err
-		}
-		updatedData, err := impl.updateSSODexConfigOnAcdConfigMap(request.Config)
-		if err != nil {
-			return nil, err
-		}
-		data := cm.Data
-		data["dex.config"] = updatedData["dex.config"]
-		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMapFast(ArgocdConfigMapNamespace, cm, client)
-		if err != nil {
-			impl.logger.Warnw(" config map failed", "err", err)
-			continue
-		}
-		if err == nil {
-			impl.logger.Warnw(" config map apply succeeded", "on retryCount", retryCount)
-			updateSuccess = true
-		}
-	}
-	if !updateSuccess {
-		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
-	}
-
-	// TODO - END
 
 	err = tx.Commit()
 	if err != nil {
@@ -198,19 +158,35 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		return nil, err
 	}
 
-	//TODO- update argocd-cm
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	_, err = impl.updateArgocdConfigMapForDexConfig(request)
+	if err != nil {
+		impl.logger.Errorw("error in creating new sso login config", "error", err)
+		return nil, err
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		return nil, err
 	}
+	return request, nil
+}
+
+func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.SSOLoginDto) (bool, error) {
+
+	//TODO- update argocd-cm
+	flag := false
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return flag, err
+	}
 	cfg, err := impl.envService.GetClusterConfig(clusterBean)
 	if err != nil {
-		return nil, err
+		return flag, err
 	}
 
 	client, err := impl.K8sUtil.GetClient(cfg)
 	if err != nil {
-		return nil, err
+		return flag, err
 	}
 	updateSuccess := false
 	retryCount := 0
@@ -219,36 +195,32 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 
 		cm, err := impl.K8sUtil.GetConfigMapFast(ArgocdConfigMapNamespace, ArgocdConfigMap, client)
 		if err != nil {
-			return nil, err
+			return flag, err
 		}
 		updatedData, err := impl.updateSSODexConfigOnAcdConfigMap(request.Config)
 		if err != nil {
-			return nil, err
+			return flag, err
 		}
 		data := cm.Data
 		data["dex.config"] = updatedData["dex.config"]
 		cm.Data = data
 		_, err = impl.K8sUtil.UpdateConfigMapFast(ArgocdConfigMapNamespace, cm, client)
 		if err != nil {
-			impl.logger.Warnw(" config map failed", "err", err)
+			impl.logger.Warnw("config map failed", "err", err)
 			continue
 		}
 		if err == nil {
-			impl.logger.Warnw(" config map apply succeeded", "on retryCount", retryCount)
+			impl.logger.Debugw("config map apply succeeded", "on retryCount", retryCount)
 			updateSuccess = true
 		}
 	}
 	if !updateSuccess {
-		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+		return flag, fmt.Errorf("resouce version not matched with config map attemped 3 times")
 	}
 
 	// TODO - END
 
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-	return request, nil
+	return true, nil
 }
 
 func (impl SSOLoginServiceImpl) updateSSODexConfigOnAcdConfigMap(config json.RawMessage) (map[string]string, error) {
