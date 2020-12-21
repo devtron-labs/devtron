@@ -288,9 +288,9 @@ func (impl SSOLoginServiceImpl) GetAll() ([]*bean.SSOLoginDto, error) {
 			Id:     model.Id,
 			Name:   model.Name,
 			Label:  model.Label,
-			Url:    model.Url,
+			//Url:    model.Url,
 			Active: model.Active,
-			Config: config,
+			//Config: config,
 		}
 		ssoLoginDtos = append(ssoLoginDtos, ssoLoginDto)
 	}
