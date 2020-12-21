@@ -51,6 +51,7 @@ type SSOLoginModel struct {
 	TableName struct{} `sql:"sso_login_config"`
 	Id        int32    `sql:"id,pk"`
 	Name      string   `sql:"name,notnull"`
+	Label     string   `sql:"label"`
 	Url       string   `sql:"url"`
 	Config    string   `sql:"config"`
 	Active    bool     `sql:"active,notnull"`
