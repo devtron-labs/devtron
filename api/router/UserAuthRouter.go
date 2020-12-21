@@ -130,6 +130,8 @@ func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) 
 		HandlerFunc(router.userAuthHandler.UpdateSSOLoginConfig).Methods("PUT")
 	userAuthRouter.Path("/sso/list").
 		HandlerFunc(router.userAuthHandler.GetAllSSOLoginConfig).Methods("GET")
+	userAuthRouter.Path("/sso/{id}").
+		HandlerFunc(router.userAuthHandler.GetSSOLoginConfig).Methods("GET")
 }
 
 func (router UserAuthRouterImpl) writeSuccess(message string, w http.ResponseWriter) {
