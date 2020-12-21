@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	"time"
@@ -49,12 +50,14 @@ type SSOLoginServiceImpl struct {
 	K8sUtil             *util.K8sUtil
 	clusterService      cluster.ClusterService
 	envService          cluster.EnvironmentService
+	aCDAuthConfig       *user.ACDAuthConfig
 }
 
 func NewSSOLoginServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
 	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
 	userGroupRepository repository.RoleGroupRepository, ssoLoginRepository repository.SSOLoginRepository,
-	K8sUtil *util.K8sUtil, clusterService cluster.ClusterService, envService cluster.EnvironmentService) *SSOLoginServiceImpl {
+	K8sUtil *util.K8sUtil, clusterService cluster.ClusterService, envService cluster.EnvironmentService,
+	aCDAuthConfig *user.ACDAuthConfig) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		userAuthRepository:  userAuthRepository,
 		sessionManager:      sessionManager,
@@ -66,12 +69,10 @@ func NewSSOLoginServiceImpl(userAuthRepository repository.UserAuthRepository, se
 		K8sUtil:             K8sUtil,
 		clusterService:      clusterService,
 		envService:          envService,
+		aCDAuthConfig:       aCDAuthConfig,
 	}
 	return serviceImpl
 }
-
-const ArgocdConfigMap string = "argocd-cm"
-const ArgocdConfigMapNamespace string = "devtroncd"
 
 func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean.SSOLoginDto, error) {
 	dbConnection := impl.userRepository.GetConnection()
@@ -193,7 +194,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMapFast(ArgocdConfigMapNamespace, ArgocdConfigMap, client)
+		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ArgocdConfigMapNamespace, impl.aCDAuthConfig.ArgocdConfigMap, client)
 		if err != nil {
 			return flag, err
 		}
@@ -204,7 +205,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 		data := cm.Data
 		data["dex.config"] = updatedData["dex.config"]
 		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMapFast(ArgocdConfigMapNamespace, cm, client)
+		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ArgocdConfigMapNamespace, cm, client)
 		if err != nil {
 			impl.logger.Warnw("config map failed", "err", err)
 			continue

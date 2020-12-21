@@ -274,7 +274,7 @@ func InitializeApp() (*App, error) {
 	pubSubClientRestHandlerImpl := restHandler.NewPubSubClientRestHandlerImpl(natsPublishClientImpl, sugaredLogger, cdConfig)
 	webhookRouterImpl := router.NewWebhookRouterImpl(gitWebhookRestHandlerImpl, pipelineConfigRestHandlerImpl, externalCiRestHandlerImpl, pubSubClientRestHandlerImpl)
 	ssoLoginRepositoryImpl := repository.NewSSOLoginRepositoryImpl(db)
-	ssoLoginServiceImpl := sso.NewSSOLoginServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, ssoLoginRepositoryImpl, k8sUtil, clusterServiceImpl, environmentServiceImpl)
+	ssoLoginServiceImpl := sso.NewSSOLoginServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, ssoLoginRepositoryImpl, k8sUtil, clusterServiceImpl, environmentServiceImpl, acdAuthConfig)
 	userAuthHandlerImpl := restHandler.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, userServiceImpl, ssoLoginServiceImpl)
 	userAuthRouterImpl := router.NewUserAuthRouterImpl(sugaredLogger, userAuthHandlerImpl, argocdServerConfig, argoCDSettings, userServiceImpl)
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
