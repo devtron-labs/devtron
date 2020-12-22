@@ -179,20 +179,23 @@ func (impl AppListingServiceImpl) GetReleaseCount(appId, envId int) (int, error)
 }
 
 func (impl AppListingServiceImpl) BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error) {
-	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "3.1")
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "stage", "3.1")
 	appEnvMapping, err := impl.fetchACDAppStatus(fetchAppListingRequest, envContainers)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app statuses", "error", err)
 		return []*bean.AppContainer{}, err
 	}
 	appContainerResponses, err := impl.appListingViewBuilder.BuildView(fetchAppListingRequest, appEnvMapping)
-	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "3.2")
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "stage", "3.2")
 	return appContainerResponses, err
 }
 
 func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest FetchAppListingRequest, existingAppEnvContainers []*bean.AppEnvironmentContainer) (map[string][]*bean.AppEnvironmentContainer, error) {
 	appEnvMapping := make(map[string][]*bean.AppEnvironmentContainer)
-	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "3.1.1")
+	t1 := time.Now()
+	t2 := time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.1")
+	t1 = t2
 	var appNames []string
 	var appIds []int
 	for _, env := range existingAppEnvContainers {
@@ -215,8 +218,9 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		}
 		existingAppEnvStatusMapping[ds.AppName] = ds.Status
 	}
-	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "3.1.2")
-
+	t2 = time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.2")
+	t1 = t2
 	appEnvPipelinesMap := make(map[string][]*pipelineConfig.Pipeline)
 	appEnvCdWorkflowMap := make(map[string]*pipelineConfig.CdWorkflow)
 	appEnvCdWorkflowRunnerMap := make(map[int][]*pipelineConfig.CdWorkflowRunner)
@@ -231,8 +235,9 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	for _, p := range pipelinesAll {
 		pipelineIds = append(pipelineIds, p.Id)
 	}
-	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "3.1.3")
-
+	t2 = time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.3")
+	t1 = t2
 	/*if pipelineIds == nil || len(pipelineIds) == 0 {
 		return appEnvMapping, err
 	}*/
@@ -276,8 +281,9 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 				}
 			}
 		}
-		impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "3.1.4")
-
+		t2 = time.Now()
+		impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.4")
+		t1 = t2
 		//fetch all the cd workflow runner from cdWF ids,
 		cdWorkflowRunnersAll, err := impl.cdWorkflowRepository.FindWorkflowRunnerByCdWorkflowId(wfIds) //TODO - OPTIMIZE 3
 		if err != nil {
@@ -293,11 +299,13 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 				appEnvCdWorkflowRunnerMap[item.CdWorkflowId] = append(appEnvCdWorkflowRunnerMap[item.CdWorkflowId], item)
 			}
 		}
-		impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "3.1.5")
-
+		t2 = time.Now()
+		impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.5")
+		t1 = t2
 	}
-	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "3.1.6")
-
+	t2 = time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.6")
+	t1 = t2
 	for _, env := range existingAppEnvContainers {
 		appKey := strconv.Itoa(env.AppId) + "_" + env.AppName
 		if _, ok := appEnvMapping[appKey]; !ok {
@@ -407,8 +415,9 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 
 		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
 	}
-	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "3.1.7")
-
+	t2 = time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.7")
+	t1 = t2
 	return appEnvMapping, nil
 }
 
