@@ -83,7 +83,7 @@ It will return the list of filtered apps with details related to each env
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	var appEnvArr []*bean.AppEnvironmentContainer
-
+	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "1.1")
 	query := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryLastDeploymentTime()
 	impl.Logger.Debugw("basic app detail query: ", query)
 	var lastDeployedTimeDTO []*bean.AppEnvironmentContainer
@@ -93,6 +93,8 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 		impl.Logger.Error(err)
 		return appEnvArr, err
 	}
+	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "1.2")
+
 	for _, item := range lastDeployedTimeDTO {
 		if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
 			continue
@@ -104,6 +106,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 			CiArtifactId:     item.CiArtifactId,
 		}
 	}
+	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "1.3")
 
 	var appEnvContainer []*bean.AppEnvironmentContainer
 	appsEnvquery := impl.appListingRepositoryQueryBuilder.BuildAppListingQuery(appListingFilter)
@@ -113,6 +116,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 		impl.Logger.Error(appsErr)
 		return appEnvContainer, appsErr
 	}
+	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "1.4")
 
 	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
 	for _, item := range appEnvContainer {
@@ -142,6 +146,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 		appEnvArr = append(appEnvArr, item)
 		latestDeploymentStatusMap[key] = item
 	}
+	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "1.5")
 
 	return appEnvArr, nil
 }

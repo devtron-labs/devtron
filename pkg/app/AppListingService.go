@@ -179,12 +179,14 @@ func (impl AppListingServiceImpl) GetReleaseCount(appId, envId int) (int, error)
 }
 
 func (impl AppListingServiceImpl) BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error) {
+	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "3.1")
 	appEnvMapping, err := impl.fetchACDAppStatus(fetchAppListingRequest, envContainers)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app statuses", "error", err)
 		return []*bean.AppContainer{}, err
 	}
 	appContainerResponses, err := impl.appListingViewBuilder.BuildView(fetchAppListingRequest, appEnvMapping)
+	impl.Logger.Infow("api response time testing", "time", time.Now(), "stage", "3.2")
 	return appContainerResponses, err
 }
 

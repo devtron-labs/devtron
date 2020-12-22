@@ -100,6 +100,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	//Allow CORS here By * or specific origin
 	setupResponse(&w, r)
 	token := r.Header.Get("token")
+	handler.logger.Infow("api response time testing", "time", time.Now(), "stage", "1")
 
 	var fetchAppListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
@@ -124,6 +125,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		writeJsonResp(w, err, "", http.StatusInternalServerError)
 	}
+	handler.logger.Infow("api response time testing", "time", time.Now(), "stage", "2")
+
 	appEnvs := make([]*bean.AppEnvironmentContainer, 0)
 
 	rbacObjects := handler.enforcerUtil.GetAppRBACNameV2()
@@ -138,12 +141,14 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			appEnvs = append(appEnvs, env)
 		}
 	}
-
+	handler.logger.Infow("api response time testing", "time", time.Now(), "stage", "3")
 	apps, err := handler.appListingService.BuildAppListingResponse(fetchAppListingRequest, appEnvs)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		writeJsonResp(w, err, "", http.StatusInternalServerError)
 	}
+	handler.logger.Infow("api response time testing", "time", time.Now(), "stage", "4")
+
 
 	// Apply pagination
 	appsCount := len(apps)
@@ -179,6 +184,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			CiMaterialDTOs: ciMaterialDTOs,
 		}
 	}
+	handler.logger.Infow("api response time testing", "time", time.Now(), "stage", "5")
 	writeJsonResp(w, err, appContainerResponse, http.StatusOK)
 }
 
