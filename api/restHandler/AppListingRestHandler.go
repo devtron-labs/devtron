@@ -100,6 +100,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	//Allow CORS here By * or specific origin
 	setupResponse(&w, r)
 	token := r.Header.Get("token")
+	t1 := time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(), "stage", "1")
 
 	var fetchAppListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
@@ -124,9 +126,15 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		writeJsonResp(w, err, "", http.StatusInternalServerError)
 	}
+	t2 := time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(),"time diff", t2.Unix()-t1.Unix(), "stage", "2")
+	t1=t2
 	appEnvs := make([]*bean.AppEnvironmentContainer, 0)
 
 	rbacObjects := handler.enforcerUtil.GetAppRBACNameV2()
+	t2 = time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(),"time diff", t2.Unix()-t1.Unix(), "stage", "2.1")
+	t1=t2
 	for _, env := range envContainers {
 		if fetchAppListingRequest.DeploymentGroupId > 0 {
 			if env.EnvironmentId != 0 && env.EnvironmentId != dg.EnvironmentId {
@@ -138,13 +146,17 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			appEnvs = append(appEnvs, env)
 		}
 	}
-
+	t2 = time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(),"time diff", t2.Unix()-t1.Unix(), "stage", "3")
+	t1=t2
 	apps, err := handler.appListingService.BuildAppListingResponse(fetchAppListingRequest, appEnvs)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		writeJsonResp(w, err, "", http.StatusInternalServerError)
 	}
-
+	t2 = time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(),"time diff", t2.Unix()-t1.Unix(), "stage", "4")
+	t1=t2
 	// Apply pagination
 	appsCount := len(apps)
 	offset := fetchAppListingRequest.Offset
@@ -179,6 +191,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			CiMaterialDTOs: ciMaterialDTOs,
 		}
 	}
+	t2 = time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(),"time diff", t2.Unix()-t1.Unix(), "stage", "5")
+	t1=t2
 	writeJsonResp(w, err, appContainerResponse, http.StatusOK)
 }
 
