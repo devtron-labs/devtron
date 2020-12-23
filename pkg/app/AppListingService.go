@@ -306,6 +306,8 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	t2 = time.Now()
 	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.6")
 	t1 = t2
+	t3 := time.Now()
+	t4 := time.Now()
 	for _, env := range existingAppEnvContainers {
 		appKey := strconv.Itoa(env.AppId) + "_" + env.AppName
 		if _, ok := appEnvMapping[appKey]; !ok {
@@ -350,9 +352,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 				postCdStageRunner = runner
 			}
 		}
-		t2 = time.Now()
-		impl.Logger.Infow("api response time testing status setting", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.6.1")
-		t1 = t2
+
 		if latestTriggeredWf.WorkflowStatus == pipelineConfig.WF_STARTED || latestTriggeredWf.WorkflowStatus == pipelineConfig.WF_UNKNOWN {
 			if pipeline.PreStageConfig != "" {
 				if preCdStageRunner != nil && preCdStageRunner.Id != 0 {
@@ -416,9 +416,12 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		}
 
 		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
-		t2 = time.Now()
-		impl.Logger.Infow("api response time testing status setting", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.6.2", "status", latestTriggeredWf.WorkflowStatus)
-		t1 = t2
+		t4 = time.Now()
+		timeDiff := t4.Unix() - t3.Unix()
+		if timeDiff > 0 {
+			impl.Logger.Infow("api response time testing status setting", "time", time.Now().String(), "time diff", timeDiff, "stage", "3.1.6.2", "env", env)
+		}
+		t3 = t4
 	}
 	t2 = time.Now()
 	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.7")
