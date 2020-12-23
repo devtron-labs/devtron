@@ -77,6 +77,7 @@ type AppListingService interface {
 	GetLastDeploymentStatusesByAppNames(appNames []string) ([]repository.DeploymentStatus, error)
 	GetLastDeploymentStatuses() (map[string]repository.DeploymentStatus, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
+	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
 }
 
@@ -164,6 +165,27 @@ func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool,
 	} else {
 		return models.DEPLOYMENTTYPE_STOP == override.DeploymentType, nil
 	}
+}
+
+func (impl AppListingServiceImpl) ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error) {
+	releaseMap := make(map[int]bool)
+	if len(pipelineIds) == 0 {
+		return releaseMap, nil
+	}
+	overrides, err := impl.pipelineOverrideRepository.GetLatestReleaseByPipelineIds(pipelineIds)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("error in getting last release")
+		return releaseMap, err
+	} else if util.IsErrNoRows(err) {
+		return releaseMap, nil
+	}
+	for _, override := range overrides {
+		if _, ok := releaseMap[override.PipelineId]; !ok {
+			isStopType := models.DEPLOYMENTTYPE_STOP == override.DeploymentType
+			releaseMap[override.PipelineId] = isStopType
+		}
+	}
+	return releaseMap, nil
 }
 
 func (impl AppListingServiceImpl) GetReleaseCount(appId, envId int) (int, error) {
@@ -306,6 +328,10 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	t2 = time.Now()
 	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.6")
 	t1 = t2
+	t3 := time.Now()
+	t4 := time.Now()
+	releaseMap, _ := impl.ISLastReleaseStopTypeV2(pipelineIds)
+
 	for _, env := range existingAppEnvContainers {
 		appKey := strconv.Itoa(env.AppId) + "_" + env.AppName
 		if _, ok := appEnvMapping[appKey]; !ok {
@@ -371,10 +397,11 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			if cdStageRunner != nil {
 				status := cdStageRunner.Status
 				if status == v1alpha1.HealthStatusHealthy {
-					stopType, err := impl.ISLastReleaseStopType(pipeline.AppId, pipeline.EnvironmentId)
+					/*stopType, err := impl.ISLastReleaseStopType(pipeline.AppId, pipeline.EnvironmentId)
 					if err != nil {
 						impl.Logger.Errorw("error in determining stop", "err", err)
-					}
+					}*/
+					stopType := releaseMap[pipeline.Id]
 					if stopType {
 						status = application2.HIBERNATING
 						env.Status = status
@@ -414,6 +441,12 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		}
 
 		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
+		t4 = time.Now()
+		timeDiff := t4.Unix() - t3.Unix()
+		if timeDiff > 0 {
+			impl.Logger.Infow("api response time testing status setting", "time", time.Now().String(), "time diff", timeDiff, "stage", "3.1.6.2", "env", env)
+		}
+		t3 = t4
 	}
 	t2 = time.Now()
 	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.7")
