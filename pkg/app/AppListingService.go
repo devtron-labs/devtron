@@ -350,7 +350,9 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 				postCdStageRunner = runner
 			}
 		}
-
+		t2 = time.Now()
+		impl.Logger.Infow("api response time testing status setting", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.6.1")
+		t1 = t2
 		if latestTriggeredWf.WorkflowStatus == pipelineConfig.WF_STARTED || latestTriggeredWf.WorkflowStatus == pipelineConfig.WF_UNKNOWN {
 			if pipeline.PreStageConfig != "" {
 				if preCdStageRunner != nil && preCdStageRunner.Id != 0 {
@@ -414,6 +416,9 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		}
 
 		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
+		t2 = time.Now()
+		impl.Logger.Infow("api response time testing status setting", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.6.2", "status", latestTriggeredWf.WorkflowStatus)
+		t1 = t2
 	}
 	t2 = time.Now()
 	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.7")
