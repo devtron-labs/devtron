@@ -122,7 +122,7 @@ func (impl ApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter,
 	}
 	envRbacObject := impl.enforcerUtil.GetEnvRBACNameByAppId(id, eId)
 	if envRbacObject == "" {
-		writeJsonResp(w, fmt.Errorf("envId is incorrect"), nil, http.StatusBadRequest)
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusBadRequest)
 		return
 	}
 	request.EnvironmentId = eId

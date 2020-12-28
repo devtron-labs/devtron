@@ -24,6 +24,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"io/ioutil"
+	"os"
 	"time"
 )
 
@@ -223,8 +225,7 @@ func (impl EnvironmentServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util
 	host := cluster.ServerUrl
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
-	//FIXME uncomment this
-	/*if cluster.Id == 1 && cluster.ClusterName == ClusterName {
+	if cluster.Id == 1 && cluster.ClusterName == ClusterName {
 		if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
 			impl.logger.Errorw("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
 			return nil, err
@@ -236,7 +237,7 @@ func (impl EnvironmentServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util
 			}
 			bearerToken = string(content)
 		}
-	}*/
+	}
 	clusterCfg := &util.ClusterConfig{Host: host, BearerToken: bearerToken}
 	return clusterCfg, nil
 }
