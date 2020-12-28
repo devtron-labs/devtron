@@ -57,6 +57,7 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*cluster.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
+	GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -117,7 +118,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		return mappings, err
 	}
 	if len(model.Namespace) > 0 {
-		cfg, err := impl.getClusterConfig(clusterBean)
+		cfg, err := impl.GetClusterConfig(clusterBean)
 		if err != nil {
 			return nil, err
 		}
@@ -220,7 +221,7 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*EnvironmentBean, error) {
 	return bean, nil
 }
 
-func (impl EnvironmentServiceImpl) getClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error) {
+func (impl EnvironmentServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error) {
 	host := cluster.ServerUrl
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
@@ -266,7 +267,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 
 	//namespace create if not exist
 	if len(model.Namespace) > 0 {
-		cfg, err := impl.getClusterConfig(clusterBean)
+		cfg, err := impl.GetClusterConfig(clusterBean)
 		if err != nil {
 			return nil, err
 		}
