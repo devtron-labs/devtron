@@ -19,7 +19,7 @@
         ]
       },
       "path": "{{.RepoPath}}",
-      "repoURL": "{{RepoUrl}}",
+      "repoURL": "{{.RepoUrl}}",
       "targetRevision": "HEAD"
     },
     "syncPolicy": {
