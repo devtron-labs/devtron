@@ -92,3 +92,19 @@ func (impl K8sUtil) deleteNs(namespace string, client *v12.CoreV1Client) error {
 	err := client.Namespaces().Delete(namespace, &metav1.DeleteOptions{})
 	return err
 }
+
+func (impl K8sUtil) CreateArgoApplication(namespace string, application string, clusterConfig *ClusterConfig) error {
+	client, err := impl.getClient(clusterConfig)
+	if err != nil {
+		return err
+	}
+	res, err := client.RESTClient().
+		Post().
+		Resource("Application").
+		Namespace(namespace).
+		Body(application).
+		Do().
+		Get()
+	impl.logger.Infow("argo app create res", "res", res, "err", err)
+	return err
+}
