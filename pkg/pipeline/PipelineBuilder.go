@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -41,9 +40,11 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -117,6 +118,7 @@ type PipelineBuilderImpl struct {
 	appService                    app.AppService
 	imageScanResultRepository     security.ImageScanResultRepository
 	GitClient                     util.GitClient
+	K8sUtil                       *util.K8sUtil
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -142,6 +144,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	appService app.AppService,
 	imageScanResultRepository security.ImageScanResultRepository,
 	GitClient util.GitClient,
+	K8sUtil *util.K8sUtil,
 ) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
@@ -167,6 +170,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		imageScanResultRepository:     imageScanResultRepository,
 		GitClient:                     GitClient,
+		K8sUtil:                       K8sUtil,
 	}
 }
 
@@ -1320,40 +1324,79 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 		if len(appNamespace) == 0 {
 			appNamespace = "default"
 		}
-
-		gocdApplication := v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{Name: argoAppName},
-			Spec: v1alpha1.ApplicationSpec{
-				Destination: v1alpha1.ApplicationDestination{Server: envModel.Cluster.ServerUrl, Namespace: appNamespace},
-				Source: v1alpha1.ApplicationSource{
-					Path:           chart.ChartLocation,
-					RepoURL:        chart.GitRepoUrl,
-					TargetRevision: "HEAD",
-					Helm: &v1alpha1.ApplicationSourceHelm{
-						ValueFiles: []string{getValuesFileForEnv(pipeline.EnvironmentId)},
-					},
-				},
-				Project:    "default",
-				SyncPolicy: &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{Prune: true}},
-			},
+		namespace := "devtroncd"
+		appRequest := AppTemplate{
+			ApplicationName: argoAppName,
+			Namespace:       namespace,
+			TargetNamespace: appNamespace,
+			TargetServer:    envModel.Cluster.ServerUrl,
+			Project:         "default",
+			ValuesFile:      getValuesFileForEnv(pipeline.EnvironmentId),
+			RepoPath:        chart.ChartLocation,
+			RepoUrl:         chart.GitRepoUrl,
 		}
-		upsert := true
-		create := &application2.ApplicationCreateRequest{
-			Application: gocdApplication,
-			Upsert:      &upsert,
-		}
-		impl.logger.Infow("ass create req", "req", create)
-		appRes, err := impl.application.Create(ctx, create)
+		chartYamlContent, err := ioutil.ReadFile(filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE.JSON "))
 		if err != nil {
-			impl.logger.Errorw("error in creating argo pipeline", "name", pipeline.Name, "err", err)
+			impl.logger.Errorw("err in reading template", "err", err)
 			return "", err
 		}
-		impl.logger.Debugw("pipeline create res ", "res", appRes)
+		applicationRequestString, err := util.Tprintf(string(chartYamlContent), appRequest)
+		if err != nil {
+			impl.logger.Errorw("error in rendring application template", "req", appRequest, "err", err)
+			return "", err
+		}
+		config, err := impl.getClusterConfig(envModel.Cluster)
+		if err != nil {
+			impl.logger.Errorw("error in config", "err", err)
+			return "", err
+		}
+		err = impl.K8sUtil.CreateArgoApplication(namespace, applicationRequestString, config)
+		if err != nil {
+			impl.logger.Errorw("error in creating acd application", "err", err)
+			return "", err
+		}
+		impl.logger.Infow("argo application created successfully", "name", argoAppName)
 		return argoAppName, nil
+
 	} else {
 		impl.logger.Errorw("err in checking application on gocd", "err", err, "pipeline", pipeline.Name)
 		return "", err
 	}
+}
+
+const ClusterName = "default_cluster"
+const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+
+func (impl PipelineBuilderImpl) getClusterConfig(cluster *cluster.Cluster) (*util.ClusterConfig, error) {
+	host := cluster.ServerUrl
+	configMap := cluster.Config
+	bearerToken := configMap["bearer_token"]
+	if cluster.Id == 1 && cluster.ClusterName == ClusterName {
+		if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
+			impl.logger.Errorw("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
+			return nil, err
+		} else {
+			content, err := ioutil.ReadFile(TokenFilePath)
+			if err != nil {
+				impl.logger.Errorw("error on reading file", "err", err)
+				return nil, err
+			}
+			bearerToken = string(content)
+		}
+	}
+	clusterCfg := &util.ClusterConfig{Host: host, BearerToken: bearerToken}
+	return clusterCfg, nil
+}
+
+type AppTemplate struct {
+	ApplicationName string
+	Namespace       string
+	TargetNamespace string
+	TargetServer    string
+	Project         string
+	ValuesFile      string
+	RepoPath        string
+	RepoUrl         string
 }
 
 func getValuesFileForEnv(environmentId int) string {
@@ -1749,11 +1792,11 @@ func (impl PipelineBuilderImpl) GetAppListByTeamIds(teamIds []int) ([]*TeamAppBe
 	}
 	for _, app := range apps {
 		if _, ok := teamMap[app.TeamId]; ok {
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName,})
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
 		} else {
 
-			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name,}
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName,})
+			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
 		}
 	}
 

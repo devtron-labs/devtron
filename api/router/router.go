@@ -127,11 +127,6 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 
 func (r MuxRouter) Init() {
 
-	/*var dir string
-	flag.StringVar(&dir, "dir", "./static", "the directory to serve files from. Defaults to the current dir")
-
-	r.Router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(dir))))*/
-	//	r.Router.Handle("/ws/", terminal.CreateAttachHandler("/ws"))
 	r.Router.PathPrefix("/api/vi/pod/exec/ws").Handler(terminal.CreateAttachHandler("/api/vi/pod/exec/ws"))
 
 	r.Router.StrictSlash(true)

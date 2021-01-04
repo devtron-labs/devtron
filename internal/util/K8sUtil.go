@@ -96,6 +96,22 @@ func (impl K8sUtil) deleteNs(namespace string, client *v12.CoreV1Client) error {
 	return err
 }
 
+func (impl K8sUtil) CreateArgoApplication(namespace string, application string, clusterConfig *ClusterConfig) error {
+	client, err := impl.getClient(clusterConfig)
+	if err != nil {
+		return err
+	}
+	res, err := client.RESTClient().
+		Post().
+		Resource("Application").
+		Namespace(namespace).
+		Body(application).
+		Do().
+		Get()
+	impl.logger.Infow("argo app create res", "res", res, "err", err)
+	return err
+}
+
 func (impl K8sUtil) GetConfigMap(namespace string, name string, clusterConfig *ClusterConfig) (*v1.ConfigMap, error) {
 	client, err := impl.GetClient(clusterConfig)
 	if err != nil {
