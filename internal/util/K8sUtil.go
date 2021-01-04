@@ -103,7 +103,7 @@ func (impl K8sUtil) CreateArgoApplication(namespace string, application string, 
 	}
 	res, err := client.RESTClient().
 		Post().
-		Resource("Application").
+		Resource("application").
 		Namespace(namespace).
 		Body([]byte(application)).
 		Do().
