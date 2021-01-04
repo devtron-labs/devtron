@@ -26,8 +26,10 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -57,16 +59,18 @@ type ApplicationRestHandler interface {
 	DeleteResource(w http.ResponseWriter, r *http.Request)
 
 	GetServiceLink(w http.ResponseWriter, r *http.Request)
+	GetTerminalSession(w http.ResponseWriter, r *http.Request)
 }
 
 type ApplicationRestHandlerImpl struct {
-	client             application.ServiceClient
-	logger             *zap.SugaredLogger
-	pump               connector.Pump
-	enforcer           rbac.Enforcer
-	teamService        team.TeamService
-	environmentService cluster.EnvironmentService
-	enforcerUtil       rbac.EnforcerUtil
+	client                 application.ServiceClient
+	logger                 *zap.SugaredLogger
+	pump                   connector.Pump
+	enforcer               rbac.Enforcer
+	teamService            team.TeamService
+	environmentService     cluster.EnvironmentService
+	enforcerUtil           rbac.EnforcerUtil
+	terminalSessionHandler terminal.TerminalSessionHandler
 }
 
 func NewApplicationRestHandlerImpl(client application.ServiceClient,
@@ -74,16 +78,66 @@ func NewApplicationRestHandlerImpl(client application.ServiceClient,
 	enforcer rbac.Enforcer,
 	teamService team.TeamService,
 	environmentService cluster.EnvironmentService,
-	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil) *ApplicationRestHandlerImpl {
+	logger *zap.SugaredLogger,
+	enforcerUtil rbac.EnforcerUtil,
+	terminalSessionHandler terminal.TerminalSessionHandler) *ApplicationRestHandlerImpl {
 	return &ApplicationRestHandlerImpl{
-		client:             client,
-		logger:             logger,
-		pump:               pump,
-		enforcer:           enforcer,
-		teamService:        teamService,
-		environmentService: environmentService,
-		enforcerUtil:       enforcerUtil,
+		client:                 client,
+		logger:                 logger,
+		pump:                   pump,
+		enforcer:               enforcer,
+		teamService:            teamService,
+		environmentService:     environmentService,
+		enforcerUtil:           enforcerUtil,
+		terminalSessionHandler: terminalSessionHandler,
 	}
+}
+
+func (impl ApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	request := &terminal.TerminalSessionRequest{}
+	vars := mux.Vars(r)
+	request.ContainerName = vars["container"]
+	request.Namespace = vars["namespace"]
+	request.PodName = vars["pod"]
+	request.Shell = vars["shell"]
+	appId := vars["appId"]
+	envId := vars["environmentId"]
+	//---------auth
+	id, err := strconv.Atoi(appId)
+	if err != nil {
+		writeJsonResp(w, fmt.Errorf("appId is not integer"), nil, http.StatusBadRequest)
+		return
+	}
+	eId, err := strconv.Atoi(envId)
+	if err != nil {
+		writeJsonResp(w, fmt.Errorf("envId is not integer"), nil, http.StatusBadRequest)
+		return
+	}
+	request.AppId = id
+	appRbacObject := impl.enforcerUtil.GetAppRBACNameByAppId(id)
+	if appRbacObject == "" {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	envRbacObject := impl.enforcerUtil.GetEnvRBACNameByAppId(id, eId)
+	if envRbacObject == "" {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusBadRequest)
+		return
+	}
+	request.EnvironmentId = eId
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, appRbacObject); !ok {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, envRbacObject); !ok {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//---------auth end
+	//TODO apply validation
+	status, message, err := impl.terminalSessionHandler.GetTerminalSession(request)
+	writeJsonResp(w, err, message, status)
 }
 
 func (impl ApplicationRestHandlerImpl) Watch(w http.ResponseWriter, r *http.Request) {
