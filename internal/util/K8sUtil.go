@@ -97,7 +97,7 @@ func (impl K8sUtil) deleteNs(namespace string, client *v12.CoreV1Client) error {
 }
 
 func (impl K8sUtil) CreateArgoApplication(namespace string, application string, clusterConfig *ClusterConfig) error {
-	client, err := impl.getClient(clusterConfig)
+	client, err := impl.GetClient(clusterConfig)
 	if err != nil {
 		return err
 	}
