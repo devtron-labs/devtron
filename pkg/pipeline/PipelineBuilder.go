@@ -1828,57 +1828,6 @@ func (impl PipelineBuilderImpl) GetAppList() ([]AppBean, error) {
 	return appsRes, err
 }
 
-func (impl PipelineBuilderImpl) updateArgoPipeline(appId int, pipelineName string, envId int, ctx context.Context) (bool, error) {
-	//repo has been registered while helm create
-	app, err := impl.GetApp(appId)
-	if err != nil {
-		impl.logger.Errorw("no app found ", "err", err)
-		return false, err
-	}
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
-	if err != nil {
-		impl.logger.Errorw("no chart found ", "app", app.Id)
-		return false, err
-	}
-	envModel, err := impl.environmentRepository.FindById(envId)
-	if err != nil {
-		return false, err
-	}
-	argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
-	application, err := impl.application.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName})
-	if err != nil {
-		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline", pipelineName)
-		return false, err
-	}
-	//if status, ok:=status.FromError(err);ok{
-	appStatus, _ := status.FromError(err)
-
-	if appStatus.Code() == codes.OK {
-		impl.logger.Infow("argo app exists", "app", argoAppName, "pipeline", pipelineName)
-
-		if application.Spec.Source.Path != chart.ChartLocation {
-			application.Spec.Source.Path = chart.ChartLocation
-			updateReq := &application2.ApplicationUpdateRequest{
-				Application: application,
-			}
-			appRes, err := impl.application.Update(ctx, updateReq)
-			if err != nil {
-				impl.logger.Errorw("error in creating argo pipeline ", "err", err, "name", pipelineName)
-				return false, err
-			}
-			impl.logger.Debugw("pipeline update req ", "res", appRes)
-		} else {
-			impl.logger.Debug("pipeline no need to update ")
-		}
-		return true, nil
-	} else if appStatus.Code() == codes.NotFound {
-		impl.logger.Infow("argo app not found", "app", argoAppName, "pipeline", pipelineName)
-		return false, nil
-	} else {
-		impl.logger.Errorw("err in checking application on gocd", "err", err, "pipeline", pipelineName)
-		return false, err
-	}
-}
 
 func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error) {
 	pipelineStrategiesResponse := PipelineStrategiesResponse{}
