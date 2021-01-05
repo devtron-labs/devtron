@@ -50,6 +50,7 @@ type AppRepository interface {
 	CheckAppExists(appNames []string) ([]*App, error)
 
 	FindByIds(ids []*int) ([]*App, error)
+	FetchAppsByFilter(appNameIncludes string, appNameExcludes string) ([]*App, error)
 }
 
 type AppRepositoryImpl struct {
@@ -155,5 +156,23 @@ func (repo AppRepositoryImpl) FindTeamByAppNameV2() ([]*App, error) {
 func (repo AppRepositoryImpl) FindByIds(ids []*int) ([]*App, error) {
 	var apps []*App
 	err := repo.dbConnection.Model(&apps).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
+	return apps, err
+}
+
+func (repo AppRepositoryImpl) FetchAppsByFilter(appNameIncludes string, appNameExcludes string) ([]*App, error) {
+	var apps []*App
+	var err error
+	if len(appNameExcludes) > 0 {
+		err = repo.dbConnection.
+			Model(&apps).Where("app_name like ?", ""+appNameIncludes+"%").
+			Where("app_name not like ?", ""+appNameExcludes+"%").Where("active=?", true).
+			Where("app_store=?", false).
+			Select()
+	} else {
+		err = repo.dbConnection.
+			Model(&apps).Where("app_name like ?", ""+appNameIncludes+"%").
+			Where("active=?", true).Where("app_store=?", false).
+			Select()
+	}
 	return apps, err
 }
