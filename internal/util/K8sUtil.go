@@ -122,6 +122,6 @@ func (impl K8sUtil) CreateArgoApplication(namespace string, application string, 
 		Namespace(namespace).
 		Body([]byte(application)).
 		Do().Raw()
-	impl.logger.Infow("argo app create res", "res", res, "err", err)
+	impl.logger.Infow("argo app create res", "res", string(res), "err", err)
 	return err
 }
