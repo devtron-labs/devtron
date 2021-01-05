@@ -18,6 +18,7 @@
 package appstore
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"time"
@@ -115,4 +116,18 @@ const BULK_APPSTORE_DEPLOY_DURABLE = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY.DURABLE
 
 type DeployPayload struct {
 	InstalledAppVersionId int
+}
+
+type ChartRepoDto struct {
+	Id          int                 `json:"id,omitempty" validate:"number"`
+	Name        string              `json:"name,omitempty" validate:"required"`
+	Url         string              `json:"url,omitempty"`
+	UserName    string              `json:"userName,omitempty"`
+	Password    string              `json:"password,omitempty"`
+	SshKey      string              `json:"sshKey,omitempty"`
+	AccessToken string              `json:"accessToken,omitempty"`
+	AuthMode    repository.AuthMode `json:"authMode,omitempty" validate:"required"`
+	Active      bool                `json:"active"`
+	Default     bool                `json:"default"`
+	UserId      int32               `json:"-"`
 }

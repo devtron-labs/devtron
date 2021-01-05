@@ -34,12 +34,17 @@ func NewTestSuitRouterImpl(testSuitRouter restHandler.TestSuitRestHandler) *Test
 }
 
 func (impl TestSuitRouterImpl) InitTestSuitRouter(configRouter *mux.Router) {
-	configRouter.Path("/suites/proxy").HandlerFunc(impl.testSuitRouter.SuitesProxy).Methods("POST")
-	configRouter.Path("/suites/list").HandlerFunc(impl.testSuitRouter.GetTestSuites).Methods("GET")
-	configRouter.Path("/suites/list/detail").HandlerFunc(impl.testSuitRouter.DetailedTestSuites).Methods("GET")
-	configRouter.Path("/suites/{pipelineId}").HandlerFunc(impl.testSuitRouter.GetAllSuitByID).Methods("GET")
-	configRouter.Path("/cases").HandlerFunc(impl.testSuitRouter.GetAllTestCases).Methods("GET")
-	configRouter.Path("/cases/{pipelineId}").HandlerFunc(impl.testSuitRouter.GetTestCaseByID).Methods("GET")
-	configRouter.Path("/trigger/{pipelineId}").HandlerFunc(impl.testSuitRouter.RedirectTriggerForApp).Methods("GET")
-	configRouter.Path("/trigger/{pipelineId}/{triggerId}").HandlerFunc(impl.testSuitRouter.RedirectTriggerForEnv).Methods("GET")
+	configRouter.Path("/testsuite/{appId}").HandlerFunc(impl.testSuitRouter.RedirectTestSuites).Methods("GET")
+	configRouter.Path("/testsuite/{appId}/detailed").HandlerFunc(impl.testSuitRouter.RedirectDetailedTestSuites).Methods("GET")
+	configRouter.Path("/testsuite/{appId}/{pipelineId}").HandlerFunc(impl.testSuitRouter.RedirectSuitByID).Methods("GET")
+
+	configRouter.Path("/testcase/{appId}").HandlerFunc(impl.testSuitRouter.RedirectTestCases).Methods("GET")
+	configRouter.Path("/testcase/{appId}/{pipelineId}").HandlerFunc(impl.testSuitRouter.RedirectTestCaseByID).Methods("GET")
+
+	configRouter.Path("/triggers/{appId}/{pipelineId}").HandlerFunc(impl.testSuitRouter.RedirectTriggerForPipeline).Methods("GET")
+	configRouter.Path("/triggers/{appId}/{pipelineId}/{triggerId}").HandlerFunc(impl.testSuitRouter.RedirectTriggerForBuild).Methods("GET")
+
+	configRouter.Path("/filters/{appId}/{pipelineId}").HandlerFunc(impl.testSuitRouter.RedirectFilterForPipeline).Methods("GET")
+	configRouter.Path("/filters/{appId}/{pipelineId}/{triggerId}").HandlerFunc(impl.testSuitRouter.RedirectFilterForBuild).Methods("GET")
+
 }

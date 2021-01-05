@@ -50,6 +50,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
+	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -609,6 +610,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(terminal.TerminalSessionHandler), new(*terminal.TerminalSessionHandlerImpl)),
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
+
+		sso.NewSSOLoginServiceImpl,
+		wire.Bind(new(sso.SSOLoginService), new(*sso.SSOLoginServiceImpl)),
+		repository.NewSSOLoginRepositoryImpl,
+		wire.Bind(new(repository.SSOLoginRepository), new(*repository.SSOLoginRepositoryImpl)),
 	)
 	return &App{}, nil
 }

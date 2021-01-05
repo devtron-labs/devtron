@@ -18,6 +18,7 @@
 package util
 
 import (
+	"encoding/json"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -39,7 +40,7 @@ func NewK8sUtil(logger *zap.SugaredLogger) *K8sUtil {
 	return &K8sUtil{logger: logger}
 }
 
-func (impl K8sUtil) getClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
+func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
 	cfg := &rest.Config{}
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
@@ -49,7 +50,7 @@ func (impl K8sUtil) getClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 }
 
 func (impl K8sUtil) CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (err error) {
-	client, err := impl.getClient(clusterConfig)
+	client, err := impl.GetClient(clusterConfig)
 	if err != nil {
 		return err
 	}
@@ -76,6 +77,7 @@ func (impl K8sUtil) checkIfNsExists(namespace string, client *v12.CoreV1Client) 
 	} else {
 		return true, nil
 	}
+
 }
 
 func (impl K8sUtil) createNs(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, err error) {
@@ -92,4 +94,5 @@ func (impl K8sUtil) deleteNs(namespace string, client *v12.CoreV1Client) error {
 	err := client.Namespaces().Delete(namespace, &metav1.DeleteOptions{})
 	return err
 }
+
 

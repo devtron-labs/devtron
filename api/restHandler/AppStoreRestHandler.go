@@ -19,10 +19,13 @@ package restHandler
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -30,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 	"time"
@@ -42,6 +46,8 @@ type AppStoreRestHandler interface {
 	FetchAppDetailsForInstalledApp(w http.ResponseWriter, r *http.Request)
 	GetReadme(w http.ResponseWriter, r *http.Request)
 	SearchAppStoreChartByName(w http.ResponseWriter, r *http.Request)
+	CreateChartRepo(w http.ResponseWriter, r *http.Request)
+	UpdateChartRepo(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreRestHandlerImpl struct {
@@ -52,11 +58,14 @@ type AppStoreRestHandlerImpl struct {
 	enforcer         rbac.Enforcer
 	acdServiceClient application.ServiceClient
 	enforcerUtil     rbac.EnforcerUtil
+	validator        *validator.Validate
+	client           *http.Client
 }
 
 func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appStoreService appstore.AppStoreService,
 	acdServiceClient application.ServiceClient, teamService team.TeamService,
-	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil) *AppStoreRestHandlerImpl {
+	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil,
+	validator *validator.Validate, client *http.Client) *AppStoreRestHandlerImpl {
 	return &AppStoreRestHandlerImpl{
 		Logger:           Logger,
 		appStoreService:  appStoreService,
@@ -65,6 +74,8 @@ func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.
 		acdServiceClient: acdServiceClient,
 		enforcer:         enforcer,
 		enforcerUtil:     enforcerUtil,
+		validator:        validator,
+		client:           client,
 	}
 }
 
@@ -254,4 +265,127 @@ func (handler *AppStoreRestHandlerImpl) SearchAppStoreChartByName(w http.Respons
 		return
 	}
 	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var request *appstore.ChartRepoDto
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, CreateChartRepo", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, CreateChartRepo", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateChartRepo", "err", err, "id", userId)
+		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+
+	if !isActionUserSuperAdmin {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+		valid := handler.ValidateRepo(request)
+		if !valid {
+			writeJsonResp(w, fmt.Errorf("invalid chart repo"), nil, http.StatusBadRequest)
+			return
+		}
+	}
+	//rback block ends here
+	request.UserId = userId
+	handler.Logger.Infow("request payload, CreateChartRepo", "payload", request)
+	res, err := handler.appStoreService.CreateChartRepo(request)
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateChartRepo", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var request *appstore.ChartRepoDto
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, UpdateChartRepo", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, UpdateChartRepo", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateChartRepo", "err", err, "id", userId)
+		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+
+	if !isActionUserSuperAdmin {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+
+	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+		valid := handler.ValidateRepo(request)
+		if !valid {
+			writeJsonResp(w, fmt.Errorf("invalid chart repo"), nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	//rback block ends here
+	request.UserId = userId
+	handler.Logger.Infow("request payload, UpdateChartRepo", "payload", request)
+	res, err := handler.appStoreService.UpdateChartRepo(request)
+	if err != nil {
+		handler.Logger.Errorw("service err, UpdateChartRepo", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *AppStoreRestHandlerImpl) ValidateRepo(request *appstore.ChartRepoDto) bool {
+	req, err := http.NewRequest(http.MethodGet, request.Url, nil)
+	if err != nil {
+		return false
+	}
+	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+		auth := request.UserName + ":" + request.Password
+		basicAuth := base64.StdEncoding.EncodeToString([]byte(auth))
+		req.Header.Add("Authorization", "Basic "+basicAuth)
+		res, err := handler.client.Do(req)
+		if err != nil {
+			return false
+		}
+		if res.StatusCode >= 200 && res.StatusCode <= 299 {
+			return true
+		}
+
+	}
+	return false
 }

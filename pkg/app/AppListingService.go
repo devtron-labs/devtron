@@ -77,6 +77,7 @@ type AppListingService interface {
 	GetLastDeploymentStatusesByAppNames(appNames []string) ([]repository.DeploymentStatus, error)
 	GetLastDeploymentStatuses() (map[string]repository.DeploymentStatus, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
+	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
 }
 
@@ -166,6 +167,27 @@ func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool,
 	}
 }
 
+func (impl AppListingServiceImpl) ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error) {
+	releaseMap := make(map[int]bool)
+	if len(pipelineIds) == 0 {
+		return releaseMap, nil
+	}
+	overrides, err := impl.pipelineOverrideRepository.GetLatestReleaseByPipelineIds(pipelineIds)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("error in getting last release")
+		return releaseMap, err
+	} else if util.IsErrNoRows(err) {
+		return releaseMap, nil
+	}
+	for _, override := range overrides {
+		if _, ok := releaseMap[override.PipelineId]; !ok {
+			isStopType := models.DEPLOYMENTTYPE_STOP == override.DeploymentType
+			releaseMap[override.PipelineId] = isStopType
+		}
+	}
+	return releaseMap, nil
+}
+
 func (impl AppListingServiceImpl) GetReleaseCount(appId, envId int) (int, error) {
 	override, err := impl.pipelineOverrideRepository.GetAllRelease(appId, envId)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -179,18 +201,23 @@ func (impl AppListingServiceImpl) GetReleaseCount(appId, envId int) (int, error)
 }
 
 func (impl AppListingServiceImpl) BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error) {
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "stage", "3.1")
 	appEnvMapping, err := impl.fetchACDAppStatus(fetchAppListingRequest, envContainers)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app statuses", "error", err)
 		return []*bean.AppContainer{}, err
 	}
 	appContainerResponses, err := impl.appListingViewBuilder.BuildView(fetchAppListingRequest, appEnvMapping)
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "stage", "3.2")
 	return appContainerResponses, err
 }
 
 func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest FetchAppListingRequest, existingAppEnvContainers []*bean.AppEnvironmentContainer) (map[string][]*bean.AppEnvironmentContainer, error) {
 	appEnvMapping := make(map[string][]*bean.AppEnvironmentContainer)
-
+	t1 := time.Now()
+	t2 := time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.1")
+	t1 = t2
 	var appNames []string
 	var appIds []int
 	for _, env := range existingAppEnvContainers {
@@ -213,7 +240,9 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		}
 		existingAppEnvStatusMapping[ds.AppName] = ds.Status
 	}
-
+	t2 = time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.2")
+	t1 = t2
 	appEnvPipelinesMap := make(map[string][]*pipelineConfig.Pipeline)
 	appEnvCdWorkflowMap := make(map[string]*pipelineConfig.CdWorkflow)
 	appEnvCdWorkflowRunnerMap := make(map[int][]*pipelineConfig.CdWorkflowRunner)
@@ -228,7 +257,9 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	for _, p := range pipelinesAll {
 		pipelineIds = append(pipelineIds, p.Id)
 	}
-
+	t2 = time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.3")
+	t1 = t2
 	/*if pipelineIds == nil || len(pipelineIds) == 0 {
 		return appEnvMapping, err
 	}*/
@@ -272,7 +303,9 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 				}
 			}
 		}
-
+		t2 = time.Now()
+		impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.4")
+		t1 = t2
 		//fetch all the cd workflow runner from cdWF ids,
 		cdWorkflowRunnersAll, err := impl.cdWorkflowRepository.FindWorkflowRunnerByCdWorkflowId(wfIds) //TODO - OPTIMIZE 3
 		if err != nil {
@@ -288,7 +321,16 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 				appEnvCdWorkflowRunnerMap[item.CdWorkflowId] = append(appEnvCdWorkflowRunnerMap[item.CdWorkflowId], item)
 			}
 		}
+		t2 = time.Now()
+		impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.5")
+		t1 = t2
 	}
+	t2 = time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.6")
+	t1 = t2
+	t3 := time.Now()
+	t4 := time.Now()
+	releaseMap, _ := impl.ISLastReleaseStopTypeV2(pipelineIds)
 
 	for _, env := range existingAppEnvContainers {
 		appKey := strconv.Itoa(env.AppId) + "_" + env.AppName
@@ -355,10 +397,11 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			if cdStageRunner != nil {
 				status := cdStageRunner.Status
 				if status == v1alpha1.HealthStatusHealthy {
-					stopType, err := impl.ISLastReleaseStopType(pipeline.AppId, pipeline.EnvironmentId)
+					/*stopType, err := impl.ISLastReleaseStopType(pipeline.AppId, pipeline.EnvironmentId)
 					if err != nil {
 						impl.Logger.Errorw("error in determining stop", "err", err)
-					}
+					}*/
+					stopType := releaseMap[pipeline.Id]
 					if stopType {
 						status = application2.HIBERNATING
 						env.Status = status
@@ -398,7 +441,16 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		}
 
 		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
+		t4 = time.Now()
+		timeDiff := t4.Unix() - t3.Unix()
+		if timeDiff > 0 {
+			impl.Logger.Infow("api response time testing status setting", "time", time.Now().String(), "time diff", timeDiff, "stage", "3.1.6.2", "env", env)
+		}
+		t3 = t4
 	}
+	t2 = time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.7")
+	t1 = t2
 	return appEnvMapping, nil
 }
 

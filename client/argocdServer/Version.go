@@ -27,6 +27,7 @@ import (
 
 type VersionService interface {
 	CheckVersion() (err error)
+	GetVersion() (apiVersion string, err error)
 }
 
 type VersionServiceImpl struct {
@@ -46,4 +47,14 @@ func (service VersionServiceImpl) CheckVersion() (err error) {
 	}
 	service.logger.Infow("connected argocd", "serverVersion", version.Version)
 	return nil
+}
+
+func (service VersionServiceImpl) GetVersion() (apiVersion string, err error) {
+	conn := GetConnection("", service.settings)
+	version, err := version.NewVersionServiceClient(conn).Version(context.Background(), &empty.Empty{})
+	if err != nil {
+		return "", err
+	}
+	service.logger.Infow("connected argocd", "serverVersion", version.Version)
+	return version.Version, nil
 }

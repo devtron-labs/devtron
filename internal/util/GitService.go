@@ -158,6 +158,7 @@ func (impl GitLabClient) DeleteProject(projectName string) (err error) {
 }
 func (impl GitLabClient) createProject(name, description string) (url string, err error) {
 	if impl.config.GitlabNamespaceID == 0 {
+		impl.logger.Info("TESTING ENV VARIABLE SETTING ...... found")
 		groups, res, err := impl.client.Groups.SearchGroup(impl.config.GitlabNamespaceName)
 		if err != nil {
 			logger.Errorw("error connecting to gitlab", "status code", res.StatusCode, "err", err.Error())
@@ -172,6 +173,8 @@ func (impl GitLabClient) createProject(name, description string) (url string, er
 				impl.config.GitlabNamespaceID = group.ID
 			}
 		}
+	} else {
+		impl.logger.Info("TESTING ENV VARIABLE SETTING ......not found")
 	}
 	var namespace = impl.config.GitlabNamespaceID
 	// Create new project
