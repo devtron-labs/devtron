@@ -255,7 +255,7 @@ func InitializeApp() (*App, error) {
 	appStoreVersionValuesRepositoryImpl := appstore.NewAppStoreVersionValuesRepositoryImpl(sugaredLogger, db)
 	appStoreValuesServiceImpl := appstore2.NewAppStoreValuesServiceImpl(sugaredLogger, appStoreRepositoryImpl, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, userServiceImpl, appStoreVersionValuesRepositoryImpl, utilMergeUtil)
 	chartGroupDeploymentRepositoryImpl := chartGroup.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
-	installedAppServiceImpl, err := appstore2.NewInstalledAppServiceImpl(chartRepositoryImpl, sugaredLogger, chartRepoRepositoryImpl, utilMergeUtil, pipelineConfigRepositoryImpl, configMapRepositoryImpl, installedAppRepositoryImpl, chartTemplateServiceImpl, refChartProxyDir, gitConfig, repositoryServiceClientImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, gitClient, appRepositoryImpl, serviceClientImpl, appStoreValuesServiceImpl, pubSubClient, tokenCache, chartGroupDeploymentRepositoryImpl, environmentServiceImpl, clusterInstalledAppsRepositoryImpl)
+	installedAppServiceImpl, err := appstore2.NewInstalledAppServiceImpl(chartRepositoryImpl, sugaredLogger, chartRepoRepositoryImpl, utilMergeUtil, pipelineConfigRepositoryImpl, configMapRepositoryImpl, installedAppRepositoryImpl, chartTemplateServiceImpl, refChartProxyDir, gitConfig, repositoryServiceClientImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, gitClient, appRepositoryImpl, serviceClientImpl, appStoreValuesServiceImpl, pubSubClient, tokenCache, chartGroupDeploymentRepositoryImpl, environmentServiceImpl, clusterInstalledAppsRepositoryImpl, argoK8sClientImpl)
 	if err != nil {
 		return nil, err
 	}

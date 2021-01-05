@@ -2,12 +2,18 @@ package argocdServer
 
 import (
 	"bytes"
+	"context"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"go.uber.org/zap"
 	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
@@ -132,4 +138,51 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 		Do().Raw()
 	impl.logger.Infow("argo app create res", "res", string(res), "err", err)
 	return err
+}
+
+
+
+// PatchResource patches resource
+func PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
+	dynamicIf, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	if err != nil {
+		return nil, err
+	}
+	resource := gvk.GroupVersion().WithResource(apiResource.Name)
+	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
+
+	return resourceIf.Patch(ctx, name, patchType, patchBytes, metav1.PatchOptions{})
+}
+// See: https://github.com/ksonnet/ksonnet/blob/master/utils/client.go
+func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
+	resources, err := disco.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range resources.APIResources {
+		if r.Kind == gvk.Kind {
+			//log.Debugf("Chose API '%s' for %s", r.Name, gvk)
+			return &r, nil
+		}
+	}
+	return nil, apierr.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
+}
+func ToResourceInterface(dynamicIf dynamic.Interface, apiResource *metav1.APIResource, resource schema.GroupVersionResource, namespace string) dynamic.ResourceInterface {
+	if apiResource.Namespaced {
+		return dynamicIf.Resource(resource).Namespace(namespace)
+	}
+	return dynamicIf.Resource(resource)
+}
+func ToGroupVersionResource(groupVersion string, apiResource *metav1.APIResource) schema.GroupVersionResource {
+	gvk := schema.FromAPIVersionAndKind(groupVersion, apiResource.Kind)
+	gv := gvk.GroupVersion()
+	return gv.WithResource(apiResource.Name)
 }
