@@ -1371,6 +1371,7 @@ func (impl PipelineBuilderImpl) getClusterConfig(cluster *cluster.Cluster) (*uti
 	host := cluster.ServerUrl
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
+
 	if cluster.Id == 1 && cluster.ClusterName == ClusterName {
 		if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
 			impl.logger.Errorw("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
