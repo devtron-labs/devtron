@@ -51,8 +51,7 @@ type ApplicationRestHandler interface {
 	Patch(w http.ResponseWriter, r *http.Request)
 	GetManifests(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
-	Create(w http.ResponseWriter, r *http.Request)
-	Update(w http.ResponseWriter, r *http.Request)
+
 	Sync(w http.ResponseWriter, r *http.Request)
 	TerminateOperation(w http.ResponseWriter, r *http.Request)
 	PatchResource(w http.ResponseWriter, r *http.Request)
@@ -476,61 +475,6 @@ func (impl ApplicationRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 	ctx = context.WithValue(ctx, "token", token)
 	defer cancel()
 	recv, err := impl.client.Get(ctx, query)
-	impl.pump.StartMessage(w, recv, err)
-}
-
-func (impl ApplicationRestHandlerImpl) Create(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	query := new(application2.ApplicationCreateRequest)
-	err := decoder.Decode(query)
-	if err != nil {
-		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	token := r.Header.Get("token")
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(ctx, "token", token)
-	defer cancel()
-	recv, err := impl.client.Create(ctx, query)
-	impl.pump.StartMessage(w, recv, err)
-}
-
-func (impl ApplicationRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name := vars["name"]
-	decoder := json.NewDecoder(r.Body)
-	query := new(application2.ApplicationUpdateRequest)
-	err := decoder.Decode(query.Application)
-	query.GetApplication().GetMetadata().Name = &name
-	if err != nil {
-		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	token := r.Header.Get("token")
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(ctx, "token", token)
-	defer cancel()
-	recv, err := impl.client.Update(ctx, query)
 	impl.pump.StartMessage(w, recv, err)
 }
 
