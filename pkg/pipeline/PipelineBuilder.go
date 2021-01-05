@@ -24,6 +24,7 @@ import (
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -40,11 +41,8 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -118,7 +116,7 @@ type PipelineBuilderImpl struct {
 	appService                    app.AppService
 	imageScanResultRepository     security.ImageScanResultRepository
 	GitClient                     util.GitClient
-	K8sUtil                       *util.K8sUtil
+	ArgoK8sClient                 argocdServer.ArgoK8sClient
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -144,7 +142,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	appService app.AppService,
 	imageScanResultRepository security.ImageScanResultRepository,
 	GitClient util.GitClient,
-	K8sUtil *util.K8sUtil,
+	ArgoK8sClient argocdServer.ArgoK8sClient,
 ) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
@@ -170,7 +168,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		imageScanResultRepository:     imageScanResultRepository,
 		GitClient:                     GitClient,
-		K8sUtil:                       K8sUtil,
+		ArgoK8sClient:                 ArgoK8sClient,
 	}
 }
 
@@ -1325,7 +1323,7 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 			appNamespace = "default"
 		}
 		namespace := "devtroncd"
-		appRequest := &AppTemplate{
+		appRequest := &argocdServer.AppTemplate{
 			ApplicationName: argoAppName,
 			Namespace:       namespace,
 			TargetNamespace: appNamespace,
@@ -1335,72 +1333,11 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
 		}
-		return impl.createAcdApp(appRequest, envModel.Cluster)
+		return impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
 	} else {
 		impl.logger.Errorw("err in checking application on gocd", "err", err, "pipeline", pipeline.Name)
 		return "", err
 	}
-}
-
-func (impl PipelineBuilderImpl) createAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster, ) (string, error) {
-	chartYamlContent, err := ioutil.ReadFile(filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"))
-	if err != nil {
-		impl.logger.Errorw("err in reading template", "err", err)
-		return "", err
-	}
-	applicationRequestString, err := util.Tprintf(string(chartYamlContent), appRequest)
-	if err != nil {
-		impl.logger.Errorw("error in rendring application template", "req", appRequest, "err", err)
-		return "", err
-	}
-	config, err := impl.getClusterConfig(cluster)
-	if err != nil {
-		impl.logger.Errorw("error in config", "err", err)
-		return "", err
-	}
-	err = impl.K8sUtil.CreateArgoApplication(appRequest.Namespace, applicationRequestString, config)
-	if err != nil {
-		impl.logger.Errorw("error in creating acd application", "err", err)
-		return "", err
-	}
-	impl.logger.Infow("argo application created successfully", "name", appRequest.ApplicationName)
-	return appRequest.ApplicationName, nil
-}
-
-const ClusterName = "default_cluster"
-const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-
-func (impl PipelineBuilderImpl) getClusterConfig(cluster *cluster.Cluster) (*util.ClusterConfig, error) {
-	host := cluster.ServerUrl
-	configMap := cluster.Config
-	bearerToken := configMap["bearer_token"]
-
-	if cluster.Id == 1 && cluster.ClusterName == ClusterName {
-		if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
-			impl.logger.Errorw("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
-			return nil, err
-		} else {
-			content, err := ioutil.ReadFile(TokenFilePath)
-			if err != nil {
-				impl.logger.Errorw("error on reading file", "err", err)
-				return nil, err
-			}
-			bearerToken = string(content)
-		}
-	}
-	clusterCfg := &util.ClusterConfig{Host: host, BearerToken: bearerToken}
-	return clusterCfg, nil
-}
-
-type AppTemplate struct {
-	ApplicationName string
-	Namespace       string
-	TargetNamespace string
-	TargetServer    string
-	Project         string
-	ValuesFile      string
-	RepoPath        string
-	RepoUrl         string
 }
 
 func getValuesFileForEnv(environmentId int) string {
