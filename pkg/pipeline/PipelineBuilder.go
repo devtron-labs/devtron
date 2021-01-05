@@ -1325,7 +1325,7 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 			appNamespace = "default"
 		}
 		namespace := "devtroncd"
-		appRequest := AppTemplate{
+		appRequest := &AppTemplate{
 			ApplicationName: argoAppName,
 			Namespace:       namespace,
 			TargetNamespace: appNamespace,
@@ -1335,33 +1335,36 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
 		}
-		chartYamlContent, err := ioutil.ReadFile(filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"))
-		if err != nil {
-			impl.logger.Errorw("err in reading template", "err", err)
-			return "", err
-		}
-		applicationRequestString, err := util.Tprintf(string(chartYamlContent), appRequest)
-		if err != nil {
-			impl.logger.Errorw("error in rendring application template", "req", appRequest, "err", err)
-			return "", err
-		}
-		config, err := impl.getClusterConfig(envModel.Cluster)
-		if err != nil {
-			impl.logger.Errorw("error in config", "err", err)
-			return "", err
-		}
-		err = impl.K8sUtil.CreateArgoApplication(namespace, applicationRequestString, config)
-		if err != nil {
-			impl.logger.Errorw("error in creating acd application", "err", err)
-			return "", err
-		}
-		impl.logger.Infow("argo application created successfully", "name", argoAppName)
-		return argoAppName, nil
-
+		return impl.createAcdApp(appRequest, envModel.Cluster)
 	} else {
 		impl.logger.Errorw("err in checking application on gocd", "err", err, "pipeline", pipeline.Name)
 		return "", err
 	}
+}
+
+func (impl PipelineBuilderImpl) createAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster, ) (string, error) {
+	chartYamlContent, err := ioutil.ReadFile(filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"))
+	if err != nil {
+		impl.logger.Errorw("err in reading template", "err", err)
+		return "", err
+	}
+	applicationRequestString, err := util.Tprintf(string(chartYamlContent), appRequest)
+	if err != nil {
+		impl.logger.Errorw("error in rendring application template", "req", appRequest, "err", err)
+		return "", err
+	}
+	config, err := impl.getClusterConfig(cluster)
+	if err != nil {
+		impl.logger.Errorw("error in config", "err", err)
+		return "", err
+	}
+	err = impl.K8sUtil.CreateArgoApplication(appRequest.Namespace, applicationRequestString, config)
+	if err != nil {
+		impl.logger.Errorw("error in creating acd application", "err", err)
+		return "", err
+	}
+	impl.logger.Infow("argo application created successfully", "name", appRequest.ApplicationName)
+	return appRequest.ApplicationName, nil
 }
 
 const ClusterName = "default_cluster"
@@ -1827,7 +1830,6 @@ func (impl PipelineBuilderImpl) GetAppList() ([]AppBean, error) {
 	}
 	return appsRes, err
 }
-
 
 func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error) {
 	pipelineStrategiesResponse := PipelineStrategiesResponse{}
