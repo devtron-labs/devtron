@@ -1167,9 +1167,9 @@ func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, en
 			if err != nil {
 				impl.logger.Errorw("error in creating patch", "err", err)
 			}
-			_, err = impl.acdClient.Patch(ctx, &application2.ApplicationPatchRequest{Patch: string(reqbyte), Name: &argoAppName, PatchType: ""})
+			_, err = impl.acdClient.Patch(ctx, &application2.ApplicationPatchRequest{Patch: string(reqbyte), Name: &argoAppName, PatchType: "application/merge-patch+json"})
 			if err != nil {
-				impl.logger.Errorw("error in creating argo pipeline ", "err", err, "name", pipelineName)
+				impl.logger.Errorw("error in creating argo pipeline ", "name", pipelineName, "patch", string(reqbyte), "err", err)
 				return false, err
 			}
 			impl.logger.Debugw("pipeline update req ", "res", patchReq)
