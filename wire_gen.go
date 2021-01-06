@@ -243,7 +243,7 @@ func InitializeApp() (*App, error) {
 	clusterAccountsServiceImpl := cluster2.NewClusterAccountsServiceImpl(clusterAccountsRepositoryImpl, environmentRepositoryImpl, clusterServiceImpl, sugaredLogger)
 	clusterAccountsRestHandlerImpl := restHandler.NewClusterAccountsRestHandlerImpl(clusterAccountsServiceImpl, sugaredLogger, userServiceImpl)
 	clusterAccountsRouterImpl := router.NewClusterAccountsRouterImpl(clusterAccountsRestHandlerImpl)
-	appListingRestHandlerImpl := restHandler.NewAppListingRestHandlerImpl(serviceClientImpl, appListingServiceImpl, teamServiceImpl, enforcerImpl, pipelineBuilderImpl, sugaredLogger, enforcerUtilImpl, deploymentGroupServiceImpl)
+	appListingRestHandlerImpl := restHandler.NewAppListingRestHandlerImpl(serviceClientImpl, appListingServiceImpl, teamServiceImpl, enforcerImpl, pipelineBuilderImpl, sugaredLogger, enforcerUtilImpl, deploymentGroupServiceImpl, userServiceImpl)
 	appListingRouterImpl := router.NewAppListingRouterImpl(appListingRestHandlerImpl)
 	environmentRestHandlerImpl := restHandler.NewEnvironmentRestHandlerImpl(environmentServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, enforcerUtilImpl, userAuthServiceImpl)
 	environmentRouterImpl := router.NewEnvironmentRouterImpl(environmentRestHandlerImpl)

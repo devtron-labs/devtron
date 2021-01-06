@@ -172,7 +172,7 @@ func (impl AppListingServiceImpl) ISLastReleaseStopTypeV2(pipelineIds []int) (ma
 	if len(pipelineIds) == 0 {
 		return releaseMap, nil
 	}
-	overrides, err := impl.pipelineOverrideRepository.GetLatestReleaseByPipelineIds(pipelineIds)
+	overrides, err := impl.pipelineOverrideRepository.GetLatestReleaseDeploymentType(pipelineIds)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("error in getting last release")
 		return releaseMap, err

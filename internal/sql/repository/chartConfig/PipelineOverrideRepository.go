@@ -60,6 +60,7 @@ type PipelineOverrideRepository interface {
 	FindById(id int) (*PipelineOverride, error)
 	GetByDeployedImage(appId, environmentId int, images []string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error)
+	GetLatestReleaseDeploymentType(pipelineIds []int) ([]*PipelineOverride, error)
 }
 
 type PipelineOverrideRepositoryImpl struct {
@@ -181,6 +182,18 @@ func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseByPipelineIds(pipelin
 		Where("pipeline_override.pipeline_id in (?) ", pg.In(pipelineIds)).
 		Order("id DESC").
 		Select()
+	return overrides, err
+}
+
+func (impl PipelineOverrideRepositoryImpl) GetLatestReleaseDeploymentType(pipelineIds []int) ([]*PipelineOverride, error) {
+	var overrides []*PipelineOverride
+	query := "select pco.pipeline_id,pco.deployment_type, max(id) as id from pipeline_config_override pco" +
+		" where pco.pipeline_id in (?) " +
+		" group by pco.pipeline_id, pco.deployment_type order by id desc"
+	_, err := impl.dbConnection.Query(&overrides, query, pg.In(pipelineIds))
+	if err != nil {
+		return overrides, err
+	}
 	return overrides, err
 }
 
