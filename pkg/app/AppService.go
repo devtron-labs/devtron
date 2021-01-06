@@ -1162,17 +1162,17 @@ func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, en
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipelineName)
 
 		if application.Spec.Source.Path != envOverride.Chart.ChartLocation {
-			application.Spec.Source.Path = envOverride.Chart.ChartLocation
-			updateReq := &application2.ApplicationUpdateRequest{
-				Application: application,
+			patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation}}}
+			reqbyte, err := json.Marshal(patchReq)
+			if err != nil {
+				impl.logger.Errorw("error in creating patch", "err", err)
 			}
-			appRes, err := impl.acdClient.Update(ctx, updateReq)
-			impl.ArgoK8sClient.PatchApplication()
+			_, err = impl.acdClient.Patch(ctx, &application2.ApplicationPatchRequest{Patch: string(reqbyte), Name: &argoAppName, PatchType: ""})
 			if err != nil {
 				impl.logger.Errorw("error in creating argo pipeline ", "err", err, "name", pipelineName)
 				return false, err
 			}
-			impl.logger.Debugw("pipeline update req ", "res", appRes)
+			impl.logger.Debugw("pipeline update req ", "res", patchReq)
 		} else {
 			impl.logger.Debug("pipeline no need to update ")
 		}
