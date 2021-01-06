@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
@@ -84,6 +85,7 @@ type AppServiceImpl struct {
 	commonService                 commonService.CommonService
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
 	imageScanHistoryRepository    security.ImageScanHistoryRepository
+	ArgoK8sClient                 argocdServer.ArgoK8sClient
 }
 
 type AppService interface {
@@ -118,7 +120,8 @@ func NewAppService(
 	chartRepository chartConfig.ChartRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
-	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository) *AppServiceImpl {
+	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
+	ArgoK8sClient argocdServer.ArgoK8sClient) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:   environmentConfigRepository,
 		mergeUtil:                     mergeUtil,
@@ -149,6 +152,7 @@ func NewAppService(
 		commonService:                 commonService,
 		imageScanDeployInfoRepository: imageScanDeployInfoRepository,
 		imageScanHistoryRepository:    imageScanHistoryRepository,
+		ArgoK8sClient:                 ArgoK8sClient,
 	}
 	return appServiceImpl
 }
@@ -1163,6 +1167,7 @@ func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, en
 				Application: application,
 			}
 			appRes, err := impl.acdClient.Update(ctx, updateReq)
+			impl.ArgoK8sClient.PatchApplication()
 			if err != nil {
 				impl.logger.Errorw("error in creating argo pipeline ", "err", err, "name", pipelineName)
 				return false, err

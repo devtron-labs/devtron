@@ -3,6 +3,7 @@ package argocdServer
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -32,6 +33,7 @@ type AppTemplate struct {
 }
 type ArgoK8sClient interface {
 	CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster, ) (string, error)
+	PatchApplication()
 }
 type ArgoK8sClientImpl struct {
 	logger *zap.SugaredLogger
@@ -43,9 +45,10 @@ func NewArgoK8sClientImpl(logger *zap.SugaredLogger,
 		logger: logger,
 	}
 }
+
 // Tprintf passed template string is formatted usign its operands and returns the resulting string.
 // Spaces are added between operands when neither is a string.
-func(impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, error) {
+func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, error) {
 	t := template.Must(template.New("tpl").Parse(tmpl))
 	buf := &bytes.Buffer{}
 	if err := t.Execute(buf, data); err != nil {
@@ -140,7 +143,9 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 	return err
 }
 
-
+func (impl ArgoK8sClientImpl) PatchApplication() {
+	impl.logger.Debugw("acd app patch called")
+}
 
 // PatchResource patches resource
 func PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
@@ -157,10 +162,11 @@ func PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVer
 		return nil, err
 	}
 	resource := gvk.GroupVersion().WithResource(apiResource.Name)
-	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
-
-	return resourceIf.Patch(ctx, name, patchType, patchBytes, metav1.PatchOptions{})
+	ToResourceInterface(dynamicIf, apiResource, resource, namespace)
+	return nil, nil
+	//return resourceIf.Patch(ctx, name, patchType, patchBytes, metav1.PatchOptions{})
 }
+
 // See: https://github.com/ksonnet/ksonnet/blob/master/utils/client.go
 func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
 	resources, err := disco.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
@@ -173,7 +179,7 @@ func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk s
 			return &r, nil
 		}
 	}
-	return nil, apierr.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
+	return nil, fmt.Errorf("not found g: %s, k: %s", gvk.Group, gvk.Kind)
 }
 func ToResourceInterface(dynamicIf dynamic.Interface, apiResource *metav1.APIResource, resource schema.GroupVersionResource, namespace string) dynamic.ResourceInterface {
 	if apiResource.Namespaced {
