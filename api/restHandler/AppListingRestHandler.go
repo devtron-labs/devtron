@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -59,6 +60,7 @@ type AppListingRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
 	enforcerUtil           rbac.EnforcerUtil
 	deploymentGroupService deploymentGroup.DeploymentGroupService
+	userService            user.UserService
 }
 
 type AppStatus struct {
@@ -75,7 +77,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	enforcer rbac.Enforcer,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
-	deploymentGroupService deploymentGroup.DeploymentGroupService) *AppListingRestHandlerImpl {
+	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:            application,
 		appListingService:      appListingService,
@@ -85,6 +87,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		enforcer:               enforcer,
 		enforcerUtil:           enforcerUtil,
 		deploymentGroupService: deploymentGroupService,
+		userService:            userService,
 	}
 	return appListingHandler
 }
@@ -100,10 +103,19 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	//Allow CORS here By * or specific origin
 	setupResponse(&w, r)
 	token := r.Header.Get("token")
-
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := handler.userService.GetById(userId)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	var fetchAppListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&fetchAppListingRequest)
+	err = decoder.Decode(&fetchAppListingRequest)
 	if err != nil {
 		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
@@ -134,7 +146,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 		}
 		object := rbacObjects[env.AppId]
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+		if ok := handler.enforcer.EnforceByEmail(user.EmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
 			appEnvs = append(appEnvs, env)
 		}
 	}

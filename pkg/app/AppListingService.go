@@ -77,6 +77,7 @@ type AppListingService interface {
 	GetLastDeploymentStatusesByAppNames(appNames []string) ([]repository.DeploymentStatus, error)
 	GetLastDeploymentStatuses() (map[string]repository.DeploymentStatus, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
+	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
 }
 
@@ -164,6 +165,27 @@ func (impl AppListingServiceImpl) ISLastReleaseStopType(appId, envId int) (bool,
 	} else {
 		return models.DEPLOYMENTTYPE_STOP == override.DeploymentType, nil
 	}
+}
+
+func (impl AppListingServiceImpl) ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error) {
+	releaseMap := make(map[int]bool)
+	if len(pipelineIds) == 0 {
+		return releaseMap, nil
+	}
+	overrides, err := impl.pipelineOverrideRepository.GetLatestReleaseDeploymentType(pipelineIds)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("error in getting last release")
+		return releaseMap, err
+	} else if util.IsErrNoRows(err) {
+		return releaseMap, nil
+	}
+	for _, override := range overrides {
+		if _, ok := releaseMap[override.PipelineId]; !ok {
+			isStopType := models.DEPLOYMENTTYPE_STOP == override.DeploymentType
+			releaseMap[override.PipelineId] = isStopType
+		}
+	}
+	return releaseMap, nil
 }
 
 func (impl AppListingServiceImpl) GetReleaseCount(appId, envId int) (int, error) {
@@ -289,6 +311,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			}
 		}
 	}
+	releaseMap, _ := impl.ISLastReleaseStopTypeV2(pipelineIds)
 
 	for _, env := range existingAppEnvContainers {
 		appKey := strconv.Itoa(env.AppId) + "_" + env.AppName
@@ -355,10 +378,11 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			if cdStageRunner != nil {
 				status := cdStageRunner.Status
 				if status == v1alpha1.HealthStatusHealthy {
-					stopType, err := impl.ISLastReleaseStopType(pipeline.AppId, pipeline.EnvironmentId)
+					/*stopType, err := impl.ISLastReleaseStopType(pipeline.AppId, pipeline.EnvironmentId)
 					if err != nil {
 						impl.Logger.Errorw("error in determining stop", "err", err)
-					}
+					}*/
+					stopType := releaseMap[pipeline.Id]
 					if stopType {
 						status = application2.HIBERNATING
 						env.Status = status
