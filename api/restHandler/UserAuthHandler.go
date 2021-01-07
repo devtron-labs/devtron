@@ -65,6 +65,7 @@ type UserAuthHandler interface {
 	UpdateSSOLoginConfig(w http.ResponseWriter, r *http.Request)
 	GetAllSSOLoginConfig(w http.ResponseWriter, r *http.Request)
 	GetSSOLoginConfig(w http.ResponseWriter, r *http.Request)
+	GetSSOLoginConfigByName(w http.ResponseWriter, r *http.Request)
 }
 
 type UserAuthHandlerImpl struct {
@@ -553,6 +554,23 @@ func (handler UserAuthHandlerImpl) GetSSOLoginConfig(w http.ResponseWriter, r *h
 	res, err := handler.ssoLoginService.GetById(int32(id))
 	if err != nil {
 		handler.logger.Errorw("service err, GetSSOLoginConfig", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, nil, res, http.StatusOK)
+}
+
+func (handler UserAuthHandlerImpl) GetSSOLoginConfigByName(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	name := vars["name"]
+	res, err := handler.ssoLoginService.GetByName(name)
+	if err != nil {
+		handler.logger.Errorw("service err, GetSSOLoginConfigByName", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

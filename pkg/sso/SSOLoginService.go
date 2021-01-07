@@ -37,6 +37,7 @@ type SSOLoginService interface {
 	UpdateSSOLogin(userInfo *bean.SSOLoginDto) (*bean.SSOLoginDto, error)
 	GetById(id int32) (*bean.SSOLoginDto, error)
 	GetAll() ([]*bean.SSOLoginDto, error)
+	GetByName(name string) (*bean.SSOLoginDto, error)
 }
 
 type SSOLoginServiceImpl struct {
@@ -295,4 +296,28 @@ func (impl SSOLoginServiceImpl) GetAll() ([]*bean.SSOLoginDto, error) {
 		ssoLoginDtos = append(ssoLoginDtos, ssoLoginDto)
 	}
 	return ssoLoginDtos, nil
+}
+
+func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error) {
+	model, err := impl.ssoLoginRepository.GetByName(name)
+	if err != nil {
+		impl.logger.Errorw("error in update new sso login config", "error", err)
+		return nil, err
+	}
+
+	var config json.RawMessage
+	err = json.Unmarshal([]byte(model.Config), &config)
+	if err != nil {
+		impl.logger.Warnw("error while Unmarshal", "error", err)
+	}
+
+	ssoLoginDto := &bean.SSOLoginDto{
+		Id:     model.Id,
+		Name:   model.Name,
+		Label:  model.Label,
+		Url:    model.Url,
+		Active: model.Active,
+		Config: config,
+	}
+	return ssoLoginDto, nil
 }
