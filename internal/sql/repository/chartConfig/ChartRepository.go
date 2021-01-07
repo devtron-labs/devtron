@@ -217,6 +217,7 @@ type ChartRepoRepository interface {
 	Update(chartRepo *ChartRepo, tx *pg.Tx) error
 	GetDefault() (*ChartRepo, error)
 	FindById(id int) (*ChartRepo, error)
+	FindAll() ([]*ChartRepo, error)
 	GetConnection() *pg.DB
 }
 type ChartRepoRepositoryImpl struct {
@@ -253,6 +254,13 @@ func (impl ChartRepoRepositoryImpl) FindById(id int) (*ChartRepo, error) {
 	repo := &ChartRepo{}
 	err := impl.dbConnection.Model(repo).
 		Where("id = ?", id).
+		Where("active = ?", true).Select()
+	return repo, err
+}
+
+func (impl ChartRepoRepositoryImpl) FindAll() ([]*ChartRepo, error) {
+	var repo []*ChartRepo
+	err := impl.dbConnection.Model(&repo).
 		Where("active = ?", true).Select()
 	return repo, err
 }

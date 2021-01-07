@@ -109,6 +109,8 @@ type AppStoreService interface {
 	SearchAppStoreChartByName(chartName string) ([]*appstore.ChartRepoSearch, error)
 	CreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error)
 	UpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error)
+	GetChartRepoById(id int) (*ChartRepoDto, error)
+	GetChartRepoList() ([]*ChartRepoDto, error)
 }
 
 const ChartRepoConfigMap string = "argocd-cm"
@@ -429,6 +431,44 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	}
 
 	return chartRepo, nil
+}
+
+func (impl *AppStoreServiceImpl) GetChartRepoById(id int) (*ChartRepoDto, error) {
+	chartRepo := &ChartRepoDto{}
+	model, err := impl.repoRepository.FindById(id)
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}
+	chartRepo.Id = model.Id
+	chartRepo.Name = model.Name
+	chartRepo.AuthMode = model.AuthMode
+	chartRepo.Password = model.Password
+	chartRepo.UserName = model.UserName
+	chartRepo.SshKey = model.SshKey
+	chartRepo.AccessToken = model.AccessToken
+	chartRepo.Default = model.Default
+	return chartRepo, nil
+}
+
+func (impl *AppStoreServiceImpl) GetChartRepoList() ([]*ChartRepoDto, error) {
+	var chartRepos []*ChartRepoDto
+	models, err := impl.repoRepository.FindAll()
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}
+	for _, model := range models {
+		chartRepo := &ChartRepoDto{}
+		chartRepo.Id = model.Id
+		chartRepo.Name = model.Name
+		chartRepo.AuthMode = model.AuthMode
+		chartRepo.Password = model.Password
+		chartRepo.UserName = model.UserName
+		chartRepo.SshKey = model.SshKey
+		chartRepo.AccessToken = model.AccessToken
+		chartRepo.Default = model.Default
+		chartRepos = append(chartRepos, chartRepo)
+	}
+	return chartRepos, nil
 }
 
 func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *ChartRepoDto, apiMinorVersion int) map[string]map[string]string {

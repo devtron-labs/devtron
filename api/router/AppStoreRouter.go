@@ -95,6 +95,10 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 		HandlerFunc(router.appStoreRestHandler.SearchAppStoreChartByName).Queries("chartName", "{chartName}").
 		Methods("GET")
 
+	configRouter.Path("/repo/{id}").
+		HandlerFunc(router.appStoreRestHandler.GetChartRepoById).Methods("GET")
+	configRouter.Path("/repo/list").
+		HandlerFunc(router.appStoreRestHandler.GetChartRepoList).Methods("GET")
 	configRouter.Path("/repo/create").
 		HandlerFunc(router.appStoreRestHandler.CreateChartRepo).Methods("POST")
 

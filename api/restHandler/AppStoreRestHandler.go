@@ -46,6 +46,8 @@ type AppStoreRestHandler interface {
 	FetchAppDetailsForInstalledApp(w http.ResponseWriter, r *http.Request)
 	GetReadme(w http.ResponseWriter, r *http.Request)
 	SearchAppStoreChartByName(w http.ResponseWriter, r *http.Request)
+	GetChartRepoById(w http.ResponseWriter, r *http.Request)
+	GetChartRepoList(w http.ResponseWriter, r *http.Request)
 	CreateChartRepo(w http.ResponseWriter, r *http.Request)
 	UpdateChartRepo(w http.ResponseWriter, r *http.Request)
 }
@@ -260,7 +262,46 @@ func (handler *AppStoreRestHandlerImpl) SearchAppStoreChartByName(w http.Respons
 	handler.Logger.Infow("request payload, SearchAppStoreChartByName, app store", "chartName", chartName)
 	res, err := handler.appStoreService.SearchAppStoreChartByName(chartName)
 	if err != nil {
-		handler.Logger.Errorw("service err, FindAllApps, app store", "err", err, "userId", userId)
+		handler.Logger.Errorw("service err, SearchAppStoreChartByName, app store", "err", err, "userId", userId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *AppStoreRestHandlerImpl) GetChartRepoById(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		handler.Logger.Errorw("request err, GetChartRepoById", "err", err, "chart repo id", id)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, GetChartRepoById, app store", "chart repo id", id)
+	res, err := handler.appStoreService.GetChartRepoById(id)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetChartRepoById, app store", "err", err, "userId", userId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *AppStoreRestHandlerImpl) GetChartRepoList(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+	handler.Logger.Infow("request payload, GetChartRepoList, app store", )
+	res, err := handler.appStoreService.GetChartRepoList()
+	if err != nil {
+		handler.Logger.Errorw("service err, GetChartRepoList, app store", "err", err, "userId", userId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
