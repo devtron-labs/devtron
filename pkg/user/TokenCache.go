@@ -59,20 +59,22 @@ func (impl *TokenCache) BuildACDSynchContext() (acdContext context.Context, err 
 }
 
 type ACDAuthConfig struct {
-	ACDUsername string `env:"ACD_USERNAME" `
-	ACDPassword string `env:"ACD_PASSWORD" `
+	ACDUsername           string `env:"ACD_USERNAME" `
+	ACDPassword           string `env:"ACD_PASSWORD" `
+	ACDConfigMapName      string `env:"ACD_CM" `
+	ACDConfigMapNamespace string `env:"ACD_CM_NAMESPACE" `
 }
 
 func GetACDAuthConfig() (*ACDAuthConfig, error) {
 	cfg := &ACDAuthConfig{}
 	err := env.Parse(cfg)
-	if err!=nil{
+	if err != nil {
 		return nil, err
 	}
-	if len(cfg.ACDPassword) ==0{
+	if len(cfg.ACDPassword) == 0 {
 		return nil, fmt.Errorf("ACD_PASSWORD is not present in environment")
 	}
-	if len(cfg.ACDUsername) ==0{
+	if len(cfg.ACDUsername) == 0 {
 		return nil, fmt.Errorf("ACD_USERNAME is not present in environment")
 	}
 	return cfg, err

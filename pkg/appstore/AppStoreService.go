@@ -113,9 +113,6 @@ type AppStoreService interface {
 	GetChartRepoList() ([]*ChartRepoDto, error)
 }
 
-const ChartRepoConfigMap string = "argocd-cm"
-const ChartRepoConfigMapNamespace string = "devtroncd"
-
 type AppStoreVersionsResponse struct {
 	Version string `json:"version"`
 	Id      int    `json:"id"`
@@ -136,13 +133,14 @@ type AppStoreServiceImpl struct {
 	clusterService                cluster.ClusterService
 	envService                    cluster.EnvironmentService
 	versionService                argocdServer.VersionService
+	aCDAuthConfig                 *user.ACDAuthConfig
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -154,6 +152,7 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		clusterService:                clusterService,
 		envService:                    envService,
 		versionService:                versionService,
+		aCDAuthConfig:                 aCDAuthConfig,
 	}
 }
 
@@ -323,13 +322,13 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMapFast(ChartRepoConfigMapNamespace, ChartRepoConfigMap, client)
+		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
 		if err != nil {
 			return nil, err
 		}
 		data := impl.updateData(cm.Data, request, apiMinorVersion)
 		cm.Data = data["data"]
-		_, err = impl.K8sUtil.UpdateConfigMapFast(ChartRepoConfigMapNamespace, cm, client)
+		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
 			continue
 		}
@@ -406,13 +405,13 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMapFast(ChartRepoConfigMapNamespace, ChartRepoConfigMap, client)
+		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
 		if err != nil {
 			return nil, err
 		}
 		data := impl.updateData(cm.Data, request, apiMinorVersion)
 		cm.Data = data["data"]
-		_, err = impl.K8sUtil.UpdateConfigMapFast(ChartRepoConfigMapNamespace, cm, client)
+		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
 			impl.logger.Warnw(" config map failed", "err", err)
 			continue
