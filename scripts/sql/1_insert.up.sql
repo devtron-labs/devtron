@@ -5429,8 +5429,8 @@ INSERT INTO "public"."chart_ref" ("id", "location", "version", "is_default", "ac
 
 INSERT INTO "public"."chart_repo" ("id", "name", "url", "is_default", "active", "created_on", "created_by", "updated_on", "updated_by", "external") VALUES
 ('1', 'default-chartmuseum', 'http://devtron-chartmuseum.devtroncd:8080/', 't', 't', 'now()', '1', 'now()', '1', 'f'),
-('2', 'stable', 'https://kubernetes-charts.storage.googleapis.com', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('3', 'incubator', 'https://kubernetes-charts-incubator.storage.googleapis.com', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+('2', 'stable', 'https://charts.helm.sh/stable', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+('3', 'incubator', 'https://charts.helm.sh/incubator', 'f', 't', 'now()', '1', 'now()', '1', 't'),
 ('4', 'devtron-charts', 'https://devtron-charts.s3.us-east-2.amazonaws.com/charts', 'f', 't', 'now()', '1', 'now()', '1', 't');
 
 INSERT INTO "public"."cluster" ("id", "cluster_name", "active", "created_on", "created_by", "updated_on", "updated_by", "server_url", "config", "prometheus_endpoint", "cd_argo_setup", "p_username", "p_password", "p_tls_client_cert", "p_tls_client_key") VALUES
