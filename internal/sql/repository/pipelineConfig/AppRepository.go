@@ -146,8 +146,8 @@ func (repo AppRepositoryImpl) FindAppsByEnvironmentId(environmentId int) ([]App,
 
 func (repo AppRepositoryImpl) FindAllActiveAppsWithTeam() ([]*App, error) {
 	var apps []*App
-	err := repo.dbConnection.Model(&apps).Column("app.*", "Team").
-		Where("a.active = ?", true).Where("a.app_store = ?", false).
+	err := repo.dbConnection.Model(&apps).Column("Team").
+		Where("app.active = ?", true).Where("app.app_store = ?", false).
 		Select()
 	return apps, err
 }
