@@ -250,6 +250,9 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	appEnvCdWorkflowRunnerMap := make(map[int][]*pipelineConfig.CdWorkflowRunner)
 
 	//get all the active cd pipelines
+	if pipelineIds == nil || len(pipelineIds) == 0 {
+		return appEnvMapping, err
+	}
 	pipelinesAll, err := impl.pipelineRepository.FindByIdsIn(pipelineIds) //TODO - OPTIMIZE 1
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", err)
