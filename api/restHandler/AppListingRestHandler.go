@@ -37,6 +37,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -157,7 +158,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 		}
 		object := rbacObjects[env.AppId]
-		if ok := handler.enforcer.EnforceByEmail(user.EmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+		if ok := handler.enforcer.EnforceByEmail(strings.ToLower(user.EmailId), rbac.ResourceApplications, rbac.ActionGet, object); ok {
 			appEnvs = append(appEnvs, env)
 		}
 		t4 = time.Now()

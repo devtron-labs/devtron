@@ -109,7 +109,7 @@ func (e *EnforcerImpl) enforceByEmail(enf *casbin.Enforcer, rvals ...interface{}
 	if len(rvals) == 0 {
 		return false
 	}
-	email := rvals[0].(string)
-	rvals[0] = strings.ToLower(email)
+	//email := rvals[0].(string)
+	//rvals[0] = strings.ToLower(email)
 	return enf.Enforce(rvals...)
 }
