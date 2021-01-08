@@ -251,6 +251,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 
 	//get all the active cd pipelines
 	if pipelineIds == nil || len(pipelineIds) == 0 {
+		impl.Logger.Warnw("api response time testing","pipelineIds", pipelineIds)
 		return appEnvMapping, err
 	}
 	pipelinesAll, err := impl.pipelineRepository.FindByIdsIn(pipelineIds) //TODO - OPTIMIZE 1
