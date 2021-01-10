@@ -547,7 +547,7 @@ func (impl InstalledAppServiceImpl) createInArgo(chartGitAttribute *util.ChartGi
 	}
 	appreq := &argocdServer.AppTemplate{
 		ApplicationName: argocdAppName,
-		Namespace:       "devtroncd",
+		Namespace:       argocdServer.DevtronInstalationNs,
 		TargetNamespace: appNamespace,
 		TargetServer:    envModel.Cluster.ServerUrl,
 		Project:         "default",

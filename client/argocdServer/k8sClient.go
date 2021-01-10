@@ -38,6 +38,10 @@ func NewArgoK8sClientImpl(logger *zap.SugaredLogger,
 	}
 }
 
+const ClusterName = "default_cluster"
+const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+const DevtronInstalationNs = "devtroncd"
+
 // Tprintf passed template string is formatted usign its operands and returns the resulting string.
 // Spaces are added between operands when neither is a string.
 func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, error) {
@@ -73,9 +77,6 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *clu
 	impl.logger.Infow("argo application created successfully", "name", appRequest.ApplicationName)
 	return appRequest.ApplicationName, nil
 }
-
-const ClusterName = "default_cluster"
-const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
 func (impl ArgoK8sClientImpl) getClusterConfig(cluster *cluster.Cluster) (*ClusterConfig, error) {
 	host := cluster.ServerUrl

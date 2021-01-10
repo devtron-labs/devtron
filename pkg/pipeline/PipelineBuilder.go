@@ -1322,7 +1322,7 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 		if len(appNamespace) == 0 {
 			appNamespace = "default"
 		}
-		namespace := "devtroncd"
+		namespace := argocdServer.DevtronInstalationNs
 		appRequest := &argocdServer.AppTemplate{
 			ApplicationName: argoAppName,
 			Namespace:       namespace,
