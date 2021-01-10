@@ -2,19 +2,12 @@ package argocdServer
 
 import (
 	"bytes"
-	"context"
-	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"go.uber.org/zap"
 	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
@@ -33,7 +26,6 @@ type AppTemplate struct {
 }
 type ArgoK8sClient interface {
 	CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster, ) (string, error)
-	PatchApplication()
 }
 type ArgoK8sClientImpl struct {
 	logger *zap.SugaredLogger
@@ -68,7 +60,6 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *clu
 		impl.logger.Errorw("error in rendring application template", "req", appRequest, "err", err)
 		return "", err
 	}
-	//applicationRequestString:=""
 	config, err := impl.getClusterConfig(cluster)
 	if err != nil {
 		impl.logger.Errorw("error in config", "err", err)
@@ -141,54 +132,4 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 		Do().Raw()
 	impl.logger.Infow("argo app create res", "res", string(res), "err", err)
 	return err
-}
-
-func (impl ArgoK8sClientImpl) PatchApplication() {
-	impl.logger.Debugw("acd app patch called")
-}
-
-// PatchResource patches resource
-func PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
-	dynamicIf, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
-	if err != nil {
-		return nil, err
-	}
-	resource := gvk.GroupVersion().WithResource(apiResource.Name)
-	ToResourceInterface(dynamicIf, apiResource, resource, namespace)
-	return nil, nil
-	//return resourceIf.Patch(ctx, name, patchType, patchBytes, metav1.PatchOptions{})
-}
-
-// See: https://github.com/ksonnet/ksonnet/blob/master/utils/client.go
-func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
-	resources, err := disco.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
-	if err != nil {
-		return nil, err
-	}
-	for _, r := range resources.APIResources {
-		if r.Kind == gvk.Kind {
-			//log.Debugf("Chose API '%s' for %s", r.Name, gvk)
-			return &r, nil
-		}
-	}
-	return nil, fmt.Errorf("not found g: %s, k: %s", gvk.Group, gvk.Kind)
-}
-func ToResourceInterface(dynamicIf dynamic.Interface, apiResource *metav1.APIResource, resource schema.GroupVersionResource, namespace string) dynamic.ResourceInterface {
-	if apiResource.Namespaced {
-		return dynamicIf.Resource(resource).Namespace(namespace)
-	}
-	return dynamicIf.Resource(resource)
-}
-func ToGroupVersionResource(groupVersion string, apiResource *metav1.APIResource) schema.GroupVersionResource {
-	gvk := schema.FromAPIVersionAndKind(groupVersion, apiResource.Kind)
-	gv := gvk.GroupVersion()
-	return gv.WithResource(apiResource.Name)
 }
