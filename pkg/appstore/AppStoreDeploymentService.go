@@ -355,7 +355,7 @@ func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, ins
 	}
 
 	//step 3 acd operation register, sync
-	installAppVersionRequest, err = impl.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
+	installAppVersionRequest, err = impl.patchAcdApp(installAppVersionRequest, chartGitAttr, ctx)
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
 		return installAppVersionRequest, installedAppVersion, err
@@ -1094,6 +1094,30 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 	installAppVersionRequest.ACDAppName = argocdAppName
 	installAppVersionRequest.Environment = environment
 	return installAppVersionRequest, chartGitAttr, nil
+}
+
+func (impl InstalledAppServiceImpl) patchAcdApp(installAppVersionRequest *InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context) (*InstallAppVersionDTO, error) {
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+	//STEP 4: registerInArgo
+	err := impl.registerInArgo(chartGitAttr, ctx)
+	if err != nil {
+		impl.logger.Errorw("error in argo registry", "err", err)
+		return nil, err
+	}
+	// update acd app
+	patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: chartGitAttr.ChartLocation, RepoURL: chartGitAttr.RepoUrl}}}
+	reqbyte, err := json.Marshal(patchReq)
+	if err != nil {
+		impl.logger.Errorw("error in creating patch", "err", err)
+	}
+	_, err = impl.acdClient.Patch(ctx, &application.ApplicationPatchRequest{Patch: string(reqbyte), Name: &installAppVersionRequest.ACDAppName, PatchType: "merge"})
+	if err != nil {
+		impl.logger.Errorw("error in creating argo app ", "name", installAppVersionRequest.ACDAppName, "patch", string(reqbyte), "err", err)
+		return nil, err
+	}
+	impl.syncACD(installAppVersionRequest.ACDAppName, ctx)
+	return installAppVersionRequest, nil
 }
 
 func (impl InstalledAppServiceImpl) AppStoreDeployOperationACD(installAppVersionRequest *InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context) (*InstallAppVersionDTO, error) {
