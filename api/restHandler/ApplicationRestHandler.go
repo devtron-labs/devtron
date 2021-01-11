@@ -48,7 +48,6 @@ type ApplicationRestHandler interface {
 	Watch(w http.ResponseWriter, r *http.Request)
 	ManagedResources(w http.ResponseWriter, r *http.Request)
 	Rollback(w http.ResponseWriter, r *http.Request)
-	Patch(w http.ResponseWriter, r *http.Request)
 	GetManifests(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
 
@@ -388,35 +387,6 @@ func (impl ApplicationRestHandlerImpl) Rollback(w http.ResponseWriter, r *http.R
 	ctx = context.WithValue(ctx, "token", token)
 	defer cancel()
 	recv, err := impl.client.Rollback(ctx, query)
-	impl.pump.StartMessage(w, recv, err)
-}
-
-func (impl ApplicationRestHandlerImpl) Patch(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name := vars["name"]
-	decoder := json.NewDecoder(r.Body)
-	query := new(application2.ApplicationPatchRequest)
-	err := decoder.Decode(query)
-	if err != nil {
-		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	query.Name = &name
-	token := r.Header.Get("token")
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(ctx, "token", token)
-	defer cancel()
-	recv, err := impl.client.Patch(ctx, query)
 	impl.pump.StartMessage(w, recv, err)
 }
 

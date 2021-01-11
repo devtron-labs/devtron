@@ -612,6 +612,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(sso.SSOLoginService), new(*sso.SSOLoginServiceImpl)),
 		repository.NewSSOLoginRepositoryImpl,
 		wire.Bind(new(repository.SSOLoginRepository), new(*repository.SSOLoginRepositoryImpl)),
+		argocdServer.NewArgoK8sClientImpl,
+		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
 	)
 	return &App{}, nil
 }

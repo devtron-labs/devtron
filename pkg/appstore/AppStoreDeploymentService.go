@@ -20,6 +20,8 @@ package appstore
 import (
 	"bytes"
 	"context"
+	"github.com/devtron-labs/devtron/client/argocdServer"
+
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -49,7 +51,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"net/http"
@@ -110,6 +111,7 @@ type InstalledAppServiceImpl struct {
 	chartGroupDeploymentRepository       chartGroup.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
 	clusterInstalledAppsRepository       appstore.ClusterInstalledAppsRepository
+	ArgoK8sClient                        argocdServer.ArgoK8sClient
 }
 
 func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -129,8 +131,10 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	appStoreValuesService AppStoreValuesService,
 	pubsubClient *pubsub.PubSubClient,
 	tokenCache *user.TokenCache,
-	chartGroupDeploymentRepository chartGroup.ChartGroupDeploymentRepository, envService cluster2.EnvironmentService,
-	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository) (*InstalledAppServiceImpl, error) {
+	chartGroupDeploymentRepository chartGroup.ChartGroupDeploymentRepository,
+	envService cluster2.EnvironmentService,
+	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository,
+	argoK8sClient argocdServer.ArgoK8sClient) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		chartRepository:                      chartRepository,
 		logger:                               logger,
@@ -155,6 +159,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		envService:                           envService,
 		clusterInstalledAppsRepository:       clusterInstalledAppsRepository,
+		ArgoK8sClient:                        argoK8sClient,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -351,7 +356,7 @@ func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, ins
 	}
 
 	//step 3 acd operation register, sync
-	installAppVersionRequest, err = impl.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
+	installAppVersionRequest, err = impl.patchAcdApp(installAppVersionRequest, chartGitAttr, ctx)
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
 		return installAppVersionRequest, installedAppVersion, err
@@ -537,42 +542,27 @@ func (impl InstalledAppServiceImpl) registerInArgo(chartGitAttribute *util.Chart
 }
 
 func (impl InstalledAppServiceImpl) createInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, envModel cluster.Environment, argocdAppName string) error {
-
-	//create
 	appNamespace := envModel.Namespace
 	if len(appNamespace) == 0 {
 		appNamespace = "default"
 	}
-
-	acdApplication := v1alpha1.Application{
-		ObjectMeta: v1.ObjectMeta{Name: argocdAppName},
-		Spec: v1alpha1.ApplicationSpec{
-			Destination: v1alpha1.ApplicationDestination{Server: envModel.Cluster.ServerUrl, Namespace: appNamespace},
-			Source: v1alpha1.ApplicationSource{
-				Path:           chartGitAttribute.ChartLocation,
-				RepoURL:        chartGitAttribute.RepoUrl,
-				TargetRevision: "HEAD",
-				Helm: &v1alpha1.ApplicationSourceHelm{
-					ValueFiles: []string{fmt.Sprintf("values.yaml")},
-				},
-			},
-			Project:    "default",
-			SyncPolicy: &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{Prune: true}},
-		},
+	appreq := &argocdServer.AppTemplate{
+		ApplicationName: argocdAppName,
+		Namespace:       argocdServer.DevtronInstalationNs,
+		TargetNamespace: appNamespace,
+		TargetServer:    envModel.Cluster.ServerUrl,
+		Project:         "default",
+		ValuesFile:      fmt.Sprintf("values.yaml"),
+		RepoPath:        chartGitAttribute.ChartLocation,
+		RepoUrl:         chartGitAttribute.RepoUrl,
 	}
-	upsert := true
-	create := &application.ApplicationCreateRequest{
-		Application: acdApplication,
-		Upsert:      &upsert,
-	}
-	_, err := impl.acdClient.Create(ctx, create)
+	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster)
+	//create
 	if err != nil {
 		impl.logger.Errorw("error in creating argo cd app ", "err", err)
 		return err
 	}
-
-	impl.logger.Debugw("repo created in argo", "name", chartGitAttribute.RepoUrl)
-	return err
+	return nil
 }
 
 func (impl InstalledAppServiceImpl) CheckAppExists(appNames []*AppNames) ([]*AppNames, error) {
@@ -1105,6 +1095,30 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 	installAppVersionRequest.ACDAppName = argocdAppName
 	installAppVersionRequest.Environment = environment
 	return installAppVersionRequest, chartGitAttr, nil
+}
+
+func (impl InstalledAppServiceImpl) patchAcdApp(installAppVersionRequest *InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context) (*InstallAppVersionDTO, error) {
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+	//STEP 4: registerInArgo
+	err := impl.registerInArgo(chartGitAttr, ctx)
+	if err != nil {
+		impl.logger.Errorw("error in argo registry", "err", err)
+		return nil, err
+	}
+	// update acd app
+	patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: chartGitAttr.ChartLocation, RepoURL: chartGitAttr.RepoUrl}}}
+	reqbyte, err := json.Marshal(patchReq)
+	if err != nil {
+		impl.logger.Errorw("error in creating patch", "err", err)
+	}
+	_, err = impl.acdClient.Patch(ctx, &application.ApplicationPatchRequest{Patch: string(reqbyte), Name: &installAppVersionRequest.ACDAppName, PatchType: "merge"})
+	if err != nil {
+		impl.logger.Errorw("error in creating argo app ", "name", installAppVersionRequest.ACDAppName, "patch", string(reqbyte), "err", err)
+		return nil, err
+	}
+	impl.syncACD(installAppVersionRequest.ACDAppName, ctx)
+	return installAppVersionRequest, nil
 }
 
 func (impl InstalledAppServiceImpl) AppStoreDeployOperationACD(installAppVersionRequest *InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context) (*InstallAppVersionDTO, error) {
