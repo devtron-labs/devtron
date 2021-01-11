@@ -2241,7 +2241,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	token := r.Header.Get("token")
 	var accessedApps []pipeline.AppBean
 	// RBAC
-	objects := handler.enforcerUtil.GetAppRBACNameV2()
+	objects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, app := range apps {
 		object := objects[app.Id]
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); ok {

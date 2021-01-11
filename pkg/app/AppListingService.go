@@ -215,6 +215,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 
 	var appNames []string
 	var appIds []int
+	var pipelineIds []int
 	for _, env := range existingAppEnvContainers {
 		appIds = append(appIds, env.AppId)
 		if env.EnvironmentName == "" {
@@ -222,6 +223,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		}
 		appName := fmt.Sprintf("%s-%s", env.AppName, env.EnvironmentName)
 		appNames = append(appNames, appName)
+		pipelineIds = append(pipelineIds, env.PipelineId)
 	}
 	deploymentStatuses, err := impl.GetLastDeploymentStatusesByAppNames(appNames)
 	if err != nil {
@@ -241,17 +243,20 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	appEnvCdWorkflowRunnerMap := make(map[int][]*pipelineConfig.CdWorkflowRunner)
 
 	//get all the active cd pipelines
-	pipelinesAll, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentIdV2() //TODO - OPTIMIZE 1
+	if pipelineIds == nil || len(pipelineIds) == 0 {
+		impl.Logger.Warnw("api response time testing", "pipelineIds", pipelineIds)
+		return appEnvMapping, err
+	}
+	pipelinesAll, err := impl.pipelineRepository.FindByIdsIn(pipelineIds) //TODO - OPTIMIZE 1
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", err)
 		return nil, err
 	}
-	var pipelineIds []int
+	/*var pipelineIds []int
 	for _, p := range pipelinesAll {
 		pipelineIds = append(pipelineIds, p.Id)
 	}
-
-	/*if pipelineIds == nil || len(pipelineIds) == 0 {
+	if pipelineIds == nil || len(pipelineIds) == 0 {
 		return appEnvMapping, err
 	}*/
 
