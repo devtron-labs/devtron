@@ -313,6 +313,9 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		if err != nil {
 			impl.Logger.Errorw("error in getting wf", "err", err)
 		}
+		t2 = time.Now()
+		impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.4.1")
+		t1 = t2
 		//build a map with key cdWF containing cdWFRunner List, which are later put in map for further requirement
 		for _, item := range cdWorkflowRunnersAll {
 			if _, ok := appEnvCdWorkflowRunnerMap[item.CdWorkflowId]; !ok {
