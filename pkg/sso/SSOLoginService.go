@@ -118,11 +118,12 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 		return nil, err
 	}
 	request.Id = model.Id
-	_, err = impl.updateArgocdConfigMapForDexConfig(request)
-	if err != nil {
-		impl.logger.Errorw("error in creating new sso login config", "error", err)
-		return nil, err
-	}
+	/*
+		_, err = impl.updateArgocdConfigMapForDexConfig(request)
+		if err != nil {
+			impl.logger.Errorw("error in creating new sso login config", "error", err)
+			return nil, err
+		}*/
 
 	err = tx.Commit()
 	if err != nil {
@@ -161,11 +162,13 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		return nil, err
 	}
 
-	_, err = impl.updateArgocdConfigMapForDexConfig(request)
-	if err != nil {
-		impl.logger.Errorw("error in creating new sso login config", "error", err)
-		return nil, err
-	}
+	/*
+		_, err = impl.updateArgocdConfigMapForDexConfig(request)
+		if err != nil {
+			impl.logger.Errorw("error in creating new sso login config", "error", err)
+			return nil, err
+		}
+	*/
 
 	err = tx.Commit()
 	if err != nil {
