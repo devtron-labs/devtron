@@ -273,7 +273,8 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			impl.Logger.Error(err)
 			return nil, err
 		}
-
+		impl.Logger.Infow("api response time testing", "pipelineIds", len(pipelineIds))
+		impl.Logger.Infow("api response time testing", "cdWorkflowAll", len(cdWorkflowAll))
 		//here to build a map of pipelines list for each (appId and envId)
 		for _, p := range pipelinesAll {
 			key := fmt.Sprintf("%d-%d", p.AppId, p.EnvironmentId)
@@ -282,7 +283,9 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 				appEnvPipelines = append(appEnvPipelines, p)
 				appEnvPipelinesMap[key] = appEnvPipelines
 			} else {
-				appEnvPipelinesMap[key] = append(appEnvPipelinesMap[key], p)
+				appEnvPipelines := appEnvPipelinesMap[key]
+				appEnvPipelines = append(appEnvPipelines, p)
+				appEnvPipelinesMap[key] = appEnvPipelines
 			}
 		}
 
