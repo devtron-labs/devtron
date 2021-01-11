@@ -267,14 +267,8 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.3")
 	t1 = t2
 	if len(pipelineIds) > 0 {
-		// from all the active pipeline, get all the cd workflow
-		cdWorkflowAll, err := impl.cdWorkflowRepository.FindLatestCdWorkflowByPipelineIdV2(pipelineIds) //TODO - OPTIMIZE 2
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.Logger.Error(err)
-			return nil, err
-		}
-		impl.Logger.Infow("api response time testing", "pipelineIds", len(pipelineIds))
-		impl.Logger.Infow("api response time testing", "cdWorkflowAll", len(cdWorkflowAll))
+
+		impl.Logger.Infow("api response time testing", "pipelineIds", pipelineIds)
 		//here to build a map of pipelines list for each (appId and envId)
 		for _, p := range pipelinesAll {
 			key := fmt.Sprintf("%d-%d", p.AppId, p.EnvironmentId)
@@ -289,6 +283,13 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			}
 		}
 
+		// from all the active pipeline, get all the cd workflow
+		cdWorkflowAll, err := impl.cdWorkflowRepository.FindLatestCdWorkflowByPipelineIdV2(pipelineIds) //TODO - OPTIMIZE 2
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Error(err)
+			return nil, err
+		}
+		impl.Logger.Infow("api response time testing", "cdWorkflowAll", len(cdWorkflowAll))
 		// find and build a map of latest cd workflow for each (appId and envId), single latest CDWF for any of the cd pipelines.
 		var wfIds []int
 		for key, v := range appEnvPipelinesMap {
