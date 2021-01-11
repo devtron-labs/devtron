@@ -314,7 +314,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			impl.Logger.Errorw("error in getting wf", "err", err)
 		}
 		t2 = time.Now()
-		impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.4.1")
+		impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.4.1", "len", len(wfIds))
 		t1 = t2
 		//build a map with key cdWF containing cdWFRunner List, which are later put in map for further requirement
 		for _, item := range cdWorkflowRunnersAll {
@@ -327,7 +327,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			}
 		}
 		t2 = time.Now()
-		impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.5")
+		impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.5", "wfIds", wfIds)
 		t1 = t2
 	}
 	t2 = time.Now()
