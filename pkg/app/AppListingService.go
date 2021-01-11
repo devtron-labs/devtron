@@ -267,6 +267,8 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.3")
 	t1 = t2
 	if pipelineIds == nil || len(pipelineIds) == 0 {
+	}
+	if pipelineIds == nil || len(pipelineIds) == 0 {
 		return appEnvMapping, err
 	}
 
