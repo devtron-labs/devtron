@@ -28,7 +28,7 @@ import (
 
 type EnforcerUtil interface {
 	GetAppRBACName(appName string) string
-	GetAppRBACNameV2() map[int]string
+	GetRbacObjectsForAllApps() map[int]string
 	GetAppRBACNameByAppId(appId int) string
 	GetAppRBACByAppNameAndEnvId(appName string, envId int) string
 	GetAppRBACByAppIdAndPipelineId(appId int, pipelineId int) string
@@ -69,10 +69,9 @@ func (impl EnforcerUtilImpl) GetAppRBACName(appName string) string {
 	return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(appName))
 }
 
-func (impl EnforcerUtilImpl) GetAppRBACNameV2() map[int]string {
+func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps() map[int]string {
 	objects := make(map[int]string)
-
-	result, err := impl.appRepo.FindTeamByAppNameV2()
+	result, err := impl.appRepo.FindAllActiveAppsWithTeam()
 	if err != nil {
 		return objects
 	}

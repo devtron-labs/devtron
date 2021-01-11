@@ -37,6 +37,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -113,6 +114,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	userEmailId := strings.ToLower(user.EmailId)
 	var fetchAppListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&fetchAppListingRequest)
@@ -138,7 +140,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	}
 	appEnvs := make([]*bean.AppEnvironmentContainer, 0)
 
-	rbacObjects := handler.enforcerUtil.GetAppRBACNameV2()
+	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, env := range envContainers {
 		if fetchAppListingRequest.DeploymentGroupId > 0 {
 			if env.EnvironmentId != 0 && env.EnvironmentId != dg.EnvironmentId {
@@ -146,7 +148,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 		}
 		object := rbacObjects[env.AppId]
-		if ok := handler.enforcer.EnforceByEmail(user.EmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+		if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
 			appEnvs = append(appEnvs, env)
 		}
 	}
