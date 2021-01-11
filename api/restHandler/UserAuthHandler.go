@@ -499,13 +499,13 @@ func (handler UserAuthHandlerImpl) CreateSSOLoginConfig(w http.ResponseWriter, r
 		return
 	}
 	handler.logger.Infow("request payload, CreateSSOLoginConfig", "payload", dto)
-	_, err = handler.ssoLoginService.CreateSSOLogin(&dto)
+	resp, err := handler.ssoLoginService.CreateSSOLogin(&dto)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateSSOLoginConfig", "err", err, "payload", dto)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, nil, http.StatusOK)
+	writeJsonResp(w, nil, resp, http.StatusOK)
 }
 func (handler UserAuthHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
@@ -517,13 +517,13 @@ func (handler UserAuthHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r
 		return
 	}
 	handler.logger.Infow("request payload, UpdateSSOLoginConfig", "payload", dto)
-	_, err = handler.ssoLoginService.UpdateSSOLogin(&dto)
+	resp, err := handler.ssoLoginService.UpdateSSOLogin(&dto)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateSSOLoginConfig", "err", err, "payload", dto)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, nil, http.StatusOK)
+	writeJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler UserAuthHandlerImpl) GetAllSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
