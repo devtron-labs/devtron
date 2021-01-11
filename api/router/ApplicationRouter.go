@@ -83,9 +83,7 @@ func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
 	router.Path("/{name}/rollback").
 		Methods("GET").
 		HandlerFunc(r.handler.Rollback)
-	router.Path("/{name}").
-		Methods("PATCH").
-		HandlerFunc(r.handler.Patch)
+
 	router.Path("/{name}/manifests").
 		Methods("GET").
 		HandlerFunc(r.handler.GetManifests)
