@@ -46,7 +46,7 @@ type AppRepository interface {
 	FindAppsByTeamName(teamName string) ([]App, error)
 	FindAll() ([]App, error)
 	FindAppsByEnvironmentId(environmentId int) ([]App, error)
-	FindTeamByAppNameV2() ([]*App, error)
+	FindAllActiveAppsWithTeam() ([]*App, error)
 	CheckAppExists(appNames []string) ([]*App, error)
 
 	FindByIds(ids []*int) ([]*App, error)
@@ -145,10 +145,10 @@ func (repo AppRepositoryImpl) FindAppsByEnvironmentId(environmentId int) ([]App,
 	return apps, err
 }
 
-func (repo AppRepositoryImpl) FindTeamByAppNameV2() ([]*App, error) {
+func (repo AppRepositoryImpl) FindAllActiveAppsWithTeam() ([]*App, error) {
 	var apps []*App
-	err := repo.dbConnection.Model(&apps).Column("app.*", "Team").
-		Join("inner join app a on a.team_id = team.id").Where("a.active = ?", true).Where("a.app_store = ?", false).
+	err := repo.dbConnection.Model(&apps).Column("Team").
+		Where("app.active = ?", true).Where("app.app_store = ?", false).
 		Select()
 	return apps, err
 }

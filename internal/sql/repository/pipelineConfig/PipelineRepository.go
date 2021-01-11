@@ -109,6 +109,9 @@ func (impl PipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*Pipeline, error) {
 	err := impl.dbConnection.Model(&pipelines).
 		Where("id in (?)", pg.In(ids)).
 		Select()
+	if err != nil {
+		impl.logger.Errorw("error on fetching pipelines", "ids", ids)
+	}
 	return pipelines, err
 }
 

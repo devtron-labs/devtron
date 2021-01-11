@@ -37,6 +37,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -116,6 +117,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	userEmailId := strings.ToLower(user.EmailId)
 	var fetchAppListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&fetchAppListingRequest)
@@ -144,7 +146,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	t1 = t2
 	appEnvs := make([]*bean.AppEnvironmentContainer, 0)
 
-	rbacObjects := handler.enforcerUtil.GetAppRBACNameV2()
+	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	t2 = time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "2.1")
 	t1 = t2
@@ -157,7 +159,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 		}
 		object := rbacObjects[env.AppId]
-		if ok := handler.enforcer.EnforceByEmail(user.EmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+		if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
 			appEnvs = append(appEnvs, env)
 		}
 		t4 = time.Now()
