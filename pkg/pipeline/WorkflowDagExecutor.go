@@ -41,6 +41,7 @@ import (
 	"github.com/nats-io/stan"
 	"go.uber.org/zap"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -294,7 +295,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
-		if ok := impl.enforcer.EnforceByEmail(token, rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
+		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
 			impl.logger.Warnw("unauthorized for pipeline ", "pipelineId", strconv.Itoa(pipeline.Id))
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
 		}
@@ -576,7 +577,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
-		if ok := impl.enforcer.EnforceByEmail(token, rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
+		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
 		}
 	}
