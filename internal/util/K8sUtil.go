@@ -92,3 +92,4 @@ func (impl K8sUtil) deleteNs(namespace string, client *v12.CoreV1Client) error {
 	err := client.Namespaces().Delete(namespace, &metav1.DeleteOptions{})
 	return err
 }
+
