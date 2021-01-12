@@ -167,13 +167,11 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
 				count = count + 1
 			}
-		}
-		t4 = time.Now()
-		timeDiff := t4.Unix() - t3.Unix()
-		if timeDiff > 0 {
+			t4 = time.Now()
+			timeDiff := t4.Unix() - t3.Unix()
 			handler.logger.Infow("api response time testing enforcer", "time", time.Now().String(), "time diff", timeDiff, "stage", "2.1.1", "object", object)
+			t3 = t4
 		}
-		t3 = t4
 	}
 	handler.logger.Infow("api response time testing", "count", count)
 	t2 = time.Now()
