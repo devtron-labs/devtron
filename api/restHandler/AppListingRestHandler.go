@@ -163,16 +163,25 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
 			appEnvs = append(appEnvs, env)
 		}
-		for i := 1; i < 500; i++ {
-			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
-				count = count + 1
-			}
-			t4 = time.Now()
-			timeDiff := t4.Unix() - t3.Unix()
-			handler.logger.Infow("api response time testing enforcer", "time", time.Now().String(), "time diff", timeDiff, "stage", "2.1.1", "object", object)
-			t3 = t4
-		}
+		count = count + 1
+		t4 = time.Now()
+		timeDiff := t4.Unix() - t3.Unix()
+		handler.logger.Infow("api response time testing enforcer", "time", time.Now().String(), "time diff", timeDiff, "stage", "2.1.1", "object", object)
+		t3 = t4
 	}
+
+	for i := 1; i < 2000; i++ {
+		if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, "demo/viki-6jan-1"); ok {
+			count = count + 1
+		} else{
+			count = count + 1
+		}
+		t4 = time.Now()
+		timeDiff := t4.Unix() - t3.Unix()
+		handler.logger.Infow("api response time testing enforcer", "time", time.Now().String(), "time diff", timeDiff, "stage", "2.1.1")
+		t3 = t4
+	}
+
 	handler.logger.Infow("api response time testing", "count", count)
 	t2 = time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3")
