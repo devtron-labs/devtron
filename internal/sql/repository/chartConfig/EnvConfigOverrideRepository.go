@@ -93,6 +93,7 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 		IsOverride              bool   `sql:"is_override"`
 		ChartRefId              int    `sql:"chart_ref_id,notnull"`
 		ChartVersion            string `sql:"chart_version,notnull"`
+		GitRepoUrl              string `sql:"git_repo_url"`
 	}
 
 	query := "SELECT " +
@@ -101,6 +102,7 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 		" ec.active as active, ec.namespace as namespace, ec.latest as latest," +
 		" ch.chart_name as chart_name," +
 		" ch.chart_location as chart_location," +
+		" ch.git_repo_url as git_repo_url,  " +
 		" ch.global_override as global_override, ch.chart_version as chart_version," +
 		" ch.image_descriptor_template as image_descriptor_template," +
 		" en.environment_name as environment_name, ec.is_override, ch.chart_ref_id" +
@@ -121,6 +123,7 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 		ImageDescriptorTemplate: environmentConfig.ImageDescriptorTemplate,
 		ChartRefId:              environmentConfig.ChartRefId,
 		ChartVersion:            environmentConfig.ChartVersion,
+		GitRepoUrl:              environmentConfig.GitRepoUrl,
 	}
 	env := &cluster.Environment{
 		Name: environmentConfig.EnvironmentName,
