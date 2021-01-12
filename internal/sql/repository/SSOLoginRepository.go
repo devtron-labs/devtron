@@ -83,7 +83,7 @@ func (impl SSOLoginRepositoryImpl) GetById(id int32) (*SSOLoginModel, error) {
 }
 func (impl SSOLoginRepositoryImpl) GetAll() ([]SSOLoginModel, error) {
 	var userModel []SSOLoginModel
-	err := impl.dbConnection.Model(&userModel).Order("updated_on desc").Select()
+	err := impl.dbConnection.Model(&userModel).Where("active = ?", true).Order("updated_on desc").Select()
 	return userModel, err
 }
 
