@@ -152,6 +152,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	t1 = t2
 	t3 := time.Now()
 	t4 := time.Now()
+	count := 1
 	for _, env := range envContainers {
 		if fetchAppListingRequest.DeploymentGroupId > 0 {
 			if env.EnvironmentId != 0 && env.EnvironmentId != dg.EnvironmentId {
@@ -162,6 +163,11 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
 			appEnvs = append(appEnvs, env)
 		}
+		for i := 1; i < 100; i++ {
+			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+				count = count + 1
+			}
+		}
 		t4 = time.Now()
 		timeDiff := t4.Unix() - t3.Unix()
 		if timeDiff > 0 {
@@ -169,6 +175,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		}
 		t3 = t4
 	}
+	handler.logger.Infow("api response time testing", "count", count)
 	t2 = time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3")
 	t1 = t2
