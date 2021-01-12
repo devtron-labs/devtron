@@ -104,6 +104,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	//Allow CORS here By * or specific origin
 	setupResponse(&w, r)
 	token := r.Header.Get("token")
+	t0 := time.Now()
+	t1 := time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(), "stage", "1")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -138,8 +141,10 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		writeJsonResp(w, err, "", http.StatusInternalServerError)
 	}
+	t2 := time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "2")
+	t1 = t2
 	appEnvs := make([]*bean.AppEnvironmentContainer, 0)
-
 	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, env := range envContainers {
 		if fetchAppListingRequest.DeploymentGroupId > 0 {
@@ -152,7 +157,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			appEnvs = append(appEnvs, env)
 		}
 	}
-
+	t2 = time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3")
+	t1 = t2
 	apps, err := handler.appListingService.BuildAppListingResponse(fetchAppListingRequest, appEnvs)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
@@ -193,6 +200,10 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			CiMaterialDTOs: ciMaterialDTOs,
 		}
 	}
+	t2 = time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "4")
+	t1 = t2
+	handler.logger.Infow("api response time testing", "total time", time.Now().String(), "total time", t1.Unix()-t0.Unix())
 	writeJsonResp(w, err, appContainerResponse, http.StatusOK)
 }
 
