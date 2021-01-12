@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"go.uber.org/zap"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"path/filepath"
 	"text/template"
@@ -64,6 +65,7 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *clu
 		impl.logger.Errorw("error in config", "err", err)
 		return "", err
 	}
+	config.GroupVersion= &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
 	err = impl.CreateArgoApplication(appRequest.Namespace, applicationRequestString, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating acd application", "err", err)
