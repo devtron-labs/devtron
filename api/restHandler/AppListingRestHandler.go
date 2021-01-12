@@ -163,7 +163,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
 			appEnvs = append(appEnvs, env)
 		}
-		for i := 1; i < 500; i++ {
+		for i := 1; i < 100; i++ {
 			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
 				count = count + 1
 			}
