@@ -78,12 +78,12 @@ func (impl SSOLoginRepositoryImpl) Update(userModel *SSOLoginModel, tx *pg.Tx) (
 }
 func (impl SSOLoginRepositoryImpl) GetById(id int32) (*SSOLoginModel, error) {
 	var model SSOLoginModel
-	err := impl.dbConnection.Model(&model).Where("id = ?", id).Where("active = ?", true).Select()
+	err := impl.dbConnection.Model(&model).Where("id = ?", id).Order("id desc").Limit(1).Select()
 	return &model, err
 }
 func (impl SSOLoginRepositoryImpl) GetAll() ([]SSOLoginModel, error) {
 	var userModel []SSOLoginModel
-	err := impl.dbConnection.Model(&userModel).Where("active = ?", true).Order("updated_on desc").Select()
+	err := impl.dbConnection.Model(&userModel).Order("updated_on desc").Select()
 	return userModel, err
 }
 
@@ -103,7 +103,7 @@ func (impl SSOLoginRepositoryImpl) Delete(userModel *SSOLoginModel, tx *pg.Tx) (
 
 func (impl SSOLoginRepositoryImpl) GetByName(name string) (*SSOLoginModel, error) {
 	var model SSOLoginModel
-	err := impl.dbConnection.Model(&model).Where("name = ?", name).Where("active = ?", true).Select()
+	err := impl.dbConnection.Model(&model).Where("name = ?", name).Order("id desc").Limit(1).Select()
 	return &model, err
 }
 

@@ -149,10 +149,27 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		impl.logger.Errorw("error in update new sso login config", "error", err)
 		return nil, err
 	}
+
+	existingModel, err := impl.ssoLoginRepository.GetActive()
+	if err != nil {
+		impl.logger.Errorw("error in creating new sso login config", "error", err)
+		return nil, err
+	}
+	if existingModel.Id != model.Id {
+		existingModel.Active = false
+		existingModel.UpdatedOn = time.Now()
+		existingModel.UpdatedBy = request.UserId
+		_, err = impl.ssoLoginRepository.Update(existingModel, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating new sso login config", "error", err)
+			return nil, err
+		}
+	}
+
 	model.Label = request.Label
 	model.Url = request.Url
 	model.Config = string(configDataByte)
-	model.Active = request.Active
+	model.Active = true
 	model.UpdatedBy = request.UserId
 	model.UpdatedOn = time.Now()
 	_, err = impl.ssoLoginRepository.Update(model, tx)
@@ -261,7 +278,6 @@ func (impl SSOLoginServiceImpl) GetById(id int32) (*bean.SSOLoginDto, error) {
 		Id:     model.Id,
 		Name:   model.Name,
 		Label:  model.Label,
-		Url:    model.Url,
 		Active: model.Active,
 		Config: config,
 	}
@@ -289,7 +305,6 @@ func (impl SSOLoginServiceImpl) GetAll() ([]*bean.SSOLoginDto, error) {
 			Id:    model.Id,
 			Name:  model.Name,
 			Label: model.Label,
-			//Url:    model.Url,
 			Active: model.Active,
 			//Config: config,
 		}
@@ -315,7 +330,6 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		Id:     model.Id,
 		Name:   model.Name,
 		Label:  model.Label,
-		Url:    model.Url,
 		Active: model.Active,
 		Config: config,
 	}
