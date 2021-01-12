@@ -212,10 +212,6 @@ func (impl AppListingServiceImpl) BuildAppListingResponse(fetchAppListingRequest
 
 func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest FetchAppListingRequest, existingAppEnvContainers []*bean.AppEnvironmentContainer) (map[string][]*bean.AppEnvironmentContainer, error) {
 	appEnvMapping := make(map[string][]*bean.AppEnvironmentContainer)
-	t1 := time.Now()
-	t2 := time.Now()
-	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1")
-	t1 = t2
 	var appNames []string
 	var appIds []int
 	var pipelineIds []int
@@ -255,10 +251,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		impl.Logger.Errorw("err", err)
 		return nil, err
 	}
-	impl.Logger.Infow("api response time testing", "pipelineIds", len(pipelineIds))
-	t2 = time.Now()
-	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.2")
-	t1 = t2
 	if len(pipelineIds) > 0 {
 		//here to build a map of pipelines list for each (appId and envId)
 		for _, p := range pipelinesAll {
@@ -280,7 +272,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			impl.Logger.Error(err)
 			return nil, err
 		}
-		impl.Logger.Infow("api response time testing", "cdWorkflowAll", len(cdWorkflowAll))
 		// find and build a map of latest cd workflow for each (appId and envId), single latest CDWF for any of the cd pipelines.
 		var wfIds []int
 		for key, v := range appEnvPipelinesMap {
@@ -425,9 +416,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 
 		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
 	}
-	t2 = time.Now()
-	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.3")
-	t1 = t2
 	return appEnvMapping, nil
 }
 

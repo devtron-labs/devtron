@@ -145,7 +145,6 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "2")
 	t1 = t2
 	appEnvs := make([]*bean.AppEnvironmentContainer, 0)
-
 	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, env := range envContainers {
 		if fetchAppListingRequest.DeploymentGroupId > 0 {
