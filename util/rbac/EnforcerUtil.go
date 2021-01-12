@@ -80,6 +80,9 @@ func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps() map[int]string {
 			objects[item.Id] = fmt.Sprintf("%s/%s", strings.ToLower(item.Team.Name), strings.ToLower(item.AppName))
 		}
 	}
+	for i := 10000; i < 10500; i++ {
+		objects[i] = fmt.Sprintf("%s/%s", strings.ToLower("abc"), strings.ToLower("xyz"))
+	}
 	return objects
 }
 
