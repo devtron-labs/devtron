@@ -19,7 +19,6 @@ package appstore
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -32,7 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
-	"strconv"
 	"time"
 )
 
@@ -293,52 +291,54 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 		return nil, err
 	}
 
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
-	if err != nil {
-		return nil, err
-	}
-	cfg, err := impl.envService.GetClusterConfig(clusterBean)
-	if err != nil {
-		return nil, err
-	}
-
-	apiVersion, err := impl.versionService.GetVersion()
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil, err
-	}
-	apiMinorVersion, err := strconv.Atoi(apiVersion[3:4])
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil, err
-	}
-	client, err := impl.K8sUtil.GetClient(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	updateSuccess := false
-	retryCount := 0
-	for !updateSuccess && retryCount < 3 {
-		retryCount = retryCount + 1
-
-		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+	/*
+		clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 		if err != nil {
 			return nil, err
 		}
-		data := impl.updateData(cm.Data, request, apiMinorVersion)
-		cm.Data = data["data"]
-		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		cfg, err := impl.envService.GetClusterConfig(clusterBean)
 		if err != nil {
-			continue
+			return nil, err
 		}
-		if err == nil {
-			updateSuccess = true
+
+		apiVersion, err := impl.versionService.GetVersion()
+		if err != nil {
+			impl.logger.Errorw("err", "err", err)
+			return nil, err
 		}
-	}
-	if !updateSuccess {
-		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
-	}
+		apiMinorVersion, err := strconv.Atoi(apiVersion[3:4])
+		if err != nil {
+			impl.logger.Errorw("err", "err", err)
+			return nil, err
+		}
+		client, err := impl.K8sUtil.GetClient(cfg)
+		if err != nil {
+			return nil, err
+		}
+
+		updateSuccess := false
+		retryCount := 0
+		for !updateSuccess && retryCount < 3 {
+			retryCount = retryCount + 1
+
+			cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+			if err != nil {
+				return nil, err
+			}
+			data := impl.updateData(cm.Data, request, apiMinorVersion)
+			cm.Data = data["data"]
+			_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				continue
+			}
+			if err == nil {
+				updateSuccess = true
+			}
+		}
+		if !updateSuccess {
+			return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+		}
+	*/
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -376,54 +376,56 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 		return nil, err
 	}
 
-	// modify configmap
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
-	if err != nil {
-		return nil, err
-	}
-	cfg, err := impl.envService.GetClusterConfig(clusterBean)
-	if err != nil {
-		return nil, err
-	}
-
-	apiVersion, err := impl.versionService.GetVersion()
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil, err
-	}
-	apiMinorVersion, err := strconv.Atoi(apiVersion[3:4])
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil, err
-	}
-	client, err := impl.K8sUtil.GetClient(cfg)
-	if err != nil {
-		return nil, err
-	}
-	updateSuccess := false
-	retryCount := 0
-	for !updateSuccess && retryCount < 3 {
-		retryCount = retryCount + 1
-
-		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+	/*
+		// modify configmap
+		clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 		if err != nil {
 			return nil, err
 		}
-		data := impl.updateData(cm.Data, request, apiMinorVersion)
-		cm.Data = data["data"]
-		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		cfg, err := impl.envService.GetClusterConfig(clusterBean)
 		if err != nil {
-			impl.logger.Warnw(" config map failed", "err", err)
-			continue
+			return nil, err
 		}
-		if err == nil {
-			impl.logger.Warnw(" config map apply succeeded", "on retryCount", retryCount)
-			updateSuccess = true
+
+		apiVersion, err := impl.versionService.GetVersion()
+		if err != nil {
+			impl.logger.Errorw("err", "err", err)
+			return nil, err
 		}
-	}
-	if !updateSuccess {
-		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
-	}
+		apiMinorVersion, err := strconv.Atoi(apiVersion[3:4])
+		if err != nil {
+			impl.logger.Errorw("err", "err", err)
+			return nil, err
+		}
+		client, err := impl.K8sUtil.GetClient(cfg)
+		if err != nil {
+			return nil, err
+		}
+		updateSuccess := false
+		retryCount := 0
+		for !updateSuccess && retryCount < 3 {
+			retryCount = retryCount + 1
+
+			cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+			if err != nil {
+				return nil, err
+			}
+			data := impl.updateData(cm.Data, request, apiMinorVersion)
+			cm.Data = data["data"]
+			_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				impl.logger.Warnw(" config map failed", "err", err)
+				continue
+			}
+			if err == nil {
+				impl.logger.Warnw(" config map apply succeeded", "on retryCount", retryCount)
+				updateSuccess = true
+			}
+		}
+		if !updateSuccess {
+			return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+		}
+	*/
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
