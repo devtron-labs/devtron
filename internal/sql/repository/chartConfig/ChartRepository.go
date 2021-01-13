@@ -253,15 +253,13 @@ func (impl ChartRepoRepositoryImpl) GetDefault() (*ChartRepo, error) {
 func (impl ChartRepoRepositoryImpl) FindById(id int) (*ChartRepo, error) {
 	repo := &ChartRepo{}
 	err := impl.dbConnection.Model(repo).
-		Where("id = ?", id).
-		Where("active = ?", true).Select()
+		Where("id = ?", id).Select()
 	return repo, err
 }
 
 func (impl ChartRepoRepositoryImpl) FindAll() ([]*ChartRepo, error) {
 	var repo []*ChartRepo
-	err := impl.dbConnection.Model(&repo).
-		Where("active = ?", true).Select()
+	err := impl.dbConnection.Model(&repo).Select()
 	return repo, err
 }
 
@@ -296,6 +294,7 @@ func NewChartRefRepositoryImpl(dbConnection *pg.DB) *ChartRefRepositoryImpl {
 func (impl ChartRefRepositoryImpl) Save(chartRepo *ChartRef) error {
 	return impl.dbConnection.Insert(chartRepo)
 }
+
 func (impl ChartRefRepositoryImpl) GetDefault() (*ChartRef, error) {
 	repo := &ChartRef{}
 	err := impl.dbConnection.Model(repo).
