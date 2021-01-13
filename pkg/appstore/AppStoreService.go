@@ -449,6 +449,7 @@ func (impl *AppStoreServiceImpl) GetChartRepoById(id int) (*ChartRepoDto, error)
 	chartRepo.SshKey = model.SshKey
 	chartRepo.AccessToken = model.AccessToken
 	chartRepo.Default = model.Default
+	chartRepo.Active = model.Active
 	return chartRepo, nil
 }
 
@@ -469,6 +470,7 @@ func (impl *AppStoreServiceImpl) GetChartRepoList() ([]*ChartRepoDto, error) {
 		chartRepo.SshKey = model.SshKey
 		chartRepo.AccessToken = model.AccessToken
 		chartRepo.Default = model.Default
+		chartRepo.Active = model.Active
 		chartRepos = append(chartRepos, chartRepo)
 	}
 	return chartRepos, nil
