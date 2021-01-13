@@ -571,6 +571,19 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	mergedData := map[string]string{}
 	mergedData["helm.repositories"] = string(helmRepositoriesYamlByte)
 	mergedData["repositories"] = string(repositoriesYamlByte)
+
+	//dex config copy as it is
+	dexConfig := data["dex.config"]
+	dexConfigJsonByte, err := json.Marshal(dexConfig)
+	if err != nil {
+		panic(err)
+	}
+	dexConfigYamlByte, err := yaml.JSONToYAML(dexConfigJsonByte)
+	if err != nil {
+		panic(err)
+	}
+	mergedData["dex.config"] = string(dexConfigYamlByte)
+	
 	newDataFinal := map[string]map[string]string{}
 	newDataFinal["data"] = mergedData
 	return newDataFinal
