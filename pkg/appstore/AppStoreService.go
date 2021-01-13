@@ -440,6 +440,7 @@ func (impl *AppStoreServiceImpl) GetChartRepoById(id int) (*ChartRepoDto, error)
 	}
 	chartRepo.Id = model.Id
 	chartRepo.Name = model.Name
+	chartRepo.Url = model.Url
 	chartRepo.AuthMode = model.AuthMode
 	chartRepo.Password = model.Password
 	chartRepo.UserName = model.UserName
@@ -459,6 +460,7 @@ func (impl *AppStoreServiceImpl) GetChartRepoList() ([]*ChartRepoDto, error) {
 		chartRepo := &ChartRepoDto{}
 		chartRepo.Id = model.Id
 		chartRepo.Name = model.Name
+		chartRepo.Url = model.Url
 		chartRepo.AuthMode = model.AuthMode
 		chartRepo.Password = model.Password
 		chartRepo.UserName = model.UserName
