@@ -201,7 +201,7 @@ type ChartRepo struct {
 	Id          int                 `sql:"id,pk"`
 	Name        string              `sql:"name"`
 	Url         string              `sql:"url"`
-	Active      bool                `sql:"active"`
+	Active      bool                `sql:"active,notnull"`
 	Default     bool                `sql:"is_default,notnull"`
 	UserName    string              `sql:"user_name"`
 	Password    string              `sql:"password"`
