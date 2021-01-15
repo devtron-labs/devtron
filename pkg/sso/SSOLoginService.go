@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
@@ -264,11 +265,13 @@ func (impl SSOLoginServiceImpl) updateSSODexConfigOnAcdConfigMap(config json.Raw
 
 func (impl SSOLoginServiceImpl) GetById(id int32) (*bean.SSOLoginDto, error) {
 	model, err := impl.ssoLoginRepository.GetById(id)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in update new sso login config", "error", err)
 		return nil, err
 	}
-
+	if err == pg.ErrNoRows {
+		return nil, nil
+	}
 	var config json.RawMessage
 	err = json.Unmarshal([]byte(model.Config), &config)
 	if err != nil {
@@ -316,11 +319,14 @@ func (impl SSOLoginServiceImpl) GetAll() ([]*bean.SSOLoginDto, error) {
 
 func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error) {
 	model, err := impl.ssoLoginRepository.GetByName(name)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in update new sso login config", "error", err)
 		return nil, err
 	}
 
+	if err == pg.ErrNoRows {
+		return nil, nil
+	}
 	var config json.RawMessage
 	err = json.Unmarshal([]byte(model.Config), &config)
 	if err != nil {
