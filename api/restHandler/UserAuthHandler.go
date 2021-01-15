@@ -513,11 +513,9 @@ func (handler UserAuthHandlerImpl) CreateSSOLoginConfig(w http.ResponseWriter, r
 	}
 
 	if !isActionUserSuperAdmin {
-		if !isActionUserSuperAdmin {
-			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
-			writeJsonResp(w, err, "", http.StatusForbidden)
-			return
-		}
+		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
+		writeJsonResp(w, err, "", http.StatusForbidden)
+		return
 	}
 
 	handler.logger.Infow("request payload, CreateSSOLoginConfig", "payload", dto)
@@ -553,11 +551,9 @@ func (handler UserAuthHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r
 	}
 
 	if !isActionUserSuperAdmin {
-		if !isActionUserSuperAdmin {
-			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
-			writeJsonResp(w, err, "", http.StatusForbidden)
-			return
-		}
+		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
+		writeJsonResp(w, err, "", http.StatusForbidden)
+		return
 	}
 
 	handler.logger.Infow("request payload, UpdateSSOLoginConfig", "payload", dto)
@@ -603,11 +599,9 @@ func (handler UserAuthHandlerImpl) GetSSOLoginConfig(w http.ResponseWriter, r *h
 	}
 
 	if !isActionUserSuperAdmin {
-		if !isActionUserSuperAdmin {
-			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
-			writeJsonResp(w, err, "", http.StatusForbidden)
-			return
-		}
+		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
+		writeJsonResp(w, err, "", http.StatusForbidden)
+		return
 	}
 
 	res, err := handler.ssoLoginService.GetById(int32(id))
@@ -625,6 +619,19 @@ func (handler UserAuthHandlerImpl) GetSSOLoginConfigByName(w http.ResponseWriter
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.logger.Errorw("request err, GetSSOLoginConfigByName", "err", err, "userId", userId)
+		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+
+	if !isActionUserSuperAdmin {
+		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
+		writeJsonResp(w, err, "", http.StatusForbidden)
+		return
+	}
+
 	vars := mux.Vars(r)
 	name := vars["name"]
 	res, err := handler.ssoLoginService.GetByName(name)
