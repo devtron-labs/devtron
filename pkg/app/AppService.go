@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
@@ -84,6 +85,7 @@ type AppServiceImpl struct {
 	commonService                 commonService.CommonService
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
 	imageScanHistoryRepository    security.ImageScanHistoryRepository
+	ArgoK8sClient                 argocdServer.ArgoK8sClient
 }
 
 type AppService interface {
@@ -118,7 +120,8 @@ func NewAppService(
 	chartRepository chartConfig.ChartRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
-	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository) *AppServiceImpl {
+	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
+	ArgoK8sClient argocdServer.ArgoK8sClient) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:   environmentConfigRepository,
 		mergeUtil:                     mergeUtil,
@@ -149,6 +152,7 @@ func NewAppService(
 		commonService:                 commonService,
 		imageScanDeployInfoRepository: imageScanDeployInfoRepository,
 		imageScanHistoryRepository:    imageScanHistoryRepository,
+		ArgoK8sClient:                 ArgoK8sClient,
 	}
 	return appServiceImpl
 }
@@ -1158,16 +1162,17 @@ func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, en
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipelineName)
 
 		if application.Spec.Source.Path != envOverride.Chart.ChartLocation {
-			application.Spec.Source.Path = envOverride.Chart.ChartLocation
-			updateReq := &application2.ApplicationUpdateRequest{
-				Application: application,
-			}
-			appRes, err := impl.acdClient.Update(ctx, updateReq)
+			patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation , RepoURL: envOverride.Chart.GitRepoUrl}}}
+			reqbyte, err := json.Marshal(patchReq)
 			if err != nil {
-				impl.logger.Errorw("error in creating argo pipeline ", "err", err, "name", pipelineName)
+				impl.logger.Errorw("error in creating patch", "err", err)
+			}
+			_, err = impl.acdClient.Patch(ctx, &application2.ApplicationPatchRequest{Patch: string(reqbyte), Name: &argoAppName, PatchType: "merge"})
+			if err != nil {
+				impl.logger.Errorw("error in creating argo pipeline ", "name", pipelineName, "patch", string(reqbyte), "err", err)
 				return false, err
 			}
-			impl.logger.Debugw("pipeline update req ", "res", appRes)
+			impl.logger.Debugw("pipeline update req ", "res", patchReq)
 		} else {
 			impl.logger.Debug("pipeline no need to update ")
 		}

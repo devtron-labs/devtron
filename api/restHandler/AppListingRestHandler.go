@@ -31,11 +31,13 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -59,6 +61,7 @@ type AppListingRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
 	enforcerUtil           rbac.EnforcerUtil
 	deploymentGroupService deploymentGroup.DeploymentGroupService
+	userService            user.UserService
 }
 
 type AppStatus struct {
@@ -75,7 +78,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	enforcer rbac.Enforcer,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
-	deploymentGroupService deploymentGroup.DeploymentGroupService) *AppListingRestHandlerImpl {
+	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:            application,
 		appListingService:      appListingService,
@@ -85,6 +88,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		enforcer:               enforcer,
 		enforcerUtil:           enforcerUtil,
 		deploymentGroupService: deploymentGroupService,
+		userService:            userService,
 	}
 	return appListingHandler
 }
@@ -100,10 +104,23 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	//Allow CORS here By * or specific origin
 	setupResponse(&w, r)
 	token := r.Header.Get("token")
-
+	t0 := time.Now()
+	t1 := time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(), "stage", "1")
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	user, err := handler.userService.GetById(userId)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(user.EmailId)
 	var fetchAppListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&fetchAppListingRequest)
+	err = decoder.Decode(&fetchAppListingRequest)
 	if err != nil {
 		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
@@ -124,9 +141,11 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		writeJsonResp(w, err, "", http.StatusInternalServerError)
 	}
+	t2 := time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "2")
+	t1 = t2
 	appEnvs := make([]*bean.AppEnvironmentContainer, 0)
-
-	rbacObjects := handler.enforcerUtil.GetAppRBACNameV2()
+	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, env := range envContainers {
 		if fetchAppListingRequest.DeploymentGroupId > 0 {
 			if env.EnvironmentId != 0 && env.EnvironmentId != dg.EnvironmentId {
@@ -134,11 +153,13 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 		}
 		object := rbacObjects[env.AppId]
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+		if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
 			appEnvs = append(appEnvs, env)
 		}
 	}
-
+	t2 = time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3")
+	t1 = t2
 	apps, err := handler.appListingService.BuildAppListingResponse(fetchAppListingRequest, appEnvs)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
@@ -179,6 +200,10 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			CiMaterialDTOs: ciMaterialDTOs,
 		}
 	}
+	t2 = time.Now()
+	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "4")
+	t1 = t2
+	handler.logger.Infow("api response time testing", "total time", time.Now().String(), "total time", t1.Unix()-t0.Unix())
 	writeJsonResp(w, err, appContainerResponse, http.StatusOK)
 }
 

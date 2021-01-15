@@ -18,7 +18,6 @@
 package pipeline
 
 import (
-	"bytes"
 	"encoding/json"
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo/pkg/client/clientset/versioned"
@@ -35,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"strconv"
-	"text/template"
 )
 
 type CdWorkflowService interface {
@@ -473,15 +471,6 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	impl.Logger.Debugw("workflow submitted: ", "name", createdWf.Name)
 	impl.checkErr(err)
 	return createdWf, err
-}
-
-func Tprintf(tmpl string, data interface{}) (string, error) {
-	t := template.Must(template.New("tpl").Delims("<<", ">>").Parse(tmpl))
-	buf := &bytes.Buffer{}
-	if err := t.Execute(buf, data); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
 }
 
 func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, url string, token string, isExtRun bool) (*v1alpha1.Workflow, error) {
