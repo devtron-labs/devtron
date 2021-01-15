@@ -26,8 +26,10 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -46,27 +48,27 @@ type ApplicationRestHandler interface {
 	Watch(w http.ResponseWriter, r *http.Request)
 	ManagedResources(w http.ResponseWriter, r *http.Request)
 	Rollback(w http.ResponseWriter, r *http.Request)
-	Patch(w http.ResponseWriter, r *http.Request)
 	GetManifests(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
-	Create(w http.ResponseWriter, r *http.Request)
-	Update(w http.ResponseWriter, r *http.Request)
+
 	Sync(w http.ResponseWriter, r *http.Request)
 	TerminateOperation(w http.ResponseWriter, r *http.Request)
 	PatchResource(w http.ResponseWriter, r *http.Request)
 	DeleteResource(w http.ResponseWriter, r *http.Request)
 
 	GetServiceLink(w http.ResponseWriter, r *http.Request)
+	GetTerminalSession(w http.ResponseWriter, r *http.Request)
 }
 
 type ApplicationRestHandlerImpl struct {
-	client             application.ServiceClient
-	logger             *zap.SugaredLogger
-	pump               connector.Pump
-	enforcer           rbac.Enforcer
-	teamService        team.TeamService
-	environmentService cluster.EnvironmentService
-	enforcerUtil       rbac.EnforcerUtil
+	client                 application.ServiceClient
+	logger                 *zap.SugaredLogger
+	pump                   connector.Pump
+	enforcer               rbac.Enforcer
+	teamService            team.TeamService
+	environmentService     cluster.EnvironmentService
+	enforcerUtil           rbac.EnforcerUtil
+	terminalSessionHandler terminal.TerminalSessionHandler
 }
 
 func NewApplicationRestHandlerImpl(client application.ServiceClient,
@@ -74,16 +76,66 @@ func NewApplicationRestHandlerImpl(client application.ServiceClient,
 	enforcer rbac.Enforcer,
 	teamService team.TeamService,
 	environmentService cluster.EnvironmentService,
-	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil) *ApplicationRestHandlerImpl {
+	logger *zap.SugaredLogger,
+	enforcerUtil rbac.EnforcerUtil,
+	terminalSessionHandler terminal.TerminalSessionHandler) *ApplicationRestHandlerImpl {
 	return &ApplicationRestHandlerImpl{
-		client:             client,
-		logger:             logger,
-		pump:               pump,
-		enforcer:           enforcer,
-		teamService:        teamService,
-		environmentService: environmentService,
-		enforcerUtil:       enforcerUtil,
+		client:                 client,
+		logger:                 logger,
+		pump:                   pump,
+		enforcer:               enforcer,
+		teamService:            teamService,
+		environmentService:     environmentService,
+		enforcerUtil:           enforcerUtil,
+		terminalSessionHandler: terminalSessionHandler,
 	}
+}
+
+func (impl ApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	request := &terminal.TerminalSessionRequest{}
+	vars := mux.Vars(r)
+	request.ContainerName = vars["container"]
+	request.Namespace = vars["namespace"]
+	request.PodName = vars["pod"]
+	request.Shell = vars["shell"]
+	appId := vars["appId"]
+	envId := vars["environmentId"]
+	//---------auth
+	id, err := strconv.Atoi(appId)
+	if err != nil {
+		writeJsonResp(w, fmt.Errorf("appId is not integer"), nil, http.StatusBadRequest)
+		return
+	}
+	eId, err := strconv.Atoi(envId)
+	if err != nil {
+		writeJsonResp(w, fmt.Errorf("envId is not integer"), nil, http.StatusBadRequest)
+		return
+	}
+	request.AppId = id
+	appRbacObject := impl.enforcerUtil.GetAppRBACNameByAppId(id)
+	if appRbacObject == "" {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	envRbacObject := impl.enforcerUtil.GetEnvRBACNameByAppId(id, eId)
+	if envRbacObject == "" {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusBadRequest)
+		return
+	}
+	request.EnvironmentId = eId
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, appRbacObject); !ok {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, envRbacObject); !ok {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//---------auth end
+	//TODO apply validation
+	status, message, err := impl.terminalSessionHandler.GetTerminalSession(request)
+	writeJsonResp(w, err, message, status)
 }
 
 func (impl ApplicationRestHandlerImpl) Watch(w http.ResponseWriter, r *http.Request) {
@@ -338,35 +390,6 @@ func (impl ApplicationRestHandlerImpl) Rollback(w http.ResponseWriter, r *http.R
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) Patch(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name := vars["name"]
-	decoder := json.NewDecoder(r.Body)
-	query := new(application2.ApplicationPatchRequest)
-	err := decoder.Decode(query)
-	if err != nil {
-		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	query.Name = &name
-	token := r.Header.Get("token")
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(ctx, "token", token)
-	defer cancel()
-	recv, err := impl.client.Patch(ctx, query)
-	impl.pump.StartMessage(w, recv, err)
-}
-
 func (impl ApplicationRestHandlerImpl) GetManifests(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
@@ -422,61 +445,6 @@ func (impl ApplicationRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 	ctx = context.WithValue(ctx, "token", token)
 	defer cancel()
 	recv, err := impl.client.Get(ctx, query)
-	impl.pump.StartMessage(w, recv, err)
-}
-
-func (impl ApplicationRestHandlerImpl) Create(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	query := new(application2.ApplicationCreateRequest)
-	err := decoder.Decode(query)
-	if err != nil {
-		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	token := r.Header.Get("token")
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(ctx, "token", token)
-	defer cancel()
-	recv, err := impl.client.Create(ctx, query)
-	impl.pump.StartMessage(w, recv, err)
-}
-
-func (impl ApplicationRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name := vars["name"]
-	decoder := json.NewDecoder(r.Body)
-	query := new(application2.ApplicationUpdateRequest)
-	err := decoder.Decode(query.Application)
-	query.GetApplication().GetMetadata().Name = &name
-	if err != nil {
-		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	token := r.Header.Get("token")
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(ctx, "token", token)
-	defer cancel()
-	recv, err := impl.client.Update(ctx, query)
 	impl.pump.StartMessage(w, recv, err)
 }
 

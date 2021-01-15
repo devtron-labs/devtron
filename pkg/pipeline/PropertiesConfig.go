@@ -18,10 +18,8 @@
 package pipeline
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -328,12 +326,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	err = impl.envConfigRepo.UpdateProperties(override)
 
 	if oldEnvOverride.Namespace != override.Namespace {
-		//namespace changed
-		//TODO add changes to all pipeline
-		_, err := impl.updateArgoPipeline(propertiesRequest.Id)
-		if err != nil {
-			impl.logger.Error("error while update application on acd", "error", err)
-		}
+		return nil, fmt.Errorf("namespace name update not supported")
 	}
 
 	chartMajorVersion, err := strconv.Atoi(oldEnvOverride.Chart.ChartVersion[:1])
@@ -431,54 +424,6 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Char
 	return envOverride, nil
 }
 
-func (impl PropertiesConfigServiceImpl) updateArgoPipeline(envOverrideId int) (bool, error) {
-	//repo has been registered while helm create
-	envOverride, err := impl.envConfigRepo.Get(envOverrideId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching env override config", "error", err)
-		return false, err
-	}
-	cdPipelines, err := impl.dbPipelineOrchestrator.GetByEnvOverrideId(envOverride.Id)
-	if err != nil {
-		impl.logger.Errorw("error in fetching cd pipelines", "error", err)
-		return false, err
-	}
-
-	/*refresh := "refresh"
-	project := "project"
-	projects := make([]string, 0)
-	if len(project) > 0 {
-		projects = strings.Split(project, ",")
-	}*/
-
-	for _, pipeline := range cdPipelines.Pipelines {
-		name := pipeline.Name
-		query := &application2.ApplicationQuery{
-			Name: &name,
-			//Projects: projects,
-			//Refresh:  &refresh,
-		}
-
-		app, err := impl.application.Get(context.Background(), query)
-		if err != nil {
-			impl.logger.Error("no app found in ACD for pipeline:", pipeline.Name)
-			continue
-		}
-
-		app.Namespace = envOverride.Namespace
-		//upsert := true
-		appRequest := &application2.ApplicationUpdateRequest{
-			Application: app,
-		}
-		appRes, err := impl.application.Update(context.Background(), appRequest)
-		if err != nil {
-			impl.logger.Errorw("error in updating argo pipeline ", "err", err, "name", pipeline.Name)
-			continue
-		}
-		impl.logger.Debugw("pipeline update req ", "res", appRes)
-	}
-	return true, nil
-}
 
 func (impl PropertiesConfigServiceImpl) GetEnvironmentPropertiesById(envId int) ([]EnvironmentProperties, error) {
 

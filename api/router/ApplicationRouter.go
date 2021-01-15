@@ -19,6 +19,7 @@ package router
 
 import (
 	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
@@ -82,9 +83,7 @@ func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
 	router.Path("/{name}/rollback").
 		Methods("GET").
 		HandlerFunc(r.handler.Rollback)
-	router.Path("/{name}").
-		Methods("PATCH").
-		HandlerFunc(r.handler.Patch)
+
 	router.Path("/{name}/manifests").
 		Methods("GET").
 		HandlerFunc(r.handler.GetManifests)
@@ -109,5 +108,9 @@ func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
 	router.Path("/{name}/service-link").
 		Methods("GET").
 		HandlerFunc(r.handler.GetServiceLink)
+	router.Path("/pod/exec/session/{appId}/{environmentId}/{namespace}/{pod}/{shell}/{container}").
+		Methods("GET").
+		HandlerFunc(r.handler.GetTerminalSession)
+	router.Path("/pod/exec/sockjs/ws/").Handler(terminal.CreateAttachHandler("/api/v1/applications/pod/exec/sockjs/ws/"))
 
 }
