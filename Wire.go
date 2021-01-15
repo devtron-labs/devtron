@@ -608,12 +608,13 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appstore2.ClusterInstalledAppsRepository), new(*appstore2.ClusterInstalledAppsRepositoryImpl)),
 		terminal.NewTerminalSessionHandlerImpl,
 		wire.Bind(new(terminal.TerminalSessionHandler), new(*terminal.TerminalSessionHandlerImpl)),
+		argocdServer.NewArgoK8sClientImpl,
+		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
+
 		sso.NewSSOLoginServiceImpl,
 		wire.Bind(new(sso.SSOLoginService), new(*sso.SSOLoginServiceImpl)),
 		repository.NewSSOLoginRepositoryImpl,
 		wire.Bind(new(repository.SSOLoginRepository), new(*repository.SSOLoginRepositoryImpl)),
-		argocdServer.NewArgoK8sClientImpl,
-		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
 	)
 	return &App{}, nil
 }

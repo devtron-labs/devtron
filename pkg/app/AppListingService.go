@@ -273,13 +273,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	}
 
 	if len(pipelineIds) > 0 {
-		// from all the active pipeline, get all the cd workflow
-		cdWorkflowAll, err := impl.cdWorkflowRepository.FindLatestCdWorkflowByPipelineIdV2(pipelineIds) //TODO - OPTIMIZE 2
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.Logger.Error(err)
-			return nil, err
-		}
-
 		//here to build a map of pipelines list for each (appId and envId)
 		for _, p := range pipelinesAll {
 			key := fmt.Sprintf("%d-%d", p.AppId, p.EnvironmentId)
@@ -288,10 +281,18 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 				appEnvPipelines = append(appEnvPipelines, p)
 				appEnvPipelinesMap[key] = appEnvPipelines
 			} else {
-				appEnvPipelinesMap[key] = append(appEnvPipelinesMap[key], p)
+				appEnvPipelines := appEnvPipelinesMap[key]
+				appEnvPipelines = append(appEnvPipelines, p)
+				appEnvPipelinesMap[key] = appEnvPipelines
 			}
 		}
 
+		// from all the active pipeline, get all the cd workflow
+		cdWorkflowAll, err := impl.cdWorkflowRepository.FindLatestCdWorkflowByPipelineIdV2(pipelineIds) //TODO - OPTIMIZE 2
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Error(err)
+			return nil, err
+		}
 		// find and build a map of latest cd workflow for each (appId and envId), single latest CDWF for any of the cd pipelines.
 		var wfIds []int
 		for key, v := range appEnvPipelinesMap {
@@ -405,10 +406,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			if cdStageRunner != nil {
 				status := cdStageRunner.Status
 				if status == v1alpha1.HealthStatusHealthy {
-					/*stopType, err := impl.ISLastReleaseStopType(pipeline.AppId, pipeline.EnvironmentId)
-					if err != nil {
-						impl.Logger.Errorw("error in determining stop", "err", err)
-					}*/
 					stopType := releaseMap[pipeline.Id]
 					if stopType {
 						status = application2.HIBERNATING

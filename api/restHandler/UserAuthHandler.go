@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/casbin"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -490,14 +491,35 @@ func (handler UserAuthHandlerImpl) AuthVerification(w http.ResponseWriter, r *ht
 }
 
 func (handler UserAuthHandlerImpl) CreateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	var dto bean.SSOLoginDto
-	err := decoder.Decode(&dto)
+	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, CreateSSOLoginConfig", "err", err, "payload", dto)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.logger.Errorw("request err, CreateSSOLoginConfig", "err", err, "userId", userId)
+		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+
+	if !isActionUserSuperAdmin {
+		if !isActionUserSuperAdmin {
+			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
+			writeJsonResp(w, err, "", http.StatusForbidden)
+			return
+		}
+	}
+
 	handler.logger.Infow("request payload, CreateSSOLoginConfig", "payload", dto)
 	resp, err := handler.ssoLoginService.CreateSSOLogin(&dto)
 	if err != nil {
@@ -508,14 +530,36 @@ func (handler UserAuthHandlerImpl) CreateSSOLoginConfig(w http.ResponseWriter, r
 	writeJsonResp(w, nil, resp, http.StatusOK)
 }
 func (handler UserAuthHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	var dto bean.SSOLoginDto
-	err := decoder.Decode(&dto)
+	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateSSOLoginConfig", "err", err, "payload", dto)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.logger.Errorw("request err, UpdateSSOLoginConfig", "err", err, "userId", userId)
+		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+
+	if !isActionUserSuperAdmin {
+		if !isActionUserSuperAdmin {
+			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
+			writeJsonResp(w, err, "", http.StatusForbidden)
+			return
+		}
+	}
+
 	handler.logger.Infow("request payload, UpdateSSOLoginConfig", "payload", dto)
 	resp, err := handler.ssoLoginService.UpdateSSOLogin(&dto)
 	if err != nil {
@@ -546,9 +590,24 @@ func (handler UserAuthHandlerImpl) GetSSOLoginConfig(w http.ResponseWriter, r *h
 	/* #nosec */
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		handler.logger.Errorw("request err, GetById", "err", err, "id", id)
+		handler.logger.Errorw("request err, GetSSOLoginConfig", "err", err, "id", id)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
+	}
+
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.logger.Errorw("request err, GetSSOLoginConfig", "err", err, "userId", userId)
+		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+
+	if !isActionUserSuperAdmin {
+		if !isActionUserSuperAdmin {
+			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
+			writeJsonResp(w, err, "", http.StatusForbidden)
+			return
+		}
 	}
 
 	res, err := handler.ssoLoginService.GetById(int32(id))
