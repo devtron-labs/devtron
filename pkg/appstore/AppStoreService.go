@@ -339,7 +339,6 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	if !updateSuccess {
 		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
 	}
-
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -425,7 +424,6 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	if !updateSuccess {
 		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
 	}
-
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -576,19 +574,6 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 
 	//dex config copy as it is
 	dexConfigStr := data["dex.config"]
-	/*var dexConfig map[string]interface{}
-	err = json.Unmarshal([]byte(dexConfigStr), &dexConfig)
-	if err != nil {
-		panic(err)
-	}
-	dexConfigJsonByte, err := json.Marshal(dexConfig)
-	if err != nil {
-		panic(err)
-	}
-	dexConfigYamlByte, err := yaml.JSONToYAML(dexConfigJsonByte)
-	if err != nil {
-		panic(err)
-	}*/
 	mergedData["dex.config"] = string([]byte(dexConfigStr))
 
 	newDataFinal := map[string]map[string]string{}
