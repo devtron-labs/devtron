@@ -39,7 +39,6 @@ import (
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"net/http"
-	"net/url"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -287,26 +286,13 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 
 	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
 
-	url, err := url.Parse(chartRepo.Url)
-	if err != nil {
-		impl.logger.Errorw("error in parsing repo url ", "url", chartRepo.Url, "err", err)
-		return nil, err
-	}
-
 	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
 	chartMeta.Version = version
 	if err != nil {
 		return nil, err
 	}
-	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, url, refChart, templateName)
+	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName)
 	if err != nil {
-
-		//If found any error, rollback chart museum
-		flag, err := impl.chartTemplateService.DeleteFromChartMuseum(chartRepo.Url, chartMeta.Name, chartMeta.Version)
-		if flag == false || err != nil {
-			return nil, err
-		}
-
 		return nil, err
 	}
 	override, err := templateRequest.ValuesOverride.MarshalJSON()
@@ -361,10 +347,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		impl.logger.Errorw("error in saving chart ", "chart", chart, "error", err)
 		//If found any error, rollback chart museum
-		flag, err := impl.chartTemplateService.DeleteFromChartMuseum(chartRepo.Url, chartMeta.Name, chartMeta.Version)
-		if flag == false || err != nil {
-			return nil, err
-		}
 		return nil, err
 	}
 
@@ -426,18 +408,12 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 
 	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
 
-	url, err := url.Parse(chartRepo.Url)
-	if err != nil {
-		impl.logger.Errorw("error in parsing repo url ", "url", chartRepo.Url, "err", err)
-		return nil, err
-	}
-
 	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
 	chartMeta.Version = version
 	if err != nil {
 		return nil, err
 	}
-	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, url, refChart, templateName)
+	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName)
 
 	if err != nil {
 		return nil, err
