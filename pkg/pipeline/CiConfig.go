@@ -56,6 +56,9 @@ type CiConfig struct {
 	ExternalCiPayload         string   `env:"EXTERNAL_CI_PAYLOAD" envDefault:"{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/srj92/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2019-10-31T20:55:21+05:30\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"Suraj Gupta \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\",\"digest\":\"test1\",\"dataSource\":\"ext\",\"materialType\":\"git\"}"`
 	CiArtifactLocationFormat  string   `env:"CI_ARTIFACT_LOCATION_FORMAT" envDefault:"%d/%d.zip"`
 	ImageScannerEndpoint      string   `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
+	CloudProvider             string   `env:"cloud_provider" envDefault:"AWS"`
+	AzureAccountName          string   `env:"azure_account_name"`
+	AzureBlobContainer        string   `env:"azure_blob_container"`
 	ClusterConfig             *rest.Config
 	NodeLabel                 map[string]string
 }
@@ -92,6 +95,9 @@ func GetCiConfig() (*CiConfig, error) {
 		}
 		cfg.NodeLabel[kv[0]] = kv[1]
 	}
-
+	//validation for supported cloudproviders
+	if !(cfg.CloudProvider == CLOUD_PROVIDER_AWS || cfg.CloudProvider == CLOUD_PROVIDER_AZURE) {
+		return nil, fmt.Errorf("unsupported cloudprovider: %s", cfg.CloudProvider)
+	}
 	return cfg, err
 }
