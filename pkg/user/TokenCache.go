@@ -62,7 +62,7 @@ type ACDAuthConfig struct {
 	ACDUsername           string `env:"ACD_USERNAME" `
 	ACDPassword           string `env:"ACD_PASSWORD" `
 	ACDConfigMapName      string `env:"ACD_CM" `
-	ACDConfigMapNamespace string `env:"ACD_CM_NAMESPACE" `
+	ACDConfigMapNamespace string `env:"ACD_NAMESPACE" `
 }
 
 func GetACDAuthConfig() (*ACDAuthConfig, error) {
