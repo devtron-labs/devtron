@@ -169,7 +169,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		t3 = t4
 	}
 
-	for i := 1; i < 2000; i++ {
+	for i := 1; i < 1100; i++ {
 		if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, "demo/viki-6jan-1"); ok {
 			count = count + 1
 		} else{
