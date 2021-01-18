@@ -569,9 +569,12 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 	}
 
 	mergedData := map[string]string{}
-	mergedData["helm.repositories"] = string(helmRepositoriesYamlByte)
-	mergedData["repositories"] = string(repositoriesYamlByte)
-
+	if len(helmRepositoriesYamlByte) > 0 {
+		mergedData["helm.repositories"] = string(helmRepositoriesYamlByte)
+	}
+	if len(repositoriesYamlByte) > 0 {
+		mergedData["repositories"] = string(repositoriesYamlByte)
+	}
 	//dex config copy as it is
 	dexConfigStr := data["dex.config"]
 	mergedData["dex.config"] = string([]byte(dexConfigStr))
