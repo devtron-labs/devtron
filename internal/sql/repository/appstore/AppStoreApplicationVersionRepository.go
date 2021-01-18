@@ -101,8 +101,11 @@ func (impl AppStoreApplicationVersionRepositoryImpl) GetReadMeById(id int) (*App
 
 func (impl *AppStoreApplicationVersionRepositoryImpl) FindAll() ([]AppStoreWithVersion, error) {
 	var appStoreWithVersion []AppStoreWithVersion
-	queryTemp := "select asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name from app_store_application_version asv inner join app_store aps on asv.app_store_id = aps.id inner join chart_repo ch on aps.chart_repo_id = ch.id where asv.latest is TRUE order by aps.name asc;"
-	_, err := impl.dbConnection.Query(&appStoreWithVersion, queryTemp)
+	queryTemp := "select asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name" +
+		" from app_store_application_version asv inner join app_store aps on asv.app_store_id = aps.id" +
+		" inner join chart_repo ch on aps.chart_repo_id = ch.id" +
+		" where asv.latest is TRUE and ch.active = ? order by aps.name asc;"
+	_, err := impl.dbConnection.Query(&appStoreWithVersion, queryTemp, true)
 	if err != nil {
 		return nil, err
 	}

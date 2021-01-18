@@ -88,7 +88,7 @@ type ChartMetaData struct {
 	AppStoreApplicationVersion string `json:"appStoreApplicationVersion"`
 	EnvironmentName            string `json:"environmentName,omitempty"`
 	EnvironmentId              int    `json:"environmentId,omitempty"` //FIXME REMOVE THIS ATTRIBUTE AFTER REMOVING ENVORONMENTID FROM GETINSTALLEDAPPCALL
-	// 'http://localhost:3000/app-store/installed-app/detail?installed-app-id=54&env-id=2'
+	IsChartRepoActive          bool   `json:"isChartRepoActive"`
 }
 
 type InstalledChartData struct {
@@ -255,6 +255,7 @@ func (impl *ChartGroupServiceImpl) charterEntryAdopter(chartGroupEntry *chartGro
 			Icon:                       chartGroupEntry.AppStoreApplicationVersion.Icon,
 			AppStoreId:                 chartGroupEntry.AppStoreApplicationVersion.AppStoreId,
 			AppStoreApplicationVersion: chartGroupEntry.AppStoreApplicationVersion.Version,
+			IsChartRepoActive:          chartGroupEntry.AppStoreApplicationVersion.AppStore.ChartRepo.Active,
 		},
 	}
 	return entry
@@ -325,12 +326,13 @@ func (impl *ChartGroupServiceImpl) GetChartGroupWithInstallationDetail(chartGrou
 			version := versions[0]
 			installedChart := &InstalledChart{
 				ChartMetaData: ChartMetaData{
-					ChartName:       version.InstalledApp.App.AppName,
-					ChartRepoName:   version.AppStoreApplicationVersion.AppStore.ChartRepo.Name,
-					Icon:            version.AppStoreApplicationVersion.Icon,
-					AppStoreId:      version.AppStoreApplicationVersion.AppStoreId,
-					EnvironmentName: version.InstalledApp.Environment.Name,
-					EnvironmentId:   version.InstalledApp.EnvironmentId,
+					ChartName:         version.InstalledApp.App.AppName,
+					ChartRepoName:     version.AppStoreApplicationVersion.AppStore.ChartRepo.Name,
+					Icon:              version.AppStoreApplicationVersion.Icon,
+					AppStoreId:        version.AppStoreApplicationVersion.AppStoreId,
+					EnvironmentName:   version.InstalledApp.Environment.Name,
+					EnvironmentId:     version.InstalledApp.EnvironmentId,
+					IsChartRepoActive: version.AppStoreApplicationVersion.AppStore.ChartRepo.Active,
 				},
 				InstalledAppId: version.InstalledAppId,
 			}
