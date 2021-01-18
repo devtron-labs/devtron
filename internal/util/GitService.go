@@ -42,7 +42,7 @@ type GitClient interface {
 }
 
 type GitConfig struct {
-	GitlabNamespaceID   int                                                            //not null //local
+	GitlabNamespaceID   int    //not null //local
 	GitlabNamespaceName string `env:"GITLAB_NAMESPACE_NAME" `                          //local
 	GitToken            string `env:"GIT_TOKEN" `                                      //not null  // public
 	GitUserName         string `env:"GIT_USERNAME" `                                   //not null  // public
@@ -95,6 +95,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 			}
 			logger.Warnw("error connecting to gitlab", "status code", responseStatus, "err", err.Error())
 		}
+		logger.Debugw("gitlab groups found ", "group", groups)
 		if len(groups) == 0 {
 			logger.Warn("no matching namespace found for gitlab")
 		}
@@ -103,6 +104,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 				config.GitlabNamespaceID = group.ID
 			}
 		}
+		logger.Debugw("gitlab config", "config", config)
 		return &GitLabClient{
 			client:     git,
 			config:     config,
@@ -191,7 +193,7 @@ func (impl GitLabClient) createProject(name, description string) (url string, er
 	}
 	project, _, err := impl.client.Projects.CreateProject(p)
 	if err != nil {
-		impl.logger.Errorw("err in creating gitlab app", "name", name, "err", err)
+		impl.logger.Errorw("err in creating gitlab app", "req", p, "name", name, "err", err)
 		return "", err
 	}
 	impl.logger.Infow("gitlab app created", "name", name, "url", project.HTTPURLToRepo)
@@ -238,6 +240,7 @@ func (impl GitLabClient) GetRepoUrl(projectName string) (repoUrl string, err err
 	pid := fmt.Sprintf("%s/%s", impl.config.GitlabNamespaceName, projectName)
 	prop, res, err := impl.client.Projects.GetProject(pid, &gitlab.GetProjectOptions{})
 	if err != nil {
+		impl.logger.Debugw("get project err", "pod", pid, "err", err)
 		if res != nil && res.StatusCode == 404 {
 			return "", nil
 		}
