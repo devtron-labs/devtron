@@ -419,14 +419,15 @@ func contains(url string) bool {
 		"/webhook/msg/nats",
 		"/devtron/auth/verify",
 		"/security/policy/verify/webhook",
+		"/sso/list",
 	}
 	for _, a := range urls {
 		if a == url {
 			return true
 		}
 	}
-	prefixUrls:=[]string{
-		"/webhook/ext-ci/"	,
+	prefixUrls := []string{
+		"/webhook/ext-ci/",
 		"/api/vi/pod/exec/ws",
 	}
 	for _, a := range prefixUrls {
