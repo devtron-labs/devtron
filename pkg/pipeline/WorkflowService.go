@@ -98,6 +98,7 @@ type AzureBlobConfig struct {
 	Enabled       bool   `json:"enabled"`
 	AccountName   string `json:"accountName"`
 	BlobContainer string `json:"blobContainer"`
+	AccountKey    string `json:"accountKey"`
 }
 
 type ContainerResources struct {
