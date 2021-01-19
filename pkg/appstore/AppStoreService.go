@@ -327,7 +327,7 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 			return nil, err
 		}
 		data := impl.updateData(cm.Data, request, apiMinorVersion)
-		cm.Data = data["data"]
+		cm.Data = data
 		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
 			continue
@@ -410,7 +410,7 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 			return nil, err
 		}
 		data := impl.updateData(cm.Data, request, apiMinorVersion)
-		cm.Data = data["data"]
+		cm.Data = data
 		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
 			impl.logger.Warnw(" config map failed", "err", err)
@@ -474,7 +474,7 @@ func (impl *AppStoreServiceImpl) GetChartRepoList() ([]*ChartRepoDto, error) {
 	return chartRepos, nil
 }
 
-func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *ChartRepoDto, apiMinorVersion int) map[string]map[string]string {
+func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *ChartRepoDto, apiMinorVersion int) map[string]string {
 	helmRepoStr := data["helm.repositories"]
 	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
 	if err != nil {
@@ -568,20 +568,16 @@ func (impl *AppStoreServiceImpl) updateData(data map[string]string, request *Cha
 		panic(err)
 	}
 
-	mergedData := map[string]string{}
 	if len(helmRepositoriesYamlByte) > 0 {
-		mergedData["helm.repositories"] = string(helmRepositoriesYamlByte)
+		data["helm.repositories"] = string(helmRepositoriesYamlByte)
 	}
 	if len(repositoriesYamlByte) > 0 {
-		mergedData["repositories"] = string(repositoriesYamlByte)
+		data["repositories"] = string(repositoriesYamlByte)
 	}
 	//dex config copy as it is
 	dexConfigStr := data["dex.config"]
-	mergedData["dex.config"] = string([]byte(dexConfigStr))
-
-	newDataFinal := map[string]map[string]string{}
-	newDataFinal["data"] = mergedData
-	return newDataFinal
+	data["dex.config"] = string([]byte(dexConfigStr))
+	return data
 }
 
 func (impl *AppStoreServiceImpl) createRepoElement(apiMinorVersion int, request *ChartRepoDto) *AcdConfigMapRepositoriesDto {
