@@ -334,6 +334,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			Enabled:       true,
 			AccountName:   impl.ciConfig.AzureAccountName,
 			BlobContainer: impl.ciConfig.AzureBlobContainer,
+			AccountKey:    impl.ciConfig.AzureAccountKey,
 		}
 	default:
 		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)
