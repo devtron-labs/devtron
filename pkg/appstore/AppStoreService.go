@@ -100,7 +100,7 @@ type ConfigMapDataDto struct {
 }
 
 type AppStoreService interface {
-	FindAllApps() ([]appstore.AppStoreWithVersion, error)
+	FindAllApps(filter *appstore.AppStoreFilter) ([]appstore.AppStoreWithVersion, error)
 	FindChartDetailsById(id int) (AppStoreApplicationVersionResponse, error)
 	FindChartVersionsByAppStoreId(appStoreId int) ([]AppStoreVersionsResponse, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean.AppDetailContainer, error)
@@ -156,8 +156,8 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 	}
 }
 
-func (impl *AppStoreServiceImpl) FindAllApps() ([]appstore.AppStoreWithVersion, error) {
-	appStoreApplications, err := impl.appStoreApplicationRepository.FindAll()
+func (impl *AppStoreServiceImpl) FindAllApps(filter *appstore.AppStoreFilter) ([]appstore.AppStoreWithVersion, error) {
+	appStoreApplications, err := impl.appStoreApplicationRepository.FindWithFilter(filter)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
