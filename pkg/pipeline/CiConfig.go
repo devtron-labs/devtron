@@ -58,10 +58,12 @@ type CiConfig struct {
 	ImageScannerEndpoint      string   `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
 	CloudProvider             string   `env:"CLOUD_PROVIDER" envDefault:"AWS"`
 	AzureAccountName          string   `env:"AZURE_ACCOUNT_NAME"`
-	AzureBlobContainer        string   `env:"AZURE_BLOB_CONTAINER"`
-	AzureAccountKey           string   `env:"AZURE_ACCOUNT_KEY"`
-	ClusterConfig *rest.Config
-	NodeLabel     map[string]string
+	AzureBlobContainerCiLog   string   `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
+	AzureBlobContainerCiCache string   `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
+
+	AzureAccountKey string `env:"AZURE_ACCOUNT_KEY"`
+	ClusterConfig   *rest.Config
+	NodeLabel       map[string]string
 }
 
 func GetCiConfig() (*CiConfig, error) {
