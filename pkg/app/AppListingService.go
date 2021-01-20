@@ -242,16 +242,12 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	appEnvCdWorkflowRunnerMap := make(map[int][]*pipelineConfig.CdWorkflowRunner)
 
 	//get all the active cd pipelines
-	if pipelineIds == nil || len(pipelineIds) == 0 {
-		impl.Logger.Warnw("api response time testing", "pipelineIds", pipelineIds)
-		return appEnvMapping, err
-	}
-	pipelinesAll, err := impl.pipelineRepository.FindByIdsIn(pipelineIds) //TODO - OPTIMIZE 1
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", err)
-		return nil, err
-	}
 	if len(pipelineIds) > 0 {
+		pipelinesAll, err := impl.pipelineRepository.FindByIdsIn(pipelineIds) //TODO - OPTIMIZE 1
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("err", err)
+			return nil, err
+		}
 		//here to build a map of pipelines list for each (appId and envId)
 		for _, p := range pipelinesAll {
 			key := fmt.Sprintf("%d-%d", p.AppId, p.EnvironmentId)
