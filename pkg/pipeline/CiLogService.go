@@ -136,7 +136,7 @@ func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, fu
 				Bucket: aws.String(ciLogRequest.LogsBucket),
 				Key:    aws.String(ciLogRequest.LogsFilePath),
 			})
-	} else if ciLogRequest.CloudProvider == CLOUD_PROVIDER_AWS {
+	} else if ciLogRequest.CloudProvider == CLOUD_PROVIDER_AZURE {
 		blobClient := AzureBlob{}
 		err=blobClient.DownloadBlob(context.Background(), ciLogRequest.LogsFilePath, ciLogRequest.AzureBlobConfig, file)
 		if err != nil {
