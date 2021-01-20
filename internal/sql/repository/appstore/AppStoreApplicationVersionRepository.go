@@ -85,7 +85,7 @@ type AppStoreWithVersion struct {
 }
 
 type AppStoreFilter struct {
-	ChartRepoId  int    `json:"chartRepoId"`
+	ChartRepoId  []int  `json:"chartRepoId"`
 	AppStoreName string `json:"appStoreName"`
 	Deprecated   bool   `json:"deprecated"`
 	Offset       int    `json:"offset"`
@@ -135,7 +135,7 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *App
 	if len(filter.AppStoreName) > 0 {
 		query = query + " AND aps.name LIKE '%" + filter.AppStoreName + "%'"
 	}
-	if filter.ChartRepoId > 0 {
+	if len(filter.ChartRepoId) > 0 {
 		query = query + " AND ch.id IN (?)"
 	}
 	query = query + " ORDER BY aps.name ASC"
@@ -145,8 +145,8 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *App
 	query = query + ";"
 
 	var err error
-	if filter.ChartRepoId > 0 {
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, filter.ChartRepoId)
+	if len(filter.ChartRepoId) > 0 {
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, pg.In(filter.ChartRepoId))
 	} else {
 		_, err = impl.dbConnection.Query(&appStoreWithVersion, query)
 	}

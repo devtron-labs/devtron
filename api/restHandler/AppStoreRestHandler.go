@@ -37,6 +37,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -99,14 +100,34 @@ func (handler *AppStoreRestHandlerImpl) FindAllApps(w http.ResponseWriter, r *ht
 		}
 	}
 
-	chartRepoId := 0
-	chartRepoIdStr := v.Get("chartRepoId")
-	if len(chartRepoIdStr) > 0 {
-		chartRepoId, _ = strconv.Atoi(chartRepoIdStr)
+	var chartRepoIds []int
+	chartRepoIdsStr := v.Get("chartRepoId")
+	if len(chartRepoIdsStr) > 0 {
+		chartRepoIdStrArr := strings.Split(chartRepoIdsStr, ",")
+		for _, chartRepoIdStr := range chartRepoIdStrArr {
+			chartRepoId, err := strconv.Atoi(chartRepoIdStr)
+			if err == nil {
+				chartRepoIds = append(chartRepoIds, chartRepoId)
+			}
+		}
 	}
 	appStoreName := v.Get("appStoreName")
 
-	filter := &appstore2.AppStoreFilter{Deprecated: deprecated, ChartRepoId: chartRepoId, AppStoreName: appStoreName}
+	offset := 0
+	offsetStr := v.Get("offset")
+	if len(offsetStr) > 0 {
+		offset, _ = strconv.Atoi(offsetStr)
+	}
+	size := 0
+	sizeStr := v.Get("size")
+	if len(sizeStr) > 0 {
+		size, _ = strconv.Atoi(sizeStr)
+	}
+	filter := &appstore2.AppStoreFilter{Deprecated: deprecated, ChartRepoId: chartRepoIds, AppStoreName: appStoreName}
+	if size > 0 {
+		filter.Size = size
+		filter.Offset = offset
+	}
 	handler.Logger.Infow("request payload, FindAllApps, app store", "userId", userId)
 	res, err := handler.appStoreService.FindAllApps(filter)
 	if err != nil {
