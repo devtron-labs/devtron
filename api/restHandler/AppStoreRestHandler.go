@@ -88,14 +88,25 @@ func (handler *AppStoreRestHandlerImpl) FindAllApps(w http.ResponseWriter, r *ht
 		writeJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
-	decoder := json.NewDecoder(r.Body)
-	var filter *appstore2.AppStoreFilter
-	err = decoder.Decode(&filter)
-	if err != nil {
-		handler.Logger.Errorw("request err, UpdateChartRepo", "err", err, "payload", filter)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+
+	v := r.URL.Query()
+	deprecated := false
+	deprecatedStr := v.Get("deprecated")
+	if len(deprecatedStr) > 0 {
+		deprecated, err = strconv.ParseBool(deprecatedStr)
+		if err != nil {
+			deprecated = false
+		}
 	}
+
+	chartRepoId := 0
+	chartRepoIdStr := v.Get("chartRepoId")
+	if len(chartRepoIdStr) > 0 {
+		chartRepoId, _ = strconv.Atoi(chartRepoIdStr)
+	}
+	appStoreName := v.Get("appStoreName")
+
+	filter := &appstore2.AppStoreFilter{Deprecated: deprecated, ChartRepoId: chartRepoId, AppStoreName: appStoreName}
 	handler.Logger.Infow("request payload, FindAllApps, app store", "userId", userId)
 	res, err := handler.appStoreService.FindAllApps(filter)
 	if err != nil {
