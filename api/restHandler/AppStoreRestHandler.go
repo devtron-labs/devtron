@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -36,6 +37,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -87,8 +89,47 @@ func (handler *AppStoreRestHandlerImpl) FindAllApps(w http.ResponseWriter, r *ht
 		writeJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
+
+	v := r.URL.Query()
+	deprecated := false
+	deprecatedStr := v.Get("deprecated")
+	if len(deprecatedStr) > 0 {
+		deprecated, err = strconv.ParseBool(deprecatedStr)
+		if err != nil {
+			deprecated = false
+		}
+	}
+
+	var chartRepoIds []int
+	chartRepoIdsStr := v.Get("chartRepoId")
+	if len(chartRepoIdsStr) > 0 {
+		chartRepoIdStrArr := strings.Split(chartRepoIdsStr, ",")
+		for _, chartRepoIdStr := range chartRepoIdStrArr {
+			chartRepoId, err := strconv.Atoi(chartRepoIdStr)
+			if err == nil {
+				chartRepoIds = append(chartRepoIds, chartRepoId)
+			}
+		}
+	}
+	appStoreName := v.Get("appStoreName")
+
+	offset := 0
+	offsetStr := v.Get("offset")
+	if len(offsetStr) > 0 {
+		offset, _ = strconv.Atoi(offsetStr)
+	}
+	size := 0
+	sizeStr := v.Get("size")
+	if len(sizeStr) > 0 {
+		size, _ = strconv.Atoi(sizeStr)
+	}
+	filter := &appstore2.AppStoreFilter{Deprecated: deprecated, ChartRepoId: chartRepoIds, AppStoreName: appStoreName}
+	if size > 0 {
+		filter.Size = size
+		filter.Offset = offset
+	}
 	handler.Logger.Infow("request payload, FindAllApps, app store", "userId", userId)
-	res, err := handler.appStoreService.FindAllApps()
+	res, err := handler.appStoreService.FindAllApps(filter)
 	if err != nil {
 		handler.Logger.Errorw("service err, FindAllApps, app store", "err", err, "userId", userId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
