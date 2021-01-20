@@ -236,31 +236,18 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		}
 		existingAppEnvStatusMapping[ds.AppName] = ds.Status
 	}
+
 	appEnvPipelinesMap := make(map[string][]*pipelineConfig.Pipeline)
 	appEnvCdWorkflowMap := make(map[string]*pipelineConfig.CdWorkflow)
 	appEnvCdWorkflowRunnerMap := make(map[int][]*pipelineConfig.CdWorkflowRunner)
 
 	//get all the active cd pipelines
-	if pipelineIds == nil || len(pipelineIds) == 0 {
-		impl.Logger.Warnw("api response time testing", "pipelineIds", pipelineIds)
-		return appEnvMapping, err
-	}
-	pipelinesAll, err := impl.pipelineRepository.FindByIdsIn(pipelineIds) //TODO - OPTIMIZE 1
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", err)
-		return nil, err
-	}
-	/*var pipelineIds []int
-	for _, p := range pipelinesAll {
-		pipelineIds = append(pipelineIds, p.Id)
-	}*/
-	if pipelineIds == nil || len(pipelineIds) == 0 {
-	}
-	if pipelineIds == nil || len(pipelineIds) == 0 {
-		return appEnvMapping, err
-	}
-
 	if len(pipelineIds) > 0 {
+		pipelinesAll, err := impl.pipelineRepository.FindByIdsIn(pipelineIds) //TODO - OPTIMIZE 1
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("err", err)
+			return nil, err
+		}
 		//here to build a map of pipelines list for each (appId and envId)
 		for _, p := range pipelinesAll {
 			key := fmt.Sprintf("%d-%d", p.AppId, p.EnvironmentId)
@@ -300,6 +287,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 				}
 			}
 		}
+
 		//fetch all the cd workflow runner from cdWF ids,
 		cdWorkflowRunnersAll, err := impl.cdWorkflowRepository.FindWorkflowRunnerByCdWorkflowId(wfIds) //TODO - OPTIMIZE 3
 		if err != nil {
@@ -316,8 +304,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			}
 		}
 	}
-	t3 := time.Now()
-	t4 := time.Now()
 	releaseMap, _ := impl.ISLastReleaseStopTypeV2(pipelineIds)
 
 	for _, env := range existingAppEnvContainers {
@@ -425,12 +411,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		}
 
 		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
-		t4 = time.Now()
-		timeDiff := t4.Unix() - t3.Unix()
-		if timeDiff > 0 {
-			impl.Logger.Infow("api response time testing status setting", "time", time.Now().String(), "time diff", timeDiff, "stage", "3.1.6.2", "env", env)
-		}
-		t3 = t4
 	}
 	return appEnvMapping, nil
 }
