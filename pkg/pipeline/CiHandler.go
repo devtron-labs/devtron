@@ -569,10 +569,10 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 		LogsFilePath:  impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log",
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &AzureBlobConfig{
-			Enabled:       true,
-			AccountName:   impl.ciConfig.AzureAccountName,
-			BlobContainer: impl.ciConfig.AzureBlobContainer,
-			AccountKey:    impl.ciConfig.AzureAccountKey,
+			Enabled:            true,
+			AccountName:        impl.ciConfig.AzureAccountName,
+			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
+			AccountKey:         impl.ciConfig.AzureAccountKey,
 		},
 	}
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
@@ -666,10 +666,10 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 		LogsFilePath:  ciWorkflow.LogLocation,
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &AzureBlobConfig{
-			Enabled:       true,
-			AccountName:   impl.ciConfig.AzureAccountName,
-			BlobContainer: impl.ciConfig.AzureBlobContainer,
-			AccountKey:    impl.ciConfig.AzureAccountKey,
+			Enabled:            true,
+			AccountName:        impl.ciConfig.AzureAccountName,
+			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
+			AccountKey:         impl.ciConfig.AzureAccountKey,
 		},
 	}
 	logsFile, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)

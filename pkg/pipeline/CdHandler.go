@@ -334,10 +334,10 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		LogsFilePath:  cdWorkflow.LogLocation, // impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &AzureBlobConfig{
-			Enabled:       true,
-			AccountName:   impl.ciConfig.AzureAccountName,
-			BlobContainer: impl.ciConfig.AzureBlobContainer,
-			AccountKey:    impl.ciConfig.AzureAccountKey,
+			Enabled:            true,
+			AccountName:        impl.ciConfig.AzureAccountName,
+			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
+			AccountKey:         impl.ciConfig.AzureAccountKey,
 		},
 	}
 	impl.Logger.Infow("s3 log req ", "req", cdLogRequest)

@@ -138,7 +138,7 @@ func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, fu
 			})
 	} else if ciLogRequest.CloudProvider == CLOUD_PROVIDER_AZURE {
 		blobClient := AzureBlob{}
-		err=blobClient.DownloadBlob(context.Background(), ciLogRequest.LogsFilePath, ciLogRequest.AzureBlobConfig, file)
+		err = blobClient.DownloadBlob(context.Background(), ciLogRequest.LogsFilePath, ciLogRequest.AzureBlobConfig, file)
 		if err != nil {
 			impl.logger.Errorw("azure download error", "err", err)
 			return nil, nil, err
@@ -221,7 +221,7 @@ func (impl *AzureBlob) buildContainerUrl(config *AzureBlobConfig) (*azblob.Conta
 
 	// From the Azure portal, get your storage account blob service URL endpoint.
 	URL, _ := url.Parse(
-		fmt.Sprintf("https://%s.blob.core.windows.net/%s", config.AccountName, config.BlobContainer))
+		fmt.Sprintf("https://%s.blob.core.windows.net/%s", config.AccountName, config.BlobContainerCiLog))
 
 	// Create a ContainerURL object that wraps the container URL and a request
 	// pipeline to make requests.
