@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -87,8 +88,16 @@ func (handler *AppStoreRestHandlerImpl) FindAllApps(w http.ResponseWriter, r *ht
 		writeJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
+	decoder := json.NewDecoder(r.Body)
+	var filter *appstore2.AppStoreFilter
+	err = decoder.Decode(&filter)
+	if err != nil {
+		handler.Logger.Errorw("request err, UpdateChartRepo", "err", err, "payload", filter)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	handler.Logger.Infow("request payload, FindAllApps, app store", "userId", userId)
-	res, err := handler.appStoreService.FindAllApps()
+	res, err := handler.appStoreService.FindAllApps(filter)
 	if err != nil {
 		handler.Logger.Errorw("service err, FindAllApps, app store", "err", err, "userId", userId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
