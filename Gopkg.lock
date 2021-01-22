@@ -2,6 +2,37 @@
 
 
 [[projects]]
+  digest = "1:6fcb978ac3bd189345a7d7e80b21061ef2b767a20f2724eb393ba19c624dc9d0"
+  name = "github.com/Azure/azure-pipeline-go"
+  packages = ["pipeline"]
+  pruneopts = "UT"
+  revision = "dc95902f1d32034f8f743ccc6c3f2eb36b84da27"
+  version = "v0.2.3"
+
+[[projects]]
+  digest = "1:520f461acd1df9dc0955e88d42465f37618b94fb575e7ce2333bf96668bce4b0"
+  name = "github.com/Azure/azure-storage-blob-go"
+  packages = ["azblob"]
+  pruneopts = "UT"
+  revision = "6df5d9af221d67aa1173ad09073ef95c872beda0"
+  version = "v0.12.0"
+
+[[projects]]
+  digest = "1:b6fd0b480620ab1909ad9209753d165b55a43128d432fab59309bfff4385f633"
+  name = "github.com/Azure/go-autorest"
+  packages = [
+    "autorest",
+    "autorest/adal",
+    "autorest/azure",
+    "autorest/date",
+    "logger",
+    "tracing",
+  ]
+  pruneopts = "UT"
+  revision = "e7b391b759b050d6719cc6fd8bb87b6dc038bca6"
+  version = "v14.2.0"
+
+[[projects]]
   digest = "1:9f3b30d9f8e0d7040f729b82dcbc8f0dead820a133b3147ce355fc451f32d761"
   name = "github.com/BurntSushi/toml"
   packages = ["."]
@@ -570,6 +601,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:2ee9c0ffa0ba8949c0e4ea3c6b50e3f3d251040ad460f956bc9e064d906c4fc9"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "b5d0d36c983b13c35a93a356a9d2c14da0a1c3ab"
+  version = "v1.1.5"
+
+[[projects]]
   digest = "1:fb39a574fbc3230a6a93530aa17215c6b79049a0a2d30b6d19db6f809a6e56f0"
   name = "github.com/google/wire"
   packages = ["."]
@@ -824,6 +863,14 @@
   pruneopts = "UT"
   revision = "1b2b06f5f209fea48ff5922d8bfb2b9ed5d8f00b"
   version = "v0.7.0"
+
+[[projects]]
+  digest = "1:b6daaeddfaf9319ad476f37ad75c640d89a450b5dc51e950daea57b578a6aae6"
+  name = "github.com/mattn/go-ieproxy"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "439dd0581a2a03b415673a2462ad5c21eaabc588"
+  version = "v0.0.1"
 
 [[projects]]
   digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
@@ -1181,12 +1228,13 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:60dc5bc60f5ec42121f8b90de6f86bd1f708b6422114a02012395d43e377e757"
+  digest = "1:4d38f04790dcae2dd332f148955698ae03001cbe7009c535080bb43fb014989e"
   name = "golang.org/x/net"
   packages = [
     "context",
     "context/ctxhttp",
     "http/httpguts",
+    "http/httpproxy",
     "http2",
     "http2/hpack",
     "idna",
@@ -1219,12 +1267,13 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2d4ef744498218d6d0e966e7094911d9a76616ed49c78b54d0697e482fb69b1c"
+  digest = "1:f4de18b24507e81288742bb3c191b6af533dfa126f71dbfc43a2dc9b6d0cd1fb"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
     "unix",
     "windows",
+    "windows/registry",
   ]
   pruneopts = "UT"
   revision = "3e7259c5e7c2076bb2728047a3df75adb1bad8e5"
@@ -1864,6 +1913,9 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/Azure/azure-storage-blob-go/azblob",
+    "github.com/Azure/go-autorest/autorest/adal",
+    "github.com/Azure/go-autorest/autorest/azure",
     "github.com/Pallinder/go-randomdata",
     "github.com/argoproj/argo-cd/pkg/apiclient/application",
     "github.com/argoproj/argo-cd/pkg/apiclient/cluster",
@@ -1893,7 +1945,6 @@
     "github.com/coreos/go-oidc",
     "github.com/davecgh/go-spew/spew",
     "github.com/dgrijalva/jwt-go",
-    "github.com/emicklei/go-restful",
     "github.com/evanphx/json-patch",
     "github.com/ghodss/yaml",
     "github.com/go-pg/pg",
@@ -1948,6 +1999,10 @@
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/runtime",
+    "k8s.io/apimachinery/pkg/runtime/schema",
+    "k8s.io/apimachinery/pkg/runtime/serializer",
+    "k8s.io/apimachinery/pkg/types",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/kubernetes/typed/core/v1",

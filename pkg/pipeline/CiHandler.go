@@ -559,14 +559,21 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 		ciConfig.CiCacheRegion = impl.ciConfig.DefaultCacheBucketRegion
 	}
 	ciLogRequest := CiLogRequest{
-		PipelineId:   ciWorkflow.CiPipelineId,
-		WorkflowId:   ciWorkflow.Id,
-		WorkflowName: ciWorkflow.Name,
-		AccessKey:    ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
-		SecretKet:    ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
-		Region:       ciConfig.CiCacheRegion,
-		LogsBucket:   ciConfig.LogsBucket,
-		LogsFilePath: impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log",
+		PipelineId:    ciWorkflow.CiPipelineId,
+		WorkflowId:    ciWorkflow.Id,
+		WorkflowName:  ciWorkflow.Name,
+		AccessKey:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
+		SecretKet:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
+		Region:        ciConfig.CiCacheRegion,
+		LogsBucket:    ciConfig.LogsBucket,
+		LogsFilePath:  impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log",
+		CloudProvider: impl.ciConfig.CloudProvider,
+		AzureBlobConfig: &AzureBlobConfig{
+			Enabled:            impl.ciConfig.CloudProvider == CLOUD_PROVIDER_AZURE,
+			AccountName:        impl.ciConfig.AzureAccountName,
+			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
+			AccountKey:         impl.ciConfig.AzureAccountKey,
+		},
 	}
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
 	if err != nil {
@@ -649,14 +656,21 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 		ciConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
 	}
 	ciLogRequest := CiLogRequest{
-		PipelineId:   ciWorkflow.CiPipelineId,
-		WorkflowId:   ciWorkflow.Id,
-		WorkflowName: ciWorkflow.Name,
-		AccessKey:    ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
-		SecretKet:    ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
-		Region:       ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSRegion,
-		LogsBucket:   ciConfig.LogsBucket,
-		LogsFilePath: ciWorkflow.LogLocation,
+		PipelineId:    ciWorkflow.CiPipelineId,
+		WorkflowId:    ciWorkflow.Id,
+		WorkflowName:  ciWorkflow.Name,
+		AccessKey:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
+		SecretKet:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
+		Region:        ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSRegion,
+		LogsBucket:    ciConfig.LogsBucket,
+		LogsFilePath:  ciWorkflow.LogLocation,
+		CloudProvider: impl.ciConfig.CloudProvider,
+		AzureBlobConfig: &AzureBlobConfig{
+			Enabled:            impl.ciConfig.CloudProvider == CLOUD_PROVIDER_AZURE,
+			AccountName:        impl.ciConfig.AzureAccountName,
+			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
+			AccountKey:         impl.ciConfig.AzureAccountKey,
+		},
 	}
 	logsFile, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
 	logs, err := ioutil.ReadFile(logsFile.Name())
