@@ -224,7 +224,7 @@ func InitializeApp() (*App, error) {
 	gitProviderRepositoryImpl := repository.NewGitProviderRepositoryImpl(db)
 	gitRegistryConfigImpl := pipeline.NewGitRegistryConfigImpl(sugaredLogger, gitProviderRepositoryImpl, gitSensorClientImpl)
 	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(dockerArtifactStoreRepositoryImpl, sugaredLogger)
-	cdHandlerImpl := pipeline.NewCdHandlerImpl(sugaredLogger, cdConfig, userServiceImpl, cdWorkflowRepositoryImpl, cdWorkflowServiceImpl, ciLogServiceImpl, ciArtifactRepositoryImpl, ciPipelineMaterialRepositoryImpl, pipelineRepositoryImpl, environmentRepositoryImpl, ciWorkflowRepositoryImpl)
+	cdHandlerImpl := pipeline.NewCdHandlerImpl(sugaredLogger, cdConfig, userServiceImpl, cdWorkflowRepositoryImpl, cdWorkflowServiceImpl, ciLogServiceImpl, ciArtifactRepositoryImpl, ciPipelineMaterialRepositoryImpl, pipelineRepositoryImpl, environmentRepositoryImpl, ciWorkflowRepositoryImpl, ciConfig)
 	configMapServiceImpl := pipeline.NewConfigMapServiceImpl(chartRepositoryImpl, sugaredLogger, chartRepoRepositoryImpl, utilMergeUtil, pipelineConfigRepositoryImpl, configMapRepositoryImpl, envConfigOverrideRepositoryImpl, commonServiceImpl)
 	appWorkflowServiceImpl := appWorkflow2.NewAppWorkflowServiceImpl(sugaredLogger, appWorkflowRepositoryImpl, dbPipelineOrchestratorImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl)
 	appListingViewBuilderImpl := app.NewAppListingViewBuilderImpl(sugaredLogger)

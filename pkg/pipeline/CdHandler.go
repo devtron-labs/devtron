@@ -55,6 +55,7 @@ type CdHandlerImpl struct {
 	Logger                       *zap.SugaredLogger
 	cdService                    CdWorkflowService
 	cdConfig                     *CdConfig
+	ciConfig                     *CiConfig
 	userService                  user.UserService
 	ciLogService                 CiLogService
 	ciArtifactRepository         repository.CiArtifactRepository
@@ -73,7 +74,8 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	envRepository cluster.EnvironmentRepository,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository) *CdHandlerImpl {
+	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	ciConfig *CiConfig) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                       Logger,
 		cdConfig:                     cdConfig,
@@ -86,6 +88,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		envRepository:                envRepository,
 		pipelineRepository:           pipelineRepository,
 		ciWorkflowRepository:         ciWorkflowRepository,
+		ciConfig:                     ciConfig,
 	}
 }
 
@@ -326,9 +329,16 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		WorkflowName: cdWorkflow.Name,
 		//AccessKey:    cdConfig,
 		//SecretKet:    cdWorkflow.CdPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
-		Region:       cdConfig.CdCacheRegion,
-		LogsBucket:   cdConfig.LogsBucket,
-		LogsFilePath: cdWorkflow.LogLocation, // impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
+		Region:        cdConfig.CdCacheRegion,
+		LogsBucket:    cdConfig.LogsBucket,
+		LogsFilePath:  cdWorkflow.LogLocation, // impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
+		CloudProvider: impl.ciConfig.CloudProvider,
+		AzureBlobConfig: &AzureBlobConfig{
+			Enabled:            true,
+			AccountName:        impl.ciConfig.AzureAccountName,
+			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
+			AccountKey:         impl.ciConfig.AzureAccountKey,
+		},
 	}
 	impl.Logger.Infow("s3 log req ", "req", cdLogRequest)
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(cdLogRequest)
