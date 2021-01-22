@@ -331,7 +331,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
 	case CLOUD_PROVIDER_AZURE:
 		workflowRequest.AzureBlobConfig = &AzureBlobConfig{
-			Enabled:              true,
+			Enabled:              impl.ciConfig.CloudProvider == CLOUD_PROVIDER_AZURE,
 			AccountName:          impl.ciConfig.AzureAccountName,
 			BlobContainerCiCache: impl.ciConfig.AzureBlobContainerCiCache,
 			AccountKey:           impl.ciConfig.AzureAccountKey,

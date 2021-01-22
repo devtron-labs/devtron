@@ -334,7 +334,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		LogsFilePath:  cdWorkflow.LogLocation, // impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &AzureBlobConfig{
-			Enabled:            true,
+			Enabled:            impl.ciConfig.CloudProvider == CLOUD_PROVIDER_AZURE,
 			AccountName:        impl.ciConfig.AzureAccountName,
 			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
 			AccountKey:         impl.ciConfig.AzureAccountKey,
