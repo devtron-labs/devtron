@@ -180,6 +180,7 @@ func (impl *AzureBlob) getSharedCredentials(accountName, accountKey string) (*az
 	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 	if err != nil {
 		impl.logger.Errorw("Invalid credentials with error: ", "err", err)
+		return nil, err
 	}
 	return credential, err
 }
