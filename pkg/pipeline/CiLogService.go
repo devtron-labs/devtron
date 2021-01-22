@@ -32,7 +32,6 @@ import (
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"log"
 	"net/url"
 	"os"
 	"strconv"
@@ -137,7 +136,7 @@ func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, fu
 				Key:    aws.String(ciLogRequest.LogsFilePath),
 			})
 	} else if ciLogRequest.CloudProvider == CLOUD_PROVIDER_AZURE {
-		blobClient := AzureBlob{}
+		blobClient := AzureBlob{logger: impl.logger}
 		err = blobClient.DownloadBlob(context.Background(), ciLogRequest.LogsFilePath, ciLogRequest.AzureBlobConfig, file)
 		if err != nil {
 			impl.logger.Errorw("azure download error", "err", err)
@@ -174,12 +173,13 @@ func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, fu
 }
 
 type AzureBlob struct {
+	logger *zap.SugaredLogger
 }
 
 func (impl *AzureBlob) getSharedCredentials(accountName, accountKey string) (*azblob.SharedKeyCredential, error) {
 	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 	if err != nil {
-		log.Fatal("Invalid credentials with error: " + err.Error())
+		impl.logger.Errorw("Invalid credentials with error: ", "err", err)
 	}
 	return credential, err
 }
