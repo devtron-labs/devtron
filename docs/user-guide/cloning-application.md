@@ -1,10 +1,10 @@
 # Cloning Application
 
-![](../.gitbook/assets/d1%20%282%29.jpg)
+![](../.gitbook/assets/add-new-app%20%282%29.jpg)
 
 Select `Add New App` to Create a new app.
 
-![](../.gitbook/assets/clone_app1.jpg)
+![](../.gitbook/assets/clone_app1%20%282%29%20%283%29.jpg)
 
 | Key | Description |
 | :--- | :--- |
