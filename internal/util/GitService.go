@@ -86,8 +86,14 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 			}
 		}
 		groups, res, err := git.Groups.SearchGroup(config.GitlabNamespaceName)
+
 		if err != nil {
-			logger.Warnw("error connecting to gitlab", "status code", res.StatusCode, "err", err.Error())
+			responseStatus := 0
+			if res != nil {
+				responseStatus = res.StatusCode
+
+			}
+			logger.Warnw("error connecting to gitlab", "status code", responseStatus, "err", err.Error())
 		}
 		if len(groups) == 0 {
 			logger.Warn("no matching namespace found for gitlab")
