@@ -10,21 +10,21 @@ The command bar allows you to do this for navigating around the devtron dashboar
 
 | Action | Keys |
 | :--- | :--- |
-| Open Command bar | `Cmd/Ctrl + /` |
-| Navigate | &#8595; &#8593;|
+| Open Command bar | <kbd>Cmd/Ctrl</kbd> + <kbd>/</kbd> |
+| Navigate | <kbd>&#8595;</kbd> <kbd>&#8593;</kbd>|
 | Explore nested options | &#8594; |
-| Navigate to a screen | `Enter` |
+| Navigate to a screen | <kbd>Enter</kbd> |
 
 Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location in the devtron dashboard
 You can clear the top-level category to navigate within other category locations.
 
 ### Steps to navigate to Workflow editor of an app (we’ll use dashboard app for this example)
 
-1. Open command bar by clicking the search bar or pressing `/`
+1. Open command bar by clicking the search bar or pressing <kbd>/</kbd>
 
 2. Start typing the app name you’re looking for.
 
-3. Navigate using `↓` `↑` between the matching results and press `→` to view nested options.
+3. Navigate using <kbd>↓</kbd> <kbd>↑</kbd> between the matching results and press <kbd>→</kbd> to view nested options.
 
 > Note: Pressing Enter on a highlighted option will navigate to the selected page location.
 
