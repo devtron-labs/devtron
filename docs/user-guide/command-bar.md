@@ -22,13 +22,14 @@ You can clear the top-level category to navigate within other category locations
 
 1. Open command bar by clicking the search bar or pressing `/`.
 
-2. Start typing the app name or part of the app name you’re looking for
-Navigate using `↓` `↑` between the matching results and press `→` to view nested options
-Note: Pressing Enter on a highlighted option will navigate to the selected page location.
+2. Start typing the app name or part of the app name you’re looking for.
 
-3. Selecting options creates a path in the command bar which is used to navigate to the desired location.
+3. Navigate using `↓` `↑` between the matching results and press `→` to view nested options.
+`Note: Pressing Enter on a highlighted option will navigate to the selected page location.`
 
-4. In this case, `app` / `dashboard` / `configure` / `workflow-editor` will navigate is to the Workflow editor for dashboard application.
+4. Selecting options creates a path in the command bar which is used to navigate to the desired location.
+
+5. In this case, `app / dashboard / configure / workflow-editor` will navigate is to the Workflow editor for dashboard application.
 
 Similarly, you can use the command bar to navigate across the Devtron dashboard without a click.
 
