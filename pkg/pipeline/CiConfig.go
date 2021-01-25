@@ -99,7 +99,7 @@ func GetCiConfig() (*CiConfig, error) {
 		cfg.NodeLabel[kv[0]] = kv[1]
 	}
 	//validation for supported cloudproviders
-	if !(cfg.CloudProvider != CLOUD_PROVIDER_AWS && cfg.CloudProvider != CLOUD_PROVIDER_AZURE) {
+	if cfg.CloudProvider != CLOUD_PROVIDER_AWS && cfg.CloudProvider != CLOUD_PROVIDER_AZURE {
 		return nil, fmt.Errorf("unsupported cloudprovider: %s", cfg.CloudProvider)
 	}
 	return cfg, err
