@@ -12,7 +12,7 @@ The command bar allows you to do this for navigating around the devtron dashboar
 | :--- | :--- |
 | Open Command bar | <kbd>Cmd/Ctrl</kbd> + <kbd>/</kbd> |
 | Navigate | <kbd>&#8595;</kbd> <kbd>&#8593;</kbd>|
-| Explore nested options | &#8594; |
+| Explore nested options | <kbd>&#8594;</kbd> |
 | Navigate to a screen | <kbd>Enter</kbd> |
 
 Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location in the devtron dashboard
