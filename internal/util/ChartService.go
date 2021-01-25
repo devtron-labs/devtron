@@ -18,7 +18,6 @@
 package util
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/ghodss/yaml"
 	dirCopy "github.com/otiai10/copy"
@@ -28,7 +27,6 @@ import (
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"math/rand"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -39,11 +37,10 @@ import (
 type ChartWorkingDir string
 
 type ChartTemplateService interface {
-	CreateChart(chartMetaData *chart.Metadata, chartMuseumHost *url.URL, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error)
+	CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error)
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
-	DeleteFromChartMuseum(chartMuseumHost string, name string, version string) (bool, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource      rand.Source
@@ -101,7 +98,7 @@ func (ChartTemplateServiceImpl) GetChartVersion(location string) (string, error)
 	return chartContent.Version, nil
 }
 
-func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, chartMuseumHost *url.URL, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error) {
+func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.getDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
@@ -121,11 +118,6 @@ func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, 
 	archivePath, valuesYaml, err := impl.packageChart(chartDir, chartMetaData)
 	if err != nil {
 		impl.logger.Errorw("error in creating archive", "err", err)
-		return nil, nil, err
-	}
-	err = impl.pushToChartMuseum(archivePath, chartMuseumHost)
-	if err != nil {
-		impl.logger.Errorw("error in pushing chart", "path", archivePath, "err", err)
 		return nil, nil, err
 	}
 	values, err := impl.getValues(chartDir)
@@ -307,63 +299,6 @@ func (impl ChartTemplateServiceImpl) getDir() string {
 	/* #nosec */
 	r1 := rand.New(impl.randSource).Int63()
 	return strconv.FormatInt(r1, 10)
-}
-
-func (impl ChartTemplateServiceImpl) pushToChartMuseum(archivePath *string, chartMuseumHost *url.URL) error {
-	impl.logger.Debugw("pushing chart", "path", archivePath)
-	endpoint := "/api/charts"
-	url, err := chartMuseumHost.Parse(endpoint)
-	if err != nil {
-		impl.logger.Errorw("error in parsing url", "endpoint", endpoint, "err", err)
-		return err
-	}
-	f, err := os.Open(*archivePath)
-	if err != nil {
-		impl.logger.Errorw("error in opening file", "path", archivePath, "err", err)
-	}
-
-	res, err := http.DefaultClient.Post(url.String(), "application/octet-stream", f)
-	if err != nil {
-		impl.logger.Errorw("err in pushing", "url", url, "err", err)
-		return err
-	}
-	if c := res.StatusCode; 200 <= c && c <= 299 {
-		return nil
-	} else {
-		impl.logger.Errorf("res", "res", res)
-		return fmt.Errorf("error in publising chart code: %c", res.StatusCode)
-	}
-}
-
-func (impl ChartTemplateServiceImpl) DeleteFromChartMuseum(chartMuseumHost string, name string, version string) (bool, error) {
-	var reqBody = []byte("")
-	url := chartMuseumHost + name + "/" + version
-	req, err := http.NewRequest(http.MethodDelete, url, bytes.NewBuffer(reqBody))
-	if err != nil {
-		impl.logger.Errorw("error while delete", "err", err)
-		return false, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := impl.client.Do(req)
-	if err != nil {
-		impl.logger.Errorw("err", err)
-		return false, err
-	}
-
-	code := resp.StatusCode
-	resBody, err := ioutil.ReadAll(resp.Body)
-	if code >= 200 && code <= 299 {
-		if err != nil {
-			impl.logger.Errorw("error in communication ", "err", err)
-			return false, err
-		}
-
-	} else {
-		impl.logger.Errorw("api err", "res", string(resBody))
-		return false, fmt.Errorf("res not success, code: %d ,response body: %s", code, string(resBody))
-	}
-
-	return true, nil
 }
 
 func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error) {
