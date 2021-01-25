@@ -288,16 +288,17 @@ func (impl SSOLoginServiceImpl) GetById(id int32) (*bean.SSOLoginDto, error) {
 }
 
 func (impl SSOLoginServiceImpl) GetAll() ([]*bean.SSOLoginDto, error) {
+	ssoConfigs := make([]*bean.SSOLoginDto, 0)
 
 	models, err := impl.ssoLoginRepository.GetAll()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in update new sso login config", "error", err)
 		return nil, err
 	}
-
-	var ssoLoginDtos []*bean.SSOLoginDto
+	if err == pg.ErrNoRows {
+		return ssoConfigs, nil
+	}
 	for _, model := range models {
-
 		var config json.RawMessage
 		err = json.Unmarshal([]byte(model.Config), &config)
 		if err != nil {
@@ -311,9 +312,9 @@ func (impl SSOLoginServiceImpl) GetAll() ([]*bean.SSOLoginDto, error) {
 			Active: model.Active,
 			//Config: config,
 		}
-		ssoLoginDtos = append(ssoLoginDtos, ssoLoginDto)
+		ssoConfigs = append(ssoConfigs, ssoLoginDto)
 	}
-	return ssoLoginDtos, nil
+	return ssoConfigs, nil
 }
 
 func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error) {
