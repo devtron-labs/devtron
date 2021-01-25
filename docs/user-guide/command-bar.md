@@ -20,15 +20,15 @@ You can clear the top-level category to navigate within other category locations
 
 ### Steps to navigate to Workflow editor of an app (we’ll use dashboard app for this example)
 
-Open command bar by clicking the search bar or pressing `/`.
+1. Open command bar by clicking the search bar or pressing `/`.
 
-Start typing the app name or part of the app name you’re looking for
-Navigate using `↓``↑` between the matching results and press `→` to view nested options
+2. Start typing the app name or part of the app name you’re looking for
+Navigate using `↓` `↑` between the matching results and press `→` to view nested options
 Note: Pressing Enter on a highlighted option will navigate to the selected page location.
 
-Selecting options creates a path in the command bar which is used to navigate to the desired location.
+3. Selecting options creates a path in the command bar which is used to navigate to the desired location.
 
-In this case: app / dashboard / configure / workflow-editor will navigate is to the Workflow editor for dashboard application.
+4. In this case, `app` / `dashboard` / `configure` / `workflow-editor` will navigate is to the Workflow editor for dashboard application.
 
 Similarly, you can use the command bar to navigate across the Devtron dashboard without a click.
 
