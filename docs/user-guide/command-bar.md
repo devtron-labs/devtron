@@ -1,20 +1,35 @@
-# Cloning Application 2
+# Command bar
+
+## Why command bar?
+Let’s admit, as engineers we would get rid of the mouse if we could. We would rather press a few keys rather than clicking around the screen to get something done.
+The command bar allows you to do this for navigating around the devtron dashboard.
 
 ![](../.gitbook/assets/d1%20%282%29.jpg)
 
-Select `Add New App` to Create a new app.
+### Keys
 
-![](../.gitbook/assets/clone_app1.jpg)
-
-| Key | Description |
+| Action | Keys |
 | :--- | :--- |
-| `App Name` | Name of the new app you want to Create |
-| `Project` | Project name |
-| `Template` | Select the App whose template you want to use to the Create new app |
+| Open Command bar | `Cmd/Ctrl + /` |
+| Navigate | &#8595; &#8593;|
+| Explore nested options | &#8594; |
+| Navigate to a screen | `Enter` |
 
-Click on `Duplicate App` to create App with a template of the Application you have selected from the Drop-down.
+Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location in the devtron dashboard
+You can clear the top-level category to navigate within other category locations.
 
-![](../.gitbook/assets/created-clone-app.jpg)
+### Steps to navigate to Workflow editor of an app (we’ll use dashboard app for this example)
 
-New application with a duplicate template is created.
+Open command bar by clicking the search bar or pressing (/).
 
+Start typing the app name or part of the app name you’re looking for
+Navigate (up/down) between the matching results and press `&#8594;` to view nested options
+Note: Pressing Enter on a highlighted option will navigate to the selected page location.
+
+Selecting options creates a path in the command bar which is used to navigate to the desired location.
+
+In this case: app / dashboard / configure / workflow-editor will navigate is to the Workflow editor for dashboard application.
+
+Similarly, you can use the command bar to navigate across the Devtron dashboard without a click.
+
+We would love to know your experience with the command bar. Jump in to the Devtron Discord Community.
