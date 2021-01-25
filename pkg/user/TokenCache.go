@@ -61,8 +61,8 @@ func (impl *TokenCache) BuildACDSynchContext() (acdContext context.Context, err 
 type ACDAuthConfig struct {
 	ACDUsername           string `env:"ACD_USERNAME" `
 	ACDPassword           string `env:"ACD_PASSWORD" `
-	ACDConfigMapName      string `env:"ACD_CM" `
-	ACDConfigMapNamespace string `env:"ACD_NAMESPACE" `
+	ACDConfigMapName      string `env:"ACD_CM" envDefault:"argocd-cm"`
+	ACDConfigMapNamespace string `env:"ACD_NAMESPACE" envDefault:"devtroncd"`
 }
 
 func GetACDAuthConfig() (*ACDAuthConfig, error) {
