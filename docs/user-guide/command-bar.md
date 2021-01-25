@@ -15,8 +15,7 @@ The command bar allows you to do this for navigating around the devtron dashboar
 | Explore nested options | <kbd>&#8594;</kbd> |
 | Navigate to a screen | <kbd>Enter</kbd> |
 
-Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location in the devtron dashboard
-You can clear the top-level category to navigate within other category locations.
+Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location in the devtron dashboard. You can clear the top-level category to navigate within other category locations.
 
 ### Steps to navigate to Workflow editor of an app (we’ll use dashboard app for this example)
 
