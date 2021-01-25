@@ -23,7 +23,7 @@ You can clear the top-level category to navigate within other category locations
 Open command bar by clicking the search bar or pressing (/).
 
 Start typing the app name or part of the app name you’re looking for
-Navigate (up/down) between the matching results and press `&#8594;` to view nested options
+Navigate (up/down) between the matching results and press `→` to view nested options
 Note: Pressing Enter on a highlighted option will navigate to the selected page location.
 
 Selecting options creates a path in the command bar which is used to navigate to the desired location.
