@@ -24,8 +24,7 @@ You can clear the top-level category to navigate within other category locations
 
 2. Start typing the app name or part of the app name you’re looking for.
 
-3. Navigate using `↓` `↑` between the matching results and press `→` to view nested options.
-`Note: Pressing Enter on a highlighted option will navigate to the selected page location.`
+3. Navigate using `↓` `↑` between the matching results and press `→` to view nested options.<br>`Note: Pressing Enter on a highlighted option will navigate to the selected page location.`
 
 4. Selecting options creates a path in the command bar which is used to navigate to the desired location.
 
