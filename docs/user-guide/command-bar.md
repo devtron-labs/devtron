@@ -6,6 +6,13 @@ The command bar allows you to do this for navigating around the devtron dashboar
 
 ![](../images/command-bar/command-bar-parts.jpg)
 
+<br>
+Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location in the devtron dashboard.
+<br><br>
+
+> You can clear the top-level category to navigate within other category locations.
+<br>
+
 ### Keys
 
 | Action | Keys |
@@ -15,11 +22,6 @@ The command bar allows you to do this for navigating around the devtron dashboar
 | Explore nested options | <kbd>&#8594;</kbd> |
 | Navigate to a screen | <kbd>Enter</kbd> |
 
-<br>
-Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location in the devtron dashboard.
-<br><br>
-
-> You can clear the top-level category to navigate within other category locations.
 
 ### How to use the command bar (Eg. Navigate to Workflow editor of an App.)
 
