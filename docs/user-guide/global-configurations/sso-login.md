@@ -46,7 +46,7 @@ Click on any `Platform` and fill the correct configuration
 
 Click on `Save` bottom for creating and activating sso login on bottom right of the configuration.
 
-### 1. Update SSO Configuration
+### 2. Update SSO Configuration
 
 Once user created sso config for any platform it will be updated from next time. update will be done by same action by clicking `Save` bottom right.
 
