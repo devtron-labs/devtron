@@ -35,4 +35,4 @@ Top-level categories (eg. app, chart, security, global-config) are auto-filled d
 
 Similarly, you can use the command bar to navigate across the Devtron dashboard without a click.
 
-We would love to know your experience with the command bar. Jump in to the Devtron Discord Community.
+We would love to know your experience with the command bar. Jump in to the Devtron Discord Community.[Devtron Discord Community](http://www.google.fr/ "Devtron Discord Community")
