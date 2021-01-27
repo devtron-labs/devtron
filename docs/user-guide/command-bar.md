@@ -35,6 +35,8 @@ Top-level categories (eg. app, chart, security, global-config) are auto-filled d
 
 4. In this case, `app / dashboard / configure / workflow-editor` will navigate to the Workflow editor for `dashboard` application.
 
+![](../images/command-bar/cmdbar-workflow-editor-path.png)
+
 Similarly, you can use the command bar to navigate across the Devtron dashboard without a click.
 
 We would love to know your experience with the command bar. Jump in to the Devtron Discord Community.[Devtron Discord Community](https://discord.gg/72JDKy4 "Devtron Discord Community")
