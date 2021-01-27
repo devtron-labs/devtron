@@ -4,7 +4,7 @@
 Let’s admit, as engineers we would get rid of the mouse if we could. We would rather press a few keys rather than clicking around the screen to get something done.
 The command bar allows you to do this for navigating around the devtron dashboard.
 
-![](../images/command-bar/CommandBarModal.png)
+![](../images/command-bar/command-bar-parts.jpg)
 
 ### Keys
 
