@@ -21,8 +21,7 @@ Top-level categories (eg. app, chart, security, global-config) are auto-filled d
 
 > You can clear the top-level category to navigate within other category locations.
 
-### Let's see it with an example.
-Steps to navigate to Workflow editor of an Application.
+### How to use the command bar (Eg. Navigate to Workflow editor of an App.)
 
 1. Open command bar by clicking the search bar or pressing <kbd>/</kbd>
 
