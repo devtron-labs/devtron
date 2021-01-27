@@ -85,11 +85,11 @@ type AppStoreWithVersion struct {
 }
 
 type AppStoreFilter struct {
-	ChartRepoId  []int  `json:"chartRepoId"`
-	AppStoreName string `json:"appStoreName"`
-	Deprecated   bool   `json:"deprecated"`
-	Offset       int    `json:"offset"`
-	Size         int    `json:"size"`
+	ChartRepoId       []int  `json:"chartRepoId"`
+	AppStoreName      string `json:"appStoreName"`
+	IncludeDeprecated bool   `json:"includeDeprecated"`
+	Offset            int    `json:"offset"`
+	Size              int    `json:"size"`
 }
 
 type ChartRepoSearch struct {
@@ -129,8 +129,8 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *App
 		" INNER JOIN app_store aps ON asv.app_store_id = aps.id" +
 		" INNER JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
 		" WHERE asv.latest IS TRUE AND ch.active = TRUE"
-	if filter.Deprecated {
-		query = query + " AND asv.deprecated = TRUE"
+	if !filter.IncludeDeprecated {
+		query = query + " AND asv.deprecated = FALSE"
 	}
 	if len(filter.AppStoreName) > 0 {
 		query = query + " AND aps.name LIKE '%" + filter.AppStoreName + "%'"
