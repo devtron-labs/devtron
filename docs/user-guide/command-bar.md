@@ -18,6 +18,8 @@ Top-level categories (eg. app, chart, security, global-config) are auto-filled d
 
 ### How to use the command bar (Eg. Navigate to Workflow editor of an App.)
 
+![](../images/command-bar/cmd-bar-gif.gif)
+
 1. Open command bar by clicking the 🔍 search icon on left navbar or pressing <kbd>Cmd/Ctrl</kbd> + <kbd>/</kbd>
 
 2. Start typing the app name you're looking for.
