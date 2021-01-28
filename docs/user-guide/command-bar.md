@@ -16,9 +16,11 @@ Top-level categories (eg. app, chart, security, global-config) are auto-filled d
 | Explore nested options | <kbd>&#8594;</kbd> |
 | Navigate to a screen | <kbd>Enter</kbd> |
 
+<br>
+
 ### How to use the command bar (Eg. Navigate to Workflow editor of an App.)
 
-<br><br>
+<br>
 
 ![](../images/command-bar/cmd-bar-gif.gif)
 
