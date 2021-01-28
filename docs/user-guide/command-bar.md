@@ -8,7 +8,7 @@ Top-level categories (eg. app, chart, security, global-config) are auto-filled d
 <br><br>
 > You can clear the top-level category to navigate within other category locations.
 
-### Keys
+### Shortcuts
 | Action | Keys |
 | :--- | :--- |
 | Open Command bar | <kbd>Cmd/Ctrl</kbd> + <kbd>/</kbd> |
