@@ -1,6 +1,6 @@
 # Command bar
 ## Why command bar?
-Let's admit it, as engineers we would get rid of the mouse if we could. We would rather press a few keys than click around the screen to get something done.
+Let's admit, as engineers we would get rid of the mouse if we could. We would rather press a few keys than click around the screen to get something done.
 The command bar allows you to do exactly this for navigating around the Devtron dashboard.
 ![](../images/command-bar/command-bar-parts.jpg)
 <br>
