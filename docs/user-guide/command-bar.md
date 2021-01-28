@@ -1,7 +1,6 @@
 # Command bar
 ## Why command bar?
-The command bar is designed to enable you to navigate across the devtron dashboard without having to click around the screen.
-<br>
+The command bar is designed to enable you to navigate across the devtron dashboard without having to click around the screen. testtext
 
 ![](../images/command-bar/command-bar-parts.png)
 
