@@ -3,7 +3,7 @@
 The command bar is designed to enable you to navigate across the devtron dashboard without having to click around the screen.
 <br>
 
-![](../images/command-bar/command-bar-parts.jpg)
+![](../images/command-bar/command-bar-parts.png)
 
 <br>
 Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location on the Devtron dashboard.
