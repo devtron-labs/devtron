@@ -1,7 +1,6 @@
 # Command bar
 ## Why command bar?
-Let's admit, as engineers we would get rid of the mouse if we could. We would rather press a few keys than click around the screen to get something done.
-The command bar allows you to do exactly this for navigating around the Devtron dashboard.
+The command bar is designed to enable you to navigate across the devtron dashboard without having to click around the screen.
 ![](../images/command-bar/command-bar-parts.jpg)
 <br>
 Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location on the Devtron dashboard.
