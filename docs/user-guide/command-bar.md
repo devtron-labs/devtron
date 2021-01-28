@@ -7,7 +7,6 @@ The command bar allows you to do exactly this for navigating around the Devtron 
 Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location on the Devtron dashboard.
 <br><br>
 > You can clear the top-level category to navigate within other category locations.
-<br>
 
 ### Keys
 | Action | Keys |
