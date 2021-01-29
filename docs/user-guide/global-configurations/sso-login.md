@@ -1,8 +1,6 @@
 # SSO LOGIN 
 ## OVERVIEW
 
-{% embed url="https://www.youtube.com/watch?v=VTqBRIFbuSU" caption="" %}
-
 Once installed DEVTRON has one built-in `admin` user with super-admin privileges that is complete access to the system. It is recommended to use `admin` user only for initial and global configuration and then switch to local users or configure SSO integration.
 
 Only users with super-admin privileges have access to create SSO configuration. Devtron uses dex for authenticating a user against the identity provider.
