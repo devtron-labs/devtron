@@ -36,7 +36,7 @@ Top-level categories (eg. app, chart, security, global-config) are auto-filled d
 
 > Note: Pressing Enter on a highlighted option will navigate to the selected page location.
 
-4. In this case, `app / dashboard / configure / workflow-editor` will navigate to the Workflow editor for `dashboard` application.
+4. In this case, `app / dashboard / configure / workflow-editor` will navigate to the Workflow editor in dashboard application.
 
 ![](../images/command-bar/cmdbar-workflow-editor-path.png)
 
