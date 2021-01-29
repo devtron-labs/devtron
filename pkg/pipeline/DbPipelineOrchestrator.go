@@ -771,12 +771,12 @@ func (impl DbPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bea
 
 //FIXME: not thread safe
 func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int) (*pipelineConfig.App, error) {
-	exists, err := impl.appRepository.AppExists(name)
-	if err != nil {
+	app, err := impl.appRepository.FindActiveByName(name)
+	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if exists {
-		impl.logger.Infow(" pipeline already exists", "name", name)
+	if app != nil && app.Id > 0 {
+		impl.logger.Warnw("app already exists", "name", name)
 		err = &util.ApiError{
 			Code:            constants.AppAlreadyExists.Code,
 			InternalMessage: "app already exists",
