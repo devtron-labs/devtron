@@ -4,18 +4,18 @@ The command bar is designed to enable you to navigate across the devtron dashboa
 
 ![](../images/command-bar/command-bar-parts.png)
 
+<br>Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location on the Devtron dashboard.
 <br>
-Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location on the Devtron dashboard.
-<br><br>
+
 > You can clear the top-level category to navigate within other category locations.
 
 ### Shortcuts
 | Action | Keys |
 | :--- | :--- |
-| Open Command bar | <kbd>Cmd/Ctrl</kbd> + <kbd>/</kbd> |
-| Navigate | <kbd>&#8595;</kbd> <kbd>&#8593;</kbd>|
-| Explore nested options | <kbd>&#8594;</kbd> |
-| Navigate to a screen | <kbd>Enter</kbd> |
+| Open Command bar | `Cmd/Ctrl` + `/` |
+| Navigate | `&#8595;` `&#8593;`|
+| Explore nested options | `&#8594;` |
+| Navigate to a screen | `Enter` |
 
 <br>
 
@@ -29,12 +29,11 @@ Top-level categories (eg. app, chart, security, global-config) are auto-filled d
 
 ### Steps
 
-1. Open command bar by clicking the 🔍 search icon on left navbar or pressing <kbd>Cmd/Ctrl</kbd> + <kbd>/</kbd>
+1. Open command bar by clicking the 🔍 search icon on left navbar or pressing `Cmd/Ctrl` + `/`
 
 2. Start typing the app name you're looking for.
 
-3. Navigate using <kbd>↓</kbd> <kbd>↑</kbd> between the matching results and press <kbd>→</kbd> to view nested options.
-<br>
+3. Navigate using `↓` `↑` between the matching results and press `→` to view nested options.
 
 > Note: Pressing Enter on a highlighted option will navigate to the selected page location.
 
