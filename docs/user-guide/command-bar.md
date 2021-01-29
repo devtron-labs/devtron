@@ -12,8 +12,8 @@ Top-level categories (eg. app, chart, security, global-config) are auto-filled d
 | Action | Keys |
 | :--- | :--- |
 | Open Command bar | `Cmd/Ctrl` + `/` |
-| Navigate | `&#8595;` `&#8593;`|
-| Explore nested options | `&#8594;` |
+| Navigate | `↓` `↑`|
+| Explore nested options | `→` |
 | Navigate to a screen | `Enter` |
 
 <br>
@@ -26,7 +26,7 @@ Top-level categories (eg. app, chart, security, global-config) are auto-filled d
 
 <br>
 
-### Steps
+### Steps to use
 
 1. Open command bar by clicking the 🔍 search icon on left navbar or pressing `Cmd/Ctrl` + `/`
 
