@@ -4,8 +4,7 @@ The command bar is designed to enable you to navigate across the devtron dashboa
 
 ![](../images/command-bar/command-bar-parts.png)
 
-<br>Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location on the Devtron dashboard.
-<br>
+Top-level categories (eg. app, chart, security, global-config) are auto-filled depending upon your location on the Devtron dashboard.
 
 > You can clear the top-level category to navigate within other category locations.
 
