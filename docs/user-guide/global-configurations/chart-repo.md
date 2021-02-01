@@ -2,6 +2,7 @@
 
 This feature allows you to add more chart repositories to Devtron. Once added they will be available in the Discover section of the Chart Store. 
 
+[https://docs.devtron.ai/user-guide/deploy-chart/overview-of-charts#deploying-chart](deploying-chart)
 
 ## Add Chart Repository
 
