@@ -1620,9 +1620,8 @@ func (impl ConfigMapServiceImpl) validateExternalSecretChartCompatibility(appId 
 
 func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error) {
 	var payload []*BulkPatchPayload
-	if ! bulkPatchRequest.Global {
-	} else if bulkPatchRequest.Filter != nil && len(bulkPatchRequest.Filter.AppNameIncludes) > 0 {
-		apps, err := impl.appRepository.FetchAppsByFilter(bulkPatchRequest.Filter.AppNameIncludes, bulkPatchRequest.Filter.AppNameExcludes)
+	if bulkPatchRequest.Filter != nil {
+		apps, err := impl.appRepository.FetchAppsByFilterV2(bulkPatchRequest.Filter.AppNameIncludes, bulkPatchRequest.Filter.AppNameExcludes, bulkPatchRequest.Filter.EnvId)
 		if err != nil {
 			impl.logger.Errorw("chart version parsing", "err", err)
 			return bulkPatchRequest, err
@@ -1636,6 +1635,7 @@ func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchReq
 		}
 		bulkPatchRequest.Payload = payload
 	} else if bulkPatchRequest.ProjectId > 0 && bulkPatchRequest.Global {
+		//backward compatibility
 		apps, err := impl.appRepository.FindAppsByTeamId(bulkPatchRequest.ProjectId)
 		if err != nil {
 			impl.logger.Errorw("service err, buildBulkPayload", "err", err, "payload", bulkPatchRequest)
