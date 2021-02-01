@@ -22,7 +22,7 @@ Provide a `Name` to your Chart Repository. This name is added as prefix to the n
 
 ### 2. URL
 
-Provide the `URL` of your Version Controller. **For example**- github.com for Github, [https://gitlab.com](https://gitlab.com) for GitLab, etc.
+Provide the `URL`. **For example**- github.com for Github, [https://gitlab.com](https://gitlab.com) for GitLab, etc.
 
 ### 3. Authentication type
 
