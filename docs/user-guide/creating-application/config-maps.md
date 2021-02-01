@@ -24,7 +24,7 @@ You can configure the configmap in two way-
 | `Use configmap as Data Volume` | Select this option, if you want to configure any Data Volume that is accessible to Containers running in a pod and provide a Volume mount path. |
 | `Key-Value` | Provide the actual key-value configuration data here. Key and corresponding value to the provided key. |
 
-![](../../.gitbook/assets/config1%20%282%29.jpg)
+![](../../.gitbook/assets/config1%20%283%29.jpg)
 
 **1. Data Type**
 
@@ -69,13 +69,13 @@ If you select `Environment Variable` in 3rd option, then you can provide your en
 
 `Data in YAML` \(please Check below screenshot\)
 
-![](../../.gitbook/assets/configmap-yaml%20%283%29%20%282%29.jpg)
+![](../../.gitbook/assets/configmap-yaml%20%283%29%20%285%29%20%283%29.jpg)
 
 Now, Click on `Save ConfigMap` to save your configmap configuration.
 
 **Kubernetes ConfigMap using Data Volume**
 
-![](../../.gitbook/assets/configmap-yaml%20%283%29.jpg)
+![](../../.gitbook/assets/configmap-yaml%20%283%29%20%285%29%20%2810%29.jpg)
 
 ## Volume Mount Path
 
@@ -99,13 +99,13 @@ You have to ensure that the External ConfigMap exists and is available to the po
 
 The config map is created.
 
-![](../../.gitbook/assets/created-configmap.gif)
+![](../../.gitbook/assets/created-configmap%20%283%29%20%285%29.gif)
 
 ## Update ConfigMap
 
 You can update your configmap anytime later but you cannot change the name of your configmap. If you want to change the name of the configmap then you have to create a new configmap. To update configmap, click on the configmap you have created make changes as required.
 
-![](../../.gitbook/assets/update_configmap%20%281%29.png)
+![](../../.gitbook/assets/update_configmap%20%283%29.png)
 
 Click on `Update Configmap` to update your configmap.
 
@@ -113,5 +113,5 @@ Click on `Update Configmap` to update your configmap.
 
 You can delete your configmap. Click on your configmap and click on the `delete sign` to delete your configmap.
 
-![](../../.gitbook/assets/delete_configmap%20%282%29.png)
+![](../../.gitbook/assets/delete_configmap%20%282%29%20%282%29%20%284%29.png)
 

@@ -4,7 +4,7 @@
 
 Let's assume that you are building an application which needs mongoDB.
 
-![](../../../.gitbook/assets/mongo%20%282%29.jpg)
+![](../../../.gitbook/assets/mongo%20%281%29.jpg)
 
 Deploying applications as Helm Charts is the easiest way to create applications on Devtron.
 
@@ -14,7 +14,7 @@ This guide will introduce you to how to deploy the mongoDB's Helm chart.
 
 Select the `Charts` section from the left pane, you will be landed to the `Chart Store` page. Click on `Discover` and find `stable/mongodb-replicaset` Helm Chart.
 
-![](../../../.gitbook/assets/first%20%281%29.jpg)
+![](../../../.gitbook/assets/first%20%282%29.jpg)
 
 ## 2. Configure the Chart
 
