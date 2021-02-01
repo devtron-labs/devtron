@@ -593,11 +593,11 @@ func (impl InstalledAppServiceImpl) CheckAppExists(appNames []*AppNames) ([]*App
 
 func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx) (*bean.CreateAppDTO, error) {
 
-	exists, err := impl.appRepository.AppExists(createRequest.AppName)
-	if err != nil {
+	app, err := impl.appRepository.FindActiveByName(createRequest.AppName)
+	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if exists {
+	if app != nil && app.Id > 0 {
 		impl.logger.Infow(" app already exists", "name", createRequest.AppName)
 		return nil, fmt.Errorf("an app with name %s already exists", createRequest.AppName)
 	}
@@ -1148,6 +1148,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionR
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
+
 	if app != nil && app.Id > 0 {
 		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByAppIdAndEnvId(app.Id, installAppVersionRequest.EnvironmentId)
 		if err != nil {
