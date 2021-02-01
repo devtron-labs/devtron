@@ -16,7 +16,7 @@ Go to the left main panel -&gt; `Select Global Configurations` -&gt; Select `Use
 
 Click on `Add User`, to add one or multiple users.
 
-![](../../.gitbook/assets/user1.jpg)
+![](../../.gitbook/assets/gc-user-access-add-user%20%282%29.jpg)
 
 ### 2. Create User Permissions
 
@@ -77,7 +77,7 @@ There are four different view access levels/Role available for both User and Gro
 * **Admin**: User\(s\)/Group\(s\) who have `Admin` permission can view, trigger, and edit selected applications.
 * **Manager**: User\(s\)/Group\(s\) under manager also have the `Admin` permissions but apart from that they can create, edit, and delete the selected applications, can also manage `User access` but the user can only give permissions on those applications which the user has access to.
 
-![](../../.gitbook/assets/gc-user-access-configure-direct-permission.jpg)
+![](../../.gitbook/assets/gc-user-access-configure-direct-permission%20%283%29%20%281%29.jpg)
 
 You can add multiple rows, for Direct Permissions.
 
@@ -97,11 +97,11 @@ Click on the checkbox of `Edit`, if you want to `allow` or `deny` users to edit 
 
 Select on `Deny` option from the drop-down menu, if you want to restrict the users to edit the chart groups.
 
-![](../../.gitbook/assets/user5%20%282%29.jpg)
+![](../../.gitbook/assets/gc-user-access-configure-chart-permission-edit%20%283%29.jpg)
 
 Select the `Specific Charts` option from the drop-down menu, and then select the chart groups for which you want to allow users to edit, from the other drop-down menu.
 
-![](../../.gitbook/assets/user6%20%282%29.jpg)
+![](../../.gitbook/assets/user6%20%281%29%20%282%29.jpg)
 
 Click on `Save`, once you have configured all the required permissions for the users.
 
@@ -109,11 +109,11 @@ Click on `Save`, once you have configured all the required permissions for the u
 
 You can edit the user permissions, by clicking on the `downward arrow`.
 
-![](../../.gitbook/assets/gc-user-access-edit-arrow.jpg)
+![](../../.gitbook/assets/gc-user-access-edit-arrow%20%282%29%20%284%29.jpg)
 
 Then you can edit the user permissions here.
 
-![](../../.gitbook/assets/gc-user-access-edit-user-permission%20%281%29%20%281%29.jpg)
+![](../../.gitbook/assets/gc-user-access-edit-user-permission%20%283%29.jpg)
 
 After you have done editing the user permissions. Click on `Save`.
 
@@ -131,7 +131,7 @@ Click on `Add Group`, to create a new group.
 
 Enter the `Group Name` and `Description`.
 
-![](../../.gitbook/assets/gc-user-access-add-group-name.jpg)
+![](../../.gitbook/assets/gc-user-access-add-group-name%20%282%29.jpg)
 
 ### 2. Create Group Permissions
 
@@ -149,7 +149,7 @@ Once you have finished assigning the appropriate permissions for the listed user
 
 You can edit the group permissions, by clicking on the `downward arrow.`
 
-![](../../.gitbook/assets/gc-user-access-add-group-edit-arrow.jpg)
+![](../../.gitbook/assets/gc-user-access-add-group-edit-arrow%20%282%29%20%283%29.jpg)
 
 Then you can edit the user permissions here.
 

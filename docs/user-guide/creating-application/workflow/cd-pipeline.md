@@ -2,11 +2,11 @@
 
 ## Create CD Pipeline
 
-![](../../../.gitbook/assets/cd-pipeline-console.png)
+![](../../../.gitbook/assets/cd-pipeline-console%20%283%29%20%284%29.png)
 
 Click on **“+”** sign on CI Pipeline to attach a CD Pipeline to it.
 
-![](../../../.gitbook/assets/create-cd-pipeline%20%283%29%20%283%29.png)
+![](../../../.gitbook/assets/create-cd-pipeline%20%283%29%20%285%29%20%287%29.png)
 
 One can have a single CD pipeline or multiple CD pipelines connected to the same CI Pipeline. A CD pipeline corresponds to one environment or in other words, an environment of an application can have only one CD pipeline. So images created by the CI pipeline can be deployed into multiple environments.
 
@@ -23,7 +23,7 @@ CD pipeline configuration has below options to be configured:
 | Deployment Strategy | Select the type of deployment strategy that you want to enable by clicking `Add Deployment Strategy` |
 | Post-deployment stage | Run any configuration and provide secrets after the deployment |
 
-![](../../../.gitbook/assets/configuring-cd-pipeline.png)
+![](../../../.gitbook/assets/configuring-cd-pipeline%20%287%29.png)
 
 ### 1. Pipeline Name
 
@@ -53,7 +53,7 @@ If you want to run it inside your application then you have to check the `Execut
 
 Make sure your cluster has `devtron-agent` installed if you Check the `Execute in the application Environment` option.
 
-![](../../../.gitbook/assets/cd_pre_build%20%282%29.jpg)
+![](../../../.gitbook/assets/cd_pre_build%20%282%29%20%282%29%20%283%29.jpg)
 
 ### 4. Deployment Stages
 
@@ -81,11 +81,11 @@ Post-deployment stages are similar to pre-deployment stages. The difference is, 
 
 You can use Config Map and Secrets in post deployments as well, as defined in Pre-Deployment stages
 
-![](../../../.gitbook/assets/cd_post_build.jpg)
+![](../../../.gitbook/assets/cd_post_build%20%283%29.jpg)
 
 You have configured the CD pipeline, now click on `Create Pipeline` to save it. You can see your newly created CD Pipeline on the Workflow tab attached to the corresponding CI Pipeline.
 
-![](../../../.gitbook/assets/create-cd-pipeline%20%283%29.png)
+![](../../../.gitbook/assets/create-cd-pipeline%20%283%29%20%285%29%20%284%29.png)
 
 The CD Pipeline is created
 
@@ -95,9 +95,9 @@ You can update the CD Pipeline. Updates such as- adding Deployment Stage, Deploy
 
 To Update a CD Pipeline, go to the App Configurations and then click on Workflow editor and click on your CD Pipeline you want to Update.
 
-![](../../../.gitbook/assets/update_pipeline_cd%20%282%29.jpg)
+![](../../../.gitbook/assets/update_pipeline_cd%20%282%29%20%282%29%20%281%29.jpg)
 
-![](../../../.gitbook/assets/edit_cd_pipeline%20%285%29%20%282%29.jpg)
+![](../../../.gitbook/assets/edit_cd_pipeline%20%285%29%20%286%29%20%289%29.jpg)
 
 Make changes as per your requirement and click on `Update Pipeline` to update this CD Pipeline.
 
@@ -107,7 +107,7 @@ If you no longer require the CD Pipeline, you can also Delete the Pipeline.
 
 To Delete a CD Pipeline, go to the App Configurations and then click on the Workflow editor. Now Click on the pipeline you want to delete. A pop will be displayed with CD details. Now click on the Delete Pipeline option to delete this CD Pipeline
 
-![](../../../.gitbook/assets/edit_cd_pipeline%20%285%29.jpg)
+![](../../../.gitbook/assets/edit_cd_pipeline%20%285%29%20%286%29.jpg)
 
 ## Deployment Strategies
 
