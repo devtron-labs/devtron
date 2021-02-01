@@ -35,7 +35,7 @@ You can find the Vulnerabilities `Build History` Page if you have enabled the `S
 
 Your Application-&gt; Build History-&gt; Select pipeline-&gt; Go to Security Tab.
 
-![](../.gitbook/assets/security-feature-build-history-security.png)
+![](../.gitbook/assets/security-feature-build-history-security%20%283%29.png)
 
 Here you can see all the vulnerabilities found in the build image.
 
@@ -59,17 +59,17 @@ You can see details of these vulnerabilities by expanding the `Show Source Info`
 
 See the below image.
 
-![](../.gitbook/assets/security-feature-deployed-image.png)
+![](../.gitbook/assets/security-feature-deployed-image%20%283%29.png)
 
 Click on the `Show Source Info` option. A window will be expanded with two options- Changes and Security. Click on the Security tab to view details about the vulnerabilities in the code.
 
-![](../.gitbook/assets/security-feature-deployed-image-security.png)
+![](../.gitbook/assets/security-feature-deployed-image-security%20%283%29%20%285%29.png)
 
 **Find Vulnerabilities on the App Details Page**
 
 You can find Vulnerabilities on the `App Details` page too. Here we are displaying the total number of vulnerabilities found in the code and their Severity Level wise segregation.
 
-![](../.gitbook/assets/security-feature-app-details-vulnerability.png)
+![](../.gitbook/assets/security-feature-app-details-vulnerability%20%283%29.png)
 
 ## Security
 
@@ -106,7 +106,7 @@ Policies work in hierarchical order.
 
 Order to be followed- First Global and second Cluster and so on as you can see the order of the options
 
-![](../.gitbook/assets/security-feature-global-security-policies.png)
+![](../.gitbook/assets/security-feature-global-security-policies%20%281%29.png)
 
 **Some examples of how policies can be defined**
 
