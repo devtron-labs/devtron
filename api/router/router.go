@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -125,6 +126,9 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 }
 
 func (r MuxRouter) Init() {
+
+	r.Router.PathPrefix("/api/vi/pod/exec/ws").Handler(terminal.CreateAttachHandler("/api/vi/pod/exec/ws"))
+
 	r.Router.StrictSlash(true)
 	r.Router.Handle("/metrics", promhttp.Handler())
 	//prometheus.MustRegister(pipeline.CiTriggerCounter)

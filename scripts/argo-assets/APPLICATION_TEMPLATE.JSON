@@ -1,0 +1,41 @@
+{
+  "apiVersion": "argoproj.io/v1alpha1",
+  "kind": "Application",
+  "metadata": {
+    "generation": 1,
+    "name": "{{.ApplicationName}}",
+    "namespace": "{{.Namespace}}"
+  },
+  "spec": {
+    "destination": {
+      "namespace": "{{.TargetNamespace}}",
+      "server": "{{.TargetServer}}"
+    },
+    "project": "{{.Project}}",
+    "source": {
+      "helm": {
+        "valueFiles": [
+          "{{.ValuesFile}}"
+        ]
+      },
+      "path": "{{.RepoPath}}",
+      "repoURL": "{{.RepoUrl}}",
+      "targetRevision": "HEAD"
+    },
+    "syncPolicy": {
+      "automated": {
+        "prune": true
+      },
+      "retry": {
+        "backoff": {
+          "duration": "5s",
+          "factor": 2,
+          "maxDuration": "5s"
+        },
+        "limit": 1
+      }
+    }
+  }
+}
+
+

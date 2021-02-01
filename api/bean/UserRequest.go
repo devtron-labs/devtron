@@ -17,6 +17,8 @@
 
 package bean
 
+import "encoding/json"
+
 type UserRole struct {
 	Id      int32  `json:"id" validate:"number"`
 	EmailId string `json:"email_id" validate:"email"`
@@ -66,6 +68,16 @@ type RoleData struct {
 	EntityName  string `json:"entityName"`
 	Environment string `json:"environment"`
 	Action      string `json:"action"`
+}
+
+type SSOLoginDto struct {
+	Id     int32           `json:"id"`
+	Name   string          `json:"name,omitempty"`
+	Label  string          `json:"label,omitempty"`
+	Url    string          `json:"url,omitempty"`
+	Config json.RawMessage `json:"config,omitempty"`
+	Active bool            `json:"active"`
+	UserId int32           `json:"-"`
 }
 
 const (

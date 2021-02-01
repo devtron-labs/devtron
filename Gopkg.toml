@@ -183,3 +183,7 @@ required = [
 [[constraint]]
   name = "github.com/google/go-github"
   version = "32.1.0"
+
+[[constraint]]
+  name = "github.com/igm/sockjs-go"
+  version = "3.0.0"

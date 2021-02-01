@@ -19,6 +19,7 @@ package chartConfig
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 )
 
@@ -196,19 +197,28 @@ func (repositoryImpl ChartRepositoryImpl) FindById(id int) (chart *Chart, err er
 //---------------------------chart repository------------------
 
 type ChartRepo struct {
-	tableName struct{} `sql:"chart_repo"`
-	Id        int      `sql:"id,pk"`
-	Name      string   `sql:"name"`
-	Url       string   `sql:"url"`
-	Active    bool     `sql:"active"`
-	Default   bool     `sql:"is_default"`
+	tableName   struct{}            `sql:"chart_repo"`
+	Id          int                 `sql:"id,pk"`
+	Name        string              `sql:"name"`
+	Url         string              `sql:"url"`
+	Active      bool                `sql:"active,notnull"`
+	Default     bool                `sql:"is_default,notnull"`
+	UserName    string              `sql:"user_name"`
+	Password    string              `sql:"password"`
+	SshKey      string              `sql:"ssh_key"`
+	AccessToken string              `sql:"access_token"`
+	AuthMode    repository.AuthMode `sql:"auth_mode,notnull"`
+	External    bool                `sql:"external,notnull"`
 	models.AuditLog
 }
 
 type ChartRepoRepository interface {
-	Save(chartRepo *ChartRepo) error
+	Save(chartRepo *ChartRepo, tx *pg.Tx) error
+	Update(chartRepo *ChartRepo, tx *pg.Tx) error
 	GetDefault() (*ChartRepo, error)
 	FindById(id int) (*ChartRepo, error)
+	FindAll() ([]*ChartRepo, error)
+	GetConnection() *pg.DB
 }
 type ChartRepoRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -220,9 +230,18 @@ func NewChartRepoRepositoryImpl(dbConnection *pg.DB) *ChartRepoRepositoryImpl {
 	}
 }
 
-func (impl ChartRepoRepositoryImpl) Save(chartRepo *ChartRepo) error {
-	return impl.dbConnection.Insert(chartRepo)
+func (impl ChartRepoRepositoryImpl) GetConnection() *pg.DB {
+	return impl.dbConnection
 }
+
+func (impl ChartRepoRepositoryImpl) Save(chartRepo *ChartRepo, tx *pg.Tx) error {
+	return tx.Insert(chartRepo)
+}
+
+func (impl ChartRepoRepositoryImpl) Update(chartRepo *ChartRepo, tx *pg.Tx) error {
+	return tx.Update(chartRepo)
+}
+
 func (impl ChartRepoRepositoryImpl) GetDefault() (*ChartRepo, error) {
 	repo := &ChartRepo{}
 	err := impl.dbConnection.Model(repo).
@@ -234,8 +253,13 @@ func (impl ChartRepoRepositoryImpl) GetDefault() (*ChartRepo, error) {
 func (impl ChartRepoRepositoryImpl) FindById(id int) (*ChartRepo, error) {
 	repo := &ChartRepo{}
 	err := impl.dbConnection.Model(repo).
-		Where("id = ?", id).
-		Where("active = ?", true).Select()
+		Where("id = ?", id).Select()
+	return repo, err
+}
+
+func (impl ChartRepoRepositoryImpl) FindAll() ([]*ChartRepo, error) {
+	var repo []*ChartRepo
+	err := impl.dbConnection.Model(&repo).Select()
 	return repo, err
 }
 
@@ -270,6 +294,7 @@ func NewChartRefRepositoryImpl(dbConnection *pg.DB) *ChartRefRepositoryImpl {
 func (impl ChartRefRepositoryImpl) Save(chartRepo *ChartRef) error {
 	return impl.dbConnection.Insert(chartRepo)
 }
+
 func (impl ChartRefRepositoryImpl) GetDefault() (*ChartRef, error) {
 	repo := &ChartRef{}
 	err := impl.dbConnection.Model(repo).

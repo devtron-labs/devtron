@@ -233,8 +233,14 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowByPipelineId(pipelineI
 
 func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowByPipelineIdV2(pipelineIds []int) ([]*CdWorkflow, error) {
 	var cdWorkflow []*CdWorkflow
-	err := impl.dbConnection.Model(&cdWorkflow).Where("pipeline_id in (?)", pg.In(pipelineIds)).Order("id DESC").Select()
-
+	//err := impl.dbConnection.Model(&cdWorkflow).Where("pipeline_id in (?)", pg.In(pipelineIds)).Order("id DESC").Select()
+	query := "SELECT cdw.pipeline_id, cdw.workflow_status, MAX(id) as id from cd_workflow cdw" +
+		" WHERE cdw.pipeline_id in(?)" +
+		" GROUP by cdw.pipeline_id, cdw.workflow_status ORDER by id desc;"
+	_, err := impl.dbConnection.Query(&cdWorkflow, query, pg.In(pipelineIds))
+	if err != nil {
+		return cdWorkflow, err
+	}
 	//TODO - Group By Environment And Pipeline will get latest pipeline from top
 	return cdWorkflow, err
 }

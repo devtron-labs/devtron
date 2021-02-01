@@ -50,7 +50,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
+	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util/rbac"
 
 	"github.com/devtron-labs/devtron/api/connector"
@@ -604,6 +606,15 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(security2.CvePolicyRepository), new(*security2.CvePolicyRepositoryImpl)),
 		appstore2.NewClusterInstalledAppsRepositoryImpl,
 		wire.Bind(new(appstore2.ClusterInstalledAppsRepository), new(*appstore2.ClusterInstalledAppsRepositoryImpl)),
+		terminal.NewTerminalSessionHandlerImpl,
+		wire.Bind(new(terminal.TerminalSessionHandler), new(*terminal.TerminalSessionHandlerImpl)),
+		argocdServer.NewArgoK8sClientImpl,
+		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
+
+		sso.NewSSOLoginServiceImpl,
+		wire.Bind(new(sso.SSOLoginService), new(*sso.SSOLoginServiceImpl)),
+		repository.NewSSOLoginRepositoryImpl,
+		wire.Bind(new(repository.SSOLoginRepository), new(*repository.SSOLoginRepositoryImpl)),
 	)
 	return &App{}, nil
 }
