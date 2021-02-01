@@ -17,7 +17,7 @@ Select the Chart Repository section of global configuration and click on `Add Re
 
 Provide a `Name` to your Chart Repository. This name is added as prefix to the name of the chart in the listing on the helm chart section of application.
 
-![](../../.gitbook/assets/gc-chart-name.png)
+![](../../.gitbook/assets/gc-chart-name-highlight.png)
 
 ### 2. URL
 
