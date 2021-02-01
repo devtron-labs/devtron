@@ -51,6 +51,7 @@ type AppRepository interface {
 
 	FindByIds(ids []*int) ([]*App, error)
 	FetchAppsByFilter(appNameIncludes string, appNameExcludes string) ([]*App, error)
+	FetchAppsByFilterV2(appNameIncludes string, appNameExcludes string, environmentId int) ([]*App, error)
 }
 
 type AppRepositoryImpl struct {
@@ -172,6 +173,37 @@ func (repo AppRepositoryImpl) FetchAppsByFilter(appNameIncludes string, appNameE
 		err = repo.dbConnection.
 			Model(&apps).Where("app_name like ?", ""+appNameIncludes+"%").
 			Where("active=?", true).Where("app_store=?", false).
+			Select()
+	}
+	return apps, err
+}
+
+func (repo AppRepositoryImpl) FetchAppsByFilterV2(appNameIncludes string, appNameExcludes string, environmentId int) ([]*App, error) {
+	var apps []*App
+	var err error
+	if environmentId > 0 && len(appNameExcludes) > 0 {
+		err = repo.dbConnection.Model(&apps).ColumnExpr("DISTINCT app.*").
+			Join("inner join pipeline p on p.app_id=app.id").
+			Where("app.app_name like ?", ""+appNameIncludes+"%").Where("app.app_name not like ?", ""+appNameExcludes+"%").
+			Where("app.active=?", true).Where("app_store=?", false).
+			Where("p.environment_id = ?", environmentId).Where("p.deleted = ?", false).
+			Select()
+	} else if environmentId > 0 && len(appNameExcludes) == 0 {
+		err = repo.dbConnection.Model(&apps).ColumnExpr("DISTINCT app.*").
+			Join("inner join pipeline p on p.app_id=app.id").
+			Where("app.app_name like ?", ""+appNameIncludes+"%").
+			Where("app.active=?", true).Where("app_store=?", false).
+			Where("p.environment_id = ?", environmentId).Where("p.deleted = ?", false).
+			Select()
+	} else if environmentId == 0 && len(appNameExcludes) > 0 {
+		err = repo.dbConnection.Model(&apps).ColumnExpr("DISTINCT app.*").
+			Where("app.app_name like ?", ""+appNameIncludes+"%").Where("app.app_name not like ?", ""+appNameExcludes+"%").
+			Where("app.active=?", true).Where("app_store=?", false).
+			Select()
+	} else if environmentId == 0 && len(appNameExcludes) == 0 {
+		err = repo.dbConnection.Model(&apps).ColumnExpr("DISTINCT app.*").
+			Where("app.app_name like ?", ""+appNameIncludes+"%").
+			Where("app.active=?", true).Where("app_store=?", false).
 			Select()
 	}
 	return apps, err

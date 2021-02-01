@@ -2,7 +2,7 @@
 
 Devtron is an open source software delivery workflow for kubernetes written in go.
 
-[Website](https://devtron.ai/) · [Blog](https://devtron.ai/blog/) · [Join Discord](https://discord.gg/72JDKy4) · [Twitter](https://twitter.com/DevtronL)
+[Website](https://devtron.ai/) · [Blog](https://devtron.ai/blog/) · [Join Discord](https://discord.gg/jsRG5qx2gp) · [Twitter](https://twitter.com/DevtronL)
 
 ## Why Devtron?
 
@@ -71,7 +71,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
 
-* Join the [Discord Community](https://discord.gg/72JDKy4) 
+* Join the [Discord Community](https://discord.gg/jsRG5qx2gp) 
 * Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
 * Raise feature requests, suggest enhancements, report bugs at [GitHub issues](https://github.com/devtron-labs/devtron/issues)
 * Read the [Devtron blog](https://devtron.ai/blog/)
