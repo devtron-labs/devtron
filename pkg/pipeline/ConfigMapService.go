@@ -1620,7 +1620,8 @@ func (impl ConfigMapServiceImpl) validateExternalSecretChartCompatibility(appId 
 
 func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error) {
 	var payload []*BulkPatchPayload
-	if bulkPatchRequest.Filter != nil && len(bulkPatchRequest.Filter.AppNameIncludes) > 0 {
+	if ! bulkPatchRequest.Global {
+	} else if bulkPatchRequest.Filter != nil && len(bulkPatchRequest.Filter.AppNameIncludes) > 0 {
 		apps, err := impl.appRepository.FetchAppsByFilter(bulkPatchRequest.Filter.AppNameIncludes, bulkPatchRequest.Filter.AppNameExcludes)
 		if err != nil {
 			impl.logger.Errorw("chart version parsing", "err", err)
