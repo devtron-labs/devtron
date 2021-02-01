@@ -1,10 +1,11 @@
 # Chart Repository
 
-The Global configuration provides a feature of `chart repository` in which you can add your chart repository here.
+This feature allows you to add more chart repositories to Devtron. Once added they will be available in the Discover section of the Chart Store. 
+
 
 ## Add Chart Repository
 
-Select the Chart Repository section of global configuration and click on `Add Repository` to add new chart, which provide three inputs as below.
+Select the Chart Repository section of global configuration and click on `Add Repository` button at the top of the Chart Repository Section to add new chart, you need to provide three inputs as below.
 
 1. Name
 2. URL
@@ -14,7 +15,9 @@ Select the Chart Repository section of global configuration and click on `Add Re
 
 ### 1. Name
 
-Provide a `Name` to your Chart Repository. It will be added as one option in the Chart Repository drop-down inside the Chart Repository section.
+Provide a `Name` to your Chart Repository. This name is added as prefix to the name of the chart in the listing on the helm chart section of application.
+
+![](../../.gitbook/assets/gc-chart-name.png)
 
 ### 2. URL
 
@@ -33,7 +36,7 @@ If you select `Anonymous` then you do not have to provide any username, password
 
 * **Password/Auth token**
 
-If you select Password/Auth token then you have to provide the `Access token` for the authentication of your version controller account inside the Access token box. Click on `Save` to save your chart repository details.
+If you select Password/Auth token then you have to provide the `Access Token` for the authentication of your version controller account inside the Access token box. Click on `Save` to save your chart repository details.
 
 ![](../../.gitbook/assets/gc-chart-config-password.png)
 
@@ -45,7 +48,7 @@ If you choose `User Auth` then you have to provide the `Username` and `Password`
 
 ## Update Chart Repository
 
-You can update your saved chart repository settings at any point in time. Click on the chart repository which you want to update. Make changes and click on \`Update to save you changes.
+You can update your saved chart repository settings at any point in time. Click on the chart repository which you want to update. Make changes and click on `Update` to save you changes.
 
 ![](../../.gitbook/assets/gc-edit-chart.png)
 
