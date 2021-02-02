@@ -7,7 +7,7 @@
 You will need to be ready with following prerequisites before Devtron installation
  - A Kubernetes cluster (preferably K8s 1.16 or above) created on AWS (EKS or KOPS) or on AZURE (AKS or KOPS). Check [Creating a Production grade EKS cluster using EKSCTL](https://devtron.ai/blog/creating-production-grade-kubernetes-eks-cluster-eksctl/)
  - An Nginx ingress controller pre-configured within the cluster either exposed as LoadBalancer or NodePort.
- - 2 S3 buckets/ AZURE Blob storage containers for ci-caching and ci-logs and their access permissions added to the cluster role.
+ - 2 S3 buckets/ AZURE Blob storage containers for ci-caching and ci-logs and their access permissions added to the cluster role. You will need to put these in configs [here](#storage-for-logs-and-cache)
 
 
 ## Introduction
@@ -27,11 +27,9 @@ It packages third party components like:
 
 ## How to use it
 
-**Warning** chart installation with helm 2 may not succeed because of crd race condition, while we fix the chart please install using [kubectl](#install-with-kubectl)
+
 
 ### Install with Helm
-This chart is currently not available on the official helm repository therefore you need to download it to install it.
-
 
 ## Helm 3
 
@@ -104,7 +102,7 @@ $ kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sy
 ```
 
 Once installation process is complete, above command will print `Applied`
-It may take around 30 mins for installation to complete.
+It may take around 30 minutes for installation to complete.
 
 ### Access devtron dashboard
 
@@ -118,7 +116,7 @@ Run following command to get dashboard
 ```bash
 $ scheme=`kubectl -n devtroncd get cm devtron-operator-cm -o jsonpath='{.data.BASE_URL_SCHEME}'` && url=`kubectl -n devtroncd get cm devtron-operator-cm -o jsonpath='{.data.BASE_URL}'` && echo "$scheme://$url/dashboard"
 ```
-**Please Note:** URL should be pointing to the cluster on which you have intalled the platform. For example if you have directed domain `devtron.example.com` to the cluster and ingress controller is listening on port `32080` then url will be `devtron.example.com:32080`
+**Please Note:** URL should be pointing to the cluster on which you have installed the platform. For example if you have directed domain `devtron.example.com` to the cluster and ingress controller is listening on port `32080` then url will be `devtron.example.com:32080`
 
 #### Login credentials
 For login use username:`admin` and for password run command mentioned below.
@@ -135,6 +133,7 @@ To log into grafana use username: `admin` and for password run command mentioned
 ```bash
 $ kubectl -n devtroncd get secret devtron-grafana-cred-secret -o jsonpath='{.data.admin-password}' | base64 -d
 ```
+
 ### Configuration
 
 #### Configure Secrets
@@ -168,6 +167,8 @@ Following properties should be configured
 | **PROMETHEUS_URL** | url of prometheus where all cluster data is stored, if this is wrong, you will not be able to see application metrics like cpu, ram, http status code, latency and throughput (required) |  |
 | **GIT_HOST** | if GIT_PROVIDER is GITLAB, this is required only when user want to use self hosted gitlab. provide valid git host URL | |
 
+### Storage for Logs and Cache
+
 AWS SPECIFIC
 | Parameter | Description | Default |
 |----------:|:------------|:--------|
@@ -193,6 +194,7 @@ $ echo -n "string" | base64 -d
 **Please Note:**
 1) Ensure that the **cluster has read and write access** to the S3 buckets/Azure Blob storage container mentioned in DEFAULT_CACHE_BUCKET, DEFAULT_BUILD_LOGS_BUCKET or AZURE_BLOB_CONTAINER_CI_LOG, AZURE_BLOB_CONTAINER_CI_CACHE
 2) Ensure that cluster has **read access** to AWS secrets backends (SSM & secrets manager)
+
 
 ### Cleanup
 
@@ -247,4 +249,4 @@ $ kubectl delete -n devtroncd -f yamls/
 $ kubectl -n devtroncd patch installer installer-devtron --type json -p '[{"op": "remove", "path": "/status"}]'
 ```
 
- In case you are still facing issues please feel free to reach out to us on [discord](https://discord.gg/72JDKy4)
+ In case you are still facing issues please feel free to reach out to us on [discord](https://discord.gg/jsRG5qx2gp)
