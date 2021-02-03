@@ -1,12 +1,12 @@
 # Chart Repository
 
-This feature allows you to add more chart repositories to Devtron. Once added they will be available in the Discover section of the Chart Store. 
+This feature allows you to add more chart repositories to Devtron. Once added they will be available in the `Discover section` of the `Chart Store`. 
 
 Learn more about [Discover chart link](https://docs.devtron.ai/user-guide/deploy-chart/overview-of-charts#deploying-chart)
 
 ## Add Chart Repository
 
-Select the Chart Repository section of global configuration and click on `Add Repository` button at the top of the Chart Repository Section to add new chart, you need to provide three inputs as below.
+Select the Chart Repository section of global configuration and click on `Add Repository` button at the top of the Chart Repository Section. To add new chart, you need to provide three inputs as below:
 
 1. Name
 2. URL
@@ -26,18 +26,18 @@ Provide the `URL`. **For example**- github.com for Github, [https://gitlab.com](
 
 ### 3. Authentication type
 
-Here you have to provide the type of Authentication required by your version controller. We are supporting three types of authentications, you can choose any one from them.
+Here you have to provide the type of Authentication required by your version controller. We support three types of authentications, You can choose the one that suits you the best.
 
 
 * **Anonymous**
 
-If you select `Anonymous` then you do not have to provide any username, password, and authentication token. Just click on `Save` to save your chart repository details.
+If you select `Anonymous` then you do not have to provide any username, password, or authentication token. Just click on `Save` to save your chart repository details.
 
 ![](../../.gitbook/assets/gc-chart-configure-anonymous.png)
 
 * **Password/Auth token**
 
-If you select Password/Auth token then you have to provide the `Access Token` for the authentication of your version controller account inside the Access token box. Click on `Save` to save your chart repository details.
+If you select Password/Auth token, then you have to provide the `Access Token` for the authentication of your version controller account inside the Access token box. Click on `Save` to save your chart repository details.
 
 ![](../../.gitbook/assets/gc-chart-config-password.png)
 
@@ -49,7 +49,7 @@ If you choose `User Auth` then you have to provide the `Username` and `Password`
 
 ## Update Chart Repository
 
-You can update your saved chart repository settings at any point in time. Click on the chart repository which you want to update. Make changes and click on `Update` to save you changes.
+You can update your saved chart repository settings at any point in time.Just click on the chart repository which you want to update. Make the rwquired changes and click on `Update` to save you changes.
 
 ![](../../.gitbook/assets/gc-edit-chart.png)
 
