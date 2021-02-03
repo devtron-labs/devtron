@@ -1282,6 +1282,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 		data, err := json.Marshal(payload)
 		if err != nil {
 			status = appstore.QUE_ERROR
+			impl.logger.Info("trigger bulk deploy queue error")
 		} else {
 			err := impl.pubsubClient.Conn.Publish(BULK_APPSTORE_DEPLOY_TOPIC, data)
 			if err != nil {
@@ -1290,6 +1291,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 			} else {
 				status = appstore.ENQUEUED
 			}
+			impl.logger.Infow("trigger bulk deploy publish", "status", status)
 		}
 		if versions.Status == appstore.DEPLOY_INIT || versions.Status == appstore.QUE_ERROR || versions.Status == appstore.ENQUEUED {
 			impl.logger.Infow("trigger bulk deploy status", "status", status)
