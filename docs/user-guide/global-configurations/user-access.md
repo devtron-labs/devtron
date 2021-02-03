@@ -11,13 +11,13 @@ Access can be added to the User either directly or via Groups.
 
 ## Access Levels
 Devtron supports 5 levels of access
-1. **View**: User with `view` only access has least privilege. This user can only view combination of environments, applications and helm charts on which access has been granted to the user. This user cannot view sensitive data like secrets used in applications or charts.
-2. **Build and Deploy**: User with `build and deploy` permission can build and deploy the image of premitted applications to permitted environments.
+1. **View**: User with `view` only access has the least privilege. This user can only view combination of environments, applications and helm charts on which access has been granted to the user. This user cannot view sensitive data like secrets used in applications or charts.
+2. **Build and Deploy**: In addition to `view` privilege mentioned in above, user with `build and deploy` permission can build and deploy the image of permitted applications and helm charts to permitted environments.
 3. **Admin**: User with `admin` access can create, edit, delete and view permitted applications in permitted projects.
 4. **Manager**: User with `manager` access can do everything that an `admin` type user can do, in addition they can also give and revoke access of users for the applications and environments of which they are `manager`.
 5. **Super Admin**: User with `super admin` privilege has unrestricted access to all Devtron resources. Super admin can create, modify, delete and view any Devtron resource without any restriction; its like Superman without the weakness of Kryptonite. Super Admin can also add and delete user access across any Devtron resource, add delete git repository credentials, docker registry credentials, cluster and environment.
 
-| Access Level |View App | Create App | Edit App | Delete App | Trigger App |
+| Access Level | View App | Create App | Edit App | Delete App | Trigger App |
 |--|--|--|--|--|--|
 | View | Yes  | No | No | No| No |
 | Build and Deploy | Yes  | No | No | No| Yes |
@@ -26,7 +26,7 @@ Devtron supports 5 levels of access
 |Super Admin| Yes | Yes | Yes | Yes | Yes |
 <br/>
 
-| Access Level |View Charts | Install Charts | Edit Charts | Delete Charts |
+| Access Level | View Charts | Install Charts | Edit Charts | Delete Charts |
 |--|--|--|--|--|--|
 | View | Yes  | No | No | No|
 | Build and Deploy | Yes  | No | No | No|
@@ -35,14 +35,13 @@ Devtron supports 5 levels of access
 |Super Admin| Yes | Yes | Yes | Yes |
 <br/>
 
-| Access Level |Add User Access  | Edit User Access | Delete User Access |
+| Access Level | Add User Access  | Edit User Access | Delete User Access |
 |--|--|--|--|
-|Admin| Yes | Yes | Yes |
 |Manager| Yes | Yes | Yes |
-|Super Admin| Yes | Yes |
+|Super Admin| Yes | Yes | Yes |
 <br/>
 
-| Access Level |Add Global Config  | Edit Global Config | Delete Global Config |
+| Access Level | Add Global Config  | Edit Global Config | Delete Global Config |
 |--|--|--|--|
 |Super Admin| Yes | Yes |
 
@@ -118,7 +117,7 @@ Similarly, you can select `Applications` from the drop-down corresponding to you
 
 * **Roles**
 
-  Inside the `Role`, you actually hoose which type of permissions you want to give to the users.
+  Inside the `Role`, you actually choose which type of permissions you want to give to the users.
 
 There are four different view access levels/Role available for both User and Group as described [above](#access-levels):
 
@@ -130,7 +129,7 @@ Once you have finished assigning the appropriate permissions for the listed user
 
 ### Chart group permissions
 
-You can also manage the access of users to Chart Groups in your project. This is optional, if you want to give permission for helm chart groups then it can be used. By default, all users have the `View` permission of the charts for the environments on which they have access to any application.
+You can also manage the access of users to Chart Groups in your project. By default, user has the `View` permission for the charts deployed in the environments on which he/she has at least `view` access to any application.
 
 You can either give the users permission to `Create` or `Edit`.
 
