@@ -19,7 +19,7 @@ contribution. No action from you is required, but it's a good idea to see the
 
 The project uses discord for communication:
 
-To join the conversation, simply join the **[discord](https://discord.gg/wRspyec)**  and use the __#contrib__ channel.
+To join the conversation, simply join the **[discord](https://discord.gg/jsRG5qx2gp)**  and use the __#contrib__ channel.
 
 ## Code Structure
 

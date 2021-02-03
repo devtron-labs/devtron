@@ -681,22 +681,7 @@ func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWri
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Errorw("request payload, ConfigSecretBulkPatch", "payload", bulkPatchRequest)
-
-	if bulkPatchRequest.ProjectId > 0 && bulkPatchRequest.Global {
-		apps, err := handler.pipelineBuilder.FindAppsByTeamId(bulkPatchRequest.ProjectId)
-		if err != nil {
-			handler.Logger.Errorw("service err, ConfigSecretBulkPatch", "err", err, "payload", bulkPatchRequest)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		var payload []*pipeline.BulkPatchPayload
-		for _, app := range apps {
-			payload = append(payload, &pipeline.BulkPatchPayload{AppId: app.Id})
-		}
-		bulkPatchRequest.Payload = payload
-	}
-
+	handler.Logger.Infow("request payload, ConfigSecretBulkPatch", "payload", bulkPatchRequest)
 	bulkPatchRequest.UserId = userId
 	if bulkPatchRequest.Global {
 		_, err := handler.configMapService.ConfigSecretGlobalBulkPatch(&bulkPatchRequest)
