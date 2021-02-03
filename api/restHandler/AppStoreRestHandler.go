@@ -92,7 +92,7 @@ func (handler *AppStoreRestHandlerImpl) FindAllApps(w http.ResponseWriter, r *ht
 
 	v := r.URL.Query()
 	deprecated := false
-	deprecatedStr := v.Get("deprecated")
+	deprecatedStr := v.Get("includeDeprecated")
 	if len(deprecatedStr) > 0 {
 		deprecated, err = strconv.ParseBool(deprecatedStr)
 		if err != nil {
@@ -123,7 +123,7 @@ func (handler *AppStoreRestHandlerImpl) FindAllApps(w http.ResponseWriter, r *ht
 	if len(sizeStr) > 0 {
 		size, _ = strconv.Atoi(sizeStr)
 	}
-	filter := &appstore2.AppStoreFilter{Deprecated: deprecated, ChartRepoId: chartRepoIds, AppStoreName: appStoreName}
+	filter := &appstore2.AppStoreFilter{IncludeDeprecated: deprecated, ChartRepoId: chartRepoIds, AppStoreName: appStoreName}
 	if size > 0 {
 		filter.Size = size
 		filter.Offset = offset
