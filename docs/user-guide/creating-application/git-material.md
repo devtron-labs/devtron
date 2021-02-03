@@ -12,11 +12,11 @@ Devtron also supports multiple git repositories in a single deployment. We will 
 
 ## 1. Select Provider
 
-In the provider section, you have to select the git provider of your code repository like- Github, Gitlab, and Bitbucket, etc. If you are using a private git repository, you can configure your git provider via [global configuration](../global-configurations/).
+In the provider section, you have to select the git provider of your code repository like- Github, Gitlab, and Bitbucket, etc. If you are using a private git repository, you can configure your git provider via [git provider config](../git-provider-config/).
 
 ## 2. Git Repo URL
 
-Inside the git repo URL, you have to provide your code repository’s https URL. For Example- [https://github.com/Username/Repo\_name.git](https://github.com/Username/Repo_name.git)
+Inside the git repo URL, you have to provide your code repository’s https URL. For Example- [https://github.com/devtron-labs/django-repo](https://github.com/devtron-labs/django-repo)
 
 You can find this URL by clicking on the '⤓ code' button on your git repository page.
 
@@ -49,8 +49,8 @@ Due to security reasons, you may want to keep sensitive configurations like thir
 Few other examples, where you may want to have multiple repositories for your application and will need multi git checkout support:
 
 * To make code modularize, you are keeping front-end and back-end code in different repositories.
-* Due to security reasons you are keeping configuration files in different access restricted git repositories.
 * Common Library extracted out in different repo so that it can be used via multiple other projects.
+* Due to security reasons you are keeping configuration files in different access restricted git repositories.
 
 ## **How Devtron's 'Checkout Path' works**
 
