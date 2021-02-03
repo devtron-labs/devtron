@@ -1274,8 +1274,9 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationStatusUpdate(installA
 //------------ nats config
 
 func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions []*InstallAppVersionDTO) {
-
+	impl.logger.Infow("trigger bulk deploy", "installAppVersions", installAppVersions)
 	for _, versions := range installAppVersions {
+		impl.logger.Infow("trigger bulk deploy", "versions", versions)
 		var status appstore.AppstoreDeploymentStatus
 		payload := &DeployPayload{InstalledAppVersionId: versions.InstalledAppVersionId}
 		data, err := json.Marshal(payload)
@@ -1289,10 +1290,9 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 			} else {
 				status = appstore.ENQUEUED
 			}
-
 		}
 		if versions.Status == appstore.DEPLOY_INIT || versions.Status == appstore.QUE_ERROR || versions.Status == appstore.ENQUEUED {
-			impl.logger.Debugw("status", "status", status)
+			impl.logger.Infow("trigger bulk deploy status", "status", status)
 			_, err = impl.AppStoreDeployOperationStatusUpdate(payload.InstalledAppVersionId, status)
 			if err != nil {
 				impl.logger.Errorw(" error", "err", err)
