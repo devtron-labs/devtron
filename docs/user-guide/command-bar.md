@@ -34,7 +34,7 @@ Top-level categories (eg. app, chart, security, global-config) are auto-filled d
 
 3. Navigate using `↓` `↑` between the matching results and press `→` to view nested options.
 
-> Note: Pressing Enter on a highlighted option will navigate to the selected page location.
+   > Note: Pressing Enter on a highlighted option will navigate to the selected page location.
 
 4. In this case, `app / dashboard / configure / workflow-editor` will navigate to the Workflow editor in dashboard application.
 
