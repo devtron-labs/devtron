@@ -18,11 +18,19 @@ Here, as you can see, there are 5 options to configure your **docker build**.
    * Key
    * Value
 
-| Options | Description |
-| :--- | :--- |
-| `Repository` | Provide the checkout path of the repository in this column, which you had defined earlier in git configuration details |
-| `Docker File Path` | Provide a relative path for your docker file. Dockerfile should be present on this path. |
-| `Docker Registry` | Select the docker registry you wish to use, which will be used to [store docker images](../global-configurations/docker-registries.md). |
-| `Docker Repository` | Name of your docker repository that will store a collection of related images. Every image is stored with a new tag version. |
-| `Key-value` | The key parameter and the value for a given key for your [docker build](https://docs.docker.com/engine/reference/commandline/build/#options). This is Optional. \(this can be overridden at [CI step](../deploying-application/triggering-ci.md) later\) |
+
+### Repository
+In this field, you have to provide the checkout path of your repository. This repository is the same that you had defined earlier in git configuration details.
+
+### Docker File Path
+Here, you provide a relative path where your docker file is located. Ensure that the dockerfile is present on this path.
+
+### Docker Registry
+Select the docker registry that you wish to use. This registry will be used to [store docker images](../global-configurations/docker-registries.md).
+
+### Docker Repository
+In this field, add the name of your docker repository. The repository that you specify here will store a collection of related docker images. Whenever an image is added here, it will be stored with a new tag version.
+
+### Key-value
+This field will contain the key parameter and the value for the specified key for your [docker build](https://docs.docker.com/engine/reference/commandline/build/#options). This field is Optional. \(If required, this can be overridden at [CI step](../deploying-application/triggering-ci.md) later\)
 
