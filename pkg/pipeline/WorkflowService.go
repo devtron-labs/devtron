@@ -88,11 +88,13 @@ type WorkflowRequest struct {
 	ScanEnabled              bool               `json:"scanEnabled"`
 	CloudProvider            string             `json:"cloudProvider"`
 	AzureBlobConfig          *AzureBlobConfig   `json:"azureBlobConfig"`
+	MinioEndpoint            string             `json:"minioEndpoint"`
 }
 
 const CLOUD_PROVIDER_AZURE = "AZURE"
 const CLOUD_PROVIDER_AWS = "AWS"
 const CLOUD_PROVIDER_GCP = "GCP"
+const BLOB_STORAGE_MINIO = "MINIO"
 
 type AzureBlobConfig struct {
 	Enabled              bool   `json:"enabled"`
@@ -186,7 +188,12 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	reqCpu := impl.ciConfig.ReqCpu
 	reqMem := impl.ciConfig.ReqMem
 	ttl := int32(600)
-
+	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
+	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
+		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.MinioAccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.MinioSecretKey}}
+		containerEnvVariables = append(containerEnvVariables, miniCred...)
+		workflowRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
+	}
 	var (
 		ciWorkflow = v1alpha1.Workflow{
 			ObjectMeta: v1.ObjectMeta{
@@ -202,7 +209,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 					{
 						Name: "ci",
 						Container: &v12.Container{
-							Env:   []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}},
+							Env:   containerEnvVariables,
 							Image: workflowRequest.CiImage,
 							Args:  []string{string(workflowJson)},
 							SecurityContext: &v12.SecurityContext{

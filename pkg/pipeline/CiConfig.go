@@ -60,6 +60,9 @@ type CiConfig struct {
 	AzureAccountName          string   `env:"AZURE_ACCOUNT_NAME"`
 	AzureBlobContainerCiLog   string   `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
 	AzureBlobContainerCiCache string   `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
+	MinioEndpoint             string   `env:"MINIO_ENDPOINT"`
+	MinioAccessKey            string   `env:"MINIO_ACCESS_KEY"`
+	MinioSecretKey            string   `env:"MINIO_SECRET_KEY"`
 
 	AzureAccountKey string `env:"AZURE_ACCOUNT_KEY"`
 	ClusterConfig   *rest.Config
@@ -99,7 +102,7 @@ func GetCiConfig() (*CiConfig, error) {
 		cfg.NodeLabel[kv[0]] = kv[1]
 	}
 	//validation for supported cloudproviders
-	if cfg.CloudProvider != CLOUD_PROVIDER_AWS && cfg.CloudProvider != CLOUD_PROVIDER_AZURE {
+	if cfg.CloudProvider != CLOUD_PROVIDER_AWS && cfg.CloudProvider != CLOUD_PROVIDER_AZURE && cfg.CloudProvider != BLOB_STORAGE_MINIO {
 		return nil, fmt.Errorf("unsupported cloudprovider: %s", cfg.CloudProvider)
 	}
 	return cfg, err
