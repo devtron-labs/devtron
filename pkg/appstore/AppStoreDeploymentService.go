@@ -780,6 +780,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGr
 		return nil, err
 	}
 	//nats event
+	impl.logger.Infow("trigger bulk event", "bulk request", installAppVersions)
 	impl.triggerDeploymentEvent(installAppVersions)
 	return &ChartGroupInstallAppRes{}, nil
 }
@@ -1302,7 +1303,6 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
 	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_APPSTORE_DEPLOY_TOPIC, BULK_APPSTORE_DEPLOY_GROUP, func(msg *stan.Msg) {
-		impl.logger.Debug("cd stage event received")
 		defer msg.Ack()
 		deployPayload := &DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
@@ -1310,7 +1310,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 			impl.logger.Error("err", err)
 			return
 		}
-		impl.logger.Debugw("deployPayload:", "deployPayload", deployPayload)
+		impl.logger.Infow("deployPayload:", "deployPayload", deployPayload)
 		_, err = impl.performDeployStage(deployPayload.InstalledAppVersionId)
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
@@ -1426,7 +1426,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 			}
 			chartGroupInstallRequest.ChartGroupInstallChartRequest = chartGroupInstallChartRequests
 
-			impl.logger.Info("STEP 5 - deploy bulk initiated")
+			impl.logger.Infow("STEP 5 - deploy bulk initiated", "bulk request", chartGroupInstallRequest)
 			// STEP 5 - deploy
 			_, err = impl.DeployBulk(chartGroupInstallRequest)
 			if err != nil {
