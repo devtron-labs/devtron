@@ -575,6 +575,11 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 			AccountKey:         impl.ciConfig.AzureAccountKey,
 		},
 	}
+	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
+		ciLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
+		ciLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
+		ciLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
+	}
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
@@ -671,6 +676,11 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
 			AccountKey:         impl.ciConfig.AzureAccountKey,
 		},
+	}
+	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
+		ciLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
+		ciLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
+		ciLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
 	}
 	logsFile, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
 	logs, err := ioutil.ReadFile(logsFile.Name())
