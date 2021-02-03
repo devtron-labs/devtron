@@ -592,6 +592,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 			HttpStatusCode:  http.StatusUnauthorized,
 			Code:            constants.UserNoTokenProvided,
 			InternalMessage: "no token provided",
+			UserMessage:     "no token provided",
 		}
 		return false, err
 	}
@@ -601,8 +602,8 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		impl.logger.Errorw("failed to verify token", "error", err)
 		err := &util.ApiError{
 			HttpStatusCode:  http.StatusUnauthorized,
-			Code:            constants.UserNoTokenProvided,
-			InternalMessage: "failed to verify token",
+			Code:            constants.UserNotFoundForToken,
+			InternalMessage: fmt.Sprintf("token verification failed while getting logged in user: %s", token),
 			UserMessage:     fmt.Sprintf("token verification failed while getting logged in user: %s", token),
 		}
 		return false, err
