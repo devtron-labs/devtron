@@ -49,7 +49,7 @@ If you choose `User Auth` then you have to provide the `Username` and `Password`
 
 ## Update Chart Repository
 
-You can update your saved chart repository settings at any point in time.Just click on the chart repository which you want to update. Make the rwquired changes and click on `Update` to save you changes.
+You can update your saved chart repository settings at any point in time. Just click on the chart repository which you want to update. Make the required changes and click on `Update` to save you changes.
 
 ![](../../.gitbook/assets/gc-edit-chart.png)
 
