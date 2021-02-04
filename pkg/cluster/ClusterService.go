@@ -38,7 +38,7 @@ type ClusterBean struct {
 	Config                  map[string]string          `json:"config,omitempty" validate:"required"`
 	PrometheusAuth          *PrometheusAuth            `json:"prometheusAuth,omitempty"`
 	DefaultClusterComponent []*DefaultClusterComponent `json:"defaultClusterComponent"`
-	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // 1=progressing, 2=success, 3=fails
+	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
 }
 
 type PrometheusAuth struct {
@@ -232,8 +232,8 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 				item.AgentInstallationStage = 1
 			}
 		}
-		if item.AgentInstallationStage == 0 {
-			item.AgentInstallationStage = 3
+		if item.Id == 1 {
+			item.AgentInstallationStage = -1
 		}
 		item.DefaultClusterComponent = defaultClusterComponents
 	}
