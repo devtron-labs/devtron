@@ -168,7 +168,7 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:3ccd61dc-146-3015"
+          image: "quay.io/devtron/devtron:3ccd61dc-146-xxxx"
           imagePullPolicy: IfNotPresent
           ports:
             - name: devtron
