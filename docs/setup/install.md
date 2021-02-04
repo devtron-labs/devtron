@@ -244,9 +244,9 @@ pod=$(kubectl -n devtroncd get po -l app=inception -o jsonpath='{.items[0].metad
 
 Run following command to clean up components installed by devtron installer
  ```bash
-$ cd devtron-installation-script/
-$ kubectl delete -n devtroncd -f yamls/
-$ kubectl -n devtroncd patch installer installer-devtron --type json -p '[{"op": "remove", "path": "/status"}]'
+cd devtron-installation-script/
+kubectl delete -n devtroncd -f yamls/
+kubectl -n devtroncd patch installer installer-devtron --type json -p '[{"op": "remove", "path": "/status"}]'
 ```
 
  In case you are still facing issues please feel free to reach out to us on [discord](https://discord.gg/jsRG5qx2gp)
