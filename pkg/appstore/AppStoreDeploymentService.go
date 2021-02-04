@@ -739,7 +739,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGr
 	for _, chartGroupInstall := range chartGroupInstallRequest.ChartGroupInstallChartRequest {
 		installAppVersionDTO, err := impl.requestBuilderForBulkDeployment(chartGroupInstall, chartGroupInstallRequest.ProjectId, chartGroupInstallRequest.UserId)
 		if err != nil {
-			impl.logger.Errorw("error in transformation", "err", err)
+			impl.logger.Errorw("DeployBulk, error in request builder", "err", err)
 			return nil, err
 		}
 		installAppVersionDTOList = append(installAppVersionDTOList, installAppVersionDTO)
@@ -755,7 +755,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGr
 	for _, installAppVersionDTO := range installAppVersionDTOList {
 		installAppVersionDTO, err = impl.AppStoreDeployOperationDB(installAppVersionDTO, tx)
 		if err != nil {
-			impl.logger.Errorw(" error", "err", err)
+			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
 		}
 		installAppVersions = append(installAppVersions, installAppVersionDTO)
@@ -769,7 +769,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGr
 			chartGroupEntry := impl.createChartGroupEntryObject(installAppVersionDTO, chartGroupInstallRequest.ChartGroupId, groupINstallationId)
 			err := impl.chartGroupDeploymentRepository.Save(tx, chartGroupEntry)
 			if err != nil {
-				impl.logger.Errorw(" error in creating createChartGroupEntryObject", "err", err)
+				impl.logger.Errorw("DeployBulk, error in creating ChartGroupEntryObject", "err", err)
 				return nil, err
 			}
 		}
@@ -777,6 +777,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGr
 	//commit transaction
 	err = tx.Commit()
 	if err != nil {
+		impl.logger.Errorw("DeployBulk, error in tx commit", "err", err)
 		return nil, err
 	}
 	//nats event
@@ -1283,7 +1284,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 		} else {
 			err := impl.pubsubClient.Conn.Publish(BULK_APPSTORE_DEPLOY_TOPIC, data)
 			if err != nil {
-				impl.logger.Errorw("err in publishing msg", "msg", data, "err", err)
+				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
 				status = appstore.QUE_ERROR
 			} else {
 				status = appstore.ENQUEUED
@@ -1291,10 +1292,10 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 
 		}
 		if versions.Status == appstore.DEPLOY_INIT || versions.Status == appstore.QUE_ERROR || versions.Status == appstore.ENQUEUED {
-			impl.logger.Debugw("status", "status", status)
+			impl.logger.Debugw("status for bulk app-store deploy", "status", status)
 			_, err = impl.AppStoreDeployOperationStatusUpdate(payload.InstalledAppVersionId, status)
 			if err != nil {
-				impl.logger.Errorw(" error", "err", err)
+				impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
 			}
 		}
 	}
@@ -1345,6 +1346,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 		}
 		_, err := impl.envService.Create(env, userId)
 		if err != nil {
+			impl.logger.Errorw("DeployDefaultChartOnCluster, error in creating environment", "data", env, "err", err)
 			return false, err
 		}
 	}
@@ -1363,7 +1365,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 		}
 		err = impl.teamRepository.Save(t)
 		if err != nil {
-			impl.logger.Errorw("error in saving team", "data", t, "err", err)
+			impl.logger.Errorw("DeployDefaultChartOnCluster, error in creating team", "data", t, "err", err)
 			return false, err
 		}
 	}
@@ -1378,7 +1380,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 	} else {
 		fileInfo, err := ioutil.ReadDir(CLUSTER_COMPONENT_DIR_PATH)
 		if err != nil {
-			impl.logger.Errorw("err while reading directory for cluster component", "err", err)
+			impl.logger.Errorw("DeployDefaultChartOnCluster, err while reading directory", "err", err)
 			return false, err
 		}
 		for _, file := range fileInfo {
@@ -1386,7 +1388,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 			if strings.Contains(file.Name(), ".yaml") {
 				content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", CLUSTER_COMPONENT_DIR_PATH, file.Name()))
 				if err != nil {
-					impl.logger.Errorw("error on reading file", "err", err)
+					impl.logger.Errorw("DeployDefaultChartOnCluster, error on reading file", "err", err)
 					return false, err
 				}
 				chartComponent := &ChartComponent{
@@ -1410,7 +1412,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 			for _, item := range charts.ChartComponent {
 				appStore, err := impl.appStoreApplicationVersionRepository.FindByAppStoreName(item.Name)
 				if err != nil {
-					impl.logger.Errorw("error in getting app store", "data", t, "err", err)
+					impl.logger.Errorw("DeployDefaultChartOnCluster, error in getting app store", "data", t, "err", err)
 					return false, err
 				}
 				chartGroupInstallChartRequest := &ChartGroupInstallChartRequest{
@@ -1430,7 +1432,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 			// STEP 5 - deploy
 			_, err = impl.DeployBulk(chartGroupInstallRequest)
 			if err != nil {
-				impl.logger.Errorw("error on installation of default component in cluster", "err", err)
+				impl.logger.Errorw("DeployDefaultChartOnCluster, error on bulk deploy", "err", err)
 				return false, err
 			}
 		}
