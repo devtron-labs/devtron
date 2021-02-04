@@ -235,6 +235,7 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 		if item.Id == 1 {
 			item.AgentInstallationStage = -1
 		}
+		item.AgentInstallationStage = 0
 		item.DefaultClusterComponent = defaultClusterComponents
 	}
 	return beans, nil
