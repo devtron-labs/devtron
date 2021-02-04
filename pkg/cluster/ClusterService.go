@@ -38,7 +38,7 @@ type ClusterBean struct {
 	Config                  map[string]string          `json:"config,omitempty" validate:"required"`
 	PrometheusAuth          *PrometheusAuth            `json:"prometheusAuth,omitempty"`
 	DefaultClusterComponent []*DefaultClusterComponent `json:"defaultClusterComponent"`
-	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"`
+	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
 }
 
 type PrometheusAuth struct {
@@ -181,6 +181,7 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	clusterComponentsMap := make(map[int][]*appstore.InstalledAppVersions)
 	charts, err := impl.installedAppRepository.GetInstalledAppVersionByClusterIdsV2(clusterIds)
 	if err != nil {
+		impl.logger.Errorw("error on fetching installed apps for cluster ids", "err", err, "clusterIds", clusterIds)
 		return nil, err
 	}
 	for _, item := range charts {
@@ -196,9 +197,9 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	}
 
 	for _, item := range beans {
+		defaultClusterComponents := make([]*DefaultClusterComponent, 0)
 		if _, ok := clusterComponentsMap[item.Id]; ok {
 			charts := clusterComponentsMap[item.Id]
-			var defaultClusterComponents []*DefaultClusterComponent
 			failed := false
 			chartLen := 0
 			chartPass := 0
@@ -223,7 +224,6 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 					chartPass = chartPass + 1
 				}
 			}
-			item.DefaultClusterComponent = defaultClusterComponents
 			if chartPass == chartLen {
 				item.AgentInstallationStage = 2
 			} else if failed {
@@ -232,6 +232,10 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 				item.AgentInstallationStage = 1
 			}
 		}
+		if item.Id == 1 {
+			item.AgentInstallationStage = -1
+		}
+		item.DefaultClusterComponent = defaultClusterComponents
 	}
 	return beans, nil
 }
