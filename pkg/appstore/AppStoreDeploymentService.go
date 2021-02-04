@@ -1300,11 +1300,13 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 				impl.logger.Errorw(" error", "err", err)
 			}
 		}
+		impl.logger.Debugw("bulk deploy msg published", "msg", string(data))
 	}
 }
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
 	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_APPSTORE_DEPLOY_TOPIC, BULK_APPSTORE_DEPLOY_GROUP, func(msg *stan.Msg) {
+		impl.logger.Debugw("bulk deploy msg received ", "msg", string(msg.Data))
 		defer msg.Ack()
 		deployPayload := &DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
