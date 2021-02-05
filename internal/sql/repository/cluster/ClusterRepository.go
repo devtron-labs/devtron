@@ -36,7 +36,7 @@ type Cluster struct {
 	PPassword              string            `sql:"p_password"`
 	PTlsClientCert         string            `sql:"p_tls_client_cert"`
 	PTlsClientKey          string            `sql:"p_tls_client_key"`
-	AgentInstallationStage int              `sql:"agent_installation_stage"`
+	AgentInstallationStage int               `sql:"agent_installation_stage"`
 	models.AuditLog
 }
 
