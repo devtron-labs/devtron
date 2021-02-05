@@ -46,15 +46,16 @@ const CD_SUCCESS = "ORCHESTRATOR.CD.TRIGGER"
 
 /* #nosec */
 func NewPubSubClient(logger *zap.SugaredLogger) (*PubSubClient, error) {
-
 	cfg := &PubSubConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
 		logger.Error("err", err)
 		return &PubSubClient{}, err
 	}
-
-	nc, err := nats.Connect(cfg.NatsServerHost, nats.ReconnectWait(10*time.Second), nats.MaxReconnects(100))
+	nc, err := nats.Connect(cfg.NatsServerHost, nats.ReconnectWait(10*time.Second), nats.MaxReconnects(100),
+		nats.ErrorHandler(func(conn *nats.Conn, subscription *nats.Subscription, err error) {
+			logger.Errorw("NATS_ERROR", "subscription", subscription.Subject, "err", err)
+		}))
 	if err != nil {
 		logger.Error("err", err)
 		return &PubSubClient{}, err
