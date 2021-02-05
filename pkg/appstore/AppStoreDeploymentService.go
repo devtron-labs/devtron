@@ -1320,7 +1320,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 				impl.logger.Errorw(" error", "err", err)
 			}*/
 		}
-	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(180)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(200)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(3))
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err
