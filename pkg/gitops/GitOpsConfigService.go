@@ -34,14 +34,15 @@ type GitOpsConfigService interface {
 }
 
 type GitOpsConfigDto struct {
-	Id       int    `json:"id,omitempty"`
-	Provider string `json:"provider"`
-	Username string `json:"username"`
-	Token    string `json:"token"`
-	GroupId  string `json:"group_id"`
-	Host     string `json:"host"`
-	Active   bool   `json:"active"`
-	UserId   int32  `json:"-"`
+	Id            int    `json:"id,omitempty"`
+	Provider      string `json:"provider"`
+	Username      string `json:"username"`
+	Token         string `json:"token"`
+	GitLabGroupId string `json:"gitLabGroupId"`
+	GitHubOrgId   string `json:"gitHubOrgId"`
+	Host          string `json:"host"`
+	Active        bool   `json:"active"`
+	UserId        int32  `json:"-"`
 }
 
 type GitOpsConfigServiceImpl struct {
@@ -58,13 +59,14 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto) (*GitOpsConfigDto, error) {
 	impl.logger.Debugw("gitops create request", "req", request)
 	model := &repository.GitOpsConfig{
-		Provider: request.Provider,
-		Username: request.Username,
-		Token:    request.Token,
-		GroupId:  request.GroupId,
-		Host:     request.Host,
-		Active:   request.Active,
-		AuditLog: models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		Provider:      request.Provider,
+		Username:      request.Username,
+		Token:         request.Token,
+		GitHubOrgId:   request.GitHubOrgId,
+		GitLabGroupId: request.GitLabGroupId,
+		Host:          request.Host,
+		Active:        request.Active,
+		AuditLog:      models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	model, err := impl.gitOpsRepository.CreateGitOpsConfig(model, nil)
 	if err != nil {
@@ -92,7 +94,8 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 	model.Provider = request.Provider
 	model.Username = request.Username
 	model.Token = request.Token
-	model.GroupId = request.GroupId
+	model.GitLabGroupId = request.GitLabGroupId
+	model.GitHubOrgId = request.GitHubOrgId
 	model.Host = request.Host
 	model.Active = request.Active
 	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, nil)
@@ -115,10 +118,12 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*GitOpsConfigD
 		return nil, err
 	}
 	config := &GitOpsConfigDto{
-		Id:       model.Id,
-		Provider: model.Provider,
-		Active:   model.Active,
-		UserId:   model.CreatedBy,
+		Id:            model.Id,
+		Provider:      model.Provider,
+		GitHubOrgId:   model.GitHubOrgId,
+		GitLabGroupId: model.GitLabGroupId,
+		Active:        model.Active,
+		UserId:        model.CreatedBy,
 	}
 
 	return config, err
@@ -133,10 +138,12 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*GitOpsConfigDto, e
 	var configs []*GitOpsConfigDto
 	for _, model := range models {
 		config := &GitOpsConfigDto{
-			Id:       model.Id,
-			Provider: model.Provider,
-			Active:   model.Active,
-			UserId:   model.CreatedBy,
+			Id:            model.Id,
+			Provider:      model.Provider,
+			GitHubOrgId:   model.GitHubOrgId,
+			GitLabGroupId: model.GitLabGroupId,
+			Active:        model.Active,
+			UserId:        model.CreatedBy,
 		}
 		configs = append(configs, config)
 	}

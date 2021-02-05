@@ -36,14 +36,15 @@ type GitOpsConfigRepositoryImpl struct {
 }
 
 type GitOpsConfig struct {
-	tableName struct{} `sql:"gitops_config" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id,pk"`
-	Provider  string   `sql:"provider"`
-	Username  string   `sql:"username"`
-	Token     string   `sql:"token"`
-	GroupId   string   `sql:"group_id"`
-	Host      string   `sql:"host"`
-	Active    bool     `sql:"active,notnull"`
+	tableName     struct{} `sql:"gitops_config" pg:",discard_unknown_columns"`
+	Id            int      `sql:"id,pk"`
+	Provider      string   `sql:"provider"`
+	Username      string   `sql:"username"`
+	Token         string   `sql:"token"`
+	GitLabGroupId string   `sql:"gitlab_group_id"`
+	GitHubOrgId   string   `sql:"github_org_id"`
+	Host          string   `sql:"host"`
+	Active        bool     `sql:"active,notnull"`
 	models.AuditLog
 }
 
