@@ -134,12 +134,13 @@ func (impl ClusterServiceImpl) FindOne(clusterName string) (*ClusterBean, error)
 		return nil, err
 	}
 	bean := &ClusterBean{
-		Id:            model.Id,
-		ClusterName:   model.ClusterName,
-		ServerUrl:     model.ServerUrl,
-		PrometheusUrl: model.PrometheusEndpoint,
-		Active:        model.Active,
-		Config:        model.Config,
+		Id:                     model.Id,
+		ClusterName:            model.ClusterName,
+		ServerUrl:              model.ServerUrl,
+		PrometheusUrl:          model.PrometheusEndpoint,
+		AgentInstallationStage: model.AgentInstallationStage,
+		Active:                 model.Active,
+		Config:                 model.Config,
 	}
 	return bean, nil
 }
@@ -150,12 +151,13 @@ func (impl ClusterServiceImpl) FindOneActive(clusterName string) (*ClusterBean, 
 		return nil, err
 	}
 	bean := &ClusterBean{
-		Id:            model.Id,
-		ClusterName:   model.ClusterName,
-		ServerUrl:     model.ServerUrl,
-		PrometheusUrl: model.PrometheusEndpoint,
-		Active:        model.Active,
-		Config:        model.Config,
+		Id:                     model.Id,
+		ClusterName:            model.ClusterName,
+		ServerUrl:              model.ServerUrl,
+		PrometheusUrl:          model.PrometheusEndpoint,
+		AgentInstallationStage: model.AgentInstallationStage,
+		Active:                 model.Active,
+		Config:                 model.Config,
 	}
 	return bean, nil
 }
@@ -169,11 +171,12 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	var beans []*ClusterBean
 	for _, m := range model {
 		beans = append(beans, &ClusterBean{
-			Id:            m.Id,
-			ClusterName:   m.ClusterName,
-			PrometheusUrl: m.PrometheusEndpoint,
-			ServerUrl:     m.ServerUrl,
-			Active:        m.Active,
+			Id:                     m.Id,
+			ClusterName:            m.ClusterName,
+			PrometheusUrl:          m.PrometheusEndpoint,
+			AgentInstallationStage: m.AgentInstallationStage,
+			ServerUrl:              m.ServerUrl,
+			Active:                 m.Active,
 		})
 		clusterIds = append(clusterIds, m.Id)
 	}
@@ -248,12 +251,13 @@ func (impl ClusterServiceImpl) FindAllActive() ([]ClusterBean, error) {
 	var beans []ClusterBean
 	for _, m := range model {
 		beans = append(beans, ClusterBean{
-			Id:            m.Id,
-			ClusterName:   m.ClusterName,
-			ServerUrl:     m.ServerUrl,
-			Active:        m.Active,
-			PrometheusUrl: m.PrometheusEndpoint,
-			Config:        m.Config,
+			Id:                     m.Id,
+			ClusterName:            m.ClusterName,
+			ServerUrl:              m.ServerUrl,
+			Active:                 m.Active,
+			PrometheusUrl:          m.PrometheusEndpoint,
+			AgentInstallationStage: m.AgentInstallationStage,
+			Config:                 m.Config,
 		})
 	}
 	return beans, nil
@@ -265,12 +269,13 @@ func (impl ClusterServiceImpl) FindById(id int) (*ClusterBean, error) {
 		return nil, err
 	}
 	bean := &ClusterBean{
-		Id:            model.Id,
-		ClusterName:   model.ClusterName,
-		ServerUrl:     model.ServerUrl,
-		PrometheusUrl: model.PrometheusEndpoint,
-		Active:        model.Active,
-		Config:        model.Config,
+		Id:                     model.Id,
+		ClusterName:            model.ClusterName,
+		ServerUrl:              model.ServerUrl,
+		PrometheusUrl:          model.PrometheusEndpoint,
+		AgentInstallationStage: model.AgentInstallationStage,
+		Active:                 model.Active,
+		Config:                 model.Config,
 	}
 	prometheusAuth := &PrometheusAuth{
 		UserName:      model.PUserName,
@@ -291,12 +296,13 @@ func (impl ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 
 	for _, model := range models {
 		beans = append(beans, ClusterBean{
-			Id:            model.Id,
-			ClusterName:   model.ClusterName,
-			ServerUrl:     model.ServerUrl,
-			PrometheusUrl: model.PrometheusEndpoint,
-			Active:        model.Active,
-			Config:        model.Config,
+			Id:                     model.Id,
+			ClusterName:            model.ClusterName,
+			ServerUrl:              model.ServerUrl,
+			PrometheusUrl:          model.PrometheusEndpoint,
+			AgentInstallationStage: model.AgentInstallationStage,
+			Active:                 model.Active,
+			Config:                 model.Config,
 		})
 	}
 	return beans, nil
