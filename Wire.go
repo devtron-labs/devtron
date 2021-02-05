@@ -46,6 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/devtron-labs/devtron/pkg/event"
 	"github.com/devtron-labs/devtron/pkg/git"
+	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
@@ -615,6 +616,16 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(sso.SSOLoginService), new(*sso.SSOLoginServiceImpl)),
 		repository.NewSSOLoginRepositoryImpl,
 		wire.Bind(new(repository.SSOLoginRepository), new(*repository.SSOLoginRepositoryImpl)),
+
+
+		router.NewGitOpsConfigRouterImpl,
+		wire.Bind(new(router.GitOpsConfigRouter), new(*router.GitOpsConfigRouterImpl)),
+		restHandler.NewGitOpsConfigRestHandlerImpl,
+		wire.Bind(new(restHandler.GitOpsConfigRestHandler), new(*restHandler.GitOpsConfigRestHandlerImpl)),
+		gitops.NewGitOpsConfigServiceImpl,
+		wire.Bind(new(gitops.GitOpsConfigService), new(*gitops.GitOpsConfigServiceImpl)),
+		repository.NewGitOpsConfigRepositoryImpl,
+		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
 	)
 	return &App{}, nil
 }
