@@ -24,18 +24,19 @@ import (
 )
 
 type Cluster struct {
-	tableName          struct{}          `sql:"cluster" pg:",discard_unknown_columns"`
-	Id                 int               `sql:"id,pk"`
-	ClusterName        string            `sql:"cluster_name"`
-	ServerUrl          string            `sql:"server_url"`
-	PrometheusEndpoint string            `sql:"prometheus_endpoint"`
-	Active             bool              `sql:"active,notnull"`
-	CdArgoSetup        bool              `sql:"cd_argo_setup,notnull"`
-	Config             map[string]string `sql:"config"`
-	PUserName          string            `sql:"p_username"`
-	PPassword          string            `sql:"p_password"`
-	PTlsClientCert     string            `sql:"p_tls_client_cert"`
-	PTlsClientKey      string            `sql:"p_tls_client_key"`
+	tableName              struct{}          `sql:"cluster" pg:",discard_unknown_columns"`
+	Id                     int               `sql:"id,pk"`
+	ClusterName            string            `sql:"cluster_name"`
+	ServerUrl              string            `sql:"server_url"`
+	PrometheusEndpoint     string            `sql:"prometheus_endpoint"`
+	Active                 bool              `sql:"active,notnull"`
+	CdArgoSetup            bool              `sql:"cd_argo_setup,notnull"`
+	Config                 map[string]string `sql:"config"`
+	PUserName              string            `sql:"p_username"`
+	PPassword              string            `sql:"p_password"`
+	PTlsClientCert         string            `sql:"p_tls_client_cert"`
+	PTlsClientKey          string            `sql:"p_tls_client_key"`
+	AgentInstallationStage int              `sql:"agent_installation_stage"`
 	models.AuditLog
 }
 
