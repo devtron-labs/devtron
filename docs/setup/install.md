@@ -34,8 +34,8 @@ It packages third party components like:
 ## Helm 3
 
 ```bash
-$ git clone [https://github.com/devtron-labs/devtron-installation-script.git](https://github.com/devtron-labs/devtron-installation-script.git)
-$ cd devtron-installation-script/charts
+git clone https://github.com/devtron-labs/devtron-installation-script.git
+cd devtron-installation-script/charts
 ```
 Copy and edit the `devtron/values.yaml` to configure your Devtron installation.
 ```bash
@@ -46,17 +46,17 @@ For more details about configuration see the [helm chart configuration](#configu
 Once your configurations are ready, continue with following steps
 ```bash
 #Create devtroncd namespace
-$ kubectl create ns devtroncd
-$ helm install devtron devtron/ --namespace devtroncd -f devtron/install-values.yaml
+kubectl create ns devtroncd
+helm install devtron devtron/ --namespace devtroncd -f devtron/install-values.yaml
 ```
 
 ## Helm 2
 
 ```bash
-$ git clone [https://github.com/devtron-labs/devtron-installation-script.git](https://github.com/devtron-labs/devtron-installation-script.git)
-$ cd devtron-installation-script/charts
-$ #Create CRDs manually when using Helm2
-$ kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
+git clone https://github.com/devtron-labs/devtron-installation-script.git
+cd devtron-installation-script/charts
+#Create CRDs manually when using Helm2
+kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
 ```
 Copy and edit the `devtron/values.yaml` to configure your Devtron installation.
 ```bash
@@ -67,8 +67,8 @@ For more details about configuration see the [helm chart configuration](#configu
 Once your configurations are ready, continue with following steps
 ```bash
 #Create devtroncd namespace
-$ kubectl create ns devtroncd
-$ helm install devtron/ --name devtron --namespace devtroncd -f devtron/install-values.yaml
+kubectl create ns devtroncd
+helm install devtron/ --name devtron --namespace devtroncd -f devtron/install-values.yaml
 ```
 
 
@@ -78,27 +78,27 @@ $ helm install devtron/ --name devtron --namespace devtroncd -f devtron/install-
 If you don't want to install helm and just want to use `kubectl` to install `devtron platform`, then please follow the steps mentioned below:
 
 ```bash
-$ git clone [https://github.com/devtron-labs/devtron-installation-script.git](https://github.com/devtron-labs/devtron-installation-script.git)
-$ cd devtron-installation-script/
+git clone https://github.com/devtron-labs/devtron-installation-script.git
+cd devtron-installation-script/
 #Use a preferred editor to edit the values in install/devtron-operator-configs.yaml
-$ vim install/devtron-operator-configs.yaml
+vim install/devtron-operator-configs.yaml
 ```
 Edit the `install/devtron-operator-configs.yaml` to configure your Devtron installation. For more details about it, see [configuration](#configuration)
 Once your configurations are ready, continue with following steps
 ```bash
-$ kubectl create ns devtroncd
-$ kubectl -n devtroncd apply -f charts/devtron/crds
-$ # wait for crd to install
-$ kubectl apply -n devtroncd -f charts/devtron/templates/install.yaml
-$ #edit install/devtron-operator-configs.yaml and input the
-$ kubectl apply -n devtroncd -f install/devtron-operator-configs.yaml
-$ kubectl apply -n devtroncd -f charts/devtron/templates/devtron-installer.yaml
+kubectl create ns devtroncd
+kubectl -n devtroncd apply -f charts/devtron/crds
+# wait for crd to install
+kubectl apply -n devtroncd -f charts/devtron/templates/install.yaml
+#edit install/devtron-operator-configs.yaml and input the
+kubectl apply -n devtroncd -f install/devtron-operator-configs.yaml
+kubectl apply -n devtroncd -f charts/devtron/templates/devtron-installer.yaml
 ```
 
 ### Installation status
 Run following command
    ```bash
-$ kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.status}'
+kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.status}'
 ```
 
 Once installation process is complete, above command will print `Applied`
@@ -114,14 +114,14 @@ provided in `install/devtron-operator-configs.yaml` in case of installation via 
 
 Run following command to get dashboard
 ```bash
-$ scheme=`kubectl -n devtroncd get cm devtron-operator-cm -o jsonpath='{.data.BASE_URL_SCHEME}'` && url=`kubectl -n devtroncd get cm devtron-operator-cm -o jsonpath='{.data.BASE_URL}'` && echo "$scheme://$url/dashboard"
+scheme=`kubectl -n devtroncd get cm devtron-operator-cm -o jsonpath='{.data.BASE_URL_SCHEME}'` && url=`kubectl -n devtroncd get cm devtron-operator-cm -o jsonpath='{.data.BASE_URL}'` && echo "$scheme://$url/dashboard"
 ```
 **Please Note:** URL should be pointing to the cluster on which you have installed the platform. For example if you have directed domain `devtron.example.com` to the cluster and ingress controller is listening on port `32080` then url will be `devtron.example.com:32080`
 
 #### Login credentials
 For login use username:`admin` and for password run command mentioned below.
 ```bash
-$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 ### Access grafana
 
@@ -131,7 +131,7 @@ grafana is available at `BASE_URL/grafana`
 #### Login credentials
 To log into grafana use username: `admin` and for password run command mentioned below.
 ```bash
-$ kubectl -n devtroncd get secret devtron-grafana-cred-secret -o jsonpath='{.data.admin-password}' | base64 -d
+kubectl -n devtroncd get secret devtron-grafana-cred-secret -o jsonpath='{.data.admin-password}' | base64 -d
 ```
 
 ### Configuration
@@ -189,7 +189,7 @@ AZURE SPECIFIC
 To convert string to base64 use
 
 ```bash
-$ echo -n "string" | base64 -d
+echo -n "string" | base64 -d
 ```
 **Please Note:**
 1) Ensure that the **cluster has read and write access** to the S3 buckets/Azure Blob storage container mentioned in DEFAULT_CACHE_BUCKET, DEFAULT_BUILD_LOGS_BUCKET or AZURE_BLOB_CONTAINER_CI_LOG, AZURE_BLOB_CONTAINER_CI_CACHE
@@ -200,17 +200,17 @@ $ echo -n "string" | base64 -d
 
 Run following commands to delete all the components installed by devtron
 ```bash
-$ cd devtron-installation-script/
-$ kubectl delete -n devtroncd -f yamls/
-$ kubectl delete -n devtroncd -f charts/devtron/templates/devtron-installer.yaml
-$ kubectl delete -n devtroncd -f charts/devtron/templates/install.yaml
-$ kubectl delete -n devtroncd -f charts/devtron/crds
-$ kubectl delete ns devtroncd
+cd devtron-installation-script/
+kubectl delete -n devtroncd -f yamls/
+kubectl delete -n devtroncd -f charts/devtron/templates/devtron-installer.yaml
+kubectl delete -n devtroncd -f charts/devtron/templates/install.yaml
+kubectl delete -n devtroncd -f charts/devtron/crds
+kubectl delete ns devtroncd
 ```
 #### Cleaning Installer Helm3
 ```bash
-$ cd devtron-installation-script/
-$ helm delete devtron --namespace devtroncd
+cd devtron-installation-script/
+helm delete devtron --namespace devtroncd
 ```
 
 #### Cleaning Installer Helm2
@@ -228,7 +228,7 @@ kubectl delete -f https://raw.githubusercontent.com/devtron-labs/devtron-install
 
 Run following command
    ```bash
-$ kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.status}'
+kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.status}'
 ```
 
 Once installation process is complete, above command will print `Applied`
@@ -238,15 +238,15 @@ It may take around 30 mins for installation to complete
 
 Run following command to check logs of the pod
  ```bash
-$ pod=$(kubectl -n devtroncd get po -l app=inception -o jsonpath='{.items[0].metadata.name}')&& kubectl -n devtroncd logs -f $pod
+pod=$(kubectl -n devtroncd get po -l app=inception -o jsonpath='{.items[0].metadata.name}')&& kubectl -n devtroncd logs -f $pod
 ```
 **3**. devtron installer logs have error and I want to restart installation.
 
 Run following command to clean up components installed by devtron installer
  ```bash
-$ cd devtron-installation-script/
-$ kubectl delete -n devtroncd -f yamls/
-$ kubectl -n devtroncd patch installer installer-devtron --type json -p '[{"op": "remove", "path": "/status"}]'
+cd devtron-installation-script/
+kubectl delete -n devtroncd -f yamls/
+kubectl -n devtroncd patch installer installer-devtron --type json -p '[{"op": "remove", "path": "/status"}]'
 ```
 
  In case you are still facing issues please feel free to reach out to us on [discord](https://discord.gg/jsRG5qx2gp)
