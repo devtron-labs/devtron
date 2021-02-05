@@ -33,16 +33,16 @@ func NewGitOpsConfigRouterImpl(gitOpsConfigRestHandler restHandler.GitOpsConfigR
 	return &GitOpsConfigRouterImpl{gitOpsConfigRestHandler: gitOpsConfigRestHandler}
 }
 func (impl GitOpsConfigRouterImpl) InitGitOpsConfigRouter(configRouter *mux.Router) {
-	configRouter.Path("/provider").
+	configRouter.Path("/config").
 		HandlerFunc(impl.gitOpsConfigRestHandler.CreateGitOpsConfig).
 		Methods("POST")
-	configRouter.Path("/provider").
+	configRouter.Path("/config").
 		HandlerFunc(impl.gitOpsConfigRestHandler.UpdateGitOpsConfig).
 		Methods("PUT")
-	configRouter.Path("/provider/{id}").
+	configRouter.Path("/config/{id}").
 		HandlerFunc(impl.gitOpsConfigRestHandler.GetGitOpsConfigById).
 		Methods("GET")
-	configRouter.Path("/provider").
+	configRouter.Path("/config").
 		HandlerFunc(impl.gitOpsConfigRestHandler.GetAllGitOpsConfig).
 		Methods("GET")
 }

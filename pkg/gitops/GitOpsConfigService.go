@@ -68,7 +68,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		Active:        request.Active,
 		AuditLog:      models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
-	model, err := impl.gitOpsRepository.CreateGitOpsConfig(model, nil)
+	model, err := impl.gitOpsRepository.CreateGitOpsConfig(model)
 	if err != nil {
 		impl.logger.Errorw("error in saving gitops config", "data", model, "err", err)
 		err = &util.ApiError{
@@ -98,7 +98,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 	model.GitHubOrgId = request.GitHubOrgId
 	model.Host = request.Host
 	model.Active = request.Active
-	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, nil)
+	err = impl.gitOpsRepository.UpdateGitOpsConfig(model)
 	if err != nil {
 		impl.logger.Errorw("error in updating team", "data", model, "err", err)
 		err = &util.ApiError{

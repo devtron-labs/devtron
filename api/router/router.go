@@ -223,6 +223,6 @@ func (r MuxRouter) Init() {
 	policyRouter := r.Router.PathPrefix("/security/policy").Subrouter()
 	r.policyRouter.InitPolicyRouter(policyRouter)
 
-	gitOpsRouter := r.Router.PathPrefix("/gitops/config").Subrouter()
+	gitOpsRouter := r.Router.PathPrefix("/gitops").Subrouter()
 	r.gitOpsConfigRouter.InitGitOpsConfigRouter(gitOpsRouter)
 }

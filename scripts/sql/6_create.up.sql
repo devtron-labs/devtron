@@ -11,9 +11,9 @@ CREATE TABLE "public"."gitops_config" (
     "host" varchar(250) NOT NULL,
     "active" bool NOT NULL,
     "created_on" timestamptz,
-    "created_by" timestamptz,
+    "created_by" integer,
     "updated_on" timestamptz,
-    "updated_by" timestamptz,
+    "updated_by" integer,
     "gitlab_group_id" varchar(250),
     PRIMARY KEY ("id")
 );

@@ -24,8 +24,8 @@ import (
 )
 
 type GitOpsConfigRepository interface {
-	CreateGitOpsConfig(model *GitOpsConfig, tx *pg.Tx) (*GitOpsConfig, error)
-	UpdateGitOpsConfig(model *GitOpsConfig, tx *pg.Tx) error
+	CreateGitOpsConfig(model *GitOpsConfig) (*GitOpsConfig, error)
+	UpdateGitOpsConfig(model *GitOpsConfig) error
 	GetGitOpsConfigById(id int) (*GitOpsConfig, error)
 	GetAllGitOpsConfig() ([]*GitOpsConfig, error)
 }
@@ -52,16 +52,16 @@ func NewGitOpsConfigRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.D
 	return &GitOpsConfigRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
-func (impl *GitOpsConfigRepositoryImpl) CreateGitOpsConfig(model *GitOpsConfig, tx *pg.Tx) (*GitOpsConfig, error) {
-	err := tx.Insert(model)
+func (impl *GitOpsConfigRepositoryImpl) CreateGitOpsConfig(model *GitOpsConfig) (*GitOpsConfig, error) {
+	err := impl.dbConnection.Insert(model)
 	if err != nil {
 		impl.logger.Error(err)
 		return model, err
 	}
 	return model, nil
 }
-func (impl *GitOpsConfigRepositoryImpl) UpdateGitOpsConfig(model *GitOpsConfig, tx *pg.Tx) error {
-	err := tx.Update(model)
+func (impl *GitOpsConfigRepositoryImpl) UpdateGitOpsConfig(model *GitOpsConfig) error {
+	err := impl.dbConnection.Update(model)
 	if err != nil {
 		impl.logger.Error(err)
 		return err
