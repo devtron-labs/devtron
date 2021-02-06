@@ -529,8 +529,6 @@ func (impl InstalledAppServiceImpl) chartAdaptor2(chart *appstore.InstalledApps)
 
 func (impl InstalledAppServiceImpl) registerInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
 	repo := &v1alpha1.Repository{
-		Username: impl.gitConfig.GetUserName(),
-		Password: impl.gitConfig.GetPassword(),
 		Repo:     chartGitAttribute.RepoUrl,
 	}
 	repo, err := impl.repositoryService.Create(ctx, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
