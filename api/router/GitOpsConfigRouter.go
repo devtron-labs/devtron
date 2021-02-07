@@ -45,4 +45,8 @@ func (impl GitOpsConfigRouterImpl) InitGitOpsConfigRouter(configRouter *mux.Rout
 	configRouter.Path("/config").
 		HandlerFunc(impl.gitOpsConfigRestHandler.GetAllGitOpsConfig).
 		Methods("GET")
+	configRouter.Path("/config").
+		HandlerFunc(impl.gitOpsConfigRestHandler.GetGitOpsConfigByProvider).Queries("provider", "{provider}").
+		Methods("GET")
+
 }

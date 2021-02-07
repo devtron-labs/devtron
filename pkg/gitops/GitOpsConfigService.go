@@ -31,6 +31,7 @@ type GitOpsConfigService interface {
 	UpdateGitOpsConfig(config *GitOpsConfigDto) error
 	GetGitOpsConfigById(id int) (*GitOpsConfigDto, error)
 	GetAllGitOpsConfig() ([]*GitOpsConfigDto, error)
+	GetGitOpsConfigByProvider(provider string) (*GitOpsConfigDto, error)
 }
 
 type GitOpsConfigDto struct {
@@ -148,4 +149,22 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*GitOpsConfigDto, e
 		configs = append(configs, config)
 	}
 	return configs, err
+}
+
+func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) (*GitOpsConfigDto, error) {
+	model, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(provider)
+	if err != nil {
+		impl.logger.Errorw("GetGitOpsConfigByProvider, error while get by name", "err", err, "provider", provider)
+		return nil, err
+	}
+	config := &GitOpsConfigDto{
+		Id:            model.Id,
+		Provider:      model.Provider,
+		GitHubOrgId:   model.GitHubOrgId,
+		GitLabGroupId: model.GitLabGroupId,
+		Active:        model.Active,
+		UserId:        model.CreatedBy,
+	}
+
+	return config, err
 }

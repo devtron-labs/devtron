@@ -28,6 +28,7 @@ type GitOpsConfigRepository interface {
 	UpdateGitOpsConfig(model *GitOpsConfig) error
 	GetGitOpsConfigById(id int) (*GitOpsConfig, error)
 	GetAllGitOpsConfig() ([]*GitOpsConfig, error)
+	GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error)
 }
 
 type GitOpsConfigRepositoryImpl struct {
@@ -77,4 +78,9 @@ func (impl *GitOpsConfigRepositoryImpl) GetAllGitOpsConfig() ([]*GitOpsConfig, e
 	var userModel []*GitOpsConfig
 	err := impl.dbConnection.Model(&userModel).Where("active = ?", true).Order("updated_on desc").Select()
 	return userModel, err
+}
+func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error) {
+	var model GitOpsConfig
+	err := impl.dbConnection.Model(&model).Where("provider = ?", provider).Where("active = ?", true).Select()
+	return &model, err
 }
