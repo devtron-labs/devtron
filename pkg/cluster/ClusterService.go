@@ -38,7 +38,7 @@ type ClusterBean struct {
 	Config                  map[string]string          `json:"config,omitempty" validate:"required"`
 	PrometheusAuth          *PrometheusAuth            `json:"prometheusAuth,omitempty"`
 	DefaultClusterComponent []*DefaultClusterComponent `json:"defaultClusterComponent"`
-	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"`
+	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
 }
 
 type PrometheusAuth struct {
@@ -134,12 +134,13 @@ func (impl ClusterServiceImpl) FindOne(clusterName string) (*ClusterBean, error)
 		return nil, err
 	}
 	bean := &ClusterBean{
-		Id:            model.Id,
-		ClusterName:   model.ClusterName,
-		ServerUrl:     model.ServerUrl,
-		PrometheusUrl: model.PrometheusEndpoint,
-		Active:        model.Active,
-		Config:        model.Config,
+		Id:                     model.Id,
+		ClusterName:            model.ClusterName,
+		ServerUrl:              model.ServerUrl,
+		PrometheusUrl:          model.PrometheusEndpoint,
+		AgentInstallationStage: model.AgentInstallationStage,
+		Active:                 model.Active,
+		Config:                 model.Config,
 	}
 	return bean, nil
 }
@@ -150,12 +151,13 @@ func (impl ClusterServiceImpl) FindOneActive(clusterName string) (*ClusterBean, 
 		return nil, err
 	}
 	bean := &ClusterBean{
-		Id:            model.Id,
-		ClusterName:   model.ClusterName,
-		ServerUrl:     model.ServerUrl,
-		PrometheusUrl: model.PrometheusEndpoint,
-		Active:        model.Active,
-		Config:        model.Config,
+		Id:                     model.Id,
+		ClusterName:            model.ClusterName,
+		ServerUrl:              model.ServerUrl,
+		PrometheusUrl:          model.PrometheusEndpoint,
+		AgentInstallationStage: model.AgentInstallationStage,
+		Active:                 model.Active,
+		Config:                 model.Config,
 	}
 	return bean, nil
 }
@@ -169,11 +171,12 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	var beans []*ClusterBean
 	for _, m := range model {
 		beans = append(beans, &ClusterBean{
-			Id:            m.Id,
-			ClusterName:   m.ClusterName,
-			PrometheusUrl: m.PrometheusEndpoint,
-			ServerUrl:     m.ServerUrl,
-			Active:        m.Active,
+			Id:                     m.Id,
+			ClusterName:            m.ClusterName,
+			PrometheusUrl:          m.PrometheusEndpoint,
+			AgentInstallationStage: m.AgentInstallationStage,
+			ServerUrl:              m.ServerUrl,
+			Active:                 m.Active,
 		})
 		clusterIds = append(clusterIds, m.Id)
 	}
@@ -181,6 +184,7 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	clusterComponentsMap := make(map[int][]*appstore.InstalledAppVersions)
 	charts, err := impl.installedAppRepository.GetInstalledAppVersionByClusterIdsV2(clusterIds)
 	if err != nil {
+		impl.logger.Errorw("error on fetching installed apps for cluster ids", "err", err, "clusterIds", clusterIds)
 		return nil, err
 	}
 	for _, item := range charts {
@@ -196,9 +200,9 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	}
 
 	for _, item := range beans {
+		defaultClusterComponents := make([]*DefaultClusterComponent, 0)
 		if _, ok := clusterComponentsMap[item.Id]; ok {
 			charts := clusterComponentsMap[item.Id]
-			var defaultClusterComponents []*DefaultClusterComponent
 			failed := false
 			chartLen := 0
 			chartPass := 0
@@ -223,7 +227,6 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 					chartPass = chartPass + 1
 				}
 			}
-			item.DefaultClusterComponent = defaultClusterComponents
 			if chartPass == chartLen {
 				item.AgentInstallationStage = 2
 			} else if failed {
@@ -232,6 +235,10 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 				item.AgentInstallationStage = 1
 			}
 		}
+		if item.Id == 1 {
+			item.AgentInstallationStage = -1
+		}
+		item.DefaultClusterComponent = defaultClusterComponents
 	}
 	return beans, nil
 }
@@ -244,12 +251,13 @@ func (impl ClusterServiceImpl) FindAllActive() ([]ClusterBean, error) {
 	var beans []ClusterBean
 	for _, m := range model {
 		beans = append(beans, ClusterBean{
-			Id:            m.Id,
-			ClusterName:   m.ClusterName,
-			ServerUrl:     m.ServerUrl,
-			Active:        m.Active,
-			PrometheusUrl: m.PrometheusEndpoint,
-			Config:        m.Config,
+			Id:                     m.Id,
+			ClusterName:            m.ClusterName,
+			ServerUrl:              m.ServerUrl,
+			Active:                 m.Active,
+			PrometheusUrl:          m.PrometheusEndpoint,
+			AgentInstallationStage: m.AgentInstallationStage,
+			Config:                 m.Config,
 		})
 	}
 	return beans, nil
@@ -261,12 +269,13 @@ func (impl ClusterServiceImpl) FindById(id int) (*ClusterBean, error) {
 		return nil, err
 	}
 	bean := &ClusterBean{
-		Id:            model.Id,
-		ClusterName:   model.ClusterName,
-		ServerUrl:     model.ServerUrl,
-		PrometheusUrl: model.PrometheusEndpoint,
-		Active:        model.Active,
-		Config:        model.Config,
+		Id:                     model.Id,
+		ClusterName:            model.ClusterName,
+		ServerUrl:              model.ServerUrl,
+		PrometheusUrl:          model.PrometheusEndpoint,
+		AgentInstallationStage: model.AgentInstallationStage,
+		Active:                 model.Active,
+		Config:                 model.Config,
 	}
 	prometheusAuth := &PrometheusAuth{
 		UserName:      model.PUserName,
@@ -287,12 +296,13 @@ func (impl ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 
 	for _, model := range models {
 		beans = append(beans, ClusterBean{
-			Id:            model.Id,
-			ClusterName:   model.ClusterName,
-			ServerUrl:     model.ServerUrl,
-			PrometheusUrl: model.PrometheusEndpoint,
-			Active:        model.Active,
-			Config:        model.Config,
+			Id:                     model.Id,
+			ClusterName:            model.ClusterName,
+			ServerUrl:              model.ServerUrl,
+			PrometheusUrl:          model.PrometheusEndpoint,
+			AgentInstallationStage: model.AgentInstallationStage,
+			Active:                 model.Active,
+			Config:                 model.Config,
 		})
 	}
 	return beans, nil
