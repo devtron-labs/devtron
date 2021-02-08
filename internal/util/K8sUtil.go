@@ -110,7 +110,7 @@ func (impl K8sUtil) getargoAppClient(clusterConfig *ClusterConfig) (*rest.RESTCl
 	config.Insecure = true
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
 
-	client, err :=	rest.RESTClientFor(config)
+	client, err := rest.RESTClientFor(config)
 	return client, err
 }
 
@@ -223,4 +223,38 @@ type JsonPatchType struct {
 	Op    string      `json:"op"`
 	Path  string      `json:"path"`
 	Value interface{} `json:"value"`
+}
+
+func (impl K8sUtil) GetSecretFast(namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error) {
+	cm, err := client.Secrets(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
+}
+
+func (impl K8sUtil) CreateSecretFast(namespace string, username string, password string, client *v12.CoreV1Client) (*v1.Secret, error) {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "devtron-secret-test",
+		},
+		Data: map[string][]byte{
+		},
+	}
+	secret, err := client.Secrets(namespace).Create(secret)
+	if err != nil {
+		return nil, err
+	} else {
+		return secret, nil
+	}
+}
+
+func (impl K8sUtil) UpdateSecretFast(namespace string, cm *v1.Secret, client *v12.CoreV1Client) (*v1.Secret, error) {
+	cm, err := client.Secrets(namespace).Update(cm)
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
 }
