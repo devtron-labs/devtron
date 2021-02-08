@@ -18,11 +18,19 @@
 package gitops
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appstore"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
+	"strconv"
 	"time"
 )
 
@@ -49,12 +57,24 @@ type GitOpsConfigDto struct {
 type GitOpsConfigServiceImpl struct {
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
+	K8sUtil          *util.K8sUtil
+	aCDAuthConfig    *user.ACDAuthConfig
+	clusterService   cluster.ClusterService
+	envService       cluster.EnvironmentService
+	versionService   argocdServer.VersionService
 }
 
-func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler, gitOpsRepository repository.GitOpsConfigRepository) *GitOpsConfigServiceImpl {
+func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
+	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
+	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		logger:           Logger,
 		gitOpsRepository: gitOpsRepository,
+		K8sUtil:          K8sUtil,
+		aCDAuthConfig:    aCDAuthConfig,
+		clusterService:   clusterService,
+		envService:       envService,
+		versionService:   versionService,
 	}
 }
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto) (*GitOpsConfigDto, error) {
@@ -78,6 +98,53 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		}
 		return nil, err
 	}
+
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := impl.envService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return nil, err
+	}
+
+	apiVersion, err := impl.versionService.GetVersion()
+	if err != nil {
+		impl.logger.Errorw("err", "err", err)
+		return nil, err
+	}
+	apiMinorVersion, err := strconv.Atoi(apiVersion[3:4])
+	if err != nil {
+		impl.logger.Errorw("err", "err", err)
+		return nil, err
+	}
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	updateSuccess := false
+	retryCount := 0
+	for !updateSuccess && retryCount < 3 {
+		retryCount = retryCount + 1
+
+		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		if err != nil {
+			return nil, err
+		}
+		data := impl.updateData(cm.Data, request, apiMinorVersion)
+		cm.Data = data
+		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if err != nil {
+			continue
+		}
+		if err == nil {
+			updateSuccess = true
+		}
+	}
+	if !updateSuccess {
+		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+	}
+
 	request.Id = model.Id
 	return request, nil
 }
@@ -167,4 +234,132 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 	}
 
 	return config, err
+}
+
+func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *appstore.ChartRepoDto, apiMinorVersion int) map[string]string {
+	helmRepoStr := data["helm.repositories"]
+	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
+	if err != nil {
+		panic(err)
+	}
+	var helmRepositories []*appstore.AcdConfigMapRepositoriesDto
+	err = json.Unmarshal(helmRepoByte, &helmRepositories)
+	if err != nil {
+		panic(err)
+	}
+	if apiMinorVersion < 3 {
+		found := false
+		for _, item := range helmRepositories {
+			//if request chart repo found, than update its values
+			if item.Name == request.Name {
+				if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+					usernameSecret := &appstore.KeyDto{Name: request.UserName, Key: "username"}
+					passwordSecret := &appstore.KeyDto{Name: request.Password, Key: "password"}
+					item.PasswordSecret = passwordSecret
+					item.UsernameSecret = usernameSecret
+				} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+					// TODO - is it access token or ca cert nd secret
+				} else if request.AuthMode == repository.AUTH_MODE_SSH {
+					keySecret := &appstore.KeyDto{Name: request.SshKey, Key: "key"}
+					item.KeySecret = keySecret
+				}
+				item.Url = request.Url
+				found = true
+			}
+		}
+
+		// if request chart repo not found, add new one
+		if !found {
+			repoData := impl.createRepoElement(apiMinorVersion, request)
+			helmRepositories = append(helmRepositories, repoData)
+		}
+	}
+	rb, err := json.Marshal(helmRepositories)
+	if err != nil {
+		panic(err)
+	}
+	helmRepositoriesYamlByte, err := yaml.JSONToYAML(rb)
+	if err != nil {
+		panic(err)
+	}
+
+	//SETUP for repositories
+	var repositories []*appstore.AcdConfigMapRepositoriesDto
+	repoStr := data["repositories"]
+	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(repoByte, &repositories)
+	if err != nil {
+		panic(err)
+	}
+	if apiMinorVersion >= 3 {
+		found := false
+		for _, item := range repositories {
+			//if request chart repo found, than update its values
+			if item.Name == request.Name {
+				if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+					usernameSecret := &appstore.KeyDto{Name: request.UserName, Key: "username"}
+					passwordSecret := &appstore.KeyDto{Name: request.Password, Key: "password"}
+					item.PasswordSecret = passwordSecret
+					item.UsernameSecret = usernameSecret
+				} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+					// TODO - is it access token or ca cert nd secret
+				} else if request.AuthMode == repository.AUTH_MODE_SSH {
+					keySecret := &appstore.KeyDto{Name: request.SshKey, Key: "key"}
+					item.KeySecret = keySecret
+				}
+				item.Url = request.Url
+				found = true
+			}
+		}
+
+		// if request chart repo not found, add new one
+		if !found {
+			repoData := impl.createRepoElement(apiMinorVersion, request)
+			repositories = append(repositories, repoData)
+		}
+	}
+	rb, err = json.Marshal(repositories)
+	if err != nil {
+		panic(err)
+	}
+	repositoriesYamlByte, err := yaml.JSONToYAML(rb)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(helmRepositoriesYamlByte) > 0 {
+		data["helm.repositories"] = string(helmRepositoriesYamlByte)
+	}
+	if len(repositoriesYamlByte) > 0 {
+		data["repositories"] = string(repositoriesYamlByte)
+	}
+	//dex config copy as it is
+	dexConfigStr := data["dex.config"]
+	data["dex.config"] = string([]byte(dexConfigStr))
+	return data
+}
+
+
+func (impl *GitOpsConfigServiceImpl) createRepoElement(apiMinorVersion int, request *appstore.ChartRepoDto) *appstore.AcdConfigMapRepositoriesDto {
+	repoData := &appstore.AcdConfigMapRepositoriesDto{}
+	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+		usernameSecret := &appstore.KeyDto{Name: request.UserName, Key: "username"}
+		passwordSecret := &appstore.KeyDto{Name: request.Password, Key: "password"}
+		repoData.PasswordSecret = passwordSecret
+		repoData.UsernameSecret = usernameSecret
+	} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+		// TODO - is it access token or ca cert nd secret
+	} else if request.AuthMode == repository.AUTH_MODE_SSH {
+		keySecret := &appstore.KeyDto{Name: request.SshKey, Key: "key"}
+		repoData.KeySecret = keySecret
+	}
+	repoData.Url = request.Url
+	repoData.Name = request.Name
+	if apiMinorVersion >= 3 {
+		repoData.Type = "helm"
+	}
+	return repoData
 }
