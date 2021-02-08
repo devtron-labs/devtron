@@ -518,6 +518,7 @@ func (handler UserAuthHandlerImpl) CreateSSOLoginConfig(w http.ResponseWriter, r
 		return
 	}
 
+	dto.Url = fmt.Sprintf("%s://%s", r.URL.Scheme, r.Host)
 	handler.logger.Infow("request payload, CreateSSOLoginConfig", "payload", dto)
 	resp, err := handler.ssoLoginService.CreateSSOLogin(&dto)
 	if err != nil {
@@ -556,6 +557,7 @@ func (handler UserAuthHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r
 		return
 	}
 
+	dto.Url = fmt.Sprintf("%s://%s", r.URL.Scheme, r.Host)
 	handler.logger.Infow("request payload, UpdateSSOLoginConfig", "payload", dto)
 	resp, err := handler.ssoLoginService.UpdateSSOLogin(&dto)
 	if err != nil {
