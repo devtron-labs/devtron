@@ -120,7 +120,8 @@ func NewAppService(
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
-	ArgoK8sClient argocdServer.ArgoK8sClient) *AppServiceImpl {
+	ArgoK8sClient argocdServer.ArgoK8sClient,
+	gitFactory *GitFactory) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:   environmentConfigRepository,
 		mergeUtil:                     mergeUtil,
@@ -151,6 +152,7 @@ func NewAppService(
 		imageScanDeployInfoRepository: imageScanDeployInfoRepository,
 		imageScanHistoryRepository:    imageScanHistoryRepository,
 		ArgoK8sClient:                 ArgoK8sClient,
+		gitFactory:                    gitFactory,
 	}
 	return appServiceImpl
 }
