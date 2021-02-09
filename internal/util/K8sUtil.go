@@ -23,6 +23,10 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+
 	"k8s.io/apimachinery/pkg/types"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -93,6 +97,37 @@ func (impl K8sUtil) createNs(namespace string, client *v12.CoreV1Client) (ns *v1
 
 func (impl K8sUtil) deleteNs(namespace string, client *v12.CoreV1Client) error {
 	err := client.Namespaces().Delete(namespace, &metav1.DeleteOptions{})
+	return err
+}
+
+func (impl K8sUtil) getargoAppClient(clusterConfig *ClusterConfig) (*rest.RESTClient, error) {
+	config := &rest.Config{}
+	gv := schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
+	config.GroupVersion = &gv
+	config.APIPath = "/apis"
+	config.Host = clusterConfig.Host
+	config.BearerToken = clusterConfig.BearerToken
+	config.Insecure = true
+	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
+
+	client, err := rest.RESTClientFor(config)
+	return client, err
+}
+
+func (impl K8sUtil) CreateArgoApplication(namespace string, application string, clusterConfig *ClusterConfig) error {
+	client, err := impl.getargoAppClient(clusterConfig)
+
+	if err != nil {
+		return err
+	}
+	impl.logger.Infow("creating application", "req", application)
+	res, err := client.
+		Post().
+		Resource("applications").
+		Namespace(namespace).
+		Body([]byte(application)).
+		Do().Raw()
+	impl.logger.Infow("argo app create res", "res", string(res), "err", err)
 	return err
 }
 
@@ -188,4 +223,37 @@ type JsonPatchType struct {
 	Op    string      `json:"op"`
 	Path  string      `json:"path"`
 	Value interface{} `json:"value"`
+}
+
+func (impl K8sUtil) GetSecretFast(namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error) {
+	secret, err := client.Secrets(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	} else {
+		return secret, nil
+	}
+}
+
+func (impl K8sUtil) CreateSecretFast(namespace string, data map[string][]byte, secretName string, client *v12.CoreV1Client) (*v1.Secret, error) {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secretName,
+		},
+		Data: data,
+	}
+	secret, err := client.Secrets(namespace).Create(secret)
+	if err != nil {
+		return nil, err
+	} else {
+		return secret, nil
+	}
+}
+
+func (impl K8sUtil) UpdateSecretFast(namespace string, secret *v1.Secret, client *v12.CoreV1Client) (*v1.Secret, error) {
+	secret, err := client.Secrets(namespace).Update(secret)
+	if err != nil {
+		return nil, err
+	} else {
+		return secret, nil
+	}
 }
