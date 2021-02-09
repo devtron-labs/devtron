@@ -72,15 +72,16 @@ func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) 
 			router.writeSuccess("Welcome @Devtron", writer)
 		}).Methods("GET")
 
+	userAuthRouter.PathPrefix("/api/dex").HandlerFunc(router.cdProxy)
 	userAuthRouter.Path("/login").HandlerFunc(router.cdProxy)
 	userAuthRouter.Path("/auth/login").HandlerFunc(router.cdProxy)
-	userAuthRouter.Path("/auth/callback").HandlerFunc(router.cdProxy)
+	userAuthRouter.PathPrefix("/auth/callback").HandlerFunc(router.cdProxy)
 
 	userAuthRouter.Path("/api/v1/session").HandlerFunc(router.userAuthHandler.LoginHandler)
-	userAuthRouter.Path("/orchestrator/api/dex/auth").HandlerFunc(router.cdProxy)
-	userAuthRouter.Path("/orchestrator/api/dex/auth/google").HandlerFunc(router.cdProxy)
-	userAuthRouter.Path("/orchestrator/api/dex/approval").HandlerFunc(router.cdProxy)
-	userAuthRouter.Path("/orchestrator/api/dex/callback").HandlerFunc(router.cdProxy)
+	//userAuthRouter.Path("/orchestrator/api/dex/auth").HandlerFunc(router.cdProxy)
+	//userAuthRouter.Path("/orchestrator/api/dex/auth/google").HandlerFunc(router.cdProxy)
+	//userAuthRouter.Path("/orchestrator/api/dex/approval").HandlerFunc(router.cdProxy)
+	//userAuthRouter.Path("/orchestrator/api/dex/callback").HandlerFunc(router.cdProxy)
 	userAuthRouter.Path("/refresh").HandlerFunc(router.userAuthHandler.RefreshTokenHandler)
 
 	// Policies Setup
