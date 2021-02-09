@@ -234,13 +234,10 @@ func (impl K8sUtil) GetSecretFast(namespace string, name string, client *v12.Cor
 	}
 }
 
-func (impl K8sUtil) CreateSecretFast(namespace string, username string, password string, client *v12.CoreV1Client) (*v1.Secret, error) {
-	data := make(map[string][]byte)
-	data["username"] = []byte(username)
-	data["password"] = []byte(password)
+func (impl K8sUtil) CreateSecretFast(namespace string, data map[string][]byte, secretName string, client *v12.CoreV1Client) (*v1.Secret, error) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "devtron-secret-test",
+			Name: secretName,
 		},
 		Data: data,
 	}

@@ -122,9 +122,12 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		return nil, err
 	}
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, request.Username, request.Token, client)
+		data := make(map[string][]byte)
+		data["username"] = []byte(request.Username)
+		data["password"] = []byte(request.Token)
+		secret, err = impl.K8sUtil.CreateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, client)
 		if err != nil {
-			impl.logger.Errorw("err", "err", err)
+			impl.logger.Errorw("err on creating secret", "err", err)
 			return nil, err
 		}
 	}
@@ -211,7 +214,10 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 		return err
 	}
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, request.Username, request.Token, client)
+		data := make(map[string][]byte)
+		data["username"] = []byte(request.Username)
+		data["password"] = []byte(request.Token)
+		secret, err = impl.K8sUtil.CreateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, client)
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
 			return err
@@ -331,7 +337,7 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 		}
 	}
 	if !found {
-		repoData := impl.createRepoElement(request)
+		repoData := impl.createRepoElement(secretName, request)
 		repositories = append(repositories, repoData)
 	}
 	rb, err := json.Marshal(repositories)
@@ -349,10 +355,10 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 	return repositoryCredentials, found
 }
 
-func (impl *GitOpsConfigServiceImpl) createRepoElement(request *GitOpsConfigDto) *RepositoryCredentialsDto {
+func (impl *GitOpsConfigServiceImpl) createRepoElement(secretName string, request *GitOpsConfigDto) *RepositoryCredentialsDto {
 	repoData := &RepositoryCredentialsDto{}
-	usernameSecret := &KeyDto{Name: request.Username, Key: "username"}
-	passwordSecret := &KeyDto{Name: request.Token, Key: "password"}
+	usernameSecret := &KeyDto{Name: secretName, Key: "username"}
+	passwordSecret := &KeyDto{Name: secretName, Key: "password"}
 	repoData.PasswordSecret = passwordSecret
 	repoData.UsernameSecret = usernameSecret
 	repoData.Url = request.Host
