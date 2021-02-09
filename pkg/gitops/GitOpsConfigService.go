@@ -29,6 +29,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"net/http"
 	"strconv"
 	"time"
 )
@@ -124,7 +126,8 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 
 	secretName := "devtron-secret-test"
 	secret, err := impl.K8sUtil.GetSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, secretName, client)
-	if err != nil {
+	statusError, _ := err.(*errors.StatusError)
+	if err != nil && statusError.Status().Code != http.StatusNotFound {
 		impl.logger.Errorw("err", "err", err)
 		return nil, err
 	}
