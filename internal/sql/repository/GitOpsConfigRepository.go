@@ -77,17 +77,17 @@ func (impl *GitOpsConfigRepositoryImpl) UpdateGitOpsConfig(model *GitOpsConfig, 
 }
 func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigById(id int) (*GitOpsConfig, error) {
 	var model GitOpsConfig
-	err := impl.dbConnection.Model(&model).Where("id = ?", id).Where("active = ?", true).Select()
+	err := impl.dbConnection.Model(&model).Where("id = ?", id).Select()
 	return &model, err
 }
 func (impl *GitOpsConfigRepositoryImpl) GetAllGitOpsConfig() ([]*GitOpsConfig, error) {
 	var userModel []*GitOpsConfig
-	err := impl.dbConnection.Model(&userModel).Where("active = ?", true).Order("updated_on desc").Select()
+	err := impl.dbConnection.Model(&userModel).Order("updated_on desc").Select()
 	return userModel, err
 }
 func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error) {
 	var model GitOpsConfig
-	err := impl.dbConnection.Model(&model).Where("provider = ?", provider).Where("active = ?", true).Select()
+	err := impl.dbConnection.Model(&model).Where("provider = ?", provider).Select()
 	return &model, err
 }
 
