@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"strconv"
@@ -131,38 +132,40 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		impl.logger.Errorw("err", "err", err)
 		return nil, err
 	}
-
+	alreadyExists := true
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, "", "", client)
+		secret, err = impl.K8sUtil.CreateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, request.Username, request.Token, client)
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
 			return nil, err
 		}
+		alreadyExists = false
 	}
 
-	updateSuccess := false
-	retryCount := 0
-	for !updateSuccess && retryCount < 3 {
-		retryCount = retryCount + 1
+	if alreadyExists == false {
+		updateSuccess := false
+		retryCount := 0
+		for !updateSuccess && retryCount < 3 {
+			retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-		if err != nil {
-			return nil, err
+			cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+			if err != nil {
+				return nil, err
+			}
+			data := impl.updateData(cm.Data, request, secret)
+			cm.Data = data
+			_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				continue
+			}
+			if err == nil {
+				updateSuccess = true
+			}
 		}
-		data := impl.updateData(cm.Data, request, apiMinorVersion)
-		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-		if err != nil {
-			continue
-		}
-		if err == nil {
-			updateSuccess = true
+		if !updateSuccess {
+			return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
 		}
 	}
-	if !updateSuccess {
-		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
-	}
-
 	request.Id = model.Id
 	return request, nil
 }
@@ -254,7 +257,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *GitOpsConfigDto, apiMinorVersion int) map[string]string {
+func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *GitOpsConfigDto, secret *v1.Secret) map[string]string {
 	found := false
 	var repositories []*RepositoryCredentialsDto
 	repoStr := data["repository.credentials"]
