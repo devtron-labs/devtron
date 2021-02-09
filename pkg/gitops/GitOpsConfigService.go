@@ -32,6 +32,7 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -83,6 +84,13 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 }
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto) (*GitOpsConfigDto, error) {
 	impl.logger.Debugw("gitops create request", "req", request)
+	dbConnection := impl.gitOpsRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 
 	existingModel, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
@@ -93,15 +101,14 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		existingModel.Active = false
 		existingModel.UpdatedOn = time.Now()
 		existingModel.UpdatedBy = request.UserId
-		err = impl.gitOpsRepository.UpdateGitOpsConfig(existingModel)
+		err = impl.gitOpsRepository.UpdateGitOpsConfig(existingModel, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating new gitops config", "error", err)
 			return nil, err
 		}
 	}
-
 	model := &repository.GitOpsConfig{
-		Provider:      request.Provider,
+		Provider:      strings.ToUpper(request.Provider),
 		Username:      request.Username,
 		Token:         request.Token,
 		GitHubOrgId:   request.GitHubOrgId,
@@ -110,7 +117,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		Active:        true,
 		AuditLog:      models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
-	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model)
+	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving gitops config", "data", model, "err", err)
 		err = &util.ApiError{
@@ -179,12 +186,22 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 	if !operationComplete {
 		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
 	}
-
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
 	request.Id = model.Id
 	return request, nil
 }
 func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto) error {
 	impl.logger.Debugw("gitops config update request", "req", request)
+	dbConnection := impl.gitOpsRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 	model, err := impl.gitOpsRepository.GetGitOpsConfigById(request.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for update.", "id", request.Id)
@@ -204,21 +221,21 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 		existingModel.Active = false
 		existingModel.UpdatedOn = time.Now()
 		existingModel.UpdatedBy = request.UserId
-		err = impl.gitOpsRepository.UpdateGitOpsConfig(existingModel)
+		err = impl.gitOpsRepository.UpdateGitOpsConfig(existingModel, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating new gitops config", "error", err)
 			return err
 		}
 	}
 
-	model.Provider = request.Provider
+	model.Provider = strings.ToUpper(request.Provider)
 	model.Username = request.Username
 	model.Token = request.Token
 	model.GitLabGroupId = request.GitLabGroupId
 	model.GitHubOrgId = request.GitHubOrgId
 	model.Host = request.Host
 	model.Active = request.Active
-	err = impl.gitOpsRepository.UpdateGitOpsConfig(model)
+	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating team", "data", model, "err", err)
 		err = &util.ApiError{
@@ -288,7 +305,10 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 	if !operationComplete {
 		return fmt.Errorf("resouce version not matched with config map attemped 3 times")
 	}
-
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
