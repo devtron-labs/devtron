@@ -33,7 +33,6 @@ import (
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
-	"strconv"
 	"time"
 )
 
@@ -108,16 +107,8 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 	if gitOpsConfig == nil || gitOpsConfig.Id == 0 {
 		return nil, err
 	}
-	GitLabGroupId := 0
-	if gitOpsConfig.Provider == "GITLAB" {
-		GitLabGroupId, err = strconv.Atoi(gitOpsConfig.GitLabGroupId)
-		if err != nil {
-			return nil, err
-		}
-	}
 	cfg := &GitConfig{
-		GitlabNamespaceID:   GitLabGroupId,
-		GitlabNamespaceName: "",
+		GitlabNamespaceName: gitOpsConfig.GitLabGroupId,
 		GitToken:            gitOpsConfig.Token,
 		GitUserName:         gitOpsConfig.Username,
 		GitWorkingDir:       "tmp/gitops",
