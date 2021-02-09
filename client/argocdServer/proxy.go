@@ -83,6 +83,8 @@ func NewDexHTTPReverseProxy(serverAddr string, transport http.RoundTripper) func
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
 	proxy.ModifyResponse = func(resp *http.Response) error {
+		log.Printf("reverse proxy called for %s\n", resp.Request.URL.Path)
+		log.Printf("reverse proxy called for %s\n", resp.Status)
 		if resp.StatusCode == 500 {
 			b, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
