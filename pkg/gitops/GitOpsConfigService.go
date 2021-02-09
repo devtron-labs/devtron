@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
@@ -82,6 +83,23 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 }
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto) (*GitOpsConfigDto, error) {
 	impl.logger.Debugw("gitops create request", "req", request)
+
+	existingModel, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in creating new gitops config", "error", err)
+		return nil, err
+	}
+	if existingModel != nil && existingModel.Id > 0 {
+		existingModel.Active = false
+		existingModel.UpdatedOn = time.Now()
+		existingModel.UpdatedBy = request.UserId
+		err = impl.gitOpsRepository.UpdateGitOpsConfig(existingModel)
+		if err != nil {
+			impl.logger.Errorw("error in creating new gitops config", "error", err)
+			return nil, err
+		}
+	}
+
 	model := &repository.GitOpsConfig{
 		Provider:      request.Provider,
 		Username:      request.Username,
@@ -89,10 +107,10 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		GitHubOrgId:   request.GitHubOrgId,
 		GitLabGroupId: request.GitLabGroupId,
 		Host:          request.Host,
-		Active:        request.Active,
+		Active:        true,
 		AuditLog:      models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
-	model, err := impl.gitOpsRepository.CreateGitOpsConfig(model)
+	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model)
 	if err != nil {
 		impl.logger.Errorw("error in saving gitops config", "data", model, "err", err)
 		err = &util.ApiError{
@@ -176,6 +194,23 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 		}
 		return err
 	}
+
+	existingModel, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in creating new gitops config", "error", err)
+		return err
+	}
+	if existingModel != nil && existingModel.Id > 0 && existingModel.Id != model.Id {
+		existingModel.Active = false
+		existingModel.UpdatedOn = time.Now()
+		existingModel.UpdatedBy = request.UserId
+		err = impl.gitOpsRepository.UpdateGitOpsConfig(existingModel)
+		if err != nil {
+			impl.logger.Errorw("error in creating new gitops config", "error", err)
+			return err
+		}
+	}
+
 	model.Provider = request.Provider
 	model.Username = request.Username
 	model.Token = request.Token
