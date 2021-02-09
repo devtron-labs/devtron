@@ -115,7 +115,7 @@ type PipelineBuilderImpl struct {
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	appService                    app.AppService
 	imageScanResultRepository     security.ImageScanResultRepository
-	GitClient                     util.GitClient
+	GitFactory                    *util.GitFactory
 	ArgoK8sClient                 argocdServer.ArgoK8sClient
 }
 
@@ -141,8 +141,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	appService app.AppService,
 	imageScanResultRepository security.ImageScanResultRepository,
-	GitClient util.GitClient,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
+	GitFactory *util.GitFactory,
 ) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
@@ -167,8 +167,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciConfig:                      ciConfig,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		imageScanResultRepository:     imageScanResultRepository,
-		GitClient:                     GitClient,
 		ArgoK8sClient:                 ArgoK8sClient,
+		GitFactory:                    GitFactory,
 	}
 }
 
@@ -1043,7 +1043,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 		ChartLocation:  chart.ChartLocation,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
 	}
-	_, err = impl.GitClient.CommitValues(chartGitAttr)
+	_, err = impl.GitFactory.Client.CommitValues(chartGitAttr)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return 0, err
