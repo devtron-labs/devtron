@@ -1,3 +1,4 @@
+LTAG=v1.0.4
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
 operatorConfigMap = kubectl get cm -n devtroncd devtron-operator-cm;
 postgresqlPassword = jsonSelect(operatorSecret, "data.POSTGRESQL_PASSWORD");
@@ -54,51 +55,53 @@ if !gitToken {
 }
 
 
-argocd = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/argocd.yaml");
-clair = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/clair.yaml");
-clairConfig = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/clair-config.yaml");
-dashboard = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/dashboard.yaml");
-gitSensor = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/gitsensor.yaml");
-guard = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/guard.yaml");
-postgresql = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/postgresql.yaml");
-imageScanner = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/image-scanner.yaml");
-kubewatch = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/kubewatch.yaml");
-lens = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/lens.yaml");
-migrator = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/migrator.yaml");
-natsOperator = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/nats-operator.yaml");
-natsServer = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/nats-server.yaml");
-natsStreaming = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/nats-streaming.yaml");
-notifier = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/notifier.yaml");
-devtron = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/devtron.yaml");
-devtronDexIngress = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/devtron-dex-ingress.yaml");
-workflow = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/workflow.yaml");
-serviceAccount = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/serviceaccount.yaml");
-namespace = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/namespace.yaml");
-externalSecret = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/external-secret.yaml");
-grafana = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/grafana.yaml");
-rollout = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/rollout.yaml");
-minio = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/yamls/minio.yaml");
+argocd = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/argocd.yaml");
+clair = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/clair.yaml");
+clairConfig = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/clair-config.yaml");
+dashboard = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/dashboard.yaml");
+gitSensor = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/gitsensor.yaml");
+guard = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/guard.yaml");
+postgresql = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/postgresql.yaml");
+imageScanner = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/image-scanner.yaml");
+kubewatch = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/kubewatch.yaml");
+lens = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/lens.yaml");
+migrator = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/migrator.yaml");
+natsOperator = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/nats-operator.yaml");
+natsServer = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/nats-server.yaml");
+natsStreaming = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/nats-streaming.yaml");
+notifier = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/notifier.yaml");
+devtron = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/devtron.yaml");
+devtronDexIngress = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/devtron-dex-ingress.yaml");
+workflow = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/workflow.yaml");
+serviceAccount = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/serviceaccount.yaml");
+namespace = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/namespace.yaml");
+externalSecret = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/external-secret.yaml");
+grafana = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/grafana.yaml");
+rollout = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/rollout.yaml");
+minio = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/yamls/minio.yaml");
 
-postgresqlOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/postgresql.yaml");
-argocdOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/argocd.yaml");
-devtronOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/devtron.yaml");
-gitSensorOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/gitsensor.yaml");
-imageScannerOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/image-scanner.yaml");
-lensOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/lens.yaml");
-notifierOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/notifier.yaml");
-clairOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/clair.yaml");
-dashboardOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/dashboard.yaml");
-guardOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/guard.yaml");
-kubewatchOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/kubewatch.yaml");
-migratorOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/migrator.yaml");
-natsOperatorOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/nats-operator.yaml");
-natsServerOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/nats-server.yaml");
-natsStreamingOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/nats-streaming.yaml");
+postgresqlOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/postgresql.yaml");
+argocdOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/argocd.yaml");
+devtronOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/devtron.yaml");
+gitSensorOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/gitsensor.yaml");
+imageScannerOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/image-scanner.yaml");
+lensOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/lens.yaml");
+notifierOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/notifier.yaml");
+clairOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/clair.yaml");
+dashboardOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/dashboard.yaml");
+guardOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/guard.yaml");
+kubewatchOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/kubewatch.yaml");
+migratorOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/migrator.yaml");
+natsOperatorOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/nats-operator.yaml");
+natsServerOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/nats-server.yaml");
+natsStreamingOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/nats-streaming.yaml");
+
 devtronDexIngressOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/updates/yamls/devtron-dex-ingress.yaml");
-workflowOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/workflow.yaml");
-externalSecretOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/external-secret.yaml");
-grafanaOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/grafana.yaml");
-rolloutOverride = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/updates/rollout.yaml");
+
+workflowOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/workflow.yaml");
+externalSecretOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/external-secret.yaml");
+grafanaOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/grafana.yaml");
+rolloutOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$current_tag/updates/rollout.yaml");
 
 #grafana
 grafanaSecret = kubectl get -n devtroncd secret devtron-grafana-cred-secret;
@@ -312,9 +315,9 @@ log("executed nats streaming setup");
 makeCertsDir = `#!/bin/bash
 mkdir -p /tmp/certs`;
 makeCertsDir = shellScript makeCertsDir;
-certGen = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/generate_certificate.sh");
-grumpyConfig = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/grumpy_config.txt", "/tmp/certs/grumpy_config.txt");
-caConfig = download("https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/ca_config.txt", "/tmp/certs/ca_config.txt");
+certGen = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/current_tag/generate_certificate.sh");
+grumpyConfig = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/current_tag/grumpy_config.txt", "/tmp/certs/grumpy_config.txt");
+caConfig = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/current_tag/ca_config.txt", "/tmp/certs/ca_config.txt");
 certs = shellScript certGen;
 crt = base64EncoderPrefix + "cat /tmp/certs/grumpy-crt.pem" + base64EncoderSuffix;
 crt = shellScript crt;
