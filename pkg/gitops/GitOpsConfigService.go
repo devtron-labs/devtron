@@ -67,11 +67,13 @@ type GitOpsConfigServiceImpl struct {
 	clusterService   cluster.ClusterService
 	envService       cluster.EnvironmentService
 	versionService   argocdServer.VersionService
+	gitFactory       *util.GitFactory
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
-	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService) *GitOpsConfigServiceImpl {
+	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
+	gitFactory *util.GitFactory) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		logger:           Logger,
 		gitOpsRepository: gitOpsRepository,
@@ -80,6 +82,7 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 		clusterService:   clusterService,
 		envService:       envService,
 		versionService:   versionService,
+		gitFactory:       gitFactory,
 	}
 }
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto) (*GitOpsConfigDto, error) {
@@ -185,6 +188,11 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 	}
 	if !operationComplete {
 		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+	}
+
+	err = impl.gitFactory.Reload()
+	if err != nil {
+		return nil, err
 	}
 	err = tx.Commit()
 	if err != nil {
@@ -304,6 +312,10 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 	}
 	if !operationComplete {
 		return fmt.Errorf("resouce version not matched with config map attemped 3 times")
+	}
+	err = impl.gitFactory.Reload()
+	if err != nil {
+		return err
 	}
 	err = tx.Commit()
 	if err != nil {
