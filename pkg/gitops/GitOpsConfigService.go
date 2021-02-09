@@ -323,6 +323,9 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*GitOpsConfigD
 		Provider:      model.Provider,
 		GitHubOrgId:   model.GitHubOrgId,
 		GitLabGroupId: model.GitLabGroupId,
+		Username:      model.Username,
+		Token:         model.Token,
+		Host:          model.Host,
 		Active:        model.Active,
 		UserId:        model.CreatedBy,
 	}
@@ -336,13 +339,16 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*GitOpsConfigDto, e
 		impl.logger.Errorw("GetAllGitOpsConfig, error while fetch all", "err", err)
 		return nil, err
 	}
-	var configs []*GitOpsConfigDto
+	configs := make([]*GitOpsConfigDto, 0)
 	for _, model := range models {
 		config := &GitOpsConfigDto{
 			Id:            model.Id,
 			Provider:      model.Provider,
 			GitHubOrgId:   model.GitHubOrgId,
 			GitLabGroupId: model.GitLabGroupId,
+			Username:      model.Username,
+			Token:         model.Token,
+			Host:          model.Host,
 			Active:        model.Active,
 			UserId:        model.CreatedBy,
 		}
@@ -362,6 +368,9 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 		Provider:      model.Provider,
 		GitHubOrgId:   model.GitHubOrgId,
 		GitLabGroupId: model.GitLabGroupId,
+		Username:      model.Username,
+		Token:         model.Token,
+		Host:          model.Host,
 		Active:        model.Active,
 		UserId:        model.CreatedBy,
 	}
