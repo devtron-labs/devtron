@@ -32,7 +32,6 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -110,16 +109,6 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		return nil, err
 	}
 
-	apiVersion, err := impl.versionService.GetVersion()
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil, err
-	}
-	apiMinorVersion, err := strconv.Atoi(apiVersion[3:4])
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil, err
-	}
 	client, err := impl.K8sUtil.GetClient(cfg)
 	if err != nil {
 		return nil, err
