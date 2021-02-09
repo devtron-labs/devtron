@@ -40,6 +40,7 @@ type GitOpsConfigService interface {
 	GetGitOpsConfigById(id int) (*GitOpsConfigDto, error)
 	GetAllGitOpsConfig() ([]*GitOpsConfigDto, error)
 	GetGitOpsConfigByProvider(provider string) (*GitOpsConfigDto, error)
+	GetGitOpsConfigActive() (*GitOpsConfigDto, error)
 }
 
 type GitOpsConfigDto struct {
@@ -374,4 +375,21 @@ type RepositoryCredentialsDto struct {
 type KeyDto struct {
 	Name string `json:"name,omitempty"`
 	Key  string `json:"key,omitempty"`
+}
+
+func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*GitOpsConfigDto, error) {
+	model, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		return nil, err
+	}
+	config := &GitOpsConfigDto{
+		Id:            model.Id,
+		Provider:      model.Provider,
+		GitHubOrgId:   model.GitHubOrgId,
+		GitLabGroupId: model.GitLabGroupId,
+		Active:        model.Active,
+		UserId:        model.CreatedBy,
+	}
+	return config, err
 }

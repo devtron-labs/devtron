@@ -29,6 +29,7 @@ type GitOpsConfigRepository interface {
 	GetGitOpsConfigById(id int) (*GitOpsConfig, error)
 	GetAllGitOpsConfig() ([]*GitOpsConfig, error)
 	GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error)
+	GetGitOpsConfigActive() (*GitOpsConfig, error)
 }
 
 type GitOpsConfigRepositoryImpl struct {
@@ -82,5 +83,11 @@ func (impl *GitOpsConfigRepositoryImpl) GetAllGitOpsConfig() ([]*GitOpsConfig, e
 func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error) {
 	var model GitOpsConfig
 	err := impl.dbConnection.Model(&model).Where("provider = ?", provider).Where("active = ?", true).Select()
+	return &model, err
+}
+
+func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigActive() (*GitOpsConfig, error) {
+	var model GitOpsConfig
+	err := impl.dbConnection.Model(&model).Where("active = ?", true).Limit(1).Select()
 	return &model, err
 }

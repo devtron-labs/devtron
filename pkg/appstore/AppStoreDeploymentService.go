@@ -529,7 +529,7 @@ func (impl InstalledAppServiceImpl) chartAdaptor2(chart *appstore.InstalledApps)
 
 func (impl InstalledAppServiceImpl) registerInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
 	repo := &v1alpha1.Repository{
-		Repo:     chartGitAttribute.RepoUrl,
+		Repo: chartGitAttribute.RepoUrl,
 	}
 	repo, err := impl.repositoryService.Create(ctx, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
