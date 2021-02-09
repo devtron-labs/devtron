@@ -41,6 +41,7 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
 	proxy.ModifyResponse = func(resp *http.Response) error {
+		log.Printf("reverse proxy called for %s\n", resp.Request.URL.Path)
 		if resp.Request.URL.Path == "/auth/callback" {
 			cookies := resp.Cookies()
 			for _, cookie := range cookies {
