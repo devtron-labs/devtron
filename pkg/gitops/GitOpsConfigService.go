@@ -122,27 +122,25 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		impl.logger.Errorw("secret not found", "err", err)
 		return nil, err
 	}
-	alreadyExists := true
 	if secret == nil {
 		secret, err = impl.K8sUtil.CreateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, request.Username, request.Token, client)
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
 			return nil, err
 		}
-		alreadyExists = false
 	}
 
-	if alreadyExists == false {
-		updateSuccess := false
-		retryCount := 0
-		for !updateSuccess && retryCount < 3 {
-			retryCount = retryCount + 1
+	operationComplete := false
+	retryCount := 0
+	for !operationComplete && retryCount < 3 {
+		retryCount = retryCount + 1
 
-			cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-			if err != nil {
-				return nil, err
-			}
-			updatedData := impl.updateData(cm.Data, request, secret)
+		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		if err != nil {
+			return nil, err
+		}
+		updatedData, existsInArgodCm := impl.updateData(cm.Data, request, secret)
+		if ! existsInArgodCm {
 			data := cm.Data
 			data["repository.credentials"] = updatedData["repository.credentials"]
 			cm.Data = data
@@ -151,13 +149,16 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 				continue
 			}
 			if err == nil {
-				updateSuccess = true
+				operationComplete = true
 			}
-		}
-		if !updateSuccess {
-			return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+		} else {
+			operationComplete = true
 		}
 	}
+	if !operationComplete {
+		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+	}
+
 	request.Id = model.Id
 	return request, nil
 }
@@ -189,6 +190,64 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 		return err
 	}
 	request.Id = model.Id
+
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return err
+	}
+	cfg, err := impl.envService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return err
+	}
+
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return err
+	}
+
+	secret, err := impl.K8sUtil.GetSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
+	statusError, _ := err.(*errors.StatusError)
+	if err != nil && statusError.Status().Code != http.StatusNotFound {
+		impl.logger.Errorw("secret not found", "err", err)
+		return err
+	}
+	if secret == nil {
+		secret, err = impl.K8sUtil.CreateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, request.Username, request.Token, client)
+		if err != nil {
+			impl.logger.Errorw("err", "err", err)
+			return err
+		}
+	}
+
+	operationComplete := false
+	retryCount := 0
+	for !operationComplete && retryCount < 3 {
+		retryCount = retryCount + 1
+
+		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		if err != nil {
+			return err
+		}
+		updatedData, existsInArgodCm := impl.updateData(cm.Data, request, secret)
+		if ! existsInArgodCm {
+			data := cm.Data
+			data["repository.credentials"] = updatedData["repository.credentials"]
+			cm.Data = data
+			_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				continue
+			}
+			if err == nil {
+				operationComplete = true
+			}
+		} else {
+			operationComplete = true
+		}
+	}
+	if !operationComplete {
+		return fmt.Errorf("resouce version not matched with config map attemped 3 times")
+	}
+
 	return nil
 }
 
@@ -249,7 +308,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *GitOpsConfigDto, secret *v1.Secret) map[string]string {
+func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *GitOpsConfigDto, secret *v1.Secret) (map[string]string, bool) {
 	found := false
 	var repositories []*RepositoryCredentialsDto
 	repoStr := data["repository.credentials"]
@@ -288,7 +347,7 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 	if len(repositoriesYamlByte) > 0 {
 		repositoryCredentials["repository.credentials"] = string(repositoriesYamlByte)
 	}
-	return repositoryCredentials
+	return repositoryCredentials, found
 }
 
 func (impl *GitOpsConfigServiceImpl) createRepoElement(request *GitOpsConfigDto) *RepositoryCredentialsDto {
