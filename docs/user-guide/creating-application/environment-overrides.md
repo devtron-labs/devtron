@@ -4,21 +4,29 @@ You will see all your environments associated with an application under the `Env
 
 ![](../../.gitbook/assets/env_ride%20%283%29.jpg)
 
-You can customize the `Deployment template, ConfigMap, Secrets` in Environment Overrides section to customize things according to multiple environments such as dev, test, integration, prod, etc.
+You can customize your `Deployment template, ConfigMap, Secrets` in Environment Overrides section to add separate customizations for different environments such as dev, test, integration, prod, etc.
 
-## Deployment template
+## Deployment template - Funtionality
 
-If you want to deploy an application in a non-production environment and then in production env once testing is done in non-prod env, then you do not have to create a new application for prod env. Your existing pipeline\(non-prod env\) will work for both the environments with little customization in your deployment template under `Environment overrides`.
+If you want to deploy an application in a non-production environment and then in production environment once testing is done in non-prod environment, then you do not need to create a new application for prod environment. Your existing pipeline\(non-prod env\) will work for both the environments with little customization in your deployment template under `Environment overrides`.
 
-### Example of such customization requirement:
+### Example customization:
 
 In a Non-production environment, you may have specified 100m CPU resources in the deployment template but in the Production environment you may want to have 500m CPU resources as the traffic on Pods will be higher than traffic on non-prod env.
 
-Configuring the Deployment template inside `Environment overrides` will not affect the other environments because `Environment Overrides` configure deployment template on environment bases. And at the time of deployment, it will always pick the overridden deployment template.
+Configuring the Deployment template inside `Environment Overrides` for a specific environment will not affect the other environments because `Environment Overrides` will configure deployment templates on environment basis. And at the time of deployment, it will always pick the overridden deployment template if any.
 
-The changed configuration will not be added to the template, instead, it will make a copy of the template and lets you customize it, and then save it. And now this overridden template will be used for your other Environment.
+If there are no overrides specified for an environment in the `Environment Overrides` section, the deployment template will be the one you specified in the `deployment template section` of the app creation.
 
-Click on `Allow Override` and make changes to your Deployment template and click on `Save` to save your changes of the Deployment template.
+*(Note: This example is meant only for a representational purpose. You can choose to add any customizations you want in your depoyment templates in the `Environment Overrides` tab)*
+
+Any changes in the configuration will not be added to the template, instead, it will make a copy of the template and lets you customize it for each particular environment. And now this overridden template will be used only for the specified Environment.
+
+This will save you the trouble to manually create deployment files separately for each environment. Instead, all you have to do is to change the required variables in the deployment template.
+
+## How to add Environment Overrides
+
+In the `Environment Overrides` section, click on `Allow Override` and make changes to your Deployment template and click on `Save` to save your changes of the Deployment template.
 
 ### ConfigMaps & Secrets
 
