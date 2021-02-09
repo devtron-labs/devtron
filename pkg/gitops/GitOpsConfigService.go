@@ -55,6 +55,8 @@ type GitOpsConfigDto struct {
 	UserId        int32  `json:"-"`
 }
 
+const GitOpsSecretName = "devtron-secret-test"
+
 type GitOpsConfigServiceImpl struct {
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
@@ -114,11 +116,10 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		return nil, err
 	}
 
-	secretName := "devtron-secret-test"
-	secret, err := impl.K8sUtil.GetSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, secretName, client)
+	secret, err := impl.K8sUtil.GetSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
 	statusError, _ := err.(*errors.StatusError)
 	if err != nil && statusError.Status().Code != http.StatusNotFound {
-		impl.logger.Errorw("err", "err", err)
+		impl.logger.Errorw("secret not found", "err", err)
 		return nil, err
 	}
 	alreadyExists := true
@@ -141,7 +142,9 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 			if err != nil {
 				return nil, err
 			}
-			data := impl.updateData(cm.Data, request, secret)
+			updatedData := impl.updateData(cm.Data, request, secret)
+			data := cm.Data
+			data["repository.credentials"] = updatedData["repository.credentials"]
 			cm.Data = data
 			_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 			if err != nil {
@@ -250,13 +253,15 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 	found := false
 	var repositories []*RepositoryCredentialsDto
 	repoStr := data["repository.credentials"]
-	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
-	if err != nil {
-		panic(err)
-	}
-	err = json.Unmarshal(repoByte, &repositories)
-	if err != nil {
-		panic(err)
+	if len(repoStr) > 0 {
+		repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
+		if err != nil {
+			panic(err)
+		}
+		err = json.Unmarshal(repoByte, &repositories)
+		if err != nil {
+			panic(err)
+		}
 	}
 	for _, item := range repositories {
 		if item.Url == request.Host {
@@ -279,14 +284,11 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 	if err != nil {
 		panic(err)
 	}
+	repositoryCredentials := map[string]string{}
 	if len(repositoriesYamlByte) > 0 {
-		data["repository.credentials"] = string(repositoriesYamlByte)
+		repositoryCredentials["repository.credentials"] = string(repositoriesYamlByte)
 	}
-
-	//dex config copy as it is
-	dexConfigStr := data["dex.config"]
-	data["dex.config"] = string([]byte(dexConfigStr))
-	return data
+	return repositoryCredentials
 }
 
 func (impl *GitOpsConfigServiceImpl) createRepoElement(request *GitOpsConfigDto) *RepositoryCredentialsDto {

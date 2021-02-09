@@ -226,21 +226,23 @@ type JsonPatchType struct {
 }
 
 func (impl K8sUtil) GetSecretFast(namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error) {
-	cm, err := client.Secrets(namespace).Get(name, metav1.GetOptions{})
+	secret, err := client.Secrets(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	} else {
-		return cm, nil
+		return secret, nil
 	}
 }
 
 func (impl K8sUtil) CreateSecretFast(namespace string, username string, password string, client *v12.CoreV1Client) (*v1.Secret, error) {
+	data := make(map[string][]byte)
+	data["username"] = []byte(username)
+	data["password"] = []byte(password)
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "devtron-secret-test",
 		},
-		Data: map[string][]byte{
-		},
+		Data: data,
 	}
 	secret, err := client.Secrets(namespace).Create(secret)
 	if err != nil {
@@ -250,11 +252,11 @@ func (impl K8sUtil) CreateSecretFast(namespace string, username string, password
 	}
 }
 
-func (impl K8sUtil) UpdateSecretFast(namespace string, cm *v1.Secret, client *v12.CoreV1Client) (*v1.Secret, error) {
-	cm, err := client.Secrets(namespace).Update(cm)
+func (impl K8sUtil) UpdateSecretFast(namespace string, secret *v1.Secret, client *v12.CoreV1Client) (*v1.Secret, error) {
+	secret, err := client.Secrets(namespace).Update(secret)
 	if err != nil {
 		return nil, err
 	} else {
-		return cm, nil
+		return secret, nil
 	}
 }
