@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
-	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"time"
@@ -55,7 +54,7 @@ type GitOpsConfigDto struct {
 	UserId        int32  `json:"-"`
 }
 
-const GitOpsSecretName = "devtron-secret-test"
+const GitOpsSecretName = "devtron-gitops-secret"
 
 type GitOpsConfigServiceImpl struct {
 	logger           *zap.SugaredLogger
@@ -139,7 +138,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		if err != nil {
 			return nil, err
 		}
-		updatedData, existsInArgodCm := impl.updateData(cm.Data, request, secret)
+		updatedData, existsInArgodCm := impl.updateData(cm.Data, request, GitOpsSecretName)
 		if ! existsInArgodCm {
 			data := cm.Data
 			data["repository.credentials"] = updatedData["repository.credentials"]
@@ -228,7 +227,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 		if err != nil {
 			return err
 		}
-		updatedData, existsInArgodCm := impl.updateData(cm.Data, request, secret)
+		updatedData, existsInArgodCm := impl.updateData(cm.Data, request, GitOpsSecretName)
 		if ! existsInArgodCm {
 			data := cm.Data
 			data["repository.credentials"] = updatedData["repository.credentials"]
@@ -308,7 +307,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *GitOpsConfigDto, secret *v1.Secret) (map[string]string, bool) {
+func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *GitOpsConfigDto, secretName string) (map[string]string, bool) {
 	found := false
 	var repositories []*RepositoryCredentialsDto
 	repoStr := data["repository.credentials"]
@@ -324,8 +323,8 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 	}
 	for _, item := range repositories {
 		if item.Url == request.Host {
-			usernameSecret := &KeyDto{Name: request.Username, Key: "username"}
-			passwordSecret := &KeyDto{Name: request.Token, Key: "password"}
+			usernameSecret := &KeyDto{Name: secretName, Key: "username"}
+			passwordSecret := &KeyDto{Name: secretName, Key: "password"}
 			item.PasswordSecret = passwordSecret
 			item.UsernameSecret = usernameSecret
 			found = true
