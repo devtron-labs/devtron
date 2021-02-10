@@ -150,14 +150,38 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		impl.logger.Errorw("secret not found", "err", err)
 		return nil, err
 	}
+	data := make(map[string][]byte)
+	data["username"] = []byte(request.Username)
+	data["password"] = []byte(request.Token)
 	if secret == nil {
-		data := make(map[string][]byte)
-		data["username"] = []byte(request.Username)
-		data["password"] = []byte(request.Token)
 		secret, err = impl.K8sUtil.CreateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, client)
 		if err != nil {
 			impl.logger.Errorw("err on creating secret", "err", err)
 			return nil, err
+		}
+	} else {
+		secret.Data = data
+		secret, err = impl.K8sUtil.UpdateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+		if err != nil {
+			operationComplete := false
+			retryCount := 0
+			for !operationComplete && retryCount < 3 {
+				retryCount = retryCount + 1
+				secret, err := impl.K8sUtil.GetSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
+				if err != nil {
+					impl.logger.Errorw("secret not found", "err", err)
+					return nil, err
+				}
+				secret.Data = data
+				secret, err = impl.K8sUtil.UpdateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+				if err != nil {
+					continue
+				}
+				if err == nil {
+					operationComplete = true
+				}
+			}
+
 		}
 	}
 
@@ -277,14 +301,38 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 		impl.logger.Errorw("secret not found", "err", err)
 		return err
 	}
+	data := make(map[string][]byte)
+	data["username"] = []byte(request.Username)
+	data["password"] = []byte(request.Token)
 	if secret == nil {
-		data := make(map[string][]byte)
-		data["username"] = []byte(request.Username)
-		data["password"] = []byte(request.Token)
 		secret, err = impl.K8sUtil.CreateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, client)
 		if err != nil {
-			impl.logger.Errorw("err", "err", err)
+			impl.logger.Errorw("err on creating secret", "err", err)
 			return err
+		}
+	} else {
+		secret.Data = data
+		secret, err = impl.K8sUtil.UpdateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+		if err != nil {
+			operationComplete := false
+			retryCount := 0
+			for !operationComplete && retryCount < 3 {
+				retryCount = retryCount + 1
+				secret, err := impl.K8sUtil.GetSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
+				if err != nil {
+					impl.logger.Errorw("secret not found", "err", err)
+					return err
+				}
+				secret.Data = data
+				secret, err = impl.K8sUtil.UpdateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+				if err != nil {
+					continue
+				}
+				if err == nil {
+					operationComplete = true
+				}
+			}
+
 		}
 	}
 
