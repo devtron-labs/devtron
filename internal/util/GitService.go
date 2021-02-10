@@ -101,7 +101,7 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	} else if err == pg.ErrNoRows {
-		return &GitConfig{}, err
+		return &GitConfig{}, nil
 	}
 
 	if gitOpsConfig == nil || gitOpsConfig.Id == 0 {
