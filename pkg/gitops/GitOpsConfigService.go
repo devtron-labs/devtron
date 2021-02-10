@@ -225,14 +225,21 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 		impl.logger.Errorw("error in creating new gitops config", "error", err)
 		return err
 	}
-	if existingModel != nil && existingModel.Id > 0 && existingModel.Id != model.Id {
-		existingModel.Active = false
-		existingModel.UpdatedOn = time.Now()
-		existingModel.UpdatedBy = request.UserId
-		err = impl.gitOpsRepository.UpdateGitOpsConfig(existingModel, tx)
-		if err != nil {
-			impl.logger.Errorw("error in creating new gitops config", "error", err)
-			return err
+
+	if request.Active {
+		if existingModel != nil && existingModel.Id > 0 && existingModel.Id != model.Id {
+			existingModel.Active = false
+			existingModel.UpdatedOn = time.Now()
+			existingModel.UpdatedBy = request.UserId
+			err = impl.gitOpsRepository.UpdateGitOpsConfig(existingModel, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating new gitops config", "error", err)
+				return err
+			}
+		}
+	} else {
+		if existingModel == nil || existingModel.Id == 0 {
+			return fmt.Errorf("no active config found, please ensure atleast on gitops config active")
 		}
 	}
 
