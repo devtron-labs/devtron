@@ -170,26 +170,21 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		if err != nil {
 			return nil, err
 		}
-		updatedData, existsInArgodCm := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
-		if ! existsInArgodCm {
-			data := cm.Data
-			data["repository.credentials"] = updatedData["repository.credentials"]
-			cm.Data = data
-			_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-			if err != nil {
-				continue
-			}
-			if err == nil {
-				operationComplete = true
-			}
-		} else {
+		updatedData := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
+		data := cm.Data
+		data["repository.credentials"] = updatedData["repository.credentials"]
+		cm.Data = data
+		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if err != nil {
+			continue
+		}
+		if err == nil {
 			operationComplete = true
 		}
 	}
 	if !operationComplete {
 		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
 	}
-
 
 	err = tx.Commit()
 	if err != nil {
@@ -302,19 +297,15 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 		if err != nil {
 			return err
 		}
-		updatedData, existsInArgodCm := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
-		if ! existsInArgodCm {
-			data := cm.Data
-			data["repository.credentials"] = updatedData["repository.credentials"]
-			cm.Data = data
-			_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-			if err != nil {
-				continue
-			}
-			if err == nil {
-				operationComplete = true
-			}
-		} else {
+		updatedData := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
+		data := cm.Data
+		data["repository.credentials"] = updatedData["repository.credentials"]
+		cm.Data = data
+		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if err != nil {
+			continue
+		}
+		if err == nil {
 			operationComplete = true
 		}
 	}
@@ -399,7 +390,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *GitOpsConfigDto, secretName string, existingHost string) (map[string]string, bool) {
+func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *GitOpsConfigDto, secretName string, existingHost string) map[string]string {
 	var newRepositories []*RepositoryCredentialsDto
 	var existingRepositories []*RepositoryCredentialsDto
 	repoStr := data["repository.credentials"]
@@ -434,7 +425,7 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 	if len(repositoriesYamlByte) > 0 {
 		repositoryCredentials["repository.credentials"] = string(repositoriesYamlByte)
 	}
-	return repositoryCredentials, true
+	return repositoryCredentials
 }
 
 func (impl *GitOpsConfigServiceImpl) createRepoElement(secretName string, request *GitOpsConfigDto) *RepositoryCredentialsDto {
