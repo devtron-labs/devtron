@@ -170,7 +170,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		if err != nil {
 			return nil, err
 		}
-		updatedData, existsInArgodCm := impl.updateData(cm.Data, request, GitOpsSecretName)
+		updatedData, existsInArgodCm := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
 		if ! existsInArgodCm {
 			data := cm.Data
 			data["repository.credentials"] = updatedData["repository.credentials"]
@@ -301,7 +301,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 		if err != nil {
 			return err
 		}
-		updatedData, existsInArgodCm := impl.updateData(cm.Data, request, GitOpsSecretName)
+		updatedData, existsInArgodCm := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
 		if ! existsInArgodCm {
 			data := cm.Data
 			data["repository.credentials"] = updatedData["repository.credentials"]
@@ -397,34 +397,30 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *GitOpsConfigDto, secretName string) (map[string]string, bool) {
-	found := false
-	var repositories []*RepositoryCredentialsDto
+func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *GitOpsConfigDto, secretName string, existingHost string) (map[string]string, bool) {
+	var newRepositories []*RepositoryCredentialsDto
+	var existingRepositories []*RepositoryCredentialsDto
 	repoStr := data["repository.credentials"]
 	if len(repoStr) > 0 {
 		repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
 		if err != nil {
 			panic(err)
 		}
-		err = json.Unmarshal(repoByte, &repositories)
+		err = json.Unmarshal(repoByte, &existingRepositories)
 		if err != nil {
 			panic(err)
 		}
 	}
-	for _, item := range repositories {
-		if item.Url == request.Host {
-			usernameSecret := &KeyDto{Name: secretName, Key: "username"}
-			passwordSecret := &KeyDto{Name: secretName, Key: "password"}
-			item.PasswordSecret = passwordSecret
-			item.UsernameSecret = usernameSecret
-			found = true
+
+	for _, item := range existingRepositories {
+		if item.Url != existingHost {
+			newRepositories = append(newRepositories, item)
 		}
 	}
-	if !found {
-		repoData := impl.createRepoElement(secretName, request)
-		repositories = append(repositories, repoData)
-	}
-	rb, err := json.Marshal(repositories)
+	repoData := impl.createRepoElement(secretName, request)
+	newRepositories = append(newRepositories, repoData)
+
+	rb, err := json.Marshal(newRepositories)
 	if err != nil {
 		panic(err)
 	}
@@ -436,7 +432,7 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 	if len(repositoriesYamlByte) > 0 {
 		repositoryCredentials["repository.credentials"] = string(repositoriesYamlByte)
 	}
-	return repositoryCredentials, found
+	return repositoryCredentials, true
 }
 
 func (impl *GitOpsConfigServiceImpl) createRepoElement(secretName string, request *GitOpsConfigDto) *RepositoryCredentialsDto {
