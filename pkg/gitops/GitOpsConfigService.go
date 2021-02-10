@@ -190,11 +190,12 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
 	}
 
-	err = impl.gitFactory.Reload()
+
+	err = tx.Commit()
 	if err != nil {
 		return nil, err
 	}
-	err = tx.Commit()
+	err = impl.gitFactory.Reload()
 	if err != nil {
 		return nil, err
 	}
@@ -320,11 +321,12 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 	if !operationComplete {
 		return fmt.Errorf("resouce version not matched with config map attemped 3 times")
 	}
-	err = impl.gitFactory.Reload()
+
+	err = tx.Commit()
 	if err != nil {
 		return err
 	}
-	err = tx.Commit()
+	err = impl.gitFactory.Reload()
 	if err != nil {
 		return err
 	}
