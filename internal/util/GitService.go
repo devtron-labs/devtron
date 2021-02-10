@@ -112,7 +112,7 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		GitlabNamespaceName: gitOpsConfig.GitLabGroupId,
 		GitToken:            gitOpsConfig.Token,
 		GitUserName:         gitOpsConfig.Username,
-		GitWorkingDir:       "tmp/gitops",
+		GitWorkingDir:       "/tmp/gitops/",
 		GithubOrganization:  gitOpsConfig.GitHubOrgId,
 		GitProvider:         gitOpsConfig.Provider,
 		GitHost:             gitOpsConfig.Host,
