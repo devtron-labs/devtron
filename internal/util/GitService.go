@@ -51,6 +51,7 @@ type GitFactory struct {
 }
 
 func (factory *GitFactory) Reload() error {
+	logger.Infow("reloading gitops details")
 	cfg, err := GetGitConfig(factory.gitOpsRepository)
 	if err != nil {
 		return err
@@ -62,7 +63,7 @@ func (factory *GitFactory) Reload() error {
 		return err
 	}
 	factory.Client = client
-
+	logger.Infow(" gitops details reload success")
 	return nil
 }
 
