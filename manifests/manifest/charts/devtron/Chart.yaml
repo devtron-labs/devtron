@@ -1,0 +1,8 @@
+name: devtron-operator
+appVersion: 0.1.0
+description: Chart to configure and install Devtron
+engine: gotpl
+version: 0.10.1
+maintainers:
+- email: prakarsh@devtron.ai
+  name: Prakarsh
