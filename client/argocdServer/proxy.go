@@ -40,6 +40,11 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
+	proxy.Director = func(request *http.Request) {
+		path := request.URL.Path
+		request.URL.Path = rewriteRequestUrl(path)
+	}
+
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		log.Printf("reverse proxy called for %s\n", resp.Request.URL.Path)
 		log.Printf("reverse proxy called for %s\n", resp.Status)
@@ -82,6 +87,10 @@ func NewDexHTTPReverseProxy(serverAddr string, transport http.RoundTripper) func
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
+	proxy.Director = func(request *http.Request) {
+		path := request.URL.Path
+		request.URL.Path = rewriteRequestUrl(path)
+	}
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		log.Printf("reverse proxy called for %s\n", resp.Request.URL.Path)
 		log.Printf("reverse proxy called for %s\n", resp.Status)
@@ -113,4 +122,16 @@ func NewDexHTTPReverseProxy(serverAddr string, transport http.RoundTripper) func
 	return func(w http.ResponseWriter, r *http.Request) {
 		proxy.ServeHTTP(w, r)
 	}
+}
+
+func rewriteRequestUrl(path string) string {
+	parts := strings.Split(path, "/")
+	var finalParts []string
+	for _, part := range parts {
+		if part == "orchestrator" {
+			continue
+		}
+		finalParts = append(finalParts, part)
+	}
+	return strings.Join(finalParts, "/")
 }
