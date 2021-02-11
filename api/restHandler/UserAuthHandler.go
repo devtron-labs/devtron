@@ -518,13 +518,6 @@ func (handler UserAuthHandlerImpl) CreateSSOLoginConfig(w http.ResponseWriter, r
 		return
 	}
 
-	if len(dto.Url) == 0 {
-		scheme := "https"
-		if len(r.URL.Scheme) > 0 {
-			scheme = r.URL.Scheme
-		}
-		dto.Url = fmt.Sprintf("%s://%s", scheme, r.Host)
-	}
 	handler.logger.Infow("request payload, CreateSSOLoginConfig", "payload", dto)
 	resp, err := handler.ssoLoginService.CreateSSOLogin(&dto)
 	if err != nil {
@@ -563,13 +556,6 @@ func (handler UserAuthHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r
 		return
 	}
 
-	if len(dto.Url) == 0 {
-		scheme := "https"
-		if len(r.URL.Scheme) > 0 {
-			scheme = r.URL.Scheme
-		}
-		dto.Url = fmt.Sprintf("%s://%s", scheme, r.Host)
-	}
 	handler.logger.Infow("request payload, UpdateSSOLoginConfig", "payload", dto)
 	resp, err := handler.ssoLoginService.UpdateSSOLogin(&dto)
 	if err != nil {
