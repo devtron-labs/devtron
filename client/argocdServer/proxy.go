@@ -69,6 +69,7 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 				}
 			}
 		}
+		log.Printf("response header Location:%s\n", resp.Header.Get("Location"))
 		return nil
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -87,10 +88,10 @@ func NewDexHTTPReverseProxy(serverAddr string, transport http.RoundTripper) func
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
-	proxy.Director = func(request *http.Request) {
-		path := request.URL.Path
-		request.URL.Path = rewriteRequestUrl(path)
-	}
+	//proxy.Director = func(request *http.Request) {
+	//	path := request.URL.Path
+	//	request.URL.Path = rewriteRequestUrl(path)
+	//}
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		log.Printf("reverse proxy called for %s\n", resp.Request.URL.Path)
 		log.Printf("reverse proxy called for %s\n", resp.Status)
