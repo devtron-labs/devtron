@@ -40,13 +40,16 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
-	proxy.Director = func(request *http.Request) {
-		path := request.URL.Path
-		request.URL.Path = rewriteRequestUrl(path)
-		fmt.Printf("path:%s\n", path)
-		fmt.Printf("scheme:%s\n", request.URL.Scheme)
-		fmt.Printf("host:%s\n", request.URL.Host)
-	}
+	//proxy.Director = func(request *http.Request) {
+	//	fmt.Printf("path:%s\n", request.URL.Path)
+	//	fmt.Printf("scheme:%s\n", request.URL.Scheme)
+	//	fmt.Printf("host:%s\n", request.URL.Host)
+	//	path := request.URL.Path
+	//	request.URL.Path = rewriteRequestUrl(path)
+	//	fmt.Printf("path:%s\n", request.URL.Path)
+	//	fmt.Printf("scheme:%s\n", request.URL.Scheme)
+	//	fmt.Printf("host:%s\n", request.URL.Host)
+	//}
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		log.Printf("reverse proxy called for %s\n", resp.Request.URL.Path)
