@@ -431,6 +431,7 @@ func contains(url string) bool {
 		"/api/vi/pod/exec/ws",
 		"/api/dex",
 		"/auth/callback",
+		"/auth/login",
 	}
 	for _, a := range prefixUrls {
 		if strings.Contains(url, a) {
