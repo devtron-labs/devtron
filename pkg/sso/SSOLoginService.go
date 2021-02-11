@@ -288,6 +288,7 @@ func (impl SSOLoginServiceImpl) GetById(id int32) (*bean.SSOLoginDto, error) {
 		Label:  model.Label,
 		Active: model.Active,
 		Config: config,
+		Url:    model.Url,
 	}
 	return ssoLoginDto, nil
 }
@@ -315,7 +316,7 @@ func (impl SSOLoginServiceImpl) GetAll() ([]*bean.SSOLoginDto, error) {
 			Name:   model.Name,
 			Label:  model.Label,
 			Active: model.Active,
-			//Config: config,
+			Url:    model.Url,
 		}
 		ssoConfigs = append(ssoConfigs, ssoLoginDto)
 	}
@@ -344,6 +345,7 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		Label:  model.Label,
 		Active: model.Active,
 		Config: config,
+		Url:    model.Url,
 	}
 	return ssoLoginDto, nil
 }
