@@ -109,6 +109,7 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 		Name:   request.Name,
 		Label:  request.Label,
 		Config: string(configDataByte),
+		Url:    request.Url,
 	}
 	model.Active = true
 	model.CreatedBy = request.UserId
