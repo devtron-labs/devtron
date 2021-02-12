@@ -33,6 +33,15 @@ import (
 
 var messageRe = regexp.MustCompile(`<p>(.*)([\s\S]*?)<\/p>`)
 
+const (
+	AuthEndPoint  = "/auth/callback"
+	LoginEndPoint = "/auth/login"
+	Orchestrator  = "/orchestrator"
+	RedirectURI   = "redirect_uri"
+	Dashboard     = "dashboard"
+	Location      = "Location"
+)
+
 func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userVerifier func(token string) (int32, error)) func(writer http.ResponseWriter, request *http.Request) {
 	target, err := url.Parse(serverAddr)
 	if err != nil {
@@ -41,22 +50,14 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
 	proxy.Director = func(request *http.Request) {
-		fmt.Printf("path:%s\n", request.URL.Path)
-		fmt.Printf("scheme:%s\n", request.URL.Scheme)
-		fmt.Printf("host:%s\n", request.URL.Host)
 		path := request.URL.Path
 		request.URL.Host = target.Host
 		request.URL.Scheme = target.Scheme
 		request.URL.Path = rewriteRequestUrl(path)
-		fmt.Printf("path:%s\n", request.URL.Path)
-		fmt.Printf("scheme:%s\n", request.URL.Scheme)
-		fmt.Printf("host:%s\n", request.URL.Host)
 	}
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		log.Printf("reverse proxy called for %s\n", resp.Request.URL.Path)
-		log.Printf("reverse proxy called for %s\n", resp.Status)
-		if strings.Contains(resp.Request.URL.Path, "/auth/callback") {
+		if strings.Contains(resp.Request.URL.Path, AuthEndPoint) {
 			cookies := resp.Cookies()
 			for _, cookie := range cookies {
 				if cookie.Name == "argocd.token" {
@@ -64,7 +65,7 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 					if err != nil || userId == 0 {
 						//no user found remove
 						resp.Header.Set("Set-Cookie", "")
-						resp.Header.Set("Location", "/dashboard/login?err=NO_USER")
+						resp.Header.Set(Location, "/dashboard/login?err=NO_USER")
 					} else {
 						flags := []string{"path=/"}
 						components := []string{
@@ -73,26 +74,26 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 						components = append(components, flags...)
 						header := strings.Join(components, "; ")
 						resp.Header.Set("Set-Cookie", header)
-						redirectUrl := resp.Header.Get("Location")
-						if strings.Contains(redirectUrl, "dashboard") {
-							redirectUrl = strings.ReplaceAll(redirectUrl, "/orchestrator", "")
+
+						redirectUrl := resp.Header.Get(Location)
+						if strings.Contains(redirectUrl, Dashboard) {
+							redirectUrl = strings.ReplaceAll(redirectUrl, Orchestrator, "")
 						}
-						fmt.Printf("setting location to: %s\n", redirectUrl)
-						resp.Header.Set("Location", redirectUrl)
+						resp.Header.Set(Location, redirectUrl)
 					}
 				}
 			}
-		} else if strings.Contains(resp.Request.URL.Path, "/auth/login") {
-			location := resp.Header.Get("Location")
+		} else if strings.Contains(resp.Request.URL.Path, LoginEndPoint) {
+			location := resp.Header.Get(Location)
 			if len(location) > 0 {
 				newLocation, err := modifyLocation(location)
-				if err == nil {
+				if err != nil {
 					log.Printf("error parsing url %s, err: %v\n", location, err)
-					resp.Header.Set("Location", newLocation)
+				} else if err == nil {
+					resp.Header.Set(Location, newLocation)
 				}
 			}
 		}
-		log.Printf("response header Location:%s\n", resp.Header.Get("Location"))
 		return nil
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -116,8 +117,6 @@ func NewDexHTTPReverseProxy(serverAddr string, transport http.RoundTripper) func
 	//	request.URL.Path = rewriteRequestUrl(path)
 	//}
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		log.Printf("reverse proxy called for %s\n", resp.Request.URL.Path)
-		log.Printf("reverse proxy called for %s\n", resp.Status)
 		if resp.StatusCode == 500 {
 			b, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
@@ -136,7 +135,7 @@ func NewDexHTTPReverseProxy(serverAddr string, transport http.RoundTripper) func
 			}
 			resp.ContentLength = 0
 			resp.Header.Set("Content-Length", strconv.Itoa(0))
-			resp.Header.Set("Location", fmt.Sprintf("/dashboard/login?sso_error=%s", url.QueryEscape(message)))
+			resp.Header.Set(Location, fmt.Sprintf("/dashboard/login?sso_error=%s", url.QueryEscape(message)))
 			resp.StatusCode = http.StatusSeeOther
 			resp.Body = ioutil.NopCloser(bytes.NewReader(make([]byte, 0)))
 			return nil
@@ -169,25 +168,28 @@ func modifyLocation(location string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var redirectUrl string
-	for key, value := range values {
-		if key == "redirect_uri" {
-			redirect, err := url.Parse(value[0])
-			if err != nil {
-				return "", err
-			}
-			path := redirect.Path
-			if !strings.Contains(path, "/orchestrator") {
-				path = "/orchestrator" + path
-			}
-			redirect.Path = path
-			redirectUrl = redirect.String()
-			fmt.Printf("redirect url %s\n", redirect.String())
-		}
+	currentUrl := values.Get(RedirectURI)
+	redirectUrl, err := addSuffixToPathIfMissing(currentUrl)
+	if err != nil {
+		return "", err
 	}
-	//values.Del("redirect_uri")
-	values.Set("redirect_uri", redirectUrl)
+	values.Set(RedirectURI, redirectUrl)
 	parsedLocation.RawQuery = values.Encode()
-	fmt.Printf("return url: %s\n", parsedLocation.String())
 	return parsedLocation.String(), nil
+}
+
+func addSuffixToPathIfMissing(originalUrl string) (string, error) {
+	if len(originalUrl) > 0 {
+		redirect, err := url.Parse(originalUrl)
+		if err != nil {
+			return "", err
+		}
+		path := redirect.Path
+		if !strings.Contains(path, Orchestrator) {
+			path = Orchestrator + path
+		}
+		redirect.Path = path
+		return redirect.String(), nil
+	}
+	return originalUrl, nil
 }

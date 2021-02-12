@@ -14,8 +14,8 @@ func Test_modifyLocation1(t *testing.T) {
 	}{
 		{
 			name: "location rewriting",
-			args: args{location: "https://demo.devtron.info:32443/api/dex/auth?client_id=argo-cd&redirect_uri=https%3A%2F%2Fdemo.devtron.info%3A32443%2Fauth%2Fcallback&response_type=code&scope=openid+profile+email+groups&state=TjIiKPucNS"},
-			want: "https://demo.devtron.info:32443/api/dex/auth?client_id=argo-cd&redirect_uri=https%3A%2F%2Fdemo.devtron.info%3A32443%2Forchestrator%2Fauth%2Fcallback&response_type=code&scope=openid+profile+email+groups&state=TjIiKPucNS",
+			args: args{location: "https://xxx.yyy.abc:3249843/api/dex/auth?client_id=argo-cd&redirect_uri=https%3A%2F%2Fxxx.yyy.abc%3A3249843%2Fauth%2Fcallback&response_type=code&scope=openid+profile+email+groups&state=TjIiKPucNS"},
+			want: "https://xxx.yyy.abc:3249843/api/dex/auth?client_id=argo-cd&redirect_uri=https%3A%2F%2Fxxx.yyy.abc%3A3249843%2Forchestrator%2Fauth%2Fcallback&response_type=code&scope=openid+profile+email+groups&state=TjIiKPucNS",
 			wantErr: false,
 		},
 	}
