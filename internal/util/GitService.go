@@ -537,7 +537,6 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 			repoExists = false
 		}
 	}
-
 	if repoExists {
 		return url, false, nil
 	}
@@ -553,8 +552,6 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
 		return "", true, err
 	}
-	impl.logger.Info("this app not has status active ")
-
 	logger.Infow("repo created ", "r", r.CloneURL)
 
 	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
