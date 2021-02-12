@@ -75,8 +75,9 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 						resp.Header.Set("Set-Cookie", header)
 						redirectUrl := resp.Header.Get("Location")
 						if strings.Contains(redirectUrl, "dashboard") {
-							strings.ReplaceAll(redirectUrl, "/orchestrator", "")
+							redirectUrl = strings.ReplaceAll(redirectUrl, "/orchestrator", "")
 						}
+						fmt.Printf("setting location to: %s\n", redirectUrl)
 						resp.Header.Set("Location", redirectUrl)
 					}
 				}
