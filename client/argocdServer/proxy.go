@@ -77,6 +77,7 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 						if strings.Contains(redirectUrl, "dashboard") {
 							strings.ReplaceAll(redirectUrl, "/orchestrator", "")
 						}
+						resp.Header.Set("Location", redirectUrl)
 					}
 				}
 			}
