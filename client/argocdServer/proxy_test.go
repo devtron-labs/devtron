@@ -32,3 +32,32 @@ func Test_modifyLocation1(t *testing.T) {
 		})
 	}
 }
+
+func Test_rewriteRequestUrl(t *testing.T) {
+	type args struct {
+		path string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "with orchestrator in url",
+			args: args{path: "/orchestrator/main"},
+			want: "/main",
+		},
+		{
+			name: "without orchestrator in url",
+			args: args{path: "/path1/main"},
+			want: "/path1/main",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := rewriteRequestUrl(tt.args.path); got != tt.want {
+				t.Errorf("rewriteRequestUrl() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
