@@ -171,7 +171,9 @@ func modifyLocation(location string) (string, error) {
 				return "", err
 			}
 			path := redirect.Path
-			path = "/orchestrator" + path
+			if !strings.Contains(path, "/orchestrator") {
+				path = "/orchestrator" + path
+			}
 			redirect.Path = path
 			redirectUrl = redirect.String()
 			fmt.Printf("redirect url %s\n", redirect.String())
