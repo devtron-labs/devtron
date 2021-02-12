@@ -40,21 +40,23 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
-	//proxy.Director = func(request *http.Request) {
-	//	fmt.Printf("path:%s\n", request.URL.Path)
-	//	fmt.Printf("scheme:%s\n", request.URL.Scheme)
-	//	fmt.Printf("host:%s\n", request.URL.Host)
-	//	path := request.URL.Path
-	//	request.URL.Path = rewriteRequestUrl(path)
-	//	fmt.Printf("path:%s\n", request.URL.Path)
-	//	fmt.Printf("scheme:%s\n", request.URL.Scheme)
-	//	fmt.Printf("host:%s\n", request.URL.Host)
-	//}
+	proxy.Director = func(request *http.Request) {
+		fmt.Printf("path:%s\n", request.URL.Path)
+		fmt.Printf("scheme:%s\n", request.URL.Scheme)
+		fmt.Printf("host:%s\n", request.URL.Host)
+		path := request.URL.Path
+		request.URL.Host = target.Host
+		request.URL.Scheme = target.Scheme
+		request.URL.Path = rewriteRequestUrl(path)
+		fmt.Printf("path:%s\n", request.URL.Path)
+		fmt.Printf("scheme:%s\n", request.URL.Scheme)
+		fmt.Printf("host:%s\n", request.URL.Host)
+	}
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		log.Printf("reverse proxy called for %s\n", resp.Request.URL.Path)
 		log.Printf("reverse proxy called for %s\n", resp.Status)
-		if resp.Request.URL.Path == "/auth/callback" {
+		if strings.Contains(resp.Request.URL.Path, "/auth/callback") {
 			cookies := resp.Cookies()
 			for _, cookie := range cookies {
 				if cookie.Name == "argocd.token" {
@@ -72,6 +74,15 @@ func NewCDHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userV
 						header := strings.Join(components, "; ")
 						resp.Header.Set("Set-Cookie", header)
 					}
+				}
+			}
+		} else if strings.Contains(resp.Request.URL.Path, "/auth/login") {
+			location := resp.Header.Get("Location")
+			if len(location) > 0 {
+				newLocation, err := modifyLocation(location)
+				if err == nil {
+					log.Printf("error parsing url %s, err: %v\n", location, err)
+					resp.Header.Set("Location", newLocation)
 				}
 			}
 		}
@@ -141,4 +152,34 @@ func rewriteRequestUrl(path string) string {
 		finalParts = append(finalParts, part)
 	}
 	return strings.Join(finalParts, "/")
+}
+
+func modifyLocation(location string) (string, error) {
+	parsedLocation, err := url.Parse(location)
+	if err != nil {
+		return "", err
+	}
+	values, err := url.ParseQuery(parsedLocation.RawQuery)
+	if err != nil {
+		return "", err
+	}
+	var redirectUrl string
+	for key, value := range values {
+		if key == "redirect_uri" {
+			redirect, err := url.Parse(value[0])
+			if err != nil {
+				return "", err
+			}
+			path := redirect.Path
+			path = "/orchestrator" + path
+			redirect.Path = path
+			redirectUrl = redirect.String()
+			fmt.Printf("redirect url %s\n", redirect.String())
+		}
+	}
+	//values.Del("redirect_uri")
+	values.Set("redirect_uri", redirectUrl)
+	parsedLocation.RawQuery = values.Encode()
+	fmt.Printf("return url: %s\n", parsedLocation.String())
+	return parsedLocation.String(), nil
 }
