@@ -161,6 +161,12 @@ const ciEvent = "CI"
 const cdStage = "CD"
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) (*v1alpha1.Workflow, error) {
+	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
+	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
+		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.MinioAccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.MinioSecretKey}}
+		containerEnvVariables = append(containerEnvVariables, miniCred...)
+	}
+
 	ciCdTriggerEvent := CiCdTriggerEvent{
 		Type:      ciEvent,
 		CiRequest: workflowRequest,
@@ -188,12 +194,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	reqCpu := impl.ciConfig.ReqCpu
 	reqMem := impl.ciConfig.ReqMem
 	ttl := int32(600)
-	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
-	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
-		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.MinioAccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.MinioSecretKey}}
-		containerEnvVariables = append(containerEnvVariables, miniCred...)
-		workflowRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
-	}
+
 	var (
 		ciWorkflow = v1alpha1.Workflow{
 			ObjectMeta: v1.ObjectMeta{

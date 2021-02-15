@@ -338,6 +338,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 	case BLOB_STORAGE_MINIO:
 		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
+		workflowRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
 	default:
 		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)
 	}
