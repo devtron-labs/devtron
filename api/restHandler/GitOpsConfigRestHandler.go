@@ -37,6 +37,7 @@ type GitOpsConfigRestHandler interface {
 	GetGitOpsConfigById(w http.ResponseWriter, r *http.Request)
 	UpdateGitOpsConfig(w http.ResponseWriter, r *http.Request)
 	GetGitOpsConfigByProvider(w http.ResponseWriter, r *http.Request)
+	GitOpsConfigured(w http.ResponseWriter, r *http.Request)
 }
 
 type GitOpsConfigRestHandlerImpl struct {
@@ -185,6 +186,32 @@ func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigById(w http.ResponseWrite
 	// RBAC enforcer Ends
 
 	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (impl GitOpsConfigRestHandlerImpl) GitOpsConfigured(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	result, err := impl.gitOpsConfigService.GetAllGitOpsConfig()
+	if err != nil {
+		impl.logger.Errorw("service err, GetAllGitOpsConfig", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	gitopsConfigured := false
+	if len(result) > 0 {
+		for _, gitopsConf := range result {
+			if gitopsConf.Active {
+				gitopsConfigured = true
+			}
+		}
+	}
+	res := make(map[string]bool)
+	res["exists"] = gitopsConfigured
+	writeJsonResp(w, err, res, http.StatusOK)
+
 }
 
 func (impl GitOpsConfigRestHandlerImpl) GetAllGitOpsConfig(w http.ResponseWriter, r *http.Request) {
