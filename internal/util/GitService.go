@@ -21,6 +21,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/go-pg/pg"
 	"github.com/google/go-github/github"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
@@ -41,6 +43,50 @@ type GitClient interface {
 	GetRepoUrl(projectName string) (repoUrl string, err error)
 }
 
+type GitFactory struct {
+	Client           GitClient
+	gitService       GitService
+	GitWorkingDir    string
+	logger           *zap.SugaredLogger
+	gitOpsRepository repository.GitOpsConfigRepository
+}
+
+func (factory *GitFactory) Reload() error {
+	logger.Infow("reloading gitops details")
+	cfg, err := GetGitConfig(factory.gitOpsRepository)
+	if err != nil {
+		return err
+	}
+	gitService := NewGitServiceImpl(cfg, logger)
+	factory.gitService = gitService
+	client, err := NewGitLabClient(cfg, logger, gitService)
+	if err != nil {
+		return err
+	}
+	factory.Client = client
+	logger.Infow(" gitops details reload success")
+	return nil
+}
+
+func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository) (*GitFactory, error) {
+	cfg, err := GetGitConfig(gitOpsRepository)
+	if err != nil {
+		return nil, err
+	}
+	gitService := NewGitServiceImpl(cfg, logger)
+	client, err := NewGitLabClient(cfg, logger, gitService)
+	if err != nil {
+		return nil, err
+	}
+	return &GitFactory{
+		Client:           client,
+		logger:           logger,
+		gitService:       gitService,
+		gitOpsRepository: gitOpsRepository,
+		GitWorkingDir:    cfg.GitWorkingDir,
+	}, nil
+}
+
 type GitConfig struct {
 	GitlabNamespaceID   int    //not null //local
 	GitlabNamespaceName string `env:"GITLAB_NAMESPACE_NAME" `                          //local
@@ -52,16 +98,30 @@ type GitConfig struct {
 	GitHost             string `env:"GIT_HOST" envDefault:""`
 }
 
-func (cfg *GitConfig) GetUserName() (userName string) {
-	return cfg.GitUserName
-}
-func (cfg *GitConfig) GetPassword() (password string) {
-	return cfg.GitToken
-}
+func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfig, error) {
+	gitOpsConfig, err := gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	} else if err == pg.ErrNoRows {
+		// adding this block for backward compatibility,TODO: remove in next  iteration
+		cfg := &GitConfig{}
+		err := env.Parse(cfg)
+		return cfg, err
+		//return &GitConfig{}, nil
+	}
 
-func GetGitConfig() (*GitConfig, error) {
-	cfg := &GitConfig{}
-	err := env.Parse(cfg)
+	if gitOpsConfig == nil || gitOpsConfig.Id == 0 {
+		return nil, err
+	}
+	cfg := &GitConfig{
+		GitlabNamespaceName: gitOpsConfig.GitLabGroupId,
+		GitToken:            gitOpsConfig.Token,
+		GitUserName:         gitOpsConfig.Username,
+		GitWorkingDir:       "/tmp/gitops/",
+		GithubOrganization:  gitOpsConfig.GitHubOrgId,
+		GitProvider:         gitOpsConfig.Provider,
+		GitHost:             gitOpsConfig.Host,
+	}
 	return cfg, err
 }
 
@@ -111,11 +171,9 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 			logger:     logger,
 			gitService: gitService,
 		}, nil
-	} else if config.GitProvider == "GITHUB" {
+	} else {
 		gitHubClient := NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService)
 		return gitHubClient, nil
-	} else {
-		return nil, fmt.Errorf("unsupported git provider %s, supported values are  GITHUB, GITLAB", config.GitProvider)
 	}
 }
 
@@ -313,7 +371,7 @@ type GitServiceImpl struct {
 }
 
 func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger) *GitServiceImpl {
-	auth := &http.BasicAuth{Password: config.GetPassword(), Username: config.GetUserName()}
+	auth := &http.BasicAuth{Password: config.GitToken, Username: config.GitUserName}
 	return &GitServiceImpl{
 		Auth:   auth,
 		logger: logger,
@@ -442,10 +500,10 @@ func NewGithubClient(token string, org string, logger *zap.SugaredLogger, gitSer
 		&oauth2.Token{AccessToken: token},
 	)
 	tc := oauth2.NewClient(ctx, ts)
-
 	client := github.NewClient(tc)
 	return GitHubClient{client: client, org: org, logger: logger, gitService: gitService}
 }
+
 func (impl GitHubClient) CreateRepository(name, description string) (url string, isNew bool, err error) {
 	ctx := context.Background()
 	repoExists := true

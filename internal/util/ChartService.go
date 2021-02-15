@@ -46,8 +46,7 @@ type ChartTemplateServiceImpl struct {
 	randSource      rand.Source
 	logger          *zap.SugaredLogger
 	chartWorkingDir ChartWorkingDir
-	gitClient       GitClient
-	gitService      GitService
+	gitFactory      *GitFactory
 	client          *http.Client
 }
 
@@ -62,15 +61,14 @@ type ChartValues struct {
 
 func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	chartWorkingDir ChartWorkingDir,
-	gitClient GitClient,
-	gitService GitService, client *http.Client) *ChartTemplateServiceImpl {
+	 client *http.Client,
+	gitFactory *GitFactory) *ChartTemplateServiceImpl {
 	return &ChartTemplateServiceImpl{
 		randSource:      rand.NewSource(time.Now().UnixNano()),
 		logger:          logger,
 		chartWorkingDir: chartWorkingDir,
-		gitClient:       gitClient,
-		gitService:      gitService,
 		client:          client,
+		gitFactory:      gitFactory,
 	}
 }
 
@@ -148,16 +146,16 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appName = space.ReplaceAllString(appName, "-")
-	repoUrl, _, err := impl.gitClient.CreateRepository(appName, "helm chart for "+appName)
+	repoUrl, _, err := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
 	if err != nil {
 		impl.logger.Errorw("error in creating git project", "name", appName, "err", err)
 		return nil, err
 	}
 
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
-	clonedDir := impl.gitService.GetCloneDirectory(chartDir)
+	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitService.Clone(repoUrl, chartDir)
+		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return nil, err
@@ -180,7 +178,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 		impl.logger.Errorw("error copying dir", "err", err)
 		return nil, nil
 	}
-	commit, err := impl.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
@@ -193,7 +191,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 			impl.logger.Errorw("error copying dir", "err", err)
 			return nil, err
 		}
-		commit, err = impl.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, err
@@ -345,16 +343,16 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
-	repoUrl, _, err := impl.gitClient.CreateRepository(appStoreName, "helm chart for "+appStoreName)
+	repoUrl, _, err := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName)
 	if err != nil {
 		impl.logger.Errorw("error in creating git project", "name", appStoreName, "err", err)
 		return nil, err
 	}
 
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
-	clonedDir := impl.gitService.GetCloneDirectory(chartDir)
+	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitService.Clone(repoUrl, chartDir)
+		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return nil, err
@@ -378,7 +376,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 		impl.logger.Errorw("error copying dir", "err", err)
 		return nil, err
 	}
-	commit, err := impl.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
@@ -391,7 +389,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			impl.logger.Errorw("error copying dir", "err", err)
 			return nil, err
 		}
-		commit, err = impl.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, err
@@ -403,10 +401,10 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 }
 
 func (impl ChartTemplateServiceImpl) GitPull(clonedDir string, repoUrl string, appStoreName string) error {
-	err := impl.gitService.Pull(clonedDir) //TODO check for local repo exists before clone
+	err := impl.gitFactory.gitService.Pull(clonedDir) //TODO check for local repo exists before clone
 	if err != nil {
 		impl.logger.Errorw("error in pulling git", "clonedDir", clonedDir, "err", err)
-		_, err := impl.gitService.Clone(repoUrl, appStoreName)
+		_, err := impl.gitFactory.gitService.Clone(repoUrl, appStoreName)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return err
