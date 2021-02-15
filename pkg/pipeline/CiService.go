@@ -336,6 +336,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			BlobContainerCiCache: impl.ciConfig.AzureBlobContainerCiCache,
 			AccountKey:           impl.ciConfig.AzureAccountKey,
 		}
+	case BLOB_STORAGE_MINIO:
+		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
 	default:
 		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)
 	}
