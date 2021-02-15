@@ -66,6 +66,7 @@ type MuxRouter struct {
 	testSuitRouter                   TestSuitRouter
 	imageScanRouter                  ImageScanRouter
 	policyRouter                     PolicyRouter
+	gitOpsConfigRouter               GitOpsConfigRouter
 	dashboardRouter                  DashboardRouter
 }
 
@@ -84,7 +85,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter AppStoreRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
-	policyRouter PolicyRouter, dashboardRouter DashboardRouter) *MuxRouter {
+	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -122,6 +123,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		testSuitRouter:                   testSuitRouter,
 		imageScanRouter:                  imageScanRouter,
 		policyRouter:                     policyRouter,
+		gitOpsConfigRouter:               gitOpsConfigRouter,
 		dashboardRouter:                  dashboardRouter,
 	}
 	return r
@@ -215,7 +217,7 @@ func (r MuxRouter) Init() {
 	chartGroupRouter := r.Router.PathPrefix("/orchestrator/chart-group").Subrouter()
 	r.chartGroupRouter.initChartGroupRouter(chartGroupRouter)
 
-	testSuitRouter := r.Router.PathPrefix("/orchestrator/test").Subrouter()
+	testSuitRouter := r.Router.PathPrefix("/orchestrator/test-report").Subrouter()
 	r.testSuitRouter.InitTestSuitRouter(testSuitRouter)
 
 	imageScanRouter := r.Router.PathPrefix("/orchestrator/security/scan").Subrouter()
@@ -224,6 +226,9 @@ func (r MuxRouter) Init() {
 	policyRouter := r.Router.PathPrefix("/orchestrator/security/policy").Subrouter()
 	r.policyRouter.InitPolicyRouter(policyRouter)
 
+	gitOpsRouter := r.Router.PathPrefix("/orchestrator/gitops").Subrouter()
+	r.gitOpsConfigRouter.InitGitOpsConfigRouter(gitOpsRouter)
+	
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.initDashboardRouter(dashboardRouter)
 }

@@ -47,6 +47,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/devtron-labs/devtron/pkg/event"
 	"github.com/devtron-labs/devtron/pkg/git"
+	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
@@ -96,7 +97,6 @@ func InitializeApp() (*App, error) {
 		wire.Value(appstore.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(pipeline.DefaultChart("reference-app-rolling")),
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
-		util.GetGitConfig,
 		session.SettingsManager,
 		session.CDSettingsManager,
 		session.SessionManager,
@@ -259,10 +259,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiPipelineRepository), new(*pipelineConfig.CiPipelineRepositoryImpl)),
 		pipelineConfig.NewCiPipelineMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiPipelineMaterialRepository), new(*pipelineConfig.CiPipelineMaterialRepositoryImpl)),
-		util.NewGitLabClient,
-		//wire.Bind(new(util.GitClient), new(*util.GitLabClient)),
-		util.NewGitServiceImpl,
-		wire.Bind(new(util.GitService), new(*util.GitServiceImpl)),
+		util.NewGitFactory,
 
 		application.NewApplicationClientImpl,
 		wire.Bind(new(application.ServiceClient), new(*application.ServiceClientImpl)),
@@ -620,6 +617,15 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(sso.SSOLoginService), new(*sso.SSOLoginServiceImpl)),
 		repository.NewSSOLoginRepositoryImpl,
 		wire.Bind(new(repository.SSOLoginRepository), new(*repository.SSOLoginRepositoryImpl)),
+
+		router.NewGitOpsConfigRouterImpl,
+		wire.Bind(new(router.GitOpsConfigRouter), new(*router.GitOpsConfigRouterImpl)),
+		restHandler.NewGitOpsConfigRestHandlerImpl,
+		wire.Bind(new(restHandler.GitOpsConfigRestHandler), new(*restHandler.GitOpsConfigRestHandlerImpl)),
+		gitops.NewGitOpsConfigServiceImpl,
+		wire.Bind(new(gitops.GitOpsConfigService), new(*gitops.GitOpsConfigServiceImpl)),
+		repository.NewGitOpsConfigRepositoryImpl,
+		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
 	)
 	return &App{}, nil
 }
