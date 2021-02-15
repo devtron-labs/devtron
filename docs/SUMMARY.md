@@ -35,6 +35,7 @@
 * [Global Configurations](user-guide/global-configurations/README.md)
   * [Git Accounts](user-guide/global-configurations/git-accounts.md)
   * [Docker Registries](user-guide/global-configurations/docker-registries.md)
+  * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
   * [Cluster And Environments](user-guide/global-configurations/cluster-and-environments.md)
   * [Projects](user-guide/global-configurations/projects.md)
   * [User Access](user-guide/global-configurations/user-access.md)

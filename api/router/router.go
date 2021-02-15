@@ -66,6 +66,7 @@ type MuxRouter struct {
 	testSuitRouter                   TestSuitRouter
 	imageScanRouter                  ImageScanRouter
 	policyRouter                     PolicyRouter
+	gitOpsConfigRouter               GitOpsConfigRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -83,7 +84,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter AppStoreRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
-	policyRouter PolicyRouter) *MuxRouter {
+	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -121,6 +122,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		testSuitRouter:                   testSuitRouter,
 		imageScanRouter:                  imageScanRouter,
 		policyRouter:                     policyRouter,
+		gitOpsConfigRouter:               gitOpsConfigRouter,
 	}
 	return r
 }
@@ -213,11 +215,14 @@ func (r MuxRouter) Init() {
 	chartGroupRouter := r.Router.PathPrefix("/chart-group").Subrouter()
 	r.chartGroupRouter.initChartGroupRouter(chartGroupRouter)
 
-	testSuitRouter := r.Router.PathPrefix("/test").Subrouter()
+	testSuitRouter := r.Router.PathPrefix("/test-report").Subrouter()
 	r.testSuitRouter.InitTestSuitRouter(testSuitRouter)
 
 	imageScanRouter := r.Router.PathPrefix("/security/scan").Subrouter()
 	r.imageScanRouter.InitImageScanRouter(imageScanRouter)
 	policyRouter := r.Router.PathPrefix("/security/policy").Subrouter()
 	r.policyRouter.InitPolicyRouter(policyRouter)
+
+	gitOpsRouter := r.Router.PathPrefix("/gitops").Subrouter()
+	r.gitOpsConfigRouter.InitGitOpsConfigRouter(gitOpsRouter)
 }

@@ -189,3 +189,36 @@ type JsonPatchType struct {
 	Path  string      `json:"path"`
 	Value interface{} `json:"value"`
 }
+
+func (impl K8sUtil) GetSecretFast(namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error) {
+	secret, err := client.Secrets(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	} else {
+		return secret, nil
+	}
+}
+
+func (impl K8sUtil) CreateSecretFast(namespace string, data map[string][]byte, secretName string, client *v12.CoreV1Client) (*v1.Secret, error) {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secretName,
+		},
+		Data: data,
+	}
+	secret, err := client.Secrets(namespace).Create(secret)
+	if err != nil {
+		return nil, err
+	} else {
+		return secret, nil
+	}
+}
+
+func (impl K8sUtil) UpdateSecretFast(namespace string, secret *v1.Secret, client *v12.CoreV1Client) (*v1.Secret, error) {
+	secret, err := client.Secrets(namespace).Update(secret)
+	if err != nil {
+		return nil, err
+	} else {
+		return secret, nil
+	}
+}

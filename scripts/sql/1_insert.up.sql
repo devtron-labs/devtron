@@ -3610,7 +3610,7 @@ SELECT pg_catalog.setval('public.env_level_app_metrics_id_seq', 1, false);
 -- Name: environment_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.environment_id_seq', 1, false);
+SELECT pg_catalog.setval('public.environment_id_seq', 1, true);
 
 
 --
@@ -3645,7 +3645,7 @@ SELECT pg_catalog.setval('public.git_material_id_seq', 1, false);
 -- Name: git_provider_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.git_provider_id_seq', 1, false);
+SELECT pg_catalog.setval('public.git_provider_id_seq', 1, true);
 
 
 --
@@ -3834,7 +3834,7 @@ SELECT pg_catalog.setval('public.slack_config_id_seq', 1, false);
 -- Name: team_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.team_id_seq', 1, false);
+SELECT pg_catalog.setval('public.team_id_seq', 1, true);
 
 
 --
@@ -5423,7 +5423,7 @@ INSERT INTO "public"."chart_ref" ("id", "location", "version", "is_default", "ac
 ('5', 'reference-chart_3-4-0', '3.4.0', 'f', 'f', 'now()', '1', 'now()', '1'),
 ('6', 'reference-chart_3-5-0', '3.5.0', 'f', 'f', 'now()', '1', 'now()', '1'),
 ('7', 'reference-chart_3-6-0', '3.6.0', 'f', 'f', 'now()', '1', 'now()', '1'),
-('1', 'reference-chart_3-7-0', '3.7.0', 'f', 'f', 'now()', '1', 'now()', '1');
+('8', 'reference-chart_3-7-0', '3.7.0', 'f', 'f', 'now()', '1', 'now()', '1');
 
 
 
