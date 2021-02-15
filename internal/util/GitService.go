@@ -20,7 +20,6 @@ package util
 import (
 	"context"
 	"fmt"
-	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"github.com/google/go-github/github"
@@ -105,10 +104,10 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		return nil, err
 	} else if err == pg.ErrNoRows {
 		// adding this block for backward compatibility,TODO: remove in next  iteration
-		cfg := &GitConfig{}
-		err := env.Parse(cfg)
-		return cfg, err
-		//return &GitConfig{}, nil
+		// cfg := &GitConfig{}
+		// err := env.Parse(cfg)
+		// return cfg, err
+		return &GitConfig{}, nil
 	}
 
 	if gitOpsConfig == nil || gitOpsConfig.Id == 0 {
