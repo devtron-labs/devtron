@@ -32,7 +32,7 @@ import (
 )
 
 type UserAuthRouter interface {
-	initUserAuthRouter(helmRouter *mux.Router)
+	initUserAuthRouter(router *mux.Router)
 }
 
 type UserAuthRouterImpl struct {

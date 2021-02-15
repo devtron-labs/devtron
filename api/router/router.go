@@ -66,6 +66,7 @@ type MuxRouter struct {
 	testSuitRouter                   TestSuitRouter
 	imageScanRouter                  ImageScanRouter
 	policyRouter                     PolicyRouter
+	dashboardRouter                  DashboardRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -83,7 +84,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter AppStoreRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
-	policyRouter PolicyRouter) *MuxRouter {
+	policyRouter PolicyRouter, dashboardRouter DashboardRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -121,6 +122,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		testSuitRouter:                   testSuitRouter,
 		imageScanRouter:                  imageScanRouter,
 		policyRouter:                     policyRouter,
+		dashboardRouter:                  dashboardRouter,
 	}
 	return r
 }
@@ -218,6 +220,10 @@ func (r MuxRouter) Init() {
 
 	imageScanRouter := r.Router.PathPrefix("/security/scan").Subrouter()
 	r.imageScanRouter.InitImageScanRouter(imageScanRouter)
+
 	policyRouter := r.Router.PathPrefix("/security/policy").Subrouter()
 	r.policyRouter.InitPolicyRouter(policyRouter)
+
+	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
+	r.dashboardRouter.initDashboardRouter(dashboardRouter)
 }

@@ -21,6 +21,7 @@ package main
 
 import (
 	"github.com/devtron-labs/devtron/api/router/pubsub"
+	"github.com/devtron-labs/devtron/client/dashboard"
 	eClient "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/grafana"
@@ -610,6 +611,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(terminal.TerminalSessionHandler), new(*terminal.TerminalSessionHandlerImpl)),
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
+
+		dashboard.GetConfig,
+		router.NewDashboardRouterImpl,
+		wire.Bind(new(router.DashboardRouter), new(*router.DashboardRouterImpl)),
 
 		sso.NewSSOLoginServiceImpl,
 		wire.Bind(new(sso.SSOLoginService), new(*sso.SSOLoginServiceImpl)),
