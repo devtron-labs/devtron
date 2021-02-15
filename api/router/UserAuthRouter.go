@@ -88,10 +88,10 @@ func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) 
 			router.writeSuccess("Welcome @Devtron", writer)
 		}).Methods("GET")
 
-	userAuthRouter.PathPrefix("/orchestrator/api/dex").HandlerFunc(router.dexProxy)
+	userAuthRouter.PathPrefix("/api/dex").HandlerFunc(router.dexProxy)
 	userAuthRouter.Path("/login").HandlerFunc(router.cdProxy)
-	userAuthRouter.Path("/orchestrator/auth/login").HandlerFunc(router.cdProxy)
-	userAuthRouter.PathPrefix("/orchestrator/auth/callback").HandlerFunc(router.cdProxy)
+	userAuthRouter.Path("/auth/login").HandlerFunc(router.cdProxy)
+	userAuthRouter.PathPrefix("/auth/callback").HandlerFunc(router.cdProxy)
 
 	userAuthRouter.Path("/api/v1/session").HandlerFunc(router.userAuthHandler.LoginHandler)
 	//userAuthRouter.Path("/orchestrator/api/dex/auth").HandlerFunc(router.cdProxy)
