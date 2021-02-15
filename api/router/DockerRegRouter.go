@@ -51,4 +51,7 @@ func (impl DockerRegRouterImpl) InitDockerRegRouter(configRouter *mux.Router) {
 	configRouter.Path("/registry").
 		HandlerFunc(impl.dockerRestHandler.UpdateDockerRegistryConfig).
 		Methods("PUT")
+	configRouter.Path("/registry/configure/status").
+		HandlerFunc(impl.dockerRestHandler.IsDockerRegConfigured).
+		Methods("GET")
 }
