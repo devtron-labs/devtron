@@ -28,8 +28,6 @@
   * [Examples](user-guide/deploy-chart/examples/README.md)
     * [Deploying Mysql Helm Chart](user-guide/deploy-chart/examples/deploying-mysql-helm-chart.md)
     * [Deploying MongoDB Helm Chart](user-guide/deploy-chart/examples/deploying-mongodb-helm-chart.md)
-* [Appdetails](user-guide/app-details/README.md)
-  * [Terminal](user-guide/app-details/terminal.md)
 * [Debugging Deployment And Monitoring](user-guide/debugging-deployment-and-monitoring.md)
 * [Namespaces And Environments](user-guide/namespaces-and-environments.md)
 * [Security Features](user-guide/security-features.md)
