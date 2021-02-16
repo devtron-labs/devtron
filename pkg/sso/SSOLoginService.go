@@ -91,22 +91,25 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 	}
 
 	existingModel, err := impl.ssoLoginRepository.GetActive()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
 		return nil, err
 	}
-	existingModel.Active = false
-	existingModel.UpdatedOn = time.Now()
-	existingModel.UpdatedBy = request.UserId
-	_, err = impl.ssoLoginRepository.Update(existingModel, tx)
-	if err != nil {
-		impl.logger.Errorw("error in creating new sso login config", "error", err)
-		return nil, err
+	if existingModel != nil && existingModel.Id > 0 {
+		existingModel.Active = false
+		existingModel.UpdatedOn = time.Now()
+		existingModel.UpdatedBy = request.UserId
+		_, err = impl.ssoLoginRepository.Update(existingModel, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating new sso login config", "error", err)
+			return nil, err
+		}
 	}
 	model := &repository.SSOLoginModel{
 		Name:   request.Name,
 		Label:  request.Label,
 		Config: string(configDataByte),
+		Url:    request.Url,
 	}
 	model.Active = true
 	model.CreatedBy = request.UserId
@@ -152,21 +155,22 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 	}
 
 	existingModel, err := impl.ssoLoginRepository.GetActive()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
 		return nil, err
 	}
-	if existingModel.Id != model.Id {
-		existingModel.Active = false
-		existingModel.UpdatedOn = time.Now()
-		existingModel.UpdatedBy = request.UserId
-		_, err = impl.ssoLoginRepository.Update(existingModel, tx)
-		if err != nil {
-			impl.logger.Errorw("error in creating new sso login config", "error", err)
-			return nil, err
+	if existingModel != nil && existingModel.Id > 0 {
+		if existingModel.Id != model.Id {
+			existingModel.Active = false
+			existingModel.UpdatedOn = time.Now()
+			existingModel.UpdatedBy = request.UserId
+			_, err = impl.ssoLoginRepository.Update(existingModel, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating new sso login config", "error", err)
+				return nil, err
+			}
 		}
 	}
-
 	model.Label = request.Label
 	model.Url = request.Url
 	model.Config = string(configDataByte)
@@ -224,6 +228,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 		}
 		data := cm.Data
 		data["dex.config"] = updatedData["dex.config"]
+		data["url"] = request.Url
 		cm.Data = data
 		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
@@ -283,6 +288,7 @@ func (impl SSOLoginServiceImpl) GetById(id int32) (*bean.SSOLoginDto, error) {
 		Label:  model.Label,
 		Active: model.Active,
 		Config: config,
+		Url:    model.Url,
 	}
 	return ssoLoginDto, nil
 }
@@ -310,7 +316,7 @@ func (impl SSOLoginServiceImpl) GetAll() ([]*bean.SSOLoginDto, error) {
 			Name:   model.Name,
 			Label:  model.Label,
 			Active: model.Active,
-			//Config: config,
+			Url:    model.Url,
 		}
 		ssoConfigs = append(ssoConfigs, ssoLoginDto)
 	}
@@ -339,6 +345,7 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		Label:  model.Label,
 		Active: model.Active,
 		Config: config,
+		Url:    model.Url,
 	}
 	return ssoLoginDto, nil
 }

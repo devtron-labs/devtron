@@ -61,7 +61,7 @@ type AppServiceImpl struct {
 	logger                        *zap.SugaredLogger
 	ciArtifactRepository          repository.CiArtifactRepository
 	pipelineRepository            pipelineConfig.PipelineRepository
-	GitClient                     GitClient
+	gitFactory                    *GitFactory
 	dbMigrationConfigRepository   pipelineConfig.DbMigrationConfigRepository
 	eventClient                   client.EventClient
 	eventFactory                  client.EventFactory
@@ -105,7 +105,6 @@ func NewAppService(
 	mergeUtil *MergeUtil,
 	logger *zap.SugaredLogger,
 	ciArtifactRepository repository.CiArtifactRepository,
-	GitClient GitClient,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	dbMigrationConfigRepository pipelineConfig.DbMigrationConfigRepository,
 	eventClient client.EventClient,
@@ -121,7 +120,8 @@ func NewAppService(
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
-	ArgoK8sClient argocdServer.ArgoK8sClient) *AppServiceImpl {
+	ArgoK8sClient argocdServer.ArgoK8sClient,
+	gitFactory *GitFactory) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:   environmentConfigRepository,
 		mergeUtil:                     mergeUtil,
@@ -129,7 +129,6 @@ func NewAppService(
 		logger:                        logger,
 		ciArtifactRepository:          ciArtifactRepository,
 		pipelineRepository:            pipelineRepository,
-		GitClient:                     GitClient,
 		dbMigrationConfigRepository:   dbMigrationConfigRepository,
 		eventClient:                   eventClient,
 		eventFactory:                  eventFactory,
@@ -153,6 +152,7 @@ func NewAppService(
 		imageScanDeployInfoRepository: imageScanDeployInfoRepository,
 		imageScanHistoryRepository:    imageScanHistoryRepository,
 		ArgoK8sClient:                 ArgoK8sClient,
+		gitFactory:                    gitFactory,
 	}
 	return appServiceImpl
 }
@@ -1052,7 +1052,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		ChartLocation:  envOverride.Chart.ChartLocation,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", override.Id, envOverride.TargetEnvironment),
 	}
-	commitHash, err := impl.GitClient.CommitValues(chartGitAttr)
+	commitHash, err := impl.gitFactory.Client.CommitValues(chartGitAttr)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return 0, 0, err
@@ -1162,7 +1162,7 @@ func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, en
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipelineName)
 
 		if application.Spec.Source.Path != envOverride.Chart.ChartLocation {
-			patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation , RepoURL: envOverride.Chart.GitRepoUrl}}}
+			patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl}}}
 			reqbyte, err := json.Marshal(patchReq)
 			if err != nil {
 				impl.logger.Errorw("error in creating patch", "err", err)

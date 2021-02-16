@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -37,6 +38,7 @@ type DockerRegRestHandler interface {
 	FetchOneDockerAccounts(w http.ResponseWriter, r *http.Request)
 	UpdateDockerRegistryConfig(w http.ResponseWriter, r *http.Request)
 	FetchAllDockerRegistryForAutocomplete(w http.ResponseWriter, r *http.Request)
+	IsDockerRegConfigured(w http.ResponseWriter, r *http.Request)
 }
 type DockerRegRestHandlerImpl struct {
 	dockerRegistryConfig pipeline.DockerRegistryConfig
@@ -221,4 +223,19 @@ func (impl DockerRegRestHandlerImpl) FetchAllDockerRegistryForAutocomplete(w htt
 	}
 
 	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (impl DockerRegRestHandlerImpl) IsDockerRegConfigured(w http.ResponseWriter, r *http.Request) {
+	isConfigured := false
+	res, err := impl.dockerRegistryConfig.ListAllActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("service err, IsDockerRegConfigured", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if res != nil && len(res) > 0 {
+		isConfigured = true
+	}
+
+	writeJsonResp(w, err, isConfigured, http.StatusOK)
 }

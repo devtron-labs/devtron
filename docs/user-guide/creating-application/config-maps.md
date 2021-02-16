@@ -1,6 +1,6 @@
 # Config Maps
 
-The ConfigMap API resource holds key-value pairs of configuration data that can be consumed in pods or used to store configuration data for system components such as controllers. ConfigMap is similar to Secrets, but designed to more conveniently support working with strings that do not contain sensitive information.
+The ConfigMap API resource holds key-value pairs of the  configuration data that can be consumed by pods or used to store configuration data for system components such as controllers. ConfigMap is similar to Secrets, but designed to more conveniently support working with strings that do not contain sensitive information.
 
 Click on `Add ConfigMap` to add a config map to your application.
 
@@ -8,29 +8,28 @@ Click on `Add ConfigMap` to add a config map to your application.
 
 ## Configure the ConfigMap
 
-You can configure the configmap in two way-
+You can configure a configmap in two ways-
 
 \(a\) Using data type **Kubernetes ConfigMap**
 
 \(b\) Using data type **Kubernetes External ConfigMap**
 
-### \(A\) Using Kubernetes ConfigMap
 
 | Key | Description |
 | :--- | :--- |
-| `Data Type(Kubernetes ConfigMap)` | Select data type from Kubernetes ConfigMap and Kubernetes External ConfigMap |
+| `Data Type (Kubernetes ConfigMap)` | Select your preferred data type for Kubernetes ConfigMap or Kubernetes External ConfigMap |
 | `Name` | Provide a name to this ConfigMap. |
 | `Use configmap as Environment Variable` | Select this option if you want to inject Environment Variables in pods using ConfigMap. |
-| `Use configmap as Data Volume` | Select this option, if you want to configure any Data Volume that is accessible to Containers running in a pod and provide a Volume mount path. |
+| `Use configmap as Data Volume` | Select this option, if you want to configure a Data Volume that is accessible to Containers running in a pod and provide a Volume mount path. |
 | `Key-Value` | Provide the actual key-value configuration data here. Key and corresponding value to the provided key. |
 
 ![](../../.gitbook/assets/config1%20%282%29.jpg)
 
+### \(A\) Using Kubernetes ConfigMap
+
 **1. Data Type**
 
-Select the Data Type as `Kubernetes ConfigMap`, if you wish to use the ConfigMap created by Devtron. You can select `Kubernetes External ConfigMap` if you have created a ConfigMap using the Kubectl command.
-
-By default, the data type is selected to `Kubernetes ConfigMap`.
+Select the Data Type as `Kubernetes ConfigMap`, if you wish to use the ConfigMap created by Devtron.
 
 **2. Name**
 
@@ -38,19 +37,19 @@ Provide a name to your configmap.
 
 **3. Use ConfigMap as**
 
-Here we are providing two options, one can select any of them as per the requirement
+Here we are providing two options, one can select any of them as per your requirement
 
 -`Environment Variable` as part of your configMap or you want to add `Data Volume` to your container using Config Map.
 
 * Environment Variable
 
-Select this option if you want to add Environment Variables as part of configMap. You can provide Environment Variable in key-value pairs, which can be seen and accessed inside a pod.
+Select this option if you want to add Environment Variables as a part of configMap. You can provide Environment Variables in key-value pairs, which can be seen and accessed inside a pod.
 
 * Data Volume
 
-Select this option if you want to add `Data Volume` to your container using Config Map.
+Select this option if you want to add a `Data Volume` to your container using the Config Map.
 
-Key-value pairs that you provide here, are provided as a file to the mount path. Your application will read this file as it reads the file.
+Key-value pairs that you provide here, are provided as a file to the mount path. Your application will read this file and collect the required data as configured.
 
 **4. Data**
 
@@ -58,7 +57,7 @@ In the `Data` section, you provide your configmap in key-value pairs. You can pr
 
 You can provide variables in two ways-
 
-* YAML\(raw data\)
+* YAML \(raw data\)
 * GUI \(more user friendly\)
 
 Once you have provided the config, You can click on any option-`YAML` or `GUI` to view the key and Value parameters of the ConfigMap.
@@ -87,7 +86,11 @@ You can click on `YAML` or `GUI` to view the key and Value parameters of the Con
 
 You can click on `Save ConfigMap` to save the configMap.
 
-## Kubernetes External ConfigMap
+### \(B\) Kubernetes External ConfigMap
+
+You can select `Kubernetes External ConfigMap` in the `data type` field if you have created a ConfigMap using the Kubectl command.
+
+By default, the data type is set to `Kubernetes ConfigMap`.
 
 Kubernetes External ConfigMap is created using the `kubectl create configmap` command. You can also use the ConfigMap generator in `kustomization.yaml` to create a ConfigMap.
 
