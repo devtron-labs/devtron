@@ -56,30 +56,30 @@ if !gitToken {
 	log("gitToken is mandatory");
 }
 
-argocd_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/argocd.yaml';
-clair_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/clair.yaml';
-clairConfig_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/clair-config.yaml';
-dashboard_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/dashboard.yaml';
-gitSensor_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/gitsensor.yaml';
-guard_raw_ = REPO_RAW_URL+LTAG+'/manifests/yamls/guard.yaml';
-postgresql_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/postgresql.yaml';
-imageScanner_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/image-scanner.yaml';
-kubewatch_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/kubewatch.yaml';
-lens_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/lens.yaml';
-migrator_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/migrator.yaml';
-natsOperator_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/nats-operator.yaml';
-natsServer_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/nats-server.yaml';
-natsStreaming_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/nats-streaming.yaml';
-notifier_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/notifier.yaml';
-devtron_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/devtron.yaml';
-devtronDexIngress_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/devtron-dex-ingress.yaml';
-workflow_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/workflow.yaml';
-serviceAccount_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/serviceaccount.yaml';
-namespace_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/namespace.yaml';
-externalSecret_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/external-secret.yaml';
-grafana_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/grafana.yaml';
-rollout_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/rollout.yaml';
-minio_raw = REPO_RAW_URL+LTAG+'/manifests/yamls/minio.yaml';
+argocd_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/argocd.yaml";
+clair_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/clair.yaml";
+clairConfig_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/clair-config.yaml";
+dashboard_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/dashboard.yaml";
+gitSensor_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/gitsensor.yaml";
+guard_raw_ = REPO_RAW_URL + LTAG + "/manifests/yamls/guard.yaml";
+postgresql_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/postgresql.yaml";
+imageScanner_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/image-scanner.yaml";
+kubewatch_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/kubewatch.yaml";
+lens_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/lens.yaml";
+migrator_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/migrator.yaml";
+natsOperator_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-operator.yaml";
+natsServer_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-server.yaml";
+natsStreaming_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-streaming.yaml";
+notifier_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/notifier.yaml";
+devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
+devtronDexIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-dex-ingress.yaml";
+workflow_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/workflow.yaml";
+serviceAccount_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/serviceaccount.yaml";
+namespace_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/namespace.yaml";
+externalSecret_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/external-secret.yaml";
+grafana_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/grafana.yaml";
+rollout_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/rollout.yaml";
+minio_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/minio.yaml";
 
 
 
@@ -111,26 +111,26 @@ rollout = download(rollout_raw);
 minio = download(minio_raw);
 
 
-postgreswl_raw= REPO_RAW_URL+LTAG+'/manifests/updates/postgresql.yaml';
-argocdOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/argocd.yaml';
-devtronOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/devtron.yaml';
-gitSensorOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/gitsensor.yaml';
-imageScannerOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/image-scanner.yaml';
-lensOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/lens.yaml';
-notifierOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/notifier.yaml';
-clairOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/clair.yaml';
-dashboardOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/dashboard.yaml';
-guardOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/guard.yaml';
-kubewatchOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/kubewatch.yaml';
-migratorOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/migrator.yaml';
-natsOperatorOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/nats-operator.yaml';
-natsServerOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/nats-server.yaml';
-natsStreamingOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/nats-streaming.yaml';
-devtronDexIngressOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/yamls/devtron-dex-ingress.yaml';
-workflowOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/workflow.yaml';
-externalSecretOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/external-secret.yaml';
-grafanaOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/grafana.yaml';
-rolloutOverride_raw = REPO_RAW_URL+LTAG+'/manifests/updates/rollout.yaml';
+postgreswl_raw= REPO_RAW_URL + LTAG + "/manifests/updates/postgresql.yaml";
+argocdOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/argocd.yaml";
+devtronOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/devtron.yaml";
+gitSensorOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/gitsensor.yaml";
+imageScannerOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/image-scanner.yaml";
+lensOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/lens.yaml";
+notifierOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/notifier.yaml";
+clairOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/clair.yaml";
+dashboardOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/dashboard.yaml";
+guardOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/guard.yaml";
+kubewatchOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/kubewatch.yaml";
+migratorOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/migrator.yaml";
+natsOperatorOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/nats-operator.yaml";
+natsServerOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/nats-server.yaml";
+natsStreamingOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/nats-streaming.yaml";
+devtronDexIngressOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/yamls/devtron-dex-ingress.yaml";
+workflowOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/workflow.yaml";
+externalSecretOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/external-secret.yaml";
+grafanaOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/grafana.yaml";
+rolloutOverride_raw = REPO_RAW_URL + LTAG + "/manifests/updates/rollout.yaml";
 
 
 
@@ -370,9 +370,9 @@ makeCertsDir = `#!/bin/bash
 mkdir -p /tmp/certs`;
 makeCertsDir = shellScript makeCertsDir;
 
-certGen_raw = REPO_RAW_URL+LTAG+'/generate_certificate.sh';
-grumpyConfig_raw = REPO_RAW_URL+LTAG+'/grumpy_config.txt';
-caConfig_raw = REPO_RAW_URL+LTAG+'/ca_config.txt';
+certGen_raw = REPO_RAW_URL + LTAG + "/generate_certificate.sh";
+grumpyConfig_raw = REPO_RAW_URL + LTAG + "/grumpy_config.txt";
+caConfig_raw = REPO_RAW_URL + LTAG + "/ca_config.txt";
 
 
 certGen = download(certGen_raw);
