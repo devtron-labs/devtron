@@ -17,11 +17,11 @@ Data is presented in form of graphs as well as the tabular format.
 
 Length of `time interval` will depend on the date range selected by user. If date range is more than 30 days, interval will be 7 days long otherwise it will 1 day long.
 
-###### Additional info
+#### Additional info
 Users are provided with additional metrics to give an idea where his performance stands. They are given well defined categories namely elite, high, medium and low, and each category has a benchmark that tells you what should user be targeting next. 
 
 ## Deployments
 This is the same data on which the graphs have been created, presented in tabular format. 
 
-###### Read more
+#### Read more
 [Case study on deployment metrics](https://devtron.ai/blog/a-case-study-of-designing-dashboards-to-optimize-agile-process/)
