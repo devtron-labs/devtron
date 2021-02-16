@@ -54,53 +54,106 @@ if !gitToken {
 	log("gitToken is mandatory");
 }
 
-argocd = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/argocd.yaml");
-clair = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/clair.yaml");
-clairConfig = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/clair-config.yaml");
-dashboard = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/dashboard.yaml");
-gitSensor = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/gitsensor.yaml");
-guard = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/guard.yaml");
-postgresql = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/postgresql.yaml");
-imageScanner = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/image-scanner.yaml");
-kubewatch = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/kubewatch.yaml");
-lens = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/lens.yaml");
-migrator = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/migrator.yaml");
-natsOperator = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/nats-operator.yaml");
-natsServer = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/nats-server.yaml");
-natsStreaming = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/nats-streaming.yaml");
-notifier = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/notifier.yaml");
-devtron = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/devtron.yaml");
-devtronDexIngress = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/devtron-dex-ingress.yaml");
-workflow = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/workflow.yaml");
-serviceAccount = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/serviceaccount.yaml");
-namespace = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/namespace.yaml");
-externalSecret = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/external-secret.yaml");
-grafana = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/grafana.yaml");
-rollout = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/rollout.yaml");
-minio = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/yamls/minio.yaml");
+argocd_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/argocd.yaml";
+clair_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/clair.yaml";
+clairConfig_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/clair-config.yaml";
+dashboard_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/dashboard.yaml";
+gitSensor_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/gitsensor.yaml";
+guard_raw_ = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/guard.yaml";
+postgresql_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/postgresql.yaml";
+imageScanner_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/image-scanner.yaml";
+kubewatch_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/kubewatch.yaml";
+lens_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/lens.yaml";
+migrator_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/migrator.yaml";
+natsOperator_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/nats-operator.yaml";
+natsServer_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/nats-server.yaml";
+natsStreaming_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/nats-streaming.yaml";
+notifier_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/notifier.yaml";
+devtron_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/devtron.yaml";
+devtronDexIngress_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/devtron-dex-ingress.yaml";
+workflow_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/workflow.yaml";
+serviceAccount_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/serviceaccount.yaml";
+namespace_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/namespace.yaml";
+externalSecret_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/external-secret.yaml";
+grafana_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/grafana.yaml";
+rollout_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/rollout.yaml";
+minio_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/yamls/minio.yaml";
 
-postgresqlOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/postgresql.yaml");
-argocdOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/argocd.yaml");
-devtronOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/devtron.yaml");
-gitSensorOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/gitsensor.yaml");
-imageScannerOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/image-scanner.yaml");
-lensOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/lens.yaml");
-notifierOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/notifier.yaml");
-clairOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/clair.yaml");
-dashboardOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/dashboard.yaml");
-guardOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/guard.yaml");
-kubewatchOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/kubewatch.yaml");
-migratorOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/migrator.yaml");
-natsOperatorOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/nats-operator.yaml");
-natsServerOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/nats-server.yaml");
-natsStreamingOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/nats-streaming.yaml");
 
-devtronDexIngressOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/yamls/devtron-dex-ingress.yaml");
 
-workflowOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/workflow.yaml");
-externalSecretOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/external-secret.yaml");
-grafanaOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/grafana.yaml");
-rolloutOverride = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/$LTAG/manifests/updates/rollout.yaml");
+
+
+argocd = download(argocd_raw);
+clair = download(clair_raw);
+clairConfig = download(clairConfig_raw);
+dashboard = download(dashboard_raw);
+gitSensor = download(gitSensor_raw);
+guard = download(guard_raw);
+postgresql = download(postgresql_raw);
+imageScanner = download(imageScanner_raw);
+kubewatch = download(kubewatch_raw);
+lens = download(lens_raw);
+migrator = download(migrator_raw);
+natsOperator = download(natsOperator_raw);
+natsServer = download(natsServer_raw);
+natsStreaming = download(natsStreaming_raw);
+notifier = download(notifier_raw);
+devtron = download(devtron_raw);
+devtronDexIngress = download(devtronDexIngress_raw);
+workflow = download(workflow_raw);
+serviceAccount = download(serviceAccount_raw);
+namespace = download(namespace_raw);
+externalSecret = download(externalSecret_raw);
+grafana = download(grafana_raw);
+rollout = download(rollout_raw);
+minio = download(minio_raw);
+
+
+postgreswl_raw= "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/postgresql.yaml";
+argocdOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/argocd.yaml";
+devtronOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/devtron.yaml";
+gitSensorOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/gitsensor.yaml";
+imageScannerOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/image-scanner.yaml";
+lensOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/lens.yaml";
+notifierOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/notifier.yaml";
+clairOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/clair.yaml";
+dashboardOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/dashboard.yaml";
+guardOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/guard.yaml";
+kubewatchOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/kubewatch.yaml";
+migratorOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/migrator.yaml";
+natsOperatorOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/nats-operator.yaml";
+natsServerOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/nats-server.yaml";
+natsStreamingOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/nats-streaming.yaml";
+devtronDexIngressOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/yamls/devtron-dex-ingress.yaml";
+workflowOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/workflow.yaml";
+externalSecretOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/external-secret.yaml";
+grafanaOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/grafana.yaml";
+rolloutOverride_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/manifests/updates/rollout.yaml";
+
+
+
+
+
+postgresqlOverride = download(postgreswl_raw);
+argocdOverride = download(argocdOverride_raw);
+devtronOverride = download(devtronOverride_raw);
+gitSensorOverride = download(gitSensorOverride_raw);
+imageScannerOverride = download(imageScannerOverride_raw);
+lensOverride = download(lensOverride_raw);
+notifierOverride = download(notifierOverride_raw);
+clairOverride = download(clairOverride_raw);
+dashboardOverride = download(dashboardOverride_raw);
+guardOverride = download(guardOverride_raw);
+kubewatchOverride = download(kubewatchOverride_raw);
+migratorOverride = download(migratorOverride_raw);
+natsOperatorOverride = download(natsOperatorOverride_raw);
+natsServerOverride = download(natsServerOverride_raw);
+natsStreamingOverride = download(natsStreamingOverride_raw);
+devtronDexIngressOverride = download(devtronDexIngressOverride_raw);
+workflowOverride = download(workflowOverride_raw);
+externalSecretOverride = download(externalSecretOverride_raw);
+grafanaOverride = download(grafanaOverride_raw);
+rolloutOverride = download(rolloutOverride_raw);
 
 #grafana
 grafanaSecret = kubectl get -n devtroncd secret devtron-grafana-cred-secret;
@@ -314,9 +367,15 @@ log("executed nats streaming setup");
 makeCertsDir = `#!/bin/bash
 mkdir -p /tmp/certs`;
 makeCertsDir = shellScript makeCertsDir;
-certGen = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/current_tag/generate_certificate.sh");
-grumpyConfig = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/current_tag/grumpy_config.txt", "/tmp/certs/grumpy_config.txt");
-caConfig = download("https://raw.githubusercontent.com/prakarsh-dt/devtron/current_tag/ca_config.txt", "/tmp/certs/ca_config.txt");
+
+certGen_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/generate_certificate.sh";
+grumpyConfig_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/grumpy_config.txt";
+caConfig_raw = "https://raw.githubusercontent.com/prakarsh-dt/devtron/"+LTAG+"/ca_config.txt";
+
+
+certGen = download(certGen_raw);
+grumpyConfig = download(grumpyConfig_raw, "/tmp/certs/grumpy_config.txt");
+caConfig = download(caConfig_raw, "/tmp/certs/ca_config.txt");
 certs = shellScript certGen;
 crt = base64EncoderPrefix + "cat /tmp/certs/grumpy-crt.pem" + base64EncoderSuffix;
 crt = shellScript crt;
