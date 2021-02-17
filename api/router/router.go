@@ -67,6 +67,7 @@ type MuxRouter struct {
 	imageScanRouter                  ImageScanRouter
 	policyRouter                     PolicyRouter
 	gitOpsConfigRouter               GitOpsConfigRouter
+	attributesRouter                 AttributesRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -84,7 +85,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter AppStoreRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
-	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter) *MuxRouter {
+	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, attributesRouter AttributesRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -123,6 +124,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		imageScanRouter:                  imageScanRouter,
 		policyRouter:                     policyRouter,
 		gitOpsConfigRouter:               gitOpsConfigRouter,
+		attributesRouter:                 attributesRouter,
 	}
 	return r
 }
@@ -225,4 +227,7 @@ func (r MuxRouter) Init() {
 
 	gitOpsRouter := r.Router.PathPrefix("/gitops").Subrouter()
 	r.gitOpsConfigRouter.InitGitOpsConfigRouter(gitOpsRouter)
+
+	attributeRouter := r.Router.PathPrefix("/attributes").Subrouter()
+	r.attributesRouter.initAttributesRouter(attributeRouter)
 }
