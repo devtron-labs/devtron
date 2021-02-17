@@ -27,10 +27,10 @@ type AttributesRouter interface {
 }
 
 type AttributesRouterImpl struct {
-	attributesRestHandler restHandler.AttributesRestHandlerImpl
+	attributesRestHandler restHandler.AttributesRestHandler
 }
 
-func NewAttributesRouterImpl(attributesRestHandler restHandler.AttributesRestHandlerImpl) *AttributesRouterImpl {
+func NewAttributesRouterImpl(attributesRestHandler restHandler.AttributesRestHandler) *AttributesRouterImpl {
 	router := &AttributesRouterImpl{
 		attributesRestHandler: attributesRestHandler,
 	}
