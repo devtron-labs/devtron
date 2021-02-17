@@ -211,15 +211,15 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 		writeJsonResp(w, err, "Failed to get by id", http.StatusInternalServerError)
 		return
 	}
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("service err, GetById", "err", err, "id", id)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
+
+	isActionUserSuperAdmin:=false
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); ok {
+		isActionUserSuperAdmin=true
 	}
+
 	// NOTE: if no role assigned, user will be visible to all manager.
 	// RBAC enforcer applying
-	token := r.Header.Get("token")
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
 		authPass := false
 		for _, filter := range res.RoleFilters {

@@ -504,18 +504,6 @@ func (handler UserAuthHandlerImpl) CreateSSOLoginConfig(w http.ResponseWriter, r
 		return
 	}
 
-	/*isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, CreateSSOLoginConfig", "err", err, "userId", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
-	if !isActionUserSuperAdmin {
-		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
-		writeJsonResp(w, err, "", http.StatusForbidden)
-		return
-	}*/
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
 		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -547,18 +535,6 @@ func (handler UserAuthHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r
 		return
 	}
 
-	/*isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, UpdateSSOLoginConfig", "err", err, "userId", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
-	if !isActionUserSuperAdmin {
-		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
-		writeJsonResp(w, err, "", http.StatusForbidden)
-		return
-	}*/
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionUpdate, "*"); !ok {
 		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -600,18 +576,6 @@ func (handler UserAuthHandlerImpl) GetSSOLoginConfig(w http.ResponseWriter, r *h
 		return
 	}
 
-	/*isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, GetSSOLoginConfig", "err", err, "userId", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
-	if !isActionUserSuperAdmin {
-		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
-		writeJsonResp(w, err, "", http.StatusForbidden)
-		return
-	}*/
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
 		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -634,20 +598,6 @@ func (handler UserAuthHandlerImpl) GetSSOLoginConfigByName(w http.ResponseWriter
 		return
 	}
 
-	/*
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, GetSSOLoginConfigByName", "err", err, "userId", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
-	if !isActionUserSuperAdmin {
-		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
-		writeJsonResp(w, err, "", http.StatusForbidden)
-		return
-	}
-    */
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
 		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)

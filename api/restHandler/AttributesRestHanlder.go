@@ -69,18 +69,6 @@ func (handler AttributesRestHandlerImpl) AddAttributes(w http.ResponseWriter, r 
 		return
 	}
 
-	/*isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, AddAttributes", "err", err, "userId", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
-	if !isActionUserSuperAdmin {
-		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
-		writeJsonResp(w, err, "", http.StatusForbidden)
-		return
-	}*/
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
 		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -113,18 +101,6 @@ func (handler AttributesRestHandlerImpl) UpdateAttributes(w http.ResponseWriter,
 		return
 	}
 
-	/*isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, UpdateAttributes", "err", err, "userId", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
-	if !isActionUserSuperAdmin {
-		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
-		writeJsonResp(w, err, "", http.StatusForbidden)
-		return
-	}*/
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionUpdate, "*"); !ok {
 		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -147,18 +123,6 @@ func (handler AttributesRestHandlerImpl) GetAttributesById(w http.ResponseWriter
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	/*isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, GetAttributesById", "err", err, "userId", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
-	if !isActionUserSuperAdmin {
-		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
-		writeJsonResp(w, err, "", http.StatusForbidden)
-		return
-	}*/
 
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
@@ -187,18 +151,6 @@ func (handler AttributesRestHandlerImpl) GetAttributesActiveList(w http.Response
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	/*isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, GetHostUrlActive", "err", err, "userId", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
-	if !isActionUserSuperAdmin {
-		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
-		writeJsonResp(w, err, "", http.StatusForbidden)
-		return
-	}*/
 
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
@@ -221,24 +173,12 @@ func (handler AttributesRestHandlerImpl) GetAttributesByKey(w http.ResponseWrite
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	/*isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, GetAttributesById", "err", err, "userId", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
 
-	if !isActionUserSuperAdmin {
-		err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to perform operation"}
-		writeJsonResp(w, err, "", http.StatusForbidden)
-		return
-	}*/
-
-	token := r.Header.Get("token")
+	/*token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
 		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
-	}
+	}*/
 
 	vars := mux.Vars(r)
 	key := vars["key"]
