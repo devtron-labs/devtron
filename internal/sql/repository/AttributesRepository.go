@@ -36,7 +36,7 @@ type AttributesRepository interface {
 	Update(model *Attributes, tx *pg.Tx) error
 	FindByKey(key string) (*Attributes, error)
 	FindById(id int) (*Attributes, error)
-	FindActive() ([]*Attributes, error)
+	FindActiveList() ([]*Attributes, error)
 	GetConnection() (dbConnection *pg.DB)
 }
 
@@ -58,7 +58,7 @@ func (repo AttributesRepositoryImpl) Save(model *Attributes, tx *pg.Tx) (*Attrib
 }
 
 func (repo AttributesRepositoryImpl) Update(model *Attributes, tx *pg.Tx) error {
-	err := tx.Insert(model)
+	err := tx.Update(model)
 	return err
 }
 
@@ -76,9 +76,9 @@ func (repo AttributesRepositoryImpl) FindById(id int) (*Attributes, error) {
 	return model, err
 }
 
-func (repo AttributesRepositoryImpl) FindActive() ([]*Attributes, error) {
+func (repo AttributesRepositoryImpl) FindActiveList() ([]*Attributes, error) {
 	var models []*Attributes
-	err := repo.dbConnection.Model(models).Where("active = ?", true).
+	err := repo.dbConnection.Model(&models).Where("active = ?", true).
 		Select()
 	return models, err
 }

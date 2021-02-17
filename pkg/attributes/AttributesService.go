@@ -117,16 +117,14 @@ func (impl AttributesServiceImpl) UpdateAttributes(request *AttributesDto) (*Att
 		return nil, err
 	}
 
-	model = &repository.Attributes{
-		Key:   request.Key,
-		Value: request.Value,
-	}
+	model.Key = request.Key
+	model.Value = request.Value
 	model.Active = true
 	model.CreatedBy = request.UserId
 	model.UpdatedBy = request.UserId
 	model.CreatedOn = time.Now()
 	model.UpdatedOn = time.Now()
-	_, err = impl.attributesRepository.Save(model, tx)
+	err = impl.attributesRepository.Update(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating new host url", "error", err)
 		return nil, err
@@ -158,7 +156,7 @@ func (impl AttributesServiceImpl) GetById(id int) (*AttributesDto, error) {
 }
 
 func (impl AttributesServiceImpl) GetActiveList() ([]*AttributesDto, error) {
-	models, err := impl.attributesRepository.FindActive()
+	models, err := impl.attributesRepository.FindActiveList()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
