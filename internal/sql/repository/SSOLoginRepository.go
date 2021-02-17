@@ -62,7 +62,6 @@ type SSOLoginModel struct {
 func (impl SSOLoginRepositoryImpl) Create(userModel *SSOLoginModel, tx *pg.Tx) (*SSOLoginModel, error) {
 	err := tx.Insert(userModel)
 	if err != nil {
-		impl.Logger.Error(err)
 		return userModel, err
 	}
 	return userModel, nil
@@ -70,7 +69,6 @@ func (impl SSOLoginRepositoryImpl) Create(userModel *SSOLoginModel, tx *pg.Tx) (
 func (impl SSOLoginRepositoryImpl) Update(userModel *SSOLoginModel, tx *pg.Tx) (*SSOLoginModel, error) {
 	err := tx.Update(userModel)
 	if err != nil {
-		impl.Logger.Error(err)
 		return userModel, err
 	}
 
