@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
@@ -150,16 +151,25 @@ type SecureJsonData struct {
 }
 
 type GrafanaClientImpl struct {
-	logger *zap.SugaredLogger
-	client *http.Client
-	config *GrafanaClientConfig
+	logger            *zap.SugaredLogger
+	client            *http.Client
+	config            *GrafanaClientConfig
+	attributesService attributes.AttributesService
 }
 
-func NewGrafanaClientImpl(logger *zap.SugaredLogger, client *http.Client, config *GrafanaClientConfig) *GrafanaClientImpl {
-	return &GrafanaClientImpl{logger: logger, client: client, config: config}
+func NewGrafanaClientImpl(logger *zap.SugaredLogger, client *http.Client, config *GrafanaClientConfig, attributesService attributes.AttributesService) *GrafanaClientImpl {
+	return &GrafanaClientImpl{logger: logger, client: client, config: config, attributesService: attributesService}
 }
 
 func (impl *GrafanaClientImpl) GetAllDatasource() ([]*GetPrometheusDatasourceResponse, error) {
+	hostUrl, err := impl.attributesService.GetByKey("url")
+	if err != nil {
+		return nil, err
+	}
+	if hostUrl == nil && len(impl.config.DestinationURL) == 0 {
+		return nil, fmt.Errorf("there is no hosturl found in db or env variable")
+	}
+	impl.config.DestinationURL = hostUrl.Value
 	url := fmt.Sprintf(impl.config.DestinationURL+PromDatasource, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -195,6 +205,14 @@ func (impl *GrafanaClientImpl) GetAllDatasource() ([]*GetPrometheusDatasourceRes
 }
 
 func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDatasourceResponse, error) {
+	hostUrl, err := impl.attributesService.GetByKey("url")
+	if err != nil {
+		return nil, err
+	}
+	if hostUrl == nil && len(impl.config.DestinationURL) == 0 {
+		return nil, fmt.Errorf("there is no hosturl found in db or env variable")
+	}
+	impl.config.DestinationURL = hostUrl.Value
 	url := fmt.Sprintf(impl.config.DestinationURL+GetPromDatasource, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -229,6 +247,14 @@ func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDa
 }
 
 func (impl *GrafanaClientImpl) UpdateDatasource(updateDatasourceRequest UpdateDatasourceRequest, datasourceId int) (*DatasourceResponse, error) {
+	hostUrl, err := impl.attributesService.GetByKey("url")
+	if err != nil {
+		return nil, err
+	}
+	if hostUrl == nil && len(impl.config.DestinationURL) == 0 {
+		return nil, fmt.Errorf("there is no hosturl found in db or env variable")
+	}
+	impl.config.DestinationURL = hostUrl.Value
 	updateDatasourceRequest.OrgId = impl.config.GrafanaOrgId
 	body, err := json.Marshal(updateDatasourceRequest)
 	if err != nil {
@@ -272,6 +298,14 @@ func (impl *GrafanaClientImpl) UpdateDatasource(updateDatasourceRequest UpdateDa
 }
 
 func (impl *GrafanaClientImpl) deleteDatasource(updateDatasourceRequest CreateDatasourceRequest, datasourceId int) (*DatasourceResponse, error) {
+	hostUrl, err := impl.attributesService.GetByKey("url")
+	if err != nil {
+		return nil, err
+	}
+	if hostUrl == nil && len(impl.config.DestinationURL) == 0 {
+		return nil, fmt.Errorf("there is no hosturl found in db or env variable")
+	}
+	impl.config.DestinationURL = hostUrl.Value
 	body, err := json.Marshal(updateDatasourceRequest)
 	if err != nil {
 		impl.logger.Errorw("error while marshaling request ", "err", err)
@@ -314,6 +348,15 @@ func (impl *GrafanaClientImpl) deleteDatasource(updateDatasourceRequest CreateDa
 }
 
 func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDatasourceRequest) (*DatasourceResponse, error) {
+	hostUrl, err := impl.attributesService.GetByKey("url")
+	if err != nil {
+		return nil, err
+	}
+	if hostUrl == nil && len(impl.config.DestinationURL) == 0 {
+		return nil, fmt.Errorf("there is no hosturl found in db or env variable")
+	}
+	impl.config.DestinationURL = hostUrl.Value
+
 	body, err := json.Marshal(createDatasourceRequest)
 	if err != nil {
 		impl.logger.Errorw("error while marshaling request ", "err", err)
