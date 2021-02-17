@@ -29,6 +29,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type GrafanaClientConfig struct {
@@ -172,7 +173,8 @@ func (impl *GrafanaClientImpl) GetAllDatasource() ([]*GetPrometheusDatasourceRes
 		}
 		impl.config.DestinationURL = hostUrl.Value
 	}
-	url := fmt.Sprintf(impl.config.DestinationURL+PromDatasource, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
+	url := strings.ReplaceAll(impl.config.DestinationURL, "//", "//%s:%s") + PromDatasource
+	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		impl.logger.Errorw("error while fetching data source", "err", err)
@@ -217,7 +219,8 @@ func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDa
 		}
 		impl.config.DestinationURL = hostUrl.Value
 	}
-	url := fmt.Sprintf(impl.config.DestinationURL+GetPromDatasource, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
+	url := strings.ReplaceAll(impl.config.DestinationURL, "//", "//%s:%s") + GetPromDatasource
+	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		impl.logger.Errorw("error while fetching data source", "err", err)
@@ -268,7 +271,8 @@ func (impl *GrafanaClientImpl) UpdateDatasource(updateDatasourceRequest UpdateDa
 		return nil, err
 	}
 	var reqBody = []byte(body)
-	url := fmt.Sprintf(impl.config.DestinationURL+UpdatePromDatasource, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
+	url := strings.ReplaceAll(impl.config.DestinationURL, "//", "//%s:%s") + UpdatePromDatasource
+	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		impl.logger.Errorw("error while updating data source", "err", err)
@@ -320,7 +324,8 @@ func (impl *GrafanaClientImpl) deleteDatasource(updateDatasourceRequest CreateDa
 		return nil, err
 	}
 	var reqBody = []byte(body)
-	url := fmt.Sprintf(impl.config.DestinationURL+DeletePromDatasource, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
+	url := strings.ReplaceAll(impl.config.DestinationURL, "//", "//%s:%s") + DeletePromDatasource
+	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
 	req, err := http.NewRequest(http.MethodDelete, url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		impl.logger.Errorw("error while updating data source", "err", err)
@@ -373,7 +378,8 @@ func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDa
 		return nil, err
 	}
 	var reqBody = []byte(body)
-	url := fmt.Sprintf(impl.config.DestinationURL, impl.config.GrafanaUsername, impl.config.GrafanaPassword) + AddPromDatasource
+	url := strings.ReplaceAll(impl.config.DestinationURL, "//", "//%s:%s") + AddPromDatasource
+	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(reqBody))
 	req.Header.Set("X-Grafana-Org-Id", strconv.Itoa(impl.config.GrafanaOrgId))
 	if err != nil {
