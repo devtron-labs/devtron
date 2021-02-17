@@ -338,14 +338,17 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		return nil, err
 	}
 
-	hostUrl, err := impl.attributesService.GetByKey("url")
-	if err != nil {
-		return nil, err
+	if len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			return nil, err
+		}
+		if hostUrl == nil {
+			impl.logger.Errorw("there is no external ci webhook url configured", "appId", appId)
+			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
+		}
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/orchestrator/webhook/ext-ci", hostUrl.Value)
 	}
-	if hostUrl == nil && len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
-		return nil, fmt.Errorf("there is no hosturl found in db or env variable")
-	}
-	impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/orchestrator/webhook/ext-ci", hostUrl.Value)
 
 	var ciPipelineResp []*bean.CiPipeline
 	for _, pipeline := range pipelines {
@@ -1966,14 +1969,18 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		}
 	}
 
-	hostUrl, err := impl.attributesService.GetByKey("url")
-	if err != nil {
-		return nil, err
+	if len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", pipeline)
+			return nil, err
+		}
+		if hostUrl == nil {
+			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", pipeline)
+			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
+		}
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/orchestrator/webhook/ext-ci", hostUrl.Value)
 	}
-	if hostUrl == nil && len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
-		return nil, fmt.Errorf("there is no hosturl found in db or env variable")
-	}
-	impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/orchestrator/webhook/ext-ci", hostUrl.Value)
 
 	var externalCiConfig bean.ExternalCiConfig
 	if pipeline.ExternalCiPipeline != nil {

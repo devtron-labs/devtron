@@ -552,14 +552,18 @@ func (impl DbPipelineOrchestratorImpl) generateApiKey(ciPipelineId int, ciPipeli
 }
 
 func (impl DbPipelineOrchestratorImpl) generateExternalCiPayload(ciPipeline *bean.CiPipeline, externalCiPipeline *pipelineConfig.ExternalCiPipeline, keyPrefix string, apiKey string) *bean.CiPipeline {
-	hostUrl, err := impl.attributesService.GetByKey("url")
-	if err != nil {
-		return nil
+	if len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", ciPipeline)
+			return nil
+		}
+		if hostUrl == nil {
+			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", ciPipeline)
+			return nil
+		}
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/orchestrator/webhook/ext-ci", hostUrl.Value)
 	}
-	if hostUrl == nil && len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
-		return nil
-	}
-	impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/orchestrator/webhook/ext-ci", hostUrl.Value)
 	accessKey := keyPrefix + "." + apiKey
 	ciPipeline.ExternalCiConfig = bean.ExternalCiConfig{
 		WebhookUrl: impl.ciConfig.ExternalCiWebhookUrl,

@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	util "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 	"net/http"
@@ -193,8 +194,9 @@ func (impl *EventRESTClientImpl) WriteEvent(event Event) (bool, error) {
 		isPostStageExist = true
 	}
 
-	attribute, err := impl.attributesRepository.FindByKey("url")
+	attribute, err := impl.attributesRepository.FindByKey(attributes.HostUrlKey)
 	if err != nil {
+		impl.logger.Errorw("there is host url configured", "ci pipeline", ciPipeline)
 		return false, err
 	}
 	event.BaseUrl = attribute.Value
