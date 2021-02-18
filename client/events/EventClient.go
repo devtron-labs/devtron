@@ -199,8 +199,9 @@ func (impl *EventRESTClientImpl) WriteEvent(event Event) (bool, error) {
 		impl.logger.Errorw("there is host url configured", "ci pipeline", ciPipeline)
 		return false, err
 	}
-	event.BaseUrl = attribute.Value
-
+	if attribute != nil {
+		event.BaseUrl = attribute.Value
+	}
 	if event.CdWorkflowType == "" {
 		_, err = impl.SendEvent(event)
 	} else if event.CdWorkflowType == bean.CD_WORKFLOW_TYPE_PRE {

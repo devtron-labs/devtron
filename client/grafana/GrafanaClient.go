@@ -168,10 +168,9 @@ func (impl *GrafanaClientImpl) GetAllDatasource() ([]*GetPrometheusDatasourceRes
 		if err != nil {
 			return nil, err
 		}
-		if hostUrl == nil {
-			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
+		if hostUrl != nil {
+			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 		}
-		impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 	}
 	url := impl.config.DestinationURL + PromDatasource
 	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
@@ -214,10 +213,9 @@ func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDa
 		if err != nil {
 			return nil, err
 		}
-		if hostUrl == nil {
-			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
+		if hostUrl != nil {
+			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 		}
-		impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 	}
 	url := impl.config.DestinationURL + GetPromDatasource
 	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
@@ -259,10 +257,9 @@ func (impl *GrafanaClientImpl) UpdateDatasource(updateDatasourceRequest UpdateDa
 		if err != nil {
 			return nil, err
 		}
-		if hostUrl == nil {
-			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
+		if hostUrl != nil {
+			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 		}
-		impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 	}
 	updateDatasourceRequest.OrgId = impl.config.GrafanaOrgId
 	body, err := json.Marshal(updateDatasourceRequest)
@@ -313,10 +310,9 @@ func (impl *GrafanaClientImpl) deleteDatasource(updateDatasourceRequest CreateDa
 		if err != nil {
 			return nil, err
 		}
-		if hostUrl == nil {
-			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
+		if hostUrl != nil {
+			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 		}
-		impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 	}
 	body, err := json.Marshal(updateDatasourceRequest)
 	if err != nil {
@@ -366,10 +362,9 @@ func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDa
 		if err != nil {
 			return nil, err
 		}
-		if hostUrl == nil {
-			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
+		if hostUrl != nil {
+			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 		}
-		impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 	}
 
 	body, err := json.Marshal(createDatasourceRequest)
