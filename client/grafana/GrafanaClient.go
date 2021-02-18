@@ -171,9 +171,9 @@ func (impl *GrafanaClientImpl) GetAllDatasource() ([]*GetPrometheusDatasourceRes
 		if hostUrl == nil {
 			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
 		}
-		impl.config.DestinationURL = hostUrl.Value
+		impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 	}
-	url := strings.ReplaceAll(impl.config.DestinationURL, "//", "//%s:%s") + PromDatasource
+	url := impl.config.DestinationURL + PromDatasource
 	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -217,9 +217,9 @@ func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDa
 		if hostUrl == nil {
 			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
 		}
-		impl.config.DestinationURL = hostUrl.Value
+		impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 	}
-	url := strings.ReplaceAll(impl.config.DestinationURL, "//", "//%s:%s") + GetPromDatasource
+	url := impl.config.DestinationURL + GetPromDatasource
 	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -262,7 +262,7 @@ func (impl *GrafanaClientImpl) UpdateDatasource(updateDatasourceRequest UpdateDa
 		if hostUrl == nil {
 			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
 		}
-		impl.config.DestinationURL = hostUrl.Value
+		impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 	}
 	updateDatasourceRequest.OrgId = impl.config.GrafanaOrgId
 	body, err := json.Marshal(updateDatasourceRequest)
@@ -271,7 +271,7 @@ func (impl *GrafanaClientImpl) UpdateDatasource(updateDatasourceRequest UpdateDa
 		return nil, err
 	}
 	var reqBody = []byte(body)
-	url := strings.ReplaceAll(impl.config.DestinationURL, "//", "//%s:%s") + UpdatePromDatasource
+	url := impl.config.DestinationURL + UpdatePromDatasource
 	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(reqBody))
 	if err != nil {
@@ -316,7 +316,7 @@ func (impl *GrafanaClientImpl) deleteDatasource(updateDatasourceRequest CreateDa
 		if hostUrl == nil {
 			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
 		}
-		impl.config.DestinationURL = hostUrl.Value
+		impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 	}
 	body, err := json.Marshal(updateDatasourceRequest)
 	if err != nil {
@@ -324,7 +324,7 @@ func (impl *GrafanaClientImpl) deleteDatasource(updateDatasourceRequest CreateDa
 		return nil, err
 	}
 	var reqBody = []byte(body)
-	url := strings.ReplaceAll(impl.config.DestinationURL, "//", "//%s:%s") + DeletePromDatasource
+	url := impl.config.DestinationURL + DeletePromDatasource
 	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
 	req, err := http.NewRequest(http.MethodDelete, url, bytes.NewBuffer(reqBody))
 	if err != nil {
@@ -369,7 +369,7 @@ func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDa
 		if hostUrl == nil {
 			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
 		}
-		impl.config.DestinationURL = hostUrl.Value
+		impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
 	}
 
 	body, err := json.Marshal(createDatasourceRequest)
@@ -378,7 +378,7 @@ func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDa
 		return nil, err
 	}
 	var reqBody = []byte(body)
-	url := strings.ReplaceAll(impl.config.DestinationURL, "//", "//%s:%s") + AddPromDatasource
+	url := impl.config.DestinationURL + AddPromDatasource
 	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(reqBody))
 	req.Header.Set("X-Grafana-Org-Id", strconv.Itoa(impl.config.GrafanaOrgId))

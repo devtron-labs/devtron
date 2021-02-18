@@ -66,6 +66,8 @@ type CiConfig struct {
 	NodeLabel       map[string]string
 }
 
+const ExternalCiWebhookPath = "orchestrator/webhook/ext-ci"
+
 func GetCiConfig() (*CiConfig, error) {
 	cfg := &CiConfig{}
 	err := env.Parse(cfg)

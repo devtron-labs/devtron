@@ -347,7 +347,7 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			impl.logger.Errorw("there is no external ci webhook url configured", "appId", appId)
 			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
 		}
-		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/orchestrator/webhook/ext-ci", hostUrl.Value)
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
 	}
 
 	var ciPipelineResp []*bean.CiPipeline
@@ -1979,7 +1979,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", pipeline)
 			return nil, fmt.Errorf("there is no hosturl found in db or env variable")
 		}
-		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/orchestrator/webhook/ext-ci", hostUrl.Value)
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
 	}
 
 	var externalCiConfig bean.ExternalCiConfig
