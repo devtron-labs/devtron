@@ -231,4 +231,8 @@ func (r MuxRouter) Init() {
 	
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.initDashboardRouter(dashboardRouter)
+
+	r.Router.Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		http.Redirect(writer, request, "/dashboard", 301)
+	})
 }

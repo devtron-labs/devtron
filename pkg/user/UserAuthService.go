@@ -420,6 +420,7 @@ func contains(url string) bool {
 		"/orchestrator/devtron/auth/verify",
 		"/orchestrator/security/policy/verify/webhook",
 		"/orchestrator/sso/list",
+		"/",
 	}
 	for _, a := range urls {
 		if a == url {
