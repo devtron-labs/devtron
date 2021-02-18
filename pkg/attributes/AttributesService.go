@@ -33,6 +33,8 @@ type AttributesService interface {
 	GetByKey(key string) (*AttributesDto, error)
 }
 
+const HostUrlKey string = "url"
+
 type AttributesDto struct {
 	Id     int    `json:"id"`
 	Key    string `json:"key,omitempty"`
@@ -68,14 +70,14 @@ func (impl AttributesServiceImpl) AddAttributes(request *AttributesDto) (*Attrib
 
 	existingModel, err := impl.attributesRepository.FindByKey(request.Key)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update new host url", "error", err)
+		impl.logger.Errorw("error in update new attributes", "error", err)
 		return nil, err
 	}
 	if existingModel != nil && existingModel.Id > 0 {
 		existingModel.Active = false
 		err = impl.attributesRepository.Update(existingModel, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating new host url", "error", err)
+			impl.logger.Errorw("error in creating new attributes", "error", err)
 			return nil, err
 		}
 	}
@@ -91,7 +93,7 @@ func (impl AttributesServiceImpl) AddAttributes(request *AttributesDto) (*Attrib
 	model.UpdatedOn = time.Now()
 	_, err = impl.attributesRepository.Save(model, tx)
 	if err != nil {
-		impl.logger.Errorw("error in creating new host url", "error", err)
+		impl.logger.Errorw("error in creating new attributes", "error", err)
 		return nil, err
 	}
 	request.Id = model.Id
@@ -126,7 +128,7 @@ func (impl AttributesServiceImpl) UpdateAttributes(request *AttributesDto) (*Att
 	model.UpdatedOn = time.Now()
 	err = impl.attributesRepository.Update(model, tx)
 	if err != nil {
-		impl.logger.Errorw("error in creating new host url", "error", err)
+		impl.logger.Errorw("error in update new attributes", "error", err)
 		return nil, err
 	}
 	request.Id = model.Id
@@ -140,7 +142,7 @@ func (impl AttributesServiceImpl) UpdateAttributes(request *AttributesDto) (*Att
 func (impl AttributesServiceImpl) GetById(id int) (*AttributesDto, error) {
 	model, err := impl.attributesRepository.FindById(id)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in update new host url", "error", err)
+		impl.logger.Errorw("error in fetching attributes", "error", err)
 		return nil, err
 	}
 	if err == pg.ErrNoRows {
@@ -156,15 +158,15 @@ func (impl AttributesServiceImpl) GetById(id int) (*AttributesDto, error) {
 }
 
 func (impl AttributesServiceImpl) GetActiveList() ([]*AttributesDto, error) {
+	results := make([]*AttributesDto, 0)
 	models, err := impl.attributesRepository.FindActiveList()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error", "error", err)
+		impl.logger.Errorw("error in fetching attributes", "error", err)
 		return nil, err
 	}
 	if err == pg.ErrNoRows {
-		return nil, nil
+		return results, nil
 	}
-	results := make([]*AttributesDto, 0)
 	for _, model := range models {
 		dto := &AttributesDto{
 			Id:     model.Id,
@@ -180,7 +182,7 @@ func (impl AttributesServiceImpl) GetActiveList() ([]*AttributesDto, error) {
 func (impl AttributesServiceImpl) GetByKey(key string) (*AttributesDto, error) {
 	model, err := impl.attributesRepository.FindByKey(key)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error", "error", err)
+		impl.logger.Errorw("error in fetching attributes", "error", err, "key", key)
 		return nil, err
 	}
 	if err == pg.ErrNoRows {
