@@ -18,4 +18,4 @@ To add Gitlab, three inputs as mentioned below:
 
 ## Git host: 
 
-This is a by default filled input
+This field is by default filled .Showing url of selected tab
