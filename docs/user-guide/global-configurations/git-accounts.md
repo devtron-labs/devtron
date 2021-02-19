@@ -4,7 +4,7 @@ Global configurations are used to configure your Git Providers, Docker Registry,
 
 ## Git Account Configuration
 
-`Global Configuration` helps you to add a Git provider. Click on `Add git account` button at the top of the Git Account Section. To add a new git provider and provide three inputs as below.
+`Global Configuration` helps you to add a Git provider. Click on `Add git account` button at the top of the Git Account Section. To add a new git provider, add the details as mentioned below.
 
 1. Name
 2. URL
@@ -15,7 +15,7 @@ Global configurations are used to configure your Git Providers, Docker Registry,
 
 ### 1. Name
 
-Provide a `Name` to your Git provider. This will be added as one option in the Git Provider drop-down inside the Git Material section.
+Provide a `Name` to your Git provider. This name will be displayed in the the Git Provider drop-down inside the Git Material configuration section.
 
 ### 2. URL
 
@@ -23,17 +23,17 @@ Provide the `URL`. **For example**- github.com for Github, [https://gitlab.com](
 
 ### 3. Authentication type
 
-Here you have to provide the type of Authentication required by your version controller. We support three types of authentications, You can choose the one that suits you the best.
+Here you have to provide the type of authentication required by your version controller. We support three types of authentications. You can choose the one that suits you the best.
 
 * **Anonymous**
 
-If you select `Anonymous` then you do not have to provide any username, password, and authentication token. Just click on `Save` to save your git account provider details.
+If you select `Anonymous` then you do not have to provide any username, password, or authentication token. Just click on `Save` to save your git account provider details.
 
 ![](../../.gitbook/assets/gc-git-account-configure%20%283%29.png)
 
 * **Password/Auth token**
 
-If you select Password/Auth token then you have to provide the `Access Token` for the authentication of your version controller account inside the Access token box. Click on `Save` to save your git account provider details.
+If you select Password/Auth token then you have to provide the `Access Token` for the authentication of your version controller account in the Access token box. Click on `Save` to save your git account provider details.
 
 ![](../../.gitbook/assets/git_account_gc3%20%283%29.png)
 
@@ -51,7 +51,6 @@ You can update your saved git account settings at any point in time. Just click 
 
 ### Note:
 
-You can enable and disable your git account setting. If you enable it, then you will be able to see that enabled git account in the drop-down of Git provider.
+You can enable and disable your git account settings. If you enable it, then you will be able to see that enabled git account in the drop-down of Git provider.
 
 ![](../../.gitbook/assets/gc-added-git-accounts%20%283%29.png)
-
