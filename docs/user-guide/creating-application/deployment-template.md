@@ -32,16 +32,47 @@ This defines ports on which application services will be exposed to other servic
 
 ```yaml
 ContainerPort:
-    name: app
+  - name: app
     port: 8080
     servicePort: 80
+    envoyPort: 8799
+    useHTTP2: true
+    supportStreaming: true
+    idleTimeout: 1800s
+    servicemonitor:
+      enabled: true
+      path: /metrics
+      scheme: 'http'
+      interval: 30s
+      scrapeTimeout: 20s
+      metricRelabelings:
+        - sourceLabels: [namespace]
+          regex: '(.*)'
+          replacement: myapp
+          targetLabel: target_namespace
 ```
 
-| Key | Description |
+| Key | Description |optional|
 | :--- | :--- |
-| `name` | name of the container |
-| `port` | port for the container |
-| `servicePort` | service port for the container |
+| `name` | name of the container port|
+| `port` | port no in container |
+| `servicePort` | port In service |
+| `envoyPort` | envoy proxy port |
+| `useHTTP2`| envoy should use http2 as proxy |
+| `supportStreaming` | streaming should be enabled | 
+| `idleTimeout` | ideal timeout for envoy proxy |
+| `servicemonitor.` | this configuration is directly passed to service monitor |
+| `servicemonitor.enabled`| serviceMonitor enabled | 
+| `servicemonitor.path`| path for serviceMonitor target| 
+| `servicemonitor.scheme`| scheme for serviceMonitor target  | 
+| `servicemonitor.interval`|  polling interval for serviceMonitor| 
+| `servicemonitor.scrapeTimeout`| timeout for serviceMonitor target | 
+| `servicemonitor.metricRelabelings`| metrics relabling for serviceMonitor | https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/api.md#relabelconfig
+| `servicemonitor.metricRelabelings.sourceLabels`| |
+| `servicemonitor.metricRelabelings.regex`| |
+| `servicemonitor.metricRelabelings.replacement`| |
+| `servicemonitor.metricRelabelings.targetLabel`| |
+
 
 ### Liveness Probe
 
@@ -51,6 +82,12 @@ If this check fails, kubernetes restarts the pod. This should return error code 
 LivenessProbe:
   Path: ""
   port: 8080
+  scheme: ""
+  httpHeader:
+    name: ""
+    value: ""
+  tcp: false
+  command: []
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
@@ -58,14 +95,20 @@ LivenessProbe:
   failureThreshold: 3
 ```
 
-| Key | Description |
+
+| Key | Description | optional
 | :--- | :--- |
-| `Path` | It define the path where the liveness needs to be checked. |
+| `Path` | It define the path where the Liveness needs to be checked. |
+| `port` | port for Liveness probe | 
+| `scheme` | scheme for Liveness probe | optional
+| `httpHeader` | headers for Liveness probe request in key val pair (http/https) | optional
 | `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
 | `initialDelaySeconds` | It defines the time to wait before a given container is checked for liveliness. |
 | `periodSeconds` | It defines the time to check a given container for liveness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
+| `tcp` | |
+| `command`| 
 
 ### Readiness Probe
 
