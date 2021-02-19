@@ -24,10 +24,12 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type GrafanaClientConfig struct {
@@ -150,17 +152,28 @@ type SecureJsonData struct {
 }
 
 type GrafanaClientImpl struct {
-	logger *zap.SugaredLogger
-	client *http.Client
-	config *GrafanaClientConfig
+	logger            *zap.SugaredLogger
+	client            *http.Client
+	config            *GrafanaClientConfig
+	attributesService attributes.AttributesService
 }
 
-func NewGrafanaClientImpl(logger *zap.SugaredLogger, client *http.Client, config *GrafanaClientConfig) *GrafanaClientImpl {
-	return &GrafanaClientImpl{logger: logger, client: client, config: config}
+func NewGrafanaClientImpl(logger *zap.SugaredLogger, client *http.Client, config *GrafanaClientConfig, attributesService attributes.AttributesService) *GrafanaClientImpl {
+	return &GrafanaClientImpl{logger: logger, client: client, config: config, attributesService: attributesService}
 }
 
 func (impl *GrafanaClientImpl) GetAllDatasource() ([]*GetPrometheusDatasourceResponse, error) {
-	url := fmt.Sprintf(impl.config.DestinationURL+PromDatasource, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
+	if len(impl.config.DestinationURL) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			return nil, err
+		}
+		if hostUrl != nil {
+			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
+		}
+	}
+	url := impl.config.DestinationURL + PromDatasource
+	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		impl.logger.Errorw("error while fetching data source", "err", err)
@@ -195,7 +208,17 @@ func (impl *GrafanaClientImpl) GetAllDatasource() ([]*GetPrometheusDatasourceRes
 }
 
 func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDatasourceResponse, error) {
-	url := fmt.Sprintf(impl.config.DestinationURL+GetPromDatasource, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
+	if len(impl.config.DestinationURL) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			return nil, err
+		}
+		if hostUrl != nil {
+			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
+		}
+	}
+	url := impl.config.DestinationURL + GetPromDatasource
+	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		impl.logger.Errorw("error while fetching data source", "err", err)
@@ -229,6 +252,15 @@ func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDa
 }
 
 func (impl *GrafanaClientImpl) UpdateDatasource(updateDatasourceRequest UpdateDatasourceRequest, datasourceId int) (*DatasourceResponse, error) {
+	if len(impl.config.DestinationURL) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			return nil, err
+		}
+		if hostUrl != nil {
+			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
+		}
+	}
 	updateDatasourceRequest.OrgId = impl.config.GrafanaOrgId
 	body, err := json.Marshal(updateDatasourceRequest)
 	if err != nil {
@@ -236,7 +268,8 @@ func (impl *GrafanaClientImpl) UpdateDatasource(updateDatasourceRequest UpdateDa
 		return nil, err
 	}
 	var reqBody = []byte(body)
-	url := fmt.Sprintf(impl.config.DestinationURL+UpdatePromDatasource, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
+	url := impl.config.DestinationURL + UpdatePromDatasource
+	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		impl.logger.Errorw("error while updating data source", "err", err)
@@ -272,13 +305,23 @@ func (impl *GrafanaClientImpl) UpdateDatasource(updateDatasourceRequest UpdateDa
 }
 
 func (impl *GrafanaClientImpl) deleteDatasource(updateDatasourceRequest CreateDatasourceRequest, datasourceId int) (*DatasourceResponse, error) {
+	if len(impl.config.DestinationURL) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			return nil, err
+		}
+		if hostUrl != nil {
+			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
+		}
+	}
 	body, err := json.Marshal(updateDatasourceRequest)
 	if err != nil {
 		impl.logger.Errorw("error while marshaling request ", "err", err)
 		return nil, err
 	}
 	var reqBody = []byte(body)
-	url := fmt.Sprintf(impl.config.DestinationURL+DeletePromDatasource, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
+	url := impl.config.DestinationURL + DeletePromDatasource
+	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword, datasourceId)
 	req, err := http.NewRequest(http.MethodDelete, url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		impl.logger.Errorw("error while updating data source", "err", err)
@@ -314,13 +357,24 @@ func (impl *GrafanaClientImpl) deleteDatasource(updateDatasourceRequest CreateDa
 }
 
 func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDatasourceRequest) (*DatasourceResponse, error) {
+	if len(impl.config.DestinationURL) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			return nil, err
+		}
+		if hostUrl != nil {
+			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
+		}
+	}
+
 	body, err := json.Marshal(createDatasourceRequest)
 	if err != nil {
 		impl.logger.Errorw("error while marshaling request ", "err", err)
 		return nil, err
 	}
 	var reqBody = []byte(body)
-	url := fmt.Sprintf(impl.config.DestinationURL, impl.config.GrafanaUsername, impl.config.GrafanaPassword) + AddPromDatasource
+	url := impl.config.DestinationURL + AddPromDatasource
+	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(reqBody))
 	req.Header.Set("X-Grafana-Org-Id", strconv.Itoa(impl.config.GrafanaOrgId))
 	if err != nil {

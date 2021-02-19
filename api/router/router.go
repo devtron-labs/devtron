@@ -68,6 +68,7 @@ type MuxRouter struct {
 	policyRouter                     PolicyRouter
 	gitOpsConfigRouter               GitOpsConfigRouter
 	dashboardRouter                  DashboardRouter
+	attributesRouter                 AttributesRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -85,7 +86,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter AppStoreRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
-	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter) *MuxRouter {
+	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -124,6 +125,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		imageScanRouter:                  imageScanRouter,
 		policyRouter:                     policyRouter,
 		gitOpsConfigRouter:               gitOpsConfigRouter,
+		attributesRouter:                 attributesRouter,
 		dashboardRouter:                  dashboardRouter,
 	}
 	return r
@@ -228,10 +230,13 @@ func (r MuxRouter) Init() {
 
 	gitOpsRouter := r.Router.PathPrefix("/orchestrator/gitops").Subrouter()
 	r.gitOpsConfigRouter.InitGitOpsConfigRouter(gitOpsRouter)
-	
+
+
+	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
+	r.attributesRouter.initAttributesRouter(attributeRouter)
+
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.initDashboardRouter(dashboardRouter)
-
 	r.Router.Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		http.Redirect(writer, request, "/dashboard", 301)
 	})

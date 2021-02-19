@@ -42,6 +42,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/appstore"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dex"
@@ -626,6 +627,16 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(gitops.GitOpsConfigService), new(*gitops.GitOpsConfigServiceImpl)),
 		repository.NewGitOpsConfigRepositoryImpl,
 		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
+
+
+		router.NewAttributesRouterImpl,
+		wire.Bind(new(router.AttributesRouter), new(*router.AttributesRouterImpl)),
+		restHandler.NewAttributesRestHandlerImpl,
+		wire.Bind(new(restHandler.AttributesRestHandler), new(*restHandler.AttributesRestHandlerImpl)),
+		attributes.NewAttributesServiceImpl,
+		wire.Bind(new(attributes.AttributesService), new(*attributes.AttributesServiceImpl)),
+		repository.NewAttributesRepositoryImpl,
+		wire.Bind(new(repository.AttributesRepository), new(*repository.AttributesRepositoryImpl)),
 	)
 	return &App{}, nil
 }
