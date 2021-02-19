@@ -47,7 +47,12 @@ type DockerArtifactStore struct {
 
 func (store *DockerArtifactStore) GetRegistryLocation() (registryLocation string) {
 	urls := strings.Split(store.RegistryURL, "//")
-	return urls[1]
+	if len(urls) > 0 {
+		return urls[1]
+	} else {
+		return ""
+	}
+
 }
 
 type DockerArtifactStoreRepository interface {
