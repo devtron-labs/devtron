@@ -21,7 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
-	"strings"
+	"net/url"
 )
 
 const REGISTRYTYPE_ECR = "ecr"
@@ -45,14 +45,13 @@ type DockerArtifactStore struct {
 	models.AuditLog
 }
 
-func (store *DockerArtifactStore) GetRegistryLocation() (registryLocation string) {
-	urls := strings.Split(store.RegistryURL, "//")
-	if len(urls) > 1 {
-		return urls[1]
+func (store *DockerArtifactStore) GetRegistryLocation() (registryLocation string, err error) {
+	u, err := url.Parse(registryLocation)
+	if err != nil {
+		return "", err
 	} else {
-		return ""
+		return u.Host, nil
 	}
-
 }
 
 type DockerArtifactStoreRepository interface {
