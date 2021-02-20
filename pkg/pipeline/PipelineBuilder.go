@@ -307,13 +307,18 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		impl.logger.Debugw("error in AfterDockerBuild json unmarshal", "app", appId, "err", err)
 		return nil, err
 	}
+	regHost, err := template.DockerRegistry.GetRegistryLocation()
+	if err != nil {
+		impl.logger.Errorw("invalid reg url", "err", err)
+		return nil, err
+	}
 	ciConfig = &bean.CiConfigRequest{
 		Id:                template.Id,
 		AppId:             template.AppId,
 		AppName:           template.App.AppName,
 		DockerRepository:  template.DockerRepository,
 		DockerRegistry:    template.DockerRegistry.Id,
-		DockerRegistryUrl: template.DockerRegistry.GetRegistryLocation(),
+		DockerRegistryUrl: regHost,
 		BeforeDockerBuild: beforeDockerBuild,
 		AfterDockerBuild:  afterDockerBuild,
 		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId},
@@ -492,13 +497,18 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		impl.logger.Errorw("error in fetching DockerRegistry  for update", "appId", updateRequest.Id, "err", err, "registry", updateRequest.DockerRegistry)
 		return nil, err
 	}
+	regHost, err := dockerArtifaceStore.GetRegistryLocation()
+	if err != nil {
+		impl.logger.Errorw("invalid reg url", "err", err)
+		return nil, err
+	}
 
 	originalCiConf.AfterDockerBuild = updateRequest.AfterDockerBuild
 	originalCiConf.BeforeDockerBuild = updateRequest.BeforeDockerBuild
 	originalCiConf.DockerBuildConfig = updateRequest.DockerBuildConfig
 	originalCiConf.DockerRegistry = updateRequest.DockerRegistry
 	originalCiConf.DockerRepository = updateRequest.DockerRepository
-	originalCiConf.DockerRegistryUrl = dockerArtifaceStore.GetRegistryLocation()
+	originalCiConf.DockerRegistryUrl = regHost
 
 	argByte, err := json.Marshal(originalCiConf.DockerBuildConfig.Args)
 	if err != nil {
@@ -548,7 +558,12 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 		impl.logger.Errorw("error in fetching docker store ", "id", createRequest.DockerRepository, "err", err)
 		return nil, err
 	}
-	createRequest.DockerRegistryUrl = store.GetRegistryLocation()
+	regHost, err := store.GetRegistryLocation()
+	if err != nil {
+		impl.logger.Errorw("invalid reg url", "err", err)
+		return nil, err
+	}
+	createRequest.DockerRegistryUrl = regHost
 	createRequest.DockerRegistry = store.Id
 
 	if createRequest.DockerRepository == "" {
