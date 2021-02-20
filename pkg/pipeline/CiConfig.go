@@ -52,7 +52,7 @@ type CiConfig struct {
 	DefaultArtifactKeyPrefix  string   `env:"DEFAULT_ARTIFACT_KEY_LOCATION" envDefault:"arsenal-v1/ci-artifacts"`
 	WorkflowServiceAccount    string   `env:"WORKFLOW_SERVICE_ACCOUNT" envDefault:"ci-runner"`
 	ExternalCiApiSecret       string   `env:"EXTERNAL_CI_API_SECRET" envDefault:"devtroncd-secret"`
-	ExternalCiWebhookUrl      string   `env:"EXTERNAL_CI_WEB_HOOK_URL" envDefault:"http://google.com"`
+	ExternalCiWebhookUrl      string   `env:"EXTERNAL_CI_WEB_HOOK_URL" envDefault:""`
 	ExternalCiPayload         string   `env:"EXTERNAL_CI_PAYLOAD" envDefault:"{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/srj92/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2019-10-31T20:55:21+05:30\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"Suraj Gupta \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\",\"digest\":\"test1\",\"dataSource\":\"ext\",\"materialType\":\"git\"}"`
 	CiArtifactLocationFormat  string   `env:"CI_ARTIFACT_LOCATION_FORMAT" envDefault:"%d/%d.zip"`
 	ImageScannerEndpoint      string   `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
@@ -68,6 +68,8 @@ type CiConfig struct {
 	ClusterConfig   *rest.Config
 	NodeLabel       map[string]string
 }
+
+const ExternalCiWebhookPath = "orchestrator/webhook/ext-ci"
 
 func GetCiConfig() (*CiConfig, error) {
 	cfg := &CiConfig{}

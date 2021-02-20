@@ -1,6 +1,7 @@
 # CD Pipeline
+Once you are done creating your CI pipeline, you can move start building your CD pipeline. Devtron enables you to design your CD pipeline in a way that fully automates your deployments.
 
-## Create CD Pipeline
+## Creating CD Pipeline
 
 ![](../../../.gitbook/assets/cd-pipeline-console.png)
 
@@ -8,26 +9,28 @@ Click on **“+”** sign on CI Pipeline to attach a CD Pipeline to it.
 
 ![](../../../.gitbook/assets/create-cd-pipeline%20%283%29%20%283%29.png)
 
-One can have a single CD pipeline or multiple CD pipelines connected to the same CI Pipeline. A CD pipeline corresponds to one environment or in other words, an environment of an application can have only one CD pipeline. So images created by the CI pipeline can be deployed into multiple environments.
+One can have a single CD pipeline or multiple CD pipelines connected to the same CI Pipeline. Each CD pipeline corresponds to only one environment, or in other words, any single environment of an application can have only one CD pipeline.
 
-If you already have one CD pipeline and want to add more, you can add them by clicking on the `+` sign and selecting the environment, where you want to deploy this application to. A new CD Pipeline will be created for the environment you selected.
+So, the images created by the CI pipeline can be deployed into multiple environments through different CD pipeline originating from a single CI pipeline.
 
-CD pipeline configuration has below options to be configured:
+If you already have one CD pipeline and want to add more, you can add them by clicking on the `+` sign and then choosing the environment in which you want to deploy your application. Once a new CD Pipeline is created for the environment of your choosing, you can move ahead and configure the CD pipeline as required.
+
+Your CD pipeline will can be configured for the pre-deployment stage, the deployment stage, and the post-deployment stage. You can also select the deployment strategy of your choice. You can add your configurations as explained below:
 
 | Key | Description |
 | :--- | :--- |
 | Pipeline Name | Enter the name of the pipeline to be created |
 | Environment | Select the environment in which you want to deploy |
 | Pre-deployment stage | Run any configuration and provide secrets before the deployment |
-| Deployment stage | Select the deployment type through which the CD Pipeline will be triggered by Automatic or Manual. |
+| Deployment stage | Select how and when you want the the deployment to be triggered - Automatic or manual triggering of your CD Pipeline |
 | Deployment Strategy | Select the type of deployment strategy that you want to enable by clicking `Add Deployment Strategy` |
-| Post-deployment stage | Run any configuration and provide secrets after the deployment |
+| Post-deployment stage | If you need to run any configurations and provide secrets after the deployment, mention those here |
 
 ![](../../../.gitbook/assets/configuring-cd-pipeline.png)
 
 ### 1. Pipeline Name
 
-Inside the Pipeline name column, give a name to your Continuous deployment as per your understanding.
+Inside the Pipeline name column, give a name to your Continuous deployment.
 
 ### 2. Deploy to Environment
 
@@ -41,29 +44,29 @@ Pre-deployment stages can be configured to be executed automatically or manually
 
 If you select automatic, `Pre-deployment Stage` will be triggered automatically after the CI pipeline gets executed and before the CD pipeline starts executing itself. But, if you select a manual, then you have to trigger your stage via console.
 
-And if you want to use some configuration files and secrets in pre-deployment stages or post-deployment stages, then you can make use of `Config Maps` & `Secrets` options.
+If you want to use some configuration files and secrets in pre-deployment stages or post-deployment stages, then you can use the `Config Maps` & `Secrets` options.
 
-`Config Maps` can be used to define configuration files. And `Secrets` can be defined to keep the secret data of your application.
+`Config Maps` can be used to define configuration files. And `Secrets` can be defined to store the private data of your application.
 
 Once you are done defining Config Maps & Secrets, you will get them as a drop-down in the pre-deployment stage and you can select them as part of your pre-deployment stage.
 
-These `Pre-deployment CD / Post-deployment CD` pods can be created in the deployment cluster or in the devtron build cluster. Running these pods in a Deployment cluster is recommended so that your scripts\(if there are any\) can interact with the cluster services which may not be publicly exposed.
+These `Pre-deployment CD / Post-deployment CD` pods can be created in your deployment cluster or in the devtron build cluster. It is recommended that you run these pods in the Deployment cluster so that your scripts \(if there are any\) can interact with the cluster services that may not be publicly exposed.
 
-If you want to run it inside your application then you have to check the `Execute in application Environment` option else leave it unchecked.
+If you want to run it inside your application, then you have to check the `Execute in application Environment` option else leave it unchecked to run it within the Devtron build cluster.
 
-Make sure your cluster has `devtron-agent` installed if you Check the `Execute in the application Environment` option.
+Make sure your cluster has `devtron-agent` installed if you check the `Execute in the application Environment` option.
 
 ![](../../../.gitbook/assets/cd_pre_build%20%282%29.jpg)
 
 ### 4. Deployment Stages
 
-We support two types of deployments- Manual and Automatic. If you select automatic, it will trigger your CD pipeline automatically once your corresponding CI pipeline has built successfully.
+We support two methods of deployments - Manual and Automatic. If you choose automatic, it will trigger your CD pipeline automatically once your corresponding CI pipeline has been built and executed successfully.
 
-If you have defined pre-deployment stages, then CD Pipeline will be triggered automatically after the successful build of your CI pipeline followed by the successful build of your pre-deployment stages. But if you select manual, then you have to trigger your deployment via console.
+If you have defined pre-deployment stages, then the CD Pipeline will be triggered automatically after the successful execution of your CI pipeline followed by the successful execution of your pre-deployment stages. But if you choose the manual option, then you have to trigger your deployment manually via console.
 
 ### 5. Deployment Strategy
 
-Devtron's tool has 4 types of deployment strategies. Click on `Add Deployment strategy` and select from the available options. Options are:
+Devtron's tool has 4 types of deployment strategies. Click on `Add Deployment strategy` and select from the available options:
 
 \(a\) Recreate
 
@@ -79,11 +82,12 @@ If you want to Configure actions like Jira ticket close, that you want to run af
 
 Post-deployment stages are similar to pre-deployment stages. The difference is, pre-deployment executes before the CD pipeline execution and post-deployment executes after the CD pipeline execution. The configuration of post-deployment stages is similar to the pre-deployment stages.
 
-You can use Config Map and Secrets in post deployments as well, as defined in Pre-Deployment stages
+You can use Config Map and Secrets in post deployments as well, as defined in Pre-Deployment stages.
 
 ![](../../../.gitbook/assets/cd_post_build.jpg)
 
-You have configured the CD pipeline, now click on `Create Pipeline` to save it. You can see your newly created CD Pipeline on the Workflow tab attached to the corresponding CI Pipeline.
+
+Once you have configured the CD pipeline, click on `Create Pipeline` to save it. You can see your newly created CD Pipeline on the Workflow tab attached to the corresponding CI Pipeline.
 
 ![](../../../.gitbook/assets/create-cd-pipeline%20%283%29.png)
 
@@ -91,21 +95,21 @@ The CD Pipeline is created
 
 ## Update CD Pipeline
 
-You can update the CD Pipeline. Updates such as- adding Deployment Stage, Deployment Strategy. But you cannot update the name of a CD Pipeline or it’s Deploy Environment. If you need to change such configurations, you need to make another CD Pipeline.
+You can update the deployment stages and the deployment strategy of the the CD Pipeline whenever you require to. But, you cannot change the name of a CD Pipeline or it’s Deployment Environment. If you need to change such configurations, you need to make another CD Pipeline from scratch.
 
-To Update a CD Pipeline, go to the App Configurations and then click on Workflow editor and click on your CD Pipeline you want to Update.
+To Update a CD Pipeline, go to App Configurations and then click on Workflow editor and click on the CD Pipeline you want to Update.
 
 ![](../../../.gitbook/assets/update_pipeline_cd%20%282%29.jpg)
 
 ![](../../../.gitbook/assets/edit_cd_pipeline%20%285%29%20%282%29.jpg)
 
-Make changes as per your requirement and click on `Update Pipeline` to update this CD Pipeline.
+Make changes as needed and click on `Update Pipeline` to update this CD Pipeline.
 
 ## Delete CD Pipeline
 
 If you no longer require the CD Pipeline, you can also Delete the Pipeline.
 
-To Delete a CD Pipeline, go to the App Configurations and then click on the Workflow editor. Now Click on the pipeline you want to delete. A pop will be displayed with CD details. Now click on the Delete Pipeline option to delete this CD Pipeline
+To Delete a CD Pipeline, go to the App Configurations and then click on the Workflow editor. Now click on the pipeline you want to delete. A pop will be displayed with CD details. Verify the name and the details to ensure that you are not accidentally deleting the wrong CD pipeline and then lick on the Delete Pipeline option to delete the CD Pipeline.
 
 ![](../../../.gitbook/assets/edit_cd_pipeline%20%285%29.jpg)
 
