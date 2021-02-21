@@ -569,7 +569,7 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 		LogsFilePath:  impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log",
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &AzureBlobConfig{
-			Enabled:            impl.ciConfig.CloudProvider == CLOUD_PROVIDER_AZURE,
+			Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
 			AccountName:        impl.ciConfig.AzureAccountName,
 			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
 			AccountKey:         impl.ciConfig.AzureAccountKey,
@@ -671,7 +671,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 		LogsFilePath:  ciWorkflow.LogLocation,
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &AzureBlobConfig{
-			Enabled:            impl.ciConfig.CloudProvider == CLOUD_PROVIDER_AZURE,
+			Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
 			AccountName:        impl.ciConfig.AzureAccountName,
 			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
 			AccountKey:         impl.ciConfig.AzureAccountKey,

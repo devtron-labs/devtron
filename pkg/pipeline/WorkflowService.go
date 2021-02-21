@@ -91,9 +91,9 @@ type WorkflowRequest struct {
 	MinioEndpoint            string             `json:"minioEndpoint"`
 }
 
-const CLOUD_PROVIDER_AZURE = "AZURE"
-const CLOUD_PROVIDER_AWS = "AWS"
-const CLOUD_PROVIDER_GCP = "GCP"
+const BLOB_STORAGE_AZURE = "AZURE"
+const BLOB_STORAGE_S3 = "AWS"
+const BLOB_STORAGE_GCP = "GCP"
 const BLOB_STORAGE_MINIO = "MINIO"
 
 type AzureBlobConfig struct {

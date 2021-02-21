@@ -125,7 +125,7 @@ func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, fu
 		return nil, nil, err
 	}
 
-	if ciLogRequest.CloudProvider == CLOUD_PROVIDER_AWS {
+	if ciLogRequest.CloudProvider == BLOB_STORAGE_S3 {
 		sess, _ := session.NewSession(&aws.Config{
 			Region: aws.String(ciLogRequest.Region),
 			//Credentials: credentials.NewStaticCredentials(ciLogRequest.AccessKey, ciLogRequest.SecretKet, ""),
@@ -152,7 +152,7 @@ func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, fu
 				Bucket: aws.String(ciLogRequest.LogsBucket),
 				Key:    aws.String(ciLogRequest.LogsFilePath),
 			})
-	} else if ciLogRequest.CloudProvider == CLOUD_PROVIDER_AZURE {
+	} else if ciLogRequest.CloudProvider == BLOB_STORAGE_AZURE {
 		blobClient := AzureBlob{logger: impl.logger}
 		err = blobClient.DownloadBlob(context.Background(), ciLogRequest.LogsFilePath, ciLogRequest.AzureBlobConfig, file)
 		if err != nil {
