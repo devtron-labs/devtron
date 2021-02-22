@@ -92,7 +92,7 @@ type WorkflowRequest struct {
 }
 
 const BLOB_STORAGE_AZURE = "AZURE"
-const BLOB_STORAGE_S3 = "AWS"
+const BLOB_STORAGE_S3 = "S3"
 const BLOB_STORAGE_GCP = "GCP"
 const BLOB_STORAGE_MINIO = "MINIO"
 
