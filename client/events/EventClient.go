@@ -26,7 +26,9 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	util "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 	"net/http"
@@ -68,6 +70,7 @@ type Event struct {
 	CdWorkflowRunnerId int                 `json:"cdWorkflowRunnerId"`
 	CiWorkflowRunnerId int                 `json:"ciWorkflowRunnerId"`
 	CiArtifactId       int                 `json:"ciArtifactId"`
+	BaseUrl            string              `json:"baseUrl"`
 	UserId             int                 `json:"-"`
 }
 
@@ -115,12 +118,15 @@ type EventRESTClientImpl struct {
 	pubsubClient         *pubsub.PubSubClient
 	ciPipelineRepository pipelineConfig.CiPipelineRepository
 	pipelineRepository   pipelineConfig.PipelineRepository
+	attributesRepository repository.AttributesRepository
 }
 
 func NewEventRESTClientImpl(logger *zap.SugaredLogger, client *http.Client, config *EventClientConfig, pubsubClient *pubsub.PubSubClient,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) *EventRESTClientImpl {
+	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
+	attributesRepository repository.AttributesRepository) *EventRESTClientImpl {
 	return &EventRESTClientImpl{logger: logger, client: client, config: config, pubsubClient: pubsubClient,
-		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository}
+		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
+		attributesRepository: attributesRepository,}
 }
 
 func (impl *EventRESTClientImpl) buildFinalPayload(event Event, cdPipeline *pipelineConfig.Pipeline, ciPipeline *pipelineConfig.CiPipeline) *Payload {
@@ -186,6 +192,15 @@ func (impl *EventRESTClientImpl) WriteEvent(event Event) (bool, error) {
 	}
 	if cdPipeline != nil && len(cdPipeline.PostStageConfig) > 0 {
 		isPostStageExist = true
+	}
+
+	attribute, err := impl.attributesRepository.FindByKey(attributes.HostUrlKey)
+	if err != nil {
+		impl.logger.Errorw("there is host url configured", "ci pipeline", ciPipeline)
+		return false, err
+	}
+	if attribute != nil {
+		event.BaseUrl = attribute.Value
 	}
 	if event.CdWorkflowType == "" {
 		_, err = impl.SendEvent(event)
