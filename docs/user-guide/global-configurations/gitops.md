@@ -36,6 +36,6 @@ Provide Git `Username` and `Token` of your git account. Click on Save to save yo
 ![](../../.gitbook/assets/gc-gitops-save.png)
 
 
-> Note: In case of any Invalid information, error will be shown while saving `Deployment Template`.
+> Note: In case of any Invalid information, error will be shown when saving `Deployment Template` while creating apllication.
 
 Learn more about [Deployment Template](https://docs.devtron.ai/user-guide/creating-application/deployment-template)
