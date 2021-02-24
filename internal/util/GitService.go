@@ -88,12 +88,12 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 }
 
 type GitConfig struct {
-	GitlabGroupId      string `env:"GITLAB_GROUP_ID" `                                //local
+	GitlabGroupId      string                                                         //local
 	GitlabGroupPath    string                                                         //local
 	GitToken           string `env:"GIT_TOKEN" `                                      //not null  // public
 	GitUserName        string `env:"GIT_USERNAME" `                                   //not null  // public
 	GitWorkingDir      string `env:"GIT_WORKING_DIRECTORY" envDefault:"/tmp/gitops/"` //working directory for git. might use pvc
-	GithubOrganization string `env:"GITHUB_ORGANIZATION"`
+	GithubOrganization string
 	GitProvider        string `env:"GIT_PROVIDER" envDefault:"GITHUB"` // SUPPORTED VALUES  GITHUB, GITLAB
 	GitHost            string `env:"GIT_HOST" envDefault:""`
 }
