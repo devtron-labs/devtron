@@ -35,8 +35,7 @@ ContainerPort:
 pauseForSecondsBeforeSwitchActive: 30
 waitForSecondsBeforeScalingDown: 30
 autoPromotionSeconds: 30
-#podLabels:
-#  customKey: customValue
+
 Spec:
  Affinity:
   Key:
