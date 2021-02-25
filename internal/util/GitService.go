@@ -146,7 +146,37 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 			}
 		}
 
-		group, _, err := git.Groups.GetGroup(config.GitlabGroupId)
+		gitlabGroupId := ""
+		if len(config.GitlabGroupId) > 0 {
+			if _, err := strconv.Atoi(config.GitlabGroupId); err == nil {
+				gitlabGroupId = config.GitlabGroupId
+			} else {
+				groups, res, err := git.Groups.SearchGroup(config.GitlabGroupId)
+				if err != nil {
+					responseStatus := 0
+					if res != nil {
+						responseStatus = res.StatusCode
+
+					}
+					logger.Warnw("error connecting to gitlab", "status code", responseStatus, "err", err.Error())
+				}
+				logger.Debugw("gitlab groups found ", "group", groups)
+				if len(groups) == 0 {
+					logger.Warn("no matching namespace found for gitlab")
+				}
+				for _, group := range groups {
+					if config.GitlabGroupId == group.Name {
+						gitlabGroupId = strconv.Itoa(group.ID)
+					}
+				}
+			}
+		} else {
+			return nil, fmt.Errorf("no gitlab group id found")
+		}
+		if len(gitlabGroupId) == 0 {
+			return nil, fmt.Errorf("no gitlab group id found")
+		}
+		group, _, err := git.Groups.GetGroup(gitlabGroupId)
 		if err != nil {
 			return nil, err
 		}
