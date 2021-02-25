@@ -49,6 +49,9 @@ spec:
         appId: {{ $.Values.app | quote }}
         envId: {{ $.Values.env | quote }}
         release: {{ $.Release.Name }}
+{{- if .Values.podLabels }}
+{{ toYaml .Values.podLabels | indent 8 }}
+{{- end }}
     spec:
       terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
       restartPolicy: Always

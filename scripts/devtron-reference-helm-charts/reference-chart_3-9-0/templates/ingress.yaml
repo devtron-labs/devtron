@@ -27,6 +27,10 @@ spec:
           backend:
             serviceName: {{ template ".servicename" . }}
             servicePort: {{ (index .Values.ContainerPort 0).servicePort }}
+  {{- if .Values.ingress.tls }}
+  tls:
+{{ toYaml .Values.ingress.tls | indent 4 }}
+  {{- end -}}
 {{- end }}
   {{- if $.Values.ingressInternal.enabled }}
 ---
@@ -57,4 +61,8 @@ spec:
             backend:
               serviceName: {{ template ".servicename" . }}
               servicePort: {{ (index .Values.ContainerPort 0).servicePort }}
+  {{- if .Values.ingressInternal.tls }}
+  tls:
+{{ toYaml .Values.ingressInternal.tls | indent 4 }}
+  {{- end -}}
   {{- end }}
