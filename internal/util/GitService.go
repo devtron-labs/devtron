@@ -166,7 +166,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 				}
 				for _, group := range groups {
 					if config.GitlabGroupId == group.Name {
-						gitlabGroupId = string(group.ID)
+						gitlabGroupId = strconv.Itoa(group.ID)
 					}
 				}
 			}
