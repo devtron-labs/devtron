@@ -1,7 +1,7 @@
 # Gitops
 
 ## Why Gitops?
-Devtron using argocd to deploy application, This feature in Global Configuration allows you to select Git account to store our application and chart repos. Argocd linked to these gitops repos to fetch manifest files.
+Devtron use argocd to deploy application, This feature in Global Configuration allows you to select Git account to store our application and chart repos. Argocd linked to these gitops repos to fetch manifest files.
 Gitops move to global configuration part so that super admin can create accordingly as after cluster installation.
 
 ## Add Git Configuration
