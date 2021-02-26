@@ -1,17 +1,18 @@
-# Install using Helm2
+# Install Devtron using Helm2
 
 To install Helm2, please check [Installing Helm2](https://v2.helm.sh/docs/install//) Make sure you have [Installed tiller using helm init](https://v2.helm.sh/docs/install/#installing-tiller)
 
 {% tabs %}
 {% tab title="Install with default configurations" %}
-This installation will use Minio for storing build logs and cache
-
+This installation will use Minio for storing build logs and cache. Please make sure to edit the POSTGRESQL_PASSWORD value.
 ```bash
 kubectl create namespace devtroncd
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
 helm add repo devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --namespace devtroncd --set secrets.POSTGRESQL_PASSWORD=change-me
+helm install devtron devtron/devtron-operator --namespace devtroncd \
+--set secrets.POSTGRESQL_PASSWORD=change-me
 ```
+
 {% endtab %}
 
 {% tab title="Install with AWS S3 Buckets" %}
@@ -89,3 +90,10 @@ For admin login use username:`admin` and for password run the following command.
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
+### Cleaning Installer Helm2
+
+```bash
+helm delete devtron --purge
+#Deleting CRDs manually
+kubectl delete -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
+```

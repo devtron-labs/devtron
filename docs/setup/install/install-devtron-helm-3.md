@@ -1,15 +1,16 @@
-# Install using Helm3
+# Install Devtron using Helm3
 
 To install Helm3, please check [Installing Helm3](https://helm.sh/docs/intro/install/)
 
 {% tabs %}
 {% tab title="Install with default configurations" %}
-This installation will use Minio for storing build logs and cache
+This installation will use Minio for storing build logs and cache. Please make sure to edit the POSTGRESQL_PASSWORD value.
 
 ```bash
 kubectl create namespace devtroncd
 helm add repo devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --namespace devtroncd --set secrets.POSTGRESQL_PASSWORD=change-me
+helm install devtron devtron/devtron-operator --namespace devtroncd \
+--set secrets.POSTGRESQL_PASSWORD=change-me
 ```
 {% endtab %}
 
@@ -86,3 +87,8 @@ For admin login use username:`admin` and for password run the following command.
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
+### Cleaning Devtron Installer Helm3
+
+```
+helm delete devtron --namespace devtroncd
+```

@@ -28,8 +28,8 @@ It packages third party components like:
 ### How to use it
 
 * [Install with Helm3 - Recommended](install-devtron-helm-3.md)
-* [Install with Helm2](https://github.com/devtron-labs/devtron/tree/30c933b2cbe4ab9dac69cd5a255e970f550b7070/docs/setup/install/install-devtron-helm-2/README.md)
-* [Install with kubectl](./)
+* [Install with Helm2](install-devtron-helm-2.md)
+* [Install with kubectl](install-devtron-using-kubectl.md)
 
 #### Installation status
 
@@ -132,12 +132,7 @@ kubectl delete -n devtroncd -f charts/devtron/crds
 kubectl delete ns devtroncd
 ```
 
-**Cleaning Installer Helm3**
 
-```bash
-cd devtron-installation-script/
-helm delete devtron --namespace devtroncd
-```
 
 **Cleaning Installer Helm2**
 
