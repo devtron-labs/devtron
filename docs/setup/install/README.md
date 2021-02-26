@@ -27,9 +27,9 @@ It packages third party components like:
 
 ### How to use it
 
-** Install with Helm3 - Recommended
-** Install with Helm2
-** Install with kubectl
+* [Install with Helm3 - Recommended](setup/install/install-devtron-helm-3)
+* [Install with Helm2](setup/install/install-devtron-helm-3)
+* [Install with kubectl](#)
 
 #### Installation status
 
