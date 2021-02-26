@@ -8,9 +8,7 @@
 
 You will need to be ready with following prerequisites before Devtron installation
 
-* A Kubernetes cluster \(preferably K8s 1.16 or above\) created on AWS \(EKS or KOPS\) or on AZURE \(AKS or KOPS\). Check [Creating a Production grade EKS cluster using EKSCTL](https://devtron.ai/blog/creating-production-grade-kubernetes-eks-cluster-eksctl/)
-* An Nginx ingress controller pre-configured within the cluster either exposed as LoadBalancer or NodePort.
-* 2 S3 buckets/ AZURE Blob storage containers for ci-caching and ci-logs and their access permissions added to the cluster role. You will need to put these in configs [here](./#storage-for-logs-and-cache)
+* A Kubernetes cluster \(preferably K8s 1.16 or above\). Check [Creating a Production grade EKS cluster using EKSCTL](https://devtron.ai/blog/creating-production-grade-kubernetes-eks-cluster-eksctl/)
 
 ### Introduction
 
@@ -29,76 +27,9 @@ It packages third party components like:
 
 ### How to use it
 
-#### Install with Helm
-
-### Helm 3
-
-```bash
-git clone https://github.com/devtron-labs/devtron-installation-script.git
-cd devtron-installation-script/charts
-```
-
-Copy and edit the `devtron/values.yaml` to configure your Devtron installation.
-
-```bash
-cp devtron/values.yaml devtron/install-values.yaml
-vim devtron/install-values.yaml
-```
-
-For more details about configuration see the [helm chart configuration](./#configuration) Once your configurations are ready, continue with following steps
-
-```bash
-#Create devtroncd namespace
-kubectl create ns devtroncd
-helm install devtron devtron/ --namespace devtroncd -f devtron/install-values.yaml
-```
-
-### Helm 2
-
-```bash
-git clone https://github.com/devtron-labs/devtron-installation-script.git
-cd devtron-installation-script/charts
-#Create CRDs manually when using Helm2
-kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
-```
-
-Copy and edit the `devtron/values.yaml` to configure your Devtron installation.
-
-```bash
-cp devtron/values.yaml devtron/install-values.yaml
-vim devtron/install-values.yaml
-```
-
-For more details about configuration see the [helm chart configuration](./#configuration) Once your configurations are ready, continue with following steps
-
-```bash
-#Create devtroncd namespace
-kubectl create ns devtroncd
-helm install devtron/ --name devtron --namespace devtroncd -f devtron/install-values.yaml
-```
-
-#### Install with kubectl
-
-If you don't want to install helm and just want to use `kubectl` to install `devtron platform`, then please follow the steps mentioned below:
-
-```bash
-git clone https://github.com/devtron-labs/devtron-installation-script.git
-cd devtron-installation-script/
-#Use a preferred editor to edit the values in install/devtron-operator-configs.yaml
-vim install/devtron-operator-configs.yaml
-```
-
-Edit the `install/devtron-operator-configs.yaml` to configure your Devtron installation. For more details about it, see [configuration](./#configuration) Once your configurations are ready, continue with following steps
-
-```bash
-kubectl create ns devtroncd
-kubectl -n devtroncd apply -f charts/devtron/crds
-# wait for crd to install
-kubectl apply -n devtroncd -f charts/devtron/templates/install.yaml
-#edit install/devtron-operator-configs.yaml and input the
-kubectl apply -n devtroncd -f install/devtron-operator-configs.yaml
-kubectl apply -n devtroncd -f charts/devtron/templates/devtron-installer.yaml
-```
+** Install with Helm3 - Recommended
+** Install with Helm2
+** Install with kubectl
 
 #### Installation status
 
@@ -112,17 +43,6 @@ Once installation process is complete, above command will print `Applied` It may
 
 #### Access devtron dashboard
 
-**Dashboard URL**
-
-Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` is same as provided in `values.yaml` in case of installation via helm chart OR provided in `install/devtron-operator-configs.yaml` in case of installation via kubectl.
-
-Run following command to get dashboard
-
-```bash
-scheme=`kubectl -n devtroncd get cm devtron-operator-cm -o jsonpath='{.data.BASE_URL_SCHEME}'` && url=`kubectl -n devtroncd get cm devtron-operator-cm -o jsonpath='{.data.BASE_URL}'` && echo "$scheme://$url/dashboard"
-```
-
-**Please Note:** URL should be pointing to the cluster on which you have installed the platform. For example if you have directed domain `devtron.example.com` to the cluster and ingress controller is listening on port `32080` then url will be `devtron.example.com:32080`
 
 **Login credentials**
 
