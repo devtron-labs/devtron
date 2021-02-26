@@ -25,7 +25,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
@@ -68,12 +67,14 @@ type GitOpsConfigServiceImpl struct {
 	envService       cluster.EnvironmentService
 	versionService   argocdServer.VersionService
 	gitFactory       *util.GitFactory
+	dockerReg        repository.DockerArtifactStoreRepository
+	attributeRepo    repository.AttributesRepository
 }
 
-func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
+func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory) *GitOpsConfigServiceImpl {
+	gitFactory *util.GitFactory, dockerReg repository.DockerArtifactStoreRepository, attributeRepo repository.AttributesRepository) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		logger:           Logger,
 		gitOpsRepository: gitOpsRepository,
@@ -83,6 +84,8 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 		envService:       envService,
 		versionService:   versionService,
 		gitFactory:       gitFactory,
+		dockerReg:        dockerReg,
+		attributeRepo:    attributeRepo,
 	}
 }
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto) (*GitOpsConfigDto, error) {

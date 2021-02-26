@@ -69,6 +69,7 @@ type MuxRouter struct {
 	gitOpsConfigRouter               GitOpsConfigRouter
 	dashboardRouter                  DashboardRouter
 	attributesRouter                 AttributesRouter
+	commonRouter                     CommonRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -86,7 +87,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter AppStoreRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
-	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter) *MuxRouter {
+	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter,
+	commonRouter CommonRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -127,6 +129,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		gitOpsConfigRouter:               gitOpsConfigRouter,
 		attributesRouter:                 attributesRouter,
 		dashboardRouter:                  dashboardRouter,
+		commonRouter:                     commonRouter,
 	}
 	return r
 }
@@ -231,7 +234,6 @@ func (r MuxRouter) Init() {
 	gitOpsRouter := r.Router.PathPrefix("/orchestrator/gitops").Subrouter()
 	r.gitOpsConfigRouter.InitGitOpsConfigRouter(gitOpsRouter)
 
-
 	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
 	r.attributesRouter.initAttributesRouter(attributeRouter)
 
@@ -240,4 +242,7 @@ func (r MuxRouter) Init() {
 	r.Router.Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		http.Redirect(writer, request, "/dashboard", 301)
 	})
+
+	commonRouter := r.Router.PathPrefix("/orchestrator/global").Subrouter()
+	r.commonRouter.InitCommonRouter(commonRouter)
 }

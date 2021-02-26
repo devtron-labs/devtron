@@ -18,29 +18,63 @@
 package commonService
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"go.uber.org/zap"
 )
 
 type CommonService interface {
 	FetchLatestChart(appId int, envId int) (*chartConfig.Chart, error)
+	GlobalChecklist() (*GlobalChecklist, error)
 }
 
 type CommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	chartRepository             chartConfig.ChartRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
+	gitOpsRepository            repository.GitOpsConfigRepository
+	dockerReg                   repository.DockerArtifactStoreRepository
+	attributeRepo               repository.AttributesRepository
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	chartRepository chartConfig.ChartRepository,
-	environmentConfigRepository chartConfig.EnvConfigOverrideRepository) *CommonServiceImpl {
+	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
+	gitOpsRepository repository.GitOpsConfigRepository,
+	dockerReg repository.DockerArtifactStoreRepository,
+	attributeRepo repository.AttributesRepository) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
 		logger:                      logger,
 		chartRepository:             chartRepository,
 		environmentConfigRepository: environmentConfigRepository,
+		gitOpsRepository:            gitOpsRepository,
+		dockerReg:                   dockerReg,
+		attributeRepo:               attributeRepo,
 	}
 	return serviceImpl
+}
+
+type GlobalChecklist struct {
+	AppChecklist   *AppChecklist   `json:"appChecklist"`
+	ChartChecklist *ChartChecklist `json:"chartChecklist"`
+	UserId         int32           `json:"-"`
+}
+
+type ChartChecklist struct {
+	GitOps  int `json:"gitOps"`
+	Project int `json:"project"`
+	Git     int `json:"git"`
+}
+
+type AppChecklist struct {
+	GitOps      int `json:"gitOps"`
+	Project     int `json:"project"`
+	Git         int `json:"git"`
+	Environment int `json:"environment"`
+	Docker      int `json:"docker"`
+	HostUrl     int `json:"hostUrl"`
+	//ChartChecklist *ChartChecklist `json:",inline"`
 }
 
 func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartConfig.Chart, error) {
@@ -71,4 +105,49 @@ func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartCon
 		// there may be older chart version in env overrides (and in that case it will be ignore, property and isBinary)
 	}
 	return chart, nil
+}
+
+func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
+	gitOps, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		return nil, err
+	}
+
+	dockerReg, err := impl.dockerReg.FindActiveDefaultStore()
+	if err != nil {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		return nil, err
+	}
+
+	attribute, err := impl.attributeRepo.FindByKey(attributes.HostUrlKey)
+	if err != nil {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		return nil, err
+	}
+
+	chartChecklist := &ChartChecklist{
+		Project: 1,
+		Git:     1,
+	}
+	appChecklist := &AppChecklist{
+		Project:     1,
+		Git:         1,
+		Environment: 1,
+	}
+	if gitOps.Id > 0 {
+		chartChecklist.GitOps = 1
+		appChecklist.GitOps = 1
+	}
+	if len(dockerReg.Id) > 0 {
+		appChecklist.Docker = 1
+	}
+	if attribute.Id > 0 {
+		appChecklist.HostUrl = 1
+	}
+	config := &GlobalChecklist{
+		AppChecklist:   appChecklist,
+		ChartChecklist: chartChecklist,
+	}
+	return config, err
 }
