@@ -4,6 +4,58 @@
 
 ## Helm3
 
+
+
+
+
+{% tabs %}
+{% tab title="Install with default configurations" %}
+This installation will use Minio for storing build logs and cache
+
+```bash
+kubectl create namespace devtroncd
+helm add repo devtron https://helm.devtron.ai
+helm install devtron devtron/devtron-operator --namespace devtroncd --set secrets.POSTGRESQL_PASSWORD=change-me
+```
+{% endtab %}
+
+{% tab title="Install with AWS S3 Buckets" %}
+This installation will use AWS s3 buckets for storing build logs and cache
+
+```bash
+kubectl create namespace devtroncd
+helm add repo devtron https://helm.devtron.ai
+helm install devtron devtron/devtron-operator --namespace devtroncd \
+--set secrets.POSTGRESQL_PASSWORD=change-me \
+--set configs.BLOB_STORAGE_PROVIDER=AWS \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-2 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-2
+```
+{% endtab %}
+
+{% tab title="Install with Azure Blob Storage" %}
+This installation will use AWS s3 buckets for storing build logs and cache
+
+```bash
+kubectl create namespace devtroncd
+helm add repo devtron https://helm.devtron.ai
+helm install devtron devtron/devtron-operator --namespace devtroncd \
+--set secrets.POSTGRESQL_PASSWORD=change-me \
+--set configs.BLOB_STORAGE_PROVIDER=AZURE \
+--set configs.AZURE_ACCOUNT_NAME=test-account \
+--set configs.AZURE_BLOB_CONTAINER_CI_LOG=ci-log-container \
+--set configs.AZURE_BLOB_CONTAINER_CI_CACHE=ci-cache-container
+```
+{% endtab %}
+
+{% endtabs %}
+
+
+
+
+
 ### Install with default configurations
 
 This installation will use Minio for storing build logs and cache
