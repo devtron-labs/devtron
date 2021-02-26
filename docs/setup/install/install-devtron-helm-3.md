@@ -1,6 +1,6 @@
 # Install Devtron using Helm3
 
-To install Helm3, please check [Installing Helm3] (https://helm.sh/docs/intro/install/)
+To install Helm3, please check [Installing Helm3](https://helm.sh/docs/intro/install/)
 
 {% tabs %}
 {% tab title="Install with default configurations" %}

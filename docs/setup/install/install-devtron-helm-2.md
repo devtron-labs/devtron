@@ -1,6 +1,7 @@
 # Install Devtron using Helm2
 
-To install Helm2, please check [Installing Helm2] (https://v2.helm.sh/docs/install//)
+To install Helm2, please check [Installing Helm2](https://v2.helm.sh/docs/install//)
+Make sure you have [Installed tiller using helm init](https://v2.helm.sh/docs/install/#installing-tiller)
 
 {% tabs %}
 {% tab title="Install with default configurations" %}
