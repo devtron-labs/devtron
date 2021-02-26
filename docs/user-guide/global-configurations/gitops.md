@@ -1,8 +1,14 @@
 # Gitops
 
-## Why Gitops?
-Devtron use argocd to deploy application, This feature in Global Configuration allows you to select Git account to store our application and chart repos. Argocd linked to these gitops repos to fetch manifest files.
-Gitops move to global configuration part so that super admin can create accordingly as after cluster installation.
+## Why Devtron takes Gitops Configuration?
+Devtron deploys applications via GitOps; Git credentials required at `Global Configuration > GitOps` are used by Devtron and Argocd to enable GitOps. Devtron stores application/chart manifest files in git which are in turn pulled by Argocd for deployment. 
+
+
+In case GitOps is not configured, Devtron cannot deploy any application or charts. Areas impacted by GitOps are:
+
+* Deployment Template, [click here](https://docs.devtron.ai/user-guide/creating-application/deployment-template) to learn more.
+* Charts, [click here](https://docs.devtron.ai/user-guide/deploy-chart) to learn mor
+
 
 ## Add Git Configuration
 
@@ -13,31 +19,32 @@ Select the Gitops section of global configuration. At the top of the section two
 
 ![](../../.gitbook/assets/gc-gitops-tab.png)
 
-Select one of the git tab. To add git you need to provide three inputs as below:
+Select one of the git tabs. To add git account, You need to provide three inputs as given below:
 1. Git Host
 2. Github Organization Name / Gitlab Group id 
 3. Git access credential
 
 ### 1. Git Host: 
 
-This field is filled by default, Showing url of selected tab. For example- https://github.com for Github, https://gitlab.com for GitLab.
+This field is filled by default, Showing url of the selected tab. For example- https://github.com for Github, https://gitlab.com for GitLab.
 
 ### 2. Github Organization Name / GitLab Group Id:
 
-In case of Github provide `Github organization Name`. Similarly for Gitlab provide `Gitlab group Id`.
-What permissions are required for the gitop organization id? 
-api, read_user, read_api, read_repository, write_repository, read_registry, write_registry
-
-![](../../.gitbook/assets/gc-gitops-id.png)
+In case of Github provide `Github organization Name`. Learn more about [GitHub organization Name](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations), Similarly for Gitlab provide `Gitlab group Id`. Learn more about [Gitlab group Id]()
 
 ### 3. Git access credential
 
-Provide Git `Username` and `Personal Access Token` of your git account. Click on Save to save your gitops configuration details.
+Provide Git `Username` and `Personal Access Token` of your git account. 
+What permissions are required for the gitop organization id? 
+* api 
+* read_user 
+* read_api 
+* read_repository 
+* write_repository 
+* read_registry 
+* write_registry
+
+Click on Save to save your gitops configuration details.
  
 
-![](../../.gitbook/assets/gc-gitops-save.png)
-
-
-> Note: In case of no gitop configuration, We can't create deployment template for any application or chart. 
-
-Learn more about [Deployment Template](https://docs.devtron.ai/user-guide/creating-application/deployment-template)
+![](../../.gitbook/assets/gc-gitops-saved.png)
