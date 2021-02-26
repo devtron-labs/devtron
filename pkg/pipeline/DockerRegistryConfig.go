@@ -39,7 +39,7 @@ type DockerRegistryConfig interface {
 type DockerArtifactStoreBean struct {
 	Id                 string                  `json:"id,omitempty" validate:"required"`
 	PluginId           string                  `json:"pluginId,omitempty" validate:"required"`
-	RegistryURL        string                  `json:"registryUrl,omitempty" validate:"required"`
+	RegistryURL        string                  `json:"registryUrl,omitempty"`
 	RegistryType       repository.RegistryType `json:"registryType,omitempty" validate:"required"`
 	AWSAccessKeyId     string                  `json:"awsAccessKeyId,omitempty"`
 	AWSSecretAccessKey string                  `json:"awsSecretAccessKey,omitempty"`
