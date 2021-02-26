@@ -1,9 +1,6 @@
-# Install using Helm3
+# Install Devtron using Helm3
 
-### Install Devtron using Helm3
-
-## Helm3
-
+To install Helm3, please check [Installing Helm3] (https://helm.sh/docs/intro/install/)
 
 {% tabs %}
 {% tab title="Install with default configurations" %}
@@ -26,9 +23,9 @@ helm install devtron devtron/devtron-operator --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me \
 --set configs.BLOB_STORAGE_PROVIDER=AWS \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
---set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-2 \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
 --set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
---set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-2
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
 ```
 {% endtab %}
 
