@@ -1,10 +1,10 @@
 # Cloning Application
 
-![](../.gitbook/assets/d1%20%282%29.jpg)
+![](../.gitbook/assets/add-new-app.jpg)
 
 Select `Add New App` to Create a new app.
 
-![](../.gitbook/assets/clone_app1.jpg)
+![](../.gitbook/assets/clone_app1%20%282%29%20%283%29.jpg)
 
 | Key | Description |
 | :--- | :--- |
@@ -14,7 +14,7 @@ Select `Add New App` to Create a new app.
 
 Click on `Duplicate App` to create App with a template of the Application you have selected from the Drop-down.
 
-![](../.gitbook/assets/created-clone-app.jpg)
+![](../.gitbook/assets/created-clone-app%20%282%29.jpg)
 
 New application with a duplicate template is created.
 

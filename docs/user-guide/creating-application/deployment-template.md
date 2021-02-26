@@ -6,7 +6,7 @@ Deployment configuration is the Manifest for the application, it defines the run
 2. Yaml file
 3. Show application metrics
 
-![](../../.gitbook/assets/deployment-template%20%282%29.gif)
+![](../../.gitbook/assets/deployment-template%20%283%29%20%286%29.gif)
 
 ### 1. Chart version
 
@@ -443,7 +443,7 @@ HPA will be able to give metrics such as CPU and memory usage for cluster nodes 
 
 If you want to see application matrics like different status codes, application throughput, latency, response time. Enable the Show Application matrix from here. And you will get all metrics on App detail page. This is optional. You can leave it disabled. By default it remains disabled.
 
-![](../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
+![](../../.gitbook/assets/deployment_application_metrics%20%282%29%20%282%29%20%284%29.png)
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
 

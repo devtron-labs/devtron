@@ -2,17 +2,17 @@
 
 ## Triggering CD Pipelines
 
-![](../../.gitbook/assets/trigger-select-image%20%281%29.jpg)
+![](../../.gitbook/assets/trigger-select-image%20%282%29%20%285%29.jpg)
 
 After CI Pipeline is complete, CD Pipeline can be triggered by Clicking on _Select Image_.
 
-![](../../.gitbook/assets/cd-deploy-console.jpg)
+![](../../.gitbook/assets/cd-deploy-console%20%284%29.jpg)
 
 Select an image to deploy and then Click on **Deploy** to trigger the CD Pipeline.
 
 The running images are tagged as _Running_
 
-![](../../.gitbook/assets/tri_cd5.jpg)
+![](../../.gitbook/assets/deployed-app-details%20%281%29.jpg)
 
 The status of the current deployment can be viewed by Clicking on **App Details** that will show the _Progressing_ state for 1-2 minutes and then gradually shows _Healthy_ state or _Hibernating_ state, based on the deployment strategy.
 

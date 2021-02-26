@@ -1,6 +1,6 @@
-# Chart Repository
+# Chart Repositories
 
-This feature allows you to add more chart repositories to Devtron. Once added they will be available in the `Discover section` of the `Chart Store`. 
+This feature allows you to add more chart repositories to Devtron. Once added they will be available in the `Discover section` of the `Chart Store`.
 
 Learn more about [Discover chart link](https://docs.devtron.ai/user-guide/deploy-chart/overview-of-charts#deploying-chart)
 
@@ -27,7 +27,6 @@ Provide the `URL`. **For example**- github.com for Github, [https://gitlab.com](
 ### 3. Authentication type
 
 Here you have to provide the type of Authentication required by your version controller. We support three types of authentications, You can choose the one that suits you the best.
-
 
 * **Anonymous**
 
@@ -57,7 +56,7 @@ You can update your saved chart repository settings at any point in time. Just c
 
 You can enable and disable your chart repository setting. If you enable it, then you will be able to see that enabled chart in `Discover` section of `Chart Store`.
 
-
 Learn more about [Discover chart link](https://docs.devtron.ai/user-guide/deploy-chart/overview-of-charts#deploying-chart)
 
 ![](../../.gitbook/assets/gc-chart-list.png)
+

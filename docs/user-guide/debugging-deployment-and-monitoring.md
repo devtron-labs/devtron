@@ -10,7 +10,7 @@ Over here, you can see the status of the app as Healthy. If there are some error
 
 ### Events
 
-![](../.gitbook/assets/events1%20%281%29.jpg)
+![](../.gitbook/assets/events1%20%282%29%20%285%29.jpg)
 
 Events of the application are accessible from the bottom left corner.
 
@@ -18,19 +18,19 @@ Events section displays you the events that took place during the deployment of 
 
 ### Logs
 
-![](../.gitbook/assets/events2%20%281%29.jpg)
+![](../.gitbook/assets/app-details-logs.jpg)
 
 Logs contain the logs of the Pods and Containers deployed which you can use for the process of debugging.
 
 ### Manifest
 
-![](../.gitbook/assets/events3%20%282%29.jpg)
+![](../.gitbook/assets/app-details-manifest.jpg)
 
 The Manifest shows the critical information such as Container-image, restartCount, state, phase, podIP, startTime etc. and status of the pods deployed.
 
 ### Deleting Pods
 
-![](../.gitbook/assets/events5%20%281%29.png)
+![](../.gitbook/assets/events5%20%282%29%20%285%29.png)
 
 You might run into a situation where you need to delete Pods. You may need to bounce or restart a pod.
 
@@ -49,11 +49,11 @@ You can view `Application Objects` in this section of `App Details`, such as:
 | `Config & Storage` | _ConfigMap_\( API object used to store non-confidential data in key-value pairs\) |
 | `Custom Resource` | _Rollout_\(new Pods will be scheduled on Nodes with available resources\), _ServiceMonitor_\(specifies how groups of services should be monitored\) |
 
-![](../.gitbook/assets/app-details-application-object-ingress.png)
+![](../.gitbook/assets/app-details-application-object-ingress%20%281%29.png)
 
 ## Monitoring
 
-![](../.gitbook/assets/events4%20%282%29.jpg)
+![](../.gitbook/assets/events4%20%282%29%20%283%29.jpg)
 
 You can monitor the application in the `App Details`section.
 

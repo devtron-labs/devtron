@@ -1,49 +1,39 @@
-
 # User Access
 
 {% embed url="https://www.youtube.com/watch?v=VTqBRIFbuSU" caption="" %}
 
-Like any entreprise product, Devtron supports fine grained access control to the resources based on
-1. Type of action allowed on the Devtron resources (Create Vs View)
-2. Sensitivity of the data (Editing image Vs Editing memory)
+Like any entreprise product, Devtron supports fine grained access control to the resources based on 1. Type of action allowed on the Devtron resources \(Create Vs View\) 2. Sensitivity of the data \(Editing image Vs Editing memory\)
 
 Access can be added to the User either directly or via Groups.
 
 ## Access Levels
-Devtron supports 5 levels of access
-1. **View**: User with `view` only access has the least privilege. This user can only view combination of environments, applications and helm charts on which access has been granted to the user. This user cannot view sensitive data like secrets used in applications or charts.
-2. **Build and Deploy**: In addition to `view` privilege mentioned in above, user with `build and deploy` permission can build and deploy the image of permitted applications and helm charts to permitted environments.
-3. **Admin**: User with `admin` access can create, edit, delete and view permitted applications in permitted projects.
-4. **Manager**: User with `manager` access can do everything that an `admin` type user can do, in addition they can also give and revoke access of users for the applications and environments of which they are `manager`.
-5. **Super Admin**: User with `super admin` privilege has unrestricted access to all Devtron resources. Super admin can create, modify, delete and view any Devtron resource without any restriction; its like Superman without the weakness of Kryptonite. Super Admin can also add and delete user access across any Devtron resource, add delete git repository credentials, docker registry credentials, cluster and environment.
+
+Devtron supports 5 levels of access 1. **View**: User with `view` only access has the least privilege. This user can only view combination of environments, applications and helm charts on which access has been granted to the user. This user cannot view sensitive data like secrets used in applications or charts. 2. **Build and Deploy**: In addition to `view` privilege mentioned in above, user with `build and deploy` permission can build and deploy the image of permitted applications and helm charts to permitted environments. 3. **Admin**: User with `admin` access can create, edit, delete and view permitted applications in permitted projects. 4. **Manager**: User with `manager` access can do everything that an `admin` type user can do, in addition they can also give and revoke access of users for the applications and environments of which they are `manager`. 5. **Super Admin**: User with `super admin` privilege has unrestricted access to all Devtron resources. Super admin can create, modify, delete and view any Devtron resource without any restriction; its like Superman without the weakness of Kryptonite. Super Admin can also add and delete user access across any Devtron resource, add delete git repository credentials, docker registry credentials, cluster and environment.
 
 | Access Level | View App | Create App | Edit App | Delete App | Trigger App |
-|--|--|--|--|--|--|
-| View | Yes  | No | No | No| No |
-| Build and Deploy | Yes  | No | No | No| Yes |
-|Admin| Yes | Yes | Yes | Yes | Yes |
-|Manager| Yes | Yes | Yes | Yes | Yes |
-|Super Admin| Yes | Yes | Yes | Yes | Yes |
-<br/>
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| View | Yes | No | No | No | No |
+| Build and Deploy | Yes | No | No | No | Yes |
+| Admin | Yes | Yes | Yes | Yes | Yes |
+| Manager | Yes | Yes | Yes | Yes | Yes |
+| Super Admin | Yes | Yes | Yes | Yes | Yes |
 
 | Access Level | View Charts | Install Charts | Edit Charts | Delete Charts |
-|--|--|--|--|--|--|
-| View | Yes  | No | No | No|
-| Build and Deploy | Yes  | No | No | No|
-|Admin| Yes | Yes | Yes | Yes |
-|Manager| Yes | Yes | Yes | Yes |
-|Super Admin| Yes | Yes | Yes | Yes |
-<br/>
+| :--- | :--- | :--- | :--- | :--- |
+| View | Yes | No | No | No |
+| Build and Deploy | Yes | No | No | No |
+| Admin | Yes | Yes | Yes | Yes |
+| Manager | Yes | Yes | Yes | Yes |
+| Super Admin | Yes | Yes | Yes | Yes |
 
-| Access Level | Add User Access  | Edit User Access | Delete User Access |
-|--|--|--|--|
-|Manager| Yes | Yes | Yes |
-|Super Admin| Yes | Yes | Yes |
-<br/>
+| Access Level | Add User Access | Edit User Access | Delete User Access |
+| :--- | :--- | :--- | :--- |
+| Manager | Yes | Yes | Yes |
+| Super Admin | Yes | Yes | Yes |
 
-| Access Level | Add Global Config  | Edit Global Config | Delete Global Config |
-|--|--|--|--|
-|Super Admin| Yes | Yes |
+| Access Level | Add Global Config | Edit Global Config | Delete Global Config |
+| :--- | :--- | :--- | :--- |
+| Super Admin | Yes | Yes |  |
 
 To control the access of User and Group-
 
@@ -55,7 +45,7 @@ Go to the left main panel -&gt; `Select Global Configurations` -&gt; Select `Use
 
 Click on `Add User`, to add one or multiple users.
 
-![](../../.gitbook/assets/user1.jpg)
+![](../../.gitbook/assets/gc-user-access-add-user%20%285%29.jpg)
 
 ### 2. Create User Permissions
 
@@ -79,9 +69,9 @@ In the `Email address` box, you have to provide the mail ID of the user to whom 
 
 ### Assign super admin permissions
 
-If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear.  Please check [above](#access-levels) to see permission levels.
+If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear. Please check [above](user-access.md#access-levels) to see permission levels.
 
-![](../../.gitbook/assets/user_gc1%20(3)%20(4).png)
+!\[\]\(../../.gitbook/assets/user\_gc1%20\(3\)%20\(4\).png\)
 
 Click on `Save` and your user will be saved with super admin permissions.
 
@@ -119,9 +109,9 @@ Similarly, you can select `Applications` from the drop-down corresponding to you
 
   Inside the `Role`, you actually choose which type of permissions you want to give to the users.
 
-There are four different view access levels/Role available for both User and Group as described [above](#access-levels):
+There are four different view access levels/Role available for both User and Group as described [above](user-access.md#access-levels):
 
-![](../../.gitbook/assets/gc-user-access-configure-direct-permission%20(3)%20(6).jpg)
+!\[\]\(../../.gitbook/assets/gc-user-access-configure-direct-permission%20\(3\)%20\(6\).jpg\)
 
 You can add multiple rows, for Direct Permissions.
 
@@ -135,17 +125,17 @@ You can either give the users permission to `Create` or `Edit`.
 
 Click on the checkbox of `Create`, if you want the users to create, view, edit, or delete all the chart groups.
 
-![](../../.gitbook/assets/gc-user-access-configure-chart-permission%20(1)%20(3)%20(4).jpg)
+!\[\]\(../../.gitbook/assets/gc-user-access-configure-chart-permission%20\(1\)%20\(3\)%20\(4\).jpg\)
 
 Click on the checkbox of `Edit`, if you want to `allow` or `deny` users to edit the chart groups.
 
 Select on `Deny` option from the drop-down menu, if you want to restrict the users to edit the chart groups.
 
-![](../../.gitbook/assets/user5%20(2).jpg)
+!\[\]\(../../.gitbook/assets/user5%20\(2\).jpg\)
 
 Select the `Specific Charts` option from the drop-down menu, and then select the chart groups for which you want to allow users to edit, from the other drop-down menu.
 
-![](../../.gitbook/assets/user6%20(1)%20(6).jpg)
+!\[\]\(../../.gitbook/assets/user6%20\(1\)%20\(6\).jpg\)
 
 Click on `Save`, once you have configured all the required permissions for the users.
 
@@ -153,11 +143,11 @@ Click on `Save`, once you have configured all the required permissions for the u
 
 You can edit the user permissions, by clicking on the `downward arrow`.
 
-![](../../.gitbook/assets/gc-user-access-edit-arrow%20%282%29.jpg)
+![](../../.gitbook/assets/gc-user-access-edit-arrow%20%282%29%20%284%29.jpg)
 
 Then you can edit the user permissions here.
 
-![](../../.gitbook/assets/gc-user-access-edit-user-permission%20(6).jpg)
+!\[\]\(../../.gitbook/assets/gc-user-access-edit-user-permission%20\(6\).jpg\)
 
 After you have done editing the user permissions. Click on `Save`.
 
@@ -173,11 +163,11 @@ You can select the group which you are creating in the `Group permissions` secti
 
 Click on `Add Group`, to create a new group.
 
-![](../../.gitbook/assets/user7%20(2)%20(5).jpg)
+!\[\]\(../../.gitbook/assets/user7%20\(2\)%20\(5\).jpg\)
 
 Enter the `Group Name` and `Description`.
 
-![](../../.gitbook/assets/gc-user-access-add-group-name%20(2).jpg)
+!\[\]\(../../.gitbook/assets/gc-user-access-add-group-name%20\(2\).jpg\)
 
 ### 2. Create Group Permissions
 
@@ -185,7 +175,7 @@ Once you have given the group name and group description.
 
 Then, control the access permissions of groups in the Direct Permissions section. Manage the Project, Environment, Application, and Role access the same as we discuss in the above users section.
 
-![](../../.gitbook/assets/gc-user-access-add-group-configure%20(3).jpg)
+!\[\]\(../../.gitbook/assets/gc-user-access-add-group-configure%20\(3\).jpg\)
 
 You can add multiple rows, for the Direct Permissions section.
 
@@ -195,11 +185,11 @@ Once you have finished assigning the appropriate permissions for the listed user
 
 You can edit the group permissions, by clicking on the `downward arrow.`
 
-![](../../.gitbook/assets/gc-user-access-add-group-edit-arrow.jpg)
+![](../../.gitbook/assets/gc-user-access-add-group-edit-arrow%20%282%29%20%284%29.jpg)
 
 Then you can edit the user permissions here.
 
-![](../../.gitbook/assets/gc-user-access-add-group-edit-configure%20(3).jpg)
+!\[\]\(../../.gitbook/assets/gc-user-access-add-group-edit-configure%20\(3\).jpg\)
 
 Once you are done editing the group permissions. Click on `Save`.
 
@@ -208,3 +198,4 @@ If you want to delete the groups with particular permissions. Click on `Delete`.
 ### 4. Manage Chart Group Permissions
 
 The chart group permissions for the group will be managed in the same way as for the users. For reference, check Manage chart group permissions for users.
+

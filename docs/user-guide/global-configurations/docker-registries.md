@@ -20,7 +20,7 @@ You will see below the input fields to configure the docker registry.
 * Registry URL
 * Set as default
 
-![](../../.gitbook/assets/gc-docker-add%20%283%29.png)
+![](../../.gitbook/assets/gc-docker-add%20%283%29%20%281%29.png)
 
 ### Name
 
@@ -50,7 +50,7 @@ Inside the Access key ID box, provide your AWS access key.
 
 Provide your AWS secret access key ID.
 
-![](../../.gitbook/assets/gc-docker-configure-aws%20%281%29.png)
+![](../../.gitbook/assets/gc-docker-configure-aws.png)
 
 ### Registry Type Others:
 
@@ -64,7 +64,7 @@ Give the username of your account, where you have created your registry in.
 
 Give the password corresponding to the username of your registry.
 
-![](../../.gitbook/assets/gc-docker-configure-other%20%282%29.png)
+![](../../.gitbook/assets/gc-docker-configure-other%20%283%29%20%286%29.png)
 
 ### Set as default:
 

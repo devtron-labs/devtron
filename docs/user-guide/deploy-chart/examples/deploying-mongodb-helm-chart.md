@@ -4,7 +4,7 @@
 
 Let's assume that you are building an application which needs mongoDB.
 
-![](../../../.gitbook/assets/mongo%20%282%29.jpg)
+![](../../../.gitbook/assets/mongo%20%286%29.jpg)
 
 Deploying applications as Helm Charts is the easiest way to create applications on Devtron.
 
@@ -14,13 +14,13 @@ This guide will introduce you to how to deploy the mongoDB's Helm chart.
 
 Select the `Charts` section from the left pane, you will be landed to the `Chart Store` page. Click on `Discover` and find `stable/mongodb-replicaset` Helm Chart.
 
-![](../../../.gitbook/assets/first%20%281%29.jpg)
+![](../../../.gitbook/assets/first%20%286%29.jpg)
 
 ## 2. Configure the Chart
 
 After selecting the stable/mongodb helm chart, click on `Deploy`
 
-![](../../../.gitbook/assets/second%20%282%29.jpg)
+![](../../../.gitbook/assets/second%20%282%29%20%283%29.jpg)
 
 Enter the following details, to deploy mongoDB chart:
 
@@ -38,7 +38,7 @@ In this example `replicas` is set to **1** and `persistenceVolume` is set to **f
 
 To learn about different parameters used in the chart, you can check [Documentation of mongodb Helm chart](https://hub.helm.sh/charts/bitnami/mongodb)
 
-![](../../../.gitbook/assets/mongo1%20%282%29.jpg)
+![](../../../.gitbook/assets/mongo1%20%282%29%20%284%29.jpg)
 
 Click on `Deploy` after you have finished configuring the chart.
 
@@ -48,7 +48,7 @@ After clicking on `Deploy` you will land on a page, that shows the Status of the
 
 The Status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
 
-![](../../../.gitbook/assets/mongo4%20%281%29.png)
+![](../../../.gitbook/assets/mongo4%20%281%29%20%282%29.png)
 
 In case the Status of the deployment is `Degraded` or takes a long time to get deployed.
 

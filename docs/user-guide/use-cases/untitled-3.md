@@ -49,7 +49,7 @@ Give, the path of the Dockerfile.
 
 Enable `Ingress`, and give the path on which you want to host the application.
 
-![](../../.gitbook/assets/use-case-django-ingress-template.jpg)
+![](../../.gitbook/assets/use-case-django-ingress-template%20%284%29%20%287%29.jpg)
 
 #### _\*Set up the CI/CD Pipelines_
 
@@ -67,5 +67,5 @@ The syntax is: `http://<hostname>/<path>/`
 
 _**path**_ will be the one that you have given in Step 3 while configuring the Deployment Template.
 
-![](../../.gitbook/assets/demo.jpg)
+![](../../.gitbook/assets/demo%20%283%29%20%285%29.jpg)
 

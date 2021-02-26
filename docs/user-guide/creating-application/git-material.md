@@ -8,11 +8,11 @@ Git material is used to pull your application source code during the CI step. In
 
 Devtron also supports multiple git repositories in a single deployment. We will discuss this in detail in the multi git option [below](git-material.md#4-multi-git).
 
-![](../../.gitbook/assets/move1%20%283%29.gif)
+![](../../.gitbook/assets/adding-git-material%20%285%29.gif)
 
 ## 1. Select Provider
 
-In the provider section, you have to select the git provider of your code repository like- Github, Gitlab, and Bitbucket, etc. If you are using a private git repository, you can configure your git provider via [git provider config](../git-provider-config/).
+In the provider section, you have to select the git provider of your code repository like- Github, Gitlab, and Bitbucket, etc. If you are using a private git repository, you can configure your git provider via [git provider config](https://github.com/devtron-labs/devtron/tree/227084fcd7f44c7fde76aefb2510b15ca06f28e5/docs/user-guide/git-provider-config/README.md).
 
 ## 2. Git Repo URL
 
@@ -22,7 +22,7 @@ You can find this URL by clicking on the '⤓ code' button on your git repositor
 
 Note: Copy the HTTPS url of the repository
 
-![](../../.gitbook/assets/github_url%20%282%29.png)
+![](../../.gitbook/assets/github_url%20%282%29%20%282%29%20%284%29.png)
 
 ## 3. Checkout Path
 
@@ -30,7 +30,7 @@ The git checkout path is the directory where your code is pulled or cloned for t
 
 This field is optional in case of a single git repository application and you can leave the path as default. Devtron assigns a directory by itself when the field is left blank. The default value of this field is `./`
 
-![](../../.gitbook/assets/git_material2%20%283%29.jpg)
+![](../../.gitbook/assets/git-checkout-path%20%285%29.jpg)
 
 If you want to go with a multi-git approach, then you need to specify a separate path for each of your repositories. The first repository can be checked out at the default `./` path as explained above. But, for all the rest of the repositories, you need to ensure that you provide unique checkout paths. In failing to do so, you may cause Devtron to checkout multiple repositories in one directory and overwriting files from different repositories on each other.
 
@@ -54,7 +54,7 @@ Few other examples, where you may want to have multiple repositories for your ap
 
 ## **How Devtron's 'Checkout Path' works**
 
-The checkout path is used by Devtron to assign a registry to each of your git repositories.
-Once you provide a different checkout paths for your repositories, Devtron will clone your code at that location and these checkout paths will be used by the docker file to create a docker image.
+The checkout path is used by Devtron to assign a registry to each of your git repositories. Once you provide a different checkout paths for your repositories, Devtron will clone your code at that location and these checkout paths will be used by the docker file to create a docker image.
 
 Whenever a change is pushed to any the configured repositories, the CI will be triggered and a new docker image file will be built based on the latest commits of the configured repositories and pushed to the docker registry.
+

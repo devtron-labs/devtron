@@ -6,11 +6,11 @@ Secret objects let you store and manage sensitive information, such as passwords
 
 ## Configure Secret
 
-![](../../.gitbook/assets/add-secret%20%281%29.png)
+![](../../.gitbook/assets/add-secret%20%285%29.png)
 
 Click on `Add Secret` to add a new secret.
 
-![](../../.gitbook/assets/configure-secrets%20%281%29.jpg)
+![](../../.gitbook/assets/configure-secrets%20%281%29%20%282%29%20%284%29.jpg)
 
 | Key | Description |
 | :--- | :--- |
@@ -31,21 +31,21 @@ There are five Data types that you can use to save your secret.
 * **AWS System Manager**: The secret data for your application is fetched from AWS System Secret Manager and all the secrets stored in AWS System Manager are converted to Kubernetes Secret.
 * **Hashi Corp Vault**: The secret data for your application is fetched from Hashi Corp Vault and the secrets stored in Harshi Corp Vault are converted to Kubernetes Secret.
 
-*Note: The conversion of secrets from various data types to Kubernetes Secrets is done within Devtron and irrespective of the data type, after conversion, the Pods access `secrets` normally.*
+_Note: The conversion of secrets from various data types to Kubernetes Secrets is done within Devtron and irrespective of the data type, after conversion, the Pods access `secrets` normally._
 
 ## Volume Mount Path
 
 Specify the Volume Mount folder path in `Volume Mount Path`, a path where the data volume needs to be mounted. This volume will be accessible to the Containers running in a pod.
 
-![](../../.gitbook/assets/secret3.jpg)
+![](../../.gitbook/assets/secret-volume-path%20%286%29.jpg)
 
 Click on `Save Secret` to save the secret.
 
-![](../../.gitbook/assets/secret-created.png)
+![](../../.gitbook/assets/secret-created%20%283%29%20%283%29.png)
 
 You can see the Secret is added.
 
-![](../../.gitbook/assets/arora3%20%282%29.gif)
+![](../../.gitbook/assets/created-secret%20%286%29.gif)
 
 ## Update Secrets
 
@@ -53,7 +53,7 @@ You can update your secrets anytime later, but you cannot change the name of you
 
 To update secrets, click on the secret you wish to update.
 
-![](../../.gitbook/assets/updating_secrets.png)
+![](../../.gitbook/assets/updating_secrets%20%283%29%20%282%29.png)
 
 Click on `Update Secret` to update your secret.
 
@@ -61,5 +61,5 @@ Click on `Update Secret` to update your secret.
 
 You can delete your secret. Click on your secret and click on the `delete sign` to delete your secret.
 
-![](../../.gitbook/assets/delete_secret%20%282%29.png)
+![](../../.gitbook/assets/delete_secret%20%282%29%20%281%29.png)
 
