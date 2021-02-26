@@ -116,29 +116,10 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 ## :rocket: Getting Started
 
-#### Installing devtron with Helm 
+#### Installing Devtron
 
-```bash
-$ git clone https://github.com/devtron-labs/devtron-installation-script.git
-$ cd devtron-installation-script/charts
-$ #modify values in values.yaml
-$ helm install devtron . -f values.yaml
-```
-For detail instructions checkout [devtron installation project](https://github.com/devtron-labs/devtron-installation-script/)
+Please checkout [Devtron installation steps](https://docs.devtron.ai/setup/install)
 
-
-#### :key: Access Devtron dashboard
-
-Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` same as provided in `values.yaml`
-
-
-*****For login use username:`admin` and for password run command mentioned below.*****
-
-```bash
-$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
-```
-
-*****[Detail configuration options](https://docs.devtron.ai/setup/install#configuration)*****
 
 #### Using devtron
   
@@ -146,7 +127,6 @@ $ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWOR
 - [Deploying Helm charts](https://docs.devtron.ai/user-guide/deploy-chart)
 - [Configure Security policy](https://docs.devtron.ai/user-guide/security-features)
 - [Detail Userguide](https://docs.devtron.ai)
-
 
 
 <!--
@@ -157,9 +137,9 @@ $ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWOR
 
 ## :memo: Compatibility notes
 
-- Only AWS kubernetes cluster is supported as of now
-- It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
 - Application metrics only works for k8s 1.16+
+- It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
+
 
 ## :busts_in_silhouette: Community
 
