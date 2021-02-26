@@ -261,15 +261,7 @@ kubectl -n devtroncd patch installer installer-devtron --type json -p '[{"op": "
 
 In case you are still facing issues please feel free to reach out to us on [discord](https://discord.gg/jsRG5qx2gp)
 
-{% tabs %}
-{% tab title="First Tab" %}
-hello1
-{% endtab %}
 
-{% tab title="Second Tab" %}
-hello2
-{% endtab %}
-{% endtabs %}
 
 
 

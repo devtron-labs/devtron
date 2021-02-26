@@ -72,17 +72,45 @@ Once installation process is complete, above command will print `Applied` It may
 
 ### Access devtron dashboard
 
-#### Obtaining Dashboard URL when no BASE\_URL was provided
 
-Obtaining Dashboard URL when no BASE\_URL was provided If you did not provide a \*\*BASE\_URL\*\* during install or have used the default installation, Devtron creates a loadbalancer for you on its own. Use the following command to get the dashboard url. \`\`\` kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}' \`\`\` You will get result something like below \`\`\` \[test2@server ~\]$ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}' \[map\[hostname:aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com\]\] \`\`\` The hostname mentioned here \( aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com \) is the Loadbalancer URL where you can access the Devtron dashboard. \*\*PS:\*\* You can also do a CNAME entry corresponding to your domain/subdomain to point to this Loadbalancer URL to access it at a custom domain. \| Host \| Type \| Points to \| \|----------:\|:------------\|:--------\| \| devtron.yourdomain.com \| CNAME \| aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com \|
+#### Obtaining Dashboard URL when no BASE_URL was provided
+<details>
+<summary>Obtaining Dashboard URL when no BASE_URL was provided</summary>
 
-\#\#\#\# Obtaining Dashboard URL when a BASE\_URL was provided Devtron dashboard in now available at the \`BASE\_URL/dashboard\`, where \`BASE\_URL\` is same as provided in \`values.yaml\` in case of installation via helm chart OR provided in \`install/devtron-operator-configs.yaml\` in case of installation via kubectl. You can run following command to get dashboard \`\`\`bash scheme=\`kubectl -n devtroncd get cm devtron-operator-cm -o jsonpath='{.data.BASE\_URL\_SCHEME}'\` && url=\`kubectl -n devtroncd get cm devtron-operator-cm -o jsonpath='{.data.BASE\_URL}'\` && echo "$scheme://$url/dashboard" \`\`\` \*\*Please Note:\*\* URL should be pointing to the cluster on which you have installed the platform. For example if you have directed domain \`devtron.example.com\` to the cluster and ingress controller is listening on port \`32080\` then url will be \`devtron.example.com:32080\`
+ If you did not provide a **BASE_URL** during install or have used the default installation, Devtron creates a loadbalancer for you on its own. Use the following command to get the dashboard url.
+```
+kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+```
+You will get result something like below
+```
+[test2@server ~]$ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+[map[hostname:aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com]]
+```
+The hostname mentioned here ( aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com ) is the Loadbalancer URL where you can access the Devtron dashboard.
+
+**PS:** You can also do a CNAME entry corresponding to your domain/subdomain to point to this Loadbalancer URL to access it at a custom domain.
+
+| Host | Type | Points to |
+|----------:|:------------|:--------|
+| devtron.yourdomain.com | CNAME | aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com |
+</details>
+
+<details>
+<summary>#### Obtaining Dashboard URL when a BASE_URL was provided</summary>
+Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` is same as
+provided in `values.yaml` in case of installation via helm chart
+OR
+provided in `install/devtron-operator-configs.yaml` in case of installation via kubectl.
+
+You can run following command to get dashboard
+```bash
+scheme=`kubectl -n devtroncd get cm devtron-operator-cm -o jsonpath='{.data.BASE_URL_SCHEME}'` && url=`kubectl -n devtroncd get cm devtron-operator-cm -o jsonpath='{.data.BASE_URL}'` && echo "$scheme://$url/dashboard"
+```
+**Please Note:** URL should be pointing to the cluster on which you have installed the platform. For example if you have directed domain `devtron.example.com` to the cluster and ingress controller is listening on port `32080` then url will be `devtron.example.com:32080`
+</details>
 
 #### Devtron Admin credentials
-
 For admin login use username:`admin` and for password run the following command.
-
 ```bash
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
-
