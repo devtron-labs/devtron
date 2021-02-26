@@ -10,7 +10,7 @@ Global configurations are used to configure your Git Providers, Docker Registry,
 2. URL
 3. Authentication type
 
-![](../../.gitbook/assets/gc-add-gitaccount%20%288%29.png)
+![](../../.gitbook/assets/gc-add-gitaccount%20%288%29%20%281%29.png)
 
 ### 1. Name
 
@@ -46,7 +46,7 @@ If you choose `User auth` then you have to provide the `Username` and `Password`
 
 You can update your saved git account settings at any point in time. Just click on the git account which you want to update. Make the required changes and click on `Update` to save you changes.
 
-![](../../.gitbook/assets/git_account_gc5%20%284%29%20%287%29.png)
+![](../../.gitbook/assets/git_account_gc5%20%284%29%20%287%29%20%281%29.png)
 
 ### Note:
 

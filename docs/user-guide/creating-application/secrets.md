@@ -41,7 +41,7 @@ Specify the Volume Mount folder path in `Volume Mount Path`, a path where the da
 
 Click on `Save Secret` to save the secret.
 
-![](../../.gitbook/assets/secret-created%20%283%29%20%283%29.png)
+![](../../.gitbook/assets/secret-created%20%283%29%20%283%29%20%281%29.png)
 
 You can see the Secret is added.
 
@@ -53,7 +53,7 @@ You can update your secrets anytime later, but you cannot change the name of you
 
 To update secrets, click on the secret you wish to update.
 
-![](../../.gitbook/assets/updating_secrets%20%283%29%20%282%29.png)
+![](../../.gitbook/assets/updating_secrets%20%283%29%20%282%29%20%281%29.png)
 
 Click on `Update Secret` to update your secret.
 
@@ -61,5 +61,5 @@ Click on `Update Secret` to update your secret.
 
 You can delete your secret. Click on your secret and click on the `delete sign` to delete your secret.
 
-![](../../.gitbook/assets/delete_secret%20%282%29%20%281%29.png)
+![](../../.gitbook/assets/delete_secret%20%282%29%20%281%29%20%281%29.png)
 

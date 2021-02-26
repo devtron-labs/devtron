@@ -16,7 +16,7 @@ Environments in Devtron can be accessed from:-
 
 Global Configuration-&gt;Clusters & Environments
 
-![](../.gitbook/assets/environments1%20%282%29%20%285%29.jpg)
+![](../.gitbook/assets/environments1%20%282%29%20%285%29%20%281%29.jpg)
 
 Here multiple environments can be created.
 

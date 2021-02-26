@@ -4,7 +4,7 @@
 
 stable/mysql Helm chart bootstraps a single node MySQL deployment on a Kubernetes cluster using the Helm package manager.
 
-![](../../../.gitbook/assets/mysql.jpg)
+![](../../../.gitbook/assets/mysql%20%281%29.jpg)
 
 ## 1. Discover the chart from the Chart Store
 
@@ -30,7 +30,7 @@ Enter the following details, to deploy mysql chart:
 
 Set the following parameters in the chart, to be later used to connect mysql with your Django Application.
 
-![](../../../.gitbook/assets/chart3%20%282%29%20%285%29.jpg)
+![](../../../.gitbook/assets/chart3%20%282%29%20%285%29%20%281%29.jpg)
 
 | Parameters | Description |
 | :--- | :--- |
@@ -49,7 +49,7 @@ After clicking on `Deploy` you will land on a page, that shows the Status of the
 
 The Status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
 
-![](../../../.gitbook/assets/sql1.png)
+![](../../../.gitbook/assets/sql1%20%281%29.png)
 
 In case the Status, of the deployment is `Degraded` or takes a long time to get deployed.
 

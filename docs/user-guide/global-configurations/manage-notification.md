@@ -8,7 +8,7 @@ Click on `Global Configurations` -&gt; `Notifications`
 
 Click on `Configurations` and you will see Devtron support two types of configurations `SES Configurations` or `Slack Configurations`.
 
-![](../../.gitbook/assets/gc-noitfication-condfiguration-tab%20%283%29%20%286%29.jpg)
+![](../../.gitbook/assets/gc-noitfication-condfiguration-tab%20%283%29%20%286%29%20%281%29.jpg)
 
 ### **Manage SES Configurations**
 
@@ -34,7 +34,7 @@ Click on `Save` to save your SES configuration or e-mail ID
 
 You can manage the `Slack configurations` to recieve notifications on your preferred Slack channel.
 
-![](../../.gitbook/assets/gc-noitfication-condfiguration-add-slack%20%281%29.jpg)
+![](../../.gitbook/assets/gc-noitfication-condfiguration-add-slack.jpg)
 
 Click on `Add` to add new Slack Channel.
 
@@ -52,11 +52,11 @@ Click on `Save` and your slack channel will be added.
 
 Click on `Add New` to recieve new notification.
 
-![](../../.gitbook/assets/gc-noitfication-add-notification%20%283%29%20%282%29.jpg)
+![](../../.gitbook/assets/gc-noitfication-add-notification%20%283%29%20%282%29%20%281%29.jpg)
 
 ### **Manage Slack Notifications**
 
-![](../../.gitbook/assets/notifi6%20%281%29%20%287%29%20%289%29%20%281%29.jpg)
+![](../../.gitbook/assets/notifi6%20%281%29%20%287%29%20%289%29%20%281%29%20%281%29.jpg)
 
 _**Send To**_
 
@@ -68,13 +68,13 @@ _**Select Pipelines**_
   * Choose a filter type\(`environment`, `project` or `application`\)
   * You will see a list of pipelines corresponding to your selected filter type, you can select any number of pipelines. For each pipeline, there are 3 types of events `Trigger`, `Success`, and `Failure`. Click on the checkboxes for the events, on which you want to receive notifications.
 
-![](../../.gitbook/assets/gc-noitfication-add-notification-configuration-select-event%20%281%29.jpg)
+![](../../.gitbook/assets/gc-noitfication-add-notification-configuration-select-event.jpg)
 
 Click on `Save` when you are done with your Slack notification configuration.
 
 ### **Manage SES Notifications**
 
-![](../../.gitbook/assets/notifi6%20%281%29%20%287%29%20%289%29.jpg)
+![](../../.gitbook/assets/notifi6%20%281%29%20%287%29%20%289%29%20%281%29.jpg)
 
 _**Send To**_
 

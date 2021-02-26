@@ -45,7 +45,7 @@ Go to the left main panel -&gt; `Select Global Configurations` -&gt; Select `Use
 
 Click on `Add User`, to add one or multiple users.
 
-![](../../.gitbook/assets/gc-user-access-add-user%20%285%29.jpg)
+![](../../.gitbook/assets/gc-user-access-add-user%20%285%29%20%281%29.jpg)
 
 ### 2. Create User Permissions
 
@@ -185,7 +185,7 @@ Once you have finished assigning the appropriate permissions for the listed user
 
 You can edit the group permissions, by clicking on the `downward arrow.`
 
-![](../../.gitbook/assets/gc-user-access-add-group-edit-arrow%20%282%29%20%284%29.jpg)
+![](../../.gitbook/assets/gc-user-access-add-group-edit-arrow%20%282%29%20%284%29%20%281%29.jpg)
 
 Then you can edit the user permissions here.
 

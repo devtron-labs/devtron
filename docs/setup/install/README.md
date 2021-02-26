@@ -27,9 +27,9 @@ It packages third party components like:
 
 ### How to use it
 
-* [Install with Helm3 - Recommended](/setup/install/install-devtron-helm-3)
-* [Install with Helm2](../install/install-devtron-helm-2)
-* [Install with kubectl](#)
+* [Install with Helm3 - Recommended](install-devtron-helm-3.md)
+* [Install with Helm2](https://github.com/devtron-labs/devtron/tree/30c933b2cbe4ab9dac69cd5a255e970f550b7070/docs/setup/install/install-devtron-helm-2/README.md)
+* [Install with kubectl](./)
 
 #### Installation status
 
@@ -42,7 +42,6 @@ kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync
 Once installation process is complete, above command will print `Applied` It may take around 30 minutes for installation to complete.
 
 #### Access devtron dashboard
-
 
 **Login credentials**
 
@@ -180,8 +179,4 @@ kubectl -n devtroncd patch installer installer-devtron --type json -p '[{"op": "
 ```
 
 In case you are still facing issues please feel free to reach out to us on [discord](https://discord.gg/jsRG5qx2gp)
-
-
-
-
 

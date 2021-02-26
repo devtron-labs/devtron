@@ -59,7 +59,7 @@ You can see details of these vulnerabilities by expanding the `Show Source Info`
 
 See the below image.
 
-![](../.gitbook/assets/security-feature-deployed-image%20%281%29.png)
+![](../.gitbook/assets/security-feature-deployed-image.png)
 
 Click on the `Show Source Info` option. A window will be expanded with two options- Changes and Security. Click on the Security tab to view details about the vulnerabilities in the code.
 
@@ -69,7 +69,7 @@ Click on the `Show Source Info` option. A window will be expanded with two optio
 
 You can find Vulnerabilities on the `App Details` page too. Here we are displaying the total number of vulnerabilities found in the code and their Severity Level wise segregation.
 
-![](../.gitbook/assets/security-feature-app-details-vulnerability%20%281%29.png)
+![](../.gitbook/assets/security-feature-app-details-vulnerability.png)
 
 ## Security
 
@@ -85,7 +85,7 @@ You can directly `Search` your application using the Search bar or you can `filt
 
 Now if you click on the severity level of vulnerability it will show you the list of all vulnerabilities along with other details.
 
-![](../.gitbook/assets/security-feature-securitytab-list-vulnerability%20%282%29%20%284%29.png)
+![](../.gitbook/assets/security-feature-securitytab-list-vulnerability%20%282%29%20%284%29%20%281%29.png)
 
 ## Security Policies:
 
@@ -106,7 +106,7 @@ Policies work in hierarchical order.
 
 Order to be followed- First Global and second Cluster and so on as you can see the order of the options
 
-![](../.gitbook/assets/security-feature-global-security-policies%20%281%29.png)
+![](../.gitbook/assets/security-feature-global-security-policies.png)
 
 **Some examples of how policies can be defined**
 

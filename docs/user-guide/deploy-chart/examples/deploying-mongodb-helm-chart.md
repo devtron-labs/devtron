@@ -38,7 +38,7 @@ In this example `replicas` is set to **1** and `persistenceVolume` is set to **f
 
 To learn about different parameters used in the chart, you can check [Documentation of mongodb Helm chart](https://hub.helm.sh/charts/bitnami/mongodb)
 
-![](../../../.gitbook/assets/mongo1%20%282%29%20%284%29.jpg)
+![](../../../.gitbook/assets/mongo1%20%282%29%20%284%29%20%281%29.jpg)
 
 Click on `Deploy` after you have finished configuring the chart.
 

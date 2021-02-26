@@ -36,7 +36,7 @@ This section is used for those Scripts which you want to execute before building
 
 You can add one stage or more than one stage in a CI Pipeline.
 
-![](../../../.gitbook/assets/pre_build%20%287%29.jpg)
+![](../../../.gitbook/assets/pre_build%20%287%29%20%281%29.jpg)
 
 **\(b\) Docker build**
 
@@ -48,7 +48,7 @@ The post-build stage is similar to the pre-build stage. The difference between t
 
 Adding a post-build stage is similar to adding a pre-build stage. Click on `Add Stage` and provide a name to your post-stage. Here you can write your script as per your requirement, which will run in sequence after the docker image is built. You can also provide the path of the directory in which the output of the script will be stored in the `Remote Directory` column. And this is optional to fill because many times you run scripts which do not provide any output.
 
-![](../../../.gitbook/assets/post_build%20%281%29.jpg)
+![](../../../.gitbook/assets/post_build%20%281%29%20%281%29.jpg)
 
 **NOTE:**
 
@@ -66,11 +66,11 @@ You have provided all the details required to create a CI pipeline, now click on
 
 You can also update any configuration of an already created CI Pipeline, except the pipeline name. The pipeline name can not be edited.
 
-![](../../../.gitbook/assets/update_pipeline_ci.jpg)
+![](../../../.gitbook/assets/update_pipeline_ci%20%281%29.jpg)
 
 Click on your CI Pipeline, to update your CI Pipeline. A window will be popped up with all the details of the current pipeline.
 
-![](../../../.gitbook/assets/edit_pipeline%20%289%29.jpg)
+![](../../../.gitbook/assets/edit_pipeline%20%289%29%20%281%29.jpg)
 
 Make your changes and click on `Update Pipeline` to update your Pipeline.
 
@@ -80,7 +80,7 @@ You can only delete CI Pipeline if you have no CD Pipeline created in your workf
 
 To Delete a CI Pipeline, go to the `App Configurations` and then click on `Workflow` editor
 
-![](../../../.gitbook/assets/edit_pipeline%20%289%29%20%281%29.jpg)
+![](../../../.gitbook/assets/edit_pipeline%20%289%29%20%281%29%20%281%29.jpg)
 
 Click on `Delete Pipeline` to delete the CD Pipeline
 
@@ -107,7 +107,7 @@ The test cases given in the script will run before the Test Cases given in the d
 
 You can use Devtron for Deployments on Kubernetes while still using your own CI tool such as Jenkins. External CI features can be used for such cases where the CI tool is hosted outside the Devtron platform.
 
-![](../../../.gitbook/assets/external_pipeline%20%287%29.jpg)
+![](../../../.gitbook/assets/external_pipeline%20%287%29%20%281%29.jpg)
 
 You can send the ‘Payload script’ to your CI tools such as Jenkins and Devtron will receive the build image every time the CI Service is triggered or you can use the Webhook URL which will build an image every time CI Service is triggered using Devtron Dashboard.
 
@@ -121,5 +121,5 @@ You can send the ‘Payload script’ to your CI tools such as Jenkins and Devtr
 
 If one code is shared across multiple applications, Linked CI Pipeline can be used, and only one image will be built for multiple applications because if there is only one build, it is not advisable to create multiple CI Pipelines.
 
-![](../../../.gitbook/assets/linked%20%283%29%20%285%29.jpg)
+![](../../../.gitbook/assets/linked%20%283%29%20%285%29%20%281%29.jpg)
 

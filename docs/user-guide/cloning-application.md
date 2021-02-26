@@ -4,7 +4,7 @@
 
 Select `Add New App` to Create a new app.
 
-![](../.gitbook/assets/clone_app1%20%282%29%20%283%29.jpg)
+![](../.gitbook/assets/clone_app1%20%282%29%20%283%29%20%281%29.jpg)
 
 | Key | Description |
 | :--- | :--- |

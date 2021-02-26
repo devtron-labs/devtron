@@ -61,11 +61,11 @@ TLS key and TLS certificate both options are optional, these options are used wh
 
 Check the below screenshots to know how it looks like If you select the `Basic` authentication type
 
-![](../../.gitbook/assets/cluster_gc2%20%283%29%20%284%29.png)
+![](../../.gitbook/assets/cluster_gc2%20%283%29%20%284%29%20%281%29.png)
 
 If you select the `Anonymous` authentication type
 
-![](../../.gitbook/assets/cluster_gc3%20%283%29%20%284%29.png)
+![](../../.gitbook/assets/cluster_gc3%20%283%29%20%284%29%20%281%29.png)
 
 Now click on `Save Cluster` to save your cluster information.
 
@@ -73,11 +73,11 @@ Now click on `Save Cluster` to save your cluster information.
 
 Your kubernetes cluster gets mapped with the Devtron when you save your kubernetes cluster Configuration. Now the agents of devtron will be installed on your cluster so that the components of devtron can communicate to your cluster. When the agent starts installing on your cluster, you can check the status of the agents in the Cluster & Environment tab also.
 
-![](../../.gitbook/assets/gc-cluster-agents%20%283%29%20%286%29.png)
+![](../../.gitbook/assets/gc-cluster-agents%20%283%29%20%286%29%20%281%29.png)
 
 Click on `Details` to check what got installed inside the agents. A new window will be popped up displaying all the details about these agents.
 
-![](../../.gitbook/assets/gc-cluster-agents-details%20%285%29.png)
+![](../../.gitbook/assets/gc-cluster-agents-details%20%285%29%20%281%29.png)
 
 ## Add Environment
 
@@ -91,7 +91,7 @@ You can update an already created environment, Select and click on the environme
 
 You can not change the Environment name and Namespace name.
 
-![](../../.gitbook/assets/gc-cluster-update-environment%20%281%29%20%282%29%20%284%29.png)
+![](../../.gitbook/assets/gc-cluster-update-environment%20%281%29%20%282%29%20%284%29%20%281%29.png)
 
 Click on `Update` to update your environment.
 

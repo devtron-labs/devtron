@@ -67,7 +67,7 @@ Give, the path of the Dockerfile.
 
 Enable `Ingress`, and give the path on which you want to host the application.
 
-![](../../.gitbook/assets/use-cases-springboot-ingress-template%20%286%29.jpg)
+![](../../.gitbook/assets/use-cases-springboot-ingress-template%20%286%29%20%281%29.jpg)
 
 #### _\*Set up the CI/CD Pipelines_
 
@@ -103,7 +103,7 @@ _**path**_ will be the one that you have given in Step 3 while configuring the D
 
 `http://<hostname>/<path>/viewAll`
 
-![](../../.gitbook/assets/use-cases-springboot-view-student-data%20%289%29%20%281%29.jpg)
+![](../../.gitbook/assets/use-cases-springboot-view-student-data%20%289%29%20%281%29%20%281%29.jpg)
 
 _**View student's data By student ID**_
 
@@ -113,5 +113,5 @@ To view student data by student id, GET Request is:
 
 _**path**_ will be the one that you have given in Step 3 while configuring the Deployment Template.
 
-![](../../.gitbook/assets/use-cases-springboot-view-student-data-with-id%20%287%29.jpg)
+![](../../.gitbook/assets/use-cases-springboot-view-student-data-with-id%20%287%29%20%281%29.jpg)
 

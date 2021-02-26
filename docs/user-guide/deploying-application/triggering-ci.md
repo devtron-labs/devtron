@@ -2,7 +2,7 @@
 
 ## Triggering CI Pipelines
 
-![](../../.gitbook/assets/trigger-console%20%282%29%20%285%29.jpg)
+![](../../.gitbook/assets/trigger-console%20%282%29%20%285%29%20%281%29.jpg)
 
 The CI Pipeline can be triggered by selecting **Select Material**
 
@@ -16,17 +16,17 @@ Various commits done in the repository can be seen, here along with details like
 
 **Ignore Cache** : This option will ignore the previous build cache and create a fresh build. If selected, will take a longer build time than usual.
 
-![](../../.gitbook/assets/tri_ci3%20%282%29%20%285%29.jpg)
+![](../../.gitbook/assets/tri_ci3%20%282%29%20%285%29%20%281%29.jpg)
 
 It can be seen that the pipeline is triggered here and is the _Running_ state.
 
 Click on your **CI Pipeline** or Click on **Build History** to get the details about the CI Pipeline such as logs, reports etc.
 
-![](../../.gitbook/assets/ci-build-histroy.jpg)
+![](../../.gitbook/assets/ci-build-histroy%20%281%29.jpg)
 
 You can read the **logs** of the CI Pipeline from here.
 
-![](../../.gitbook/assets/ci-build-histroy-source-code%20%281%29.jpg)
+![](../../.gitbook/assets/ci-build-histroy-source-code.jpg)
 
 Click on **Source code** to view the details such as commit id, Author and commit message of the Git Material that you have selected for the build.
 

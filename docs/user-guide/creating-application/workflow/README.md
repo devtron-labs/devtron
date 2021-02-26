@@ -16,5 +16,5 @@ To know how to Create the CI Pipeline for your application Click On: [Create CI 
 
 To know how to Create the CD Pipeline for your application Click On: [Create CD Pipelines](cd-pipeline.md)
 
-![](../../../.gitbook/assets/workflow%20%286%29.gif)
+![](../../../.gitbook/assets/workflow%20%286%29%20%281%29.gif)
 

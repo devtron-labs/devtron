@@ -2,7 +2,7 @@
 
 You will see all your environments associated with an application under the `Environment Overrides` section.
 
-![](../../.gitbook/assets/configure-env.jpg)
+![](../../.gitbook/assets/configure-env%20%281%29.jpg)
 
 You can customize the `Deployment template, ConfigMap, Secrets` in Environment Overrides section to customize things according to multiple environments such as dev, test, integration, prod, etc.
 
@@ -30,5 +30,5 @@ Click on `Update ConfigMap` to update Configmaps.
 
 Click on `Update Secrets` to update Secrets.
 
-![](../../.gitbook/assets/creating-env.gif)
+![](../../.gitbook/assets/creating-env%20%281%29.gif)
 

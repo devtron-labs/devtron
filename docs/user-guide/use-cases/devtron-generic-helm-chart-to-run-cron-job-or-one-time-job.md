@@ -18,7 +18,7 @@ And, then Click on `Deploy`
 
 **Configure Devtron-generic-helm chart**
 
-![](../../.gitbook/assets/gc-4%20%283%29%20%285%29.jpg)
+![](../../.gitbook/assets/gc-4%20%283%29%20%285%29%20%281%29.jpg)
 
 Click on **Deploy Chart**
 

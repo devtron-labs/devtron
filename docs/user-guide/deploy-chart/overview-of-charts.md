@@ -8,7 +8,7 @@ Both methods are mentioned in the given document.
 
 ### Deploying Chart
 
-![](../../.gitbook/assets/deploy-chart-store%20%281%29.jpg)
+![](../../.gitbook/assets/deploy-chart-store.jpg)
 
 Select Discover and then select the chart that you want to use
 
@@ -37,7 +37,7 @@ ReadMe.md present on the left can be used by the user to set configuration value
 
 Click on `Deploy Chart` to deploy the chart
 
-![](../../.gitbook/assets/depchartdeployedredo%20%282%29%20%283%29.jpg)
+![](../../.gitbook/assets/depchartdeployedredo%20%282%29%20%283%29%20%281%29.jpg)
 
 You can see the status of the chart deployed. Click on `Values.Yaml` to reconfigure the deployment.
 
@@ -69,7 +69,7 @@ To create Chart Groups Click on `Discover` and Click on `Create Group`
 
 Add the Group Name and Description and Click on `Create Group`
 
-![](../../.gitbook/assets/create_group%20%282%29%20%285%29.jpg)
+![](../../.gitbook/assets/create_group%20%282%29%20%285%29%20%281%29.jpg)
 
 You can select the Charts that you want to add in your Chart Group by clicking on '+' sign.
 
@@ -81,7 +81,7 @@ Select the `Version` and `Values` for your charts.
 
 You can use Default Values or the Custom Values, just make sure the Value that you select for your Chart is comptabile with the Version of the Chart that you are using.
 
-![](../../.gitbook/assets/select_charts2%20%282%29%20%285%29.jpg)
+![](../../.gitbook/assets/select_charts2%20%282%29%20%285%29%20%281%29.jpg)
 
 To edit the Chart Configuration, Click on 'Edit'
 
@@ -91,7 +91,7 @@ You can `Add` more Charts to your existing Chart Group or `Delete` Charts from y
 
 After making changes, Click on `Save` to save changes to your Chart Group.
 
-![](../../.gitbook/assets/edit_group2.jpg)
+![](../../.gitbook/assets/edit_group2%20%281%29.jpg)
 
 If you wish to edit the Chart Configuration, Double Click on that Chart and edit the Configurations in YAML File.
 
