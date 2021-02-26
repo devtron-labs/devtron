@@ -5,6 +5,7 @@
 ## Setup
 
 * [Installing Devtron](setup/install.md)
+  * [Install using Helm3](setup/install-devtron-helm-3.md)
 * [Start Using devtron](setup/start-using.md)
 
 ## User Guide
