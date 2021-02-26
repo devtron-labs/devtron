@@ -10,22 +10,7 @@ You will need to be ready with following prerequisites before Devtron installati
 
 * A Kubernetes cluster \(preferably K8s 1.16 or above\). Check [Creating a Production grade EKS cluster using EKSCTL](https://devtron.ai/blog/creating-production-grade-kubernetes-eks-cluster-eksctl/)
 
-### Introduction
-
-This installer bootstraps deployment of all required components for installation of [Devtron Platform](https://github.com/devtron-labs) on a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) package manager or kubectl cli.
-
-It packages third party components like:
-
-* [Grafana](https://github.com/grafana/grafana) for displaying application metrics
-* [Argocd](https://github.com/argoproj/argo-cd/) for gitops
-* [Argo workflows](https://github.com/argoproj/argo) for CI
-* [Clair](https://github.com/quay/clair) & [Guard](https://github.com/guard/guard) for image scanning
-* [Kubernetes External Secrets](https://github.com/godaddy/kubernetes-external-secrets) for integrating with external secret management stores like [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) or [HashiCorp Vault](https://www.vaultproject.io/)
-* [Nats](https://github.com/nats-io) for event streaming
-* [Postgres](https://github.com/postgres/postgres) as datastore
-* Fork of [Argo Rollout](https://github.com/argoproj/argo-rollouts)
-
-### How to use it
+### Installing Devtron
 
 * [Install with Helm3 - Recommended](install-devtron-helm-3.md)
 * [Install with Helm2](install-devtron-helm-2.md)
