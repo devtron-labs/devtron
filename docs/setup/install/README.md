@@ -132,17 +132,6 @@ kubectl delete -n devtroncd -f charts/devtron/crds
 kubectl delete ns devtroncd
 ```
 
-
-
-**Cleaning Installer Helm2**
-
-```bash
-cd devtron-installation-script/
-helm delete devtron --purge
-#Deleting CRDs manually
-kubectl delete -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
-```
-
 #### Trouble shooting steps
 
 **1**. How do I know when installation is complete?
