@@ -569,11 +569,16 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 		LogsFilePath:  impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log",
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &AzureBlobConfig{
-			Enabled:            impl.ciConfig.CloudProvider == CLOUD_PROVIDER_AZURE,
+			Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
 			AccountName:        impl.ciConfig.AzureAccountName,
 			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
 			AccountKey:         impl.ciConfig.AzureAccountKey,
 		},
+	}
+	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
+		ciLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
+		ciLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
+		ciLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
 	}
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
 	if err != nil {
@@ -666,11 +671,16 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 		LogsFilePath:  ciWorkflow.LogLocation,
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &AzureBlobConfig{
-			Enabled:            impl.ciConfig.CloudProvider == CLOUD_PROVIDER_AZURE,
+			Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
 			AccountName:        impl.ciConfig.AzureAccountName,
 			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
 			AccountKey:         impl.ciConfig.AzureAccountKey,
 		},
+	}
+	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
+		ciLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
+		ciLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
+		ciLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
 	}
 	logsFile, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
 	logs, err := ioutil.ReadFile(logsFile.Name())
