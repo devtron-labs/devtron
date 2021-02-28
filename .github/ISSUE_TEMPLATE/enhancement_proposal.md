@@ -1,4 +1,3 @@
-
 ---
 name: Enhancement proposal
 about: Propose an enhancement for this project
