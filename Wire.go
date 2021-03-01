@@ -637,6 +637,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(attributes.AttributesService), new(*attributes.AttributesServiceImpl)),
 		repository.NewAttributesRepositoryImpl,
 		wire.Bind(new(repository.AttributesRepository), new(*repository.AttributesRepositoryImpl)),
+
+		router.NewCommonRouterImpl,
+		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
+		restHandler.NewCommonRestHanlderImpl,
+		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
 	)
 	return &App{}, nil
 }
