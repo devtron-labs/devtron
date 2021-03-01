@@ -20,7 +20,10 @@ package commonService
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
+	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
@@ -36,6 +39,9 @@ type CommonServiceImpl struct {
 	gitOpsRepository            repository.GitOpsConfigRepository
 	dockerReg                   repository.DockerArtifactStoreRepository
 	attributeRepo               repository.AttributesRepository
+	gitProviderRepository       repository.GitProviderRepository
+	environmentRepository       cluster.EnvironmentRepository
+	teamRepository              team.TeamRepository
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
@@ -43,7 +49,9 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	gitOpsRepository repository.GitOpsConfigRepository,
 	dockerReg repository.DockerArtifactStoreRepository,
-	attributeRepo repository.AttributesRepository) *CommonServiceImpl {
+	attributeRepo repository.AttributesRepository,
+	gitProviderRepository repository.GitProviderRepository,
+	environmentRepository cluster.EnvironmentRepository, teamRepository team.TeamRepository) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
 		logger:                      logger,
 		chartRepository:             chartRepository,
@@ -51,6 +59,9 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 		gitOpsRepository:            gitOpsRepository,
 		dockerReg:                   dockerReg,
 		attributeRepo:               attributeRepo,
+		gitProviderRepository:       gitProviderRepository,
+		environmentRepository:       environmentRepository,
+		teamRepository:              teamRepository,
 	}
 	return serviceImpl
 }
@@ -62,9 +73,9 @@ type GlobalChecklist struct {
 }
 
 type ChartChecklist struct {
-	GitOps  int `json:"gitOps"`
-	Project int `json:"project"`
-	Git     int `json:"git"`
+	GitOps      int `json:"gitOps"`
+	Project     int `json:"project"`
+	Environment int `json:"environment"`
 }
 
 type AppChecklist struct {
@@ -109,32 +120,64 @@ func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartCon
 
 func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 	gitOps, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
 		return nil, err
 	}
 
 	dockerReg, err := impl.dockerReg.FindActiveDefaultStore()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
 		return nil, err
 	}
 
 	attribute, err := impl.attributeRepo.FindByKey(attributes.HostUrlKey)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		return nil, err
+	}
+
+	env, err := impl.environmentRepository.FindAllActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		return nil, err
+	}
+
+	git, err := impl.gitProviderRepository.FindAllActiveForAutocomplete()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		return nil, err
+	}
+
+	project, err := impl.teamRepository.FindAll()
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
 		return nil, err
 	}
 
 	chartChecklist := &ChartChecklist{
-		Project: 1,
-		Git:     1,
+		Project:     1,
+		Environment: 1,
 	}
 	appChecklist := &AppChecklist{
 		Project:     1,
 		Git:         1,
 		Environment: 1,
 	}
+	if len(env) > 0 {
+		chartChecklist.Environment = 1
+		appChecklist.Environment = 1
+	}
+
+	if len(git) > 0 {
+		appChecklist.Git = 1
+	}
+
+	if len(project) > 0 {
+		chartChecklist.Project = 1
+		appChecklist.Project = 1
+	}
+
 	if gitOps.Id > 0 {
 		chartChecklist.GitOps = 1
 		appChecklist.GitOps = 1
