@@ -5,14 +5,14 @@ title: ''
 labels: 'enhancement'
 assignees: ''
 ---
+# Summary
 
-**Please Describe The Problem To Be Solved**
-(Replace This Text: Please present a concise description of the problem to be addressed by this feature request. Please be clear what parts of the problem are considered to be in-scope and out-of-scope.)
+What change you think needs making.
 
-**(Optional): Suggest A Solution**
-(Replace This Text: A concise description of your preferred solution. Things to address include:
-* Details of the technical implementation
-* Tradeoffs made in design decisions
-* Caveats and considerations for the future
+# Motivation
 
-If there are multiple solutions, please present each one separately. Save comparisons for the very end.)
+Please give examples of your use case, e.g. when would you use this.
+
+# Proposal
+
+How do you think this should be implemented?
