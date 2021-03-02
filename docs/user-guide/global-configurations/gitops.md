@@ -57,3 +57,4 @@ Click on Save to save your gitops configuration details.
 
 ![](../../.gitbook/assets/gc-gitops-saved.png)
 
+> Note: A Green tick will appear on the saved gitops tab .
