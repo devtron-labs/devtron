@@ -35,7 +35,8 @@ In case of Github provide `Github organization Name`. Learn more about [GitHub o
 ### 3. Git access credential
 
 Provide Git `Username` and `Personal Access Token` of your git account. 
-What permissions are required for the gitop ? 
+
+Mandatory permissions required for the gitops are:
 
 #### For Github Organization Name [click here to know more](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token):
 * repo
@@ -55,3 +56,4 @@ Click on Save to save your gitops configuration details.
  
 
 ![](../../.gitbook/assets/gc-gitops-saved.png)
+
