@@ -7,12 +7,12 @@ Devtron deploys applications via GitOps; Git credentials required at `Global Con
 In case GitOps is not configured, Devtron cannot deploy any application or charts. Areas impacted by GitOps are:
 
 * Deployment Template, [click here](https://docs.devtron.ai/user-guide/creating-application/deployment-template) to learn more.
-* Charts, [click here](https://docs.devtron.ai/user-guide/deploy-chart) to learn mor
+* Charts, [click here](https://docs.devtron.ai/user-guide/deploy-chart) to learn more.
 
 
 ## Add Git Configuration
 
-Select the Gitops section of global configuration. At the top of the section two git tabs are available.
+Select the Gitops section of global configuration. At the top of the section, two git tabs are available.
 
 * **GitHub**
 * **GitLab**
@@ -30,7 +30,7 @@ This field is filled by default, Showing url of the selected tab. For example- h
 
 ### 2. Github Organization Name / GitLab Group Id:
 
-In case of Github provide `Github organization Name`. Learn more about [GitHub organization Name](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations), Similarly for Gitlab provide `Gitlab group Id`. Learn more about [Gitlab group Id]()
+In the case of Github provide `Github Organization Name`. Learn more about [GitHub organization Name](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations), Similarly for Gitlab provide `Gitlab group Id`. Learn more about [Gitlab group Id]()
 
 ### 3. Git access credential
 
@@ -57,4 +57,4 @@ Click on Save to save your gitops configuration details.
 
 ![](../../.gitbook/assets/gc-gitops-saved.png)
 
-> Note: A Green tick will appear on the saved gitops tab .
+> Note: A Green tick will appear on the saved gitops tab.
