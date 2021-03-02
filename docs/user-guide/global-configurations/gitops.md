@@ -1,7 +1,7 @@
 # Gitops
 
 ## Why Devtron takes Gitops Configuration?
-Devtron deploys applications via GitOps; Git credentials required at `Global Configuration > GitOps` are used by Devtron and Argocd to enable GitOps. Devtron stores application/chart manifest files in git which are in turn pulled by Argocd for deployment. 
+Devtron uses GitOps and stores configurations in git; Git Credentials can be entered at `Global Configuration > GitOps` is used by Devtron for configuration management and storing desired state of the application configuration. 
 
 
 In case GitOps is not configured, Devtron cannot deploy any application or charts. Areas impacted by GitOps are:
@@ -12,14 +12,14 @@ In case GitOps is not configured, Devtron cannot deploy any application or chart
 
 ## Add Git Configuration
 
-Select the Gitops section of global configuration. At the top of the section, two git tabs are available.
+Select the Gitops section of global configuration. At the top of the section, two Git providers are available.
 
 * **GitHub**
 * **GitLab**
 
 ![](../../.gitbook/assets/gc-gitops-blank.png)
 
-Select one of the git tabs. To add git account, You need to provide three inputs as given below:
+Select one of the Git providers. To add git account, You need to provide three inputs as given below:
 1. Git Host
 2. Github Organization Name / Gitlab Group id 
 3. Git access credential
@@ -35,14 +35,13 @@ In the case of Github provide `Github Organization Name`. Learn more about [GitH
 ### 3. Git access credential
 
 Provide Git `Username` and `Personal Access Token` of your git account. 
+Permissions required for the gitops are:
 
-Mandatory permissions required for the gitops are:
-
-#### For Github Organization Name [click here to know more](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token):
+#### For Github Organization Name [Creating a Github personal access token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token):
 * repo
 * admin
 
-#### For GitLab Group Id [click here to know more](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html):
+#### For GitLab Group Id [Creating a Gitlab personal access token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html):
 
 * api 
 * read_user 
