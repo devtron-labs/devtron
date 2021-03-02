@@ -36,6 +36,7 @@
 * [Security Features](user-guide/security-features.md)
 * [Deleting Application](user-guide/deleting-application.md)
 * [Global Configurations](user-guide/global-configurations/README.md)
+  * [GitOps](user-guide/global-configurations/gitops.md)
   * [Git Accounts](user-guide/global-configurations/git-accounts.md)
   * [Docker Registries](user-guide/global-configurations/docker-registries.md)
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
