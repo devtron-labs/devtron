@@ -35,7 +35,14 @@ In case of Github provide `Github organization Name`. Learn more about [GitHub o
 ### 3. Git access credential
 
 Provide Git `Username` and `Personal Access Token` of your git account. 
-What permissions are required for the gitop organization id? 
+What permissions are required for the gitop ? 
+
+#### For Github Organization Name [click here to know more](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token):
+* repo
+* admin
+
+#### For GitLab Group Id [click here to know more](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html):
+
 * api 
 * read_user 
 * read_api 
