@@ -26,7 +26,7 @@ Select one of the git tabs. To add git account, You need to provide three inputs
 
 ### 1. Git Host: 
 
-This field is filled by default, Showing url of the selected tab. For example- https://github.com for Github, https://gitlab.com for GitLab.
+This field is filled by default, Showing the URL of the selected tab. For example- https://github.com for Github, https://gitlab.com for GitLab.
 
 ### 2. Github Organization Name / GitLab Group Id:
 
