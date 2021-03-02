@@ -17,7 +17,7 @@ Select the Gitops section of global configuration. At the top of the section two
 * **GitHub**
 * **GitLab**
 
-![](../../.gitbook/assets/gc-gitops-tab.png)
+![](../../.gitbook/assets/gc-gitops-blank.png)
 
 Select one of the git tabs. To add git account, You need to provide three inputs as given below:
 1. Git Host
