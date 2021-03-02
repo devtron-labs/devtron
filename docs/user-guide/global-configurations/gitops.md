@@ -17,7 +17,7 @@ Select the Gitops section of global configuration. At the top of the section, tw
 * **GitHub**
 * **GitLab**
 
-![](../../.gitbook/assets/gc-gitops-blank.png)
+![](../../.gitbook/assets/gc-gitops-git.png)
 
 Select one of the Git providers. To add git account, You need to provide three inputs as given below:
 1. Git Host
@@ -26,7 +26,7 @@ Select one of the Git providers. To add git account, You need to provide three i
 
 ### 1. Git Host: 
 
-This field is filled by default, Showing the URL of the selected tab. For example- https://github.com for Github, https://gitlab.com for GitLab.
+This field is filled by default, Showing the URL of the selected git providers. For example- https://github.com for Github, https://gitlab.com for GitLab.
 
 ### 2. Github Organization Name / GitLab Group Id:
 
@@ -56,4 +56,4 @@ Click on Save to save your gitops configuration details.
 
 ![](../../.gitbook/assets/gc-gitops-saved.png)
 
-> Note: A Green tick will appear on the saved gitops tab.
+> Note: A Green tick will appear on the saved gitops provider.
