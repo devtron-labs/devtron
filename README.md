@@ -121,9 +121,8 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 This installation will use Minio for storing build logs and cache. Please make sure to edit the POSTGRESQL_PASSWORD value.
 
 ```bash
-kubectl create namespace devtroncd
 helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --namespace devtroncd \
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me
 ```
 
