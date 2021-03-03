@@ -116,26 +116,50 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 ## :rocket: Getting Started
 
-#### Installing devtron with Helm 
+#### Quick in stallation with default settings
+
+This installation will use Minio for storing build logs and cache. Please make sure to edit the POSTGRESQL_PASSWORD value.
 
 ```bash
-$ git clone https://github.com/devtron-labs/devtron-installation-script.git
-$ cd devtron-installation-script/charts
-$ #modify values in values.yaml
-$ helm install devtron . -f values.yaml
+helm repo add devtron https://helm.devtron.ai
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+--set secrets.POSTGRESQL_PASSWORD=change-me
 ```
-For detail instructions checkout [devtron installation project](https://github.com/devtron-labs/devtron-installation-script/)
+
+For detailed instructions and other options, check out [devtron installation documentation](https://docs.devtron.ai/setup/install)
 
 
 #### :key: Access Devtron dashboard
 
-Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` same as provided in `values.yaml`
+If you did not provide a **BASE\_URL** during install or have used the default installation, Devtron creates a loadbalancer for you on its own. Use the following command to get the dashboard url.
+
+```text
+kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+```
+
+You will get result something like below
+
+```text
+[test2@server ~]$ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+[map[hostname:aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com]]
+```
+
+The hostname mentioned here \( aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com \) is the Loadbalancer URL where you can access the Devtron dashboard.
+
+**PS:** You can also do a CNAME entry corresponding to your domain/subdomain to point to this Loadbalancer URL to access it at a custom domain.
+
+| Host | Type | Points to |
+| ---: | :--- | :--- |
+| devtron.yourdomain.com | CNAME | aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com |
 
 
-*****For login use username:`admin` and for password run command mentioned below.*****
+*****Devtron Admin credentials*****
+
+
+For admin login use username:`admin` and for password run the following command.
 
 ```bash
-$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
 *****[Detail configuration options](https://docs.devtron.ai/setup/install#configuration)*****
@@ -157,7 +181,6 @@ $ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWOR
 
 ## :memo: Compatibility notes
 
-- Only AWS kubernetes cluster is supported as of now
 - It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
 - Application metrics only works for k8s 1.16+
 
