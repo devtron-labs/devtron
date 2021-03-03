@@ -8,7 +8,7 @@ This installation will use Minio for storing build logs and cache. Please make s
 ```bash
 kubectl create namespace devtroncd
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
-helm add repo devtron https://helm.devtron.ai
+helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me
 ```
@@ -21,7 +21,7 @@ This installation will use AWS s3 buckets for storing build logs and cache
 ```bash
 kubectl create namespace devtroncd
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
-helm add repo devtron https://helm.devtron.ai
+helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me \
 --set configs.BLOB_STORAGE_PROVIDER=AWS \
@@ -38,7 +38,7 @@ This installation will use AWS s3 buckets for storing build logs and cache
 ```bash
 kubectl create namespace devtroncd
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
-helm add repo devtron https://helm.devtron.ai
+helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
