@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/go-pg/pg"
@@ -42,6 +43,7 @@ type CommonServiceImpl struct {
 	gitProviderRepository       repository.GitProviderRepository
 	environmentRepository       cluster.EnvironmentRepository
 	teamRepository              team.TeamRepository
+	appRepository               pipelineConfig.AppRepository
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
@@ -51,7 +53,8 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	dockerReg repository.DockerArtifactStoreRepository,
 	attributeRepo repository.AttributesRepository,
 	gitProviderRepository repository.GitProviderRepository,
-	environmentRepository cluster.EnvironmentRepository, teamRepository team.TeamRepository) *CommonServiceImpl {
+	environmentRepository cluster.EnvironmentRepository, teamRepository team.TeamRepository,
+	appRepository pipelineConfig.AppRepository) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
 		logger:                      logger,
 		chartRepository:             chartRepository,
@@ -62,6 +65,7 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 		gitProviderRepository:       gitProviderRepository,
 		environmentRepository:       environmentRepository,
 		teamRepository:              teamRepository,
+		appRepository:               appRepository,
 	}
 	return serviceImpl
 }
@@ -69,6 +73,7 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 type GlobalChecklist struct {
 	AppChecklist   *AppChecklist   `json:"appChecklist"`
 	ChartChecklist *ChartChecklist `json:"chartChecklist"`
+	IsAppCreated   bool            `json:"isAppCreated"`
 	UserId         int32           `json:"-"`
 }
 
@@ -121,37 +126,37 @@ func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartCon
 func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 	gitOps, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err
 	}
 
 	dockerReg, err := impl.dockerReg.FindActiveDefaultStore()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err
 	}
 
 	attribute, err := impl.attributeRepo.FindByKey(attributes.HostUrlKey)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err
 	}
 
 	env, err := impl.environmentRepository.FindAllActive()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err
 	}
 
 	git, err := impl.gitProviderRepository.FindAllActiveForAutocomplete()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err
 	}
 
 	project, err := impl.teamRepository.FindAll()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err
 	}
 
@@ -191,6 +196,15 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 	config := &GlobalChecklist{
 		AppChecklist:   appChecklist,
 		ChartChecklist: chartChecklist,
+	}
+
+	apps, err := impl.appRepository.FindAllActiveAppsWithTeam()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
+		return nil, err
+	}
+	if len(apps) > 0 {
+		config.IsAppCreated = true
 	}
 	return config, err
 }
