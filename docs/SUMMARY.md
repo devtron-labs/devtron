@@ -4,7 +4,10 @@
 
 ## Setup
 
-* [Installing Devtron](setup/install.md)
+* [Installing Devtron](setup/install/README.md)
+  * [Install using Helm3](setup/install/install-devtron-helm-3.md)
+  * [Install using Helm2](setup/install/install-devtron-helm-2.md)
+  * [Install using Kubectl](setup/install/install-devtron-using-kubectl.md)
 * [Start Using devtron](setup/start-using.md)
 
 ## User Guide
@@ -33,6 +36,7 @@
 * [Security Features](user-guide/security-features.md)
 * [Deleting Application](user-guide/deleting-application.md)
 * [Global Configurations](user-guide/global-configurations/README.md)
+  * [GitOps](user-guide/global-configurations/gitops.md)
   * [Git Accounts](user-guide/global-configurations/git-accounts.md)
   * [Docker Registries](user-guide/global-configurations/docker-registries.md)
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
