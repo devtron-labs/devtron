@@ -1,0 +1,11 @@
+---
+# Source: nats-server/templates/nats.yaml
+apiVersion: "nats.io/v1alpha2"
+kind: "NatsCluster"
+metadata:
+  name: "devtron-nats"
+  namespace: devtroncd
+  labels:
+    release: "devtron"
+spec:
+  size: 3

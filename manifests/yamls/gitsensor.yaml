@@ -1,0 +1,94 @@
+# Source: gitsensor/templates/generic.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: git-sensor-secret
+  labels:
+    app: git-sensor
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: git-sensor-cm
+  labels:
+    app: git-sensor
+data:
+  PG_ADDR: postgresql-postgresql.devtroncd
+  PG_USER: postgres
+---
+# Source: gitsensor/templates/generic.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: git-sensor-service
+  labels:
+    app: git-sensor
+    release: devtron
+spec:
+  ports:
+    - port: 80
+      name: sensor
+      targetPort: 8080
+  selector:
+    app: git-sensor
+---
+# Source: gitsensor/templates/generic.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: git-sensor
+  labels:
+    release: devtron
+    app: git-sensor
+spec:
+  selector:
+    matchLabels:
+      app: git-sensor # has to match .spec.template.metadata.labels
+  serviceName: git-sensor
+  replicas: 1 # by default is 1
+  template:
+    metadata:
+      labels:
+        app: git-sensor
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: git-sensor
+          image: quay.io/devtron/git-sensor:8badb037-121-2189
+          ports:
+            - containerPort: 8080
+              name: sensor
+          volumeMounts:
+            - name: git-volume
+              mountPath: /git-base/
+          envFrom:
+          - secretRef:
+              name: git-sensor-secret
+          - configMapRef: 
+              name: git-sensor-cm
+  volumeClaimTemplates:
+    - metadata:
+        name: git-volume
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 2Gi
+---
+# Source: gitsensor/templates/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: git-sensor-sm
+  labels:
+    chart: gitsensor-0.11.0
+    app: git-sensor
+    kind: Prometheus
+    release: devtron
+spec:
+  endpoints:
+    - port: app
+      path: /metrics
+  selector:
+    matchLabels:
+      app: git-sensor
