@@ -1,2 +1,3 @@
 .idea
-devtron
+devtron.*
+.DS_Store
