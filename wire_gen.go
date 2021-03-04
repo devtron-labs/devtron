@@ -142,11 +142,13 @@ func InitializeApp() (*App, error) {
 	appLevelMetricsRepositoryImpl := repository.NewAppLevelMetricsRepositoryImpl(db, sugaredLogger)
 	envLevelAppMetricsRepositoryImpl := repository.NewEnvLevelAppMetricsRepositoryImpl(db, sugaredLogger)
 	chartRepositoryImpl := chartConfig.NewChartRepository(db)
-	commonServiceImpl := commonService.NewCommonServiceImpl(sugaredLogger, chartRepositoryImpl, envConfigOverrideRepositoryImpl)
+	gitOpsConfigRepositoryImpl := repository.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
+	dockerArtifactStoreRepositoryImpl := repository.NewDockerArtifactStoreRepositoryImpl(db)
+	gitProviderRepositoryImpl := repository.NewGitProviderRepositoryImpl(db)
+	commonServiceImpl := commonService.NewCommonServiceImpl(sugaredLogger, chartRepositoryImpl, envConfigOverrideRepositoryImpl, gitOpsConfigRepositoryImpl, dockerArtifactStoreRepositoryImpl, attributesRepositoryImpl, gitProviderRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, appRepositoryImpl)
 	imageScanDeployInfoRepositoryImpl := security.NewImageScanDeployInfoRepositoryImpl(db, sugaredLogger)
 	imageScanHistoryRepositoryImpl := security.NewImageScanHistoryRepositoryImpl(db, sugaredLogger)
 	argoK8sClientImpl := argocdServer.NewArgoK8sClientImpl(sugaredLogger)
-	gitOpsConfigRepositoryImpl := repository.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
 	gitFactory, err := util.NewGitFactory(sugaredLogger, gitOpsConfigRepositoryImpl)
 	if err != nil {
 		return nil, err
@@ -172,7 +174,6 @@ func InitializeApp() (*App, error) {
 	appWorkflowRepositoryImpl := appWorkflow.NewAppWorkflowRepositoryImpl(sugaredLogger, db)
 	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, sessionManager, attributesRepositoryImpl)
 	dbPipelineOrchestratorImpl := pipeline.NewDbPipelineOrchestrator(appRepositoryImpl, sugaredLogger, materialRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, ciPipelineMaterialRepositoryImpl, gitSensorClientImpl, ciConfig, appWorkflowRepositoryImpl, environmentRepositoryImpl, attributesServiceImpl)
-	dockerArtifactStoreRepositoryImpl := repository.NewDockerArtifactStoreRepositoryImpl(db)
 	utilMergeUtil := util.MergeUtil{
 		Logger: sugaredLogger,
 	}
@@ -222,7 +223,6 @@ func InitializeApp() (*App, error) {
 	ciServiceImpl := pipeline.NewCiServiceImpl(sugaredLogger, workflowServiceImpl, ciPipelineMaterialRepositoryImpl, ciWorkflowRepositoryImpl, ciConfig, eventRESTClientImpl, eventSimpleFactoryImpl, mergeUtil, ciPipelineRepositoryImpl)
 	ciLogServiceImpl := pipeline.NewCiLogServiceImpl(sugaredLogger, ciServiceImpl, ciConfig)
 	ciHandlerImpl := pipeline.NewCiHandlerImpl(sugaredLogger, ciServiceImpl, ciPipelineMaterialRepositoryImpl, gitSensorClientImpl, ciWorkflowRepositoryImpl, workflowServiceImpl, ciLogServiceImpl, ciConfig, ciArtifactRepositoryImpl, userServiceImpl, eventRESTClientImpl, eventSimpleFactoryImpl, ciPipelineRepositoryImpl, appListingRepositoryImpl)
-	gitProviderRepositoryImpl := repository.NewGitProviderRepositoryImpl(db)
 	gitRegistryConfigImpl := pipeline.NewGitRegistryConfigImpl(sugaredLogger, gitProviderRepositoryImpl, gitSensorClientImpl)
 	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(dockerArtifactStoreRepositoryImpl, sugaredLogger)
 	cdHandlerImpl := pipeline.NewCdHandlerImpl(sugaredLogger, cdConfig, userServiceImpl, cdWorkflowRepositoryImpl, cdWorkflowServiceImpl, ciLogServiceImpl, ciArtifactRepositoryImpl, ciPipelineMaterialRepositoryImpl, pipelineRepositoryImpl, environmentRepositoryImpl, ciWorkflowRepositoryImpl, ciConfig)
@@ -379,7 +379,9 @@ func InitializeApp() (*App, error) {
 	dashboardRouterImpl := router.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
 	attributesRestHandlerImpl := restHandler.NewAttributesRestHandlerImpl(sugaredLogger, enforcerImpl, userServiceImpl, attributesServiceImpl)
 	attributesRouterImpl := router.NewAttributesRouterImpl(attributesRestHandlerImpl)
-	muxRouter := router.NewMuxRouter(sugaredLogger, helmRouterImpl, pipelineConfigRouterImpl, migrateDbRouterImpl, clusterAccountsRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, clusterHelmConfigRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, projectManagementRouterImpl, gitProviderRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusUpdateHandlerImpl, ciEventHandlerImpl, pubSubClient, userRouterImpl, cronBasedEventReceiverImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, testSuitRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl)
+	commonRestHanlderImpl := restHandler.NewCommonRestHanlderImpl(sugaredLogger, gitOpsConfigServiceImpl, userServiceImpl, validate, enforcerImpl, commonServiceImpl)
+	commonRouterImpl := router.NewCommonRouterImpl(commonRestHanlderImpl)
+	muxRouter := router.NewMuxRouter(sugaredLogger, helmRouterImpl, pipelineConfigRouterImpl, migrateDbRouterImpl, clusterAccountsRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, clusterHelmConfigRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, projectManagementRouterImpl, gitProviderRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusUpdateHandlerImpl, ciEventHandlerImpl, pubSubClient, userRouterImpl, cronBasedEventReceiverImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, testSuitRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, commonRouterImpl)
 	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, sessionManager, versionServiceImpl, enforcer, db, pubSubClient)
 	return mainApp, nil
 }
