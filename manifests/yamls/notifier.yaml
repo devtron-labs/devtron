@@ -1,0 +1,98 @@
+# Source: notifier/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: notifier-secret
+  labels:
+    release: devtron
+type: Opaque
+---
+# Source: notifier/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notifier-cm
+  labels:
+    release: devtron
+data:
+  CD_ENVIRONMENT: PROD
+  DB: orchestrator
+  DB_HOST: postgresql-postgresql.devtroncd
+  DB_PORT: "5432"
+  DB_USER: postgres
+---
+# Source: notifier/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: notifier-service
+  labels:
+    app: notifier
+    chart: notifier-3.7.1
+    release: devtron
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: app
+      protocol: TCP
+      name: app
+  selector:
+    app: notifier
+---
+# Source: notifier/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifier
+  labels:
+    app: notifier
+    chart: notifier-3.7.1
+    release: devtron
+spec:
+  selector:
+    matchLabels:
+      app: notifier
+      release: devtron
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: notifier
+        release: devtron
+    spec:
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      containers:
+        - name: notifier
+          image: quay.io/devtron/notifier:676ed6e2-137-3458
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: app
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: CONFIG_HASH
+              value: f64a7abec5f850c3393a5f3a1efb3a3c62fbcb6530cc3c6807028c41677fc3ec
+            - name: SECRET_HASH
+              value: 613cf1b1ff0cf6a867565df5ff0b3585893258f3430f0cccef14cf8c600bc701
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+          - configMapRef:
+              name: notifier-cm
+          - secretRef:
+              name: notifier-secret
+          resources:
+            limits:
+              cpu: "0.5"
+              memory: 600Mi
+            requests:
+              cpu: "0.2"
+              memory: 100Mi
+          volumeMounts: []
+      volumes: []
+  revisionHistoryLimit: 3
