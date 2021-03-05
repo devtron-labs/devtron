@@ -822,11 +822,8 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 	if err != nil {
 		return nil, err
 	}
-	/*installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return nil, err
-	}*/
+	t1 := time.Now()
+	impl.logger.Infow("api response time testing start", "time", time.Now().String(), "installedAppVersionId", installedAppVersionId)
 
 	installedAppVersion, err := impl.GetInstalledAppVersion(installedAppVersionId)
 	if err != nil {
@@ -906,6 +903,9 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		impl.logger.Errorw(" error", "err", err)
 		return nil, err
 	}
+	t2 := time.Now()
+	impl.logger.Infow("api time testing end", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "installedAppVersionId", installedAppVersionId)
+	t1 = t2
 	return installedAppVersion, nil
 }
 
