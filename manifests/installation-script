@@ -1,4 +1,4 @@
-LTAG=404: Not Found
+LTAG=v1.0.0
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
