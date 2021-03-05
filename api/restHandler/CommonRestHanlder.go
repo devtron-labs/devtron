@@ -18,7 +18,6 @@
 package restHandler
 
 import (
-	"errors"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -67,14 +66,6 @@ func (impl CommonRestHanlderImpl) GlobalChecklist(w http.ResponseWriter, r *http
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	// RBAC enforcer Ends
 
 	writeJsonResp(w, err, res, http.StatusOK)
 }
