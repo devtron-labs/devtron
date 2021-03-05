@@ -1299,7 +1299,6 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
 	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_APPSTORE_DEPLOY_TOPIC, BULK_APPSTORE_DEPLOY_GROUP, func(msg *stan.Msg) {
-		impl.logger.Debug("cd stage event received")
 		defer msg.Ack()
 		deployPayload := &DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
@@ -1316,12 +1315,13 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 				impl.logger.Errorw(" error", "err", err)
 			}*/
 		}
-	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(200)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(3))
+	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(30)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err
 	}
-	return nil
+
+return nil
 }
 
 func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error) {
