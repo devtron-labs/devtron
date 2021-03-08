@@ -505,7 +505,7 @@ kubeYamlEdit(devtron, "data.GRAFANA_URL", grafanaUrl, `/ConfigMap//devtron-cm`);
 
 # set default cloud provider
 if !cloudProvider {
-  cloudProvider="AWS";
+  cloudProvider="S3";
 }
 kubeYamlEdit(devtron, "data.BLOB_STORAGE_PROVIDER", cloudProvider, `/ConfigMap//devtron-cm`);
 
@@ -616,7 +616,7 @@ artifactRepository:
   archiveLogs: true
   s3:`;
 
-if cloudProvider=="AWS" {
+if cloudProvider=="S3" {
     workflowConfig = workflowConfig +`
     endpoint: s3.amazonaws.com
     bucket: `;
