@@ -19,13 +19,17 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/discovery"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"reflect"
 )
 
 type K8sUtil struct {
@@ -47,6 +51,30 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
 	client, err := v12.NewForConfig(cfg)
+
+	return client, err
+}
+
+func (impl K8sUtil) GetK8sVersion(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error) {
+	cfg := &rest.Config{}
+	cfg.Host = clusterConfig.Host
+	cfg.BearerToken = clusterConfig.BearerToken
+	cfg.Insecure = true
+	expect := version.Info{
+		Major:     "foo",
+		Minor:     "bar",
+		GitCommit: "baz",
+	}
+	client, err := discovery.NewDiscoveryClientForConfig(cfg)
+	got, err := client.ServerVersion()
+	if err != nil {
+		fmt.Printf("unexpected encoding error: %v", err)
+	}
+	if e, a := expect, *got; !reflect.DeepEqual(e, a) {
+		fmt.Printf("expected %v, got %v", e, a)
+	}
+	v, err := client.ServerVersion()
+	impl.logger.Infow(">>>>>>>>>", "v", v.String())
 	return client, err
 }
 
