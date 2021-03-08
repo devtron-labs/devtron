@@ -41,9 +41,6 @@ type EnvironmentBean struct {
 	CdArgoSetup        bool   `json:"isClusterCdActive"`
 }
 
-const ClusterName = "default_cluster"
-const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-
 type EnvironmentService interface {
 	FindOne(environment string) (*EnvironmentBean, error)
 	Create(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)

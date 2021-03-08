@@ -98,6 +98,7 @@ type DeploymentDetailContainer struct {
 	DataSource           string          `json:"dataSource,omitempty"`
 	LastDeployedPipeline string          `json:"lastDeployedPipeline,omitempty"`
 	Deprecated           bool            `json:"deprecated"`
+	K8sVersion           string          `json:"k8sVersion"`
 }
 
 type AppDetailContainer struct {
