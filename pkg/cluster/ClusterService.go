@@ -101,7 +101,7 @@ func NewClusterServiceImpl(repository cluster.ClusterRepository, environmentRepo
 }
 
 const ClusterName = "default_cluster"
-const TokenFilePath = "/Users/vikram/servicetoken"
+const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
 func (impl ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error) {
 	host := cluster.ServerUrl
@@ -306,7 +306,7 @@ func (impl ClusterServiceImpl) FindAllActive() ([]ClusterBean, error) {
 			PrometheusUrl:          m.PrometheusEndpoint,
 			AgentInstallationStage: m.AgentInstallationStage,
 			Config:                 m.Config,
-			K8sVersion:             model.K8sVersion,
+			K8sVersion:             m.K8sVersion,
 		})
 	}
 	return beans, nil
