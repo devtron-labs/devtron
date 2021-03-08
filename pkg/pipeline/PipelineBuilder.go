@@ -568,14 +568,16 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 
 	if createRequest.DockerRepository == "" {
 		repo := impl.ecrConfig.EcrPrefix + app.AppName
-		impl.logger.Debugw("repo is empty creating ecr repo ", "repo", repo)
-		err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
-		if err != nil {
-			if errors.IsAlreadyExists(err) {
-				impl.logger.Warnw("repo already exists , skipping", "repo", repo)
-			} else {
-				impl.logger.Errorw("error in creating repo", "repo", repo, "err", err)
-				return nil, err
+		if store.RegistryType == repository.REGISTRYTYPE_ECR {
+			impl.logger.Debugw("repo is empty creating ecr repo ", "repo", repo)
+			err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
+			if err != nil {
+				if errors.IsAlreadyExists(err) {
+					impl.logger.Warnw("repo already exists , skipping", "repo", repo)
+				} else {
+					impl.logger.Errorw("error in creating repo", "repo", repo, "err", err)
+					return nil, err
+				}
 			}
 		}
 		createRequest.DockerRepository = repo
