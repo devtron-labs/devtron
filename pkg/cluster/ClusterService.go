@@ -41,7 +41,7 @@ type ClusterBean struct {
 	PrometheusAuth          *PrometheusAuth            `json:"prometheusAuth,omitempty"`
 	DefaultClusterComponent []*DefaultClusterComponent `json:"defaultClusterComponent"`
 	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
-	K8sVersion              string                     `json:"k8sVersion,omitempty"`
+	K8sVersion              string                     `json:"k8sVersion"`
 }
 
 type PrometheusAuth struct {
