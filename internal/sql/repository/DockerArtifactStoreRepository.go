@@ -26,6 +26,7 @@ import (
 
 const REGISTRYTYPE_ECR = "ecr"
 const REGISTRYTYPE_OTHER = "other"
+const REGISTRYTYPE_DOCKER_HUB = "docker-hub"
 
 type RegistryType string
 
