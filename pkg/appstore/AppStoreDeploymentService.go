@@ -1306,7 +1306,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
 	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_APPSTORE_DEPLOY_TOPIC, BULK_APPSTORE_DEPLOY_GROUP, func(msg *stan.Msg) {
-		impl.logger.Debug("cd stage event received")
+		impl.logger.Infow("subscribed", "msg", msg)
 		defer msg.Ack()
 		deployPayload := &DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
@@ -1319,7 +1319,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
 		}
-	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(200)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(3))
+	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err
