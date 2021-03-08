@@ -1272,26 +1272,33 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationStatusUpdate(installA
 func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions []*InstallAppVersionDTO) {
 
 	for _, versions := range installAppVersions {
-		var status appstore.AppstoreDeploymentStatus
-		payload := &DeployPayload{InstalledAppVersionId: versions.InstalledAppVersionId}
-		data, err := json.Marshal(payload)
-		if err != nil {
-			status = appstore.QUE_ERROR
-		} else {
-			err := impl.pubsubClient.Conn.Publish(BULK_APPSTORE_DEPLOY_TOPIC, data)
+		if strings.Contains(versions.AppName, "rollout") {
+			_, err := impl.performDeployStage(versions.InstalledAppVersionId)
 			if err != nil {
-				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
+				impl.logger.Errorw("error in performing deploy stage", "deployPayload", versions, "err", err)
+			}
+		} else {
+			var status appstore.AppstoreDeploymentStatus
+			payload := &DeployPayload{InstalledAppVersionId: versions.InstalledAppVersionId}
+			data, err := json.Marshal(payload)
+			if err != nil {
 				status = appstore.QUE_ERROR
 			} else {
-				status = appstore.ENQUEUED
-			}
+				err := impl.pubsubClient.Conn.Publish(BULK_APPSTORE_DEPLOY_TOPIC, data)
+				if err != nil {
+					impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
+					status = appstore.QUE_ERROR
+				} else {
+					status = appstore.ENQUEUED
+				}
 
-		}
-		if versions.Status == appstore.DEPLOY_INIT || versions.Status == appstore.QUE_ERROR || versions.Status == appstore.ENQUEUED {
-			impl.logger.Debugw("status for bulk app-store deploy", "status", status)
-			_, err = impl.AppStoreDeployOperationStatusUpdate(payload.InstalledAppVersionId, status)
-			if err != nil {
-				impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
+			}
+			if versions.Status == appstore.DEPLOY_INIT || versions.Status == appstore.QUE_ERROR || versions.Status == appstore.ENQUEUED {
+				impl.logger.Debugw("status for bulk app-store deploy", "status", status)
+				_, err = impl.AppStoreDeployOperationStatusUpdate(payload.InstalledAppVersionId, status)
+				if err != nil {
+					impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
+				}
 			}
 		}
 	}
@@ -1311,10 +1318,6 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 		_, err = impl.performDeployStage(deployPayload.InstalledAppVersionId)
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
-			/*_, err = impl.AppStoreDeployOperationStatusUpdate(deployPayload.InstalledAppVersionId, appstore.TRIGGER_ERROR)
-			if err != nil {
-				impl.logger.Errorw(" error", "err", err)
-			}*/
 		}
 	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(200)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(3))
 	if err != nil {
