@@ -62,13 +62,6 @@ func (impl K8sUtil) GetK8sVersion(clusterConfig *ClusterConfig) (*discovery.Disc
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
 		return nil, err
 	}
-	info, err := client.ServerVersion()
-	if err != nil {
-		impl.logger.Errorf("unexpected encoding error: %v", err, "clusterConfig", clusterConfig)
-		return nil, err
-	}
-	impl.logger.Infow(">>>>>>>>>", "clusterConfig", clusterConfig, "v", info)
-	impl.logger.Infow(">>>>>>>>>", "v", info.String())
 	return client, err
 }
 

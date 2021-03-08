@@ -153,13 +153,10 @@ func (impl ClusterServiceImpl) Save(bean *ClusterBean, userId int32) (*ClusterBe
 	if err != nil {
 		return nil, err
 	}
-	impl.logger.Infow(">>>>>>>>>", "v", client)
 	k8sVersion, err := client.ServerVersion()
 	if err != nil {
 		return nil, err
 	}
-	impl.logger.Infow(">>>>>>>>>", "v", k8sVersion)
-	impl.logger.Infow(">>>>>>>>>", "v", k8sVersion.String())
 	model.K8sVersion = k8sVersion.String()
 	err = impl.clusterRepository.Save(model)
 	if err != nil {
@@ -225,6 +222,7 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 			AgentInstallationStage: m.AgentInstallationStage,
 			ServerUrl:              m.ServerUrl,
 			Active:                 m.Active,
+			K8sVersion:             m.K8sVersion,
 		})
 		clusterIds = append(clusterIds, m.Id)
 	}
@@ -381,7 +379,7 @@ func (impl ClusterServiceImpl) Update(bean *ClusterBean, userId int32) (*Cluster
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
 
-	if len(model.K8sVersion) > 0 {
+	if len(model.K8sVersion) == 0 {
 		cfg, err := impl.GetClusterConfig(bean)
 		if err != nil {
 			return nil, err
@@ -390,13 +388,10 @@ func (impl ClusterServiceImpl) Update(bean *ClusterBean, userId int32) (*Cluster
 		if err != nil {
 			return nil, err
 		}
-		impl.logger.Infow(">>>>>>>>>", "v", client)
 		k8sVersion, err := client.ServerVersion()
 		if err != nil {
 			return nil, err
 		}
-		impl.logger.Infow(">>>>>>>>>", "v", k8sVersion)
-		impl.logger.Infow(">>>>>>>>>", "v", k8sVersion.String())
 		model.K8sVersion = k8sVersion.String()
 	}
 	err = impl.clusterRepository.Update(model)
