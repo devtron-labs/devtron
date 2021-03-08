@@ -344,7 +344,6 @@ helmRepo = `- name: incubator
   url: https://charts.helm.sh/stable`;
 
 kubeYamlEdit(argocd, `data.repositories`, helmRepo, `/ConfigMap//argocd-cm` );
-#kubeYamlEdit(argocd, "data.url", baseURLScheme + "://" + baseURL, `/ConfigMap//argocd-cm`);
 kubeYamlEdit(argocd, "data.url", baseURLScheme + "://" + baseURL, `/ConfigMap//argocd-cm`);
 if dexConfig {
     kubeYamlEdit(argocd, `data.dex\.config`, dexConfig, `/ConfigMap//argocd-cm`);
