@@ -230,7 +230,7 @@ func InitializeApp() (*App, error) {
 	appWorkflowServiceImpl := appWorkflow2.NewAppWorkflowServiceImpl(sugaredLogger, appWorkflowRepositoryImpl, dbPipelineOrchestratorImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl)
 	appListingViewBuilderImpl := app.NewAppListingViewBuilderImpl(sugaredLogger)
 	linkoutsRepositoryImpl := repository.NewLinkoutsRepositoryImpl(sugaredLogger, db)
-	appListingServiceImpl := app.NewAppListingServiceImpl(sugaredLogger, appListingRepositoryImpl, serviceClientImpl, appRepositoryImpl, appListingViewBuilderImpl, pipelineRepositoryImpl, linkoutsRepositoryImpl, appLevelMetricsRepositoryImpl, envLevelAppMetricsRepositoryImpl, cdWorkflowRepositoryImpl, pipelineOverrideRepositoryImpl)
+	appListingServiceImpl := app.NewAppListingServiceImpl(sugaredLogger, appListingRepositoryImpl, serviceClientImpl, appRepositoryImpl, appListingViewBuilderImpl, pipelineRepositoryImpl, linkoutsRepositoryImpl, appLevelMetricsRepositoryImpl, envLevelAppMetricsRepositoryImpl, cdWorkflowRepositoryImpl, pipelineOverrideRepositoryImpl, environmentRepositoryImpl)
 	appCloneServiceImpl := appClone.NewAppCloneServiceImpl(sugaredLogger, pipelineBuilderImpl, materialRepositoryImpl, chartServiceImpl, configMapServiceImpl, appWorkflowServiceImpl, appListingServiceImpl, propertiesConfigServiceImpl)
 	imageScanObjectMetaRepositoryImpl := security.NewImageScanObjectMetaRepositoryImpl(db, sugaredLogger)
 	cveStoreRepositoryImpl := security.NewCveStoreRepositoryImpl(db, sugaredLogger)
