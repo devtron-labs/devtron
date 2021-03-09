@@ -819,16 +819,15 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 
 func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int) (*InstallAppVersionDTO, error) {
 	impl.logger.Infow("performDeployStage start", "installedAppVersionId", installedAppVersionId)
+	installedAppVersion, err := impl.GetInstalledAppVersion(installedAppVersionId)
+	if err != nil {
+		return nil, err
+	}
+	/*
 	ctx, err := impl.tokenCache.BuildACDSynchContext()
 	if err != nil {
 		return nil, err
 	}
-	/*installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return nil, err
-	}*/
-
 	installedAppVersion, err := impl.GetInstalledAppVersion(installedAppVersionId)
 	if err != nil {
 		return nil, err
@@ -907,6 +906,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		impl.logger.Errorw(" error", "err", err)
 		return nil, err
 	}
+	*/
 	impl.logger.Infow("performDeployStage end", "installedAppVersionId", installedAppVersionId)
 	return installedAppVersion, nil
 }
@@ -1282,7 +1282,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 			}
 		} else {
 			var status appstore.AppstoreDeploymentStatus
-			payload := &DeployPayload{InstalledAppVersionId: versions.InstalledAppVersionId}
+			payload := DeployPayload{InstalledAppVersionId: versions.InstalledAppVersionId}
 			data, err := json.Marshal(payload)
 			if err != nil {
 				status = appstore.QUE_ERROR
@@ -1311,7 +1311,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_APPSTORE_DEPLOY_TOPIC, BULK_APPSTORE_DEPLOY_GROUP, func(msg *stan.Msg) {
 		impl.logger.Infow("subscribed", "msg", msg)
 		defer msg.Ack()
-		deployPayload := &DeployPayload{}
+		deployPayload := DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
 		if err != nil {
 			impl.logger.Error("err", err)
