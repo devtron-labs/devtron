@@ -1272,6 +1272,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationStatusUpdate(installA
 func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions []*InstallAppVersionDTO) {
 
 	for _, versions := range installAppVersions {
+		impl.logger.Infow("trigger deployment event start processing", "version", versions)
 		if strings.Contains(versions.AppName, "rollout") {
 			_, err := impl.performDeployStage(versions.InstalledAppVersionId)
 			if err != nil {
