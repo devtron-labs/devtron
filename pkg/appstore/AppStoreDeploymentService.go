@@ -818,6 +818,7 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 }
 
 func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int) (*InstallAppVersionDTO, error) {
+	impl.logger.Infow("performDeployStage start", "installedAppVersionId", installedAppVersionId)
 	ctx, err := impl.tokenCache.BuildACDSynchContext()
 	if err != nil {
 		return nil, err
@@ -906,6 +907,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		impl.logger.Errorw(" error", "err", err)
 		return nil, err
 	}
+	impl.logger.Infow("performDeployStage end", "installedAppVersionId", installedAppVersionId)
 	return installedAppVersion, nil
 }
 
