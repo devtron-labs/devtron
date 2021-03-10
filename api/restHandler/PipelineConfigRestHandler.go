@@ -1004,6 +1004,13 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		appConfigResponse["globalConfig"] = appOverride
 	}
 
+	mapping, err := handler.chartService.GetManifestKeyMappingTemplate(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	appConfigResponse["mapping"]=mapping["mapping"]
 	writeJsonResp(w, nil, appConfigResponse, http.StatusOK)
 }
 
