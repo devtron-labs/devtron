@@ -1268,14 +1268,18 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationStatusUpdate(installA
 }
 
 //------------ nats config
+const RolloutFile string = "rollout"
 
 func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions []*InstallAppVersionDTO) {
-
 	for _, versions := range installAppVersions {
-		if strings.Contains(versions.AppName, "rollout") {
+		if strings.Contains(versions.AppName, RolloutFile) {
 			_, err := impl.performDeployStage(versions.InstalledAppVersionId)
 			if err != nil {
 				impl.logger.Errorw("error in performing deploy stage", "deployPayload", versions, "err", err)
+				_, err = impl.AppStoreDeployOperationStatusUpdate(versions.InstalledAppVersionId, appstore.QUE_ERROR)
+				if err != nil {
+					impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
+				}
 			}
 		} else {
 			var status appstore.AppstoreDeploymentStatus
@@ -1291,7 +1295,6 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 				} else {
 					status = appstore.ENQUEUED
 				}
-
 			}
 			if versions.Status == appstore.DEPLOY_INIT || versions.Status == appstore.QUE_ERROR || versions.Status == appstore.ENQUEUED {
 				impl.logger.Debugw("status for bulk app-store deploy", "status", status)
@@ -1319,7 +1322,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
 		}
-	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(200)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(3))
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err
