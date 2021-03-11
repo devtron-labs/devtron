@@ -206,8 +206,8 @@ if !grafanaPassword {
 grafanaPasswordPlain = base64DecoderPrefix + `echo "` + grafanaPassword + `" | tr -d ':\n' ` + base64DecoderSuffix;
 grafanaPasswordPlain = shellScript grafanaPasswordPlain;
 kubeYamlEdit(grafana, "data.admin-password", grafanaPassword, `/Secret//devtron-grafana-cred-secret`);
-grafanaUrl = baseURLScheme + "://%s:%s@" + baseURL + "/grafana";
-grafanaUrlWithPwd = baseURLScheme + "://admin:"+ grafanaPasswordPlain + "@" + baseURL + "/grafana";
+grafanaUrl = "http://%s:%s@devtron-grafana.devtroncd/grafana";
+grafanaUrlWithPwd = "http://admin:"+ grafanaPasswordPlain + "@devtron-grafana.devtroncd/grafana";
 
 grafanaIni = `[analytics]
 check_for_updates = true
@@ -227,12 +227,13 @@ provisioning = /etc/grafana/provisioning
 [security]
 allow_embedding = true
 [server]
-root_url = ` + baseURLScheme + "://" + baseURL + `/grafana
+root_url = /grafana
 serve_from_sub_path = true
 [users]
 allow_org_create = true
  `;
 kubeYamlEdit(grafana, `data.grafana\.ini`, grafanaIni, `/ConfigMap/devtroncd/devtron-grafana`);
+kubeYamlDelete(grafana, filter=`networking.k8s.io/Ingress/devtroncd/devtron-grafana`);
 grafana = kubectl apply -n devtroncd grafana -u grafanaOverride;
 log("setup grafana");
 
@@ -344,10 +345,10 @@ helmRepo = `- name: incubator
   url: https://charts.helm.sh/stable`;
 
 kubeYamlEdit(argocd, `data.repositories`, helmRepo, `/ConfigMap//argocd-cm` );
-kubeYamlEdit(argocd, "data.url", baseURLScheme + "://" + baseURL, `/ConfigMap//argocd-cm`);
-if dexConfig {
-    kubeYamlEdit(argocd, `data.dex\.config`, dexConfig, `/ConfigMap//argocd-cm`);
-}
+#kubeYamlEdit(argocd, "data.url", baseURLScheme + "://" + baseURL, `/ConfigMap//argocd-cm`);
+#if dexConfig {
+#    kubeYamlEdit(argocd, `data.dex\.config`, dexConfig, `/ConfigMap//argocd-cm`);
+#}
 
 kubeYamlEdit(argocd, `data.policy\.default`, `role:admin`, `/ConfigMap//argocd-rbac-cm`);
 # patchLoad = '{"data":{"url":"' + baseURL + '", "dex.config:"' + dexConfig + '}}';
@@ -376,7 +377,7 @@ kubeYamlEdit(gitSensor, "data.PG_PASSWORD", postgresqlPassword, `/Secret//git-se
 
 #notifier
 kubeYamlEdit(notifier, "data.DB_PWD", postgresqlPassword, `/Secret//notifier-secret`);
-kubeYamlEdit(notifier, "data.BASE_URL", baseURLScheme + "://" + baseURL, `/ConfigMap//notifier-cm`);
+#kubeYamlEdit(notifier, "data.BASE_URL", baseURLScheme + "://" + baseURL, `/ConfigMap//notifier-cm`);
 
 #image-scanner
 kubeYamlEdit(imageScanner, "data.PG_PASSWORD", postgresqlPassword, `/Secret//image-scanner-secret`);
@@ -495,7 +496,7 @@ kubeYamlEdit(devtron, "data.ACD_PASSWORD", acdPassword, `/Secret//devtron-secret
 kubeYamlEdit(devtron, "data.GRAFANA_PASSWORD", grafanaPassword, `/Secret//devtron-secret`);
 
 
-kubeYamlEdit(devtron, "data.EXTERNAL_CI_WEB_HOOK_URL", baseURLScheme + "://" + baseURL+"/orchestrator/webhook/ext-ci", `/ConfigMap//devtron-cm`);
+#kubeYamlEdit(devtron, "data.EXTERNAL_CI_WEB_HOOK_URL", baseURLScheme + "://" + baseURL+"/orchestrator/webhook/ext-ci", `/ConfigMap//devtron-cm`);
 kubeYamlEdit(devtron, "data.DEFAULT_CD_LOGS_BUCKET_REGION", defaultCDLogsBucketRegion, `/ConfigMap//devtron-cm`);
 kubeYamlEdit(devtron, "data.DEFAULT_CACHE_BUCKET", defaultCacheBucket, `/ConfigMap//devtron-cm`);
 kubeYamlEdit(devtron, "data.DEFAULT_CACHE_BUCKET_REGION", defaultCacheBucketRegion, `/ConfigMap//devtron-cm`);
