@@ -78,7 +78,7 @@ func (impl GitProviderRepositoryImpl) ProviderExists(url string) (bool, error) {
 func (impl GitProviderRepositoryImpl) FindAllActiveForAutocomplete() ([]GitProvider, error) {
 	var providers []GitProvider
 	err := impl.dbConnection.Model(&providers).
-		Where("active = ?", true).Column("id", "name", "url").Select()
+		Where("active = ?", true).Column("id", "name", "url").Order("id desc").Select()
 	return providers, err
 }
 
