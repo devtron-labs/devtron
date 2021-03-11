@@ -57,6 +57,7 @@ type EnvironmentPropertiesResponse struct {
 	GlobalChartRefId  int                   `json:"globalChartRefId,omitempty"  validate:"number"`
 	ChartRefId        int                   `json:"chartRefId,omitempty"  validate:"number"`
 	Namespace         string                `json:"namespace" validate:"name-component"`
+	Mapping           json.RawMessage       `json:"maping"`
 }
 
 type PropertiesConfigService interface {
@@ -423,7 +424,6 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Char
 	}
 	return envOverride, nil
 }
-
 
 func (impl PropertiesConfigServiceImpl) GetEnvironmentPropertiesById(envId int) ([]EnvironmentProperties, error) {
 
