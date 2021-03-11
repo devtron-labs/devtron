@@ -85,6 +85,7 @@ type InstalledAppService interface {
 
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	IsChartRepoActive(appStoreVersionId int) (bool, error)
+	DeployDefaultComponent(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -1268,40 +1269,30 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationStatusUpdate(installA
 }
 
 //------------ nats config
-const RolloutFile string = "rollout"
 
 func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions []*InstallAppVersionDTO) {
+
 	for _, versions := range installAppVersions {
-		if strings.Contains(versions.AppName, RolloutFile) {
-			_, err := impl.performDeployStage(versions.InstalledAppVersionId)
-			if err != nil {
-				impl.logger.Errorw("error in performing deploy stage", "deployPayload", versions, "err", err)
-				_, err = impl.AppStoreDeployOperationStatusUpdate(versions.InstalledAppVersionId, appstore.QUE_ERROR)
-				if err != nil {
-					impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
-				}
-			}
+		var status appstore.AppstoreDeploymentStatus
+		payload := &DeployPayload{InstalledAppVersionId: versions.InstalledAppVersionId}
+		data, err := json.Marshal(payload)
+		if err != nil {
+			status = appstore.QUE_ERROR
 		} else {
-			var status appstore.AppstoreDeploymentStatus
-			payload := &DeployPayload{InstalledAppVersionId: versions.InstalledAppVersionId}
-			data, err := json.Marshal(payload)
+			err := impl.pubsubClient.Conn.Publish(BULK_APPSTORE_DEPLOY_TOPIC, data)
 			if err != nil {
+				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
 				status = appstore.QUE_ERROR
 			} else {
-				err := impl.pubsubClient.Conn.Publish(BULK_APPSTORE_DEPLOY_TOPIC, data)
-				if err != nil {
-					impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
-					status = appstore.QUE_ERROR
-				} else {
-					status = appstore.ENQUEUED
-				}
+				status = appstore.ENQUEUED
 			}
-			if versions.Status == appstore.DEPLOY_INIT || versions.Status == appstore.QUE_ERROR || versions.Status == appstore.ENQUEUED {
-				impl.logger.Debugw("status for bulk app-store deploy", "status", status)
-				_, err = impl.AppStoreDeployOperationStatusUpdate(payload.InstalledAppVersionId, status)
-				if err != nil {
-					impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
-				}
+
+		}
+		if versions.Status == appstore.DEPLOY_INIT || versions.Status == appstore.QUE_ERROR || versions.Status == appstore.ENQUEUED {
+			impl.logger.Debugw("status for bulk app-store deploy", "status", status)
+			_, err = impl.AppStoreDeployOperationStatusUpdate(payload.InstalledAppVersionId, status)
+			if err != nil {
+				impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
 			}
 		}
 	}
@@ -1309,7 +1300,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
 	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_APPSTORE_DEPLOY_TOPIC, BULK_APPSTORE_DEPLOY_GROUP, func(msg *stan.Msg) {
-		impl.logger.Infow("subscribed", "msg", msg)
+		impl.logger.Debug("cd stage event received")
 		defer msg.Ack()
 		deployPayload := &DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
@@ -1432,7 +1423,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 
 			impl.logger.Info("STEP 5 - deploy bulk initiated")
 			// STEP 5 - deploy
-			_, err = impl.DeployBulk(chartGroupInstallRequest)
+			_, err = impl.DeployDefaultComponent(chartGroupInstallRequest)
 			if err != nil {
 				impl.logger.Errorw("DeployDefaultChartOnCluster, error on bulk deploy", "err", err)
 				return false, err
@@ -1457,4 +1448,70 @@ func (impl *InstalledAppServiceImpl) IsChartRepoActive(appStoreVersionId int) (b
 		return false, err
 	}
 	return appStoreAppVersion.AppStore.ChartRepo.Active, nil
+}
+
+func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error) {
+	impl.logger.Debugw("bulk app install request", "req", chartGroupInstallRequest)
+	//save in db
+	// raise nats event
+
+	var installAppVersionDTOList []*InstallAppVersionDTO
+	for _, chartGroupInstall := range chartGroupInstallRequest.ChartGroupInstallChartRequest {
+		installAppVersionDTO, err := impl.requestBuilderForBulkDeployment(chartGroupInstall, chartGroupInstallRequest.ProjectId, chartGroupInstallRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("DeployBulk, error in request builder", "err", err)
+			return nil, err
+		}
+		installAppVersionDTOList = append(installAppVersionDTOList, installAppVersionDTO)
+	}
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	var installAppVersions []*InstallAppVersionDTO
+	// Rollback tx on error.
+	defer tx.Rollback()
+	for _, installAppVersionDTO := range installAppVersionDTOList {
+		installAppVersionDTO, err = impl.AppStoreDeployOperationDB(installAppVersionDTO, tx)
+		if err != nil {
+			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
+			return nil, err
+		}
+		installAppVersions = append(installAppVersions, installAppVersionDTO)
+	}
+	if chartGroupInstallRequest.ChartGroupId > 0 {
+		groupINstallationId, err := impl.getInstallationId(installAppVersions)
+		if err != nil {
+			return nil, err
+		}
+		for _, installAppVersionDTO := range installAppVersions {
+			chartGroupEntry := impl.createChartGroupEntryObject(installAppVersionDTO, chartGroupInstallRequest.ChartGroupId, groupINstallationId)
+			err := impl.chartGroupDeploymentRepository.Save(tx, chartGroupEntry)
+			if err != nil {
+				impl.logger.Errorw("DeployBulk, error in creating ChartGroupEntryObject", "err", err)
+				return nil, err
+			}
+		}
+	}
+	//commit transaction
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("DeployBulk, error in tx commit", "err", err)
+		return nil, err
+	}
+	//nats event
+
+	for _, versions := range installAppVersions {
+		_, err := impl.performDeployStage(versions.InstalledAppVersionId)
+		if err != nil {
+			impl.logger.Errorw("error in performing deploy stage", "deployPayload", versions, "err", err)
+			_, err = impl.AppStoreDeployOperationStatusUpdate(versions.InstalledAppVersionId, appstore.QUE_ERROR)
+			if err != nil {
+				impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
+			}
+		}
+	}
+
+	return &ChartGroupInstallAppRes{}, nil
 }
