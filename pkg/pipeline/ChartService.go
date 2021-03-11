@@ -114,6 +114,7 @@ type ChartService interface {
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]json.RawMessage, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
+	GetManifestKeyMappingTemplate(chartRefId int) (map[string]json.RawMessage, error)
 }
 type ChartServiceImpl struct {
 	chartRepository           chartConfig.ChartRepository
@@ -205,6 +206,25 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 	messages := map[string]json.RawMessage{}
 	messages["defaultAppOverride"] = appOverride
 	return messages, nil
+}
+
+func (impl ChartServiceImpl) GetManifestKeyMappingTemplate(chartRefId int) (map[string]json.RawMessage, error) {
+	refChart, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	if err != nil {
+		return nil, err
+	}
+	mappingByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "manifest-key-path-mapping.yaml")))
+	if err != nil {
+		return nil, err
+	}
+	mappingByte, err = yaml.YAMLToJSON(mappingByte)
+	if err != nil {
+		return nil, err
+	}
+	mappingJson := json.RawMessage(mappingByte)
+	response := map[string]json.RawMessage{}
+	response["mapping"] = mappingJson
+	return response, nil
 }
 
 type AppMetricsEnabled struct {

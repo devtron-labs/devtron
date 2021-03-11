@@ -890,6 +890,13 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfOverride(w http.ResponseW
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	mapping, err := handler.chartService.GetManifestKeyMappingTemplate(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+	} else {
+		env.Mapping = mapping["mapping"]
+	}
 	writeJsonResp(w, err, env, http.StatusOK)
 }
 
@@ -1004,6 +1011,12 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		appConfigResponse["globalConfig"] = appOverride
 	}
 
+	mapping, err := handler.chartService.GetManifestKeyMappingTemplate(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+	} else {
+		appConfigResponse["mapping"] = mapping["mapping"]
+	}
 	writeJsonResp(w, nil, appConfigResponse, http.StatusOK)
 }
 
