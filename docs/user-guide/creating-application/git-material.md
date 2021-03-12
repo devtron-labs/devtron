@@ -1,6 +1,6 @@
 # Git Material
 
-Git material is used to pull your application source code during the CI step. Select `Git material` section of the  `App Configuration`. Inside `Git material` when you click on `Add Git material` you will see three options as shown below:
+Git material is used to pull your application source code during the CI step. Select `Git Material` section of the  `App Configuration`. Inside `Git Material` when you click on `Add Git Material` you will see three options as shown below:
 
 1. Git Account
 2. Git Repo URL
