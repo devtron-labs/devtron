@@ -30,7 +30,7 @@ After clicking on checbox git checkout path field appears. The git checkout path
 
 This field is optional in case of a single git repository application and you can leave the path as default. Devtron assigns a directory by itself when the field is left blank. The default value of this field is `./`
 
-![](../../.gitbook/assets/git_material2%20%283%29.jpg)
+![](../../.gitbook/assets/create-app-git-save.png)
 
 If you want to go with a multi-git approach, then you need to specify a separate path for each of your repositories. The first repository can be checked out at the default `./` path as explained above. But, for all the rest of the repositories, you need to ensure that you provide unique checkout paths. In failing to do so, you may cause Devtron to checkout multiple repositories in one directory and overwriting files from different repositories on each other.
 
