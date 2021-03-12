@@ -106,6 +106,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindAll() ([]Environment, error)
 		dbConnection.Model(&mappings).
 		Column("environment.*", "Cluster").
 		Join("inner join cluster c on environment.cluster_id = c.id").
+		Where("environment.active = ?", true).
 		Select()
 	return mappings, err
 }
