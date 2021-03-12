@@ -244,7 +244,7 @@ func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId
 		" inner join app_store aps on asav.app_store_id = aps.id " +
 		" inner join environment env on ia.environment_id = env.id " +
 		" left join users u on u.id = ia.updated_by " +
-		" where aps.id = " + strconv.Itoa(appStoreId) + " and ia.active=true and iav.active=true"
+		" where aps.id = " + strconv.Itoa(appStoreId) + " and ia.active=true and iav.active=true and env.active=true"
 	_, err := impl.dbConnection.Query(&installedAppAndEnvDetails, queryTemp)
 	if err != nil {
 		return nil, err
@@ -317,7 +317,9 @@ func (impl InstalledAppRepositoryImpl) GetClusterComponentByClusterId(clusterId 
 	err := impl.dbConnection.Model(&models).
 		Column("installed_apps.*", "App", "Environment").
 		Where("environment.cluster_id = ?", clusterId).
-		Where("installed_apps.active = ?", true).Select()
+		Where("installed_apps.active = ?", true).
+		Where("environment.active = ?", true).
+		Select()
 	return models, err
 }
 
@@ -326,7 +328,9 @@ func (impl InstalledAppRepositoryImpl) GetClusterComponentByClusterIds(clusterId
 	err := impl.dbConnection.Model(&models).
 		Column("installed_apps.*", "App", "Environment").
 		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
-		Where("installed_apps.active = ?", true).Select()
+		Where("installed_apps.active = ?", true).
+		Where("environment.active = ?", true).
+		Select()
 	return models, err
 }
 
@@ -352,7 +356,8 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIds(cluste
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore", "AppStoreApplicationVersion.AppStore.ChartRepo").
 		Join("inner join installed_apps ia on ia.id = installed_app_versions.installed_app_id").
 		Join("inner join environment env on env.id = ia.environment_id").
-		Where("ia.active = true").Where("installed_app_versions.active = true").Where("env.cluster_id in (?)", pg.In(clusterIds)).
+		Where("ia.active = true").Where("installed_app_versions.active = true").
+		Where("env.cluster_id in (?)", pg.In(clusterIds)).Where("env.active = ?", true).
 		Order("installed_app_versions.id desc").
 		Select()
 	return installedAppVersions, err
