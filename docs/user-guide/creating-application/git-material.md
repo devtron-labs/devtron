@@ -4,11 +4,11 @@ Git material is used to pull your application source code during the CI step. Se
 
 1. Git Account
 2. Git Repo URL
-3. Checkbox for Checkout Path
+3. Checkout Path
 
 Devtron also supports multiple git repositories in a single deployment. We will discuss this in detail in the multi git option [below](git-material.md#4-multi-git).
 
-![](../../.gitbook/assets/move1%20%283%29.gif)
+![](../../.gitbook/assets/create-app-git-account.gif)
 
 ## 1. Git Account
 
@@ -22,7 +22,7 @@ You can find this URL by clicking on the '⤓ code' button on your git repositor
 
 Note: Copy the HTTPS url of the repository
 
-![](../../.gitbook/assets/github_url%20%282%29.png)
+![](../../.gitbook/assets/create-app-git-url.png)
 
 ## 3. Checkout Path
 
