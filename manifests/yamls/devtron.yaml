@@ -56,7 +56,7 @@ data:
   CD_NODE_TAINTS_VALUE: ""
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
-  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:6597a167-138-3547"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:a70b9836-138-3612"
   DEFAULT_CD_TIMEOUT: "3600"
   WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
   CI_LOGS_KEY_PREFIX: "ci-artifacts"
@@ -84,9 +84,7 @@ data:
   ACD_CM: "argocd-cm"
   ACD_NAMESPACE: "devtroncd"
   MINIO_ENDPOINT: http://devtron-minio:9000
-  GRAFANA_HOST: "devtron-grafana.devtroncd"
-  GRAFANA_PORT: "80"
-  GRAFANA_NAMESPACE: "devtroncd"
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -151,7 +149,7 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:a65e6818-184-3626"
+          image: "quay.io/devtron/devtron:896e7633-146-3701"
           imagePullPolicy: IfNotPresent
           ports:
             - name: devtron
