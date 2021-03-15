@@ -1,0 +1,31 @@
+[ req ]
+default_bits       = 2048
+default_md         = sha512
+default_keyfile    = ca.key
+prompt             = no
+encrypt_key        = yes
+
+# base request
+distinguished_name = req_distinguished_name
+
+# extensions
+req_extensions     = v3_req
+
+# distinguished_name
+[ req_distinguished_name ]
+countryName            = "DE"                     # C=
+stateOrProvinceName    = "Cologne"                # ST=
+localityName           = "Cologne"                # L=
+postalCode             = "424242"                 # L/postalcode=
+streetAddress          = "Hallo  1621"            # L/street=
+organizationName       = "giantswarm"             # O=
+organizationalUnitName = "Emojy Department"       # OU=
+commonName             = "giantswarm.io"          # CN=
+emailAddress           = "no-reply@giantswarm.io" # CN/emailAddress=
+
+# req_extensions
+[ v3_req ]
+# The subject alternative name extension allows various literal values to be 
+# included in the configuration file
+# http://www.openssl.org/docs/apps/x509v3_config.html
+subjectAltName  = DNS:www.giantswarm.io,DNS:www2.giantswarm.io # multidomain certificate
