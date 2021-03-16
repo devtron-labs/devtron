@@ -222,9 +222,11 @@ spec:
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
           {{- if eq .type "volume"}}
+          {{- range $k, $v := .data }}
             - name: {{ .name}}-vol
               mountPath: {{ .mountPath}}
-              subPath: {{ .subPath}}
+              subPath: {{ $k}}
+          {{- end }}
           {{- end }}
           {{- end }}
           {{- end }}
@@ -232,9 +234,11 @@ spec:
           {{- if .Values.ConfigSecrets.enabled }}
           {{- range .Values.ConfigSecrets.secrets }}
           {{- if eq .type "volume"}}
+          {{- range $k, $v := .data }}
             - name: {{ .name}}-vol
               mountPath: {{ .mountPath}}
-              subPath: {{ .subPath}}
+              subPath: {{ $k}}
+          {{- end }}
           {{- end }}
           {{- end }}
           {{- end }}
