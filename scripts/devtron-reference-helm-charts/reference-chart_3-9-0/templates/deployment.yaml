@@ -224,6 +224,7 @@ spec:
           {{- if eq .type "volume"}}
             - name: {{ .name}}-vol
               mountPath: {{ .mountPath}}
+              subPath: {{ .subPath}}
           {{- end }}
           {{- end }}
           {{- end }}
@@ -233,6 +234,7 @@ spec:
           {{- if eq .type "volume"}}
             - name: {{ .name}}-vol
               mountPath: {{ .mountPath}}
+              subPath: {{ .subPath}}
           {{- end }}
           {{- end }}
           {{- end }}
@@ -258,6 +260,7 @@ spec:
             {{- else if eq .external false }}
             name: {{ .name}}-{{ $.Values.app }}
             {{- end }}
+            defaultMode: {{ .mode}}
       {{- end }}
       {{- end }}
       {{- end }}
@@ -272,6 +275,7 @@ spec:
             {{- else if eq .external false }}
             secretName: {{ .name}}-{{ $.Values.app }}
             {{- end }}
+            defaultMode: {{ .mode}}
       {{- end }}
       {{- end }}
       {{- end }}
