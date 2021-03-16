@@ -258,7 +258,6 @@ spec:
             {{- else if eq .external false }}
             name: {{ .name}}-{{ $.Values.app }}
             {{- end }}
-            defaultMode: {{ .mode}}
       {{- end }}
       {{- end }}
       {{- end }}
@@ -273,7 +272,6 @@ spec:
             {{- else if eq .external false }}
             secretName: {{ .name}}-{{ $.Values.app }}
             {{- end }}
-            defaultMode: {{ .mode}}
       {{- end }}
       {{- end }}
       {{- end }}
