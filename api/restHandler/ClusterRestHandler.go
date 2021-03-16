@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -117,6 +118,18 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	//RBAC enforcer Ends
+
+	bean, err = impl.clusterService.FindOne(bean.ClusterName)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("service err, Save", "err", err, "payload", bean)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if bean.Id > 0 {
+		impl.logger.Warnw("cluster already exists", "payload", bean)
+		writeJsonResp(w, errors.New("already exists"), nil, http.StatusConflict)
+		return
+	}
 
 	bean, err = impl.clusterService.Save(bean, userId)
 	if err != nil {

@@ -18,10 +18,12 @@
 package cluster
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -101,7 +103,17 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		return nil, err
 	}
 
-	model := &cluster.Environment{
+	model, err := impl.environmentRepository.FindByName(mappings.Environment)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in finding environment for update", "err", err)
+		return mappings, err
+	}
+	if model.Id > 0 {
+		impl.logger.Warnw("environment already exists", "model", model)
+		return mappings, fmt.Errorf("environment already exists")
+	}
+
+	model = &cluster.Environment{
 		Name:      mappings.Environment,
 		ClusterId: mappings.ClusterId,
 		Active:    mappings.Active,
@@ -128,11 +140,13 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 
 	}
 
-	_, err = impl.clusterService.CreateGrafanaDataSource(clusterBean, model)
-	if err != nil {
-		impl.logger.Errorw("unable to create grafana data source", "env", model)
+	//ignore grafana if no prometheus url found
+	if len(clusterBean.PrometheusUrl) > 0 {
+		_, err = impl.clusterService.CreateGrafanaDataSource(clusterBean, model)
+		if err != nil {
+			impl.logger.Errorw("unable to create grafana data source", "env", model)
+		}
 	}
-
 	mappings.Id = model.Id
 	return mappings, nil
 }
@@ -295,7 +309,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 	}
 	grafanaDatasourceId := model.GrafanaDatasourceId
 	//grafana datasource create if not exist
-	if grafanaDatasourceId == 0 {
+	if len(clusterBean.PrometheusUrl) > 0 && grafanaDatasourceId == 0 {
 		grafanaDatasourceId, err = impl.clusterService.CreateGrafanaDataSource(clusterBean, model)
 		if err != nil {
 			impl.logger.Errorw("unable to create grafana data source for missing env", "env", model)

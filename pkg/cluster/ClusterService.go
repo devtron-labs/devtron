@@ -314,7 +314,7 @@ func (impl ClusterServiceImpl) Update(bean *ClusterBean, userId int32) (*Cluster
 		impl.logger.Error(err)
 		return nil, err
 	}
-	model.ClusterName = bean.ClusterName
+	//model.ClusterName = bean.ClusterName
 	model.ServerUrl = bean.ServerUrl
 	model.PrometheusEndpoint = bean.PrometheusUrl
 
@@ -347,7 +347,7 @@ func (impl ClusterServiceImpl) Update(bean *ClusterBean, userId int32) (*Cluster
 
 	// TODO: Can be called in goroutines if performance issue
 	for _, env := range envs {
-		if env.GrafanaDatasourceId == 0 {
+		if len(bean.PrometheusUrl) > 0 && env.GrafanaDatasourceId == 0 {
 			grafanaDatasourceId, _ := impl.CreateGrafanaDataSource(bean, env)
 			if grafanaDatasourceId == 0 {
 				impl.logger.Errorw("unable to create data source for environment which doesn't exists", "env", env)
