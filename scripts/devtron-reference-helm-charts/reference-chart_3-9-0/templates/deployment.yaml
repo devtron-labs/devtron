@@ -224,7 +224,6 @@ spec:
           {{- if eq .type "volume"}}
             - name: {{ .name}}-vol
               mountPath: {{ .mountPath}}
-              subPath: {{ .subPath}}
           {{- end }}
           {{- end }}
           {{- end }}
@@ -234,7 +233,6 @@ spec:
           {{- if eq .type "volume"}}
             - name: {{ .name}}-vol
               mountPath: {{ .mountPath}}
-              subPath: {{ .subPath}}
           {{- end }}
           {{- end }}
           {{- end }}
