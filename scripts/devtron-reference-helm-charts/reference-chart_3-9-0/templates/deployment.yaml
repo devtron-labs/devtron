@@ -222,8 +222,11 @@ spec:
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
           {{- if eq .type "volume"}}
+          {{- range $k, $v := .data }}
             - name: {{ .name}}-vol
               mountPath: {{ .mountPath}}
+              subPath: {{ $k}}
+          {{- end }}
           {{- end }}
           {{- end }}
           {{- end }}
@@ -231,8 +234,11 @@ spec:
           {{- if .Values.ConfigSecrets.enabled }}
           {{- range .Values.ConfigSecrets.secrets }}
           {{- if eq .type "volume"}}
+          {{- range $k, $v := .data }}
             - name: {{ .name}}-vol
               mountPath: {{ .mountPath}}
+              subPath: {{ $k}}
+          {{- end }}
           {{- end }}
           {{- end }}
           {{- end }}
@@ -258,6 +264,7 @@ spec:
             {{- else if eq .external false }}
             name: {{ .name}}-{{ $.Values.app }}
             {{- end }}
+            defaultMode: {{ .mode}}
       {{- end }}
       {{- end }}
       {{- end }}
@@ -272,6 +279,7 @@ spec:
             {{- else if eq .external false }}
             secretName: {{ .name}}-{{ $.Values.app }}
             {{- end }}
+            defaultMode: {{ .mode}}
       {{- end }}
       {{- end }}
       {{- end }}
