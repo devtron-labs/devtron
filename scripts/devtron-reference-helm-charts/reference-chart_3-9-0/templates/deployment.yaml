@@ -239,8 +239,8 @@ spec:
           {{- $cmName := .name -}}
           {{- $cmMountPath := .mountPath -}}
           {{- range $k, $v := .data }}
-            - name: {{ .$cmName}}-vol
-              mountPath: {{ .$cmMountPath}}/{{ $k}}
+            - name: {{ $cmName}}-vol
+              mountPath: {{ $cmMountPath}}/{{ $k}}
               subPath: {{ $k}}
           {{- end }}
           {{- end }}
