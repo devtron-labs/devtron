@@ -222,9 +222,11 @@ spec:
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
           {{- if eq .type "volume"}}
+          {{- $cmName := .name -}}
+          {{- $cmMountPath := .mountPath -}}
           {{- range $k, $v := .data }}
-            - name: {{ .name}}-vol
-              mountPath: {{ .mountPath}}
+            - name: {{ $cmName }}-vol
+              mountPath: {{ $cmMountPath }}/{{ $k}}
               subPath: {{ $k}}
           {{- end }}
           {{- end }}
@@ -234,9 +236,11 @@ spec:
           {{- if .Values.ConfigSecrets.enabled }}
           {{- range .Values.ConfigSecrets.secrets }}
           {{- if eq .type "volume"}}
+          {{- $cmName := .name -}}
+          {{- $cmMountPath := .mountPath -}}
           {{- range $k, $v := .data }}
-            - name: {{ .name}}-vol
-              mountPath: {{ .mountPath}}
+            - name: {{ .$cmName}}-vol
+              mountPath: {{ .$cmMountPath}}/{{ $k}}
               subPath: {{ $k}}
           {{- end }}
           {{- end }}
@@ -264,7 +268,7 @@ spec:
             {{- else if eq .external false }}
             name: {{ .name}}-{{ $.Values.app }}
             {{- end }}
-            defaultMode: {{ .mode}}
+            defaultMode: {{ .filePermission}}
       {{- end }}
       {{- end }}
       {{- end }}
@@ -279,7 +283,7 @@ spec:
             {{- else if eq .external false }}
             secretName: {{ .name}}-{{ $.Values.app }}
             {{- end }}
-            defaultMode: {{ .mode}}
+            defaultMode: {{ .filePermission}}
       {{- end }}
       {{- end }}
       {{- end }}
