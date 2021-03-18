@@ -160,7 +160,7 @@ func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int,
 		" INNER JOIN ci_artifact cia on cia.id = pco.ci_artifact_id" +
 		" INNER JOIN app a ON a.id=p.app_id" +
 		" LEFT JOIN users u on u.id=pco.created_by" +
-		" WHERE a.app_store is false AND a.id=? AND env.id=? AND p.deleted = FALSE" +
+		" WHERE a.app_store is false AND a.id=? AND env.id=? AND p.deleted = FALSE AND env.active = TRUE" +
 		" ORDER BY pco.created_on desc limit 1;"
 	impl.Logger.Debugf("query:", query)
 	_, err := impl.dbConnection.Query(&deploymentDetail, query, appId, envId)
@@ -232,7 +232,7 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(appId int, envId int) (bean.
 	var otherEnvironments []bean.Environment
 	query := "SELECT p.environment_id,env.environment_name from pipeline p" +
 		" INNER JOIN environment env on env.id=p.environment_id" +
-		" where p.app_id=? and p.deleted = FALSE GROUP by 1,2"
+		" where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP by 1,2"
 	impl.Logger.Debugw("other env query:", query)
 	_, err = impl.dbConnection.Query(&otherEnvironments, query, appId)
 
@@ -261,7 +261,7 @@ func (impl AppListingRepositoryImpl) PrometheusApiByEnvId(id int) (*string, erro
 	impl.Logger.Debug("reached at PrometheusApiByEnvId:")
 	var prometheusEndpoint string
 	query := "SELECT env.prometheus_endpoint from environment env" +
-		" WHERE env.id = ?"
+		" WHERE env.id = ? AND env.active = TRUE"
 	impl.Logger.Debugw("query", query)
 	//environments := []string{"QA"}
 	_, err := impl.dbConnection.Query(&prometheusEndpoint, query, id)
@@ -283,17 +283,8 @@ func (impl AppListingRepositoryImpl) FetchAppTriggerView(appId int) ([]bean.Trig
 		" INNER JOIN ci_pipeline cp on cp.id = p.ci_pipeline_id" +
 		" INNER JOIN app a ON a.id = p.app_id" +
 		" INNER JOIN environment env on env.id = p.environment_id" +
-		" WHERE p.app_id=? and p.deleted=false and a.app_store is false;"
+		" WHERE p.app_id=? and p.deleted=false and a.app_store is false AND env.active = TRUE;"
 
-	/* One Query For ALL
-	SELECT cp.id as ci_pipeline_id,cp.name as ci_pipeline_name, p.id as cd_pipeline_id, p.pipeline_name as cd_pipeline_name, pco.pipeline_release_counter, evt.release_version, evt.reason
-	FROM pipeline p
-	INNER JOIN ci_pipeline cp on cp.id = p.ci_pipeline_id
-	LEFT JOIN pipeline_config_override pco on pco.pipeline_id = p.id
-	LEFT JOIN events evt on evt.release_version=CAST(pco.pipeline_release_counter AS varchar) and evt.pipeline_name=p.pipeline_name
-	WHERE p.app_id=5 and p.environment_id=1
-	ORDER BY pco.created_on desc;
-	*/
 	impl.Logger.Debugw("query", query)
 	_, err := impl.dbConnection.Query(&triggerView, query, appId)
 	if err != nil {
@@ -440,7 +431,7 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	query := "SELECT p.environment_id,env.environment_name, env_app_m.app_metrics, env.default as prod, env_app_m.infra_metrics from pipeline p" +
 		" INNER JOIN environment env on env.id=p.environment_id" +
 		" LEFT JOIN env_level_app_metrics env_app_m on env.id=env_app_m.env_id and p.app_id = env_app_m.app_id" +
-		" where p.app_id=? and p.deleted = FALSE GROUP by 1,2,3,4, 5"
+		" where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP by 1,2,3,4, 5"
 	impl.Logger.Debugw("other env query:", query)
 	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId)
 	if err != nil {
@@ -521,7 +512,7 @@ func (impl AppListingRepositoryImpl) DeploymentDetailByArtifactId(ciArtifactId i
 		" INNER JOIN pipeline p on p.id = pco.pipeline_id" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
 		" INNER JOIN app a on a.id = p.app_id" +
-		" WHERE pco.ci_artifact_id = ? and p.deleted=false " +
+		" WHERE pco.ci_artifact_id = ? and p.deleted=false AND env.active = TRUE" +
 		" ORDER BY pco.pipeline_release_counter desc LIMIT 1;"
 	impl.Logger.Debugw("last success full deployed artifact query:", query)
 

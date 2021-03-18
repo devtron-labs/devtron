@@ -14,8 +14,8 @@ Fixes # (issue)
 # How Has This Been Tested?
 Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration
 
-- [ ] Test A
-- [ ] Test B
+- [ ] Test case A
+- [ ] Test case B
 
 
 # Checklist:
@@ -25,5 +25,6 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 * [ ] I've updated documentation as required by this PR.
 * [ ] I have performed a self-review of my own code
 * [ ] I have commented my code, particularly in hard-to-understand areas
+* [ ] I have tested it for all user roles
 
 

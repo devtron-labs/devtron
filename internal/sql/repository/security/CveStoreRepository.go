@@ -122,7 +122,7 @@ func (impl CveStoreRepositoryImpl) VulnerabilityExposure(request *VulnerabilityR
 		" LEFT JOIN pipeline p ON p.app_id=a.id" +
 		" LEFT JOIN installed_apps ia ON ia.app_id=a.id" +
 		" INNER JOIN environment env ON (env.id=p.environment_id OR env.id=ia.environment_id)"
-	query = query + " WHERE (p.deleted=? OR ia.active = ?)"
+	query = query + " WHERE (p.deleted=? OR ia.active = ?) and env.active=true"
 	if len(request.AppName) > 0 {
 		query = query + " AND (a.app_name like '" + request.AppName + "')"
 	}

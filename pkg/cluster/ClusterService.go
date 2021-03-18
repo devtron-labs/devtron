@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
@@ -125,6 +126,17 @@ func (impl ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Clu
 }
 
 func (impl ClusterServiceImpl) Save(bean *ClusterBean, userId int32) (*ClusterBean, error) {
+
+	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	if existingModel.Id > 0 {
+		impl.logger.Errorw("error on fetching cluster, duplicate", "name", bean.ClusterName)
+		return nil, fmt.Errorf("cluster already exists")
+	}
+
 	model := &cluster.Cluster{
 		ClusterName:        bean.ClusterName,
 		Active:             bean.Active,
@@ -363,6 +375,17 @@ func (impl ClusterServiceImpl) Update(bean *ClusterBean, userId int32) (*Cluster
 		impl.logger.Error(err)
 		return nil, err
 	}
+
+	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	if existingModel.Id > 0 && model.Id != existingModel.Id {
+		impl.logger.Errorw("error on fetching cluster, duplicate", "name", bean.ClusterName)
+		return nil, fmt.Errorf("cluster already exists")
+	}
+
 	model.ClusterName = bean.ClusterName
 	model.ServerUrl = bean.ServerUrl
 	model.PrometheusEndpoint = bean.PrometheusUrl
@@ -412,7 +435,7 @@ func (impl ClusterServiceImpl) Update(bean *ClusterBean, userId int32) (*Cluster
 
 	// TODO: Can be called in goroutines if performance issue
 	for _, env := range envs {
-		if env.GrafanaDatasourceId == 0 {
+		if len(bean.PrometheusUrl) > 0 && env.GrafanaDatasourceId == 0 {
 			grafanaDatasourceId, _ := impl.CreateGrafanaDataSource(bean, env)
 			if grafanaDatasourceId == 0 {
 				impl.logger.Errorw("unable to create data source for environment which doesn't exists", "env", env)

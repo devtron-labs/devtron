@@ -109,7 +109,7 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 		" FROM chart_env_config_override ec" +
 		" LEFT JOIN charts ch on ec.chart_id=ch.id" +
 		" LEFT JOIN environment en on en.id=ec.target_environment" +
-		" WHERE ec.target_environment=? and ec.active = ? and ch.app_id =? and ec.latest = ?;"
+		" WHERE ec.target_environment=? and ec.active = ? and ch.app_id =? and ec.latest = ? AND en.active = TRUE;"
 
 	_, err := r.dbConnection.Query(&environmentConfig, query, environmentId, true, appId, true)
 	if err != nil {
