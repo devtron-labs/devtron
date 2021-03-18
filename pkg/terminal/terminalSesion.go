@@ -193,13 +193,13 @@ func handleTerminalSession(session sockjs.Session) {
 
 	if msg.Op != "bind" {
 		log.Printf("handleTerminalSession: expected 'bind' message, got: %s", buf)
-		session.Close(http.StatusBadRequest,fmt.Sprintf("expected 'bind' message, got '%s'", buf))
+		session.Close(http.StatusBadRequest, fmt.Sprintf("expected 'bind' message, got '%s'", buf))
 		return
 	}
 
 	if terminalSession = terminalSessions.Get(msg.SessionID); terminalSession.id == "" {
 		log.Printf("handleTerminalSession: can't find session '%s'", msg.SessionID)
-		session.Close(http.StatusGone,fmt.Sprintf("handleTerminalSession: can't find session '%s'", msg.SessionID))
+		session.Close(http.StatusGone, fmt.Sprintf("handleTerminalSession: can't find session '%s'", msg.SessionID))
 		return
 	}
 
@@ -329,13 +329,15 @@ type TerminalSessionHandler interface {
 }
 type TerminalSessionHandlerImpl struct {
 	environmentService cluster.EnvironmentService
+	clusterService     cluster.ClusterService
 	logger             *zap.SugaredLogger
 }
 
-func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService,
+func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
 	logger *zap.SugaredLogger) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
 		environmentService: environmentService,
+		clusterService:     clusterService,
 		logger:             logger,
 	}
 }
@@ -370,7 +372,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(envId int) (*rest.Config
 		impl.logger.Errorw("error in fetching cluster detail", "envId", envId, "err", err)
 		return nil, nil, err
 	}
-	config, err := impl.environmentService.GetClusterConfig(cluster)
+	config, err := impl.clusterService.GetClusterConfig(cluster)
 	if err != nil {
 		impl.logger.Errorw("error in config", "err", err)
 		return nil, nil, err

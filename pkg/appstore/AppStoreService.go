@@ -297,7 +297,7 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := impl.envService.GetClusterConfig(clusterBean)
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +381,7 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := impl.envService.GetClusterConfig(clusterBean)
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
 	if err != nil {
 		return nil, err
 	}

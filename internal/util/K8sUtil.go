@@ -52,7 +52,7 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	return client, err
 }
 
-func (impl K8sUtil) GetK8sVersion(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error) {
+func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error) {
 	cfg := &rest.Config{}
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
