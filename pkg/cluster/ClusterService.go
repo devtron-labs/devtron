@@ -75,6 +75,7 @@ type ClusterService interface {
 
 	FindAllForAutoComplete() ([]ClusterBean, error)
 	CreateGrafanaDataSource(clusterBean *ClusterBean, env *cluster.Environment) (int, error)
+	GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error)
 }
 
 type ClusterServiceImpl struct {
@@ -161,15 +162,15 @@ func (impl ClusterServiceImpl) Save(bean *ClusterBean, userId int32) (*ClusterBe
 	if err != nil {
 		return nil, err
 	}
-	client, err := impl.K8sUtil.GetK8sVersion(cfg)
+	client, err := impl.K8sUtil.GetK8sDiscoveryClient(cfg)
 	if err != nil {
 		return nil, err
 	}
-	k8sVersion, err := client.ServerVersion()
+	k8sServerVersion, err := client.ServerVersion()
 	if err != nil {
 		return nil, err
 	}
-	model.K8sVersion = k8sVersion.String()
+	model.K8sVersion = k8sServerVersion.String()
 	err = impl.clusterRepository.Save(model)
 	if err != nil {
 		impl.logger.Errorw("error in saving cluster in db", "err", err)
@@ -407,15 +408,15 @@ func (impl ClusterServiceImpl) Update(bean *ClusterBean, userId int32) (*Cluster
 		if err != nil {
 			return nil, err
 		}
-		client, err := impl.K8sUtil.GetK8sVersion(cfg)
+		client, err := impl.K8sUtil.GetK8sDiscoveryClient(cfg)
 		if err != nil {
 			return nil, err
 		}
-		k8sVersion, err := client.ServerVersion()
+		k8sServerVersion, err := client.ServerVersion()
 		if err != nil {
 			return nil, err
 		}
-		model.K8sVersion = k8sVersion.String()
+		model.K8sVersion = k8sServerVersion.String()
 	}
 	err = impl.clusterRepository.Update(model)
 	if err != nil {
