@@ -345,6 +345,8 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *Config
 				item.Type = configData.Type
 				item.External = configData.External
 				item.ExternalSecretType = configData.ExternalSecretType
+				item.SubPath = configData.SubPath
+				item.FilePermission = configData.FilePermission
 				found = true
 			}
 			configs = append(configs, item)
@@ -455,6 +457,8 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*Conf
 			item.DefaultMountPath = item.MountPath
 			item.Data = nil
 			item.MountPath = ""
+			item.SubPath = item.SubPath
+			item.FilePermission = item.FilePermission
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		}
 	}
@@ -693,6 +697,8 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *Config
 				item.ExternalSecretType = configData.ExternalSecretType
 				item.ExternalSecret = configData.ExternalSecret
 				item.RoleARN = configData.RoleARN
+				item.SubPath = configData.SubPath
+				item.FilePermission = configData.FilePermission
 				found = true
 			}
 			configs = append(configs, item)
@@ -821,6 +827,8 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 			item.Data = nil
 			item.ExternalSecret = nil
 			item.MountPath = ""
+			item.SubPath = item.SubPath
+			item.FilePermission = item.FilePermission
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		}
 	}
