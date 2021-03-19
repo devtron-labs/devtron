@@ -134,7 +134,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := impl.envService.GetClusterConfig(clusterBean)
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +285,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 	if err != nil {
 		return err
 	}
-	cfg, err := impl.envService.GetClusterConfig(clusterBean)
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
 	if err != nil {
 		return err
 	}
