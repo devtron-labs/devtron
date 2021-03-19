@@ -47,11 +47,14 @@ existingPostgresSecret = jsonSelect(postgresSecret, "data.postgresql-password");
 
 if existingPostgresSecret {
     existingPostgresSecretPlain = base64DecoderPrefix + `echo "` + existingPostgresSecret + `" | tr -d ':\n' ` + base64DecoderSuffix;
+    existingPostgresSecretPlain = shellScript existingPostgresSecretPlain;
 }
 
 if existingPostgresSecretPlain {
     postgresqlPassword = existingPostgresSecretPlain;
 }
+
+log("postgres pwd");
 
 if !postgresqlPassword {
 	postgresqlPassword = shellScript passwordGen;
