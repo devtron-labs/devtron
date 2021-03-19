@@ -46,16 +46,11 @@ base64DecoderSuffix = ` | base64 -d | tr -d ':\n'`;
 existingPostgresSecret = jsonSelect(postgresSecret, "data.postgresql-password");
 
 if existingPostgresSecret {
-    existingPostgresSecretPlain = base64DecoderPrefix + `echo "` + existingPostgresSecret + `" | tr -d ':\n' ` + base64DecoderSuffix;
-    existingPostgresSecretPlain = shellScript existingPostgresSecretPlain;
-}
-
-if existingPostgresSecretPlain {
-    postgresqlPassword = existingPostgresSecretPlain;
+    postgresqlPassword = existingPostgresSecret;
 }
 
 log("postgres pwd");
-log(postgresql-password);
+log(existingPostgresSecret);
 log(existingPostgresSecretPlain);
 
 if !postgresqlPassword {
