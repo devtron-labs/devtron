@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 )
@@ -47,6 +48,20 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
 	client, err := v12.NewForConfig(cfg)
+
+	return client, err
+}
+
+func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error) {
+	cfg := &rest.Config{}
+	cfg.Host = clusterConfig.Host
+	cfg.BearerToken = clusterConfig.BearerToken
+	cfg.Insecure = true
+	client, err := discovery.NewDiscoveryClientForConfig(cfg)
+	if err != nil {
+		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
+		return nil, err
+	}
 	return client, err
 }
 

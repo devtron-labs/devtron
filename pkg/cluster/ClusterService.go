@@ -26,7 +26,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -40,6 +42,7 @@ type ClusterBean struct {
 	PrometheusAuth          *PrometheusAuth            `json:"prometheusAuth,omitempty"`
 	DefaultClusterComponent []*DefaultClusterComponent `json:"defaultClusterComponent"`
 	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
+	K8sVersion              string                     `json:"k8sVersion"`
 }
 
 type PrometheusAuth struct {
@@ -72,6 +75,7 @@ type ClusterService interface {
 
 	FindAllForAutoComplete() ([]ClusterBean, error)
 	CreateGrafanaDataSource(clusterBean *ClusterBean, env *cluster.Environment) (int, error)
+	GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error)
 }
 
 type ClusterServiceImpl struct {
@@ -81,11 +85,12 @@ type ClusterServiceImpl struct {
 	logger                         *zap.SugaredLogger
 	installedAppRepository         appstore.InstalledAppRepository
 	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository
+	K8sUtil                        *util.K8sUtil
 }
 
 func NewClusterServiceImpl(repository cluster.ClusterRepository, environmentRepository cluster.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository appstore.InstalledAppRepository,
-	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository) *ClusterServiceImpl {
+	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository, K8sUtil *util.K8sUtil) *ClusterServiceImpl {
 	return &ClusterServiceImpl{
 		clusterRepository:              repository,
 		logger:                         logger,
@@ -93,7 +98,32 @@ func NewClusterServiceImpl(repository cluster.ClusterRepository, environmentRepo
 		grafanaClient:                  grafanaClient,
 		installedAppRepository:         installedAppRepository,
 		clusterInstalledAppsRepository: clusterInstalledAppsRepository,
+		K8sUtil:                        K8sUtil,
 	}
+}
+
+const ClusterName = "default_cluster"
+const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+
+func (impl ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error) {
+	host := cluster.ServerUrl
+	configMap := cluster.Config
+	bearerToken := configMap["bearer_token"]
+	if cluster.Id == 1 && cluster.ClusterName == ClusterName {
+		if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
+			impl.logger.Errorw("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
+			return nil, err
+		} else {
+			content, err := ioutil.ReadFile(TokenFilePath)
+			if err != nil {
+				impl.logger.Errorw("error on reading file", "err", err)
+				return nil, err
+			}
+			bearerToken = string(content)
+		}
+	}
+	clusterCfg := &util.ClusterConfig{Host: host, BearerToken: bearerToken}
+	return clusterCfg, nil
 }
 
 func (impl ClusterServiceImpl) Save(bean *ClusterBean, userId int32) (*ClusterBean, error) {
@@ -127,6 +157,20 @@ func (impl ClusterServiceImpl) Save(bean *ClusterBean, userId int32) (*ClusterBe
 	model.UpdatedBy = userId
 	model.CreatedOn = time.Now()
 	model.UpdatedOn = time.Now()
+
+	cfg, err := impl.GetClusterConfig(bean)
+	if err != nil {
+		return nil, err
+	}
+	client, err := impl.K8sUtil.GetK8sDiscoveryClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	k8sServerVersion, err := client.ServerVersion()
+	if err != nil {
+		return nil, err
+	}
+	model.K8sVersion = k8sServerVersion.String()
 	err = impl.clusterRepository.Save(model)
 	if err != nil {
 		impl.logger.Errorw("error in saving cluster in db", "err", err)
@@ -153,6 +197,7 @@ func (impl ClusterServiceImpl) FindOne(clusterName string) (*ClusterBean, error)
 		AgentInstallationStage: model.AgentInstallationStage,
 		Active:                 model.Active,
 		Config:                 model.Config,
+		K8sVersion:             model.K8sVersion,
 	}
 	return bean, nil
 }
@@ -170,6 +215,7 @@ func (impl ClusterServiceImpl) FindOneActive(clusterName string) (*ClusterBean, 
 		AgentInstallationStage: model.AgentInstallationStage,
 		Active:                 model.Active,
 		Config:                 model.Config,
+		K8sVersion:             model.K8sVersion,
 	}
 	return bean, nil
 }
@@ -189,6 +235,7 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 			AgentInstallationStage: m.AgentInstallationStage,
 			ServerUrl:              m.ServerUrl,
 			Active:                 m.Active,
+			K8sVersion:             m.K8sVersion,
 		})
 		clusterIds = append(clusterIds, m.Id)
 	}
@@ -270,6 +317,7 @@ func (impl ClusterServiceImpl) FindAllActive() ([]ClusterBean, error) {
 			PrometheusUrl:          m.PrometheusEndpoint,
 			AgentInstallationStage: m.AgentInstallationStage,
 			Config:                 m.Config,
+			K8sVersion:             m.K8sVersion,
 		})
 	}
 	return beans, nil
@@ -288,6 +336,7 @@ func (impl ClusterServiceImpl) FindById(id int) (*ClusterBean, error) {
 		AgentInstallationStage: model.AgentInstallationStage,
 		Active:                 model.Active,
 		Config:                 model.Config,
+		K8sVersion:             model.K8sVersion,
 	}
 	prometheusAuth := &PrometheusAuth{
 		UserName:      model.PUserName,
@@ -315,6 +364,7 @@ func (impl ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 			AgentInstallationStage: model.AgentInstallationStage,
 			Active:                 model.Active,
 			Config:                 model.Config,
+			K8sVersion:             model.K8sVersion,
 		})
 	}
 	return beans, nil
@@ -352,6 +402,22 @@ func (impl ClusterServiceImpl) Update(bean *ClusterBean, userId int32) (*Cluster
 	model.Config = bean.Config
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
+
+	if len(model.K8sVersion) == 0 {
+		cfg, err := impl.GetClusterConfig(bean)
+		if err != nil {
+			return nil, err
+		}
+		client, err := impl.K8sUtil.GetK8sDiscoveryClient(cfg)
+		if err != nil {
+			return nil, err
+		}
+		k8sServerVersion, err := client.ServerVersion()
+		if err != nil {
+			return nil, err
+		}
+		model.K8sVersion = k8sServerVersion.String()
+	}
 	err = impl.clusterRepository.Update(model)
 	if err != nil {
 		err = &util.ApiError{

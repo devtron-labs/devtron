@@ -59,6 +59,11 @@ If you select `Anonymous` then you do not have to provide any username and passw
 
 TLS key and TLS certificate both options are optional, these options are used when you use a custom URL, in that case, you can pass your TLS key and TLS certificate.
 
+
+### K8s Version
+on saving or update a cluster there is a call to fetch k8s version, it will store corresponding to cluster on db. used in listing api's and app detail page for grafana url.
+
+
 Check the below screenshots to know how it looks like If you select the `Basic` authentication type
 
 ![](../../.gitbook/assets/cluster_gc2%20%283%29.png)

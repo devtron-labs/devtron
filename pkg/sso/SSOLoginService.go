@@ -204,7 +204,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 	if err != nil {
 		return flag, err
 	}
-	cfg, err := impl.envService.GetClusterConfig(clusterBean)
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
 	if err != nil {
 		return flag, err
 	}
