@@ -8,6 +8,7 @@ acdPassword = jsonSelect(operatorSecret, "data.ACD_PASSWORD");
 webHookToken = jsonSelect(operatorSecret, "data.WEBHOOK_TOKEN");
 grafanaPassword = jsonSelect(operatorSecret, "data.GRAFANA_PASSWORD");
 azureAccountKey = jsonSelect(operatorSecret, "data.AZURE_ACCOUNT_KEY");
+postgresSecret = kubectl get secret -n devtroncd postgresql-postgresql;
 
 baseURLScheme = jsonSelect(operatorConfigMap, "data.BASE_URL_SCHEME");
 baseURL = jsonSelect(operatorConfigMap, "data.BASE_URL");
@@ -41,6 +42,16 @@ base64EncoderSuffix = ` | base64 | tr -d ':\n'`;
 base64DecoderPrefix = `#!/bin/bash
 `;
 base64DecoderSuffix = ` | base64 -d | tr -d ':\n'`;
+
+existingPostgresSecret = jsonSelect(postgresSecret, "data.postgresql-password");
+
+if existingPostgresSecret {
+    existingPostgresSecretPlain = base64DecoderPrefix + `echo "` + existingPostgresSecret + `" | tr -d ':\n' ` + base64DecoderSuffix;
+}
+
+if existingPostgresSecretPlain {
+    postgresqlPassword = existingPostgresSecretPlain;
+}
 
 if !postgresqlPassword {
 	postgresqlPassword = shellScript passwordGen;
