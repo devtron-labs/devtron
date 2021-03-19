@@ -55,6 +55,8 @@ if existingPostgresSecretPlain {
 }
 
 log("postgres pwd");
+log(postgresql-password);
+log(existingPostgresSecretPlain);
 
 if !postgresqlPassword {
 	postgresqlPassword = shellScript passwordGen;
