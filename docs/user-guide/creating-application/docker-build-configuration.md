@@ -6,7 +6,7 @@ Docker build configuration is used to create and push docker images in the docke
 
 Only one docker image can be created even for multi-git repository applications as explained in the [previous step](git-material.md).
 
-![](../../.gitbook/assets/docker-configuration%20%283%29.gif)
+![](../../.gitbook/assets/create-docker.gif)
 
 To add **docker build configuration**, You need to provide three sections as given below:
 
