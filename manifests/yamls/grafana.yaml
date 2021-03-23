@@ -281,7 +281,6 @@ spec:
   resources:
     requests:
       storage: "20Gi"
-  storageClassName: gp2      
 ---
 # Source: grafana/templates/clusterrole.yaml
 kind: ClusterRole
