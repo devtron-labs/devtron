@@ -38,6 +38,7 @@ import (
 	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -3279,6 +3280,7 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	pType := vars["type"]
 	handler.Logger.Infow("request payload, PipelineNameSuggestion", "err", err, "appId", appId)
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
@@ -3286,10 +3288,11 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	suggestedName := fmt.Sprintf("%s-%d-%s", pType, appId, util2.Generate(4))
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); !ok {
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	writeJsonResp(w, err, "", http.StatusOK)
+	writeJsonResp(w, err, suggestedName, http.StatusOK)
 }

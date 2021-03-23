@@ -19,7 +19,6 @@ package pipeline
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -38,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -48,7 +48,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unsafe"
 )
 
 var DefaultPipelineValue = []byte(`{"ConfigMaps":{"enabled":false},"ConfigSecrets":{"enabled":false},"ContainerPort":[],"EnvVariables":[],"GracePeriod":30,"LivenessProbe":{},"MaxSurge":1,"MaxUnavailable":0,"MinReadySeconds":60,"ReadinessProbe":{},"Spec":{"Affinity":{"Values":"nodes","key":""}},"app":"13","appMetrics":false,"args":{},"autoscaling":{},"command":{"enabled":false,"value":[]},"containers":[],"dbMigrationConfig":{"enabled":false},"deployment":{"strategy":{"rolling":{"maxSurge":"25%","maxUnavailable":1}}},"deploymentType":"ROLLING","env":"1","envoyproxy":{"configMapName":"","image":"","resources":{"limits":{"cpu":"50m","memory":"50Mi"},"requests":{"cpu":"50m","memory":"50Mi"}}},"image":{"pullPolicy":"IfNotPresent"},"ingress":{},"ingressInternal":{"annotations":{},"enabled":false,"host":"","path":"","tls":[]},"initContainers":[],"pauseForSecondsBeforeSwitchActive":30,"pipelineName":"","prometheus":{"release":"monitoring"},"rawYaml":[],"releaseVersion":"1","replicaCount":1,"resources":{"limits":{"cpu":"0.05","memory":"50Mi"},"requests":{"cpu":"0.01","memory":"10Mi"}},"secret":{"data":{},"enabled":false},"server":{"deployment":{"image":"","image_tag":""}},"service":{"annotations":{},"type":"ClusterIP"},"servicemonitor":{"additionalLabels":{}},"tolerations":[],"volumeMounts":[],"volumes":[],"waitForSecondsBeforeScalingDown":30}`)
@@ -681,21 +680,12 @@ func (impl PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMat
 	return gitMaterials, nil
 }
 
-var alphabet = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-func generate(size int) string {
-	b := make([]byte, size)
-	rand.Read(b)
-	for i := 0; i < size; i++ {
-		b[i] = alphabet[b[i]/5]
-	}
-	return *(*string)(unsafe.Pointer(&b))
-}
 func (impl PipelineBuilderImpl) addpipelineToTemplate(createRequest *bean.CiConfigRequest) (resp *bean.CiConfigRequest, err error) {
 
 	// create workflow
 	wf := &appWorkflow.AppWorkflow{
-		Name:   fmt.Sprintf("wf-%d-%s", createRequest.AppId, generate(4)),
+		Name:   fmt.Sprintf("wf-%d-%s", createRequest.AppId, util2.Generate(4)),
 		AppId:  createRequest.AppId,
 		Active: true,
 		AuditLog: models.AuditLog{
@@ -712,6 +702,8 @@ func (impl PipelineBuilderImpl) addpipelineToTemplate(createRequest *bean.CiConf
 	}
 	// workflow creation ends
 	createRequest.AppWorkflowId = savedAppWf.Id
+
+
 	//single ci in same wf validation
 	workflowMapping, err := impl.appWorkflowRepository.FindWFCIMappingByWorkflowId(createRequest.AppWorkflowId)
 	if err != nil && err != pg.ErrNoRows {
