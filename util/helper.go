@@ -74,7 +74,7 @@ func Close(c Closer, logger *zap.SugaredLogger) {
 	}
 }
 
-var alphabet = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var alphabet = []byte("abcdefghijklmnopqrstuvwxyz")
 
 func Generate(size int) string {
 	b := make([]byte, size)
