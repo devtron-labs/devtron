@@ -23,7 +23,6 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
-	"unsafe"
 )
 
 func ContainsString(list []string, element string) bool {
@@ -74,13 +73,13 @@ func Close(c Closer, logger *zap.SugaredLogger) {
 	}
 }
 
-var alphabet = []byte("abcdefghijklmnopqrstuvwxyz")
+var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 
 func Generate(size int) string {
-	b := make([]byte, size)
-	rand.Read(b)
+	var b strings.Builder
 	for i := 0; i < size; i++ {
-		b[i] = alphabet[b[i]/5]
+		b.WriteRune(chars[rand.Intn(len(chars))])
 	}
-	return *(*string)(unsafe.Pointer(&b))
+	str := b.String()
+	return str
 }
