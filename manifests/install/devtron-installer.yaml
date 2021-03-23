@@ -2,6 +2,6 @@ apiVersion: installer.devtron.ai/v1alpha1
 kind: Installer
 metadata:
   name: installer-devtron
-  namespace: default
+  namespace: devtroncd
 spec:
-  url: https://raw.githubusercontent.com/devtron-labs/devtron/v1.0.2/manifests/installation-script
+  url: https://raw.githubusercontent.com/devtron-labs/devtron/install-refactor/manifests/installation-script
