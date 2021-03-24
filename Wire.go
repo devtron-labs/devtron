@@ -614,6 +614,10 @@ func InitializeApp() (*App, error) {
 		router.NewDashboardRouterImpl,
 		wire.Bind(new(router.DashboardRouter), new(*router.DashboardRouterImpl)),
 
+		grafana.GetConfig,
+		router.NewGrafanaRouterImpl,
+		wire.Bind(new(router.GrafanaRouter), new(*router.GrafanaRouterImpl)),
+
 		sso.NewSSOLoginServiceImpl,
 		wire.Bind(new(sso.SSOLoginService), new(*sso.SSOLoginServiceImpl)),
 		repository.NewSSOLoginRepositoryImpl,
