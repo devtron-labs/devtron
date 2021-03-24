@@ -166,6 +166,33 @@ func (impl AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.Release
 	return count == 1, nil
 }
 
+func (impl AppServiceImpl) GetReleaseStatus(appId, envId int) (interface{}, error) {
+	pipelineOverride, err := impl.pipelineOverrideRepository.GetLatestRelease(appId, envId)
+	if err != nil {
+		return nil, err
+	}
+	//git push
+	releaseHash := pipelineOverride.GitHash
+	releaseTime:=pipelineOverride.CreatedOn
+	acdAppName := "" //appDetail.AppName + "-" + appDetail.EnvironmentName
+	query := &application2.ApplicationQuery{
+		Name: &acdAppName,
+	}
+	application, err:=impl.acdClient.Get(context.Background(), query)//get from kubectl and typecast
+	//git pull
+	application.Status.Sync.Revision
+	application.Status.OperationState.StartedAt
+
+	//kubectl apply
+	//
+	application.Status.OperationState.FinishedAt
+	application.Status.OperationState.SyncResult.Revision
+	application.Status.OperationState.SyncResult.Resources
+	//impact of hibernate on status -> app status hiberneting, no impact on release status
+    application.Status.OperationState.SyncResult.Resources //individual objects
+    ///application.Status.OperationState.SyncResult.Resources for rollout status
+}
+
 func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Application) (bool, error) {
 	isHealthy := false
 	appName := app.Name[:strings.LastIndex(app.Name, "-")]
