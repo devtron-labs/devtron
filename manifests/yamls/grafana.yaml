@@ -451,7 +451,7 @@ spec:
         checksum/dashboards-json-config: d14aa82dad8b17b12eead46c8a1f781fbe16244a909f25a3f24ac666e641e121
         checksum/sc-dashboard-provider-config: 140064eb60c97bcede797691712d8cf2c835d295c285d1c830fd5a7609c86d4f
     spec:
-      
+
       serviceAccountName: devtron-grafana
       securityContext:
         fsGroup: 472
@@ -507,7 +507,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: METHOD
-              value: 
+              value:
             - name: LABEL
               value: "grafana_dashboard"
             - name: FOLDER
@@ -533,7 +533,7 @@ spec:
               subPath: dashboardproviders.yaml
             - name: sc-dashboard-volume
               mountPath: "/tmp/dashboards"
-      
+
             - name: sc-dashboard-provider
               mountPath: "/etc/grafana/provisioning/dashboards/sc-dashboardproviders.yaml"
               subPath: provider.yaml
@@ -557,7 +557,7 @@ spec:
                 secretKeyRef:
                   name: devtron-grafana-cred-secret
                   key: admin-password
-            
+
           livenessProbe:
             failureThreshold: 10
             httpGet:
@@ -610,7 +610,7 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   rules:
-    - host: 
+    - host:
       http:
         paths:
           - path: /grafana

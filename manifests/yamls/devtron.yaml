@@ -84,9 +84,6 @@ data:
   ACD_CM: "argocd-cm"
   ACD_NAMESPACE: "devtroncd"
   MINIO_ENDPOINT: http://devtron-minio:9000
-  GRAFANA_HOST: "devtron-grafana.devtroncd"
-  GRAFANA_PORT: "80"
-  GRAFANA_NAMESPACE: "devtroncd"
 
 ---
 apiVersion: v1
@@ -152,7 +149,7 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:8cc7b7ec-184-3763"
+          image: "quay.io/devtron/devtron:5c11d8ec-146-3776"
           imagePullPolicy: IfNotPresent
           ports:
             - name: devtron
