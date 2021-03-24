@@ -254,15 +254,6 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		start := time.Now()
 		resp, err := handler.application.ResourceTree(ctx, query)
 		elapsed := time.Since(start)
-		if resp.Status == v1alpha1.HealthStatusHealthy {
-			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
-			} else if status {
-				resp.Status = application.HIBERNATING
-			}
-		}
-		handler.logger.Debugf("FetchAppDetails, time elapsed %s in fetching application %s for environment %s", elapsed, appId, envId)
 		if err != nil {
 			handler.logger.Errorw("service err, FetchAppDetails, resource tree", "err", err, "app", appId, "env", envId)
 			err = &util.ApiError{
@@ -273,6 +264,15 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 			writeJsonResp(w, err, "", http.StatusInternalServerError)
 			return
 		}
+		if resp.Status == v1alpha1.HealthStatusHealthy {
+			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
+			if err != nil {
+				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
+			} else if status {
+				resp.Status = application.HIBERNATING
+			}
+		}
+		handler.logger.Debugf("FetchAppDetails, time elapsed %s in fetching application %s for environment %s", elapsed, appId, envId)
 
 		if resp.Status == v1alpha1.HealthStatusDegraded {
 			count, err := handler.appListingService.GetReleaseCount(appId, envId)

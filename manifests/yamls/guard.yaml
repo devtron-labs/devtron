@@ -1,0 +1,148 @@
+# Source: guard/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: guard-secret
+  labels:
+    release: devtron
+type: Opaque
+---
+# Source: guard/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: guard-service
+  labels:
+    app: guard
+    chart: guard-3.9.1
+    release: devtron
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: app
+      protocol: TCP
+      name: app
+  selector:
+    app: guard
+---
+# Source: guard/templates/hpa.yaml
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: guard-hpa
+  labels:
+    release: devtron
+spec:
+  scaleTargetRef:
+    apiVersion: v1
+    kind: Deployment
+    name: devtron-guard
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization:  90
+---
+# Source: guard/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guard
+  labels:
+    app: guard
+    chart: guard-3.9.1
+    release: devtron
+    releaseVersion: "1"
+    pipelineName: guard-dt-prod
+spec:
+  selector:
+    matchLabels:
+      app: guard
+      release: devtron
+  replicas: 2
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: guard
+        appId: "181"
+        envId: "4"
+        release: devtron
+    spec:
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      containers:
+        - name: guard
+          image: quay.io/devtron/guard:62058d7c-122-2192
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: app
+              containerPort: 8080
+              protocol: TCP
+          args:
+            - -alsologtostderr
+            - --log_dir=/
+            - -v=10
+            - --validator_url=http://devtron-service.devtroncd:80
+            - 2>&1
+          env:
+            - name: CONFIG_HASH
+              value: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+            - name: SECRET_HASH
+              value: abaee17d930a742e0a3554336348fde8a2b20e23bbdabb29b4acb8ac393b5da9
+            - name: DEVTRON_APP_NAME
+              value: guard
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          resources:
+            limits:
+              cpu: "0.1"
+              memory: 100Mi
+            requests:
+              cpu: "0.1"
+              memory: 100Mi
+
+          volumeMounts:
+            - mountPath: /tmp
+              name: log-volume
+            - name: guard-secret-vol
+              mountPath: /etc/certs
+      volumes:
+        - emptyDir: {}
+          name: log-volume
+        - name: guard-secret-vol
+          secret:
+            secretName: guard-secret
+  revisionHistoryLimit: 3
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: grumpy
+webhooks:
+  - name: grumpy.pipo02mix.org
+    clientConfig:
+      service:
+        name: guard-service
+        namespace: devtroncd
+        path: "/validate"
+      caBundle: ""
+    rules:
+      - operations: ["CREATE","UPDATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    failurePolicy: Ignore

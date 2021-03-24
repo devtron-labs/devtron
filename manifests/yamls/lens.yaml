@@ -1,0 +1,299 @@
+# Source: lens/templates/configmap.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lens-secret
+  labels:
+    release: devtron
+---
+# Source: lens/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lens-cm
+  labels:
+    release: devtron
+data:
+  GIT_SENSOR_URL: http://git-sensor-service.devtroncd:80
+  NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+  PG_ADDR: postgresql-postgresql.devtroncd
+  PG_PORT: "5432"
+  PG_USER: postgres
+  PG_DATABASE: lens
+---
+# Source: lens/templates/sidecar-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sidecar-config-lens
+  labels:
+    release: devtron
+data:
+  envoy-config.json: |
+    {
+      "stats_config": {
+        "use_all_default_tags": false,
+        "stats_tags": [
+          {
+            "tag_name": "cluster_name",
+            "regex": "^cluster\\.((.+?(\\..+?\\.svc\\.cluster\\.local)?)\\.)"
+          },
+          {
+            "tag_name": "tcp_prefix",
+            "regex": "^tcp\\.((.*?)\\.)\\w+?$"
+          },
+          {
+            "tag_name": "response_code",
+            "regex": "_rq(_(\\d{3}))$"
+          },
+          {
+            "tag_name": "response_code_class",
+            "regex": ".*_rq(_(\\dxx))$"
+          },
+          {
+            "tag_name": "http_conn_manager_listener_prefix",
+            "regex": "^listener(?=\\.).*?\\.http\\.(((?:[_.[:digit:]]*|[_\\[\\]aAbBcCdDeEfF[:digit:]]*))\\.)"
+          },
+          {
+            "tag_name": "http_conn_manager_prefix",
+            "regex": "^http\\.(((?:[_.[:digit:]]*|[_\\[\\]aAbBcCdDeEfF[:digit:]]*))\\.)"
+          },
+          {
+            "tag_name": "listener_address",
+            "regex": "^listener\\.(((?:[_.[:digit:]]*|[_\\[\\]aAbBcCdDeEfF[:digit:]]*))\\.)"
+          },
+          {
+            "tag_name": "mongo_prefix",
+            "regex": "^mongo\\.(.+?)\\.(collection|cmd|cx_|op_|delays_|decoding_)(.*?)$"
+          }
+        ],
+        "stats_matcher": {
+          "inclusion_list": {
+            "patterns": [
+              {
+              "regex": ".*_rq_\\dxx$"
+              },
+              {
+              "regex": ".*_rq_time$"
+              },
+              {
+              "regex": "cluster.*"
+              },
+            ]
+          }
+        }
+      },
+      "admin": {
+        "access_log_path": "/dev/null",
+        "address": {
+          "socket_address": {
+            "address": "0.0.0.0",
+            "port_value": 9901
+          }
+        }
+      },
+      "static_resources": {
+        "clusters": [
+          {
+            "name": "6",
+            "type": "STATIC",
+            "connect_timeout": "0.250s",
+            "lb_policy": "ROUND_ROBIN",
+            "hosts": [
+              {
+                "socket_address": {
+                  "protocol": "TCP",
+                  "address": "127.0.0.1",
+                  "port_value": 8080
+                }
+              }
+            ]
+          }
+        ],
+        "listeners":[
+          {
+            "address": {
+              "socket_address": {
+                "protocol": "TCP",
+                "address": "0.0.0.0",
+                "port_value": 8790
+              }
+            },
+            "filter_chains": [
+              {
+                "filters": [
+                  {
+                    "name": "envoy.http_connection_manager",
+                    "config": {
+                      "codec_type": "AUTO",
+                      "stat_prefix": "stats",
+                      "route_config": {
+                        "virtual_hosts": [
+                          {
+                            "name": "backend",
+                            "domains": [
+                              "*"
+                            ],
+                            "routes": [
+                              {
+                                "match": {
+                                  "prefix": "/"
+                                },
+                                "route": {
+                                  "cluster": "6"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "http_filters": {
+                        "name": "envoy.router"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+---
+# Source: lens/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: lens-service
+  labels:
+    app: lens
+    chart: lens-3.7.1
+    release: devtron
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: app
+      protocol: TCP
+      name: app
+    - port: 9901
+      name: envoy-admin
+  selector:
+    app: lens
+---
+# Source: lens/templates/hpa.yaml
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+ name: lens-hpa
+spec:
+ scaleTargetRef:
+   apiVersion: v1
+   kind: Deployment
+   name: lens
+ minReplicas: 1
+ maxReplicas: 2
+ metrics:
+   - type: Resource
+     resource:
+       name: memory
+       targetAverageUtilization: 90
+   - type: Resource
+     resource:
+       name: cpu
+       targetAverageUtilization: 80
+---
+# Source: lens/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lens
+  labels:
+    app: lens
+    chart: lens-3.7.1
+    release: devtron
+spec:
+  selector:
+    matchLabels:
+      app: lens
+      release: devtron
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: lens
+        release: devtron
+    spec:
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      containers:
+        - name: envoy
+          image: envoyproxy/envoy:v1.14.1
+          ports:
+            - containerPort: 9901
+              protocol: TCP
+              name: envoy-admin
+            - name: app
+              containerPort: 8790
+              protocol: TCP
+          command: ["/usr/local/bin/envoy"]
+          args: ["-c", "/etc/envoy-config/envoy-config.json", "-l", "info", "--log-format", "[METADATA][%Y-%m-%d %T.%e][%t][%l][%n] %v"]
+          volumeMounts:
+            - name: envoy-config-volume
+              mountPath: /etc/envoy-config/
+        - name: lens
+          image: quay.io/devtron/lens:772fcb2a-125-2194
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: app
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: CONFIG_HASH
+              value: 1b9a3decafa1e6653dbe094dc6214c1caff4f2185f1a533d5dc566cd5bdebc2a
+            - name: SECRET_HASH
+              value: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+          - configMapRef:
+              name: lens-cm
+          - secretRef:
+              name: lens-secret
+          resources:
+            limits:
+              cpu: "0.05"
+              memory: 50Mi
+            requests:
+              cpu: "0.01"
+              memory: 10Mi
+          volumeMounts: []
+      volumes:
+        - name: envoy-config-volume
+          configMap:
+            name: sidecar-config-lens
+  revisionHistoryLimit: 3
+---
+# Source: lens/templates/metrics-service-monitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: lens-sm
+  labels:
+    app: lens
+    release: devtron
+spec:
+  jobLabel: lens
+  endpoints:
+    - port: envoy-admin
+      interval: 30s
+      path: /stats/prometheus
+  selector:
+    matchLabels:
+      app: lens
+  namespaceSelector:
+    matchNames:
+      - devtroncd
