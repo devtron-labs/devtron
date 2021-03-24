@@ -84,6 +84,9 @@ data:
   ACD_CM: "argocd-cm"
   ACD_NAMESPACE: "devtroncd"
   MINIO_ENDPOINT: http://devtron-minio:9000
+  GRAFANA_HOST: "devtron-grafana.devtroncd"
+  GRAFANA_PORT: "80"
+  GRAFANA_NAMESPACE: "devtroncd"
 
 ---
 apiVersion: v1
