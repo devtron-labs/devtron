@@ -117,30 +117,33 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
 	for _, item := range appEnvContainer {
 
-		key := strconv.Itoa(item.AppId) + "_" + strconv.Itoa(item.EnvironmentId)
-		if _, ok := latestDeploymentStatusMap[key]; ok {
-			continue
-		}
-
-		if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
-			item.LastDeployedTime = lastDeployedTimeMap[item.PipelineId].LastDeployedTime
-			item.DataSource = lastDeployedTimeMap[item.PipelineId].DataSource
-			item.MaterialInfoJson = lastDeployedTimeMap[item.PipelineId].MaterialInfoJson
-			item.CiArtifactId = lastDeployedTimeMap[item.PipelineId].CiArtifactId
-		}
-
-		if len(item.DataSource) > 0 {
-			mInfo, err := parseMaterialInfo([]byte(item.MaterialInfoJson), item.DataSource)
-			if err == nil {
-				item.MaterialInfo = mInfo
-			} else {
-				item.MaterialInfo = []byte("[]")
+		if item.EnvironmentId > 0 && item.PipelineId > 0 && item.Active == false {
+			// skip adding item in case it has cd pipeline and environment is deleted
+		} else {
+			key := strconv.Itoa(item.AppId) + "_" + strconv.Itoa(item.EnvironmentId)
+			if _, ok := latestDeploymentStatusMap[key]; ok {
+				continue
 			}
-			item.MaterialInfoJson = ""
-		}
 
-		appEnvArr = append(appEnvArr, item)
-		latestDeploymentStatusMap[key] = item
+			if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
+				item.LastDeployedTime = lastDeployedTimeMap[item.PipelineId].LastDeployedTime
+				item.DataSource = lastDeployedTimeMap[item.PipelineId].DataSource
+				item.MaterialInfoJson = lastDeployedTimeMap[item.PipelineId].MaterialInfoJson
+				item.CiArtifactId = lastDeployedTimeMap[item.PipelineId].CiArtifactId
+			}
+
+			if len(item.DataSource) > 0 {
+				mInfo, err := parseMaterialInfo([]byte(item.MaterialInfoJson), item.DataSource)
+				if err == nil {
+					item.MaterialInfo = mInfo
+				} else {
+					item.MaterialInfo = []byte("[]")
+				}
+				item.MaterialInfoJson = ""
+			}
+			appEnvArr = append(appEnvArr, item)
+			latestDeploymentStatusMap[key] = item
+		}
 	}
 
 	return appEnvArr, nil
