@@ -41,7 +41,7 @@ Specify the Volume Mount folder path in `Volume Mount Path`, a path where the da
 
 ## Sub Path
 For multiple files mount at the same location you need to check sub path `bool` field, it will use the file name (key) as sub path. 
-Sub Path feature will not be entertain in case of external configmap except
+Sub Path feature is not applicable in case of external configmap except
 AWS Secret Manager, AWS System Manager and Hashi Corp Vault, for these cases `Name (Secret key)` as sub path will be picked up automatically. 
 
 ## File Permission

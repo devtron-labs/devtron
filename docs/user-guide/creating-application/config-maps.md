@@ -89,7 +89,7 @@ You can click on `Save ConfigMap` to save the configMap.
 
 ## Sub Path
 For multiple files mount at the same location you need to check sub path bool field, it will use the file name (key) as sub path. 
-Sub Path feature will not be entertain in case of external configmap.
+Sub Path feature is not applicable in case of external configmap.
 
 ## File Permission
 File permission will be provide at the configmap level not on the each key of the configmap. it will take 3 digit standard permission for the file.
