@@ -1,0 +1,213 @@
+# Source: postgresql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgresql-migrator
+  labels:
+    app: postgresql
+    chart: postgresql-8.6.4
+    release: "devtron"
+type: Opaque
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-migrate-devtron
+spec:
+  ttlSecondsAfterFinished: 1000
+  template:
+    spec:
+      containers:
+      - name: postgresql-migrate-devtron
+        image: quay.io/devtron/migrator:6687f572-133-2208
+        env:
+        - name: GIT_BRANCH
+          value: main
+        - name: SCRIPT_LOCATION
+          value: scripts/sql/
+        - name: GIT_REPO_URL
+          value: https://github.com/devtron-labs/devtron.git
+        - name: DB_TYPE
+          value: postgres
+        - name: DB_USER_NAME
+          value: postgres
+        - name: DB_HOST
+          value: postgresql-postgresql.devtroncd
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: orchestrator                      
+        - name: MIGRATE_TO_VERSION
+          value: "0"
+        - name: GIT_HASH
+          value: 4f80b182fa8144e1f855dea3816d83bdaa179899
+        envFrom:
+          - secretRef:
+              name: postgresql-migrator
+      restartPolicy: OnFailure
+  backoffLimit: 10
+  activeDeadlineSeconds: 1500
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-migrate-casbin
+spec:
+  template:
+    spec:
+      containers:
+      - name: postgresql-migrate-casbin
+        image: quay.io/devtron/migrator:6687f572-133-2208
+        env:
+        - name: SCRIPT_LOCATION
+          value: scripts/casbin/
+        - name: GIT_REPO_URL
+          value: https://github.com/devtron-labs/devtron.git
+        - name: DB_TYPE
+          value: postgres
+        - name: DB_USER_NAME
+          value: postgres
+        - name: DB_HOST
+          value: postgresql-postgresql.devtroncd
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: casbin
+        - name: MIGRATE_TO_VERSION
+          value: "0"
+        - name: GIT_HASH
+          value: 4f80b182fa8144e1f855dea3816d83bdaa179899
+        - name: GIT_BRANCH
+          value: main
+        envFrom:
+          - secretRef:
+              name: postgresql-migrator
+      restartPolicy: OnFailure
+  backoffLimit: 1
+  activeDeadlineSeconds: 1500
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-migrate-gitsensor
+spec:
+  template:
+    spec:
+      containers:
+      - name: postgresql-migrate-gitsensor
+        image: quay.io/devtron/migrator:6687f572-133-2208
+        env:
+        - name: SCRIPT_LOCATION
+          value: scripts/sql/
+        - name: GIT_REPO_URL
+          value: https://github.com/devtron-labs/git-sensor.git
+        - name: DB_TYPE
+          value: postgres
+        - name: DB_USER_NAME
+          value: postgres
+        - name: DB_HOST
+          value: postgresql-postgresql.devtroncd
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: git_sensor
+        - name: MIGRATE_TO_VERSION
+          value: "0"
+        - name: GIT_BRANCH
+          value: main
+        - name: GIT_HASH
+          value: 8badb0374525dd0cef0b6d00bc91195d659135c2
+        envFrom:
+          - secretRef:
+              name: postgresql-migrator
+      restartPolicy: OnFailure
+  backoffLimit: 1
+  activeDeadlineSeconds: 1500
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-migrate-lens
+spec:
+  template:
+    spec:
+      containers:
+      - name: postgresql-migrate-lens
+        image: quay.io/devtron/migrator:6687f572-133-2208
+        env:
+        - name: SCRIPT_LOCATION
+          value: scripts/sql/
+        - name: GIT_REPO_URL
+          value: https://github.com/devtron-labs/lens.git
+        - name: DB_TYPE
+          value: postgres
+        - name: DB_USER_NAME
+          value: postgres
+        - name: DB_HOST
+          value: postgresql-postgresql.devtroncd
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: lens
+        - name: MIGRATE_TO_VERSION
+          value: "0"
+        - name: GIT_BRANCH
+          value: main
+        - name: GIT_HASH
+          value: 772fcb2a4b3198879efb6139ed3a27dfb40ed681
+        envFrom:
+          - secretRef:
+              name: postgresql-migrator
+      restartPolicy: OnFailure
+  backoffLimit: 1
+  activeDeadlineSeconds: 1500
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: app-sync-cronjob
+spec:
+  schedule: "0 19 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: chart-sync
+            image: quay.io/devtron/chart-sync:1227622d-132-3775
+            env:
+            - name: PG_ADDR
+              value: postgresql-postgresql.devtroncd
+            - name: PG_DATABASE
+              value: orchestrator
+            - name: PG_USER
+              value: postgres
+            envFrom:
+            - secretRef:
+                name: devtron-secret
+          restartPolicy: Never
+      backoffLimit: 4
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: app-sync-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: chart-sync
+        image: quay.io/devtron/chart-sync:1227622d-132-3775
+        env:
+        - name: PG_ADDR
+          value: postgresql-postgresql.devtroncd
+        - name: PG_DATABASE
+          value: orchestrator
+        - name: PG_USER
+          value: postgres
+        envFrom:
+        - secretRef:
+            name: devtron-secret
+      restartPolicy: OnFailure
+  backoffLimit: 4
+  activeDeadlineSeconds: 15000

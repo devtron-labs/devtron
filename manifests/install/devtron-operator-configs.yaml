@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: devtron-operator-secret
+  namespace: devtroncd
+type: Opaque
+data:
+  POSTGRESQL_PASSWORD: Y2hhbmdlX21l
+  WEBHOOK_TOKEN: Y2hhbmdlX21l
+  AZURE_ACCOUNT_KEY: Y2hhbmdlX21l # token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE ,optional, if not provided pod identity will be used for authentication
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-operator-cm
+  namespace: devtroncd
+data:
+  BASE_URL_SCHEME: "http"
+  #url without scheme and without trailing '/'
+  BASE_URL: "change-me"
+  DEX_CONFIG: "change-me"
+  DEFAULT_CD_LOGS_BUCKET_REGION: "change-me"
+  DEFAULT_CACHE_BUCKET: "devtron-ci-cache"
+  DEFAULT_CACHE_BUCKET_REGION: "change-me"
+  DEFAULT_BUILD_LOGS_BUCKET: "devtron-ci-log"
+  EXTERNAL_SECRET_AMAZON_REGION: ""
+  PROMETHEUS_URL: "http://change-me/prometheus"
+  BLOB_STORAGE_PROVIDER: "MINIO" # AZURE| GCP| S3 | MINIO
+  AZURE_ACCOUNT_NAME: "test-account"  # blob storage account name
+  AZURE_BLOB_CONTAINER_CI_LOG: "ci-log-container"  # container for ci log
+  AZURE_BLOB_CONTAINER_CI_CACHE: "ci-cache-container" #container for ci cache,  -> versioning policy similar to aws
+
+

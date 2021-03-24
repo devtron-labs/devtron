@@ -1,0 +1,126 @@
+# Source: nats-streaming/templates/monitoring-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats-streaming-monitoring
+  labels:
+    app: nats-streaming
+    chart: "nats-streaming-0.3.0"
+    release: "devtron"
+spec:
+  type: ClusterIP
+  ports:
+    - name: monitoring
+      port: 8222
+      targetPort: monitoring
+  selector:
+    app: nats-streaming
+    release: "devtron"
+---
+# Source: nats-streaming/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nats-streaming
+  labels:
+    app: "nats-streaming"
+    chart: "nats-streaming-0.3.0"
+    release: "devtron"
+spec:
+  serviceName: devtron-nats
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: nats-streaming
+      release: "devtron"
+  template:
+    metadata:
+      labels:
+        app: "nats-streaming"
+        chart: "nats-streaming-0.3.0"
+        release: devtron
+      annotations:
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: "nats-streaming"
+                  release: "devtron"
+      containers:
+      - name: nats-streaming
+        image: docker.io/nats-streaming:0.11.2
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        args: [
+          "-clustered",
+          "-cid", "devtron-stan",
+          "-m",   "8222",
+          "-ns",  "nats://devtron-nats.devtroncd:4222",
+          "-mc",  "0",
+          "-msu", "0",
+          "-mm",  "0",
+          "-mb",  "0",
+          "-ma",  "604800s",
+          "-hbi", "30s",
+          "-hbt", "10s",
+          "-hbf", "330",
+
+          "--cluster_node_id", "$(POD_NAME)",
+          "--cluster_peers", "nats-streaming-0,nats-streaming-1,nats-streaming-2",
+          "--store", "file",
+          "--dir", "/nats/devtron-stan/$(POD_NAME)/data",
+          "--cluster_log_path", "/nats/devtron-stan/$(POD_NAME)/raft",
+          "--file_compact_enabled",
+          "--file_compact_frag", "50",
+          "--file_compact_interval", "300",
+          "--file_compact_min_size", "1048576",
+          "--file_buffer_size", "2097152",
+          "--file_crc",
+          "--file_crc_poly", "3988292384",
+          "--file_sync",
+          "--file_slice_max_msgs", "0",
+          "--file_slice_max_bytes", "67108931",
+          "--file_slice_max_age", "0",
+          "--file_fds_limit", "0",
+          "--file_parallel_recovery", "1",
+        ]
+        ports:
+        - name: monitoring
+          containerPort: 8222
+        volumeMounts:
+        - name: datadir
+          mountPath: /nats
+        livenessProbe:
+          httpGet:
+            path: /
+            port: monitoring
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 6
+        readinessProbe:
+          httpGet:
+            path: /
+            port: monitoring
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 6
+        resources:
+          {}
+      volumes:
+      - name: datadir
+        emptyDir: {}
