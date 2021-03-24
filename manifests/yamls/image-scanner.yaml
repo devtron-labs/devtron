@@ -1,0 +1,103 @@
+# Source: image-scanner-new/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: image-scanner-secret
+  labels:
+    release: devtron
+type: Opaque
+---
+# Source: image-scanner-new/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: image-scanner-cm
+  labels:
+    release: devtron
+data:
+  CLAIR_ADDR: clair.devtroncd:6060
+  CLIENT_ID: client-2
+  NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+  PG_ADDR: postgresql-postgresql.devtroncd
+  PG_DATABASE: orchestrator
+  PG_LOG_QUERY: "false"
+  PG_PORT: "5432"
+  PG_USER: postgres
+---
+# Source: image-scanner-new/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: image-scanner-service
+  labels:
+    app: image-scanner
+    chart: image-scanner-3.9.1
+    release: devtron
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: app
+      protocol: TCP
+      name: app
+  selector:
+    app: image-scanner
+---
+# Source: image-scanner-new/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: image-scanner
+  labels:
+    app: image-scanner
+    chart: image-scanner-3.9.1
+    release: devtron
+spec:
+  selector:
+    matchLabels:
+      app: image-scanner
+      release: devtron
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: image-scanner
+        release: devtron
+    spec:
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      containers:
+        - name: image-scanner
+          image: quay.io/devtron/imge-scanner:0c6ce5c2-123-2193
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: app
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: CONFIG_HASH
+              value: 66ea130a3a759ac13165931cc6c106f5a9d40a01171b38982715b5570351134a
+            - name: SECRET_HASH
+              value: dab9f1b9549ed81db8bca66052d574b870a25e69d1845100d5c0d0368fbf3ee0
+            - name: DEVTRON_APP_NAME
+              value: image-scanner
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+          - configMapRef:
+              name: image-scanner-cm
+          - secretRef:
+              name: image-scanner-secret
+          resources:
+            limits:
+              cpu: "0.05"
+              memory: 50Mi
+            requests:
+              cpu: "0.01"
+              memory: 10Mi
+          volumeMounts: []
+      volumes: []
+  revisionHistoryLimit: 3

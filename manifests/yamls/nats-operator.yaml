@@ -1,0 +1,237 @@
+---
+# Source: nats-operator/templates/default-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nats-streaming-operator
+  namespace: devtroncd
+---
+# Source: nats-operator/templates/prereqs.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nats-operator
+  # Change to the name of the namespace where to install NATS Operator.
+  # Alternatively, change to "nats-io" to perform a cluster-scoped deployment in supported versions.
+  namespace: devtroncd
+---
+# Source: nats-operator/templates/prereqs.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nats-server
+  namespace: devtroncd
+---
+# Source: nats-operator/templates/default-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nats-streaming-operator
+rules:
+# Allow creating CRDs
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs: ["*"]
+
+# Allow all actions on NatsClusters
+- apiGroups:
+  - nats.io
+  resources:
+  - natsclusters
+  - natsserviceroles
+  verbs: ["*"]
+
+# Allow all actions on NatsStreamingClusters
+- apiGroups:
+  - streaming.nats.io
+  resources:
+  - natsstreamingclusters
+  verbs: ["*"]
+
+# Allow actions on basic Kubernetes objects
+- apiGroups: [""]
+  resources:
+  - configmaps
+  - secrets
+  - pods
+  - services
+  - serviceaccounts
+  - serviceaccounts/token
+  - endpoints
+  - events
+  verbs: ["*"]
+---
+# Source: nats-operator/templates/prereqs.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nats-operator
+rules:
+# Allow creating CRDs
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs: ["get", "list", "create", "update", "watch"]
+
+# Allow all actions on NATS Operator manager CRDs
+- apiGroups:
+  - nats.io
+  resources:
+  - natsclusters
+  - natsserviceroles
+  verbs: ["*"]
+
+# Allowed actions on Pods
+- apiGroups: [""]
+  resources:
+  - pods
+  verbs: ["create", "watch", "get", "patch", "update", "delete", "list"]
+
+# Allowed actions on Services
+- apiGroups: [""]
+  resources:
+  - services
+  verbs: ["create", "watch", "get", "patch", "update", "delete", "list"]
+
+# Allowed actions on Secrets
+- apiGroups: [""]
+  resources:
+  - secrets
+  verbs: ["create", "watch", "get", "update", "delete", "list"]
+
+# Allow all actions on some special subresources
+- apiGroups: [""]
+  resources:
+  - pods/exec
+  - pods/log
+  - serviceaccounts/token
+  - events
+  verbs: ["*"]
+
+# Allow listing Namespaces and ServiceAccounts
+- apiGroups: [""]
+  resources:
+  - namespaces
+  - serviceaccounts
+  verbs: ["list", "get", "watch"]
+
+# Allow actions on Endpoints
+- apiGroups: [""]
+  resources:
+  - endpoints
+  verbs: ["create", "watch", "get", "update", "delete", "list"]
+---
+# Source: nats-operator/templates/prereqs.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nats-server
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  verbs: ["get"]
+---
+# Source: nats-operator/templates/default-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: nats-streaming-operator-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: nats-streaming-operator
+subjects:
+- kind: ServiceAccount
+  name: nats-streaming-operator
+  namespace: devtroncd
+---
+# Source: nats-operator/templates/prereqs.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: nats-operator-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: nats-operator
+subjects:
+- kind: ServiceAccount
+  name: nats-operator
+  # Change to the name of the namespace where to install NATS Operator.
+  # Alternatively, change to "nats-io" to perform a cluster-scoped deployment in supported versions.
+  namespace: devtroncd
+
+# NOTE: When performing multiple namespace-scoped installations, all
+# "nats-operator" service accounts (across the different namespaces)
+# MUST be added to this binding.
+#- kind: ServiceAccount
+#  name: nats-operator
+#  namespace: nats-io
+#- kind: ServiceAccount
+#  name: nats-operator
+#  namespace: namespace-2
+#(...)
+---
+# Source: nats-operator/templates/prereqs.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: nats-server-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: nats-server
+subjects:
+- kind: ServiceAccount
+  name: nats-server
+  namespace: devtroncd
+---
+# Source: nats-operator/templates/10-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nats-operator
+  # Change to the name of the namespace where to install NATS Operator.
+  # Alternatively, change to "nats-io" to perform a cluster-scoped deployment in supported versions.
+  namespace: devtroncd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: nats-operator
+  template:
+    metadata:
+      labels:
+        name: nats-operator
+    spec:
+      serviceAccountName: nats-operator
+      containers:
+      - name: nats-operator
+        image: connecteverything/nats-operator:0.5.0-v1alpha2
+        imagePullPolicy: IfNotPresent
+        args:
+        - nats-operator
+        # Uncomment to perform a cluster-scoped deployment in supported versions.
+        #- --feature-gates=ClusterScoped=true
+        ports:
+        - name: readyz
+          containerPort: 8080
+        env:
+        - name: MY_POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: readyz
+          initialDelaySeconds: 15
+          timeoutSeconds: 3

@@ -70,6 +70,7 @@ type MuxRouter struct {
 	dashboardRouter                  DashboardRouter
 	attributesRouter                 AttributesRouter
 	commonRouter                     CommonRouter
+	grafanaRouter                    GrafanaRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -88,7 +89,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter,
-	commonRouter CommonRouter) *MuxRouter {
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -130,6 +131,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		attributesRouter:                 attributesRouter,
 		dashboardRouter:                  dashboardRouter,
 		commonRouter:                     commonRouter,
+		grafanaRouter:                    grafanaRouter,
 	}
 	return r
 }
@@ -239,6 +241,10 @@ func (r MuxRouter) Init() {
 
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.initDashboardRouter(dashboardRouter)
+
+	grafanaRouter := r.Router.PathPrefix("/grafana").Subrouter()
+	r.grafanaRouter.initGrafanaRouter(grafanaRouter)
+
 	r.Router.Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		http.Redirect(writer, request, "/dashboard", 301)
 	})

@@ -1,0 +1,366 @@
+---
+# Source: minio/templates/post-install-prometheus-metrics-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: devtron-minio-update-prometheus-secret
+  labels:
+    app: minio-update-prometheus-secret
+    chart: minio-8.0.10
+    release: devtron
+    heritage: Helm
+---
+# Source: minio/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "devtron-minio"
+  namespace: "devtroncd"
+  labels:
+    app: minio
+    chart: minio-8.0.10
+    release: "devtron"
+---
+# Source: minio/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: devtron-minio
+  labels:
+    app: minio
+    chart: minio-8.0.10
+    release: devtron
+    heritage: Helm
+type: Opaque
+data:
+  accesskey: ""
+  secretkey: ""
+---
+# Source: minio/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-minio
+  labels:
+    app: minio
+    chart: minio-8.0.10
+    release: devtron
+    heritage: Helm
+data:
+  initialize: |-
+    #!/bin/sh
+    set -e ; # Have script exit in the event of a failed command.
+    MC_CONFIG_DIR="/etc/minio/mc/"
+    MC="/usr/bin/mc --insecure --config-dir ${MC_CONFIG_DIR}"
+
+    # connectToMinio
+    # Use a check-sleep-check loop to wait for Minio service to be available
+    connectToMinio() {
+      SCHEME=$1
+      ATTEMPTS=0 ; LIMIT=29 ; # Allow 30 attempts
+      set -e ; # fail if we can't read the keys.
+      ACCESS=$(cat /config/accesskey) ; SECRET=$(cat /config/secretkey) ;
+      set +e ; # The connections to minio are allowed to fail.
+      echo "Connecting to Minio server: $SCHEME://$MINIO_ENDPOINT:$MINIO_PORT" ;
+      MC_COMMAND="${MC} config host add myminio $SCHEME://$MINIO_ENDPOINT:$MINIO_PORT $ACCESS $SECRET" ;
+      $MC_COMMAND ;
+      STATUS=$? ;
+      until [ $STATUS = 0 ]
+      do
+        ATTEMPTS=`expr $ATTEMPTS + 1` ;
+        echo \"Failed attempts: $ATTEMPTS\" ;
+        if [ $ATTEMPTS -gt $LIMIT ]; then
+          exit 1 ;
+        fi ;
+        sleep 2 ; # 1 second intervals between attempts
+        $MC_COMMAND ;
+        STATUS=$? ;
+      done ;
+      set -e ; # reset `e` as active
+      return 0
+    }
+
+    # checkBucketExists ($bucket)
+    # Check if the bucket exists, by using the exit code of `mc ls`
+    checkBucketExists() {
+      BUCKET=$1
+      CMD=$(${MC} ls myminio/$BUCKET > /dev/null 2>&1)
+      return $?
+    }
+
+    # createBucket ($bucket, $policy, $purge)
+    # Ensure bucket exists, purging if asked to
+    createBucket() {
+      BUCKET=$1
+      POLICY=$2
+      PURGE=$3
+      VERSIONING=$4
+
+      # Purge the bucket, if set & exists
+      # Since PURGE is user input, check explicitly for `true`
+      if [ $PURGE = true ]; then
+        if checkBucketExists $BUCKET ; then
+          echo "Purging bucket '$BUCKET'."
+          set +e ; # don't exit if this fails
+          ${MC} rm -r --force myminio/$BUCKET
+          set -e ; # reset `e` as active
+        else
+          echo "Bucket '$BUCKET' does not exist, skipping purge."
+        fi
+      fi
+
+      # Create the bucket if it does not exist
+      if ! checkBucketExists $BUCKET ; then
+        echo "Creating bucket '$BUCKET'"
+        ${MC} mb myminio/$BUCKET
+      else
+        echo "Bucket '$BUCKET' already exists."
+      fi
+
+
+      # set versioning for bucket
+      if [ ! -z $VERSIONING ] ; then
+        if [ $VERSIONING = true ] ; then
+            echo "Enabling versioning for '$BUCKET'"
+            ${MC} version enable myminio/$BUCKET
+        elif [ $VERSIONING = false ] ; then
+            echo "Suspending versioning for '$BUCKET'"
+            ${MC} version suspend myminio/$BUCKET
+        fi
+      else
+          echo "Bucket '$BUCKET' versioning unchanged."
+      fi
+
+      # At this point, the bucket should exist, skip checking for existence
+      # Set policy on the bucket
+      echo "Setting policy of bucket '$BUCKET' to '$POLICY'."
+      ${MC} policy set $POLICY myminio/$BUCKET
+    }
+
+    # Try connecting to Minio instance
+    scheme=http
+    connectToMinio $scheme
+    # Create the buckets
+    createBucket devtron-ci-log none false
+    createBucket devtron-ci-cache none false
+---
+# Source: minio/templates/post-install-prometheus-metrics-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: devtron-minio-update-prometheus-secret
+  labels:
+    app: minio-update-prometheus-secret
+    chart: minio-8.0.10
+    release: devtron
+    heritage: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+      - update
+      - patch
+    resourceNames:
+      - devtron-minio-prometheus
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - servicemonitors
+    verbs:
+      - get
+    resourceNames:
+      - devtron-minio
+---
+# Source: minio/templates/post-install-prometheus-metrics-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devtron-minio-update-prometheus-secret
+  labels:
+    app: minio-update-prometheus-secret
+    chart: minio-8.0.10
+    release: devtron
+    heritage: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: devtron-minio-update-prometheus-secret
+subjects:
+  - kind: ServiceAccount
+    name: devtron-minio-update-prometheus-secret
+    namespace: "devtroncd"
+---
+# Source: minio/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: devtron-minio
+  labels:
+    app: minio
+    chart: minio-8.0.10
+    release: devtron
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9000
+      protocol: TCP
+      targetPort: 9000
+  selector:
+    app: minio
+    release: devtron
+---
+# Source: minio/templates/statefulset.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: devtron-minio-svc
+  labels:
+    app: minio
+    chart: minio-8.0.10
+    release: "devtron"
+    heritage: "Helm"
+spec:
+  publishNotReadyAddresses: true
+  clusterIP: None
+  ports:
+    - name: http
+      port: 9000
+      protocol: TCP
+  selector:
+    app: minio
+    release: devtron
+---
+# Source: minio/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: devtron-minio
+  labels:
+    app: minio
+    chart: minio-8.0.10
+    release: devtron
+    heritage: Helm
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: "Parallel"
+  serviceName: devtron-minio-svc
+  replicas: 4
+  selector:
+    matchLabels:
+      app: minio
+      release: devtron
+  template:
+    metadata:
+      name: devtron-minio
+      labels:
+        app: minio
+        release: devtron
+      annotations:
+        checksum/secrets: 850b2f8c1d8e151fea9b065a92d565fd62fe655998ec52222341a6a74e5b8daf
+        checksum/config: 337081c741d9233f54af572dbcab63f68ad6fd788209a6c9d443cac8307c5348
+    spec:
+      serviceAccountName: "devtron-minio"
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2021-02-14T04-01-33Z
+          imagePullPolicy: IfNotPresent
+
+          command: [ "/bin/sh",
+                     "-ce",
+                     "/usr/bin/docker-entrypoint.sh minio -S /etc/minio/certs/ server  http://devtron-minio-{0...3}.devtron-minio-svc.devtroncd.svc.cluster.local/export" ]
+          volumeMounts:
+            - name: export
+              mountPath: /export
+          ports:
+            - name: http
+              containerPort: 9000
+          env:
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: devtron-minio
+                  key: accesskey
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: devtron-minio
+                  key: secretkey
+          resources:
+            requests:
+              memory: 1Gi
+      volumes:
+        - name: minio-user
+          secret:
+            secretName: devtron-minio
+  volumeClaimTemplates:
+    - metadata:
+        name: export
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 50Gi
+---
+# Source: minio/templates/post-install-create-bucket-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: devtron-minio-make-bucket-job
+  labels:
+    app: minio-make-bucket-job
+    chart: minio-8.0.10
+    release: devtron
+    heritage: Helm
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  template:
+    metadata:
+      labels:
+        app: minio-job
+        release: devtron
+    spec:
+      restartPolicy: OnFailure
+      volumes:
+        - name: minio-configuration
+          projected:
+            sources:
+              - configMap:
+                  name: devtron-minio
+              - secret:
+                  name: devtron-minio
+      serviceAccountName: "devtron-minio"
+      containers:
+        - name: minio-mc
+          image: "minio/mc:RELEASE.2021-02-14T04-28-06Z"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "/config/initialize"]
+          env:
+            - name: MINIO_ENDPOINT
+              value: devtron-minio
+            - name: MINIO_PORT
+              value: "9000"
+          volumeMounts:
+            - name: minio-configuration
+              mountPath: /config
+          resources:
+            requests:
+              memory: 128Mi
