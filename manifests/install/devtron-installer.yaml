@@ -4,4 +4,4 @@ metadata:
   name: installer-devtron
   namespace: devtroncd
 spec:
-  url: https://raw.githubusercontent.com/devtron-labs/devtron/install-refactor/manifests/installation-script
+  url: https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/installation-script
