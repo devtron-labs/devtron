@@ -127,11 +127,11 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 				continue
 			}
 
-			if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
-				item.LastDeployedTime = lastDeployedTimeMap[item.PipelineId].LastDeployedTime
-				item.DataSource = lastDeployedTimeMap[item.PipelineId].DataSource
-				item.MaterialInfoJson = lastDeployedTimeMap[item.PipelineId].MaterialInfoJson
-				item.CiArtifactId = lastDeployedTimeMap[item.PipelineId].CiArtifactId
+			if lastDeployedTime, ok := lastDeployedTimeMap[item.PipelineId]; ok {
+				item.LastDeployedTime = lastDeployedTime.LastDeployedTime
+				item.DataSource = lastDeployedTime.DataSource
+				item.MaterialInfoJson = lastDeployedTime.MaterialInfoJson
+				item.CiArtifactId = lastDeployedTime.CiArtifactId
 			}
 
 			if len(item.DataSource) > 0 {
@@ -141,6 +141,9 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 				} else {
 					item.MaterialInfo = []byte("[]")
 				}
+				item.MaterialInfoJson = ""
+			} else {
+				item.MaterialInfo = []byte("[]")
 				item.MaterialInfoJson = ""
 			}
 			appEnvArr = append(appEnvArr, item)
