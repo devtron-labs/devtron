@@ -367,6 +367,7 @@ func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.Logger.Errorw("validation err, CreateChartRepo", "err", err, "payload", request)
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -413,6 +414,7 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.Logger.Errorw("validation err, UpdateChartRepo", "err", err, "payload", request)
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}

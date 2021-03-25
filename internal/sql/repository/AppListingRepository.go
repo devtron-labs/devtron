@@ -116,17 +116,21 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 
 	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
 	for _, item := range appEnvContainer {
-
+		if item.EnvironmentId > 0 && item.PipelineId > 0 && item.Active == false {
+			// skip adding apps which have linked with cd pipeline and that environment has marked as deleted.
+			continue
+		}
+		// include only apps which are not linked with any cd pipeline + those linked with cd pipeline and env has active.
 		key := strconv.Itoa(item.AppId) + "_" + strconv.Itoa(item.EnvironmentId)
 		if _, ok := latestDeploymentStatusMap[key]; ok {
 			continue
 		}
 
-		if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
-			item.LastDeployedTime = lastDeployedTimeMap[item.PipelineId].LastDeployedTime
-			item.DataSource = lastDeployedTimeMap[item.PipelineId].DataSource
-			item.MaterialInfoJson = lastDeployedTimeMap[item.PipelineId].MaterialInfoJson
-			item.CiArtifactId = lastDeployedTimeMap[item.PipelineId].CiArtifactId
+		if lastDeployedTime, ok := lastDeployedTimeMap[item.PipelineId]; ok {
+			item.LastDeployedTime = lastDeployedTime.LastDeployedTime
+			item.DataSource = lastDeployedTime.DataSource
+			item.MaterialInfoJson = lastDeployedTime.MaterialInfoJson
+			item.CiArtifactId = lastDeployedTime.CiArtifactId
 		}
 
 		if len(item.DataSource) > 0 {
@@ -137,8 +141,10 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 				item.MaterialInfo = []byte("[]")
 			}
 			item.MaterialInfoJson = ""
+		} else {
+			item.MaterialInfo = []byte("[]")
+			item.MaterialInfoJson = ""
 		}
-
 		appEnvArr = append(appEnvArr, item)
 		latestDeploymentStatusMap[key] = item
 	}
