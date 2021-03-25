@@ -58,8 +58,6 @@ It is designed as a self-serve platform for operationalizing and maintaining app
  <br> 
  
  - Deploy to multiple kubernetes cluster
- - Test on aws cloud 
-   > coming soon: support for GCP and microsoft azure  
 </details>
 <details>
  <summary> <b> Easy dev-sec-ops integration </b> </summary>
@@ -116,29 +114,35 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 ## :rocket: Getting Started
 
-#### Installing devtron with Helm 
+#### Quick in stallation with default settings
+
+This installation will use Minio for storing build logs and cache. Please make sure to edit the POSTGRESQL_PASSWORD value.
 
 ```bash
-$ git clone https://github.com/devtron-labs/devtron-installation-script.git
-$ cd devtron-installation-script/charts
-$ #modify values in values.yaml
-$ helm install devtron . -f values.yaml
+helm repo add devtron https://helm.devtron.ai
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+--set secrets.POSTGRESQL_PASSWORD=change-me
 ```
-For detail instructions checkout [devtron installation project](https://github.com/devtron-labs/devtron-installation-script/)
+
+For detailed instructions and other options, check out [devtron installation documentation](https://docs.devtron.ai/setup/install)
 
 
 #### :key: Access Devtron dashboard
 
-Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` same as provided in `values.yaml`
+By default Devtron creates a loadbalancer. Use the following command to get the dashboard url.
 
-
-*****For login use username:`admin` and for password run command mentioned below.*****
-
-```bash
-$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+```text
+kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
 ```
 
-*****[Detail configuration options](https://docs.devtron.ai/setup/install#configuration)*****
+*****Devtron Admin credentials*****
+
+
+For admin login use username:`admin` and for password run the following command.
+
+```bash
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+```
 
 #### Using devtron
   
@@ -157,7 +161,6 @@ $ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWOR
 
 ## :memo: Compatibility notes
 
-- Only AWS kubernetes cluster is supported as of now
 - It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
 - Application metrics only works for k8s 1.16+
 

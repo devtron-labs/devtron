@@ -21,11 +21,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
-	"strings"
+	"net/url"
 )
 
 const REGISTRYTYPE_ECR = "ecr"
 const REGISTRYTYPE_OTHER = "other"
+const REGISTRYTYPE_DOCKER_HUB = "docker-hub"
 
 type RegistryType string
 
@@ -33,7 +34,7 @@ type DockerArtifactStore struct {
 	tableName          struct{}     `sql:"docker_artifact_store" json:",omitempty"  pg:",discard_unknown_columns"`
 	Id                 string       `sql:"id,pk" json:"id,,omitempty"`
 	PluginId           string       `sql:"plugin_id,notnull" json:"pluginId,omitempty"`
-	RegistryURL        string       `sql:"registry_url,notnull" json:"registryUrl,omitempty"`
+	RegistryURL        string       `sql:"registry_url" json:"registryUrl,omitempty"`
 	RegistryType       RegistryType `sql:"registry_type,notnull" json:"registryType,omitempty"`
 	AWSAccessKeyId     string       `sql:"aws_accesskey_id" json:"awsAccessKeyId,omitempty" `
 	AWSSecretAccessKey string       `sql:"aws_secret_accesskey" json:"awsSecretAccessKey,omitempty"`
@@ -45,9 +46,13 @@ type DockerArtifactStore struct {
 	models.AuditLog
 }
 
-func (store *DockerArtifactStore) GetRegistryLocation() (registryLocation string) {
-	urls := strings.Split(store.RegistryURL, "//")
-	return urls[1]
+func (store *DockerArtifactStore) GetRegistryLocation() (registryLocation string, err error) {
+	u, err := url.Parse(registryLocation)
+	if err != nil {
+		return "", err
+	} else {
+		return u.Host, nil
+	}
 }
 
 type DockerArtifactStoreRepository interface {

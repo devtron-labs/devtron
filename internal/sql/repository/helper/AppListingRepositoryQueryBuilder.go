@@ -87,7 +87,7 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingSortBy(appListingFil
 }
 
 func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appListingFilter AppListingFilter) string {
-	whereCondition := "WHERE a.active = true and a.app_store is false "
+	whereCondition := "WHERE a.active = true and a.app_store is false and env.active = true "
 	if len(appListingFilter.Environments) > 0 {
 		envIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(appListingFilter.Environments)), ","), "[]")
 		whereCondition = whereCondition + "and env.id IN (" + envIds + ") "

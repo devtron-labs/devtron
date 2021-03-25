@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -68,6 +69,7 @@ type DbPipelineOrchestratorImpl struct {
 	ciConfig                     *CiConfig
 	appWorkflowRepository        appWorkflow.AppWorkflowRepository
 	envRepository                cluster.EnvironmentRepository
+	attributesService            attributes.AttributesService
 }
 
 func NewDbPipelineOrchestrator(
@@ -80,6 +82,7 @@ func NewDbPipelineOrchestrator(
 	GitSensorClient gitSensor.GitSensorClient, ciConfig *CiConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository cluster.EnvironmentRepository,
+	attributesService attributes.AttributesService,
 ) *DbPipelineOrchestratorImpl {
 
 	return &DbPipelineOrchestratorImpl{
@@ -93,6 +96,7 @@ func NewDbPipelineOrchestrator(
 		ciConfig:                     ciConfig,
 		appWorkflowRepository:        appWorkflowRepository,
 		envRepository:                envRepository,
+		attributesService:            attributesService,
 	}
 }
 
@@ -548,6 +552,16 @@ func (impl DbPipelineOrchestratorImpl) generateApiKey(ciPipelineId int, ciPipeli
 }
 
 func (impl DbPipelineOrchestratorImpl) generateExternalCiPayload(ciPipeline *bean.CiPipeline, externalCiPipeline *pipelineConfig.ExternalCiPipeline, keyPrefix string, apiKey string) *bean.CiPipeline {
+	if len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", ciPipeline)
+			return nil
+		}
+		if hostUrl != nil {
+			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+		}
+	}
 	accessKey := keyPrefix + "." + apiKey
 	ciPipeline.ExternalCiConfig = bean.ExternalCiConfig{
 		WebhookUrl: impl.ciConfig.ExternalCiWebhookUrl,

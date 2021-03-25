@@ -52,19 +52,24 @@ type CiConfig struct {
 	DefaultArtifactKeyPrefix  string   `env:"DEFAULT_ARTIFACT_KEY_LOCATION" envDefault:"arsenal-v1/ci-artifacts"`
 	WorkflowServiceAccount    string   `env:"WORKFLOW_SERVICE_ACCOUNT" envDefault:"ci-runner"`
 	ExternalCiApiSecret       string   `env:"EXTERNAL_CI_API_SECRET" envDefault:"devtroncd-secret"`
-	ExternalCiWebhookUrl      string   `env:"EXTERNAL_CI_WEB_HOOK_URL" envDefault:"http://google.com"`
+	ExternalCiWebhookUrl      string   `env:"EXTERNAL_CI_WEB_HOOK_URL" envDefault:""`
 	ExternalCiPayload         string   `env:"EXTERNAL_CI_PAYLOAD" envDefault:"{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/srj92/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2019-10-31T20:55:21+05:30\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"Suraj Gupta \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\",\"digest\":\"test1\",\"dataSource\":\"ext\",\"materialType\":\"git\"}"`
 	CiArtifactLocationFormat  string   `env:"CI_ARTIFACT_LOCATION_FORMAT" envDefault:"%d/%d.zip"`
 	ImageScannerEndpoint      string   `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
-	CloudProvider             string   `env:"CLOUD_PROVIDER" envDefault:"AWS"`
+	CloudProvider             string   `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
 	AzureAccountName          string   `env:"AZURE_ACCOUNT_NAME"`
 	AzureBlobContainerCiLog   string   `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
 	AzureBlobContainerCiCache string   `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
+	MinioEndpoint             string   `env:"MINIO_ENDPOINT"`
+	MinioAccessKey            string   `env:"MINIO_ACCESS_KEY"`
+	MinioSecretKey            string   `env:"MINIO_SECRET_KEY"`
 
 	AzureAccountKey string `env:"AZURE_ACCOUNT_KEY"`
 	ClusterConfig   *rest.Config
 	NodeLabel       map[string]string
 }
+
+const ExternalCiWebhookPath = "orchestrator/webhook/ext-ci"
 
 func GetCiConfig() (*CiConfig, error) {
 	cfg := &CiConfig{}
@@ -99,7 +104,7 @@ func GetCiConfig() (*CiConfig, error) {
 		cfg.NodeLabel[kv[0]] = kv[1]
 	}
 	//validation for supported cloudproviders
-	if cfg.CloudProvider != CLOUD_PROVIDER_AWS && cfg.CloudProvider != CLOUD_PROVIDER_AZURE {
+	if cfg.CloudProvider != BLOB_STORAGE_S3 && cfg.CloudProvider != BLOB_STORAGE_AZURE && cfg.CloudProvider != BLOB_STORAGE_MINIO {
 		return nil, fmt.Errorf("unsupported cloudprovider: %s", cfg.CloudProvider)
 	}
 	return cfg, err

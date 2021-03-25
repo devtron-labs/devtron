@@ -53,8 +53,9 @@ You can update your saved chart repository settings at any point in time. Just c
 
 ![](../../.gitbook/assets/gc-edit-chart.png)
 
-### Note:
+> Note: You can enable and disable your chart repository setting. If you enable it, then you will be able to see that enabled chart in `Discover` section of `Chart Store`.
 
-You can enable and disable your chart repository setting. If you enable it, then you will be able to see that enabled chart in `Discover` serction of `Chart Store`.
+
+Learn more about [Discover chart link](https://docs.devtron.ai/user-guide/deploy-chart/overview-of-charts#deploying-chart)
 
 ![](../../.gitbook/assets/gc-chart-list.png)

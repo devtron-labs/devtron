@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -99,21 +100,26 @@ type FetchAppListingRequest struct {
 }
 
 type AppListingServiceImpl struct {
-	Logger                    *zap.SugaredLogger
-	application               application2.ServiceClient
-	appRepository             pipelineConfig.AppRepository
-	appListingRepository      repository.AppListingRepository
-	appListingViewBuilder     AppListingViewBuilder
-	pipelineRepository        pipelineConfig.PipelineRepository
-	cdWorkflowRepository      pipelineConfig.CdWorkflowRepository
-	linkoutsRepository        repository.LinkoutsRepository
-	appLevelMetricsRepository repository.AppLevelMetricsRepository
-	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository
-
+	Logger                     *zap.SugaredLogger
+	application                application2.ServiceClient
+	appRepository              pipelineConfig.AppRepository
+	appListingRepository       repository.AppListingRepository
+	appListingViewBuilder      AppListingViewBuilder
+	pipelineRepository         pipelineConfig.PipelineRepository
+	cdWorkflowRepository       pipelineConfig.CdWorkflowRepository
+	linkoutsRepository         repository.LinkoutsRepository
+	appLevelMetricsRepository  repository.AppLevelMetricsRepository
+	envLevelMetricsRepository  repository.EnvLevelAppMetricsRepository
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
+	environmentRepository      cluster.EnvironmentRepository
 }
 
-func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository, application application2.ServiceClient, appRepository pipelineConfig.AppRepository, appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository, linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository, envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, pipelineOverrideRepository chartConfig.PipelineOverrideRepository) *AppListingServiceImpl {
+func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
+	application application2.ServiceClient, appRepository pipelineConfig.AppRepository,
+	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
+	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
+	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository cluster.EnvironmentRepository) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                     Logger,
 		appListingRepository:       appListingRepository,
@@ -126,6 +132,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		envLevelMetricsRepository:  envLevelMetricsRepository,
 		cdWorkflowRepository:       cdWorkflowRepository,
 		pipelineOverrideRepository: pipelineOverrideRepository,
+		environmentRepository:      environmentRepository,
 	}
 	return serviceImpl
 }
@@ -536,6 +543,13 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 
 	appDetailContainer.LinkOuts = linkouts
 	appDetailContainer.AppId = appId
+
+	envModel, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching environment", "error", err)
+		return bean.AppDetailContainer{}, err
+	}
+	appDetailContainer.K8sVersion = envModel.Cluster.K8sVersion
 	return appDetailContainer, nil
 }
 

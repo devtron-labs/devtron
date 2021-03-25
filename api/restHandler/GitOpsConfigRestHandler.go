@@ -19,7 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -37,6 +37,7 @@ type GitOpsConfigRestHandler interface {
 	GetGitOpsConfigById(w http.ResponseWriter, r *http.Request)
 	UpdateGitOpsConfig(w http.ResponseWriter, r *http.Request)
 	GetGitOpsConfigByProvider(w http.ResponseWriter, r *http.Request)
+	GitOpsConfigured(w http.ResponseWriter, r *http.Request)
 }
 
 type GitOpsConfigRestHandlerImpl struct {
@@ -86,14 +87,9 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 	}
 
 	// RBAC enforcer applying
-	isActionUserSuperAdmin, err := impl.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		impl.logger.Errorw("service err, CreateGitOpsConfig", "err", err, "id", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-	if !isActionUserSuperAdmin {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
+		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -130,14 +126,9 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 		return
 	}
 	// RBAC enforcer applying
-	isActionUserSuperAdmin, err := impl.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "id", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-	if !isActionUserSuperAdmin {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionUpdate, "*"); !ok {
+		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -172,19 +163,40 @@ func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigById(w http.ResponseWrite
 	}
 
 	// RBAC enforcer applying
-	isActionUserSuperAdmin, err := impl.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		impl.logger.Errorw("service err, GetGitOpsConfigById", "err", err, "id", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-	if !isActionUserSuperAdmin {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
+		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends
 
 	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+func (impl GitOpsConfigRestHandlerImpl) GitOpsConfigured(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	result, err := impl.gitOpsConfigService.GetAllGitOpsConfig()
+	if err != nil {
+		impl.logger.Errorw("service err, GetAllGitOpsConfig", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	gitopsConfigured := false
+	if len(result) > 0 {
+		for _, gitopsConf := range result {
+			if gitopsConf.Active {
+				gitopsConfigured = true
+			}
+		}
+	}
+	res := make(map[string]bool)
+	res["exists"] = gitopsConfigured
+	writeJsonResp(w, err, res, http.StatusOK)
+
 }
 
 func (impl GitOpsConfigRestHandlerImpl) GetAllGitOpsConfig(w http.ResponseWriter, r *http.Request) {
@@ -201,14 +213,9 @@ func (impl GitOpsConfigRestHandlerImpl) GetAllGitOpsConfig(w http.ResponseWriter
 	}
 
 	// RBAC enforcer applying
-	isActionUserSuperAdmin, err := impl.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		impl.logger.Errorw("service err, GetAllGitOpsConfig", "err", err, "id", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-	if !isActionUserSuperAdmin {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
+		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -232,14 +239,10 @@ func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigByProvider(w http.Respons
 	}
 
 	// RBAC enforcer applying
-	isActionUserSuperAdmin, err := impl.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		impl.logger.Errorw("service err, GetGitOpsConfigByProvider", "err", err, "id", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-	if !isActionUserSuperAdmin {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
+		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer Ends

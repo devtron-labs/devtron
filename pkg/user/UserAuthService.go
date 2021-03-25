@@ -410,16 +410,17 @@ func contains(url string) bool {
 	urls := []string{
 		"/health",
 		"/metrics",
-		"/webhook/ci/gocd/artifact",
-		"/webhook/ext-ci/",
-		"/auth/login",
-		"/auth/callback",
-		"/api/v1/session",
-		"/app/ci-pipeline/github-webhook/trigger",
-		"/webhook/msg/nats",
-		"/devtron/auth/verify",
-		"/security/policy/verify/webhook",
-		"/sso/list",
+		"/orchestrator/webhook/ci/gocd/artifact",
+		"/orchestrator/webhook/ext-ci/",
+		"/orchestrator/auth/login",
+		"/orchestrator/auth/callback",
+		"/orchestrator/api/v1/session",
+		"/orchestrator/app/ci-pipeline/github-webhook/trigger",
+		"/orchestrator/webhook/msg/nats",
+		"/orchestrator/devtron/auth/verify",
+		"/orchestrator/security/policy/verify/webhook",
+		"/orchestrator/sso/list",
+		"/",
 	}
 	for _, a := range urls {
 		if a == url {
@@ -427,8 +428,12 @@ func contains(url string) bool {
 		}
 	}
 	prefixUrls := []string{
-		"/webhook/ext-ci/",
-		"/api/vi/pod/exec/ws",
+		"/orchestrator/webhook/ext-ci/",
+		"/orchestrator/api/vi/pod/exec/ws",
+		"/orchestrator/api/dex",
+		"/orchestrator/auth/callback",
+		"/orchestrator/auth/login",
+		"/dashboard",
 	}
 	for _, a := range prefixUrls {
 		if strings.Contains(url, a) {

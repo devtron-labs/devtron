@@ -300,7 +300,7 @@ func (impl ChartTemplateServiceImpl) getDir() string {
 }
 
 func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error) {
-	chartMetaData.ApiVersion = "v1" // ensure always v1
+	chartMetaData.ApiVersion = "v2" // ensure always v2
 	dir := impl.getDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)

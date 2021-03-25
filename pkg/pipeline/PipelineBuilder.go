@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -117,6 +118,7 @@ type PipelineBuilderImpl struct {
 	imageScanResultRepository     security.ImageScanResultRepository
 	GitFactory                    *util.GitFactory
 	ArgoK8sClient                 argocdServer.ArgoK8sClient
+	attributesService             attributes.AttributesService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -142,7 +144,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	appService app.AppService,
 	imageScanResultRepository security.ImageScanResultRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
-	GitFactory *util.GitFactory,
+	GitFactory *util.GitFactory, attributesService attributes.AttributesService,
 ) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
@@ -169,6 +171,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		imageScanResultRepository:     imageScanResultRepository,
 		ArgoK8sClient:                 ArgoK8sClient,
 		GitFactory:                    GitFactory,
+		attributesService:             attributesService,
 	}
 }
 
@@ -304,13 +307,18 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		impl.logger.Debugw("error in AfterDockerBuild json unmarshal", "app", appId, "err", err)
 		return nil, err
 	}
+	regHost, err := template.DockerRegistry.GetRegistryLocation()
+	if err != nil {
+		impl.logger.Errorw("invalid reg url", "err", err)
+		return nil, err
+	}
 	ciConfig = &bean.CiConfigRequest{
 		Id:                template.Id,
 		AppId:             template.AppId,
 		AppName:           template.App.AppName,
 		DockerRepository:  template.DockerRepository,
 		DockerRegistry:    template.DockerRegistry.Id,
-		DockerRegistryUrl: template.DockerRegistry.GetRegistryLocation(),
+		DockerRegistryUrl: regHost,
 		BeforeDockerBuild: beforeDockerBuild,
 		AfterDockerBuild:  afterDockerBuild,
 		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId},
@@ -334,8 +342,18 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
 		return nil, err
 	}
-	var ciPipelineResp []*bean.CiPipeline
 
+	if len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			return nil, err
+		}
+		if hostUrl != nil {
+			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+		}
+	}
+
+	var ciPipelineResp []*bean.CiPipeline
 	for _, pipeline := range pipelines {
 
 		dockerArgs := make(map[string]string)
@@ -479,13 +497,18 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		impl.logger.Errorw("error in fetching DockerRegistry  for update", "appId", updateRequest.Id, "err", err, "registry", updateRequest.DockerRegistry)
 		return nil, err
 	}
+	regHost, err := dockerArtifaceStore.GetRegistryLocation()
+	if err != nil {
+		impl.logger.Errorw("invalid reg url", "err", err)
+		return nil, err
+	}
 
 	originalCiConf.AfterDockerBuild = updateRequest.AfterDockerBuild
 	originalCiConf.BeforeDockerBuild = updateRequest.BeforeDockerBuild
 	originalCiConf.DockerBuildConfig = updateRequest.DockerBuildConfig
 	originalCiConf.DockerRegistry = updateRequest.DockerRegistry
 	originalCiConf.DockerRepository = updateRequest.DockerRepository
-	originalCiConf.DockerRegistryUrl = dockerArtifaceStore.GetRegistryLocation()
+	originalCiConf.DockerRegistryUrl = regHost
 
 	argByte, err := json.Marshal(originalCiConf.DockerBuildConfig.Args)
 	if err != nil {
@@ -535,19 +558,26 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 		impl.logger.Errorw("error in fetching docker store ", "id", createRequest.DockerRepository, "err", err)
 		return nil, err
 	}
-	createRequest.DockerRegistryUrl = store.GetRegistryLocation()
+	regHost, err := store.GetRegistryLocation()
+	if err != nil {
+		impl.logger.Errorw("invalid reg url", "err", err)
+		return nil, err
+	}
+	createRequest.DockerRegistryUrl = regHost
 	createRequest.DockerRegistry = store.Id
 
 	if createRequest.DockerRepository == "" {
 		repo := impl.ecrConfig.EcrPrefix + app.AppName
-		impl.logger.Debugw("repo is empty creating ecr repo ", "repo", repo)
-		err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
-		if err != nil {
-			if errors.IsAlreadyExists(err) {
-				impl.logger.Warnw("repo already exists , skipping", "repo", repo)
-			} else {
-				impl.logger.Errorw("error in creating repo", "repo", repo, "err", err)
-				return nil, err
+		if store.RegistryType == repository.REGISTRYTYPE_ECR {
+			impl.logger.Debugw("repo is empty creating ecr repo ", "repo", repo)
+			err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
+			if err != nil {
+				if errors.IsAlreadyExists(err) {
+					impl.logger.Warnw("repo already exists , skipping", "repo", repo)
+				} else {
+					impl.logger.Errorw("error in creating repo", "repo", repo, "err", err)
+					return nil, err
+				}
 			}
 		}
 		createRequest.DockerRepository = repo
@@ -1951,6 +1981,17 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		err := json.Unmarshal([]byte(pipeline.DockerArgs), &dockerArgs)
 		if err != nil {
 			impl.logger.Warnw("error in unmarshal", "err", err)
+		}
+	}
+
+	if len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", pipeline)
+			return nil, err
+		}
+		if hostUrl != nil {
+			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
 		}
 	}
 

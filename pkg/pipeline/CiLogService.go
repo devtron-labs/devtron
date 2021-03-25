@@ -24,6 +24,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	s32 "github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -61,6 +62,7 @@ type CiLogRequest struct {
 	Namespace       string
 	CloudProvider   string
 	AzureBlobConfig *AzureBlobConfig
+	MinioEndpoint   string
 }
 
 func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfig *CiConfig) *CiLogServiceImpl {
@@ -123,7 +125,7 @@ func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, fu
 		return nil, nil, err
 	}
 
-	if ciLogRequest.CloudProvider == CLOUD_PROVIDER_AWS {
+	if ciLogRequest.CloudProvider == BLOB_STORAGE_S3 {
 		sess, _ := session.NewSession(&aws.Config{
 			Region: aws.String(ciLogRequest.Region),
 			//Credentials: credentials.NewStaticCredentials(ciLogRequest.AccessKey, ciLogRequest.SecretKet, ""),
@@ -135,7 +137,22 @@ func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, fu
 				Bucket: aws.String(ciLogRequest.LogsBucket),
 				Key:    aws.String(ciLogRequest.LogsFilePath),
 			})
-	} else if ciLogRequest.CloudProvider == CLOUD_PROVIDER_AZURE {
+	} else if ciLogRequest.CloudProvider == BLOB_STORAGE_MINIO {
+		sess, _ := session.NewSession(&aws.Config{
+			Region:           aws.String("us-west-2"),
+			Endpoint:         aws.String(ciLogRequest.MinioEndpoint),
+			DisableSSL:       aws.Bool(true),
+			S3ForcePathStyle: aws.Bool(true),
+			Credentials:      credentials.NewStaticCredentials(ciLogRequest.AccessKey, ciLogRequest.SecretKet, ""),
+		})
+
+		downloader := s3manager.NewDownloader(sess)
+		_, err = downloader.Download(file,
+			&s32.GetObjectInput{
+				Bucket: aws.String(ciLogRequest.LogsBucket),
+				Key:    aws.String(ciLogRequest.LogsFilePath),
+			})
+	} else if ciLogRequest.CloudProvider == BLOB_STORAGE_AZURE {
 		blobClient := AzureBlob{logger: impl.logger}
 		err = blobClient.DownloadBlob(context.Background(), ciLogRequest.LogsFilePath, ciLogRequest.AzureBlobConfig, file)
 		if err != nil {

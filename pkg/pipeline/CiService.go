@@ -326,16 +326,19 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	switch workflowRequest.CloudProvider {
-	case CLOUD_PROVIDER_AWS:
+	case BLOB_STORAGE_S3:
 		workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion
 		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
-	case CLOUD_PROVIDER_AZURE:
+	case BLOB_STORAGE_AZURE:
 		workflowRequest.AzureBlobConfig = &AzureBlobConfig{
-			Enabled:              impl.ciConfig.CloudProvider == CLOUD_PROVIDER_AZURE,
+			Enabled:              impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
 			AccountName:          impl.ciConfig.AzureAccountName,
 			BlobContainerCiCache: impl.ciConfig.AzureBlobContainerCiCache,
 			AccountKey:           impl.ciConfig.AzureAccountKey,
 		}
+	case BLOB_STORAGE_MINIO:
+		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
+		workflowRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
 	default:
 		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)
 	}
