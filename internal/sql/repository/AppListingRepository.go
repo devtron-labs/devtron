@@ -116,39 +116,37 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 
 	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
 	for _, item := range appEnvContainer {
-		skip := false
 		if item.EnvironmentId > 0 && item.PipelineId > 0 && item.Active == false {
-			// skip adding item in case it has cd pipeline and environment is deleted
-			skip = true
+			// skip adding apps which have linked with cd pipeline and that environment has marked as deleted.
+			continue
 		}
-		if !skip {
-			key := strconv.Itoa(item.AppId) + "_" + strconv.Itoa(item.EnvironmentId)
-			if _, ok := latestDeploymentStatusMap[key]; ok {
-				continue
-			}
+		// include only apps which are not linked with any cd pipeline + those linked with cd pipeline and env has active.
+		key := strconv.Itoa(item.AppId) + "_" + strconv.Itoa(item.EnvironmentId)
+		if _, ok := latestDeploymentStatusMap[key]; ok {
+			continue
+		}
 
-			if lastDeployedTime, ok := lastDeployedTimeMap[item.PipelineId]; ok {
-				item.LastDeployedTime = lastDeployedTime.LastDeployedTime
-				item.DataSource = lastDeployedTime.DataSource
-				item.MaterialInfoJson = lastDeployedTime.MaterialInfoJson
-				item.CiArtifactId = lastDeployedTime.CiArtifactId
-			}
+		if lastDeployedTime, ok := lastDeployedTimeMap[item.PipelineId]; ok {
+			item.LastDeployedTime = lastDeployedTime.LastDeployedTime
+			item.DataSource = lastDeployedTime.DataSource
+			item.MaterialInfoJson = lastDeployedTime.MaterialInfoJson
+			item.CiArtifactId = lastDeployedTime.CiArtifactId
+		}
 
-			if len(item.DataSource) > 0 {
-				mInfo, err := parseMaterialInfo([]byte(item.MaterialInfoJson), item.DataSource)
-				if err == nil {
-					item.MaterialInfo = mInfo
-				} else {
-					item.MaterialInfo = []byte("[]")
-				}
-				item.MaterialInfoJson = ""
+		if len(item.DataSource) > 0 {
+			mInfo, err := parseMaterialInfo([]byte(item.MaterialInfoJson), item.DataSource)
+			if err == nil {
+				item.MaterialInfo = mInfo
 			} else {
 				item.MaterialInfo = []byte("[]")
-				item.MaterialInfoJson = ""
 			}
-			appEnvArr = append(appEnvArr, item)
-			latestDeploymentStatusMap[key] = item
+			item.MaterialInfoJson = ""
+		} else {
+			item.MaterialInfo = []byte("[]")
+			item.MaterialInfoJson = ""
 		}
+		appEnvArr = append(appEnvArr, item)
+		latestDeploymentStatusMap[key] = item
 	}
 
 	return appEnvArr, nil
