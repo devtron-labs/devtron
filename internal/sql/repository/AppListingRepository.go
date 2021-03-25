@@ -116,10 +116,12 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 
 	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
 	for _, item := range appEnvContainer {
-
+		skip := false
 		if item.EnvironmentId > 0 && item.PipelineId > 0 && item.Active == false {
 			// skip adding item in case it has cd pipeline and environment is deleted
-		} else {
+			skip = true
+		}
+		if !skip {
 			key := strconv.Itoa(item.AppId) + "_" + strconv.Itoa(item.EnvironmentId)
 			if _, ok := latestDeploymentStatusMap[key]; ok {
 				continue
