@@ -1185,9 +1185,11 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	}
 	commitHash, err := impl.gitFactory.Client.CommitValues(chartGitAttr)
 	chartStatus := models.CHARTSTATUS_SUCCESS
+	errMsg := ""
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		chartStatus = models.CHARTSTATUS_ERROR
+		errMsg = err.Error()
 	}
 	pipelineOverride := &chartConfig.PipelineOverride{
 		Id:                     override.Id,
@@ -1198,7 +1200,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		CiArtifactId:           overrideRequest.CiArtifactId,
 		PipelineMergedValues:   string(merged),
 		AuditLog:               models.AuditLog{UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
-		ErrorMsg:               err.Error(),
+		ErrorMsg:               errMsg,
 		Status:                 chartStatus,
 	}
 	updateErr := impl.pipelineOverrideRepository.Update(pipelineOverride)
