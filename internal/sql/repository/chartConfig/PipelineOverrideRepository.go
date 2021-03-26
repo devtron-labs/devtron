@@ -40,6 +40,7 @@ type PipelineOverride struct {
 	PipelineReleaseCounter int                   `sql:"pipeline_release_counter"` //built index
 	CdWorkflowId           int                   `sql:"cd_workflow_id"`           //built index
 	DeploymentType         models.DeploymentType `sql:"deployment_type"`          // deployment type
+	ErrorMsg               string                `json:"error_msg"`
 	models.AuditLog
 	EnvConfigOverride *EnvConfigOverride
 	CiArtifact        *repository.CiArtifact

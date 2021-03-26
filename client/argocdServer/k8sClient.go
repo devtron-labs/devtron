@@ -2,6 +2,7 @@ package argocdServer
 
 import (
 	"bytes"
+	"flag"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -9,6 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"os/user"
 	"path/filepath"
 	"text/template"
 )
@@ -25,6 +28,7 @@ type AppTemplate struct {
 }
 type ArgoK8sClient interface {
 	CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster, ) (string, error)
+	GetApplication(namespace string, application string) ([]byte, error)
 }
 type ArgoK8sClientImpl struct {
 	logger *zap.SugaredLogger
@@ -67,7 +71,7 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *clu
 		impl.logger.Errorw("error in config", "err", err)
 		return "", err
 	}
-	config.GroupVersion= &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
+	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
 	config.APIPath = "/apis"
 	err = impl.CreateArgoApplication(appRequest.Namespace, applicationRequestString, config)
@@ -93,4 +97,36 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 		Do().Raw()
 	impl.logger.Infow("argo app create res", "res", string(res), "err", err)
 	return err
+}
+
+func (impl ArgoK8sClientImpl) GetApplication(namespace string, application string) ([]byte, error) {
+	usr, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+	kubeconfig_cd := flag.String("kubeconfig_cd1", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	flag.Parse()
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig_cd)
+	if err != nil {
+		return nil, err
+	}
+
+	/*config, err := rest.InClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in config", "err", err)
+		return nil, err
+	}*/
+	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
+	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
+	config.APIPath = "/apis"
+	client, err := rest.RESTClientFor(config)
+	if err != nil {
+		return nil, err
+	}
+	impl.logger.Infow("fetching application", "req", application)
+	res, err := client.Get().Resource("applications").Namespace(namespace).Name(application).DoRaw()
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
