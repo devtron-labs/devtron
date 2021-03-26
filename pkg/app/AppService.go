@@ -184,13 +184,13 @@ func (impl AppServiceImpl) GetDeploymentStatus(appName string, appId, envId int)
 	deploymentStatus.ReleaseHash = pipelineOverride.GitHash
 	deploymentStatus.ReleaseTime = pipelineOverride.CreatedOn
 	gitPush := &bean.StepDetail{}
-	gitPushError := false
+	gitPushError := pipelineOverride.Status == models.CHARTSTATUS_ERROR
 	if pipelineOverride.GitHash != "" {
 		gitPush.Status = bean.StepStatusSuccess
 	} else {
 		if gitPushError {
 			gitPush.Status = bean.StepStatusError
-			gitPush.ErrorMessage = "TODO"
+			gitPush.ErrorMessage = pipelineOverride.ErrorMsg
 		} else {
 			gitPush.Status = bean.StepStatusProgress
 		}
@@ -1184,9 +1184,10 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", override.Id, envOverride.TargetEnvironment),
 	}
 	commitHash, err := impl.gitFactory.Client.CommitValues(chartGitAttr)
+	chartStatus := models.CHARTSTATUS_SUCCESS
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
-		return 0, 0, err
+		chartStatus = models.CHARTSTATUS_ERROR
 	}
 	pipelineOverride := &chartConfig.PipelineOverride{
 		Id:                     override.Id,
@@ -1197,8 +1198,13 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		CiArtifactId:           overrideRequest.CiArtifactId,
 		PipelineMergedValues:   string(merged),
 		AuditLog:               models.AuditLog{UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+		ErrorMsg:               err.Error(),
+		Status:                 chartStatus,
 	}
-	err = impl.pipelineOverrideRepository.Update(pipelineOverride)
+	updateErr := impl.pipelineOverrideRepository.Update(pipelineOverride)
+	if updateErr != nil {
+		return 0, 0, updateErr
+	}
 	if err != nil {
 		return 0, 0, err
 	}
