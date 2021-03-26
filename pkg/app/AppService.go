@@ -244,8 +244,8 @@ func (impl AppServiceImpl) GetDeploymentStatus(appName string, appId, envId int)
 			gitPull.Status = bean.StepStatusProgress
 		}
 	}
-	deploymentStatus.GitPushStep = gitPush
-	if gitPush.Status != bean.StepStatusSuccess {
+	deploymentStatus.GitPullStep = gitPull
+	if gitPull.Status != bean.StepStatusSuccess {
 		return deploymentStatus, nil
 	}
 
@@ -284,7 +284,7 @@ func (impl AppServiceImpl) GetDeploymentStatus(appName string, appId, envId int)
 		deployStep.Status = bean.StepStatusProgress
 	}
 	//TODO if !HealthStatusHealthy -> override from db
-
+	deploymentStatus.K8sDeploy = deployStep
 	return deploymentStatus, nil
 	/*application.Status.OperationState.Message
 	application.Status.OperationState.FinishedAt
