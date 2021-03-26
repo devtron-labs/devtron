@@ -209,6 +209,7 @@ func (impl AppServiceImpl) GetDeploymentStatus(appName string, appId, envId int)
 	err = json.Unmarshal(appString, &application)
 	if err != nil {
 		impl.logger.Errorw("error in marshling application", "err", err)
+		return nil, err
 	}
 	// populate resources
 	if application.Status.OperationState.SyncResult.Revision == deploymentStatus.ReleaseHash {
