@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"time"
 )
 
 type AppContainer struct {
@@ -107,7 +108,42 @@ type AppDetailContainer struct {
 	Environments              []Environment                     `json:"otherEnvironment,omitempty"`
 	LinkOuts                  []LinkOuts                        `json:"linkOuts,omitempty"`
 	ResourceTree              *application.ResourceTreeResponse `json:"resourceTree,omitempty"`
+	DeploymentStatus          *DeploymentStatus                 `json:"deploymentStatus"`
 }
+
+type DeploymentStatus struct {
+	ReleaseHash     string          `json:"releaseHash"`
+	ReleaseTime     time.Time       `json:"releaseTime"`
+	GitPushStep     *StepDetail     `json:"gitPushStep"`
+	GitPullStep     *StepDetail     `json:"gitPullStep"`
+	ConfigApplyStep *StepDetail     `json:"configApplyStep"`
+	K8sDeploy       *StepDetail     `json:"k8sDeploy"`
+	SyncResources   []*SyncResource `json:"syncResources"`
+}
+
+type StepDetail struct {
+	Status       StepStatus `json:"status"` //NA, Progress, done
+	ErrorMessage string     `json:"errorMessage"`
+	Msg          string     `json:"msg"`
+}
+
+type SyncResource struct {
+	Kind      string `json:"kind"`
+	Message   string `json:"message"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Version   string `json:"version"`
+	Status    string `json:"status"`
+}
+
+type StepStatus string
+
+const (
+	StepStatusSuccess  StepStatus = "SUCCESS"
+	StepStatusProgress StepStatus = "IN_PROGRESS"
+	StepStatusError    StepStatus = "ERROR"
+	StepStatusWaiting  StepStatus = "WAITING"
+)
 
 type Environment struct {
 	EnvironmentId   int    `json:"environmentId"`

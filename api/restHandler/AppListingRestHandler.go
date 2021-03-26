@@ -62,6 +62,7 @@ type AppListingRestHandlerImpl struct {
 	enforcerUtil           rbac.EnforcerUtil
 	deploymentGroupService deploymentGroup.DeploymentGroupService
 	userService            user.UserService
+	appService             app.AppService
 }
 
 type AppStatus struct {
@@ -78,7 +79,9 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	enforcer rbac.Enforcer,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
-	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService) *AppListingRestHandlerImpl {
+	deploymentGroupService deploymentGroup.DeploymentGroupService,
+	userService user.UserService,
+	appService app.AppService) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:            application,
 		appListingService:      appListingService,
@@ -89,6 +92,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		enforcerUtil:           enforcerUtil,
 		deploymentGroupService: deploymentGroupService,
 		userService:            userService,
+		appService:             appService,
 	}
 	return appListingHandler
 }
@@ -236,6 +240,14 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 {
 		//RBAC enforcer Ends
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
+		//---------
+		deploymentStatus, err := handler.appService.GetDeploymentStatus(acdAppName, appId, envId)
+		if err != nil {
+			handler.logger.Errorw("error in getting app status", "err", err)
+		}
+		handler.logger.Infow("app status", "status", deploymentStatus)
+		appDetail.DeploymentStatus = deploymentStatus
+		//--------
 		query := &application2.ResourcesQuery{
 			ApplicationName: &acdAppName,
 		}
@@ -284,6 +296,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		}
 		appDetail.ResourceTree = resp
 		handler.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
+
 	} else {
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}

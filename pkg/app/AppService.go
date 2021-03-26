@@ -97,6 +97,7 @@ type AppService interface {
 	UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application) error
 	GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
+	GetDeploymentStatus(appName string, appId, envId int) (*bean.DeploymentStatus, error)
 }
 
 func NewAppService(
@@ -166,31 +167,133 @@ func (impl AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.Release
 	return count == 1, nil
 }
 
-func (impl AppServiceImpl) GetReleaseStatus(appId, envId int) (interface{}, error) {
+func (impl AppServiceImpl) GetDeploymentStatus(appName string, appId, envId int) (*bean.DeploymentStatus, error) {
 	pipelineOverride, err := impl.pipelineOverrideRepository.GetLatestRelease(appId, envId)
 	if err != nil {
 		return nil, err
 	}
+	deploymentStatus := &bean.DeploymentStatus{}
+	//init with default status
+	waitingStatus := &bean.StepDetail{Status: bean.StepStatusWaiting}
+	deploymentStatus.GitPushStep = waitingStatus
+	deploymentStatus.GitPullStep = waitingStatus
+	deploymentStatus.K8sDeploy = waitingStatus
+	deploymentStatus.ConfigApplyStep = waitingStatus
+
 	//git push
-	releaseHash := pipelineOverride.GitHash
-	releaseTime:=pipelineOverride.CreatedOn
-	acdAppName := "" //appDetail.AppName + "-" + appDetail.EnvironmentName
-	query := &application2.ApplicationQuery{
-		Name: &acdAppName,
+	deploymentStatus.ReleaseHash = pipelineOverride.GitHash
+	deploymentStatus.ReleaseTime = pipelineOverride.CreatedOn
+	gitPush := &bean.StepDetail{}
+	gitPushError := false
+	if pipelineOverride.GitHash != "" {
+		gitPush.Status = bean.StepStatusSuccess
+	} else {
+		if gitPushError {
+			gitPush.Status = bean.StepStatusError
+			gitPush.ErrorMessage = "TODO"
+		} else {
+			gitPush.Status = bean.StepStatusProgress
+		}
 	}
-	application, err:=impl.acdClient.Get(context.Background(), query)//get from kubectl and typecast
-	//git pull
-	application.Status.Sync.Revision
-	application.Status.OperationState.StartedAt
+	deploymentStatus.GitPushStep = gitPush
+	if gitPush.Status != bean.StepStatusSuccess {
+		return deploymentStatus, nil
+	}
+	//fetch acd app
+	appString, err := impl.ArgoK8sClient.GetApplication("devtroncd", appName)
+	if err != nil {
+		impl.logger.Errorw("error is getting acd app", "name", appName, "err", err)
+		return nil, err
+	}
+	var application v1alpha1.Application
+	err = json.Unmarshal(appString, &application)
+	if err != nil {
+		impl.logger.Errorw("error in marshling application", "err", err)
+	}
+	// populate resources
+	if application.Status.OperationState.SyncResult.Revision == deploymentStatus.ReleaseHash {
+		for _, resource := range application.Status.OperationState.SyncResult.Resources {
+			if resource.Status == v1alpha1.ResultCodeSyncFailed {
+				syncResource := &bean.SyncResource{
+					Kind:      resource.Kind,
+					Message:   resource.Message,
+					Name:      resource.Name,
+					Namespace: resource.Namespace,
+					Version:   resource.Version,
+					Status:    string(resource.Status), //SyncFailed for fail
+				}
+				deploymentStatus.SyncResources = append(deploymentStatus.SyncResources, syncResource)
+			}
+		}
+	}
+	//git pull status
+	gitPullRevision := application.Status.OperationState.Operation.Sync.Revision
+	gitPull := &bean.StepDetail{}
+	if gitPullRevision == deploymentStatus.ReleaseHash {
+		//git pull success
+		gitPull.Status = bean.StepStatusSuccess
+	} else {
+		pullFail := time.Now().Sub(pipelineOverride.CreatedOn).Minutes() > 10
+		if pullFail || application.Status.OperationState.Phase == v1alpha1.OperationError {
+			//v1alpha1.OperationError when manifest gen fails TODO: do we need it a separate stage
+			//git pull failed
+			gitPull.Status = bean.StepStatusError
+			gitPull.ErrorMessage = "Git pull by argo cd failed for this release"
+		} else {
+			//git pull progress
+			gitPull.Status = bean.StepStatusProgress
+		}
+	}
+	deploymentStatus.GitPushStep = gitPush
+	if gitPush.Status != bean.StepStatusSuccess {
+		return deploymentStatus, nil
+	}
 
 	//kubectl apply
-	//
+	applyStep := &bean.StepDetail{}
+	applyRevision := application.Status.OperationState.Operation.Sync.Revision
+	if applyRevision == deploymentStatus.ReleaseHash {
+		switch application.Status.OperationState.Phase {
+		case v1alpha1.OperationSucceeded:
+			// apply success
+			applyStep.Status = bean.StepStatusSuccess
+		case v1alpha1.OperationRunning:
+			//in progress
+			applyStep.Status = bean.StepStatusProgress
+		default:
+			//fail
+			applyStep.Status = bean.StepStatusError
+			applyStep.ErrorMessage = application.Status.OperationState.Message
+		}
+	}
+	deploymentStatus.ConfigApplyStep = applyStep
+	if applyStep.Status != bean.StepStatusSuccess {
+		return deploymentStatus, nil
+	}
+	//k8sDeploy  step
+	deployStep := &bean.StepDetail{}
+	switch application.Status.Health.Status {
+	case v1alpha1.HealthStatusHealthy:
+		//healthy
+		deployStep.Status = bean.StepStatusSuccess
+	case v1alpha1.HealthStatusDegraded:
+		//error
+		deployStep.Status = bean.StepStatusError
+	default:
+		//progress
+		deployStep.Status = bean.StepStatusProgress
+	}
+	//TODO if !HealthStatusHealthy -> override from db
+
+	return deploymentStatus, nil
+	/*application.Status.OperationState.Message
 	application.Status.OperationState.FinishedAt
 	application.Status.OperationState.SyncResult.Revision
 	application.Status.OperationState.SyncResult.Resources
 	//impact of hibernate on status -> app status hiberneting, no impact on release status
-    application.Status.OperationState.SyncResult.Resources //individual objects
-    ///application.Status.OperationState.SyncResult.Resources for rollout status
+	application.Status.OperationState.SyncResult.Resources //individual objects
+	///application.Status.OperationState.SyncResult.Resources for rollout status
+	//get deployed status from relase table*/
 }
 
 func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Application) (bool, error) {
