@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -70,6 +71,7 @@ type DbPipelineOrchestratorImpl struct {
 	appWorkflowRepository        appWorkflow.AppWorkflowRepository
 	envRepository                cluster.EnvironmentRepository
 	attributesService            attributes.AttributesService
+	appListingRepository         repository.AppListingRepository
 }
 
 func NewDbPipelineOrchestrator(
@@ -83,6 +85,7 @@ func NewDbPipelineOrchestrator(
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository cluster.EnvironmentRepository,
 	attributesService attributes.AttributesService,
+	appListingRepository repository.AppListingRepository,
 ) *DbPipelineOrchestratorImpl {
 
 	return &DbPipelineOrchestratorImpl{
@@ -97,6 +100,7 @@ func NewDbPipelineOrchestrator(
 		appWorkflowRepository:        appWorkflowRepository,
 		envRepository:                envRepository,
 		attributesService:            attributesService,
+		appListingRepository:         appListingRepository,
 	}
 }
 
@@ -683,6 +687,20 @@ func (impl DbPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) error 
 		}
 	}
 
+	deploymentStatuses, err := impl.appListingRepository.FindDeploymentStatusByAppId(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("err", err)
+		return err
+	}
+	for _, deploymentStatus := range deploymentStatuses {
+		deploymentStatus.Active = false
+		err = impl.appListingRepository.UpdateDeploymentStatus(deploymentStatus)
+		if err != nil {
+			impl.logger.Errorw("could not delete materials ", "err", err)
+			return err
+		}
+	}
+
 	app, err := impl.appRepository.FindById(appId)
 	if err != nil {
 		impl.logger.Errorw("err", err)
@@ -808,6 +826,29 @@ func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32,
 	if err != nil {
 		impl.logger.Errorw("error in saving entity ", "entity", pg)
 		return nil, err
+	}
+
+	apps, err := impl.appRepository.FindActiveListByName(name)
+	if err != nil {
+		return nil, err
+	}
+	appLen := len(apps)
+	if appLen > 1 {
+		firstElement := apps[0]
+		if firstElement.Id == pg.Id {
+			pg.Active = false
+			err = impl.appRepository.Update(pg)
+			if err != nil {
+				impl.logger.Errorw("error in saving entity ", "entity", pg)
+				return nil, err
+			}
+			err = &util.ApiError{
+				Code:            constants.AppAlreadyExists.Code,
+				InternalMessage: "app already exists",
+				UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+			}
+			return nil, err
+		}
 	}
 	return pg, nil
 }

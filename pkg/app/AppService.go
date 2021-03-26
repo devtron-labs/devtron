@@ -214,6 +214,7 @@ func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Applicati
 				AppId:     deploymentStatus.AppId,
 				EnvId:     deploymentStatus.EnvId,
 				Status:    app.Status.Health.Status,
+				Active:    true,
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 			}
@@ -550,6 +551,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			AppId:     pipeline.AppId,
 			EnvId:     pipeline.EnvironmentId,
 			Status:    repository.NewDeployment,
+			Active:    true,
 			CreatedOn: time.Now(),
 			UpdatedOn: time.Now(),
 		}
