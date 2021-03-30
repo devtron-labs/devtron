@@ -32,9 +32,3 @@ func TestPipelineGroupRepositoryImpl_FindActiveByName(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, pg)
 }
-
-func TestPipelineGroupRepositoryImpl_ActivePipelineExists(t *testing.T) {
-	exists, err := getPipelineGroupRepo().AppExists("ke")
-	assert.NoError(t, err)
-	assert.True(t, exists)
-}

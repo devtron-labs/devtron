@@ -203,6 +203,12 @@ func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Applicati
 		if err != nil {
 			return isHealthy, err
 		}
+
+		if pipelineOverride.Pipeline.AppId != dbApp.Id {
+			impl.logger.Warnw("event received for other deleted app", "gitHash", gitHash)
+			return isHealthy, nil
+		}
+
 		releaseCounter, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineOverride.PipelineId)
 		if err != nil {
 			return isHealthy, err
