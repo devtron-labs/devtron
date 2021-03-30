@@ -33,8 +33,8 @@ metadata:
     heritage: Helm
 type: Opaque
 data:
-  accesskey: "NXVUclRzOTMxNXU4WE5BZ3UyV1o="
-  secretkey: "Umd6SHB6cGtlSkx1WVFrRXk3Q0pYbTlZMHRYRmFtR3lwcDVmeXc0Ng=="
+  accesskey: ""
+  secretkey: ""
 ---
 # Source: minio/templates/configmap.yaml
 apiVersion: v1

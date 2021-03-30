@@ -40,7 +40,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 488e9c5bb5161f1beee9357ff69a1f4a4cf58b9b
+          value: 81e6fbeea632094ba4b7340beb2a61ee4c268f1a
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -76,7 +76,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 488e9c5bb5161f1beee9357ff69a1f4a4cf58b9b
+          value: 4ed6cdfcf6f13a93eb0c3c58d8b4f13292856960
         - name: GIT_BRANCH
           value: main
         envFrom:
@@ -174,7 +174,7 @@ spec:
         spec:
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:83282a4d-132-2199
+            image: quay.io/devtron/chart-sync:1227622d-132-3775
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd
@@ -197,7 +197,7 @@ spec:
     spec:
       containers:
       - name: chart-sync
-        image: quay.io/devtron/chart-sync:83282a4d-132-2199
+        image: quay.io/devtron/chart-sync:1227622d-132-3775
         env:
         - name: PG_ADDR
           value: postgresql-postgresql.devtroncd
@@ -210,4 +210,4 @@ spec:
             name: devtron-secret
       restartPolicy: OnFailure
   backoffLimit: 4
-  activeDeadlineSeconds: 1500
+  activeDeadlineSeconds: 15000

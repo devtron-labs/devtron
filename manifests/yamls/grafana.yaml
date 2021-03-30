@@ -186,29 +186,43 @@ data:
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13322/revisions/1/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
+      "https://grafana.com/api/dashboards/13322/revisions/2/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
     > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13320/revisions/1/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
+      "https://grafana.com/api/dashboards/13320/revisions/2/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
     > "/var/lib/grafana/dashboards/devtron-provider/latency-status.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13325/revisions/1/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
+      "https://grafana.com/api/dashboards/13325/revisions/3/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
     > "/var/lib/grafana/dashboards/devtron-provider/memory-usage.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13321/revisions/1/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
+      "https://grafana.com/api/dashboards/13321/revisions/2/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
     > "/var/lib/grafana/dashboards/devtron-provider/response-status.json"
+    curl -skf \
+    --connect-timeout 60 \
+    --max-time 60 \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json;charset=UTF-8" \
+      "https://grafana.com/api/dashboards/13323/revisions/5/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
+    > "/var/lib/grafana/dashboards/devtron-provider/memory-usage-below-k8s1-15.json"
+    curl -skf \
+    --connect-timeout 60 \
+    --max-time 60 \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json;charset=UTF-8" \
+      "https://grafana.com/api/dashboards/13324/revisions/3/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
+    > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage-below-k8s1-15.json"
 ---
 # Source: grafana/templates/dashboards-json-configmap.yaml
 apiVersion: v1
@@ -267,7 +281,6 @@ spec:
   resources:
     requests:
       storage: "20Gi"
-  storageClassName: gp2      
 ---
 # Source: grafana/templates/clusterrole.yaml
 kind: ClusterRole
@@ -438,7 +451,7 @@ spec:
         checksum/dashboards-json-config: d14aa82dad8b17b12eead46c8a1f781fbe16244a909f25a3f24ac666e641e121
         checksum/sc-dashboard-provider-config: 140064eb60c97bcede797691712d8cf2c835d295c285d1c830fd5a7609c86d4f
     spec:
-      
+
       serviceAccountName: devtron-grafana
       securityContext:
         fsGroup: 472
@@ -494,7 +507,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: METHOD
-              value: 
+              value:
             - name: LABEL
               value: "grafana_dashboard"
             - name: FOLDER
@@ -520,7 +533,7 @@ spec:
               subPath: dashboardproviders.yaml
             - name: sc-dashboard-volume
               mountPath: "/tmp/dashboards"
-      
+
             - name: sc-dashboard-provider
               mountPath: "/etc/grafana/provisioning/dashboards/sc-dashboardproviders.yaml"
               subPath: provider.yaml
@@ -544,7 +557,7 @@ spec:
                 secretKeyRef:
                   name: devtron-grafana-cred-secret
                   key: admin-password
-            
+
           livenessProbe:
             failureThreshold: 10
             httpGet:
@@ -597,7 +610,7 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   rules:
-    - host: 
+    - host:
       http:
         paths:
           - path: /grafana

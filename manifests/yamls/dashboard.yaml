@@ -190,30 +190,6 @@ spec:
   selector:
     app: dashboard
 ---
-# Source: dashboard/templates/ingress.yaml
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: dashboard-ingress
-  namespace: 
-  labels:
-    app: dashboard
-    chart: dashboard-3.9.1
-    release: devtron
-  annotations:
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-spec:
-  rules:
-  - host: 
-    http:
-      paths:
-        - path: /dashboard(/|$)(.*)
-          backend:
-            serviceName: dashboard-service
-            servicePort: 80
----
 # Source: dashboard/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -261,7 +237,7 @@ spec:
             - name: envoy-config-volume
               mountPath: /etc/envoy-config/
         - name: dashboard
-          image: "quay.io/devtron/dashboard:xyz1sdsfd3123"
+          image: "quay.io/devtron/dashboard:bada93a4-136-3851"
           imagePullPolicy: IfNotPresent
           ports:
             - name: app
