@@ -39,8 +39,8 @@ type AppWorkflowRepository interface {
 	FindByNameAndAppId(name string, appId int) (*AppWorkflow, error)
 	FindWFCIMappingByWorkflowId(workflowId int) ([]*AppWorkflowMapping, error)
 	FindWFAllMappingByWorkflowId(workflowId int) ([]*AppWorkflowMapping, error)
-	FindWFCIMappingByCIPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
-	FindWFCDMappingByCIPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
+	FindWFCIMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
+	FindWFCDMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
 	DeleteAppWorkflowMapping(appWorkflow *AppWorkflowMapping, tx *pg.Tx) error
 	FindWFCDMappingByCIPipelineIds(ciPipelineIds []int) ([]*AppWorkflowMapping, error)

@@ -680,7 +680,6 @@ func (impl PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMat
 	return gitMaterials, nil
 }
 
-
 func (impl PipelineBuilderImpl) addpipelineToTemplate(createRequest *bean.CiConfigRequest) (resp *bean.CiConfigRequest, err error) {
 
 	// create workflow
@@ -702,7 +701,6 @@ func (impl PipelineBuilderImpl) addpipelineToTemplate(createRequest *bean.CiConf
 	}
 	// workflow creation ends
 	createRequest.AppWorkflowId = savedAppWf.Id
-
 
 	//single ci in same wf validation
 	workflowMapping, err := impl.appWorkflowRepository.FindWFCIMappingByWorkflowId(createRequest.AppWorkflowId)
@@ -2090,5 +2088,12 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		return nil, err
 	}
 	ciPipeline.LinkedCount = len(linkedCis)
+
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCIMappingByCIPipelineId(ciPipeline.Id)
+	for _, mapping := range appWorkflowMappings {
+		//there will be only one active entry in db always
+		ciPipeline.AppWorkflowId = mapping.AppWorkflowId
+	}
+
 	return ciPipeline, err
 }
