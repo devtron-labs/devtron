@@ -407,9 +407,8 @@ func (impl *CdWorkflowRepositoryImpl) GetWorkflowRunnerByWorkflowIdAndRunnerType
 	wfr := CdWorkflowRunner{}
 	err := impl.dbConnection.
 		Model(&wfr).
-		Column("cd_workflow_runner.*").
-		Where("cd_workflow.cd_workflow_id = ?", workflowId).
-		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Where("cd_workflow_id = ?", workflowId).
+		Where("workflow_type = ?", runnerType).
 		Order("cd_workflow_runner.id DESC").
 		Limit(1).
 		Select()
