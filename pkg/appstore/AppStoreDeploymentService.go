@@ -622,7 +622,7 @@ func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.Cre
 	appLen := len(apps)
 	if appLen > 1 {
 		firstElement := apps[0]
-		if firstElement.Id == pg.Id {
+		if firstElement.Id != pg.Id {
 			pg.Active = false
 			err = impl.appRepository.Update(pg)
 			if err != nil {
