@@ -203,6 +203,12 @@ func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Applicati
 		if err != nil {
 			return isHealthy, err
 		}
+
+		if pipelineOverride.Pipeline.AppId != dbApp.Id {
+			impl.logger.Warnw("event received for other deleted app", "gitHash", gitHash)
+			return isHealthy, nil
+		}
+
 		releaseCounter, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineOverride.PipelineId)
 		if err != nil {
 			return isHealthy, err
@@ -214,7 +220,6 @@ func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Applicati
 				AppId:     deploymentStatus.AppId,
 				EnvId:     deploymentStatus.EnvId,
 				Status:    app.Status.Health.Status,
-				Active:    true,
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 			}
@@ -551,7 +556,6 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			AppId:     pipeline.AppId,
 			EnvId:     pipeline.EnvironmentId,
 			Status:    repository.NewDeployment,
-			Active:    true,
 			CreatedOn: time.Now(),
 			UpdatedOn: time.Now(),
 		}

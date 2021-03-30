@@ -687,20 +687,6 @@ func (impl DbPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) error 
 		}
 	}
 
-	deploymentStatuses, err := impl.appListingRepository.FindDeploymentStatusByAppId(appId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("err", err)
-		return err
-	}
-	for _, deploymentStatus := range deploymentStatuses {
-		deploymentStatus.Active = false
-		err = impl.appListingRepository.UpdateDeploymentStatus(deploymentStatus)
-		if err != nil {
-			impl.logger.Errorw("could not delete materials ", "err", err)
-			return err
-		}
-	}
-
 	app, err := impl.appRepository.FindById(appId)
 	if err != nil {
 		impl.logger.Errorw("err", err)
