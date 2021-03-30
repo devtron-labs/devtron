@@ -1170,26 +1170,6 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationACD(installAppVersion
 
 func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *InstallAppVersionDTO, tx *pg.Tx) (*InstallAppVersionDTO, error) {
 
-	app, err := impl.appRepository.FindActiveByName(installAppVersionRequest.AppName)
-	if err != nil && err != pg.ErrNoRows {
-		return nil, err
-	}
-
-	if app != nil && app.Id > 0 {
-		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByAppIdAndEnvId(app.Id, installAppVersionRequest.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching from db", "error", err)
-			return nil, err
-		}
-		if installedAppVersion != nil && installedAppVersion.InstalledApp.Status != appstore.WF_UNKNOWN {
-			impl.logger.Infow("AppStoreDeployOperationDB already done for this app and env, proceed for further step", "app", app.AppName, "installedAppId", installedAppVersion.InstalledAppId, "existing status", installedAppVersion.InstalledApp.Status)
-			installAppVersionRequest.AppId = app.Id
-			installAppVersionRequest.InstalledAppId = installedAppVersion.InstalledApp.Id
-			installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
-			installAppVersionRequest.Status = installedAppVersion.InstalledApp.Status
-			return installAppVersionRequest, nil
-		}
-	}
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
