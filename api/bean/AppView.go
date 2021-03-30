@@ -144,6 +144,7 @@ const (
 	StepStatusProgress StepStatus = "IN_PROGRESS"
 	StepStatusError    StepStatus = "ERROR"
 	StepStatusWaiting  StepStatus = "WAITING"
+	StepStatusUnknown  StepStatus = "UNKNOWN"
 )
 
 type Environment struct {

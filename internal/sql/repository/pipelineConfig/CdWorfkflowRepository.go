@@ -53,6 +53,7 @@ type CdWorkflowRepository interface {
 	FindLatestCdWorkflowByPipelineIdV2(pipelineIds []int) ([]*CdWorkflow, error)
 	FetchAllCdStagesLatestEntity(pipelineIds []int) ([]*CdWorkflowStatus, error)
 	FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error)
+	GetWorkflowRunnerByWorkflowIdAndRunnerType(workflowId int, runnerType bean.CdWorkflowType) (CdWorkflowRunner, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -402,6 +403,22 @@ func (impl *CdWorkflowRepositoryImpl) FindLastStatusByPipelineIdAndRunnerType(pi
 	return wfr, err
 }
 
+func (impl *CdWorkflowRepositoryImpl) GetWorkflowRunnerByWorkflowIdAndRunnerType(workflowId int, runnerType bean.CdWorkflowType) (CdWorkflowRunner, error) {
+	wfr := CdWorkflowRunner{}
+	err := impl.dbConnection.
+		Model(&wfr).
+		Column("cd_workflow_runner.*").
+		Where("cd_workflow.cd_workflow_id = ?", workflowId).
+		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Order("cd_workflow_runner.id DESC").
+		Limit(1).
+		Select()
+	if err != nil {
+		return wfr, err
+	}
+	return wfr, err
+
+}
 func (impl *CdWorkflowRepositoryImpl) IsLatestWf(pipelineId int, wfId int) (bool, error) {
 	exists, err := impl.dbConnection.Model(&CdWorkflow{}).
 		Where("pipeline_id =?", pipelineId).
