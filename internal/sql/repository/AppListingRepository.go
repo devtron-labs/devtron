@@ -45,15 +45,11 @@ type AppListingRepository interface {
 
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 
-	GetDeploymentStatusByAppName(appName string) ([]DeploymentStatus, error)
 	SaveNewDeployment(deploymentStatus *DeploymentStatus) error
-	DeleteOldDeployments(appName string) (int, error)
 	FindLastDeployedStatus(appName string) (DeploymentStatus, error)
 	FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error)
 	FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error)
 	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
-	UpdateDeploymentStatus(deploymentStatus *DeploymentStatus) error
-	FindDeploymentStatusByAppId(appId int) ([]*DeploymentStatus, error)
 }
 
 type DeploymentStatus struct {
@@ -65,7 +61,6 @@ type DeploymentStatus struct {
 	EnvId     int       `sql:"env_id"`
 	CreatedOn time.Time `sql:"created_on"`
 	UpdatedOn time.Time `sql:"updated_on"`
-	Active    bool      `sql:"active,notnull"`
 }
 
 const NewDeployment string = "Deployment Initiated"
@@ -449,27 +444,9 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	return otherEnvironments, nil
 }
 
-func (impl AppListingRepositoryImpl) GetDeploymentStatusByAppName(appName string) ([]DeploymentStatus, error) {
-	var deployments []DeploymentStatus
-	err := impl.dbConnection.Model(&deployments).
-		Where("app_name = ?", appName).
-		Order("id Desc").
-		Select()
-	return deployments, err
-}
-
 func (impl AppListingRepositoryImpl) SaveNewDeployment(deploymentStatus *DeploymentStatus) error {
 	err := impl.dbConnection.Insert(deploymentStatus)
 	return err
-}
-
-func (impl AppListingRepositoryImpl) DeleteOldDeployments(appName string) (int, error) {
-	var deployment *DeploymentStatus
-	res, err := impl.dbConnection.Model(deployment).Where("app_name = ?", appName).Delete()
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected(), nil
 }
 
 func (impl AppListingRepositoryImpl) FindLastDeployedStatus(appName string) (DeploymentStatus, error) {
@@ -532,18 +509,4 @@ func (impl AppListingRepositoryImpl) DeploymentDetailByArtifactId(ciArtifactId i
 	}
 
 	return deploymentDetail, nil
-}
-
-func (impl AppListingRepositoryImpl) FindDeploymentStatusByAppId(appId int) ([]*DeploymentStatus, error) {
-	var deployment []*DeploymentStatus
-	err := impl.dbConnection.Model(&deployment).
-		Where("app_id = ?", appId).
-		Order("id Desc").
-		Select()
-	return deployment, err
-}
-
-func (impl AppListingRepositoryImpl) UpdateDeploymentStatus(deploymentStatus *DeploymentStatus) error {
-	err := impl.dbConnection.Update(deploymentStatus)
-	return err
 }

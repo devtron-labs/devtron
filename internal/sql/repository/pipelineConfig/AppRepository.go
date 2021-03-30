@@ -94,7 +94,7 @@ func (repo AppRepositoryImpl) FindActiveListByName(appName string) ([]*App, erro
 		Model(&apps).
 		Where("app_name = ?", appName).
 		Where("active = ?", true).
-		Order("id DESC").
+		Order("id ASC").
 		Select()
 	// there is only single active app will be present in db with a same name. but check for concurrency
 	return apps, err
