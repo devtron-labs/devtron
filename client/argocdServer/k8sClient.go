@@ -2,7 +2,6 @@ package argocdServer
 
 import (
 	"bytes"
-	"flag"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -10,8 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	"os/user"
 	"path/filepath"
 	"text/template"
 )
@@ -100,7 +97,7 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 }
 
 func (impl ArgoK8sClientImpl) GetApplication(namespace string, application string) ([]byte, error) {
-	usr, err := user.Current()
+	/*usr, err := user.Current()
 	if err != nil {
 		return nil, err
 	}
@@ -109,13 +106,13 @@ func (impl ArgoK8sClientImpl) GetApplication(namespace string, application strin
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig_cd)
 	if err != nil {
 		return nil, err
-	}
+	}*/
 
-	/*config, err := rest.InClusterConfig()
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		impl.logger.Errorw("error in config", "err", err)
 		return nil, err
-	}*/
+	}
 	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
 	config.APIPath = "/apis"

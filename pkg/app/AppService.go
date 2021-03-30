@@ -228,7 +228,7 @@ func (impl AppServiceImpl) GetDeploymentStatus(appName string, appId, envId int)
 		}
 	}
 	//git pull status
-	gitPullRevision := application.Status.OperationState.Operation.Sync.Revision
+	gitPullRevision := application.Status.Sync.Revision
 	gitPull := &bean.StepDetail{}
 	if gitPullRevision == deploymentStatus.ReleaseHash {
 		//git pull success
@@ -273,28 +273,27 @@ func (impl AppServiceImpl) GetDeploymentStatus(appName string, appId, envId int)
 	}
 	//k8sDeploy  step
 	deployStep := &bean.StepDetail{}
-	switch application.Status.Health.Status {
-	case v1alpha1.HealthStatusHealthy:
-		//healthy
+	if application.Status.Health.Status == v1alpha1.HealthStatusHealthy {
 		deployStep.Status = bean.StepStatusSuccess
-	case v1alpha1.HealthStatusDegraded:
-		//error
-		deployStep.Status = bean.StepStatusError
-	default:
-		//progress
-		deployStep.Status = bean.StepStatusProgress
+	} else {
+		runner, err := impl.cdWorkflowRepository.GetWorkflowRunnerByWorkflowIdAndRunnerType(pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		if err != nil {
+			impl.logger.Error("error in fetching runner ", "err", err)
+			return nil, err
+		}
+		switch runner.Status {
+		case v1alpha1.HealthStatusDegraded:
+			//error
+			deployStep.Status = bean.StepStatusError
+		case v1alpha1.HealthStatusUnknown:
+			deployStep.Status = bean.StepStatusUnknown
+		default:
+			//progress
+			deployStep.Status = bean.StepStatusProgress
+		}
 	}
-	//TODO if !HealthStatusHealthy -> override from db
 	deploymentStatus.K8sDeploy = deployStep
 	return deploymentStatus, nil
-	/*application.Status.OperationState.Message
-	application.Status.OperationState.FinishedAt
-	application.Status.OperationState.SyncResult.Revision
-	application.Status.OperationState.SyncResult.Resources
-	//impact of hibernate on status -> app status hiberneting, no impact on release status
-	application.Status.OperationState.SyncResult.Resources //individual objects
-	///application.Status.OperationState.SyncResult.Resources for rollout status
-	//get deployed status from relase table*/
 }
 
 func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Application) (bool, error) {
