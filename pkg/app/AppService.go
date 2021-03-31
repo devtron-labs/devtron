@@ -335,7 +335,8 @@ func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Applicati
 		}
 
 		if pipelineOverride.Pipeline.AppId != dbApp.Id {
-			impl.logger.Warnw("event received for other deleted app", "gitHash", gitHash)
+			impl.logger.Warnw("event received for other deleted app", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "dbApp", dbApp)
+			impl.logger.Warnw("event received for other deleted app", "1", pipelineOverride.Pipeline.AppId, "2", dbApp.Id)
 			return isHealthy, nil
 		}
 
