@@ -300,6 +300,7 @@ func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Applicati
 	isHealthy := false
 	appName := app.Name[:strings.LastIndex(app.Name, "-")]
 	evnName := app.Name[strings.LastIndex(app.Name, "-")+1:]
+	impl.logger.Warnw("event received for other deleted app", "appName", appName, "evnName", evnName, "app", app)
 
 	dbApp, err := impl.appRepository.FindActiveByName(appName)
 	if err != nil && err != pg.ErrNoRows {
