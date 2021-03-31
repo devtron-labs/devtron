@@ -45,7 +45,7 @@ type AppListingRepository interface {
 
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 
-	SaveNewDeployment(deploymentStatus *DeploymentStatus) error
+	SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error
 	FindLastDeployedStatus(appName string) (DeploymentStatus, error)
 	FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error)
 	FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error)
@@ -444,8 +444,8 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	return otherEnvironments, nil
 }
 
-func (impl AppListingRepositoryImpl) SaveNewDeployment(deploymentStatus *DeploymentStatus) error {
-	err := impl.dbConnection.Insert(deploymentStatus)
+func (impl AppListingRepositoryImpl) SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error {
+	err := tx.Insert(deploymentStatus)
 	return err
 }
 
