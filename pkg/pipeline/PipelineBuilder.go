@@ -682,26 +682,27 @@ func (impl PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMat
 
 func (impl PipelineBuilderImpl) addpipelineToTemplate(createRequest *bean.CiConfigRequest) (resp *bean.CiConfigRequest, err error) {
 
-	// create workflow
-	wf := &appWorkflow.AppWorkflow{
-		Name:   fmt.Sprintf("wf-%d-%s", createRequest.AppId, util2.Generate(4)),
-		AppId:  createRequest.AppId,
-		Active: true,
-		AuditLog: models.AuditLog{
-			CreatedOn: time.Now(),
-			UpdatedOn: time.Now(),
-			CreatedBy: createRequest.UserId,
-			UpdatedBy: createRequest.UserId,
-		},
+	if createRequest.AppWorkflowId == 0 {
+		// create workflow
+		wf := &appWorkflow.AppWorkflow{
+			Name:   fmt.Sprintf("wf-%d-%s", createRequest.AppId, util2.Generate(4)),
+			AppId:  createRequest.AppId,
+			Active: true,
+			AuditLog: models.AuditLog{
+				CreatedOn: time.Now(),
+				UpdatedOn: time.Now(),
+				CreatedBy: createRequest.UserId,
+				UpdatedBy: createRequest.UserId,
+			},
+		}
+		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflow(wf)
+		if err != nil {
+			impl.logger.Errorw("err", err)
+			return nil, err
+		}
+		// workflow creation ends
+		createRequest.AppWorkflowId = savedAppWf.Id
 	}
-	savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflow(wf)
-	if err != nil {
-		impl.logger.Errorw("err", err)
-		return nil, err
-	}
-	// workflow creation ends
-	createRequest.AppWorkflowId = savedAppWf.Id
-
 	//single ci in same wf validation
 	workflowMapping, err := impl.appWorkflowRepository.FindWFCIMappingByWorkflowId(createRequest.AppWorkflowId)
 	if err != nil && err != pg.ErrNoRows {
