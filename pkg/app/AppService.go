@@ -225,7 +225,15 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 			}
-			err := impl.appListingRepository.SaveNewDeployment(newDeploymentStatus)
+			dbConnection := impl.pipelineRepository.GetConnection()
+			tx, err := dbConnection.Begin()
+			if err != nil {
+				return isHealthy, err
+			}
+			// Rollback tx on error.
+			defer tx.Rollback()
+
+			err = impl.appListingRepository.SaveNewDeployment(newDeploymentStatus, tx)
 			if err != nil {
 				impl.logger.Errorw("err", err)
 				return isHealthy, err
@@ -235,7 +243,10 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 				impl.logger.Errorw("err", err)
 				return isHealthy, err
 			}
-
+			err = tx.Commit()
+			if err != nil {
+				return isHealthy, err
+			}
 			if string(application.Healthy) == newDeploymentStatus.Status {
 				isHealthy = true
 				go impl.WriteCDSuccessEvent(newDeploymentStatus.AppId, appName, newDeploymentStatus.EnvId, evnName, pipelineOverride)
@@ -561,9 +572,20 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			CreatedOn: time.Now(),
 			UpdatedOn: time.Now(),
 		}
-		err = impl.appListingRepository.SaveNewDeployment(deploymentStatus)
+		dbConnection := impl.pipelineRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			return 0, err
+		}
+		// Rollback tx on error.
+		defer tx.Rollback()
+		err = impl.appListingRepository.SaveNewDeployment(deploymentStatus, tx)
 		if err != nil {
 			impl.logger.Errorw("error in saving new deployment history", "req", overrideRequest, "err", err)
+			return 0, err
+		}
+		err = tx.Commit()
+		if err != nil {
 			return 0, err
 		}
 		impl.synchCD(pipeline, ctx, overrideRequest, envOverride)
