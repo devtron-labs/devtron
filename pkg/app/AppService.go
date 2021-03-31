@@ -94,7 +94,7 @@ type AppService interface {
 	AppendCurrentApplicationStatus(application v1alpha1.Application) (bool, error)
 	TriggerCD(artifact *repository.CiArtifact, cdWorkflowId int, pipeline *pipelineConfig.Pipeline, async bool) error
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
-	UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application) error
+	UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application, cdWorkflowId int) error
 	GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
 	GetDeploymentStatus(appName string, appId, envId int) (*bean.DeploymentStatus, error)
