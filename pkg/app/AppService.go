@@ -298,10 +298,14 @@ func (impl AppServiceImpl) GetDeploymentStatus(appName string, appId, envId int)
 
 func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Application) (bool, error) {
 	isHealthy := false
-	appName := app.Name[:strings.LastIndex(app.Name, "-")]
-	evnName := app.Name[strings.LastIndex(app.Name, "-")+1:]
-	impl.logger.Warnw("event received for other deleted app", "appName", appName, "evnName", evnName, "app", app)
-
+	//appName := app.Name[:strings.LastIndex(app.Name, "-")]
+	//evnName := app.Name[strings.LastIndex(app.Name, "-")+1:]
+	//impl.logger.Warnw("event received for other deleted app", "appName", appName, "evnName", evnName, "app", app)
+	repoUrl := app.Spec.Source.RepoURL
+	repoUrl = repoUrl[strings.LastIndex(repoUrl, "/")+1:]
+	appName := strings.ReplaceAll(repoUrl, ".git", "")
+	evnName := strings.ReplaceAll(app.Name, appName, "")
+	impl.logger.Warnw(".........................", "appName", appName, "evnName", evnName, "app", app)
 	dbApp, err := impl.appRepository.FindActiveByName(appName)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app name", "err", err, "appName", appName)
@@ -360,7 +364,7 @@ func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Applicati
 				impl.logger.Errorw("err", err)
 				return isHealthy, err
 			}
-			err = impl.UpdateCdWorkflowRunnerByACDObject(app)
+			err = impl.UpdateCdWorkflowRunnerByACDObject(app, pipelineOverride.CdWorkflowId)
 			if err != nil {
 				impl.logger.Errorw("err", err)
 				return isHealthy, err
@@ -1332,26 +1336,8 @@ func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, en
 	}
 }
 
-func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application) error {
-	var gitHash string
-	/*if app.Status.History != nil && len(app.Status.History) > 0 {
-		appHistory := app.Status.History
-		sort.Slice(appHistory, func(i, j int) bool {
-			return appHistory[j].DeployedAt.Before(&appHistory[i].DeployedAt)
-		})
-		gitHash = appHistory[0].Revision
-	}*/
-	if app.Operation != nil && app.Operation.Sync != nil {
-		gitHash = app.Operation.Sync.Revision
-	} else if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-		gitHash = app.Status.OperationState.Operation.Sync.Revision
-	}
-	impl.logger.Debugw("git hash for updating WFR: ", "gitHash", gitHash)
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
-	if err != nil {
-		return err
-	}
-	cdWorkflow, err := impl.cdWorkflowRepository.FindById(pipelineOverride.CdWorkflowId)
+func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application, cdWorkflowId int) error {
+	cdWorkflow, err := impl.cdWorkflowRepository.FindById(cdWorkflowId)
 	if err != nil {
 		return err
 	}
