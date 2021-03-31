@@ -132,4 +132,6 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/material-info/{appId}/{ciArtifactId}").HandlerFunc(router.restHandler.FetchMaterialInfo).Methods("GET")
 	configRouter.Path("/ci-pipeline/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetCIPipelineById).Methods("GET")
 
+	configRouter.Path("/pipeline/suggest/{type}/{appId}").
+		HandlerFunc(router.restHandler.PipelineNameSuggestion).Methods("GET")
 }

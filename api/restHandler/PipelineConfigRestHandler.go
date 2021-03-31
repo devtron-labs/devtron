@@ -38,6 +38,7 @@ import (
 	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -129,6 +130,7 @@ type PipelineConfigRestHandler interface {
 	RefreshMaterials(w http.ResponseWriter, r *http.Request)
 	FetchMaterialInfo(w http.ResponseWriter, r *http.Request)
 	GetCIPipelineById(w http.ResponseWriter, r *http.Request)
+	PipelineNameSuggestion(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineConfigRestHandlerImpl struct {
@@ -3268,4 +3270,29 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 		return
 	}
 	writeJsonResp(w, err, ciPipeline, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	pType := vars["type"]
+	handler.Logger.Infow("request payload, PipelineNameSuggestion", "err", err, "appId", appId)
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		handler.Logger.Infow("service error, GetCIPipelineById", "err", err, "appId", appId)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	suggestedName := fmt.Sprintf("%s-%d-%s", pType, appId, util2.Generate(4))
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); !ok {
+		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	writeJsonResp(w, err, suggestedName, http.StatusOK)
 }
