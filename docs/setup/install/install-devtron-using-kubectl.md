@@ -3,21 +3,27 @@
 If you don't want to install helm and just want to use `kubectl` to install `devtron platform`, then please follow the steps mentioned below:
 
 ```bash
-git clone https://github.com/devtron-labs/devtron-installation-script.git
-cd devtron-installation-script/
-#Use a preferred editor to edit the values in install/devtron-operator-configs.yaml
-vim install/devtron-operator-configs.yaml
+wget https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/install/devtron-operator-configs.yaml
 ```
-Edit the `install/devtron-operator-configs.yaml` to configure your Devtron installation. For more details about it, see [configuration](#configuration)
+Use a preferred editor to edit the values in install/devtron-operator-configs.yaml
+```bash
+vim devtron-operator-configs.yaml
+```
+Edit the `devtron-operator-configs.yaml` to configure your Devtron installation. For more details about it, see [configuration](#configuration)
 Once your configurations are ready, continue with following steps
 ```bash
 kubectl create ns devtroncd
-kubectl -n devtroncd apply -f charts/devtron/crds
-# wait for crd to install
-kubectl apply -n devtroncd -f charts/devtron/templates/install.yaml
-#edit install/devtron-operator-configs.yaml and input the
-kubectl apply -n devtroncd -f install/devtron-operator-configs.yaml
-kubectl apply -n devtroncd -f charts/devtron/templates/devtron-installer.yaml
+```
+```bash
+kubectl -n devtroncd apply -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
+```
+```bash
+kubectl apply -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/templates/install.yaml
+```
+Edit devtron-operator-configs.yaml and input the values
+```bash
+kubectl apply -n devtroncd -f devtron-operator-configs.yaml
+kubectl apply -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/install/devtron-installer.yaml
 ```
 
 ## Installation status
@@ -62,12 +68,11 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 ```
 
 
-### Cleaning Devtron installer 
+### Cleaning Devtron installer
+Please make sure that you do not have anything inside namespace devtroncd as the below steps will clean everything inside namespace devtroncd
 ```bash
-cd devtron-installation-script/
-kubectl delete -n devtroncd -f yamls/
-kubectl delete -n devtroncd -f charts/devtron/templates/devtron-installer.yaml
-kubectl delete -n devtroncd -f charts/devtron/templates/install.yaml
-kubectl delete -n devtroncd -f charts/devtron/crds
+kubectl delete -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/install/devtron-installer.yaml
+kubectl delete -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/templates/install.yaml
+kubectl delete -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
 kubectl delete ns devtroncd
 ```

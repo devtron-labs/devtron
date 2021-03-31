@@ -7,9 +7,8 @@ To install Helm3, please check [Installing Helm3](https://helm.sh/docs/intro/ins
 This installation will use Minio for storing build logs and cache. Please make sure to edit the POSTGRESQL_PASSWORD value.
 
 ```bash
-kubectl create namespace devtroncd
 helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --namespace devtroncd \
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me
 ```
 {% endtab %}
@@ -18,9 +17,8 @@ helm install devtron devtron/devtron-operator --namespace devtroncd \
 This installation will use AWS s3 buckets for storing build logs and cache
 
 ```bash
-kubectl create namespace devtroncd
 helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --namespace devtroncd \
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me \
 --set configs.BLOB_STORAGE_PROVIDER=AWS \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
@@ -34,9 +32,8 @@ helm install devtron devtron/devtron-operator --namespace devtroncd \
 This installation will use AWS s3 buckets for storing build logs and cache
 
 ```bash
-kubectl create namespace devtroncd
 helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --namespace devtroncd \
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
 --set configs.AZURE_ACCOUNT_NAME=test-account \

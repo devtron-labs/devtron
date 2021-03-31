@@ -37,7 +37,16 @@ There are five Data types that you can use to save your secret.
 
 Specify the Volume Mount folder path in `Volume Mount Path`, a path where the data volume needs to be mounted. This volume will be accessible to the Containers running in a pod.
 
-![](../../.gitbook/assets/secret3.jpg)
+![](../../.gitbook/assets/secret-mountpath-1.png)
+
+## Sub Path
+For multiple files mount at the same location you need to check sub path `bool` field, it will use the file name (key) as sub path. 
+Sub Path feature is not applicable in case of external configmap except
+AWS Secret Manager, AWS System Manager and Hashi Corp Vault, for these cases `Name (Secret key)` as sub path will be picked up automatically. 
+
+## File Permission
+File permission will be provide at the configmap level not on the each key of the configmap. it will take 3 digit standard permission for the file.
+
 
 Click on `Save Secret` to save the secret.
 
