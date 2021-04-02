@@ -231,6 +231,7 @@ func (impl AppServiceImpl) GetDeploymentStatus(appName string, appId, envId int)
 	gitPullRevision := application.Status.Sync.Revision
 	gitPull := &bean.StepDetail{}
 	if gitPullRevision == deploymentStatus.ReleaseHash {
+
 		//git pull success
 		gitPull.Status = bean.StepStatusSuccess
 	} else {
