@@ -552,11 +552,13 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 	appDetailContainer.K8sVersion = envModel.Cluster.K8sVersion
 
 	wfr, err := impl.cdWorkflowRepository.FindDeploymentStatusByEnvironmentId(appId, envId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching app detail", "error", err)
 		return bean.AppDetailContainer{}, err
 	}
-	appDetailContainer.LastDeploymentStatus = wfr.Status
+	if err == nil {
+		appDetailContainer.LastDeploymentStatus = wfr.Status
+	}
 	return appDetailContainer, nil
 }
 

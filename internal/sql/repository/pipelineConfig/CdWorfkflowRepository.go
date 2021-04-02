@@ -42,7 +42,6 @@ type CdWorkflowRepository interface {
 	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
 
-	FindLastPreOrPostTriggeredByPipelineId(pipelineId int) (CdWorkflowRunner, error)
 	FindDeploymentStatusByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error)
 
 	FindByWorkflowIdAndRunnerType(wfId int, runnerType bean.CdWorkflowType) (CdWorkflowRunner, error)
@@ -273,11 +272,6 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
 		Order("cd_workflow_runner.id DESC").
-		//Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
-		//Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
-		//Join("inner join pipeline p on p.id = wf.pipeline_id").
-		//Join("left join users u on u.id = wfr.triggered_by").
-		//Order("ORDER BY cd_workflow_runner.started_on DESC").
 		Offset(offset).Limit(limit).
 		Select()
 
@@ -295,11 +289,6 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipe
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
 		Order("cd_workflow_runner.id DESC").
-		//Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
-		//Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
-		//Join("inner join pipeline p on p.id = wf.pipeline_id").
-		//Join("left join users u on u.id = wfr.triggered_by").
-		//Order("ORDER BY cd_workflow_runner.started_on DESC").
 		Limit(limit).
 		Select()
 	if err != nil {
@@ -308,33 +297,17 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipe
 	return wfrList, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByPipelineId(pipelineId int) (CdWorkflowRunner, error) {
-	wfr := CdWorkflowRunner{}
-	err := impl.dbConnection.
-		Model(&wfr).
-		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
-		Where("cd_workflow.pipeline_id = ?", pipelineId).
-		Where("cd_workflow_runner.workflow_type != ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
-		Order("cd_workflow_runner.id DESC").
-		Limit(1).
-		Select()
-	if err != nil {
-		return wfr, err
-	}
-	return wfr, err
-}
 
 func (impl *CdWorkflowRepositoryImpl) FindDeploymentStatusByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error) {
-	wfr := CdWorkflowRunner{}
+	var wfr CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&wfr).
-		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
-		Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
 		Join("inner join pipeline p on p.id = wf.pipeline_id").
 		Where("p.environment_id = ?", environmentId).
 		Where("p.app_id = ?", appId).
-		Where("cd_workflow_runner.workflow_type != ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
+		Where("cd_workflow_runner.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
 		Order("cd_workflow_runner.id DESC").
 		Limit(1).
 		Select()
