@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -70,6 +71,7 @@ type DbPipelineOrchestratorImpl struct {
 	appWorkflowRepository        appWorkflow.AppWorkflowRepository
 	envRepository                cluster.EnvironmentRepository
 	attributesService            attributes.AttributesService
+	appListingRepository         repository.AppListingRepository
 }
 
 func NewDbPipelineOrchestrator(
@@ -83,6 +85,7 @@ func NewDbPipelineOrchestrator(
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository cluster.EnvironmentRepository,
 	attributesService attributes.AttributesService,
+	appListingRepository repository.AppListingRepository,
 ) *DbPipelineOrchestratorImpl {
 
 	return &DbPipelineOrchestratorImpl{
@@ -97,6 +100,7 @@ func NewDbPipelineOrchestrator(
 		appWorkflowRepository:        appWorkflowRepository,
 		envRepository:                envRepository,
 		attributesService:            attributesService,
+		appListingRepository:         appListingRepository,
 	}
 }
 
@@ -785,12 +789,12 @@ func (impl DbPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bea
 
 //FIXME: not thread safe
 func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int) (*pipelineConfig.App, error) {
-	exists, err := impl.appRepository.AppExists(name)
-	if err != nil {
+	app, err := impl.appRepository.FindActiveByName(name)
+	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if exists {
-		impl.logger.Infow(" pipeline already exists", "name", name)
+	if app != nil && app.Id > 0 {
+		impl.logger.Warnw("app already exists", "name", name)
 		err = &util.ApiError{
 			Code:            constants.AppAlreadyExists.Code,
 			InternalMessage: "app already exists",
@@ -808,6 +812,29 @@ func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32,
 	if err != nil {
 		impl.logger.Errorw("error in saving entity ", "entity", pg)
 		return nil, err
+	}
+
+	apps, err := impl.appRepository.FindActiveListByName(name)
+	if err != nil {
+		return nil, err
+	}
+	appLen := len(apps)
+	if appLen > 1 {
+		firstElement := apps[0]
+		if firstElement.Id != pg.Id {
+			pg.Active = false
+			err = impl.appRepository.Update(pg)
+			if err != nil {
+				impl.logger.Errorw("error in saving entity ", "entity", pg)
+				return nil, err
+			}
+			err = &util.ApiError{
+				Code:            constants.AppAlreadyExists.Code,
+				InternalMessage: "app already exists",
+				UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+			}
+			return nil, err
+		}
 	}
 	return pg, nil
 }

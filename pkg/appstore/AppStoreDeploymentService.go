@@ -588,15 +588,19 @@ func (impl InstalledAppServiceImpl) CheckAppExists(appNames []*AppNames) ([]*App
 	return appNames, nil
 }
 
-func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx) (*bean.CreateAppDTO, error) {
-
-	exists, err := impl.appRepository.AppExists(createRequest.AppName)
-	if err != nil {
+func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
+	app, err := impl.appRepository.FindActiveByName(createRequest.AppName)
+	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if exists {
+	if app != nil && app.Id > 0 {
 		impl.logger.Infow(" app already exists", "name", createRequest.AppName)
-		return nil, fmt.Errorf("an app with name %s already exists", createRequest.AppName)
+		err = &util.ApiError{
+			Code:            constants.AppAlreadyExists.Code,
+			InternalMessage: "app already exists",
+			UserMessage:     fmt.Sprintf("app already exists with name %s", createRequest.AppName),
+		}
+		return nil, err
 	}
 	pg := &pipelineConfig.App{
 		Active:   true,
@@ -605,11 +609,35 @@ func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.Cre
 		AppStore: true,
 		AuditLog: models.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
-	err = impl.appRepository.SaveWithTxn(pg, tx)
+	err = impl.appRepository.Save(pg)
 	if err != nil {
 		impl.logger.Errorw("error in saving entity ", "entity", pg)
 		return nil, err
 	}
+
+	apps, err := impl.appRepository.FindActiveListByName(createRequest.AppName)
+	if err != nil {
+		return nil, err
+	}
+	appLen := len(apps)
+	if appLen > 1 {
+		firstElement := apps[0]
+		if firstElement.Id != pg.Id {
+			pg.Active = false
+			err = impl.appRepository.Update(pg)
+			if err != nil {
+				impl.logger.Errorw("error in saving entity ", "entity", pg)
+				return nil, err
+			}
+			err = &util.ApiError{
+				Code:            constants.AppAlreadyExists.Code,
+				InternalMessage: "app already exists",
+				UserMessage:     fmt.Sprintf("app already exists with name %s", createRequest.AppName),
+			}
+			return nil, err
+		}
+	}
+
 	createRequest.Id = pg.Id
 	return createRequest, nil
 }
@@ -1142,25 +1170,6 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationACD(installAppVersion
 
 func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *InstallAppVersionDTO, tx *pg.Tx) (*InstallAppVersionDTO, error) {
 
-	app, err := impl.appRepository.FindActiveByName(installAppVersionRequest.AppName)
-	if err != nil && err != pg.ErrNoRows {
-		return nil, err
-	}
-	if app != nil && app.Id > 0 {
-		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByAppIdAndEnvId(app.Id, installAppVersionRequest.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching from db", "error", err)
-			return nil, err
-		}
-		if installedAppVersion != nil && installedAppVersion.InstalledApp.Status != appstore.WF_UNKNOWN {
-			impl.logger.Infow("AppStoreDeployOperationDB already done for this app and env, proceed for further step", "app", app.AppName, "installedAppId", installedAppVersion.InstalledAppId, "existing status", installedAppVersion.InstalledApp.Status)
-			installAppVersionRequest.AppId = app.Id
-			installAppVersionRequest.InstalledAppId = installedAppVersion.InstalledApp.Id
-			installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
-			installAppVersionRequest.Status = installedAppVersion.InstalledApp.Status
-			return installAppVersionRequest, nil
-		}
-	}
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
@@ -1180,7 +1189,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionR
 		UserId:  installAppVersionRequest.UserId,
 	}
 
-	appCreateRequest, err = impl.createAppForAppStore(appCreateRequest, tx)
+	appCreateRequest, err = impl.createAppForAppStore(appCreateRequest)
 	if err != nil {
 		impl.logger.Errorw("error while creating app", "error", err)
 		return nil, err
