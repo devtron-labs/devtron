@@ -48,7 +48,12 @@ In this column, you have to provide your branch or tag regex where your code is 
 
 **Example**- It can be a master branch in the production and development/staging branch in the dev environment. But the branch name completely depends on the user, which branch name the user wants to provide here.
 
-### 4. Stages
+### 4. Stages: 
+There are 3 dropdowns given below:
+
+* **Pre-build**
+* **Docker build**
+* **Post-build**
 
 **\(a\) Pre-build**
 
