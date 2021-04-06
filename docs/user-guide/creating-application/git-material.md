@@ -10,7 +10,7 @@ Devtron also supports multiple git repositories in a single deployment. We will 
 
 ![](../../.gitbook/assets/create-app-git-account.gif)
 
-## 1. Git Account
+## 1. Git Provider
 
 In this section, you have to select the git provider of your code repository like- Github, Gitlab, and Bitbucket, etc. If you are using a private git repository, you can configure your git provider via [git provider config](../git-provider-config/).
 
