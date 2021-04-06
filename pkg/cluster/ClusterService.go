@@ -271,7 +271,7 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 			for _, chart := range charts {
 				defaultClusterComponent := &DefaultClusterComponent{}
 				defaultClusterComponent.AppId = chart.InstalledApp.AppId
-				defaultClusterComponent.InstalledAppId = chart.Id
+				defaultClusterComponent.InstalledAppId = chart.InstalledApp.Id
 				defaultClusterComponent.EnvId = chart.InstalledApp.EnvironmentId
 				defaultClusterComponent.EnvName = chart.InstalledApp.Environment.Name
 				defaultClusterComponent.ComponentName = chart.AppStoreApplicationVersion.AppStore.Name
