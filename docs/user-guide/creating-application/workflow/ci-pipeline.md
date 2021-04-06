@@ -2,9 +2,8 @@
 
 ## 1. Continuous Integration
 
-CI related configuration is provided under this section. We will later discuss this in detail.
-
-Click on `Continuous Integration` to configure CI Pipeline, a new window will appear. You can see 5 options on this new window:
+CI related configuration is provided under this section. We will later discuss this in detail. 
+Few keys in CI pieline are given below:
 
 | Key | Description |
 | :--- | :--- |
@@ -13,6 +12,28 @@ Click on `Continuous Integration` to configure CI Pipeline, a new window will ap
 | `Branch Name/Tag Regex` | Enter branch name/tag regex. |
 | `Stages` | 1.**Pre-build Stages**- Scripts to be executed before building an image.   2.**Docker build Stages**- Provide a new argument and override an old argument in key-value pair.   3. **Docker build Stages**- Scripts to be executed after building image |
 | `Scan for vulnerabilities` | It will scan your image and find if any vulnerabilities present |
+
+
+After Clicking on `Continuous Integration` to configure CI Pipeline, a new window will appear. 
+
+![](../../../.gitbook/assets/ca-workflow-ci-basic.png)
+
+This is the basic modal to configure CI pipeline, You need to provide 2 inputs as given below:
+
+### 1. Source Type
+In source type, select between Automatic or Manual. Here if you select Automatic, the CI pipeline will be triggered automatically whenever you push any commit to your repository. But if you select Manual, then you have to trigger your CI pipeline every time manually through the console.
+
+### 2. Branch Name
+In this column, you have to provide your branch or tag regex where your code is present and the branch to want this CI pipeline to be linked with.
+
+Example- It can be a master branch in the production and development/staging branch in the dev environment. But the branch name completely depends on the user, which branch name the user wants to provide here.
+
+Click on `Create Pipeline` button to create CI pipeline. 
+In order to get Advance options click on `Adavnace Options` button, a new advanced window will appear.
+
+![](../../../.gitbook/assets/ca-workflow-ci-advance.png)
+
+
 
 ### 1. Pipeline Name
 

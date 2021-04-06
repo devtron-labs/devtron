@@ -2,13 +2,15 @@
 
 Workflow is a logical sequenece of different stages used for continous integration and continous deployment of an application.
 
-![](../../../.gitbook/assets/wf1%20%282%29.jpg)
+Click on `New Build Pipeline` to create a new workflow
+![](../../../.gitbook/assets/ca-workflow-empty.png)
 
-Click on `Create Workflow` to create a new workflow
+On clicking `New Build Pipeline` Three options appears are given below:
 
-![](../../../.gitbook/assets/wf2%20%281%29.jpg)
+* **Continous Integration:** It will build image from a source code repository.
+* **Linked CI Pipeline:** It will refer to an existing pipeline.
+* **Incoming Webhook:** It will receive docker image from external source via service.
 
-Enter the name of your workflow and then Click on `Add Workflow` to add a new workflow. Workflow always starts from [Git Material](../git-material.md).
 
 Then, Create CI/CD Pipelines for your application.
 
