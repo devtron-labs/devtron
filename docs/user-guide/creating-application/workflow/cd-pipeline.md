@@ -21,7 +21,7 @@ This section further including two inputs:
 
 Select the environment where you want to deploy your application.
 
-**\(b\) Namespace**
+**\(b\) Namespace***
 
 This field will be automatically populated with the `Namespace` corresponding to the `Environment` selected in previous step.
 
@@ -83,7 +83,7 @@ Make sure your cluster has `devtron-agent` installed if you check the `Execute i
 
 ![](../../../.gitbook/assets/cd_pre_build%20%282%29.jpg)
 
-### 4. Deployment stage**
+### 4. Deployment stage
 
 **\(a\) Deploy to Environment**
 
@@ -105,7 +105,7 @@ Devtron's tool has 4 types of deployment strategies. Click on `Add Deployment st
 
 \(d\) Rolling
 
-### 5. Post-deployment Stage**
+### 5. Post-deployment Stage
 
 If you want to Configure actions like Jira ticket close, that you want to run after the deployment, you can configure such actions in post-deployment stages.
 
