@@ -2,8 +2,7 @@
 
 ## 1. Continuous Integration
 
-CI related configuration is provided under this section. We will later discuss this in detail. 
-Few keys in CI pieline are given below:
+CI related configuration is provided under this section. Keys concepts of CI pieline are: 
 
 | Key | Description |
 | :--- | :--- |
@@ -21,13 +20,12 @@ After Clicking on `Continuous Integration` to configure CI Pipeline, a new windo
 This is the basic modal to configure CI pipeline, You need to provide 2 inputs as given below:
 
 ### 1. Source Type
-In source type, select between Automatic or Manual. Here if you select Automatic, the CI pipeline will be triggered automatically whenever you push any commit to your repository. But if you select Manual, then you have to trigger your CI pipeline every time manually through the console.
+In source type, select between Automatic or Manual. Here if you select Automatic, the CI pipeline will be triggered automatically whenever you push any commit to your repository. But if you select Manual, then you have to trigger your CI pipeline every time manually through the dashboard.
 
 ### 2. Branch Name
-In this column, you have to provide your branch or tag regex where your code is present and the branch to want this CI pipeline to be linked with.
+In this column, you have to provide the branch or tag name for which you would want CI pipeline to be executed. It supports both exact name as well as regex for both branch and tag.
 
-Example- It can be a master branch in the production and development/staging branch in the dev environment. But the branch name completely depends on the user, which branch name the user wants to provide here.
-
+Example- It can be a master branch in the production and development/staging branch in the dev environment.
 Click on `Create Pipeline` button to create CI pipeline. 
 In order to get Advance options click on `Advance Options` button, a new advanced window will appear.
 
@@ -57,7 +55,7 @@ There are 3 dropdowns given below:
 
 **\(a\) Pre-build**
 
-This section is used for those Scripts which you want to execute before building the Docker image. To add a Pre-build stage, click on `Add Stage` and provide a name to your pre-stage and write your script as per your requirement. This will run in sequence before the docker image is built. You can also provide the path of the directory where the output of the script will be stored in the `Remote Directory` column. But this is optional to fill because many times you run scripts which do not provide any output.
+This section is used for those steps which you want to execute before building the Docker image. To add a `Pre-build stage`, click on `Add Stage` and provide a name to your pre-stage and write your script as per your requirement. These stages will run in sequence before the docker image is built. Optionally, you can also provide the path of the directory where the output of the script will be stored locally.
 
 You can add one or more than one stage in a CI Pipeline.
 

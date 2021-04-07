@@ -5,11 +5,11 @@ Workflow is a logical sequenece of different stages used for continous integrati
 Click on `New Build Pipeline` to create a new workflow
 ![](../../../.gitbook/assets/ca-workflow-empty.png)
 
-On clicking `New Build Pipeline` Three options appears are given below:
+On clicking `New Build Pipeline`. Three options appear as mentioned below:
 
-* **Continous Integration:** It will build image from a source code repository.
-* **Linked CI Pipeline:** It will refer to an existing pipeline.
-* **Incoming Webhook:** It will receive docker image from external source via service.
+* **Continous Integration:** Choose this option if you want Devtron to build image of source code.
+* **Linked CI Pipeline:** Choose this option if you want to use image created by an existing CI pipeline in Devtron.
+* **Incoming Webhook:** Choose this if you want to build your image outside Devtron, it will receive docker image from external source via incoming webhook.
 
 
 Then, Create CI/CD Pipelines for your application.

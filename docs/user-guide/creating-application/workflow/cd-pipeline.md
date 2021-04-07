@@ -9,7 +9,7 @@ Click on **“+”** sign on CI Pipeline to attach a CD Pipeline to it. A basic 
 
 ![](../../../.gitbook/assets/ca-workflow-basic.png)
 
-This modal is divided into two sections
+This section expects two inputs:
 
 * **Select Environment**
 * **Deployment Strategy**
@@ -19,11 +19,11 @@ This section further including two inputs:
 
 **\(a\) Deploy to Environment**
 
-Select the environment where you want to deploy your application. Once you select the environment, it will display the `Namespace` corresponding to your selected environment automatically.
+Select the environment where you want to deploy your application.
 
 **\(b\) Namespace**
 
-As we discussed earlier, Selected environment in `Deploy to Environment` will display here automatically.
+This field will be automatically populated with the `Namespace` corresponding to the `Environment` selected in previous step.
 
 Click on `Create Pipeline` to create CD pipeline. 
 
@@ -63,7 +63,7 @@ There are 3 dropdowns given below:
 
 ### 3. Pre-deployment stage
 
-Sometimes you encounter a requirement where you have to Configure actions like DB migration, which you want to run before the deployment. Then the `Pre-deployment Stage` comes into the picture in such scenarios.
+Sometime one has a requirement where certain actions like DB migration are to be executed before deployment, `Pre-deployment stage` should be used to configure these actions.
 
 Pre-deployment stages can be configured to be executed automatically or manually.
 
@@ -89,7 +89,7 @@ Make sure your cluster has `devtron-agent` installed if you check the `Execute i
 
 Select the environment where you want to deploy your application. Once you select the environment, it will display the `Namespace` corresponding to your selected environment automatically.
 
-**\(b\)We support two methods of deployments** - Manual and Automatic. If you choose automatic, it will trigger your CD pipeline automatically once your corresponding CI pipeline has been built and executed successfully.
+**\(b\)We support two methods of deployments** - Manual and Automatic. If you choose automatic, it will trigger your CD pipeline automatically once corresponding CI pipeline has been executed successfully.
 
 If you have defined pre-deployment stages, then the CD Pipeline will be triggered automatically after the successful execution of your CI pipeline followed by the successful execution of your pre-deployment stages. But if you choose the manual option, then you have to trigger your deployment manually via console.
 
