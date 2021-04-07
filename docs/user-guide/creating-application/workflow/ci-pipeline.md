@@ -2,7 +2,7 @@
 
 ## 1. Continuous Integration
 
-CI related configuration is provided under this section. Keys concepts of CI pieline are: 
+CI related configuration is provided under this section. Key concepts of CI pipeline are: 
 
 | Key | Description |
 | :--- | :--- |
@@ -17,17 +17,17 @@ After Clicking on `Continuous Integration` to configure CI Pipeline, a new windo
 
 ![](../../../.gitbook/assets/ca-workflow-ci-basic.png)
 
-This is the basic modal to configure CI pipeline, You need to provide 2 inputs as given below:
+This is the basic modal to configure the CI pipeline, You need to provide 2 inputs as given below:
 
 ### 1. Source Type
 In source type, select between Automatic or Manual. Here if you select Automatic, the CI pipeline will be triggered automatically whenever you push any commit to your repository. But if you select Manual, then you have to trigger your CI pipeline every time manually through the dashboard.
 
 ### 2. Branch Name
-In this column, you have to provide the branch or tag name for which you would want CI pipeline to be executed. It supports both exact name as well as regex for both branch and tag.
+In this column, you have to provide the branch or tag name for which you would want the CI pipeline to be executed. It supports both exact names as well as regex for both branch and tag.
 
 Example- It can be a master branch in the production and development/staging branch in the dev environment.
-Click on `Create Pipeline` button to create CI pipeline. 
-In order to get Advance options click on `Advance Options` button, a new advanced window will appear.
+Click on the `Create Pipeline` button to create a CI pipeline. 
+To get Advance options, Click on the `Advance Options` button, a new advanced window will appear.
 
 ![](../../../.gitbook/assets/ca-workflow-ci-advance.png)
 
@@ -63,13 +63,13 @@ You can add one or more than one stage in a CI Pipeline.
 
 **\(b\) Docker build**
 
-Though we have the option available in `Docker build configuration` section to add arguments in key-value pairs for docker build image. But one can also provide docker build arguments here as well. This is useful, in case you want to override them or want to add new arguments to build your docker image.
+Though we have the option available in the `Docker build configuration` section to add arguments in key-value pairs for the docker build image. But one can also provide docker build arguments here as well. This is useful, in case you want to override them or want to add new arguments to build your docker image.
 
 **\(c\) Post-build**
 
 The post-build stage is similar to the pre-build stage. The difference between the post-build stage and the pre-build stage is that the post-build will run when your CI pipeline will be executed successfully.
 
-Adding a post-build stage is similar to adding a pre-build stage. Click on `Add Stage` and provide a name to your post-stage. Here you can write your script as per your requirement, which will run in sequence after the docker image is built. You can also provide the path of the directory in which the output of the script will be stored in the `Remote Directory` column. And this is optional to fill because many times you run scripts which do not provide any output.
+Adding a post-build stage is similar to adding a pre-build stage. Click on `Add Stage` and provide a name to your post-stage. Here you can write your script as per your requirement, which will run in sequence after the docker image is built. You can also provide the path of the directory in which the output of the script will be stored in the `Remote Directory` column. And this is optional to fill because many times you run scripts that do not provide any output.
 
 ![](../../../.gitbook/assets/post_build%20%282%29.jpg)
 
@@ -81,7 +81,7 @@ You can provide some stages on the Devtron tool’s console and some stages in t
 
 ### 5. Scan for vulnerabilities
 
-`Scan for vulnerabilities` adds a security feature in your application. If you enable this option, your code will be scanned for any vulnerabilities present in your code. And you will be informed about these vulnerabilities. For more details please check doc
+`Scan for vulnerabilities` adds a security feature to your application. If you enable this option, your code will be scanned for any vulnerabilities present in your code. And you will be informed about these vulnerabilities. For more details please check doc
 
 You have provided all the details required to create a CI pipeline, now click on `Create Pipeline`.
 
@@ -126,7 +126,7 @@ The test cases given in the script will run before the Test Cases given in the d
 
 ## 2. External CI Pipeline
 
-You can use Devtron for Deployments on Kubernetes while using your own CI tool such as Jenkins. External CI features can be used for the cases where the CI tool is hosted outside the Devtron platform.
+You can use Devtron for Deployments on Kubernetes while using your own CI tool such as Jenkins. External CI features can be used for cases where the CI tool is hosted outside the Devtron platform.
 
 ![](../../../.gitbook/assets/ca-workflow-external.png)
 
