@@ -36,8 +36,9 @@ import (
 )
 
 type EventClientConfig struct {
-	DestinationURL string `env:"EVENT_URL" envDefault:"http://localhost:3000/notify"`
-	TestSuitURL    string `env:"TEST_SUIT_URL" envDefault:"http://localhost:3000"`
+	DestinationURL            string `env:"EVENT_URL" envDefault:"http://localhost:3000/notify"`
+	TestSuitURL               string `env:"TEST_SUIT_URL" envDefault:"http://localhost:3000"`
+	TelemetryUserAnalyticsUrl string `env:"TELEMETRY_USER_ANALYTICS_URL" envDefault:"http://localhost:8080"`
 }
 
 func GetEventClientConfig() (*EventClientConfig, error) {
