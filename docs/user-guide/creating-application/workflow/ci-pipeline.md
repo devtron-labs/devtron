@@ -16,7 +16,9 @@ CI related configuration is provided under this section. Key concepts of CI pipe
 After Clicking on `Continuous Integration` to configure CI Pipeline, a new window will appear. 
 
 
+
 ![](../../../.gitbook/assets/ca-workflow-ci-basic.png)
+
 
 This is the basic modal to configure the CI pipeline, You need to provide 2 inputs as given below:
 
@@ -125,6 +127,7 @@ The test cases given in the script will run before the Test Cases given in the d
 | `afterDockerBuildStages` | script to run after the docker build step |
 | `outputLocation` | The location where you want to see the output of the report of Test cases |
 
+
 ## B. External CI Pipeline
 
 You can use Devtron for Deployments on Kubernetes while using your own CI tool such as Jenkins. External CI features can be used for cases where the CI tool is hosted outside the Devtron platform.
@@ -138,6 +141,7 @@ You can send the ‘Payload script’ to your CI tools such as Jenkins and Devtr
 | `Pipeline Name` | Name of the pipeline |
 | `Source Type` | ‘Branch Fixed’ or ‘Tag Regex’ |
 | `Branch Name` | Name of the branch |
+
 
 ## C. Linked CI Pipeline
 
