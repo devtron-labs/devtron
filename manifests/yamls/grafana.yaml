@@ -214,7 +214,7 @@ data:
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13323/revisions/5/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
+      "https://grafana.com/api/dashboards/13323/revisions/6/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
     > "/var/lib/grafana/dashboards/devtron-provider/memory-usage-below-k8s1-15.json"
     curl -skf \
     --connect-timeout 60 \
