@@ -1,6 +1,6 @@
 # CI Pipeline
 
-## 1. Continuous Integration
+## A. Continuous Integration
 
 CI related configuration is provided under this section. Key concepts of CI pipeline are: 
 
@@ -9,13 +9,16 @@ CI related configuration is provided under this section. Key concepts of CI pipe
 | `Pipeline Name` | Name of the pipeline |
 | `Source Type` | Select the source through which the CI Pipeline will be triggered by Automatic or Manual. |
 | `Branch Name/Tag Regex` | Enter branch name/tag regex. |
-| `Stages` | 1.**Pre-build Stages**- Scripts to be executed before building an image.   2.**Docker build Stages**- Provide a new argument and override an old argument in key-value pair.   3. **Docker build Stages**- Scripts to be executed after building image |
+| `Stages` | 1.**Pre-build Stages**- Scripts to be executed before building an image.   2.**Docker build Stages**- Provide a new argument and override an old argument in key-value pair.    3. **Post-build Stages**- Scripts to be executed after building image |
 | `Scan for vulnerabilities` | It will scan your image and find if any vulnerabilities present |
 
 
 After Clicking on `Continuous Integration` to configure CI Pipeline, a new window will appear. 
 
+
+
 ![](../../../.gitbook/assets/ca-workflow-ci-basic.png)
+
 
 This is the basic modal to configure the CI pipeline, You need to provide 2 inputs as given below:
 
@@ -124,7 +127,8 @@ The test cases given in the script will run before the Test Cases given in the d
 | `afterDockerBuildStages` | script to run after the docker build step |
 | `outputLocation` | The location where you want to see the output of the report of Test cases |
 
-## 2. External CI Pipeline
+
+## B. External CI Pipeline
 
 You can use Devtron for Deployments on Kubernetes while using your own CI tool such as Jenkins. External CI features can be used for cases where the CI tool is hosted outside the Devtron platform.
 
@@ -138,7 +142,8 @@ You can send the ‘Payload script’ to your CI tools such as Jenkins and Devtr
 | `Source Type` | ‘Branch Fixed’ or ‘Tag Regex’ |
 | `Branch Name` | Name of the branch |
 
-## 3. Linked CI Pipeline
+
+## C. Linked CI Pipeline
 
 If one code is shared across multiple applications, Linked CI Pipeline can be used, and only one image will be built for multiple applications because if there is only one build, it is not advisable to create multiple CI Pipelines.
 
