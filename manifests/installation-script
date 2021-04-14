@@ -61,11 +61,11 @@ if !baseURL {
 }
 
 if !defaultBuildLogsBucket {
-  defaultBuildLogsBucket = "devtron-ci-log"
+  defaultBuildLogsBucket = "devtron-ci-log" ;
 }
 
 if !defaultCacheBucket {
-  defaultCacheBucket = "devtron-ci-cache"
+  defaultCacheBucket = "devtron-ci-cache" ;
 }
 
 ######Generating raw urls
