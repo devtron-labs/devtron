@@ -60,6 +60,14 @@ if !baseURL {
 	log("baseURL is mandatory");
 }
 
+if !defaultBuildLogsBucket {
+  defaultBuildLogsBucket = "devtron-ci-log" ;
+}
+
+if !defaultCacheBucket {
+  defaultCacheBucket = "devtron-ci-cache" ;
+}
+
 ######Generating raw urls
 argocd_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/argocd.yaml";
 clair_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/clair.yaml";
