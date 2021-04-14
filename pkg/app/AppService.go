@@ -172,7 +172,7 @@ func (impl AppServiceImpl) GetDeploymentStatus(appName string, appId, envId int)
 	if err != nil {
 		return nil, err
 	}
-	deploymentStatus := &bean.DeploymentStatus{}
+	deploymentStatus := &bean.DeploymentStatus{LastDeploymentStatus: bean.StepStatusProgress}
 	//init with default status
 	waitingStatus := &bean.StepDetail{Status: bean.StepStatusWaiting}
 	deploymentStatus.GitPushStep = waitingStatus

@@ -42,8 +42,6 @@ type CdWorkflowRepository interface {
 	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
 
-	FindDeploymentStatusByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error)
-
 	FindByWorkflowIdAndRunnerType(wfId int, runnerType bean.CdWorkflowType) (CdWorkflowRunner, error)
 	FindLastStatusByPipelineIdAndRunnerType(pipelineId int, runnerType bean.CdWorkflowType) (CdWorkflowRunner, error)
 	SaveWorkFlows(wfs ...*CdWorkflow) error
@@ -298,24 +296,7 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipe
 }
 
 
-func (impl *CdWorkflowRepositoryImpl) FindDeploymentStatusByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error) {
-	var wfr CdWorkflowRunner
-	err := impl.dbConnection.
-		Model(&wfr).
-		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
-		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
-		Join("inner join pipeline p on p.id = wf.pipeline_id").
-		Where("p.environment_id = ?", environmentId).
-		Where("p.app_id = ?", appId).
-		Where("cd_workflow_runner.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
-		Order("cd_workflow_runner.id DESC").
-		Limit(1).
-		Select()
-	if err != nil {
-		return wfr, err
-	}
-	return wfr, err
-}
+
 
 func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunner(wfr *CdWorkflowRunner) error {
 	err := impl.dbConnection.Insert(wfr)

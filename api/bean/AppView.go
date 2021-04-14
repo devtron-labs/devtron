@@ -99,7 +99,6 @@ type DeploymentDetailContainer struct {
 	LastDeployedPipeline          string          `json:"lastDeployedPipeline,omitempty"`
 	Deprecated                    bool            `json:"deprecated"`
 	K8sVersion                    string          `json:"k8sVersion"`
-	LastDeploymentStatus          string          `json:"lastDeploymentStatus,omitempty"`
 }
 
 type AppDetailContainer struct {
@@ -112,13 +111,14 @@ type AppDetailContainer struct {
 }
 
 type DeploymentStatus struct {
-	ReleaseHash     string          `json:"releaseHash"`
-	ReleaseTime     time.Time       `json:"releaseTime"`
-	GitPushStep     *StepDetail     `json:"gitPushStep"`
-	GitPullStep     *StepDetail     `json:"gitPullStep"`
-	ConfigApplyStep *StepDetail     `json:"configApplyStep"`
-	K8sDeploy       *StepDetail     `json:"k8sDeploy"`
-	SyncResources   []*SyncResource `json:"syncResources"`
+	ReleaseHash          string          `json:"releaseHash"`
+	ReleaseTime          time.Time       `json:"releaseTime"`
+	GitPushStep          *StepDetail     `json:"gitPushStep"`
+	GitPullStep          *StepDetail     `json:"gitPullStep"`
+	ConfigApplyStep      *StepDetail     `json:"configApplyStep"`
+	K8sDeploy            *StepDetail     `json:"k8sDeploy"`
+	SyncResources        []*SyncResource `json:"syncResources"`
+	LastDeploymentStatus StepStatus      `json:"lastDeploymentStatus,omitempty"`
 }
 
 type StepDetail struct {

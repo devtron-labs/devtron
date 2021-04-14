@@ -245,6 +245,16 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		if err != nil {
 			handler.logger.Errorw("error in getting app status", "err", err)
 		}
+		if deploymentStatus.GitPushStep.Status == bean.StepStatusError ||
+			deploymentStatus.GitPullStep.Status == bean.StepStatusError ||
+			deploymentStatus.ConfigApplyStep.Status == bean.StepStatusError {
+
+			deploymentStatus.LastDeploymentStatus = bean.StepStatusError
+		} else if deploymentStatus.K8sDeploy.Status != bean.StepStatusWaiting {
+			deploymentStatus.LastDeploymentStatus = deploymentStatus.K8sDeploy.Status
+		} else {
+			deploymentStatus.LastDeploymentStatus = bean.StepStatusProgress
+		}
 		handler.logger.Infow("app status", "status", deploymentStatus)
 		appDetail.DeploymentStatus = deploymentStatus
 		//--------
