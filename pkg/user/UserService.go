@@ -104,27 +104,42 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 	var userResponse []*bean.UserInfo
 	emailIds := strings.Split(userInfo.EmailId, ",")
 	for _, emailId := range emailIds {
-		dbConnection := impl.userRepository.GetConnection()
-		tx, err := dbConnection.Begin()
-		if err != nil {
-			return nil, err
-		}
-		// Rollback tx on error.
-		defer tx.Rollback()
 
 		dbUser, err := impl.userRepository.FetchActiveOrDeletedUserByEmail(emailId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error while fetching user from db", "error", err)
 			return nil, err
 		}
+
 		if dbUser != nil && dbUser.Id > 0 && dbUser.Active {
 			// Do nothing, User already exist in our db. (unique check by email id)
-			impl.logger.Infow("User already exist", "user", dbUser)
-			userInfo.Exist = true
-			err = &util.ApiError{Code: "409", HttpStatusCode: http.StatusConflict, UserMessage: "User Already Exists"}
-			return userResponse, err
-		} else {
-			_, err := impl.validateUserRequest(userInfo)
+			//impl.logger.Infow("User already exist", "user", dbUser)
+			//userInfo.Exist = true
+			//err = &util.ApiError{Code: "409", HttpStatusCode: http.StatusConflict, UserMessage: "User Already Exists"}
+			//return userResponse, err
+			updateUserInfo := &bean.UserInfo{
+				Id:          dbUser.Id,
+				EmailId:     emailId,
+				RoleFilters: userInfo.RoleFilters,
+				Groups:      userInfo.Groups,
+				UserId:      userInfo.UserId,
+			}
+			updateUserInfo, err := impl.UpdateUser(updateUserInfo)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if err == pg.ErrNoRows {
+			dbConnection := impl.userRepository.GetConnection()
+			tx, err := dbConnection.Begin()
+			if err != nil {
+				return nil, err
+			}
+			// Rollback tx on error.
+			defer tx.Rollback()
+
+			_, err = impl.validateUserRequest(userInfo)
 			if err != nil {
 				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
 				return nil, err
@@ -296,12 +311,13 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 				println(pRes)
 			}
 			//Ends
+
+			err = tx.Commit()
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		err = tx.Commit()
-		if err != nil {
-			return nil, err
-		}
 		pass = append(pass, emailId)
 		userInfo.EmailId = emailId
 		userInfo.Exist = dbUser.Active
