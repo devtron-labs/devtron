@@ -103,7 +103,7 @@ func (impl RoleGroupRepositoryImpl) GetRoleGroupByName(name string) (*RoleGroup,
 }
 func (impl RoleGroupRepositoryImpl) GetRoleGroupListByName(name string) ([]*RoleGroup, error) {
 	var model []*RoleGroup
-	err := impl.dbConnection.Model(&model).Where("name like ?", "%"+name+"%").Where("active = ?", true).Order("updated_on desc").Select()
+	err := impl.dbConnection.Model(&model).Where("name ILIKE ?", "%"+name+"%").Where("active = ?", true).Order("updated_on desc").Select()
 	return model, err
 }
 func (impl RoleGroupRepositoryImpl) GetAllRoleGroup() ([]*RoleGroup, error) {
