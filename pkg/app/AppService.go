@@ -229,7 +229,8 @@ func (impl AppServiceImpl) GetDeploymentStatus(appName string, appId, envId int)
 		}
 	}
 	//git pull status
-	gitPullRevision := application.Status.Sync.Revision
+	//gitPullRevision := application.Status.Sync.Revision removing this logic since it fails in case of multi env app
+	gitPullRevision:= application.Status.OperationState.Operation.Sync.Revision
 	gitPull := &bean.StepDetail{}
 	if gitPullRevision == deploymentStatus.ReleaseHash {
 
