@@ -43,12 +43,14 @@ type ConfigMapAndSecretJson struct {
 }
 
 type Map struct {
-	Name         string          `json:"name"`
-	Type         string          `json:"type"`
-	External     bool            `json:"external"`
-	MountPath    string          `json:"mountPath"`
-	Data         json.RawMessage `json:"data,omitempty"`
-	ExternalType string          `json:"externalType"`
-	RoleARN      string          `json:"roleARN"`
-	SecretData   json.RawMessage `json:"secretData,omitempty"`
+	Name           string          `json:"name"`
+	Type           string          `json:"type"`
+	External       bool            `json:"external"`
+	MountPath      string          `json:"mountPath"`
+	Data           json.RawMessage `json:"data,omitempty"`
+	ExternalType   string          `json:"externalType"`
+	RoleARN        string          `json:"roleARN"`
+	SecretData     json.RawMessage `json:"secretData,omitempty"`
+	SubPath        bool            `json:"subPath"`
+	FilePermission string          `json:"filePermission"`
 }

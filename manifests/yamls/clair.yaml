@@ -1,0 +1,98 @@
+# Source: clair/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: clair
+  labels:
+    release: "devtron"
+    chart: "clair-0.1.2"
+    app: clair
+type: Opaque
+data:
+  config.yaml: |-
+    Y2xhaXI6CiAgZGF0YWJhc2U6CiAgICAjIERhdGFiYXNlIGRyaXZlci4KICAgIHR5cGU6IHBnc3FsCiAgICBvcHRpb25zOgogICAgICAjIFBvc3RncmVTUUwgQ29ubmVjdGlvbiBzdHJpbmcuCiAgICAgICMgaHR0cHM6Ly93d3cucG9zdGdyZXNxbC5vcmcvZG9jcy9jdXJyZW50L3N0YXRpYy9saWJwcS1jb25uZWN0Lmh0bWwjTElCUFEtQ09OTlNUUklORwogICAgICBzb3VyY2U6ICJwb3N0Z3JlczovL2NsYWlyOmNsYWlyQGNsYWlyLXBnLXBvc3RncmVzcWw6NTQzMi9jbGFpcj9zc2xtb2RlPWRpc2FibGUiCiAgICAgIAoKICAgICAgIyBOdW1iZXIgb2YgZWxlbWVudHMga2VwdCBpbiB0aGUgY2FjaGUuCiAgICAgICMgVmFsdWVzIHVubGlrZWx5IHRvIGNoYW5nZSAoZS5nLiBuYW1lc3BhY2VzKSBhcmUgY2FjaGVkIGluIG9yZGVyIHRvIHNhdmUgcHJldmVudCBuZWVkbGVzcyByb3VuZHRyaXBzIHRvIHRoZSBkYXRhYmFzZS4KICAgICAgY2FjaGVzaXplOiAxNjM4NAoKICAgICAgIyAzMi1iaXQgVVJMLXNhZmUgYmFzZTY0IGtleSB1c2VkIHRvIGVuY3J5cHQgcGFnaW5hdGlvbiB0b2tlbnMuCiAgICAgICMgSWYgb25lIGlzIG5vdCBwcm92aWRlZCwgaXQgd2lsbCBiZSBnZW5lcmF0ZWQuCiAgICAgICMgTXVsdGlwbGUgY2xhaXIgaW5zdGFuY2VzIGluIHRoZSBzYW1lIGNsdXN0ZXIgbmVlZCB0aGUgc2FtZSB2YWx1ZS4KICAgICAgcGFnaW5hdGlvbmtleTogIlh4b1B0Q1V6clV2NEpWNWRTK3lRK01kVzd5TEVKblJNd2lnVlkvYnBndFE9IgogIGFwaToKICAgICMgdjMgZ3JwYy9SRVNUZnVsIEFQSSBzZXJ2ZXIgYWRkcmVzcy4KICAgIGFkZHI6ICIwLjAuMC4wOjYwNjAiCgogICAgIyBIZWFsdGggc2VydmVyIGFkZHJlc3MuCiAgICAjIFRoaXMgaXMgYW4gdW5lbmNyeXB0ZWQgZW5kcG9pbnQgdXNlZnVsIGZvciBsb2FkIGJhbGFuY2VycyB0byBjaGVjayB0byBoZWFsdGhpbmVzcyBvZiB0aGUgY2xhaXIgc2VydmVyLgogICAgaGVhbHRoYWRkcjogIjAuMC4wLjA6NjA2MSIKCiAgICAjIERlYWRsaW5lIGJlZm9yZSBhbiBBUEkgcmVxdWVzdCB3aWxsIHJlc3BvbmQgd2l0aCBhIDUwMy4KICAgIHRpbWVvdXQ6IDkwMHMKCiAgICAjIE9wdGlvbmFsIFBLSSBjb25maWd1cmF0aW9uLgogICAgIyBJZiB5b3Ugd2FudCB0byBlYXNpbHkgZ2VuZXJhdGUgY2xpZW50IGNlcnRpZmljYXRlcyBhbmQgQ0FzLCB0cnkgdGhlIGZvbGxvd2luZyBwcm9qZWN0czoKICAgICMgaHR0cHM6Ly9naXRodWIuY29tL2NvcmVvcy9ldGNkLWNhCiAgICAjIGh0dHBzOi8vZ2l0aHViLmNvbS9jbG91ZGZsYXJlL2Nmc3NsCiAgICBzZXJ2ZXJuYW1lOgogICAgY2FmaWxlOgogICAga2V5ZmlsZToKICAgIGNlcnRmaWxlOgoKICB3b3JrZXI6CiAgICBuYW1lc3BhY2VfZGV0ZWN0b3JzOgogICAgLSBvcy1yZWxlYXNlCiAgICAtIGxzYi1yZWxlYXNlCiAgICAtIGFwdC1zb3VyY2VzCiAgICAtIGFscGluZS1yZWxlYXNlCiAgICAtIHJlZGhhdC1yZWxlYXNlCgogICAgZmVhdHVyZV9saXN0ZXJzOgogICAgLSBhcGsKICAgIC0gZHBrZwogICAgLSBycG0KCiAgdXBkYXRlcjoKICAgICMgRnJlcXVlbmN5IHRoZSBkYXRhYmFzZSB3aWxsIGJlIHVwZGF0ZWQgd2l0aCB2dWxuZXJhYmlsaXRpZXMgZnJvbSB0aGUgZGVmYXVsdCBkYXRhIHNvdXJjZXMuCiAgICAjIFRoZSB2YWx1ZSAwIGRpc2FibGVzIHRoZSB1cGRhdGVyIGVudGlyZWx5LgogICAgaW50ZXJ2YWw6ICIyaCIKICAgIGVuYWJsZWR1cGRhdGVyczoKICAgIC0gZGViaWFuCiAgICAtIHVidW50dQogICAgLSByZWRoYXQKICAgIC0gb3JhY2xlCiAgICAtIGFscGluZQogICAgLSByZWRoYXQKCiAgbm90aWZpZXI6CiAgICAjIE51bWJlciBvZiBhdHRlbXB0cyBiZWZvcmUgdGhlIG5vdGlmaWNhdGlvbiBpcyBtYXJrZWQgYXMgZmFpbGVkIHRvIGJlIHNlbnQuCiAgICBhdHRlbXB0czogMwoKICAgICMgRHVyYXRpb24gYmVmb3JlIGEgZmFpbGVkIG5vdGlmaWNhdGlvbiBpcyByZXRyaWVkLgogICAgcmVub3RpZnlpbnRlcnZhbDogMmgKCiAgICBodHRwOgogICAgICAjIE9wdGlvbmFsIGVuZHBvaW50IHRoYXQgd2lsbCByZWNlaXZlIG5vdGlmaWNhdGlvbnMgdmlhIFBPU1QgcmVxdWVzdHMuCiAgICAgIGVuZHBvaW50OiAiaHR0cHM6Ly9leGFtcGxlLmNvbS9ub3RpZnkvbWUiCgogICAgICAjIE9wdGlvbmFsIFBLSSBjb25maWd1cmF0aW9uLgogICAgICAjIElmIHlvdSB3YW50IHRvIGVhc2lseSBnZW5lcmF0ZSBjbGllbnQgY2VydGlmaWNhdGVzIGFuZCBDQXMsIHRyeSB0aGUgZm9sbG93aW5nIHByb2plY3RzOgogICAgICAjIGh0dHBzOi8vZ2l0aHViLmNvbS9jbG91ZGZsYXJlL2Nmc3NsCiAgICAgICMgaHR0cHM6Ly9naXRodWIuY29tL2NvcmVvcy9ldGNkLWNhCiAgICAgIHNlcnZlcm5hbWU6CiAgICAgIGNhZmlsZToKICAgICAga2V5ZmlsZToKICAgICAgY2VydGZpbGU6CgogICAgICAjIE9wdGlvbmFsIEhUVFAgUHJveHk6IG11c3QgYmUgYSB2YWxpZCBVUkwgKGluY2x1ZGluZyB0aGUgc2NoZW1lKS4KICAgICAgcHJveHk6Cg==
+---
+# Source: clair/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: clair
+  labels:
+    release: "devtron"
+    chart: "clair-0.1.2"
+    app: clair
+spec:
+  type: ClusterIP
+  ports:
+  - name: "clair-api"
+    port: 6060
+    targetPort: 6060
+    protocol: TCP
+  - name: "clair-health"
+    port: 6061
+    targetPort: 6061
+    protocol: TCP
+  selector:
+    app: clair
+---
+# Source: clair/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clair
+  labels:
+    release: "devtron"
+    chart: "clair-0.1.2"
+    app: clair
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: clair
+  template:
+    metadata:
+      labels:
+        app: clair
+    spec:
+      volumes:
+      - name: "clair-config"
+        secret:
+          secretName: clair
+      initContainers:
+      - name: pg-ready-wait
+        image: postgres:11.3
+        command: [ "sh", "-c",
+          "until pg_isready -h postgresql-postgresql.devtroncd -p 5432;
+          do echo waiting for database; sleep 1; done;"]
+      containers:
+      - name: clair
+        image: "quay.io/coreos/clair:v2.1.4"
+        imagePullPolicy: IfNotPresent
+        args:
+        - "-log-level=info"
+        ports:
+        - name: "clair-api"
+          containerPort: 6060
+          protocol: TCP
+        - name: "clair-health"
+          containerPort: 6061
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 6061
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 6061
+        volumeMounts:
+        - name: "clair-config"
+          mountPath: /etc/clair
+          readOnly: true
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1500Mi
+          requests:
+            cpu: 100m
+            memory: 500Mi

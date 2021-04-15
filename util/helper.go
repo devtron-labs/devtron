@@ -20,6 +20,7 @@ package util
 import (
 	"fmt"
 	"go.uber.org/zap"
+	"math/rand"
 	"strconv"
 	"strings"
 )
@@ -70,4 +71,15 @@ func Close(c Closer, logger *zap.SugaredLogger) {
 	if err := c.Close(); err != nil {
 		logger.Warnf("failed to close %v: %v", c, err)
 	}
+}
+
+var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
+
+func Generate(size int) string {
+	var b strings.Builder
+	for i := 0; i < size; i++ {
+		b.WriteRune(chars[rand.Intn(len(chars))])
+	}
+	str := b.String()
+	return str
 }

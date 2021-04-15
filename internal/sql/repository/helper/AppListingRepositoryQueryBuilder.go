@@ -61,7 +61,7 @@ const (
 func (impl AppListingRepositoryQueryBuilder) BuildAppListingQuery(appListingFilter AppListingFilter) string {
 	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
 	orderByClause := impl.buildAppListingSortBy(appListingFilter)
-	query := "SELECT env.id AS environment_id, env.environment_name, a.id AS app_id, a.app_name,  env.default, p.id as pipeline_id" +
+	query := "SELECT env.id AS environment_id, env.environment_name, a.id AS app_id, a.app_name, env.default, p.id as pipeline_id, env.active" +
 		" FROM pipeline p" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
 		" RIGHT JOIN app a ON a.id=p.app_id  and p.deleted=false "
@@ -87,7 +87,7 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingSortBy(appListingFil
 }
 
 func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appListingFilter AppListingFilter) string {
-	whereCondition := "WHERE a.active = true and a.app_store is false and env.active = true "
+	whereCondition := "WHERE a.active = true and a.app_store is false "
 	if len(appListingFilter.Environments) > 0 {
 		envIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(appListingFilter.Environments)), ","), "[]")
 		whereCondition = whereCondition + "and env.id IN (" + envIds + ") "

@@ -45,9 +45,7 @@ type AppListingRepository interface {
 
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 
-	GetDeploymentStatusByAppName(appName string) ([]DeploymentStatus, error)
-	SaveNewDeployment(deploymentStatus *DeploymentStatus) error
-	DeleteOldDeployments(appName string) (int, error)
+	SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error
 	FindLastDeployedStatus(appName string) (DeploymentStatus, error)
 	FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error)
 	FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error)
@@ -116,17 +114,21 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 
 	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
 	for _, item := range appEnvContainer {
-
+		if item.EnvironmentId > 0 && item.PipelineId > 0 && item.Active == false {
+			// skip adding apps which have linked with cd pipeline and that environment has marked as deleted.
+			continue
+		}
+		// include only apps which are not linked with any cd pipeline + those linked with cd pipeline and env has active.
 		key := strconv.Itoa(item.AppId) + "_" + strconv.Itoa(item.EnvironmentId)
 		if _, ok := latestDeploymentStatusMap[key]; ok {
 			continue
 		}
 
-		if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
-			item.LastDeployedTime = lastDeployedTimeMap[item.PipelineId].LastDeployedTime
-			item.DataSource = lastDeployedTimeMap[item.PipelineId].DataSource
-			item.MaterialInfoJson = lastDeployedTimeMap[item.PipelineId].MaterialInfoJson
-			item.CiArtifactId = lastDeployedTimeMap[item.PipelineId].CiArtifactId
+		if lastDeployedTime, ok := lastDeployedTimeMap[item.PipelineId]; ok {
+			item.LastDeployedTime = lastDeployedTime.LastDeployedTime
+			item.DataSource = lastDeployedTime.DataSource
+			item.MaterialInfoJson = lastDeployedTime.MaterialInfoJson
+			item.CiArtifactId = lastDeployedTime.CiArtifactId
 		}
 
 		if len(item.DataSource) > 0 {
@@ -137,8 +139,10 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 				item.MaterialInfo = []byte("[]")
 			}
 			item.MaterialInfoJson = ""
+		} else {
+			item.MaterialInfo = []byte("[]")
+			item.MaterialInfoJson = ""
 		}
-
 		appEnvArr = append(appEnvArr, item)
 		latestDeploymentStatusMap[key] = item
 	}
@@ -440,27 +444,9 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	return otherEnvironments, nil
 }
 
-func (impl AppListingRepositoryImpl) GetDeploymentStatusByAppName(appName string) ([]DeploymentStatus, error) {
-	var deployments []DeploymentStatus
-	err := impl.dbConnection.Model(&deployments).
-		Where("app_name = ?", appName).
-		Order("id Desc").
-		Select()
-	return deployments, err
-}
-
-func (impl AppListingRepositoryImpl) SaveNewDeployment(deploymentStatus *DeploymentStatus) error {
-	err := impl.dbConnection.Insert(deploymentStatus)
+func (impl AppListingRepositoryImpl) SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error {
+	err := tx.Insert(deploymentStatus)
 	return err
-}
-
-func (impl AppListingRepositoryImpl) DeleteOldDeployments(appName string) (int, error) {
-	var deployment *DeploymentStatus
-	res, err := impl.dbConnection.Model(deployment).Where("app_name = ?", appName).Delete()
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected(), nil
 }
 
 func (impl AppListingRepositoryImpl) FindLastDeployedStatus(appName string) (DeploymentStatus, error) {

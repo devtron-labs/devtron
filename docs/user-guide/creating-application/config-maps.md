@@ -68,13 +68,13 @@ If you select `Environment Variable` in 3rd option, then you can provide your en
 
 `Data in YAML` \(please Check below screenshot\)
 
-![](../../.gitbook/assets/configmap-yaml%20%283%29%20%282%29.jpg)
+![](../../.gitbook/assets/configmap-mountpath-1.png)
 
 Now, Click on `Save ConfigMap` to save your configmap configuration.
 
 **Kubernetes ConfigMap using Data Volume**
 
-![](../../.gitbook/assets/configmap-yaml%20%283%29.jpg)
+![](../../.gitbook/assets/configmap-filepermission-1.png)
 
 ## Volume Mount Path
 
@@ -85,6 +85,14 @@ You can add Configuration data as in YAML or GUI format as explained above.
 You can click on `YAML` or `GUI` to view the key and Value parameters of the ConfigMap that you have created.
 
 You can click on `Save ConfigMap` to save the configMap.
+
+
+## Sub Path
+For multiple files mount at the same location you need to check sub path bool field, it will use the file name (key) as sub path. 
+Sub Path feature is not applicable in case of external configmap.
+
+## File Permission
+File permission will be provide at the configmap level not on the each key of the configmap. it will take 3 digit standard permission for the file.
 
 ### \(B\) Kubernetes External ConfigMap
 
