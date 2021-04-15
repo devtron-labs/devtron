@@ -288,6 +288,7 @@ func (impl AppServiceImpl) GetDeploymentStatus(appName string, appId, envId int)
 		case v1alpha1.HealthStatusDegraded:
 			//error
 			deployStep.Status = bean.StepStatusError
+			applyStep.ErrorMessage ="one or more component of this app are in error state"
 		case v1alpha1.HealthStatusUnknown:
 			deployStep.Status = bean.StepStatusUnknown
 		default:
