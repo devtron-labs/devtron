@@ -138,19 +138,24 @@ prometheusRule:
         summary: More than 5% of the all requests did return 4XX, this require your attention
 
 
-
 ingress:
   enabled: false
   annotations: {}
-  #    nginx.ingress.kubernetes.io/rewrite-target: /
-  #    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-  #    kubernetes.io/ingress.class: nginx
-  #    kubernetes.io/tls-acme: "true"
-  #    nginx.ingress.kubernetes.io/canary: "true"
-  #    nginx.ingress.kubernetes.io/canary-weight: "10"
+#    nginx.ingress.kubernetes.io/rewrite-target: /
+#    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+#    kubernetes.io/ingress.class: nginx
+#    kubernetes.io/tls-acme: "true"
+#    nginx.ingress.kubernetes.io/canary: "true"
+#    nginx.ingress.kubernetes.io/canary-weight: "10"
 
-  path: '/path(/|$)(.*)'
-  host: ""
+  hosts:
+    - host: chart-example1.local
+      paths:
+        - /example1
+    - host: chart-example2.local
+      paths:
+        - /example2
+        - /example2/healthz
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
@@ -159,13 +164,20 @@ ingress:
 ingressInternal:
   enabled: false
   annotations: {}
-  #    kubernetes.io/ingress.class: nginx
-  #    kubernetes.io/tls-acme: "true"
-  #    nginx.ingress.kubernetes.io/canary: "true"
-  #    nginx.ingress.kubernetes.io/canary-weight: "10"
+ #    kubernetes.io/ingress.class: nginx
+ #    kubernetes.io/tls-acme: "true"
+ #    nginx.ingress.kubernetes.io/canary: "true"
+ #    nginx.ingress.kubernetes.io/canary-weight: "10"
 
-  path: ""
-  host: ""
+  hosts:
+    - host: chart-example1.internal
+      paths:
+        - /example1
+    - host: chart-example2.internal
+      paths:
+        - /example2
+        - /example2/healthz
+  tls: []
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:

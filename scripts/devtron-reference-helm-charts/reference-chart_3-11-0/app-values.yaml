@@ -76,17 +76,42 @@ ReadinessProbe:
 ingress:
   enabled: false
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
     nginx.ingress.kubernetes.io/ssl-redirect: 'false'
     kubernetes.io/ingress.class: nginx
-#    kubernetes.io/ingress.class: nginx
-#    kubernetes.io/tls-acme: "true"
+#    nginx.ingress.kubernetes.io/rewrite-target: /$2
 #    nginx.ingress.kubernetes.io/canary: "true"
 #    nginx.ingress.kubernetes.io/canary-weight: "10"
 
-  path: ""
-  host: ""
+  hosts:
+    - host: chart-example1.local
+      paths:
+        - /example1
+    - host: chart-example2.local
+      paths:
+        - /example2
+        - /example2/healthz
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+ingressInternal:
+  enabled: false
+  annotations: {}
+ #    kubernetes.io/ingress.class: nginx
+ #    kubernetes.io/tls-acme: "true"
+ #    nginx.ingress.kubernetes.io/canary: "true"
+ #    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  hosts:
+    - host: chart-example1.internal
+      paths:
+        - /example1
+    - host: chart-example2.internal
+      paths:
+        - /example2
+        - /example2/healthz
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
@@ -128,21 +153,6 @@ containers: []
   #  volumeMounts:
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
-
-ingressInternal:
-  enabled: false
-  annotations: {}
-  #     kubernetes.io/ingress.class: nginx
-  #     kubernetes.io/tls-acme: "true"
-  #    nginx.ingress.kubernetes.io/canary: "true"
-  #    nginx.ingress.kubernetes.io/canary-weight: "10"
-
-  path: ""
-  host: ""
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
 
 volumeMounts: []
 #     - name: log-volume
