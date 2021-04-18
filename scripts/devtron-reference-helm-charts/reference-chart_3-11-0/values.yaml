@@ -275,6 +275,7 @@ initContainers: []
   #  volumeMounts:
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
+  #  reuseContainerImage: true
 
 containers: []
   ## Additional init containers to run before the Scheduler pods.
