@@ -1,0 +1,1 @@
+ALTER TABLE "public"."pipeline_config_override" ADD COLUMN "error_msg" text;
