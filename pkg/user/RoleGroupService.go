@@ -40,6 +40,7 @@ type RoleGroupService interface {
 	FetchRoleGroups() ([]*bean.RoleGroup, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
+	FetchRolesForGroups(groupNames []string) ([]*bean.RoleFilter, error)
 }
 
 type RoleGroupServiceImpl struct {
@@ -524,4 +525,36 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 	}
 
 	return true, nil
+}
+
+func (impl RoleGroupServiceImpl) FetchRolesForGroups(groupNames []string) ([]*bean.RoleFilter, error) {
+	roleGroups, err := impl.roleGroupRepository.GetRoleGroupListByNames(groupNames)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+
+	var roleGroupIds []int32
+	for _, roleGroup := range roleGroups {
+		roleGroupIds = append(roleGroupIds, roleGroup.Id)
+	}
+
+	roles, err := impl.roleGroupRepository.GetRoleGroupRoleMappingByRoleGroupIds(roleGroupIds)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	var list []*bean.RoleFilter
+	for _, role := range roles {
+		bean := &bean.RoleFilter{
+			EntityName:  role.RoleModel.EntityName,
+			Entity:      role.RoleModel.Entity,
+			Action:      role.RoleModel.Action,
+			Environment: role.RoleModel.Environment,
+			Team:        role.RoleModel.Team,
+		}
+		list = append(list, bean)
+
+	}
+	return list, nil
 }

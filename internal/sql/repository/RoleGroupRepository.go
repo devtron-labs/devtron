@@ -37,6 +37,8 @@ type RoleGroupRepository interface {
 	GetRoleGroupRoleMappingByRoleGroupId(roleGroupId int32) ([]*RoleGroupRoleMapping, error)
 	DeleteRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (bool, error)
 	GetConnection() (dbConnection *pg.DB)
+	GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error)
+	GetRoleGroupRoleMappingByRoleGroupIds(roleGroupIds []int32) ([]*RoleGroupRoleMapping, error)
 }
 
 type RoleGroupRepositoryImpl struct {
@@ -63,7 +65,7 @@ type RoleGroupRoleMapping struct {
 	Id          int      `sql:"id,pk"`
 	RoleGroupId int32    `sql:"role_group_id,notnull"`
 	RoleId      int      `sql:"role_id,notnull"`
-	//User        UserModel
+	RoleModel   RoleModel
 	models.AuditLog
 }
 
@@ -153,4 +155,20 @@ func (impl RoleGroupRepositoryImpl) DeleteRoleGroupRoleMapping(model *RoleGroupR
 		return false, err
 	}
 	return true, nil
+}
+
+func (impl RoleGroupRepositoryImpl) GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error) {
+	var model []*RoleGroup
+	err := impl.dbConnection.Model(&model).Where("name in (?)", pg.In(groupNames)).Where("active = ?", true).Order("updated_on desc").Select()
+	return model, err
+}
+
+func (impl RoleGroupRepositoryImpl) GetRoleGroupRoleMappingByRoleGroupIds(roleGroupIds []int32) ([]*RoleGroupRoleMapping, error) {
+	var userRoleModels []*RoleGroupRoleMapping
+	err := impl.dbConnection.Model(&userRoleModels).Column("role_group_role_mapping.*", "RoleModel").Where("role_group_id = ?", pg.In(roleGroupIds)).Select()
+	if err != nil {
+		impl.Logger.Error(err)
+		return userRoleModels, err
+	}
+	return userRoleModels, nil
 }
