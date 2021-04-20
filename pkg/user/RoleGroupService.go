@@ -547,11 +547,11 @@ func (impl RoleGroupServiceImpl) FetchRolesForGroups(groupNames []string) ([]*be
 	var list []*bean.RoleFilter
 	for _, role := range roles {
 		bean := &bean.RoleFilter{
-			EntityName:  role.RoleModel.EntityName,
-			Entity:      role.RoleModel.Entity,
-			Action:      role.RoleModel.Action,
-			Environment: role.RoleModel.Environment,
-			Team:        role.RoleModel.Team,
+			EntityName:  role.EntityName,
+			Entity:      role.Entity,
+			Action:      role.Action,
+			Environment: role.Environment,
+			Team:        role.Team,
 		}
 		list = append(list, bean)
 
