@@ -170,8 +170,8 @@ func (impl RoleGroupRepositoryImpl) GetRoleGroupRoleMappingByRoleGroupIds(roleGr
 	var roleModels []*RoleModel
 	query := "SELECT r.* from roles r" +
 		" INNER JOIN role_group_role_mapping rgm on rgm.role_id=r.id" +
-		" WHERE rgm.role_group_id in(10);"
-	_, err := impl.dbConnection.Query(&roleModels, query)
+		" WHERE rgm.role_group_id in (?);"
+	_, err := impl.dbConnection.Query(&roleModels, query, pg.In(roleGroupIds))
 	if err != nil {
 		return roleModels, err
 	}
