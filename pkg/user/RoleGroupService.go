@@ -533,6 +533,9 @@ func (impl RoleGroupServiceImpl) FetchRolesForGroups(groupNames []string) ([]*be
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
+	if roleGroups == nil || len(roleGroups) == 0 {
+		return nil, nil
+	}
 
 	var roleGroupIds []int32
 	for _, roleGroup := range roleGroups {
