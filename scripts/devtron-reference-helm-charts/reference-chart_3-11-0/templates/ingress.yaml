@@ -1,0 +1,72 @@
+{{ $svcName := include ".servicename" . }}
+{{ $svcPort := (index .Values.ContainerPort 0).servicePort }}
+{{- if $.Values.ingress.enabled -}}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ template ".Chart.Name .fullname" . }}-ingress
+  namespace: {{ $.Values.NameSpace }}
+  labels:
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Release.Name }}
+{{- if .Values.ingress.annotations }}
+  annotations:
+{{ toYaml .Values.ingress.annotations | indent 4 }}
+{{- end }}
+spec:
+  rules:
+  {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+        {{- range .paths }}
+          - path: {{ . }}
+            backend:
+              serviceName: {{ $svcName }}
+              servicePort: {{ $svcPort }}
+        {{- end }}
+  {{- end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+{{ toYaml .Values.ingress.tls | indent 4 }}
+  {{- end -}}
+{{- end }}
+{{- if $.Values.ingressInternal.enabled }}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ template ".Chart.Name .fullname" . }}-ingress-internal
+  namespace: {{ $.Values.NameSpace }}
+  labels:
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Release.Name }}
+{{- if .Values.ingressInternal.annotations }}
+  annotations:
+{{ toYaml .Values.ingressInternal.annotations | indent 4 }}
+{{- end }}
+spec:
+  rules:
+  {{- range .Values.ingressInternal.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+        {{- range .paths }}
+          - path: {{ . }}
+            backend:
+              serviceName: {{ $svcName }}
+              servicePort: {{ $svcPort }}
+        {{- end }}
+  {{- end }}
+  {{- if .Values.ingressInternal.tls }}
+  tls:
+{{ toYaml .Values.ingressInternal.tls | indent 4 }}
+  {{- end -}}
+{{- end }}
