@@ -19,6 +19,15 @@ metadata:
 {{- end }}
 spec:
   rules:
+  {{- if or .Values.ingress.host .Values.ingress.path }}
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.path }}
+            backend:
+              serviceName: {{ $svcName }}
+              servicePort: {{ $svcPort }}
+  {{- end }}
   {{- range .Values.ingress.hosts }}
     - host: {{ .host | quote }}
       http:
@@ -54,6 +63,15 @@ metadata:
 {{- end }}
 spec:
   rules:
+  {{- if or .Values.ingressInternal.host .Values.ingressInternal.path }}
+    - host: {{ .Values.ingressInternal.host }}
+      http:
+        paths:
+          - path: {{ .Values.ingressInternal.path }}
+            backend:
+              serviceName: {{ $svcName }}
+              servicePort: {{ $svcPort }}
+  {{- end }}
   {{- range .Values.ingressInternal.hosts }}
     - host: {{ .host | quote }}
       http:
