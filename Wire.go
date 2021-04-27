@@ -33,6 +33,7 @@ import (
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
+	external2 "github.com/devtron-labs/devtron/internal/sql/repository/external"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	teamRepo "github.com/devtron-labs/devtron/internal/sql/repository/team"
@@ -47,6 +48,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/devtron-labs/devtron/pkg/event"
+	"github.com/devtron-labs/devtron/pkg/external"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
@@ -646,6 +648,17 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
 		restHandler.NewCommonRestHanlderImpl,
 		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
+
+
+		router.NewExternalAppsRouterImpl,
+		wire.Bind(new(router.ExternalAppsRouter), new(*router.ExternalAppsRouterImpl)),
+		restHandler.NewExternalAppsRestHandlerImpl,
+		wire.Bind(new(restHandler.ExternalAppsRestHandler), new(*restHandler.ExternalAppsRestHandlerImpl)),
+		external.NewExternalAppsServiceImpl,
+		wire.Bind(new(external.ExternalAppsService), new(*external.ExternalAppsServiceImpl)),
+		external2.NewExternalAppsRepositoryImpl,
+		wire.Bind(new(external2.ExternalAppsRepository), new(*external2.ExternalAppsRepositoryImpl)),
+
 	)
 	return &App{}, nil
 }
