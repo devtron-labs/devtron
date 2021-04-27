@@ -187,3 +187,7 @@ required = [
 [[constraint]]
   name = "github.com/igm/sockjs-go"
   version = "3.0.0"
+
+[[constraint]]
+  name = "github.com/jasonlvhit/gocron"
+  version = "0.1.0"
