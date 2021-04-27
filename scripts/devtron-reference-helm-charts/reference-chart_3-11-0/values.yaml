@@ -275,6 +275,9 @@ initContainers: []
   #  volumeMounts:
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
+  ## Uncomment below line ONLY IF you want to reuse the container image.
+  ## This will assign your application's docker image to init container.
+  #  reuseContainerImage: true
 
 containers: []
   ## Additional init containers to run before the Scheduler pods.
