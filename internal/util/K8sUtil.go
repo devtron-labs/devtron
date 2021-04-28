@@ -214,6 +214,18 @@ func (impl K8sUtil) GetSecretFast(namespace string, name string, client *v12.Cor
 	}
 }
 
+func (impl K8sUtil) GetSecretList(namespace string, client *v12.CoreV1Client) (*v1.SecretList, error) {
+	opts := metav1.ListOptions{
+		FieldSelector: "type=helm.sh/release.v1",
+	}
+	secretList, err := client.Secrets(namespace).List(opts)
+	if err != nil {
+		return nil, err
+	} else {
+		return secretList, nil
+	}
+}
+
 func (impl K8sUtil) CreateSecretFast(namespace string, data map[string][]byte, secretName string, client *v12.CoreV1Client) (*v1.Secret, error) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

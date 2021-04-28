@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/jasonlvhit/gocron"
 	"go.uber.org/zap"
 	"time"
 )
@@ -70,7 +71,7 @@ func NewExternalAppsServiceImpl(logger *zap.SugaredLogger, appStoreRepository ap
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
 	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, externalAppsRepository external.ExternalAppsRepository) *ExternalAppsServiceImpl {
-	return &ExternalAppsServiceImpl{
+	externalAppsServiceImpl := &ExternalAppsServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
 		appStoreApplicationRepository: appStoreApplicationRepository,
@@ -84,6 +85,9 @@ func NewExternalAppsServiceImpl(logger *zap.SugaredLogger, appStoreRepository ap
 		aCDAuthConfig:                 aCDAuthConfig,
 		externalAppsRepository:        externalAppsRepository,
 	}
+	gocron.Every(1).Minute().Do(externalAppsServiceImpl.Crawler)
+	<-gocron.Start()
+	return externalAppsServiceImpl
 }
 
 func (impl *ExternalAppsServiceImpl) SearchExternalAppsByFilter() ([]*ExternalAppsDto, error) {
@@ -162,4 +166,48 @@ func (impl *ExternalAppsServiceImpl) FindAll() ([]*ExternalAppsDto, error) {
 		externalApps = append(externalApps, externalApp)
 	}
 	return externalApps, nil
+}
+
+func (impl *ExternalAppsServiceImpl) Crawler() {
+	impl.logger.Info(">>>>>>>>>>  crawler starts ")
+
+	/*
+		clusters, err := impl.clusterService.FindAll()
+		if err != nil {
+			return
+		}
+		for _, cluster := range clusters {
+			cfg, err := impl.clusterService.GetClusterConfig(cluster)
+			if err != nil {
+				return
+			}
+			impl.logger.Info(cfg)
+		}
+	*/
+
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return
+	}
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return
+	}
+
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return
+	}
+	secrets, err := impl.K8sUtil.GetSecretList("", client)
+	if secrets == nil {
+		return
+	}
+
+	for _, secret := range secrets.Items {
+		if secret.Namespace != "devtroncd" {
+			data := secret.Data
+			impl.logger.Info(data)
+		}
+	}
+
 }

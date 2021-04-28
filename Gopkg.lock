@@ -751,6 +751,14 @@
   version = "v1.0"
 
 [[projects]]
+  digest = "1:59f6147a4770527f7e44b4e67e6c59429d0468a37af2ce3fa71cf06b92da6e3e"
+  name = "github.com/jasonlvhit/gocron"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5c21418a78e8acd5ffefca47dc353df67222e5c8"
+  version = "0.1"
+
+[[projects]]
   branch = "master"
   digest = "1:62fe3a7ea2050ecbd753a71889026f83d73329337ada66325cbafd5dea5f713d"
   name = "github.com/jbenet/go-context"
@@ -1964,6 +1972,7 @@
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway",
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
+    "github.com/jasonlvhit/gocron",
     "github.com/juju/errors",
     "github.com/lib/pq",
     "github.com/nats-io/nats.go",
@@ -2003,6 +2012,7 @@
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/types",
+    "k8s.io/client-go/discovery",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/kubernetes/typed/core/v1",
