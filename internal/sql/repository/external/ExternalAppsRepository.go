@@ -31,6 +31,7 @@ type ExternalAppsRepository interface {
 	FindById(id int) (*ExternalApps, error)
 	FindAll() ([]*ExternalApps, error)
 	FindByAppName(appName string) (*ExternalApps, error)
+	SearchByFilter(appName string, clusterIds []int, namespaces []string) ([]*ExternalApps, error)
 }
 
 type ExternalAppsRepositoryImpl struct {
@@ -111,4 +112,40 @@ func (impl ExternalAppsRepositoryImpl) FindByAppName(appName string) (*ExternalA
 		Where("external_apps.active =?", true).
 		Select()
 	return externalApp, err
+}
+
+func (impl ExternalAppsRepositoryImpl) SearchByFilter(appName string, clusterIds []int, namespaces []string) ([]*ExternalApps, error) {
+	var externalApps []*ExternalApps
+	var err error
+	if len(clusterIds) == 0 && len(namespaces) == 0 {
+		err = impl.dbConnection.
+			Model(&externalApps).
+			Where("external_apps.app_name like (?)", "%"+appName+"%").
+			Where("external_apps.active =?", true).
+			Select()
+	} else if len(clusterIds) > 0 && len(namespaces) == 0 {
+		err = impl.dbConnection.
+			Model(&externalApps).
+			Where("external_apps.app_name like (?)", "%"+appName+"%").
+			Where("external_apps.cluster_id in (?)", pg.In(clusterIds)).
+			Where("external_apps.active =?", true).
+			Select()
+	} else if len(clusterIds) == 0 && len(namespaces) > 0 {
+		err = impl.dbConnection.
+			Model(&externalApps).
+			Where("external_apps.app_name like (?)", "%"+appName+"%").
+			Where("external_apps.namespace in (?)", pg.In(namespaces)).
+			Where("external_apps.active =?", true).
+			Select()
+	} else if len(clusterIds) > 0 && len(namespaces) > 0 {
+		err = impl.dbConnection.
+			Model(&externalApps).
+			Where("external_apps.app_name like (?)", "%"+appName+"%").
+			Where("external_apps.cluster_id in (?)", pg.In(clusterIds)).
+			Where("external_apps.namespace in (?)", pg.In(namespaces)).
+			Where("external_apps.active =?", true).
+			Select()
+	}
+
+	return externalApps, err
 }

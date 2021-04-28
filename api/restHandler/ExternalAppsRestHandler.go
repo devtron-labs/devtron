@@ -32,6 +32,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type ExternalAppsRestHandler interface {
@@ -84,7 +85,31 @@ func (handler *ExternalAppsRestHandlerImpl) FindAll(w http.ResponseWriter, r *ht
 		writeJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
-	res, err := handler.externalAppsService.FindAll()
+
+	appName := r.URL.Query().Get("appName")
+
+	var namespaces []string
+	namespacesArray := r.URL.Query().Get("namespace")
+	if namespacesArray != "" {
+		namespacesStr := strings.Split(namespacesArray, ",")
+		for _, namespace := range namespacesStr {
+			namespaces = append(namespaces, namespace)
+		}
+	}
+
+	var clusterIds []int
+	clustersArray := r.URL.Query().Get("clusterIds")
+	if clustersArray != "" {
+		clustersStr := strings.Split(clustersArray, ",")
+		for _, cluster := range clustersStr {
+			clusterId, err := strconv.Atoi(cluster)
+			if err != nil {
+			}
+			clusterIds = append(clusterIds, clusterId)
+		}
+	}
+
+	res, err := handler.externalAppsService.SearchExternalAppsByFilter(appName, clusterIds, namespaces)
 	if err != nil {
 		handler.logger.Errorw("service err, FindAllApps, app store", "err", err, "userId", userId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
