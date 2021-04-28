@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
 	"strings"
@@ -528,12 +529,16 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 }
 
 func (impl RoleGroupServiceImpl) FetchRolesForGroups(groupNames []string) ([]*bean.RoleFilter, error) {
+	if len(groupNames) == 0 {
+		return nil, nil
+	}
 	roleGroups, err := impl.roleGroupRepository.GetRoleGroupListByNames(groupNames)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	if roleGroups == nil || len(roleGroups) == 0 {
+	if err == pg.ErrNoRows {
+		impl.logger.Warnw("no result found for role groups", "groups", groupNames)
 		return nil, nil
 	}
 
@@ -543,11 +548,14 @@ func (impl RoleGroupServiceImpl) FetchRolesForGroups(groupNames []string) ([]*be
 	}
 
 	roles, err := impl.roleGroupRepository.GetRoleGroupRoleMappingByRoleGroupIds(roleGroupIds)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	var list []*bean.RoleFilter
+	list := make([]*bean.RoleFilter, 0)
+	if roles == nil {
+		return list, nil
+	}
 	for _, role := range roles {
 		bean := &bean.RoleFilter{
 			EntityName:  role.EntityName,
@@ -557,7 +565,6 @@ func (impl RoleGroupServiceImpl) FetchRolesForGroups(groupNames []string) ([]*be
 			Team:        role.Team,
 		}
 		list = append(list, bean)
-
 	}
 	return list, nil
 }
