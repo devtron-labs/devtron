@@ -18,6 +18,10 @@
 package external
 
 import (
+	"bytes"
+	"compress/gzip"
+	b64 "encoding/base64"
+	"encoding/json"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
@@ -26,8 +30,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/go-pg/pg"
 	"github.com/jasonlvhit/gocron"
 	"go.uber.org/zap"
+	"io/ioutil"
 	"time"
 )
 
@@ -85,7 +91,7 @@ func NewExternalAppsServiceImpl(logger *zap.SugaredLogger, appStoreRepository ap
 		aCDAuthConfig:                 aCDAuthConfig,
 		externalAppsRepository:        externalAppsRepository,
 	}
-	gocron.Every(1).Minute().Do(externalAppsServiceImpl.Crawler)
+	gocron.Every(2).Seconds().Do(externalAppsServiceImpl.Crawler)
 	<-gocron.Start()
 	return externalAppsServiceImpl
 }
@@ -204,10 +210,90 @@ func (impl *ExternalAppsServiceImpl) Crawler() {
 	}
 
 	for _, secret := range secrets.Items {
-		if secret.Namespace != "devtroncd" {
+		if secret.Namespace != impl.aCDAuthConfig.ACDConfigMapNamespace {
 			data := secret.Data
-			impl.logger.Info(data)
+			manifest := data["release"]
+			b, err := b64.StdEncoding.DecodeString(string(manifest)) // Converting data
+			if err != nil {
+				impl.logger.Error(err)
+				return
+			}
+			r, err := gzip.NewReader(bytes.NewReader(b))
+			if err != nil {
+				impl.logger.Error(err)
+				return
+			}
+			result, err := ioutil.ReadAll(r)
+			if err != nil {
+				impl.logger.Error(err)
+				return
+			}
+			impl.logger.Info(string(result))
+			dataManifest := make(map[string]interface{})
+			err = json.Unmarshal(result, &dataManifest)
+			if err != nil {
+				panic(err)
+			}
+
+			_, err = impl.HandleAppExternalAppCreation(dataManifest, clusterBean.Id, 1)
+			if err != nil {
+				impl.logger.Error(err)
+				continue
+			}
 		}
 	}
 
+}
+
+func (impl *ExternalAppsServiceImpl) HandleAppExternalAppCreation(payload map[string]interface{}, clusterId int, userId int32) (bool, error) {
+	info := payload["info"].(map[string]interface{})
+	chart := payload["chart"].(map[string]interface{})
+	chartMeta := chart["metadata"].(map[string]interface{})
+
+	externalApp, err := impl.externalAppsRepository.FindByAppName(payload["name"].(string))
+	if err != nil && !util.IsErrNoRows(err) {
+		return false, err
+	}
+
+	if err == pg.ErrNoRows {
+		externalApp = &external.ExternalApps{AuditLog: models.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId}}
+		externalApp.ClusterId = clusterId
+		externalApp.AppName = payload["name"].(string)
+		externalApp.Label = info["last_deployed"].(string)
+		externalApp.ChartName = chartMeta["name"].(string)
+		externalApp.Namespace = payload["namespace"].(string)
+		layout := "2021-04-21T09:00:23"
+		ldo, err := time.Parse(layout, info["last_deployed"].(string))
+		if err != nil {
+			impl.logger.Error(err)
+		}
+		externalApp.LastDeployedOn = ldo
+		externalApp.Status = info["status"].(string)
+		externalApp.ChartVersion = chartMeta["appVersion"].(string)
+		externalApp.Deprecated = chartMeta["deprecated"].(bool)
+		externalApp.Active = true
+		externalApp, err = impl.externalAppsRepository.Create(externalApp)
+		if err != nil && !util.IsErrNoRows(err) {
+			return false, err
+		}
+	} else {
+		externalApp.Label = info["last_deployed"].(string)
+		layout := "2021-04-21T09:00:23"
+		ldo, err := time.Parse(layout, info["last_deployed"].(string))
+		if err != nil {
+			impl.logger.Error(err)
+		}
+		externalApp.LastDeployedOn = ldo
+		externalApp.Status = info["status"].(string)
+		externalApp.ChartVersion = chartMeta["appVersion"].(string)
+		externalApp.Deprecated = chartMeta["deprecated"].(bool)
+		externalApp.UpdatedOn = time.Now()
+		externalApp.Active = true
+		externalApp, err = impl.externalAppsRepository.Update(externalApp)
+		if err != nil && !util.IsErrNoRows(err) {
+			return false, err
+		}
+	}
+
+	return false, nil
 }

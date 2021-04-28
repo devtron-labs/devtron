@@ -30,6 +30,7 @@ type ExternalAppsRepository interface {
 	Delete(model *ExternalApps) (bool, error)
 	FindById(id int) (*ExternalApps, error)
 	FindAll() ([]*ExternalApps, error)
+	FindByAppName(appName string) (*ExternalApps, error)
 }
 
 type ExternalAppsRepositoryImpl struct {
@@ -51,6 +52,9 @@ type ExternalApps struct {
 	ClusterId      int       `sql:"cluster_id"`
 	LastDeployedOn time.Time `sql:"last_deployed_on"`
 	Active         bool      `sql:"active,notnull"`
+	Status         string    `sql:"status"`
+	ChartVersion   string    `sql:"chart_version"`
+	Deprecated     bool      `sql:"deprecated,notnull"`
 	models.AuditLog
 }
 
@@ -98,4 +102,13 @@ func (impl ExternalAppsRepositoryImpl) FindAll() ([]*ExternalApps, error) {
 		Where("external_apps.active =?", true).
 		Select()
 	return externalApps, err
+}
+func (impl ExternalAppsRepositoryImpl) FindByAppName(appName string) (*ExternalApps, error) {
+	externalApp := &ExternalApps{}
+	err := impl.dbConnection.
+		Model(externalApp).
+		Where("external_apps.app_name = ?", appName).
+		Where("external_apps.active =?", true).
+		Select()
+	return externalApp, err
 }
