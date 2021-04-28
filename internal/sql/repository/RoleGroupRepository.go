@@ -37,6 +37,8 @@ type RoleGroupRepository interface {
 	GetRoleGroupRoleMappingByRoleGroupId(roleGroupId int32) ([]*RoleGroupRoleMapping, error)
 	DeleteRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (bool, error)
 	GetConnection() (dbConnection *pg.DB)
+	GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error)
+	GetRoleGroupRoleMappingByRoleGroupIds(roleGroupIds []int32) ([]*RoleModel, error)
 }
 
 type RoleGroupRepositoryImpl struct {
@@ -63,7 +65,7 @@ type RoleGroupRoleMapping struct {
 	Id          int      `sql:"id,pk"`
 	RoleGroupId int32    `sql:"role_group_id,notnull"`
 	RoleId      int      `sql:"role_id,notnull"`
-	//User        UserModel
+	RoleModel   *RoleModel
 	models.AuditLog
 }
 
@@ -153,4 +155,22 @@ func (impl RoleGroupRepositoryImpl) DeleteRoleGroupRoleMapping(model *RoleGroupR
 		return false, err
 	}
 	return true, nil
+}
+
+func (impl RoleGroupRepositoryImpl) GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error) {
+	var model []*RoleGroup
+	err := impl.dbConnection.Model(&model).Where("name in (?)", pg.In(groupNames)).Where("active = ?", true).Order("updated_on desc").Select()
+	return model, err
+}
+
+func (impl RoleGroupRepositoryImpl) GetRoleGroupRoleMappingByRoleGroupIds(roleGroupIds []int32) ([]*RoleModel, error) {
+	var roleModels []*RoleModel
+	query := "SELECT r.* from roles r" +
+		" INNER JOIN role_group_role_mapping rgm on rgm.role_id=r.id" +
+		" WHERE rgm.role_group_id in (?);"
+	_, err := impl.dbConnection.Query(&roleModels, query, pg.In(roleGroupIds))
+	if err != nil {
+		return roleModels, err
+	}
+	return roleModels, nil
 }
