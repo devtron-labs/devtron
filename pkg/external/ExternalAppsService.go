@@ -31,7 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
-	"github.com/jasonlvhit/gocron"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"time"
@@ -91,8 +90,8 @@ func NewExternalAppsServiceImpl(logger *zap.SugaredLogger, appStoreRepository ap
 		aCDAuthConfig:                 aCDAuthConfig,
 		externalAppsRepository:        externalAppsRepository,
 	}
-	gocron.Every(2).Seconds().Do(externalAppsServiceImpl.Crawler)
-	<-gocron.Start()
+	//gocron.Every(2).Seconds().Do(externalAppsServiceImpl.Crawler)
+	//<-gocron.Start()
 	return externalAppsServiceImpl
 }
 
@@ -178,6 +177,7 @@ func (impl *ExternalAppsServiceImpl) FindAll() ([]*ExternalAppsDto, error) {
 	}
 	for _, externalAppModel := range models {
 		externalApp := &ExternalAppsDto{}
+		externalApp.Id=externalAppModel.Id
 		externalApp.AppName = externalAppModel.AppName
 		externalApp.Label = externalAppModel.Label
 		externalApp.ChartName = externalAppModel.ChartName

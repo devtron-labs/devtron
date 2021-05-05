@@ -89,7 +89,7 @@ func (impl ExternalAppsRepositoryImpl) Delete(model *ExternalApps) (bool, error)
 func (impl ExternalAppsRepositoryImpl) FindById(id int) (*ExternalApps, error) {
 	externalApp := &ExternalApps{}
 	err := impl.dbConnection.
-		Model(&externalApp).
+		Model(externalApp).
 		Where("external_apps.id = ?", id).
 		Where("external_apps.active =?", true).
 		Select()

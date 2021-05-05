@@ -39,12 +39,11 @@ func NewExternalAppsRouterImpl(externalAppsRestHandler restHandler.ExternalAppsR
 
 func (router ExternalAppsRouterImpl) initExternalAppsRouterImpl(externalAppsRouter *mux.Router) {
 
-	externalAppsRouter.Path("/external-apps/{id}").
-		HandlerFunc(router.externalAppsRestHandler.FindById).
-		Methods("GET")
-
-	externalAppsRouter.Path("/external-apps/all").
+	externalAppsRouter.Path("/all").
 		HandlerFunc(router.externalAppsRestHandler.FindAll).
 		Methods("GET")
 
+	externalAppsRouter.Path("/{id}").
+		HandlerFunc(router.externalAppsRestHandler.FindById).
+		Methods("GET")
 }
