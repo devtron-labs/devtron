@@ -241,11 +241,11 @@ spec:
           {{- $cmName := .name -}}
           {{- $cmMountPath := .mountPath -}}
           {{- if eq .subPath false }}
-            - name: {{ $cmName }}-vol
+            - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath }}
           {{- else }}
           {{- range $k, $v := .data }}
-            - name: {{ $cmName }}-vol
+            - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath }}/{{ $k}}
               subPath: {{ $k}}
           {{- end }}
@@ -260,18 +260,18 @@ spec:
           {{- $cmName := .name -}}
           {{- $cmMountPath := .mountPath -}}
           {{- if eq .subPath false }}
-            - name: {{ $cmName }}-vol
+            - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath }}
           {{- else if and (eq (.subPath) true) (eq (.externalType) "KubernetesSecret") }}
           {{- else if and (eq (.subPath) true) (eq (.external) true) }}
           {{- range .secretData }}
-            - name: {{ $cmName }}-vol
+            - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath}}/{{ .name }}
               subPath: {{ .name }}
           {{- end }}
           {{- else }}
           {{- range $k, $v := .data }}
-            - name: {{ $cmName}}-vol
+            - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath}}/{{ $k}}
               subPath: {{ $k}}
           {{- end }}
@@ -294,7 +294,7 @@ spec:
       {{- if .Values.ConfigMaps.enabled }}
       {{- range .Values.ConfigMaps.maps }}
       {{- if eq .type "volume"}}
-        - name: {{ .name}}-vol
+        - name: {{ .name | replace "." "-"}}-vol
           configMap:
             {{- if eq .external true }}
             name: {{ .name }}
@@ -312,7 +312,7 @@ spec:
       {{- if .Values.ConfigSecrets.enabled }}
       {{- range .Values.ConfigSecrets.secrets }}
       {{- if eq .type "volume"}}
-        - name: {{ .name}}-vol
+        - name: {{ .name | replace "." "-"}}-vol
           secret:
             {{- if eq .external true }}
             secretName: {{ .name }}
