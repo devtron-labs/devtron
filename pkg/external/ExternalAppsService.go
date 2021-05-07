@@ -102,7 +102,7 @@ func NewExternalAppsServiceImpl(logger *zap.SugaredLogger, appStoreRepository ap
 func (impl *ExternalAppsServiceImpl) SearchExternalAppsByFilter(appName string, clusterIds []int, namespaces []string, offset int, limit int) ([]*ExternalAppsDto, error) {
 	var externalApps []*ExternalAppsDto
 
-	models, err := impl.externalAppsRepository.SearchByFilter(appName, clusterIds, namespaces)
+	models, err := impl.externalAppsRepository.SearchByFilter(appName, clusterIds, namespaces, offset, limit)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
