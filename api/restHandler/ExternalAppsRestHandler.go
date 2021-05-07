@@ -108,8 +108,20 @@ func (handler *ExternalAppsRestHandlerImpl) FindAll(w http.ResponseWriter, r *ht
 			clusterIds = append(clusterIds, clusterId)
 		}
 	}
+	offsetQueryParam := r.URL.Query().Get("offset")
+	offset, err := strconv.Atoi(offsetQueryParam)
+	if offsetQueryParam == "" || err != nil {
+		writeJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+		return
+	}
+	sizeQueryParam := r.URL.Query().Get("size")
+	limit, err := strconv.Atoi(sizeQueryParam)
+	if sizeQueryParam == "" || err != nil {
+		writeJsonResp(w, err, "invalid size", http.StatusBadRequest)
+		return
+	}
 
-	res, err := handler.externalAppsService.SearchExternalAppsByFilter(appName, clusterIds, namespaces)
+	res, err := handler.externalAppsService.SearchExternalAppsByFilter(appName, clusterIds, namespaces, offset, limit)
 	if err != nil {
 		handler.logger.Errorw("service err, FindAllApps, app store", "err", err, "userId", userId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)

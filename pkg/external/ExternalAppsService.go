@@ -50,7 +50,7 @@ type ExternalAppsDto struct {
 }
 
 type ExternalAppsService interface {
-	SearchExternalAppsByFilter(appName string, clusterIds []int, namespaces []string) ([]*ExternalAppsDto, error)
+	SearchExternalAppsByFilter(appName string, clusterIds []int, namespaces []string, offset int, limit int) ([]*ExternalAppsDto, error)
 	Create(request *ExternalAppsDto) (*ExternalAppsDto, error)
 	Update(request *ExternalAppsDto) (*ExternalAppsDto, error)
 	FindById(id int) (*ExternalAppsDto, error)
@@ -99,7 +99,7 @@ func NewExternalAppsServiceImpl(logger *zap.SugaredLogger, appStoreRepository ap
 	return externalAppsServiceImpl
 }
 
-func (impl *ExternalAppsServiceImpl) SearchExternalAppsByFilter(appName string, clusterIds []int, namespaces []string) ([]*ExternalAppsDto, error) {
+func (impl *ExternalAppsServiceImpl) SearchExternalAppsByFilter(appName string, clusterIds []int, namespaces []string, offset int, limit int) ([]*ExternalAppsDto, error) {
 	var externalApps []*ExternalAppsDto
 
 	models, err := impl.externalAppsRepository.SearchByFilter(appName, clusterIds, namespaces)
@@ -165,7 +165,7 @@ func (impl *ExternalAppsServiceImpl) FindById(id int) (*ExternalAppsDto, error) 
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
-	externalApp.Id=externalAppModel.Id
+	externalApp.Id = externalAppModel.Id
 	externalApp.AppName = externalAppModel.AppName
 	externalApp.Label = externalAppModel.Label
 	externalApp.ChartName = externalAppModel.ChartName
