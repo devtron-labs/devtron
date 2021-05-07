@@ -658,6 +658,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(external.ExternalAppsService), new(*external.ExternalAppsServiceImpl)),
 		external2.NewExternalAppsRepositoryImpl,
 		wire.Bind(new(external2.ExternalAppsRepository), new(*external2.ExternalAppsRepositoryImpl)),
+		external2.NewExternalAppsDetailRepositoryImpl,
+		wire.Bind(new(external2.ExternalAppsDetailRepository), new(*external2.ExternalAppsDetailRepositoryImpl)),
 	)
 	return &App{}, nil
 }
