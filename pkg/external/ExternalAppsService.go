@@ -70,6 +70,7 @@ type ExternalAppsServiceImpl struct {
 	versionService                argocdServer.VersionService
 	aCDAuthConfig                 *user.ACDAuthConfig
 	externalAppsRepository        external.ExternalAppsRepository
+	externalAppsDetailRepository  external.ExternalAppsDetailRepository
 }
 
 func NewExternalAppsServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
@@ -107,6 +108,7 @@ func (impl *ExternalAppsServiceImpl) SearchExternalAppsByFilter(appName string, 
 	}
 	for _, externalAppModel := range models {
 		externalApp := &ExternalAppsDto{}
+		externalApp.Id = externalAppModel.Id
 		externalApp.AppName = externalAppModel.AppName
 		externalApp.Label = externalAppModel.Label
 		externalApp.ChartName = externalAppModel.ChartName
@@ -163,6 +165,7 @@ func (impl *ExternalAppsServiceImpl) FindById(id int) (*ExternalAppsDto, error) 
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
+	externalApp.Id=externalAppModel.Id
 	externalApp.AppName = externalAppModel.AppName
 	externalApp.Label = externalAppModel.Label
 	externalApp.ChartName = externalAppModel.ChartName
