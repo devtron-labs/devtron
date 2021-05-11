@@ -104,27 +104,40 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 	var userResponse []*bean.UserInfo
 	emailIds := strings.Split(userInfo.EmailId, ",")
 	for _, emailId := range emailIds {
-		dbConnection := impl.userRepository.GetConnection()
-		tx, err := dbConnection.Begin()
-		if err != nil {
-			return nil, err
-		}
-		// Rollback tx on error.
-		defer tx.Rollback()
 
 		dbUser, err := impl.userRepository.FetchActiveOrDeletedUserByEmail(emailId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error while fetching user from db", "error", err)
 			return nil, err
 		}
+
+		//if found update it with new roles
 		if dbUser != nil && dbUser.Id > 0 && dbUser.Active {
-			// Do nothing, User already exist in our db. (unique check by email id)
-			impl.logger.Infow("User already exist", "user", dbUser)
-			userInfo.Exist = true
-			err = &util.ApiError{Code: "409", HttpStatusCode: http.StatusConflict, UserMessage: "User Already Exists"}
-			return userResponse, err
-		} else {
-			_, err := impl.validateUserRequest(userInfo)
+			updateUserInfo, err := impl.GetById(dbUser.Id)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error while fetching user from db", "error", err)
+				return nil, err
+			}
+			updateUserInfo.RoleFilters = impl.mergeRoleFilter(updateUserInfo.RoleFilters, userInfo.RoleFilters)
+			updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
+			updateUserInfo.UserId = userInfo.UserId
+			updateUserInfo, err = impl.UpdateUser(updateUserInfo)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// if not found, create new user
+		if err == pg.ErrNoRows {
+			dbConnection := impl.userRepository.GetConnection()
+			tx, err := dbConnection.Begin()
+			if err != nil {
+				return nil, err
+			}
+			// Rollback tx on error.
+			defer tx.Rollback()
+
+			_, err = impl.validateUserRequest(userInfo)
 			if err != nil {
 				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
 				return nil, err
@@ -296,12 +309,13 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 				println(pRes)
 			}
 			//Ends
+
+			err = tx.Commit()
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		err = tx.Commit()
-		if err != nil {
-			return nil, err
-		}
 		pass = append(pass, emailId)
 		userInfo.EmailId = emailId
 		userInfo.Exist = dbUser.Active
@@ -309,6 +323,52 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 	}
 
 	return userResponse, nil
+}
+
+func (impl UserServiceImpl) mergeRoleFilter(oldR []bean.RoleFilter, newR []bean.RoleFilter) []bean.RoleFilter {
+	var roleFilters []bean.RoleFilter
+	keysMap := make(map[string]bool)
+	for _, role := range oldR {
+		roleFilters = append(roleFilters, bean.RoleFilter{
+			Entity:      role.Entity,
+			Team:        role.Team,
+			Environment: role.Environment,
+			EntityName:  role.EntityName,
+			Action:      role.Action,
+		})
+		key := fmt.Sprintf("%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment, role.EntityName, role.Action)
+		keysMap[key] = true
+	}
+	for _, role := range newR {
+		key := fmt.Sprintf("%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment, role.EntityName, role.Action)
+		if _, ok := keysMap[key]; !ok {
+			roleFilters = append(roleFilters, bean.RoleFilter{
+				Entity:      role.Entity,
+				Team:        role.Team,
+				Environment: role.Environment,
+				EntityName:  role.EntityName,
+				Action:      role.Action,
+			})
+		}
+	}
+	return roleFilters
+}
+
+func (impl UserServiceImpl) mergeGroups(oldGroups []string, newGroups []string) []string {
+	var groups []string
+	keysMap := make(map[string]bool)
+	for _, group := range oldGroups {
+		groups = append(groups, group)
+		key := fmt.Sprintf(group)
+		keysMap[key] = true
+	}
+	for _, group := range newGroups {
+		key := fmt.Sprintf(group)
+		if _, ok := keysMap[key]; !ok {
+			groups = append(groups, group)
+		}
+	}
+	return groups
 }
 
 func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo, error) {
