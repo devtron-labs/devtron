@@ -402,8 +402,25 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 	writeJsonResp(w, err, createResp, http.StatusOK)
 }
 
+func (handler PipelineConfigRestHandlerImpl) ExtractChartVersion(chartVersion string) (int, int, error) {
+	if len(chartVersion) == 0 {
+		return 0, 0, nil
+	}
+	chartVersions := strings.Split(chartVersion, ".")
+	chartMajorVersion, err := strconv.Atoi(chartVersions[0])
+	if err != nil {
+		return 0, 0, err
+	}
+	chartMinorVersion, err := strconv.Atoi(chartVersions[1])
+	if err != nil {
+		return 0, 0, err
+	}
+	return chartMajorVersion, chartMinorVersion, nil
+}
+
 func (handler PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
+	_, _, _ = handler.ExtractChartVersion("3.11")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
