@@ -65,7 +65,6 @@ type RoleGroupRoleMapping struct {
 	Id          int      `sql:"id,pk"`
 	RoleGroupId int32    `sql:"role_group_id,notnull"`
 	RoleId      int      `sql:"role_id,notnull"`
-	RoleModel   *RoleModel
 	models.AuditLog
 }
 
