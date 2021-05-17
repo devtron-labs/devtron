@@ -37,6 +37,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -891,7 +893,14 @@ func (impl DbPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.Up
 		return nil, validationErr
 	}
 	currentMaterial.Url = updateMaterialDTO.Material.Url
-	currentMaterial.Name = strconv.Itoa(updateMaterialDTO.Material.GitProviderId) + "-" + updateMaterialDTO.Material.Url[strings.LastIndex(updateMaterialDTO.Material.Url, "/")+1:strings.LastIndex(updateMaterialDTO.Material.Url, ".git")]
+	materialUrl, err := url.Parse(updateMaterialDTO.Material.Url)
+	if err != nil {
+		return nil, err
+	}
+	basePath := path.Base(materialUrl.Path)
+	basePath = strings.TrimSuffix(basePath, ".git")
+
+	currentMaterial.Name = strconv.Itoa(updateMaterialDTO.Material.GitProviderId) + "-" + basePath
 	currentMaterial.GitProviderId = updateMaterialDTO.Material.GitProviderId
 	currentMaterial.CheckoutPath = updateMaterialDTO.Material.CheckoutPath
 	currentMaterial.AuditLog = models.AuditLog{UpdatedBy: updateMaterialDTO.UserId, CreatedBy: currentMaterial.CreatedBy, UpdatedOn: time.Now(), CreatedOn: currentMaterial.CreatedOn}
@@ -905,16 +914,22 @@ func (impl DbPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.Up
 }
 
 func (impl DbPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitMaterial, appId int, userId int32) (*pipelineConfig.GitMaterial, error) {
+	materialUrl, err := url.Parse(inputMaterial.Url)
+	if err != nil {
+		return nil, err
+	}
+	basePath := path.Base(materialUrl.Path)
+	basePath = strings.TrimSuffix(basePath, ".git")
 	material := &pipelineConfig.GitMaterial{
 		Url:           inputMaterial.Url,
 		AppId:         appId,
-		Name:          strconv.Itoa(inputMaterial.GitProviderId) + "-" + inputMaterial.Url[strings.LastIndex(inputMaterial.Url, "/")+1:strings.LastIndex(inputMaterial.Url, ".git")],
+		Name:          strconv.Itoa(inputMaterial.GitProviderId) + "-" + basePath,
 		GitProviderId: inputMaterial.GitProviderId,
 		Active:        true,
 		CheckoutPath:  inputMaterial.CheckoutPath,
 		AuditLog:      models.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
-	err := impl.materialRepository.SaveMaterial(material)
+	err = impl.materialRepository.SaveMaterial(material)
 	if err != nil {
 		impl.logger.Errorw("error in saving material", "material", material, "err", err)
 		return nil, err
