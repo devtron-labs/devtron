@@ -88,8 +88,8 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 }
 
 type GitConfig struct {
-	GitlabGroupId      string                                                         //local
-	GitlabGroupPath    string                                                         //local
+	GitlabGroupId      string //local
+	GitlabGroupPath    string //local
 	GitToken           string `env:"GIT_TOKEN" `                                      //not null  // public
 	GitUserName        string `env:"GIT_USERNAME" `                                   //not null  // public
 	GitWorkingDir      string `env:"GIT_WORKING_DIRECTORY" envDefault:"/tmp/gitops/"` //working directory for git. might use pvc
@@ -190,9 +190,14 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 			logger:     logger,
 			gitService: gitService,
 		}, nil
-	} else {
+	} else if config.GitProvider == "GITHUB" {
 		gitHubClient := NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService)
 		return gitHubClient, nil
+	} else if config.GitProvider == "AZURE" {
+		gitAzureClient := NewGitAzureClient(config.GitToken, config.GithubOrganization, logger, gitService)
+		return gitAzureClient, nil
+	} else {
+		return nil, fmt.Errorf("no git provider provided")
 	}
 }
 
