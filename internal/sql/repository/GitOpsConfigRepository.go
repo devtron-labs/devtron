@@ -46,6 +46,7 @@ type GitOpsConfig struct {
 	Token         string   `sql:"token"`
 	GitLabGroupId string   `sql:"gitlab_group_id"`
 	GitHubOrgId   string   `sql:"github_org_id"`
+	AzureOrgId    string   `sql:"azure_org_id"`
 	Host          string   `sql:"host"`
 	Active        bool     `sql:"active,notnull"`
 	models.AuditLog

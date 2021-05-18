@@ -96,6 +96,8 @@ type GitConfig struct {
 	GithubOrganization string
 	GitProvider        string `env:"GIT_PROVIDER" envDefault:"GITHUB"` // SUPPORTED VALUES  GITHUB, GITLAB
 	GitHost            string `env:"GIT_HOST" envDefault:""`
+	AzureOrganization  string
+	AzureToken         string `env:"AZURE_TOKEN"`
 }
 
 func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfig, error) {
@@ -121,6 +123,8 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		GithubOrganization: gitOpsConfig.GitHubOrgId,
 		GitProvider:        gitOpsConfig.Provider,
 		GitHost:            gitOpsConfig.Host,
+		AzureToken:         gitOpsConfig.Token,
+		AzureOrganization:  gitOpsConfig.GitHubOrgId,
 	}
 	return cfg, err
 }
@@ -194,7 +198,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		gitHubClient := NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService)
 		return gitHubClient, nil
 	} else if config.GitProvider == "AZURE" {
-		gitAzureClient := NewGitAzureClient(config.GitToken, config.GithubOrganization, logger, gitService)
+		gitAzureClient := NewGitAzureClient(config.AzureToken, config.AzureOrganization, logger, gitService)
 		return gitAzureClient, nil
 	} else {
 		return nil, fmt.Errorf("no git provider provided")
