@@ -124,7 +124,7 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		GitProvider:        gitOpsConfig.Provider,
 		GitHost:            gitOpsConfig.Host,
 		AzureToken:         gitOpsConfig.Token,
-		AzureOrganization:  gitOpsConfig.GitHubOrgId,
+		AzureOrganization:  gitOpsConfig.AzureOrgId,
 	}
 	return cfg, err
 }
