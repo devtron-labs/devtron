@@ -3,7 +3,6 @@ package util
 import (
 	"context"
 	"fmt"
-	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"go.uber.org/zap"
@@ -13,38 +12,41 @@ import (
 )
 
 type GitAzureClient struct {
-	client git.Client
-
-	//config *GitConfig
+	client     git.Client
 	logger     *zap.SugaredLogger
-	org        string
+	project    string
 	gitService GitService
 }
 
-func NewGitAzureClient(token string, org string, logger *zap.SugaredLogger, gitService GitService) GitAzureClient {
+func (impl GitAzureClient) GetRepoUrl(repoName string) (repoUrl string, err error) {
+	url, exists, err := impl.repoExists(repoName, impl.project)
+	if err != nil {
+		return "", err
+	} else if !exists {
+		return "", fmt.Errorf("%s :repo not found", repoName)
+	} else {
+		return url, nil
+	}
+}
+
+func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitService GitService) GitAzureClient {
 	ctx := context.Background()
 	// Create a connection to your organization
-	connection := azuredevops.NewPatConnection(org, token)
+	connection := azuredevops.NewPatConnection(host, token)
 	// Create a client to interact with the Core area
 	coreClient, err := git.NewClient(ctx, connection)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return GitAzureClient{client: coreClient, org: org, logger: logger, gitService: gitService}
+	return GitAzureClient{client: coreClient, project: project, logger: logger, gitService: gitService}
 }
 
 func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, err error) {
 	ctx := context.Background()
-	repoExists := true
-	url, err = impl.GetRepoUrl(name)
+	url, repoExists, err := impl.repoExists(name, impl.project)
 	if err != nil {
-		responseErr, ok := err.(*github.ErrorResponse)
-		if !ok || responseErr.Response.StatusCode != 404 {
-			impl.logger.Errorw("error in creating repo", "err", err)
-			return "", false, err
-		} else {
-			repoExists = false
-		}
+		impl.logger.Errorw("error in communication with azure", "err", err)
+		return "", false, err
 	}
 	if repoExists {
 		return url, false, nil
@@ -54,7 +56,7 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 	}
 	operationReference, err := impl.client.CreateRepository(ctx, git.CreateRepositoryArgs{
 		GitRepositoryToCreate: &gitRepositoryCreateOptions,
-		Project:               &name,
+		Project:               &impl.project,
 	})
 	if err != nil {
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
@@ -75,7 +77,7 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 		impl.logger.Errorw("error in creating readme", "err", err)
 		return *operationReference.Url, true, err
 	}
-	validated, err = impl.ensureProjectAvailabilityOnSsh(name, *operationReference.Url)
+	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, name, *operationReference.Url)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
 		return *operationReference.Url, true, err
@@ -83,7 +85,7 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 	if !validated {
 		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
 	}
-	return *operationReference.Url, true, err
+	return *operationReference.WebUrl, true, err
 }
 
 func (impl GitAzureClient) createReadme(repoName string) (string, error) {
@@ -103,83 +105,126 @@ func (impl GitAzureClient) createReadme(repoName string) (string, error) {
 
 func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string, err error) {
 	branch := "master"
+	branchfull := "refs/heads/master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	ctx := context.Background()
-	newFile := false
+	newFile := true
+	oldObjId := "0000000000000000000000000000000000000000" //default commit hash
 	fc, err := impl.client.GetItem(ctx, git.GetItemArgs{
-		RepositoryId: &config.FileName,
+		RepositoryId: &config.ChartName,
 		Path:         &path,
+		Project:      &impl.project,
 	})
-	currentSHA := ""
-	if !newFile {
-		currentSHA = *fc.ObjectId
+	if err != nil {
+		notFoundStatus := 404
+		if e, ok := err.(*azuredevops.WrappedError); ok && e.StatusCode == &notFoundStatus {
+			branchStat, err := impl.client.GetBranch(ctx, git.GetBranchArgs{Project: &impl.project, Name: &branch, RepositoryId: &config.ChartName})
+			if err != nil {
+				if e, ok := err.(*azuredevops.WrappedError); !ok || e.StatusCode != &notFoundStatus {
+					impl.logger.Errorw("error in fetching branch from azure devops", "err", err)
+					return "", err
+				}
+			} else if branchStat != nil {
+				oldObjId = *branchStat.Commit.CommitId
+			}
+		} else {
+			impl.logger.Errorw("error in fetching file from azure devops", "err", err)
+			return "", err
+		}
+	} else {
+		oldObjId = *fc.CommitId
+		newFile = false
 	}
+
 	var refUpdates []git.GitRefUpdate
-	var commits []git.GitCommitRef
 	refUpdates = append(refUpdates, git.GitRefUpdate{
-		Name:        &branch,
-		OldObjectId: &currentSHA,
+		Name:        &branchfull,
+		OldObjectId: &oldObjId,
 	})
-	comments := "added new file"
+	var changeType git.VersionControlChangeType
+	if newFile {
+		changeType = git.VersionControlChangeTypeValues.Add
+	} else {
+		changeType = git.VersionControlChangeTypeValues.Edit
+	}
+	gitChange := git.GitChange{ChangeType: &changeType,
+		Item: &git.GitItemDescriptor{Path: &path},
+		NewContent: &git.ItemContent{
+			Content:     &config.FileContent,
+			ContentType: &git.ItemContentTypeValues.RawText,
+		}}
 	var contents []interface{}
-	contents = append(contents, config.FileContent)
+	contents = append(contents, gitChange)
+
+	var commits []git.GitCommitRef
 	commits = append(commits, git.GitCommitRef{
 		Changes: &contents,
-		Comment: &comments,
+		Comment: &config.ReleaseMessage,
 	})
-	gitPush := &git.GitPush{
-		RefUpdates: &refUpdates,
-		Commits:    &commits,
-	}
-	gitPush, err = impl.client.CreatePush(ctx, git.CreatePushArgs{
-		Push:         gitPush,
-		RepositoryId: &config.FileName,
-		Project:      &config.FileName,
+
+	push, err := impl.client.CreatePush(ctx, git.CreatePushArgs{
+		Push: &git.GitPush{
+			Commits:    &commits,
+			RefUpdates: &refUpdates,
+		},
+		RepositoryId: &config.ChartName,
+		Project:      &impl.project,
 	})
+
 	if err != nil {
 		impl.logger.Errorw("error in commit", "err", err)
 		return "", err
 	}
-	return gitPush.PushCorrelationId.String(), nil
+	//gitPush.Commits
+	commitId := ""
+	if len(*push.Commits) > 0 {
+		commitId = *(*push.Commits)[0].CommitId
+	}
+	//	push.Commits[0].CommitId
+	return commitId, nil
 }
 
-func (impl GitAzureClient) GetRepoUrl(projectName string) (repoUrl string, err error) {
+func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl string, exists bool, err error) {
 	ctx := context.Background()
 	// Get first page of the list of team projects for your organization
 	gitRepository, err := impl.client.GetRepository(ctx, git.GetRepositoryArgs{
-		RepositoryId: &projectName,
+		RepositoryId: &repoName,
+		Project:      &projectName,
 	})
+	notFoundStatus := 404
 	if err != nil {
-		log.Fatal(err)
-		return "", err
+		if e, ok := err.(*azuredevops.WrappedError); ok && e.StatusCode == &notFoundStatus {
+			return "", false, nil
+		} else {
+			return "", false, err
+		}
+
 	}
 	for gitRepository == nil {
-		return "", fmt.Errorf("no repository found")
+		return "", false, nil
 	}
-	return *gitRepository.Url, nil
+	return *gitRepository.WebUrl, true, nil
 }
 
-func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(projectName string) (bool, error) {
+func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(repoName string) (bool, error) {
 	count := 0
 	for count < 3 {
 		count = count + 1
-		_, err := impl.GetRepoUrl(projectName)
-		if err == nil {
+		_, exists, err := impl.repoExists(repoName, impl.project)
+		if err == nil && exists {
 			return true, nil
-		}
-		responseErr, ok := err.(*github.ErrorResponse)
-		if !ok || responseErr.Response.StatusCode != 404 {
+		} else if err != nil {
 			impl.logger.Errorw("error in validating repo", "err", err)
 			return false, err
 		} else {
-			impl.logger.Errorw("error in validating repo", "err", err)
+			impl.logger.Errorw("repo not available ", "repo")
 		}
 		time.Sleep(10 * time.Second)
 	}
 	return false, nil
 }
 
-func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (bool, error) {
+func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, repoName string, repoUrl string) (bool, error) {
 	count := 0
 	for count < 3 {
 		count = count + 1
