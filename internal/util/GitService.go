@@ -198,7 +198,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 	} else if config.GitProvider == "GITHUB" {
 		gitHubClient := NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService)
 		return gitHubClient, nil
-	} else if config.GitProvider == "AZURE" {
+	} else if config.GitProvider == "AZURE_DEVOPS" {
 		gitAzureClient := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitService)
 		return gitAzureClient, nil
 	} else {
