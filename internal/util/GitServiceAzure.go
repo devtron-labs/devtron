@@ -120,7 +120,7 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 		if e, ok := err.(azuredevops.WrappedError); ok && *e.StatusCode == notFoundStatus {
 			branchStat, err := impl.client.GetBranch(ctx, git.GetBranchArgs{Project: &impl.project, Name: &branch, RepositoryId: &config.ChartName})
 			if err != nil {
-				if e, ok := err.(azuredevops.WrappedError); !ok || *e.StatusCode < 500 {
+				if e, ok := err.(azuredevops.WrappedError); !ok || *e.StatusCode >= 500 {
 					impl.logger.Errorw("error in fetching branch from azure devops", "err", err)
 					return "", err
 				}
