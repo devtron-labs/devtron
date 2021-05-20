@@ -117,10 +117,10 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 	})
 	if err != nil {
 		notFoundStatus := 404
-		if e, ok := err.(*azuredevops.WrappedError); ok && e.StatusCode == &notFoundStatus {
+		if e, ok := err.(azuredevops.WrappedError); ok && *e.StatusCode == notFoundStatus {
 			branchStat, err := impl.client.GetBranch(ctx, git.GetBranchArgs{Project: &impl.project, Name: &branch, RepositoryId: &config.ChartName})
 			if err != nil {
-				if e, ok := err.(*azuredevops.WrappedError); !ok || e.StatusCode != &notFoundStatus {
+				if e, ok := err.(azuredevops.WrappedError); !ok || *e.StatusCode != notFoundStatus {
 					impl.logger.Errorw("error in fetching branch from azure devops", "err", err)
 					return "", err
 				}
@@ -193,7 +193,7 @@ func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl str
 	})
 	notFoundStatus := 404
 	if err != nil {
-		if e, ok := err.(*azuredevops.WrappedError); ok && e.StatusCode == &notFoundStatus {
+		if e, ok := err.(azuredevops.WrappedError); ok && *e.StatusCode == notFoundStatus {
 			return "", false, nil
 		} else {
 			return "", false, err
