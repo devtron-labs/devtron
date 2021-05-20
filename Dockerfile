@@ -11,8 +11,8 @@ RUN GOOS=linux make
 
 FROM alpine:3.9
 RUN apk add --no-cache ca-certificates
-RUN echo pwd
-COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/devtron .
+RUN apk update
+RUN apk add git
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/auth_model.conf .
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets/ /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/devtron-reference-helm-charts scripts/devtron-reference-helm-charts
