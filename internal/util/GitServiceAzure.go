@@ -208,16 +208,17 @@ func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl str
 
 func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(repoName string) (bool, error) {
 	count := 0
-	for count < 3 {
+	for count < 5 {
 		count = count + 1
 		_, exists, err := impl.repoExists(repoName, impl.project)
 		if err == nil && exists {
+			impl.logger.Infow("")
 			return true, nil
 		} else if err != nil {
 			impl.logger.Errorw("error in validating repo", "err", err)
 			return false, err
 		} else {
-			impl.logger.Errorw("repo not available ", "repo")
+			impl.logger.Errorw("repo not available on http", "repo")
 		}
 		time.Sleep(10 * time.Second)
 	}
@@ -226,7 +227,7 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(repoName string) (boo
 
 func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, repoName string, repoUrl string) (bool, error) {
 	count := 0
-	for count < 3 {
+	for count < 5 {
 		count = count + 1
 		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
@@ -234,7 +235,7 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, re
 			return true, nil
 		}
 		if err != nil {
-			impl.logger.Errorw("ensureProjectAvailability clone failed", "try count", count, "err", err)
+			impl.logger.Errorw("ensureProjectAvailability clone failed ssh ", "try count", count, "err", err)
 		}
 		time.Sleep(10 * time.Second)
 	}

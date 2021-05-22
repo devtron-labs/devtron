@@ -30,6 +30,13 @@ func (impl *GitCliUtil) Fetch(rootDir string, username string, password string) 
 	return output, errMsg, nil
 }
 
+func (impl *GitCliUtil) Pull(rootDir string, username string, password string, branch string) (response, errMsg string, err error) {
+	impl.logger.Debugw("git pull ", "location", rootDir)
+	cmd := exec.Command("git", "-C", rootDir, "pull", "origin", branch, "--force")
+	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
+	impl.logger.Debugw("fetch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
+	return output, errMsg, nil
+}
 func (impl *GitCliUtil) Checkout(rootDir string, branch string) (response, errMsg string, err error) {
 	impl.logger.Debugw("git checkout ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "checkout", branch, "--force")
@@ -65,8 +72,12 @@ func (impl *GitCliUtil) runCommand(cmd *exec.Cmd) (response, errMsg string, err 
 
 func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) error {
 	//-----------------
-
-	err := os.MkdirAll(rootDir, 0755)
+	err := os.RemoveAll(rootDir)
+	if err != nil {
+		impl.logger.Errorw("error in cleaning rootDir", "err", err)
+		return err
+	}
+	err = os.MkdirAll(rootDir, 0755)
 	if err != nil {
 		return err
 	}
@@ -87,5 +98,8 @@ func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string,
 		return "", "", err
 	}
 	response, errMsg, err = impl.Fetch(rootDir, username, password)
+	if err == nil && errMsg == "" {
+		response, errMsg, err = impl.Clone(rootDir, username, password, "master")
+	}
 	return response, errMsg, err
 }
