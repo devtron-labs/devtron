@@ -6,7 +6,6 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"go.uber.org/zap"
-	"log"
 	"path/filepath"
 	"time"
 )
@@ -36,7 +35,7 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 	// Create a client to interact with the Core area
 	coreClient, err := git.NewClient(ctx, connection)
 	if err != nil {
-		log.Fatal(err)
+		logger.Errorw("error in creating azure  gitops client, gitops related operation might fail", "err", err)
 	}
 	return GitAzureClient{client: coreClient, project: project, logger: logger, gitService: gitService}
 }
