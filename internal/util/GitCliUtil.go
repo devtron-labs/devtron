@@ -34,7 +34,7 @@ func (impl *GitCliUtil) Pull(rootDir string, username string, password string, b
 	impl.logger.Debugw("git pull ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "pull", "origin", branch, "--force")
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
-	impl.logger.Debugw("fetch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
+	impl.logger.Debugw("pull output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, nil
 }
 func (impl *GitCliUtil) Checkout(rootDir string, branch string) (response, errMsg string, err error) {
