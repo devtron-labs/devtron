@@ -99,7 +99,7 @@ func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string,
 	}
 	response, errMsg, err = impl.Fetch(rootDir, username, password)
 	if err == nil && errMsg == "" {
-		response, errMsg, err = impl.Clone(rootDir, username, password, "master")
+		response, errMsg, err = impl.Pull(rootDir, username, password, "master")
 	}
 	return response, errMsg, err
 }
