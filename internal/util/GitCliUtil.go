@@ -27,7 +27,7 @@ func (impl *GitCliUtil) Fetch(rootDir string, username string, password string) 
 	cmd := exec.Command("git", "-C", rootDir, "fetch", "origin", "--tags", "--force")
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
 	impl.logger.Debugw("fetch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
-	return output, errMsg, nil
+	return output, errMsg, err
 }
 
 func (impl *GitCliUtil) Pull(rootDir string, username string, password string, branch string) (response, errMsg string, err error) {
@@ -35,14 +35,14 @@ func (impl *GitCliUtil) Pull(rootDir string, username string, password string, b
 	cmd := exec.Command("git", "-C", rootDir, "pull", "origin", branch, "--force")
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
 	impl.logger.Debugw("pull output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
-	return output, errMsg, nil
+	return output, errMsg, err
 }
 func (impl *GitCliUtil) Checkout(rootDir string, branch string) (response, errMsg string, err error) {
 	impl.logger.Debugw("git checkout ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "checkout", branch, "--force")
 	output, errMsg, err := impl.runCommand(cmd)
 	impl.logger.Debugw("checkout output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
-	return output, errMsg, nil
+	return output, errMsg,  err
 }
 
 func (impl *GitCliUtil) runCommandWithCred(cmd *exec.Cmd, userName, password string) (response, errMsg string, err error) {

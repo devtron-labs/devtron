@@ -109,6 +109,9 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 	ctx := context.Background()
 	newFile := true
 	oldObjId := "0000000000000000000000000000000000000000" //default commit hash
+	// check if file exists and current hash
+	// if file does not exists get hash from branch
+	// if branch doesn't exists use default hash
 	fc, err := impl.client.GetItem(ctx, git.GetItemArgs{
 		RepositoryId: &config.ChartName,
 		Path:         &path,
