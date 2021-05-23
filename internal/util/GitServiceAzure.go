@@ -61,12 +61,12 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
 		return "", true, err
 	}
-	logger.Infow("repo created ", "r", operationReference.Url)
+	logger.Infow("repo created ", "r", operationReference.WebUrl)
 
 	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		return *operationReference.Url, true, err
+		return *operationReference.WebUrl, true, err
 	}
 	if !validated {
 		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
@@ -74,12 +74,12 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 	_, err = impl.createReadme(name)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme", "err", err)
-		return *operationReference.Url, true, err
+		return *operationReference.WebUrl, true, err
 	}
-	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, name, *operationReference.Url)
+	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, name, *operationReference.WebUrl)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		return *operationReference.Url, true, err
+		return *operationReference.WebUrl, true, err
 	}
 	if !validated {
 		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
