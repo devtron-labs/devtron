@@ -202,7 +202,8 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		gitAzureClient := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitService)
 		return gitAzureClient, nil
 	} else {
-		return nil, fmt.Errorf("no git provider provided")
+		logger.Errorw("no gitops config provided, gitops will not work ")
+		return nil, nil
 	}
 }
 
