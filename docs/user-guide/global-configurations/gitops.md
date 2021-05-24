@@ -28,7 +28,7 @@ Select one of the Git providers. To add git account, You need to provide three i
 
 ### 1. Git Host: 
 
-This field is filled by default, Showing the URL of the selected git providers. For example- https://github.com for Github, https://gitlab.com for GitLab, https://dev.azure.com/ for Azure. 
+This field is filled by default, Showing the URL of the selected git providers. For example- https://github.com for Github, https://gitlab.com for GitLab, https://dev.azure.com/ for Azure. Please replace them if they are not the url you want to use.
 
 ### 2. Github Organization Name / GitLab Group Id / Azure DevOps Project Name:
 
