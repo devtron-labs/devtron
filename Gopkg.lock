@@ -243,6 +243,14 @@
   version = "v1.9.1"
 
 [[projects]]
+  digest = "1:933fc6bfb0b1bc4fe24eaf9a277d6369edac41ff07168f039976b96810fb4e84"
+  name = "github.com/casbin/json-adapter"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "98e846eed4809e48e9ec11e8169400487d8a3029"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:7a76860f4a0eea1b811a0368f5575bebdca77637321a84f0921a73a65c6a5d50"
   name = "github.com/casbin/xorm-adapter"
   packages = ["."]
@@ -1941,6 +1949,7 @@
     "github.com/aws/aws-sdk-go/service/s3/s3manager",
     "github.com/caarlos0/env",
     "github.com/casbin/casbin",
+    "github.com/casbin/json-adapter",
     "github.com/casbin/xorm-adapter",
     "github.com/coreos/go-oidc",
     "github.com/davecgh/go-spew/spew",
@@ -2003,6 +2012,7 @@
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/types",
+    "k8s.io/client-go/discovery",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/kubernetes/typed/core/v1",

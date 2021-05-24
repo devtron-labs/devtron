@@ -187,3 +187,7 @@ required = [
 [[constraint]]
   name = "github.com/igm/sockjs-go"
   version = "3.0.0"
+
+[[constraint]]
+  name = "github.com/casbin/json-adapter"
+  version = "1.0.0"
