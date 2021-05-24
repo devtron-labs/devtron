@@ -22,9 +22,9 @@ Select the Gitops section of global configuration. At the top of the section, th
 ![](../../.gitbook/assets/gc-gitops-provider.png)
 
 Select one of the Git providers. To add git account, You need to provide three inputs as given below:
-1. Git Host / Azure DevOps Organisation Url* &nbsp;
-2. Github Organization Name / Gitlab Group id / Azure DevOps Project Name*&nbsp;
-3. Git access credential &nbsp;
+1. Git Host / Azure DevOps Organisation Url <br />
+2. Github Organization Name / Gitlab Group id / Azure DevOps Project Name <br />
+3. Git access credential <br />
 
 ### 1. Git Host: 
 
