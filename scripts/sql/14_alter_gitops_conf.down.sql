@@ -1,0 +1,1 @@
+ALTER TABLE gitops_config DROP COLUMN column_name;

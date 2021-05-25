@@ -1,18 +1,13 @@
-package repository
+package rbac
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/casbin"
-	"github.com/go-pg/pg"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"testing"
 )
 
 func TestUserAuthRepositoryImpl_generateDefaultPolicies(t *testing.T) {
 	type fields struct {
-		dbConnection *pg.DB
-		Logger       *zap.SugaredLogger
 	}
 	type args struct {
 		team       string
@@ -28,7 +23,7 @@ func TestUserAuthRepositoryImpl_generateDefaultPolicies(t *testing.T) {
 	}{
 		{
 			name: "verfiy generated policy",
-			fields: fields{Logger: dummyLogger()},
+			fields: fields{},
 			args: args{
 				team:       "dev",
 				entityName: "applications",
@@ -189,13 +184,9 @@ func TestUserAuthRepositoryImpl_generateDefaultPolicies(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			impl := UserAuthRepositoryImpl{
-				dbConnection: tt.fields.dbConnection,
-				Logger:       tt.fields.Logger,
-			}
-			got, err := impl.generateDefaultPolicies(tt.args.team, tt.args.entityName, tt.args.env)
+			got, err := GenerateDefaultPolicies(tt.args.team, tt.args.entityName, tt.args.env)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("generateDefaultPolicies() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GenerateDefaultPolicies() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			for i := 0; i < len(tt.want); i++ {
@@ -203,21 +194,10 @@ func TestUserAuthRepositoryImpl_generateDefaultPolicies(t *testing.T) {
 					if tt.want[i].Data[j].Type != got[i].Data[j].Type || tt.want[i].Data[j].Res != got[i].Data[j].Res ||
 						tt.want[i].Data[j].Act != got[i].Data[j].Act || tt.want[i].Data[j].Obj != got[i].Data[j].Obj ||
 						tt.want[i].Data[j].Sub != got[i].Data[j].Sub {
-						t.Errorf("generateDefaultPolicies() got = %v, want %v at [%d][%d]", got[i].Data[j], tt.want[i].Data[j], i, j)
+						t.Errorf("GenerateDefaultPolicies() got = %v, want %v at [%d][%d]", got[i].Data[j], tt.want[i].Data[j], i, j)
 					}
 				}
 			}
 		})
 	}
-}
-
-func dummyLogger() *zap.SugaredLogger {
-
-	config := zap.NewProductionConfig()
-	config.Level = zap.NewAtomicLevelAt(zapcore.Level(5))
-	l, err := config.Build()
-	if err != nil {
-		panic("failed to create the default logger: " + err.Error())
-	}
-	return l.Sugar()
 }

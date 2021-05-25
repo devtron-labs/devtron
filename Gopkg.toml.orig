@@ -189,9 +189,10 @@ required = [
   version = "3.0.0"
 
 [[constraint]]
+<<<<<<< HEAD
   name = "github.com/casbin/json-adapter"
   version = "1.0.0"
-  
-[[constraint]]
+=======
   branch = "dev"
   name = "github.com/microsoft/azure-devops-go-api"
+>>>>>>> origin/main
