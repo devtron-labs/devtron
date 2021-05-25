@@ -123,7 +123,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 		if groupRoles != nil && len(groupRoles) > 0 {
 			for _, groupRole := range groupRoles {
 				if len(groupRole.Team) > 0 {
-					if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionCreate, groupRole.Team); !ok {
+					if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionCreate, strings.ToLower(groupRole.Team)); !ok {
 						response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 						return
 					}
@@ -183,7 +183,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	if userInfo.RoleFilters != nil && len(userInfo.RoleFilters) > 0 {
 		for _, filter := range userInfo.RoleFilters {
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, filter.Team); !ok {
+				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
 				}
