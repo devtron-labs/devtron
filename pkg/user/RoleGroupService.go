@@ -418,7 +418,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 	for _, role := range roles {
 		key := ""
 		if len(role.Team) > 0 && len(role.Environment) > 0 {
-			key = fmt.Sprintf("%s_%s", role.Team, role.Action)
+			key = fmt.Sprintf("%s_%s", role.Team, role.Environment)
 		} else if len(role.Entity) > 0 {
 			key = fmt.Sprintf("%s_%s", role.Entity, role.Action)
 		}
