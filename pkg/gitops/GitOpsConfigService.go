@@ -46,15 +46,16 @@ type GitOpsConfigService interface {
 }
 
 type GitOpsConfigDto struct {
-	Id            int    `json:"id,omitempty"`
-	Provider      string `json:"provider"`
-	Username      string `json:"username"`
-	Token         string `json:"token"`
-	GitLabGroupId string `json:"gitLabGroupId"`
-	GitHubOrgId   string `json:"gitHubOrgId"`
-	Host          string `json:"host"`
-	Active        bool   `json:"active"`
-	UserId        int32  `json:"-"`
+	Id               int    `json:"id,omitempty"`
+	Provider         string `json:"provider"`
+	Username         string `json:"username"`
+	Token            string `json:"token"`
+	GitLabGroupId    string `json:"gitLabGroupId"`
+	GitHubOrgId      string `json:"gitHubOrgId"`
+	Host             string `json:"host"`
+	Active           bool   `json:"active"`
+	AzureProjectName string `json:"azureProjectName"`
+	UserId           int32  `json:"-"`
 }
 
 const GitOpsSecretName = "devtron-gitops-secret"
@@ -118,6 +119,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		GitLabGroupId: request.GitLabGroupId,
 		Host:          request.Host,
 		Active:        true,
+		AzureProject:  request.AzureProjectName,
 		AuditLog:      models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model, tx)
@@ -270,6 +272,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 	model.GitHubOrgId = request.GitHubOrgId
 	model.Host = request.Host
 	model.Active = request.Active
+	model.AzureProject = request.AzureProjectName
 	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating team", "data", model, "err", err)
@@ -379,15 +382,16 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*GitOpsConfigD
 		return nil, err
 	}
 	config := &GitOpsConfigDto{
-		Id:            model.Id,
-		Provider:      model.Provider,
-		GitHubOrgId:   model.GitHubOrgId,
-		GitLabGroupId: model.GitLabGroupId,
-		Username:      model.Username,
-		Token:         model.Token,
-		Host:          model.Host,
-		Active:        model.Active,
-		UserId:        model.CreatedBy,
+		Id:               model.Id,
+		Provider:         model.Provider,
+		GitHubOrgId:      model.GitHubOrgId,
+		GitLabGroupId:    model.GitLabGroupId,
+		Username:         model.Username,
+		Token:            model.Token,
+		Host:             model.Host,
+		Active:           model.Active,
+		UserId:           model.CreatedBy,
+		AzureProjectName: model.AzureProject,
 	}
 
 	return config, err
@@ -402,15 +406,16 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*GitOpsConfigDto, e
 	configs := make([]*GitOpsConfigDto, 0)
 	for _, model := range models {
 		config := &GitOpsConfigDto{
-			Id:            model.Id,
-			Provider:      model.Provider,
-			GitHubOrgId:   model.GitHubOrgId,
-			GitLabGroupId: model.GitLabGroupId,
-			Username:      model.Username,
-			Token:         model.Token,
-			Host:          model.Host,
-			Active:        model.Active,
-			UserId:        model.CreatedBy,
+			Id:               model.Id,
+			Provider:         model.Provider,
+			GitHubOrgId:      model.GitHubOrgId,
+			GitLabGroupId:    model.GitLabGroupId,
+			Username:         model.Username,
+			Token:            model.Token,
+			Host:             model.Host,
+			Active:           model.Active,
+			UserId:           model.CreatedBy,
+			AzureProjectName: model.AzureProject,
 		}
 		configs = append(configs, config)
 	}
@@ -424,15 +429,16 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 		return nil, err
 	}
 	config := &GitOpsConfigDto{
-		Id:            model.Id,
-		Provider:      model.Provider,
-		GitHubOrgId:   model.GitHubOrgId,
-		GitLabGroupId: model.GitLabGroupId,
-		Username:      model.Username,
-		Token:         model.Token,
-		Host:          model.Host,
-		Active:        model.Active,
-		UserId:        model.CreatedBy,
+		Id:               model.Id,
+		Provider:         model.Provider,
+		GitHubOrgId:      model.GitHubOrgId,
+		GitLabGroupId:    model.GitLabGroupId,
+		Username:         model.Username,
+		Token:            model.Token,
+		Host:             model.Host,
+		Active:           model.Active,
+		UserId:           model.CreatedBy,
+		AzureProjectName: model.AzureProject,
 	}
 
 	return config, err
@@ -504,12 +510,13 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*GitOpsConfigDto, 
 		return nil, err
 	}
 	config := &GitOpsConfigDto{
-		Id:            model.Id,
-		Provider:      model.Provider,
-		GitHubOrgId:   model.GitHubOrgId,
-		GitLabGroupId: model.GitLabGroupId,
-		Active:        model.Active,
-		UserId:        model.CreatedBy,
+		Id:               model.Id,
+		Provider:         model.Provider,
+		GitHubOrgId:      model.GitHubOrgId,
+		GitLabGroupId:    model.GitLabGroupId,
+		Active:           model.Active,
+		UserId:           model.CreatedBy,
+		AzureProjectName: model.AzureProject,
 	}
 	return config, err
 }

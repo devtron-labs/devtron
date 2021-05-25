@@ -881,6 +881,24 @@
   version = "v1.0.1"
 
 [[projects]]
+  branch = "dev"
+  digest = "1:dbbf8497a7448220ab79bcee0f263b29c1f9e6b56149f252e945d30d7227b649"
+  name = "github.com/microsoft/azure-devops-go-api"
+  packages = [
+    "azuredevops",
+    "azuredevops/core",
+    "azuredevops/delegatedauthorization",
+    "azuredevops/git",
+    "azuredevops/identity",
+    "azuredevops/operations",
+    "azuredevops/policy",
+    "azuredevops/system",
+    "azuredevops/webapi",
+  ]
+  pruneopts = "UT"
+  revision = "09c8cad426a653fc76cdbfb915d3d11114b4d8e8"
+
+[[projects]]
   digest = "1:5d231480e1c64a726869bc4142d270184c419749d34f167646baa21008eb0a79"
   name = "github.com/mitchellh/go-homedir"
   packages = ["."]
@@ -1966,6 +1984,9 @@
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
     "github.com/juju/errors",
     "github.com/lib/pq",
+    "github.com/microsoft/azure-devops-go-api/azuredevops",
+    "github.com/microsoft/azure-devops-go-api/azuredevops/core",
+    "github.com/microsoft/azure-devops-go-api/azuredevops/git",
     "github.com/nats-io/nats.go",
     "github.com/nats-io/stan",
     "github.com/otiai10/copy",
@@ -2003,6 +2024,7 @@
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/types",
+    "k8s.io/client-go/discovery",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/kubernetes/typed/core/v1",

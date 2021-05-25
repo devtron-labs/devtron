@@ -35,6 +35,7 @@ This installation will use AWS s3 buckets for storing build logs and cache
 helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me \
+--set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
 --set configs.AZURE_ACCOUNT_NAME=test-account \
 --set configs.AZURE_BLOB_CONTAINER_CI_LOG=ci-log-container \

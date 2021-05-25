@@ -291,8 +291,11 @@ It is a kubernetes monitoring tool and the name of the file to be monitored as m
 ```yaml
 GracePeriod: 30
 ```
+Kubernetes waits for the specified time called the termination grace period before terminating the pods. By default, this is 30 seconds. If your pod usually takes longer than 30 seconds to shut down gracefully, make sure you increase the `GracePeriod`.
 
-If it has expired then the task is requeued to be executed again.
+A Graceful termination in practice means that your application needs to handle the SIGTERM message and begin shutting down when it receives it. This means saving all data that needs to be saved, closing down network connections, finishing any work that is left, and other similar tasks.
+
+There are many reasons why Kubernetes might terminate a perfectly healthy container. If you update your deployment with a rolling update, Kubernetes slowly terminates old pods while spinning up new ones. If you drain a node, Kubernetes terminates all pods on that node. If a node runs out of resources, Kubernetes terminates pods to free those resources. It’s important that your application handle termination gracefully so that there is minimal impact on the end user and the time-to-recovery is as fast as possible!
 
 ### Min Ready Seconds
 
@@ -300,7 +303,7 @@ If it has expired then the task is requeued to be executed again.
 MinReadySeconds: 60
 ```
 
-Minimum number of seconds for which a newly created pod should be ready without any of its container crashing, for it to be considered available
+Minimum time for which a newly created pod should be ready without any of its container crashing, for it to be considered available
 
 ### Server
 
@@ -437,11 +440,11 @@ autoscaling:
   TargetMemoryUtilizationPercentage: 80
 ```
 
-HPA will be able to give metrics such as CPU and memory usage for cluster nodes or any of the pods. These metrics are useful for internal cluster sizing, but you probably want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.
+HPA, by default is configured to work with CPU and Memory metrics. These metrics are useful for internal cluster sizing, but you might want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.
 
 ### 3. Show application metrics
 
-If you want to see application matrics like different status codes, application throughput, latency, response time. Enable the Show Application matrix from here. And you will get all metrics on App detail page. This is optional. You can leave it disabled. By default it remains disabled.
+If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
 
 ![](../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
 

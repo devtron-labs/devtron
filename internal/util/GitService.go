@@ -28,7 +28,6 @@ import (
 	"golang.org/x/oauth2"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"io/ioutil"
 	"net/url"
@@ -49,6 +48,7 @@ type GitFactory struct {
 	GitWorkingDir    string
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
+	gitCliUtil       *GitCliUtil
 }
 
 func (factory *GitFactory) Reload() error {
@@ -57,7 +57,7 @@ func (factory *GitFactory) Reload() error {
 	if err != nil {
 		return err
 	}
-	gitService := NewGitServiceImpl(cfg, logger)
+	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
 	factory.gitService = gitService
 	client, err := NewGitLabClient(cfg, logger, gitService)
 	if err != nil {
@@ -68,12 +68,12 @@ func (factory *GitFactory) Reload() error {
 	return nil
 }
 
-func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository) (*GitFactory, error) {
+func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitCliUtil *GitCliUtil) (*GitFactory, error) {
 	cfg, err := GetGitConfig(gitOpsRepository)
 	if err != nil {
 		return nil, err
 	}
-	gitService := NewGitServiceImpl(cfg, logger)
+	gitService := NewGitServiceImpl(cfg, logger, gitCliUtil)
 	client, err := NewGitLabClient(cfg, logger, gitService)
 	if err != nil {
 		return nil, err
@@ -84,18 +84,21 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 		gitService:       gitService,
 		gitOpsRepository: gitOpsRepository,
 		GitWorkingDir:    cfg.GitWorkingDir,
+		gitCliUtil:       gitCliUtil,
 	}, nil
 }
 
 type GitConfig struct {
-	GitlabGroupId      string                                                         //local
-	GitlabGroupPath    string                                                         //local
-	GitToken           string `env:"GIT_TOKEN" `                                      //not null  // public
-	GitUserName        string `env:"GIT_USERNAME" `                                   //not null  // public
-	GitWorkingDir      string `env:"GIT_WORKING_DIRECTORY" envDefault:"/tmp/gitops/"` //working directory for git. might use pvc
+	GitlabGroupId      string //local
+	GitlabGroupPath    string //local
+	GitToken           string //not null  // public
+	GitUserName        string //not null  // public
+	GitWorkingDir      string //working directory for git. might use pvc
 	GithubOrganization string
-	GitProvider        string `env:"GIT_PROVIDER" envDefault:"GITHUB"` // SUPPORTED VALUES  GITHUB, GITLAB
-	GitHost            string `env:"GIT_HOST" envDefault:""`
+	GitProvider        string // SUPPORTED VALUES  GITHUB, GITLAB
+	GitHost            string
+	AzureToken         string
+	AzureProject       string
 }
 
 func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfig, error) {
@@ -121,6 +124,8 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		GithubOrganization: gitOpsConfig.GitHubOrgId,
 		GitProvider:        gitOpsConfig.Provider,
 		GitHost:            gitOpsConfig.Host,
+		AzureToken:         gitOpsConfig.Token,
+		AzureProject:       gitOpsConfig.AzureProject,
 	}
 	return cfg, err
 }
@@ -190,9 +195,15 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 			logger:     logger,
 			gitService: gitService,
 		}, nil
-	} else {
+	} else if config.GitProvider == "GITHUB" {
 		gitHubClient := NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService)
 		return gitHubClient, nil
+	} else if config.GitProvider == "AZURE_DEVOPS" {
+		gitAzureClient := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitService)
+		return gitAzureClient, nil
+	} else {
+		logger.Errorw("no gitops config provided, gitops will not work ")
+		return nil, nil
 	}
 }
 
@@ -373,17 +384,19 @@ type GitService interface {
 	Pull(repoRoot string) (err error)
 }
 type GitServiceImpl struct {
-	Auth   transport.AuthMethod
-	config *GitConfig
-	logger *zap.SugaredLogger
+	Auth       *http.BasicAuth
+	config     *GitConfig
+	logger     *zap.SugaredLogger
+	gitCliUtil *GitCliUtil
 }
 
-func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger) *GitServiceImpl {
+func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, GitCliUtil *GitCliUtil) *GitServiceImpl {
 	auth := &http.BasicAuth{Password: config.GitToken, Username: config.GitUserName}
 	return &GitServiceImpl{
-		Auth:   auth,
-		logger: logger,
-		config: config,
+		Auth:       auth,
+		logger:     logger,
+		config:     config,
+		gitCliUtil: GitCliUtil,
 	}
 }
 
@@ -395,13 +408,13 @@ func (impl GitServiceImpl) GetCloneDirectory(targetDir string) (clonedDir string
 func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err error) {
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
 	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
-	_, err = git.PlainClone(clonedDir, false, &git.CloneOptions{
-		URL:  url,
-		Auth: impl.Auth,
-	})
+	_, errorMsg, err := impl.gitCliUtil.Clone(clonedDir, url, impl.Auth.Username, impl.Auth.Password)
 	if err != nil {
-		impl.logger.Errorw("error in git checkout ", "url", url, "targetDir", targetDir, "err", err)
+		impl.logger.Errorw("error in git checkout", "url", url, "targetDir", targetDir, "err", err)
 		return "", err
+	}
+	if errorMsg != "" {
+		return "", fmt.Errorf(errorMsg)
 	}
 	return clonedDir, nil
 }

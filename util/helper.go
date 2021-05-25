@@ -52,11 +52,15 @@ func GetErrorOrNil(errs []string) error {
 }
 
 func ExtractChartVersion(chartVersion string) (int, int, error) {
-	chartMajorVersion, err := strconv.Atoi(chartVersion[:1])
+	if len(chartVersion) == 0 {
+		return 0, 0, nil
+	}
+	chartVersions := strings.Split(chartVersion, ".")
+	chartMajorVersion, err := strconv.Atoi(chartVersions[0])
 	if err != nil {
 		return 0, 0, err
 	}
-	chartMinorVersion, err := strconv.Atoi(chartVersion[2:3])
+	chartMinorVersion, err := strconv.Atoi(chartVersions[1])
 	if err != nil {
 		return 0, 0, err
 	}

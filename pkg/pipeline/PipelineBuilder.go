@@ -45,7 +45,6 @@ import (
 	"google.golang.org/grpc/status"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -1851,14 +1850,9 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 	})
 
 	chartVersion := chart.ChartVersion
-	chartMajorVersion, err := strconv.Atoi(chartVersion[:1])
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
 	if err != nil {
-		impl.logger.Errorw("err", err)
-		return pipelineStrategiesResponse, err
-	}
-	chartMinorVersion, err := strconv.Atoi(chartVersion[2:3])
-	if err != nil {
-		impl.logger.Errorw("err", err)
+		impl.logger.Errorw("chart version parsing", "err", err)
 		return pipelineStrategiesResponse, err
 	}
 	if chartMajorVersion <= 3 && chartMinorVersion < 2 {

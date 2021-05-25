@@ -187,3 +187,7 @@ required = [
 [[constraint]]
   name = "github.com/igm/sockjs-go"
   version = "3.0.0"
+
+[[constraint]]
+  branch = "dev"
+  name = "github.com/microsoft/azure-devops-go-api"

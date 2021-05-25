@@ -1,0 +1,10 @@
+titleOnly: true
+
+types:
+  - FIX
+  - FEATURE
+  - DOC
+  - INTERNAL
+  - INT
+  - RELEASE
+
