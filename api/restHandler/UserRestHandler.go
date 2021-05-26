@@ -32,6 +32,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type UserRestHandler interface {
@@ -97,7 +98,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	if userInfo.RoleFilters != nil && len(userInfo.RoleFilters) > 0 {
 		for _, filter := range userInfo.RoleFilters {
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionCreate, filter.Team); !ok {
+				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionCreate, strings.ToLower(filter.Team)); !ok {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
 				}
@@ -122,7 +123,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 		if groupRoles != nil && len(groupRoles) > 0 {
 			for _, groupRole := range groupRoles {
 				if len(groupRole.Team) > 0 {
-					if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionCreate, groupRole.Team); !ok {
+					if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionCreate, strings.ToLower(groupRole.Team)); !ok {
 						response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 						return
 					}
@@ -182,7 +183,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	if userInfo.RoleFilters != nil && len(userInfo.RoleFilters) > 0 {
 		for _, filter := range userInfo.RoleFilters {
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, filter.Team); !ok {
+				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
 				}
@@ -207,7 +208,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 		if groupRoles != nil && len(groupRoles) > 0 {
 			for _, groupRole := range groupRoles {
 				if len(groupRole.Team) > 0 {
-					if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, groupRole.Team); !ok {
+					if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(groupRole.Team)); !ok {
 						response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 						return
 					}
@@ -277,7 +278,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 		authPass := false
 		for _, filter := range res.RoleFilters {
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, filter.Team); ok {
+				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); ok {
 					authPass = true
 				}
 			}
@@ -338,7 +339,7 @@ func (handler UserRestHandlerImpl) GetUsersByFilter(w http.ResponseWriter, r *ht
 			pass := true
 			for _, filter := range item.RoleFilters {
 				if len(filter.Team) > 0 {
-					if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, filter.Team); !ok {
+					if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); !ok {
 						pass = false
 					}
 				}
@@ -370,7 +371,7 @@ func (handler UserRestHandlerImpl) GetUserByEmail(w http.ResponseWriter, r *http
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
 		for _, filter := range res.RoleFilters {
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, filter.Team); !ok {
+				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); !ok {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
 				}
@@ -408,7 +409,7 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
 		for _, filter := range user.RoleFilters {
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionDelete, filter.Team); !ok {
+				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionDelete, strings.ToLower(filter.Team)); !ok {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
 				}
@@ -454,7 +455,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
 		for _, filter := range res.RoleFilters {
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, filter.Team); !ok {
+				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); !ok {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
 				}
@@ -488,7 +489,7 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 	if request.RoleFilters != nil && len(request.RoleFilters) > 0 {
 		for _, filter := range request.RoleFilters {
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionCreate, filter.Team); !ok {
+				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionCreate, strings.ToLower(filter.Team)); !ok {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
 				}
@@ -543,7 +544,7 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 	if request.RoleFilters != nil && len(request.RoleFilters) > 0 {
 		for _, filter := range request.RoleFilters {
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, filter.Team); !ok {
+				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
 				}
@@ -633,7 +634,7 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 	if userGroup.RoleFilters != nil && len(userGroup.RoleFilters) > 0 {
 		for _, filter := range userGroup.RoleFilters {
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionDelete, filter.Team); !ok {
+				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionDelete, strings.ToLower(filter.Team)); !ok {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
 				}
