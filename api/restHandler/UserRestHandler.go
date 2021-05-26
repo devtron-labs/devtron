@@ -184,14 +184,14 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 		for _, filter := range userInfo.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
-					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, "*"); !ok {
-			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}
@@ -290,7 +290,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 			authPass = true
 		}
 		if authPass == false {
-			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}
@@ -372,7 +372,7 @@ func (handler UserRestHandlerImpl) GetUserByEmail(w http.ResponseWriter, r *http
 		for _, filter := range res.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); !ok {
-					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
@@ -410,14 +410,14 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 		for _, filter := range user.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionDelete, strings.ToLower(filter.Team)); !ok {
-					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionDelete, ""); !ok {
-			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}
@@ -456,7 +456,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 		for _, filter := range res.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); !ok {
-					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
@@ -490,14 +490,14 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 		for _, filter := range request.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionCreate, strings.ToLower(filter.Team)); !ok {
-					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionCreate, "*"); !ok {
-			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}
@@ -545,14 +545,14 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 		for _, filter := range request.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
-					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, "*"); !ok {
-			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}
@@ -635,7 +635,7 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 		for _, filter := range userGroup.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionDelete, strings.ToLower(filter.Team)); !ok {
-					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
