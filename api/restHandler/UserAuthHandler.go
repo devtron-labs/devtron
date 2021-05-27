@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/devtron-labs/devtron/util/response"
 	"github.com/gorilla/mux"
 	"github.com/nats-io/stan"
 	"go.uber.org/zap"
@@ -148,7 +147,7 @@ func (handler UserAuthHandlerImpl) AddPolicy(w http.ResponseWriter, r *http.Requ
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceAdmin, rbac.ActionCreate, string(userId)); !ok {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -188,7 +187,7 @@ func (handler UserAuthHandlerImpl) RemovePolicy(w http.ResponseWriter, r *http.R
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceAdmin, rbac.ActionDelete, userId); !ok {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
