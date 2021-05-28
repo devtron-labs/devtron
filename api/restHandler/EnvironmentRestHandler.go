@@ -257,11 +257,27 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	v := r.URL.Query()
+	authEnabled := true
+	auth := v.Get("auth")
+	if len(auth) > 0 {
+		authEnabled, err = strconv.ParseBool(auth)
+		if err != nil {
+			authEnabled = true
+			err = nil
+			//ignore error, apply rbac by default
+		}
+	}
 	token := r.Header.Get("token")
 	// RBAC enforcer applying
 	var grantedEnvironment []request.EnvironmentBean
 	for _, item := range environments {
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, strings.ToLower(item.Environment)); ok {
+		if authEnabled == true {
+			if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, strings.ToLower(item.Environment)); ok {
+				grantedEnvironment = append(grantedEnvironment, item)
+			}
+		} else {
 			grantedEnvironment = append(grantedEnvironment, item)
 		}
 	}
