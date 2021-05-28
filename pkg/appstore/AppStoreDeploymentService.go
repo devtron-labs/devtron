@@ -184,6 +184,19 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	installAppVersionRequest.EnvironmentId = installedApp.EnvironmentId
 	installAppVersionRequest.AppName = installedApp.App.AppName
 
+	environment, err := impl.environmentRepository.FindById(installedApp.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("fetching error", "err", err)
+		return nil, err
+	}
+	team, err := impl.teamRepository.FindOne(installedApp.App.TeamId)
+	if err != nil {
+		impl.logger.Errorw("fetching error", "err", err)
+		return nil, err
+	}
+	impl.logger.Debug(team.Name)
+
+
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
 		_, _, err := impl.upgradeInstalledApp(ctx, installAppVersionRequest, tx)
@@ -229,21 +242,45 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 				return nil, err
 			}
 			installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
+
+
+			//update requirements yaml in chart
+			argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
+			dependency := Dependency{
+				Name:       appStoreAppVersion.AppStore.Name,
+				Version:    appStoreAppVersion.Version,
+				Repository: appStoreAppVersion.AppStore.ChartRepo.Url,
+			}
+			var dependencies []Dependency
+			dependencies = append(dependencies, dependency)
+			requirementDependencies := &Dependencies{
+				Dependencies: dependencies,
+			}
+			requirementDependenciesByte, err := json.Marshal(requirementDependencies)
+			if err != nil {
+				return nil, err
+			}
+			requirementDependenciesByte, err = yaml.JSONToYAML(requirementDependenciesByte)
+			if err != nil {
+				return nil, err
+			}
+			chartGitAttrForRequirement := &util.ChartConfig{
+				FileName:       REQUIREMENTS_YAML_FILE,
+				FileContent:    string(requirementDependenciesByte),
+				ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+				ChartLocation:  argocdAppName,
+				ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
+			}
+			_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement)
+			if err != nil {
+				impl.logger.Errorw("error in git commit", "err", err)
+				return nil, err
+			}
+
+
 		} else {
 			installedAppVersion = installedAppVersionModel
 		}
-
-		environment, err := impl.environmentRepository.FindById(installedApp.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("fetching error", "err", err)
-			return nil, err
-		}
-		team, err := impl.teamRepository.FindOne(installedApp.App.TeamId)
-		if err != nil {
-			impl.logger.Errorw("fetching error", "err", err)
-			return nil, err
-		}
-		impl.logger.Debug(team.Name)
 
 		argocdAppName := installedApp.App.AppName + "-" + environment.Name
 
