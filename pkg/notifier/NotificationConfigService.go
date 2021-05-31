@@ -144,9 +144,11 @@ type EnvResponse struct {
 }
 
 type PipelineResponse struct {
-	Id              *int   `json:"id"`
-	Name            string `json:"name"`
-	EnvironmentName string `json:"environmentName,omitempty"`
+	Id              *int     `json:"id"`
+	Name            string   `json:"name"`
+	EnvironmentName string   `json:"environmentName,omitempty"`
+	AppName         string   `json:"appName,omitempty"`
+	Branches        []string `json:"branches,omitempty"`
 }
 
 type ProvidersConfig struct {
@@ -412,6 +414,9 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				}
 				pipelineResponse.EnvironmentName = pipeline.Environment.Name
 				pipelineResponse.Name = pipeline.Name
+				if pipeline.App.Id > 0 {
+					pipelineResponse.AppName = pipeline.App.AppName
+				}
 			} else if config.PipelineType == util.CI {
 				pipeline, err := impl.ciPipelineRepository.FindById(*config.PipelineId)
 				if err != nil && err != pg.ErrNoRows {
@@ -422,6 +427,14 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 					continue
 				}
 				pipelineResponse.Name = pipeline.Name
+				if pipeline.App != nil {
+					pipelineResponse.AppName = pipeline.App.AppName
+				}
+				if pipeline.CiPipelineMaterials != nil {
+					for _, item := range pipeline.CiPipelineMaterials {
+						pipelineResponse.Branches = append(pipelineResponse.Branches, item.Value)
+					}
+				}
 			}
 			notificationSettingsResponse.PipelineResponse = pipelineResponse
 		}
