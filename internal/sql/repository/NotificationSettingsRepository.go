@@ -90,6 +90,7 @@ type SettingOptionDTO struct {
 	PipelineId      int    `json:"pipelineId"`
 	PipelineName    string `json:"pipelineName"`
 	PipelineType    string `json:"pipelineType"`
+	AppName         string `json:"appName"`
 	EnvironmentName string `json:"environmentName,omitempty"`
 }
 
@@ -200,7 +201,7 @@ func (impl *NotificationSettingsRepositoryImpl) DeleteNotificationSettingsViewBy
 
 func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingDeploymentOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error) {
 	var settingOption []*SettingOptionDTO
-	query := "SELECT p.id as pipeline_id,p.pipeline_name, env.environment_name FROM pipeline p" +
+	query := "SELECT p.id as pipeline_id,p.pipeline_name, env.environment_name, a.app_name FROM pipeline p" +
 		" INNER JOIN app a on a.id=p.app_id" +
 		" INNER JOIN environment env on env.id = p.environment_id"
 	query = query + " WHERE p.deleted = false"
@@ -214,7 +215,7 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingDeploymen
 	} else if len(settingRequest.PipelineName) > 0 {
 		query = query + " AND p.pipeline_name like (?)"
 	}
-	query = query + " GROUP BY 1,2,3;"
+	query = query + " GROUP BY 1,2,3,4;"
 
 	var err error
 	if len(settingRequest.TeamId) > 0 && len(settingRequest.EnvId) == 0 && len(settingRequest.AppId) == 0 {

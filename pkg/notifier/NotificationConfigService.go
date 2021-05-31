@@ -717,12 +717,11 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 		impl.logger.Errorw("error while fetching notification deployment option", "err", err)
 		return searchFilterResponse, err
 	}
-
 	for _, item := range settingOptionResponseDeployment {
 		item.PipelineType = string(util.CD)
 		result := &SearchFilterResponse{
 			PipelineType:     item.PipelineType,
-			PipelineResponse: &PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName, EnvironmentName: item.EnvironmentName},
+			PipelineResponse: &PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName, EnvironmentName: item.EnvironmentName, AppName: item.AppName},
 		}
 		searchFilterResponse = append(searchFilterResponse, result)
 	}
