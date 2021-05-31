@@ -243,7 +243,7 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingDeploymen
 
 func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingBuildOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error) {
 	var settingOption []*SettingOptionDTO
-	query := "SELECT cip.id as pipeline_id,cip.name as pipeline_name from ci_pipeline cip" +
+	query := "SELECT cip.id as pipeline_id,cip.name as pipeline_name, a.app_name from ci_pipeline cip" +
 		" INNER JOIN app a on a.id = cip.app_id" +
 		" INNER JOIN team t on t.id= a.team_id"
 	if len(settingRequest.EnvId) > 0 {
@@ -262,7 +262,7 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingBuildOpti
 	} else if len(settingRequest.PipelineName) > 0 {
 		query = query + " AND cip.name like (?)"
 	}
-	query = query + " GROUP BY 1,2;"
+	query = query + " GROUP BY 1,2,3;"
 	var err error
 	if len(settingRequest.TeamId) > 0 && len(settingRequest.EnvId) == 0 && len(settingRequest.AppId) == 0 {
 		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.TeamId))

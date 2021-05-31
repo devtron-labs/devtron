@@ -54,6 +54,7 @@ type NotificationConfigServiceImpl struct {
 	environmentRepository          cluster.EnvironmentRepository
 	appRepository                  pipelineConfig.AppRepository
 	userRepository                 repository.UserRepository
+	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
 }
 
 type NotificationSettingRequest struct {
@@ -162,7 +163,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository,
 	sesRepository repository.SESNotificationRepository, teamRepository team.TeamRepository,
 	environmentRepository cluster.EnvironmentRepository, appRepository pipelineConfig.AppRepository,
-	userRepository repository.UserRepository) *NotificationConfigServiceImpl {
+	userRepository repository.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,
 		notificationSettingsRepository: notificationSettingsRepository,
@@ -175,6 +176,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		environmentRepository:          environmentRepository,
 		appRepository:                  appRepository,
 		userRepository:                 userRepository,
+		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
 	}
 }
 
@@ -733,9 +735,21 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	}
 	for _, item := range settingOptionResponseBuild {
 		item.PipelineType = string(util.CI)
+
+		pipelineMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(item.PipelineId)
+		if err != nil && !util2.IsErrNoRows(err) {
+			impl.logger.Errorw("error while fetching material", "err", err)
+			return searchFilterResponse, err
+		}
+		var branches []string
+		if pipelineMaterials != nil {
+			for _, pipelineMaterial := range pipelineMaterials {
+				branches = append(branches, pipelineMaterial.Value)
+			}
+		}
 		result := &SearchFilterResponse{
 			PipelineType:     item.PipelineType,
-			PipelineResponse: &PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName},
+			PipelineResponse: &PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName, AppName: item.AppName, Branches: branches},
 		}
 		searchFilterResponse = append(searchFilterResponse, result)
 	}
