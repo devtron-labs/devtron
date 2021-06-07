@@ -94,63 +94,13 @@ func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) 
 	userAuthRouter.PathPrefix("/auth/callback").HandlerFunc(router.cdProxy)
 
 	userAuthRouter.Path("/api/v1/session").HandlerFunc(router.userAuthHandler.LoginHandler)
-	//userAuthRouter.Path("/orchestrator/api/dex/auth").HandlerFunc(router.cdProxy)
-	//userAuthRouter.Path("/orchestrator/api/dex/auth/google").HandlerFunc(router.cdProxy)
-	//userAuthRouter.Path("/orchestrator/api/dex/approval").HandlerFunc(router.cdProxy)
-	//userAuthRouter.Path("/orchestrator/api/dex/callback").HandlerFunc(router.cdProxy)
 	userAuthRouter.Path("/refresh").HandlerFunc(router.userAuthHandler.RefreshTokenHandler)
-
-	// Policies Setup
-	userAuthRouter.Path("/admin/policy").
-		HandlerFunc(router.userAuthHandler.AddPolicy).Methods("POST")
-	userAuthRouter.Path("/admin/policy").
-		HandlerFunc(router.userAuthHandler.RemovePolicy).Methods("DELETE")
-	userAuthRouter.Path("/admin/policy/subject").
-		HandlerFunc(router.userAuthHandler.GetAllSubjectsFromCasbin).Methods("GET")
-	userAuthRouter.Path("/admin/policy/roles").
-		Queries("user", "{user}").
-		HandlerFunc(router.userAuthHandler.GetRolesForUserFromCasbin).Methods("GET")
-	userAuthRouter.Path("/admin/policy/users").
-		Queries("role", "{role}").
-		HandlerFunc(router.userAuthHandler.GetUserByRoleFromCasbin).Methods("GET")
-	userAuthRouter.Path("/admin/policy/subject").
-		Queries("user", "{user}").
-		Queries("role", "{role}").
-		HandlerFunc(router.userAuthHandler.DeleteRoleForUserFromCasbin).Methods("DELETE")
-
 	// Policies mapping in orchestrator
-	userAuthRouter.Path("/admin/role").
-		HandlerFunc(router.userAuthHandler.CreateRoleFromOrchestrator).Methods("POST")
-	userAuthRouter.Path("/admin/role").
-		HandlerFunc(router.userAuthHandler.UpdateRoleFromOrchestrator).Methods("PUT")
-	userAuthRouter.Path("/admin/role/user/{userId}").
-		HandlerFunc(router.userAuthHandler.GetRolesByUserIdFromOrchestrator).Methods("GET")
-	userAuthRouter.Path("/admin/role").
-		HandlerFunc(router.userAuthHandler.GetAllRoleFromOrchestrator).Methods("GET")
-	userAuthRouter.Path("/admin/role/filter").
-		Queries("team", "{team}", "app", "{app}", "env", "{env}", "act", "{act}").
-		HandlerFunc(router.userAuthHandler.GetRoleByFilterFromOrchestrator).Methods("GET")
-	userAuthRouter.Path("/admin/role").
-		Queries("role", "{role}").
-		HandlerFunc(router.userAuthHandler.DeleteRoleFromOrchestrator).Methods("DELETE")
-
 	userAuthRouter.Path("/admin/policy/default").
 		Queries("team", "{team}", "app", "{app}", "env", "{env}").
 		HandlerFunc(router.userAuthHandler.AddDefaultPolicyAndRoles).Methods("POST")
-
 	userAuthRouter.Path("/devtron/auth/verify").
 		HandlerFunc(router.userAuthHandler.AuthVerification).Methods("GET")
-
-	userAuthRouter.Path("/sso/create").
-		HandlerFunc(router.userAuthHandler.CreateSSOLoginConfig).Methods("POST")
-	userAuthRouter.Path("/sso/update").
-		HandlerFunc(router.userAuthHandler.UpdateSSOLoginConfig).Methods("PUT")
-	userAuthRouter.Path("/sso/list").
-		HandlerFunc(router.userAuthHandler.GetAllSSOLoginConfig).Methods("GET")
-	userAuthRouter.Path("/sso/{id}").
-		HandlerFunc(router.userAuthHandler.GetSSOLoginConfig).Methods("GET")
-	userAuthRouter.Path("/sso").Methods("GET").
-		Queries("name", "{name}").HandlerFunc(router.userAuthHandler.GetSSOLoginConfigByName)
 }
 
 func (router UserAuthRouterImpl) writeSuccess(message string, w http.ResponseWriter) {

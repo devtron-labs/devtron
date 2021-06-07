@@ -40,9 +40,6 @@ type UserRestHandler interface {
 	UpdateUser(w http.ResponseWriter, r *http.Request)
 	GetById(w http.ResponseWriter, r *http.Request)
 	GetAll(w http.ResponseWriter, r *http.Request)
-	GetUsersByFilter(w http.ResponseWriter, r *http.Request)
-
-	GetUserByEmail(w http.ResponseWriter, r *http.Request)
 	DeleteUser(w http.ResponseWriter, r *http.Request)
 
 	FetchRoleGroupById(w http.ResponseWriter, r *http.Request)
@@ -306,79 +303,6 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 		writeJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
 		return
 	}
-
-	writeJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler UserRestHandlerImpl) GetUsersByFilter(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	size, err := strconv.Atoi(vars["size"])
-	if err != nil {
-		handler.logger.Errorw("request err, GetUsersByFilter", "err", err, "size", size)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	from, err := strconv.Atoi(vars["from"])
-	if err != nil {
-		handler.logger.Errorw("request err, GetUsersByFilter", "err", err, "from", from)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	res, err := handler.userService.GetUsersByFilter(size, from)
-	if err != nil {
-		handler.logger.Errorw("service err, GetUsersByFilter", "err", err, "size", size, "from", from)
-		writeJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
-		return
-	}
-
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	var result []bean.UserInfo
-	for _, item := range res {
-		if item.RoleFilters != nil && len(item.RoleFilters) > 0 {
-			pass := true
-			for _, filter := range item.RoleFilters {
-				if len(filter.Team) > 0 {
-					if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); !ok {
-						pass = false
-					}
-				}
-			}
-			if pass {
-				result = append(result, item)
-			}
-		} else {
-			result = append(result, item)
-		}
-	}
-
-	//RBAC enforcer Ends
-
-	writeJsonResp(w, err, result, http.StatusOK)
-}
-func (handler UserRestHandlerImpl) GetUserByEmail(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	emailId := vars["email-id"]
-	res, err := handler.userService.GetUserByEmail(emailId)
-	if err != nil {
-		handler.logger.Errorw("service err, GetUserByEmail", "err", err, "emailId", emailId)
-		writeJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
-		return
-	}
-
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
-		for _, filter := range res.RoleFilters {
-			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); !ok {
-					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-					return
-				}
-			}
-		}
-	}
-	//RBAC enforcer Ends
 
 	writeJsonResp(w, err, res, http.StatusOK)
 }

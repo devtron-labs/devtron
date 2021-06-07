@@ -926,6 +926,21 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines,
 		}
 	}
 
+	// validation added for pipeline from ACD
+	for _, pipeline := range cdPipelines.Pipelines {
+		envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+		if err != nil {
+			return nil, err
+		}
+		argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
+		_, err = impl.application.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName})
+		appStatus, _ := status.FromError(err)
+		if appStatus.Code() == codes.OK {
+			impl.logger.Infow("argo app already exists", "app", argoAppName, "pipeline", pipeline.Name)
+			return nil, fmt.Errorf("argo app already exists, or delete in progress for previous pipeline")
+		}
+	}
+
 	for _, pipeline := range cdPipelines.Pipelines {
 		id, err := impl.createCdPipeline(ctx, app, pipeline, cdPipelines.UserId)
 		if err != nil {
@@ -1079,13 +1094,6 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 	if err != nil {
 		return 0, err
 	}
-	/*exists, err := impl.dbPipelineOrchestrator.PipelineExists(pipeline.Name)
-	if err != nil {
-		impl.logger.Errorw("error in pipeline name duplicate check", "name", pipeline.Name, "err", err)
-	}
-	if exists {
-		return 0, errors.AlreadyExistsf("pipeline already exists name:%s", pipeline.Name)
-	}*/
 
 	chartGitAttr := &util.ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
