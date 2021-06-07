@@ -647,6 +647,10 @@ func InitializeApp() (*App, error) {
 		restHandler.NewCommonRestHanlderImpl,
 		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
 		util.NewGitCliUtil,
+		router.NewSsoLoginRouterImpl,
+		wire.Bind(new(router.SsoLoginRouter), new(*router.SsoLoginRouterImpl)),
+		restHandler.NewSsoLoginRestHandlerImpl,
+		wire.Bind(new(restHandler.SsoLoginRestHandler), new(*restHandler.SsoLoginRestHandlerImpl)),
 	)
 	return &App{}, nil
 }

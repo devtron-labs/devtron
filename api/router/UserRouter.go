@@ -50,15 +50,8 @@ func (router UserRouterImpl) initUserRouter(userAuthRouter *mux.Router) {
 		HandlerFunc(router.userRestHandler.GetById).Methods("GET")
 	userAuthRouter.Path("").
 		HandlerFunc(router.userRestHandler.CreateUser).Methods("POST")
-	userAuthRouter.Path("/email").
-		Queries("email-id", "{email-id}").
-		HandlerFunc(router.userRestHandler.GetUserByEmail).Methods("GET")
 	userAuthRouter.Path("").
 		HandlerFunc(router.userRestHandler.GetAll).Methods("GET")
-	userAuthRouter.Path("/filter").
-		Queries("size", "{size}").
-		Queries("from", "{from}").
-		HandlerFunc(router.userRestHandler.GetUsersByFilter).Methods("GET")
 	userAuthRouter.Path("").
 		HandlerFunc(router.userRestHandler.UpdateUser).Methods("PUT")
 	userAuthRouter.Path("/{id}").

@@ -50,11 +50,6 @@ type UserAuthService interface {
 	HandleRefresh(w http.ResponseWriter, r *http.Request)
 
 	CreateRole(roleData *bean.RoleData) (bool, error)
-	UpdateRole(roleData *bean.RoleData) (bool, error)
-	GetRolesByUserId(userId int32) ([]bean.Role, error)
-	GetAllRole() ([]bean.Role, error)
-	GetRoleByFilter(entity string, team string, app string, env string, act string) (bean.Role, error)
-	DeleteRole(role string) (bool, error)
 	AuthVerification(r *http.Request) (bool, error)
 }
 
@@ -493,100 +488,6 @@ func (impl UserAuthServiceImpl) CreateRole(roleData *bean.RoleData) (bool, error
 	}
 
 	return true, nil
-}
-func (impl UserAuthServiceImpl) UpdateRole(roleData *bean.RoleData) (bool, error) {
-	dbConnection := impl.userRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return false, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-
-	roleModel, err := impl.userAuthRepository.GetRole(roleData.Role)
-	if err != nil {
-		return false, err
-	}
-	roleModel, err = impl.userAuthRepository.UpdateRole(roleModel, tx)
-	if err != nil || roleModel == nil {
-		return false, err
-	}
-
-	//TODO - casbin policies also need to sync
-
-	err = tx.Commit()
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-func (impl UserAuthServiceImpl) GetRolesByUserId(userId int32) ([]bean.Role, error) {
-	var roles []bean.Role
-	model, err := impl.userAuthRepository.GetRolesByUserId(userId)
-	if err != nil {
-		return nil, err
-	}
-	for _, item := range model {
-		roles = append(roles, bean.Role{Id: item.Id, Role: item.Role})
-	}
-	return roles, nil
-}
-func (impl UserAuthServiceImpl) GetAllRole() ([]bean.Role, error) {
-	var roles []bean.Role
-	model, err := impl.userAuthRepository.GetAllRole()
-	if err != nil {
-		return nil, err
-	}
-	for _, item := range model {
-		roles = append(roles, bean.Role{Id: item.Id, Role: item.Role})
-	}
-	return roles, nil
-}
-func (impl UserAuthServiceImpl) GetRoleByFilter(entity string, team string, app string, env string, act string) (bean.Role, error) {
-	var role bean.Role
-	model, err := impl.userAuthRepository.GetRoleByFilter(entity, team, app, env, act)
-	if err != nil {
-		return role, err
-	}
-	/*for _, item := range model {
-		roles = append(roles, bean.Role{Id: item.Id, Role: item.Role})
-	}*/
-	role = bean.Role{Id: model.Id, Role: model.Role}
-	return role, nil
-}
-func (impl UserAuthServiceImpl) DeleteRole(role string) (bool, error) {
-	dbConnection := impl.userRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return false, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-
-	roleModel, err := impl.userAuthRepository.GetRole(role)
-	if err != nil {
-		impl.logger.Errorw("error on fetch role", "err", err)
-		return false, err
-	}
-
-	//TODO - casbin policies also need to sync
-
-	userRoleModels, err := impl.userAuthRepository.GetUserRoleMappingByRoleId(roleModel.Id)
-	for _, item := range userRoleModels {
-		_, err := impl.userAuthRepository.DeleteUserRoleMapping(item, tx)
-		if err != nil {
-			impl.logger.Errorw("error on delete user role mapping", "err", err)
-			return false, err
-		}
-	}
-
-	flag, err := impl.userAuthRepository.DeleteRole(roleModel, tx)
-	if err != nil {
-		return false, err
-	}
-
-	return flag, nil
 }
 
 func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) {

@@ -32,18 +32,12 @@ import (
 
 type UserAuthRepository interface {
 	CreateRole(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error)
-	UpdateRole(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error)
-	GetRole(role string) (*RoleModel, error)
 	GetRoleById(id int) (*RoleModel, error)
 	GetRolesByUserId(userId int32) ([]RoleModel, error)
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
 	GetRoleByFilter(entity string, team string, app string, env string, act string) (RoleModel, error)
-	DeleteRole(roleModel *RoleModel, tx *pg.Tx) (bool, error)
-
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
-	GetUserRoleMapping(userRoleModelId int) (*UserRoleModel, error)
-	GetUserRoleMappingByRoleId(roleId int) ([]*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 
@@ -82,23 +76,6 @@ func (impl UserAuthRepositoryImpl) CreateRole(userModel *RoleModel, tx *pg.Tx) (
 	}
 	return userModel, nil
 }
-func (impl UserAuthRepositoryImpl) UpdateRole(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error) {
-	err := tx.Update(userModel)
-	if err != nil {
-		impl.Logger.Error(err)
-		return userModel, err
-	}
-	return userModel, nil
-}
-func (impl UserAuthRepositoryImpl) GetRole(role string) (*RoleModel, error) {
-	var model RoleModel
-	err := impl.dbConnection.Model(&model).Where("role = ?", role).Select()
-	if err != nil {
-		impl.Logger.Error(err)
-		return &model, err
-	}
-	return &model, nil
-}
 func (impl UserAuthRepositoryImpl) GetRoleById(id int) (*RoleModel, error) {
 	var model RoleModel
 	err := impl.dbConnection.Model(&model).Where("id = ?", id).Select()
@@ -132,6 +109,15 @@ func (impl UserAuthRepositoryImpl) GetRolesByGroupId(roleGroupId int32) ([]*Role
 		return models, err
 	}
 	return models, nil
+}
+func (impl UserAuthRepositoryImpl) GetRole(role string) (*RoleModel, error) {
+	var model RoleModel
+	err := impl.dbConnection.Model(&model).Where("role = ?", role).Select()
+	if err != nil {
+		impl.Logger.Error(err)
+		return &model, err
+	}
+	return &model, nil
 }
 func (impl UserAuthRepositoryImpl) GetAllRole() ([]RoleModel, error) {
 	var models []RoleModel
@@ -189,15 +175,6 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, a
 	return models, nil
 }
 
-func (impl UserAuthRepositoryImpl) DeleteRole(roleModel *RoleModel, tx *pg.Tx) (bool, error) {
-	err := tx.Delete(roleModel)
-	if err != nil {
-		impl.Logger.Error(err)
-		return false, err
-	}
-	return true, nil
-}
-
 func (impl UserAuthRepositoryImpl) CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error) {
 	err := tx.Insert(userRoleModel)
 	if err != nil {
@@ -206,25 +183,6 @@ func (impl UserAuthRepositoryImpl) CreateUserRoleMapping(userRoleModel *UserRole
 	}
 
 	return userRoleModel, nil
-}
-func (impl UserAuthRepositoryImpl) GetUserRoleMapping(userRoleModelId int) (*UserRoleModel, error) {
-	var userRoleModel UserRoleModel
-	err := impl.dbConnection.Model(&userRoleModel).Where("id = ?", userRoleModelId).Select()
-	if err != nil {
-		impl.Logger.Error(err)
-		return &userRoleModel, err
-	}
-
-	return &userRoleModel, nil
-}
-func (impl UserAuthRepositoryImpl) GetUserRoleMappingByRoleId(roleId int) ([]*UserRoleModel, error) {
-	var userRoleModels []*UserRoleModel
-	err := impl.dbConnection.Model(&userRoleModels).Where("role_id = ?", roleId).Select()
-	if err != nil {
-		impl.Logger.Error(err)
-		return userRoleModels, err
-	}
-	return userRoleModels, nil
 }
 func (impl UserAuthRepositoryImpl) GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error) {
 	var userRoleModels []*UserRoleModel

@@ -32,12 +32,9 @@ type UserRepository interface {
 	UpdateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error)
 	GetById(id int32) (*UserModel, error)
 	GetAll() ([]UserModel, error)
-	GetUsersByFilter(size int, from int) ([]UserModel, error)
 	FetchActiveUserByEmail(email string) (bean.UserInfo, error)
 	FetchUserDetailByEmail(email string) (bean.UserInfo, error)
 	GetByIds(ids []int32) ([]UserModel, error)
-	DeleteUser(userModel *UserModel, tx *pg.Tx) (bool, error)
-
 	GetConnection() (dbConnection *pg.DB)
 	FetchUserMatchesByEmailId(email string) ([]UserModel, error)
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
@@ -99,13 +96,6 @@ func (impl UserRepositoryImpl) GetAll() ([]UserModel, error) {
 	err := impl.dbConnection.Model(&userModel).Where("active = ?", true).Order("updated_on desc").Select()
 	return userModel, err
 }
-func (impl UserRepositoryImpl) GetUsersByFilter(size int, from int) ([]UserModel, error) {
-	var userModel []UserModel
-	query := "SELECT u.id, u.email_id, u.access_token FROM users u WHERE u.active = true" +
-		" ORDER by u.email_id DESC LIMIT ? OFFSET ?;"
-	_, err := impl.dbConnection.Query(&userModel, query, size, from)
-	return userModel, err
-}
 
 func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserInfo, error) {
 	var users bean.UserInfo
@@ -150,14 +140,6 @@ func (impl UserRepositoryImpl) GetByIds(ids []int32) ([]UserModel, error) {
 	var model []UserModel
 	err := impl.dbConnection.Model(&model).Where("id in (?)", pg.In(ids)).Where("active = ?", true).Select()
 	return model, err
-}
-
-func (impl UserRepositoryImpl) DeleteUser(userModel *UserModel, tx *pg.Tx) (bool, error) {
-	err := tx.Delete(userModel)
-	if err != nil {
-		return false, err
-	}
-	return true, nil
 }
 
 func (impl *UserRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
