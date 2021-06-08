@@ -566,22 +566,27 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	createRequest.DockerRegistryUrl = regHost
 	createRequest.DockerRegistry = store.Id
 
-	if createRequest.DockerRepository == "" {
-		repo := impl.ecrConfig.EcrPrefix + app.AppName
-		if store.RegistryType == repository.REGISTRYTYPE_ECR {
-			impl.logger.Debugw("repo is empty creating ecr repo ", "repo", repo)
-			err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
-			if err != nil {
-				if errors.IsAlreadyExists(err) {
-					impl.logger.Warnw("repo already exists , skipping", "repo", repo)
-				} else {
-					impl.logger.Errorw("error in creating repo", "repo", repo, "err", err)
-					return nil, err
-				}
+	var repo string
+	if createRequest.DockerRepository != "" {
+		repo = createRequest.DockerRepository
+	} else {
+		repo = impl.ecrConfig.EcrPrefix + app.AppName
+	}
+
+	if store.RegistryType == repository.REGISTRYTYPE_ECR {
+		impl.logger.Debugw("repo is empty creating ecr repo ", "repo", repo)
+		err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
+		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				impl.logger.Warnw("This repo already exists!!. Please create with a new name , skipping", "repo", repo)
+			} else {
+				impl.logger.Errorw("You can leave the Docker repo name as blank, and we will create it for you as devtron/app_name", "repo", repo, "err", err)
+				return nil, err
 			}
 		}
-		createRequest.DockerRepository = repo
 	}
+	createRequest.DockerRepository = repo
+
 	//--ecr config	end
 	//-- template config start
 
