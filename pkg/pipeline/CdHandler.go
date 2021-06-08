@@ -42,11 +42,11 @@ import (
 
 type CdHandler interface {
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
-	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
+	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
 	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (WorkflowResponse, error)
 	DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
-	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
+	FetchCdPrePostStageStatus(pipelineId int) ([]CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int) (int, error)
 	FetchAppWorkflowStatusForTriggerView(pipelineId int) ([]*pipelineConfig.CdWorkflowStatus, error)
 }
@@ -90,6 +90,30 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		ciWorkflowRepository:         ciWorkflowRepository,
 		ciConfig:                     ciConfig,
 	}
+}
+
+type CdWorkflowWithArtifact struct {
+	Id           int                              `json:"id"`
+	CdWorkflowId int                              `json:"cd_workflow_id"`
+	Name         string                           `json:"name"`
+	Status       string                           `json:"status"`
+	PodStatus    string                           `json:"pod_status"`
+	Message      string                           `json:"message"`
+	StartedOn    time.Time                        `json:"started_on"`
+	FinishedOn   time.Time                        `json:"finished_on"`
+	PipelineId   int                              `json:"pipeline_id"`
+	Namespace    string                           `json:"namespace"`
+	LogFilePath  string                           `json:"log_file_path"`
+	TriggeredBy  int32                            `json:"triggered_by"`
+	EmailId      string                           `json:"email_id"`
+	Image        string                           `json:"image"`
+	MaterialInfo string                           `json:"material_info,omitempty"`
+	DataSource   string                           `json:"data_source,omitempty"`
+	CiArtifactId int                              `json:"ci_artifact_id,omitempty"`
+	WorkflowType string                           `json:"workflow_type,omitempty"`
+	ExecutorType string                           `json:"executor_type,omitempty"`
+	GitTriggers  map[int]pipelineConfig.GitCommit `json:"gitTriggers"`
+	CiMaterials  []CiPipelineMaterialResponse     `json:"ciMaterials"`
 }
 
 func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int) (int, error) {
@@ -236,9 +260,10 @@ func (impl *CdHandlerImpl) stateChanged(status string, podStatus string, msg str
 	return savedWorkflow.Status != status || savedWorkflow.PodStatus != podStatus || savedWorkflow.Message != msg || savedWorkflow.FinishedOn != finishedAt
 }
 
-func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error) {
+func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]CdWorkflowWithArtifact, error) {
 
-	var cdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
+	var results []CdWorkflowWithArtifact
+	var cdWorkflowArtifact []CdWorkflowWithArtifact
 	if pipelineId == 0 {
 		wfrList, err := impl.cdWorkflowRepository.FindCdWorkflowMetaByEnvironmentId(appId, environmentId, offset, size)
 		if err != nil && err != pg.ErrNoRows {
@@ -253,7 +278,37 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		cdWorkflowArtifact = impl.converterWFRList(wfrList)
 	}
 
-	return cdWorkflowArtifact, nil
+	for _, item := range cdWorkflowArtifact {
+		ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(item.PipelineId)
+		if err != nil {
+			impl.Logger.Errorw("err", "err", err)
+			return cdWorkflowArtifact, err
+		}
+
+		var ciMaterialsArr []CiPipelineMaterialResponse
+		for _, m := range ciMaterials {
+			res := CiPipelineMaterialResponse{
+				Id:              m.Id,
+				GitMaterialId:   m.GitMaterialId,
+				GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
+				Type:            string(m.Type),
+				Value:           m.Value,
+				Active:          m.Active,
+				Url:             m.GitMaterial.Url,
+			}
+			ciMaterialsArr = append(ciMaterialsArr, res)
+		}
+		ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(item.CiArtifactId)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching ci wf", "artifactId", item.CiArtifactId, "err", err)
+			return cdWorkflowArtifact, err
+		}
+		item.CiMaterials = ciMaterialsArr
+		item.GitTriggers = ciWf.GitTriggers
+		results = append(results, item)
+	}
+
+	return results, nil
 }
 
 func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId int, wfrId int) (*bufio.Reader, func() error, error) {
@@ -463,8 +518,8 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 	return file, nil
 }
 
-func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pipelineConfig.CdWorkflowWithArtifact {
-	workflow := pipelineConfig.CdWorkflowWithArtifact{}
+func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) CdWorkflowWithArtifact {
+	workflow := CdWorkflowWithArtifact{}
 	if wfr.Id > 0 {
 		workflow.Name = wfr.Name
 		workflow.Id = wfr.Id
@@ -485,9 +540,9 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 	return workflow
 }
 
-func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowRunner) []pipelineConfig.CdWorkflowWithArtifact {
-	var workflowList []pipelineConfig.CdWorkflowWithArtifact
-	var results []pipelineConfig.CdWorkflowWithArtifact
+func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowRunner) []CdWorkflowWithArtifact {
+	var workflowList []CdWorkflowWithArtifact
+	var results []CdWorkflowWithArtifact
 	var ids []int32
 	for _, item := range wfrList {
 		ids = append(ids, item.TriggeredBy)
@@ -508,8 +563,8 @@ func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowR
 	return results
 }
 
-func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error) {
-	var results []pipelineConfig.CdWorkflowWithArtifact
+func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]CdWorkflowWithArtifact, error) {
+	var results []CdWorkflowWithArtifact
 	wfrPre, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_PRE)
 	if err != nil && err != pg.ErrNoRows {
 		return results, err
@@ -518,7 +573,7 @@ func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipeline
 		workflowPre := impl.converterWFR(wfrPre)
 		results = append(results, workflowPre)
 	} else {
-		workflowPre := pipelineConfig.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_PRE), PipelineId: pipelineId}
+		workflowPre := CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_PRE), PipelineId: pipelineId}
 		results = append(results, workflowPre)
 	}
 
@@ -530,7 +585,7 @@ func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipeline
 		workflowPost := impl.converterWFR(wfrPost)
 		results = append(results, workflowPost)
 	} else {
-		workflowPost := pipelineConfig.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_POST), PipelineId: pipelineId}
+		workflowPost := CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_POST), PipelineId: pipelineId}
 		results = append(results, workflowPost)
 	}
 	return results, nil
