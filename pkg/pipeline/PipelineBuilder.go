@@ -574,13 +574,15 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	}
 
 	if store.RegistryType == repository.REGISTRYTYPE_ECR {
-		impl.logger.Debugw("repo is empty creating ecr repo ", "repo", repo)
-		err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
+		impl.logger.Debugw("attempting repo creation ", "repo", repo)
+		err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId,
+			store.AWSSecretAccessKey)
 		if err != nil {
 			if errors.IsAlreadyExists(err) {
-				impl.logger.Warnw("This repo already exists!!. Please create with a new name , skipping", "repo", repo)
+				impl.logger.Warnw("this repo already exists!!, skipping repo creation", "repo", repo)
 			} else {
-				impl.logger.Errorw("You can leave the Docker repo name as blank, and we will create it for you as devtron/app_name", "repo", repo, "err", err)
+				impl.logger.Errorw("ecr repo creation failed, it might be due to authorization or any other external " +
+					"dependency. please create repo manually before triggering ci", "repo", repo, "err", err)
 				return nil, err
 			}
 		}
