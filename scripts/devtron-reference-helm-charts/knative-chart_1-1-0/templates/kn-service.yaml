@@ -1,0 +1,22 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: {{ $.Values.kn.service.name }}
+spec:
+  template:
+    metadata:
+{{- if .Values.kn.service.annotations }}
+      annotations:
+{{ toYaml .Values.kn.service.annotations | indent 8 }}
+{{- end }}
+    spec:
+      containers:
+        - image: "{{ .Values.kn.service.image }}:{{ .Values.kn.service.image_tag }}"
+          imagePullPolicy: {{ $.Values.kn.service.pullPolicy }}
+{{- if .Values.kn.service.env }}
+          env:
+          {{- range $.Values.kn.service.env }}
+            - name: {{ .name }}
+              value: {{ .value }}
+          {{- end }}    
+{{- end }}
