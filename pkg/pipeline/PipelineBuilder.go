@@ -566,22 +566,29 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	createRequest.DockerRegistryUrl = regHost
 	createRequest.DockerRegistry = store.Id
 
-	if createRequest.DockerRepository == "" {
-		repo := impl.ecrConfig.EcrPrefix + app.AppName
-		if store.RegistryType == repository.REGISTRYTYPE_ECR {
-			impl.logger.Debugw("repo is empty creating ecr repo ", "repo", repo)
-			err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
-			if err != nil {
-				if errors.IsAlreadyExists(err) {
-					impl.logger.Warnw("repo already exists , skipping", "repo", repo)
-				} else {
-					impl.logger.Errorw("error in creating repo", "repo", repo, "err", err)
-					return nil, err
-				}
+	var repo string
+	if createRequest.DockerRepository != "" {
+		repo = createRequest.DockerRepository
+	} else {
+		repo = impl.ecrConfig.EcrPrefix + app.AppName
+	}
+
+	if store.RegistryType == repository.REGISTRYTYPE_ECR {
+		impl.logger.Debugw("attempting repo creation ", "repo", repo)
+		err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId,
+			store.AWSSecretAccessKey)
+		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				impl.logger.Warnw("this repo already exists!!, skipping repo creation", "repo", repo)
+			} else {
+				impl.logger.Errorw("ecr repo creation failed, it might be due to authorization or any other external " +
+					"dependency. please create repo manually before triggering ci", "repo", repo, "err", err)
+				return nil, err
 			}
 		}
-		createRequest.DockerRepository = repo
 	}
+	createRequest.DockerRepository = repo
+
 	//--ecr config	end
 	//-- template config start
 
