@@ -643,16 +643,12 @@ func (impl AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDige
 
 func (impl AppServiceImpl) validateVersionForStrategy(envOverride *chartConfig.EnvConfigOverride, strategy *chartConfig.PipelineStrategy) (bool, error) {
 	chartVersion := envOverride.Chart.ChartVersion
-	chartMajorVersion, err := strconv.Atoi(chartVersion[:1])
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
 	if err != nil {
-		impl.logger.Errorw("err", err)
+		impl.logger.Errorw("chart version parsing", "err", err)
 		return false, err
 	}
-	chartMinorVersion, err := strconv.Atoi(chartVersion[2:3])
-	if err != nil {
-		impl.logger.Errorw("err", err)
-		return false, err
-	}
+
 	if (chartMajorVersion <= 3 && chartMinorVersion < 2) &&
 		(strategy.Strategy == pipelineConfig.DEPLOYMENT_TEMPLATE_CANARY || strategy.Strategy == pipelineConfig.DEPLOYMENT_TEMPLATE_RECREATE) {
 		err = &ApiError{

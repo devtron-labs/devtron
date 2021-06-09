@@ -650,6 +650,11 @@ func InitializeApp() (*App, error) {
 
 		telemetry.NewTelemetryEventClientImpl,
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
+		util.NewGitCliUtil,
+		router.NewSsoLoginRouterImpl,
+		wire.Bind(new(router.SsoLoginRouter), new(*router.SsoLoginRouterImpl)),
+		restHandler.NewSsoLoginRestHandlerImpl,
+		wire.Bind(new(restHandler.SsoLoginRestHandler), new(*restHandler.SsoLoginRestHandlerImpl)),
 	)
 	return &App{}, nil
 }

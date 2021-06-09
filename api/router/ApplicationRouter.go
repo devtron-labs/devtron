@@ -101,7 +101,7 @@ func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
 		HandlerFunc(r.handler.PatchResource)
 	router.Path("/{appNameACD}/resource").
 		Queries("name", "{name}", "namespace", "{namespace}", "resourceName", "{resourceName}", "version", "{version}",
-			"force", "{force}", "appId", "{appId}", "envId", "{envId}").
+			"force", "{force}", "appId", "{appId}", "envId", "{envId}", "group", "{group}", "kind", "{kind}").
 		Methods("DELETE").
 		HandlerFunc(r.handler.DeleteResource)
 

@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -230,14 +231,9 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
-	chartMajorVersion, err := strconv.Atoi(chartversion[:1])
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartversion)
 	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil, err
-	}
-	chartMinorVersion, err := strconv.Atoi(chartversion[2:3])
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
+		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
 	}
 
@@ -387,14 +383,9 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 
-	chartMajorVersion, err := strconv.Atoi(chartversion[:1])
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartversion)
 	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil, err
-	}
-	chartMinorVersion, err := strconv.Atoi(chartversion[2:3])
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
+		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
 	}
 
@@ -664,14 +655,9 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 		return nil, err
 	}
 
-	chartMajorVersion, err := strconv.Atoi(template.ChartVersion[:1])
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(template.ChartVersion)
 	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil, err
-	}
-	chartMinorVersion, err := strconv.Atoi(template.ChartVersion[2:3])
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
+		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
 	}
 
@@ -1021,16 +1007,12 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 			}
 			return nil, err
 		}
-		chartMajorVersion, err := strconv.Atoi(currentChart.ChartVersion[:1])
+		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(currentChart.ChartVersion)
 		if err != nil {
-			impl.logger.Errorw("err", "err", err)
+			impl.logger.Errorw("chart version parsing", "err", err)
 			return nil, err
 		}
-		chartMinorVersion, err := strconv.Atoi(currentChart.ChartVersion[2:3])
-		if err != nil {
-			impl.logger.Errorw("err", "err", err)
-			return nil, err
-		}
+
 		if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
 			err = &util.ApiError{
 				InternalMessage: "chart version in not compatible for app metrics",

@@ -38,6 +38,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type NotificationRestHandler interface {
@@ -178,7 +179,7 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 		}
 		for _, t := range teams {
 			for _, a := range apps {
-				teamRbac = append(teamRbac, fmt.Sprintf("%s/%s", t.Name, a.Name))
+				teamRbac = append(teamRbac, fmt.Sprintf("%s/%s", strings.ToLower(t.Name), strings.ToLower(a.Name)))
 				appsMap[a.Id] = a.Name
 			}
 		}
@@ -198,7 +199,7 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 		for _, t := range teams {
 			for _, a := range apps {
 				if t.Id == a.TeamId {
-					teamRbac = append(teamRbac, fmt.Sprintf("%s/%s", t.Name, a.Name))
+					teamRbac = append(teamRbac, fmt.Sprintf("%s/%s", strings.ToLower(t.Name), strings.ToLower(a.Name)))
 				}
 			}
 		}
@@ -208,7 +209,7 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 		}
 		for _, t := range teams {
 			teamsMap[t.Id] = t.Name
-			teamRbac = append(teamRbac, fmt.Sprintf("%s/*", t.Name))
+			teamRbac = append(teamRbac, fmt.Sprintf("%s/*", strings.ToLower(t.Name)))
 		}
 	}
 	if len(envIds) > 0 && len(appIds) == 0 {
@@ -216,7 +217,7 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 		if err != nil {
 		}
 		for _, e := range envs {
-			envRbac = append(envRbac, fmt.Sprintf("%s/*", e.Environment))
+			envRbac = append(envRbac, fmt.Sprintf("%s/*", strings.ToLower(e.Environment)))
 		}
 	} else if len(envIds) > 0 && len(appIds) > 0 {
 		envs, err := impl.environmentService.FindByIds(envIds)
@@ -224,7 +225,7 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 		}
 		for _, e := range envs {
 			for _, aId := range appIds {
-				envRbac = append(envRbac, fmt.Sprintf("%s/%s", e.Environment, appsMap[*aId]))
+				envRbac = append(envRbac, fmt.Sprintf("%s/%s", strings.ToLower(e.Environment), appsMap[*aId]))
 			}
 		}
 	}
@@ -396,12 +397,13 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 		}
 	}
 
-	results, err := impl.notificationService.BuildNotificationSettingsResponse(filteredSettingViews)
+	results, deletedItemCount, err := impl.notificationService.BuildNotificationSettingsResponse(filteredSettingViews)
 	if err != nil {
 		impl.logger.Errorw("service err, GetAllNotificationSettings", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	totalCount = totalCount - deletedItemCount
 	if results == nil {
 		results = make([]*notifier.NotificationSettingsResponse, 0)
 	}
@@ -457,7 +459,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 			return
 		}
 		for _, item := range teams {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/*", item.Name)); !ok {
+			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
 				writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 				return
 			}
@@ -541,7 +543,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 			return
 		}
 		for _, item := range teams {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, fmt.Sprintf("%s/*", item.Name)); !ok {
+			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
 				pass = false
 				break
 			}
@@ -683,7 +685,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w 
 				writeJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, fmt.Sprintf("%s/*", team.Name)); ok {
+			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, fmt.Sprintf("%s/*", strings.ToLower(team.Name))); ok {
 				channelsResponse = append(channelsResponse, item)
 			}
 		}

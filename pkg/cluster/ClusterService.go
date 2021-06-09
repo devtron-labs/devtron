@@ -221,7 +221,7 @@ func (impl ClusterServiceImpl) FindOneActive(clusterName string) (*ClusterBean, 
 }
 
 func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
-	model, err := impl.clusterRepository.FindAll()
+	model, err := impl.clusterRepository.FindAllActive()
 	if err != nil {
 		return nil, err
 	}

@@ -551,7 +551,8 @@ func (impl ApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *
 	namespace := vars["namespace"]
 	resourceName := vars["resourceName"]
 	version := vars["version"]
-	kind := "Pod"
+	kind := vars["kind"]
+	group := vars["group"]
 	force, err := strconv.ParseBool(vars["force"])
 	if err != nil {
 		force = false
@@ -566,6 +567,7 @@ func (impl ApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *
 	query.Version = version
 	query.Force = &force
 	query.Namespace = namespace
+	query.Group = group
 	token := r.Header.Get("token")
 	appId := vars["appId"]
 	envId := vars["envId"]
