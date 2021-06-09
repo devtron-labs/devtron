@@ -120,7 +120,7 @@ spec:
         fsGroup: 1001
       initContainers:
         - name: init-chmod-data
-          image: docker.io/bitnami/minideb:latest
+          image: "quay.io/bitnami/minideb:buster-snapshot-20210603T213110Z"
           imagePullPolicy: "Always"
           resources:
             requests:
@@ -151,7 +151,7 @@ spec:
         
       containers:
         - name: postgresql-postgresql
-          image: docker.io/bitnami/postgresql:11.3.0-debian-9-r28
+          image: quay.io/bitnami/postgresql:11.3.0-debian-9-r28
           imagePullPolicy: "Always"
           resources:
             requests:
@@ -216,7 +216,7 @@ spec:
               mountPath: /bitnami/postgresql
               subPath: 
         - name: metrics
-          image: docker.io/wrouesnel/postgres_exporter:v0.4.7
+          image: quay.io/testing-farm/postgres_exporter:v0.4.7
           imagePullPolicy: "IfNotPresent"
           env:
             - name: DATA_SOURCE_URI
