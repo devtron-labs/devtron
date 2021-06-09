@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -34,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
+	"github.com/posthog/posthog-go"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -62,6 +64,7 @@ type AppListingRestHandlerImpl struct {
 	enforcerUtil           rbac.EnforcerUtil
 	deploymentGroupService deploymentGroup.DeploymentGroupService
 	userService            user.UserService
+	PosthubClient          pubsub.PosthubClient
 }
 
 type AppStatus struct {
@@ -78,7 +81,8 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	enforcer rbac.Enforcer,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
-	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService) *AppListingRestHandlerImpl {
+	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
+	PosthubClient pubsub.PosthubClient) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:            application,
 		appListingService:      appListingService,
@@ -89,6 +93,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		enforcerUtil:           enforcerUtil,
 		deploymentGroupService: deploymentGroupService,
 		userService:            userService,
+		PosthubClient:          PosthubClient,
 	}
 	return appListingHandler
 }
@@ -117,6 +122,12 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+
+	handler.PosthubClient.Client.Enqueue(posthog.Capture{
+		DistinctId: "localhost-user",
+		Event:      fmt.Sprintf("event sent from app listing userid=%d,time=%s", userId, time.Now()),
+	})
+
 	userEmailId := strings.ToLower(user.EmailId)
 	var fetchAppListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
@@ -210,6 +221,11 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	appId, err := strconv.Atoi(vars["app-id"])
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
@@ -232,6 +248,11 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
+
+	handler.PosthubClient.Client.Enqueue(posthog.Capture{
+		DistinctId: "localhost-user",
+		Event:      fmt.Sprintf("event sent from app detail userid=%d,time=%s", userId, time.Now()),
+	})
 
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 {
 		//RBAC enforcer Ends

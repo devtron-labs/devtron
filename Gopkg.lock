@@ -1000,6 +1000,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:567f1e6717ee1a96abfd790da1beffbd3ddf314e16205a40710c9d4b37febc29"
+  name = "github.com/posthog/posthog-go"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "e0ee8499d623753ae480d819f51efe48e50724e9"
+
+[[projects]]
+  branch = "master"
   digest = "1:bd9efe4e0b0f768302a1e2f0c22458149278de533e521206e5ddc71848c269a0"
   name = "github.com/pquerna/cachecontrol"
   packages = [
@@ -1182,6 +1190,14 @@
   pruneopts = "UT"
   revision = "6a3e2ff9e7c564f36873c2e36413f634534f1c44"
   version = "v0.2.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:2f9538da7381bb981fb8451b2b0fb304c2bc7f1724228dc336a8f002e6fec704"
+  name = "github.com/xtgo/uuid"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "a0b114877d4caeffbd7f87e3757c17fce570fea7"
 
 [[projects]]
   digest = "1:a5158647b553c61877aa9ae74f4015000294e47981e6b8b07525edcbb0747c81"
@@ -1985,13 +2001,13 @@
     "github.com/juju/errors",
     "github.com/lib/pq",
     "github.com/microsoft/azure-devops-go-api/azuredevops",
-    "github.com/microsoft/azure-devops-go-api/azuredevops/core",
     "github.com/microsoft/azure-devops-go-api/azuredevops/git",
     "github.com/nats-io/nats.go",
     "github.com/nats-io/stan",
     "github.com/otiai10/copy",
     "github.com/patrickmn/go-cache",
     "github.com/pkg/errors",
+    "github.com/posthog/posthog-go",
     "github.com/prometheus/client_golang/api",
     "github.com/prometheus/client_golang/api/prometheus/v1",
     "github.com/prometheus/client_golang/prometheus",
@@ -2011,8 +2027,8 @@
     "gopkg.in/go-playground/validator.v9",
     "gopkg.in/igm/sockjs-go.v3/sockjs",
     "gopkg.in/src-d/go-git.v4",
+    "gopkg.in/src-d/go-git.v4/config",
     "gopkg.in/src-d/go-git.v4/plumbing/object",
-    "gopkg.in/src-d/go-git.v4/plumbing/transport",
     "gopkg.in/src-d/go-git.v4/plumbing/transport/http",
     "gopkg.in/yaml.v2",
     "k8s.io/api/apps/v1",

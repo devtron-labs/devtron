@@ -15,33 +15,33 @@
  *
  */
 
-package main
+package pubsub
 
 import (
-	"fmt"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
+	"github.com/caarlos0/env"
+	"github.com/posthog/posthog-go"
+	"go.uber.org/zap"
 )
 
-func main() {
-	app, err := InitializeApp()
+type PosthubClient struct {
+	Client posthog.Client
+}
+
+type PosthubConfig struct {
+	ApiKey string `env:"API_KEY" envDefault:""`
+}
+
+func NewPosthubClient(logger *zap.SugaredLogger) (PosthubClient, error) {
+	cfg := &PosthubConfig{}
+	err := env.Parse(cfg)
 	if err != nil {
-		log.Panic(err)
+		logger.Error("err", err)
+		return PosthubClient{}, err
 	}
-	//     gracefulStop start
-	var gracefulStop = make(chan os.Signal)
-	signal.Notify(gracefulStop, syscall.SIGTERM)
-	signal.Notify(gracefulStop, syscall.SIGINT)
-	go func() {
-		sig := <-gracefulStop
-		fmt.Printf("caught sig: %+v", sig)
-		app.Stop()
-		os.Exit(0)
-	}()
-	//      gracefulStop end
-
-	app.Start()
-
+	client, _ := posthog.NewWithConfig(cfg.ApiKey, posthog.Config{Endpoint: "https://app.posthog.com"})
+	defer client.Close()
+	client2 := PosthubClient{
+		Client: client,
+	}
+	return client2, nil
 }

@@ -45,6 +45,7 @@ import (
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
 	"github.com/pkg/errors"
+	"github.com/posthog/posthog-go"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -86,6 +87,7 @@ type AppServiceImpl struct {
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
 	imageScanHistoryRepository    security.ImageScanHistoryRepository
 	ArgoK8sClient                 argocdServer.ArgoK8sClient
+	PosthubClient                 pubsub.PosthubClient
 }
 
 type AppService interface {
@@ -121,7 +123,7 @@ func NewAppService(
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *GitFactory) *AppServiceImpl {
+	gitFactory *GitFactory, PosthubClient pubsub.PosthubClient) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:   environmentConfigRepository,
 		mergeUtil:                     mergeUtil,
@@ -153,6 +155,7 @@ func NewAppService(
 		imageScanHistoryRepository:    imageScanHistoryRepository,
 		ArgoK8sClient:                 ArgoK8sClient,
 		gitFactory:                    gitFactory,
+		PosthubClient:                 PosthubClient,
 	}
 	return appServiceImpl
 }
@@ -425,6 +428,11 @@ func (impl AppServiceImpl) getDbMigrationOverride(overrideRequest *bean.ValuesOv
 }
 
 func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (id int, err error) {
+
+	impl.PosthubClient.Client.Enqueue(posthog.Capture{
+		DistinctId: "localhost-user",
+		Event:      fmt.Sprintf("event sent from trigger app userid=%d,time=%s", overrideRequest.UserId, time.Now()),
+	})
 	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 	}

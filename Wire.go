@@ -651,6 +651,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.SsoLoginRouter), new(*router.SsoLoginRouterImpl)),
 		restHandler.NewSsoLoginRestHandlerImpl,
 		wire.Bind(new(restHandler.SsoLoginRestHandler), new(*restHandler.SsoLoginRestHandlerImpl)),
+		pubsub2.NewPosthubClient,
 	)
 	return &App{}, nil
 }

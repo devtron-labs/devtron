@@ -191,3 +191,7 @@ required = [
 [[constraint]]
   branch = "dev"
   name = "github.com/microsoft/azure-devops-go-api"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/posthog/posthog-go"
