@@ -2,7 +2,6 @@ apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
   name: {{ $.Values.kn.service.name }}
-  namespace: {{ $.Values.kn.service.namespace }}
 spec:
   template:
     metadata:

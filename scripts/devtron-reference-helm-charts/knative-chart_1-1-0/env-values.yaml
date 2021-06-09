@@ -9,7 +9,6 @@ data:
 kn:
   service:
     name: service-name
-    namespace: service-namespace
     image: abc/p2pcore-dev
     image_tag: exec
     pullPolicy: Always
