@@ -2692,7 +2692,7 @@ spec:
         - "20"
         - --operation-processors
         - "10"
-        image: quay.io/devtron/envoy:v1.14.1
+        image: "quay.io/argoproj/argocd:v1.8.0"
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
