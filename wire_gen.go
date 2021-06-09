@@ -154,7 +154,11 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	appServiceImpl := app.NewAppService(envConfigOverrideRepositoryImpl, pipelineOverrideRepositoryImpl, mergeUtil, sugaredLogger, ciArtifactRepositoryImpl, pipelineRepositoryImpl, dbMigrationConfigRepositoryImpl, eventRESTClientImpl, eventSimpleFactoryImpl, serviceClientImpl, tokenCache, acdAuthConfig, enforcerImpl, enforcerUtilImpl, userServiceImpl, appListingRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineConfigRepositoryImpl, configMapRepositoryImpl, appLevelMetricsRepositoryImpl, envLevelAppMetricsRepositoryImpl, chartRepositoryImpl, ciPipelineMaterialRepositoryImpl, cdWorkflowRepositoryImpl, commonServiceImpl, imageScanDeployInfoRepositoryImpl, imageScanHistoryRepositoryImpl, argoK8sClientImpl, gitFactory)
+	posthogClient, err := pubsub.NewPosthogClient(sugaredLogger)
+	if err != nil {
+		return nil, err
+	}
+	appServiceImpl := app.NewAppService(envConfigOverrideRepositoryImpl, pipelineOverrideRepositoryImpl, mergeUtil, sugaredLogger, ciArtifactRepositoryImpl, pipelineRepositoryImpl, dbMigrationConfigRepositoryImpl, eventRESTClientImpl, eventSimpleFactoryImpl, serviceClientImpl, tokenCache, acdAuthConfig, enforcerImpl, enforcerUtilImpl, userServiceImpl, appListingRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineConfigRepositoryImpl, configMapRepositoryImpl, appLevelMetricsRepositoryImpl, envLevelAppMetricsRepositoryImpl, chartRepositoryImpl, ciPipelineMaterialRepositoryImpl, cdWorkflowRepositoryImpl, commonServiceImpl, imageScanDeployInfoRepositoryImpl, imageScanHistoryRepositoryImpl, argoK8sClientImpl, gitFactory, posthogClient)
 	validate, err := util.IntValidator()
 	if err != nil {
 		return nil, err
@@ -247,11 +251,7 @@ func InitializeApp() (*App, error) {
 	clusterAccountsServiceImpl := cluster2.NewClusterAccountsServiceImpl(clusterAccountsRepositoryImpl, environmentRepositoryImpl, clusterServiceImpl, sugaredLogger)
 	clusterAccountsRestHandlerImpl := restHandler.NewClusterAccountsRestHandlerImpl(clusterAccountsServiceImpl, sugaredLogger, userServiceImpl)
 	clusterAccountsRouterImpl := router.NewClusterAccountsRouterImpl(clusterAccountsRestHandlerImpl)
-	posthubClient, err := pubsub.NewPosthubClient(sugaredLogger)
-	if err != nil {
-		return nil, err
-	}
-	appListingRestHandlerImpl := restHandler.NewAppListingRestHandlerImpl(serviceClientImpl, appListingServiceImpl, teamServiceImpl, enforcerImpl, pipelineBuilderImpl, sugaredLogger, enforcerUtilImpl, deploymentGroupServiceImpl, userServiceImpl, posthubClient)
+	appListingRestHandlerImpl := restHandler.NewAppListingRestHandlerImpl(serviceClientImpl, appListingServiceImpl, teamServiceImpl, enforcerImpl, pipelineBuilderImpl, sugaredLogger, enforcerUtilImpl, deploymentGroupServiceImpl, userServiceImpl, posthogClient)
 	appListingRouterImpl := router.NewAppListingRouterImpl(appListingRestHandlerImpl)
 	environmentRestHandlerImpl := restHandler.NewEnvironmentRestHandlerImpl(environmentServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, enforcerUtilImpl, userAuthServiceImpl)
 	environmentRouterImpl := router.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
@@ -326,7 +326,7 @@ func InitializeApp() (*App, error) {
 	workflowStatusUpdateHandlerImpl := pubsub2.NewWorkflowStatusUpdateHandlerImpl(sugaredLogger, pubSubClient, ciHandlerImpl, cdHandlerImpl, eventSimpleFactoryImpl, eventRESTClientImpl, cdWorkflowRepositoryImpl)
 	applicationStatusUpdateHandlerImpl := pubsub2.NewApplicationStatusUpdateHandlerImpl(sugaredLogger, pubSubClient, appServiceImpl, workflowDagExecutorImpl)
 	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl)
-	userRestHandlerImpl := restHandler.NewUserRestHandlerImpl(userServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, roleGroupServiceImpl)
+	userRestHandlerImpl := restHandler.NewUserRestHandlerImpl(userServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, roleGroupServiceImpl, posthogClient)
 	userRouterImpl := router.NewUserRouterImpl(userRestHandlerImpl, dexConfig, argocdServerConfig, argoCDSettings)
 	eventRepositoryImpl := repository.NewEventRepositoryImpl(sugaredLogger, db)
 	deploymentFailureHandlerImpl := app.NewDeploymentFailureHandlerImpl(sugaredLogger, appListingServiceImpl, eventRESTClientImpl, eventSimpleFactoryImpl)

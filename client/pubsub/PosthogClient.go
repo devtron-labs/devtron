@@ -23,25 +23,29 @@ import (
 	"go.uber.org/zap"
 )
 
-type PosthubClient struct {
+type PosthogClient struct {
 	Client posthog.Client
 }
 
-type PosthubConfig struct {
+type PosthogConfig struct {
 	ApiKey string `env:"API_KEY" envDefault:""`
 }
 
-func NewPosthubClient(logger *zap.SugaredLogger) (PosthubClient, error) {
-	cfg := &PosthubConfig{}
+func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
+	cfg := &PosthogConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
 		logger.Error("err", err)
-		return PosthubClient{}, err
+		return &PosthogClient{}, err
 	}
 	client, _ := posthog.NewWithConfig(cfg.ApiKey, posthog.Config{Endpoint: "https://app.posthog.com"})
-	defer client.Close()
-	client2 := PosthubClient{
+	//defer client.Close()
+	pgClient := &PosthogClient{
 		Client: client,
 	}
-	return client2, nil
+	/*pgClient.Client.Enqueue(posthog.Capture{
+		DistinctId: "localhost-user",
+		Event:      fmt.Sprintf("event sent from orchestrator on startup userid=%d,time=%s", 1, time.Now()),
+	})*/
+	return pgClient, nil
 }

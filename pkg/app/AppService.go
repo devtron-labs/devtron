@@ -87,7 +87,7 @@ type AppServiceImpl struct {
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
 	imageScanHistoryRepository    security.ImageScanHistoryRepository
 	ArgoK8sClient                 argocdServer.ArgoK8sClient
-	PosthubClient                 pubsub.PosthubClient
+	PosthogClient                 *pubsub.PosthogClient
 }
 
 type AppService interface {
@@ -123,7 +123,7 @@ func NewAppService(
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *GitFactory, PosthubClient pubsub.PosthubClient) *AppServiceImpl {
+	gitFactory *GitFactory, PosthubClient *pubsub.PosthogClient) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:   environmentConfigRepository,
 		mergeUtil:                     mergeUtil,
@@ -155,7 +155,7 @@ func NewAppService(
 		imageScanHistoryRepository:    imageScanHistoryRepository,
 		ArgoK8sClient:                 ArgoK8sClient,
 		gitFactory:                    gitFactory,
-		PosthubClient:                 PosthubClient,
+		PosthogClient:                 PosthubClient,
 	}
 	return appServiceImpl
 }
@@ -429,7 +429,7 @@ func (impl AppServiceImpl) getDbMigrationOverride(overrideRequest *bean.ValuesOv
 
 func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (id int, err error) {
 
-	impl.PosthubClient.Client.Enqueue(posthog.Capture{
+	impl.PosthogClient.Client.Enqueue(posthog.Capture{
 		DistinctId: "localhost-user",
 		Event:      fmt.Sprintf("event sent from trigger app userid=%d,time=%s", overrideRequest.UserId, time.Now()),
 	})

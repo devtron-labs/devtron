@@ -67,15 +67,15 @@ type UserRestHandlerImpl struct {
 	enforcer         rbac.Enforcer
 	natsClient       *pubsub.PubSubClient
 	roleGroupService user.RoleGroupService
-	PosthubClient          pubsub.PosthubClient
+	PosthogClient    *pubsub.PosthogClient
 }
 
 func NewUserRestHandlerImpl(userService user.UserService, validator *validator.Validate,
 	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, roleGroupService user.RoleGroupService,
-	PosthubClient          pubsub.PosthubClient) *UserRestHandlerImpl {
+	PosthubClient *pubsub.PosthogClient) *UserRestHandlerImpl {
 	userAuthHandler := &UserRestHandlerImpl{userService: userService, validator: validator, logger: logger,
 		enforcer: enforcer, natsClient: natsClient, roleGroupService: roleGroupService,
-		PosthubClient:PosthubClient}
+		PosthogClient: PosthubClient}
 	return userAuthHandler
 }
 
@@ -161,7 +161,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	handler.PosthubClient.Client.Enqueue(posthog.Capture{
+	handler.PosthogClient.Client.Enqueue(posthog.Capture{
 		DistinctId: "localhost-user",
 		Event:      fmt.Sprintf("event sent from user create userid=%d,time=%s", userInfo.Id, time.Now()),
 	})

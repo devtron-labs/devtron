@@ -64,7 +64,7 @@ type AppListingRestHandlerImpl struct {
 	enforcerUtil           rbac.EnforcerUtil
 	deploymentGroupService deploymentGroup.DeploymentGroupService
 	userService            user.UserService
-	PosthubClient          pubsub.PosthubClient
+	PosthogClient          *pubsub.PosthogClient
 }
 
 type AppStatus struct {
@@ -82,7 +82,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
-	PosthubClient pubsub.PosthubClient) *AppListingRestHandlerImpl {
+	PosthubClient *pubsub.PosthogClient) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:            application,
 		appListingService:      appListingService,
@@ -93,7 +93,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		enforcerUtil:           enforcerUtil,
 		deploymentGroupService: deploymentGroupService,
 		userService:            userService,
-		PosthubClient:          PosthubClient,
+		PosthogClient:          PosthubClient,
 	}
 	return appListingHandler
 }
@@ -122,11 +122,6 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
-	handler.PosthubClient.Client.Enqueue(posthog.Capture{
-		DistinctId: "localhost-user",
-		Event:      fmt.Sprintf("event sent from app listing userid=%d,time=%s", userId, time.Now()),
-	})
 
 	userEmailId := strings.ToLower(user.EmailId)
 	var fetchAppListingRequest app.FetchAppListingRequest
@@ -215,6 +210,12 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "4")
 	t1 = t2
 	handler.logger.Infow("api response time testing", "total time", time.Now().String(), "total time", t1.Unix()-t0.Unix())
+
+	handler.PosthogClient.Client.Enqueue(posthog.Capture{
+		DistinctId: "localhost-user",
+		Event:      fmt.Sprintf("event sent from app listing userid=%d,time=%s", userId, time.Now()),
+	})
+
 	writeJsonResp(w, err, appContainerResponse, http.StatusOK)
 }
 
@@ -248,11 +249,6 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-
-	handler.PosthubClient.Client.Enqueue(posthog.Capture{
-		DistinctId: "localhost-user",
-		Event:      fmt.Sprintf("event sent from app detail userid=%d,time=%s", userId, time.Now()),
-	})
 
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 {
 		//RBAC enforcer Ends
@@ -308,6 +304,10 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 	} else {
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
+	handler.PosthogClient.Client.Enqueue(posthog.Capture{
+		DistinctId: "localhost-user-1",
+		Event:      fmt.Sprintf("event sent from app detail userid=%d,time=%s", userId, time.Now()),
+	})
 	writeJsonResp(w, err, appDetail, http.StatusOK)
 }
 
