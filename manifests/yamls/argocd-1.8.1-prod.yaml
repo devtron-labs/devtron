@@ -714,10 +714,10 @@ spec:
         resources:
           requests:
             memory: 1000Mi
-            cpu: 1500m
+            cpu: 1000m
           limits:
             memory: 2000Mi
-            cpu: 1000m
+            cpu: 1500m
         ports:
         - containerPort: 8080
         - containerPort: 8083
