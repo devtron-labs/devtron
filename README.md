@@ -114,7 +114,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 ## :rocket: Getting Started
 
-#### Quick in stallation with default settings
+#### Quick installation with default settings
 
 This installation will use Minio for storing build logs and cache. Please make sure to edit the POSTGRESQL_PASSWORD value.
 
