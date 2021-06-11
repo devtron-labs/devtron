@@ -78,7 +78,7 @@ spec:
     spec:
       containers:
         -
-          image: quay.io/devtron/inception:d7236e39-185-3534
+          image: quay.io/devtron/inception:ec6933fb-185-4383
           imagePullPolicy: IfNotPresent
           name: inception
           ports:
