@@ -24,7 +24,7 @@ Run following command
 kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.status}'
 ```
 
-Once installation process is complete, above command will print `Applied` It may take around 30 minutes for installation to complete.
+The install commands initiates Devtron-operator which spins up all the Devtron micro-services one by one in about 30 mins. You can use the above command to check the status of the installation if the installation is still in progress, it will print `Downloaded`. When the installation is complete, it prints `Applied`.
 
 #### Access devtron dashboard
 

@@ -12,7 +12,6 @@ helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me
 ```
-
 {% endtab %}
 
 {% tab title="Install with AWS S3 Buckets" %}
@@ -33,7 +32,7 @@ helm install devtron devtron/devtron-operator --namespace devtroncd \
 {% endtab %}
 
 {% tab title="Install with Azure Blob Storage" %}
-This installation will use AWS s3 buckets for storing build logs and cache
+This installation will use Azure Blob Storage for storing build logs and cache
 
 ```bash
 kubectl create namespace devtroncd
@@ -57,7 +56,7 @@ Run following command
 kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.status}'
 ```
 
-Once installation process is complete, above command will print `Applied` It may take around 30 minutes for installation to complete.
+The install commands initiates Devtron-operator which spins up all the Devtron micro-services one by one in about 30 mins. You can use the above command to check the status of the installation if the installation is still in progress, it will print `Downloaded`. When the installation is complete, it prints `Applied`.
 
 ## Access Devtron dashboard
 
