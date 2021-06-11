@@ -216,7 +216,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: envoy
-          image: envoyproxy/envoy:v1.14.1
+          image: "quay.io/devtron/envoy:v1.14.1"
           resources:
             limits:
               cpu: 50m
