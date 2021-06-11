@@ -12,7 +12,6 @@ helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me
 ```
-
 {% endtab %}
 
 {% tab title="Install with AWS S3 Buckets" %}
