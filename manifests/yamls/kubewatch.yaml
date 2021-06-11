@@ -170,7 +170,7 @@ spec:
           value: devtroncd
         - name: ACD_INFORMER
           value: "true"
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: kubewatch-config-map
           mountPath: /root/.kubewatch.yaml

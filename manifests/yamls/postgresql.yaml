@@ -121,7 +121,7 @@ spec:
       initContainers:
         - name: init-chmod-data
           image: "quay.io/bitnami/minideb:buster-snapshot-20210603T213110Z"
-          imagePullPolicy: "Always"
+          imagePullPolicy: "IfNotPresent"
           resources:
             requests:
               cpu: 250m
@@ -152,7 +152,7 @@ spec:
       containers:
         - name: postgresql-postgresql
           image: quay.io/bitnami/postgresql:11.3.0-debian-9-r28
-          imagePullPolicy: "Always"
+          imagePullPolicy: "IfNotPresent"
           resources:
             requests:
               cpu: 250m

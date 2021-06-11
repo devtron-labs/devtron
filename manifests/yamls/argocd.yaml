@@ -2438,7 +2438,7 @@ spec:
         - /shared/argocd-util
         - rundex
         image: "quay.io/dexidp/dex:v2.25.0"
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: dex
         ports:
         - containerPort: 5556
@@ -2454,7 +2454,7 @@ spec:
         - /usr/local/bin/argocd-util
         - /shared
         image: "quay.io/argoproj/argocd:v1.8.0"
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: copyutil
         volumeMounts:
         - mountPath: /shared
@@ -2503,7 +2503,7 @@ spec:
         - --appendonly
         - "no"
         image: "quay.io/k8slz/redis:5.0.10-alpine"
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: redis
         ports:
         - containerPort: 6379
@@ -2554,7 +2554,7 @@ spec:
         - --redis
         - argocd-redis:6379
         image: "quay.io/argoproj/argocd:v1.8.0"
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -2624,7 +2624,7 @@ spec:
         - --staticassets
         - /shared/app
         image: "quay.io/argoproj/argocd:v1.8.0"
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: argocd-server
         ports:
         - containerPort: 8080
@@ -2693,7 +2693,7 @@ spec:
         - --operation-processors
         - "10"
         image: "quay.io/argoproj/argocd:v1.8.0"
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
             path: /healthz
