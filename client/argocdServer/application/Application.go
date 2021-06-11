@@ -94,10 +94,11 @@ type ResourceTreeResponse struct {
 }
 
 type PodMetadata struct {
-	Name       string    `json:"name"`
-	UID        string    `json:"uid"`
-	Containers []*string `json:"containers"`
-	IsNew      bool      `json:"isNew"`
+	Name           string    `json:"name"`
+	UID            string    `json:"uid"`
+	Containers     []*string `json:"containers"`
+	InitContainers []*string `json:"initContainers"`
+	IsNew          bool      `json:"isNew"`
 }
 
 type Manifests struct {
@@ -758,13 +759,18 @@ func getRolloutPodTemplateHash(pod map[string]interface{}) string {
 
 func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[string]interface{}, newPodNames map[string]bool) (podMetadata []*PodMetadata) {
 	containerMapping := make(map[string][]*string)
+	initContainerMapping := make(map[string][]*string)
 	for _, pod := range podManifests {
 		containerMapping[getResourceName(pod)] = getPodContainers(pod)
+	}
+
+	for _, pod := range podManifests {
+		initContainerMapping[getResourceName(pod)] = getPodInitContainers(pod)
 	}
 	for _, node := range resp.Nodes {
 		if node.Kind == "Pod" {
 			isNew := newPodNames[node.Name]
-			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name], IsNew: isNew}
+			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name],InitContainers: initContainerMapping[node.Name], IsNew: isNew}
 			podMetadata = append(podMetadata, &metadata)
 		}
 	}
@@ -792,12 +798,31 @@ func getPodContainers(resource map[string]interface{}) []*string {
 	}
 	return containers
 }
+func getPodInitContainers(resource map[string]interface{}) []*string {
+	containers := make([]*string, 0)
+	if s, ok := resource["spec"]; ok {
+		if sm, ok := s.(map[string]interface{}); ok {
+			if c, ok := sm["initContainers"]; ok {
+				if cas, ok := c.([]interface{}); ok {
+					for _, ca := range cas {
+						if cam, ok := ca.(map[string]interface{}); ok {
+							if n, ok := cam["name"]; ok {
+								if cn, ok := n.(string); ok {
+									containers = append(containers, &cn)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return containers
+}
 
 func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSet string, replicaSetManifests []map[string]interface{}) (podMetadata []*PodMetadata) {
-	containerMapping := make(map[string][]*string)
 	replicaSets := make(map[string]map[string]interface{})
 	for _, replicaSet := range replicaSetManifests {
-		containerMapping[getResourceName(replicaSet)] = getReplicaSetContainers(replicaSet)
 		replicaSets[getResourceName(replicaSet)] = replicaSet
 	}
 	for _, node := range resp.Nodes {
@@ -810,15 +835,15 @@ func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSe
 			}
 			isNew := parentName == newReplicaSet
 			replicaSet := replicaSets[parentName]
-			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: getReplicaSetContainers(replicaSet), IsNew: isNew}
+			containers, intContainers := getReplicaSetContainers(replicaSet)
+			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containers, InitContainers: intContainers, IsNew: isNew}
 			podMetadata = append(podMetadata, &metadata)
 		}
 	}
 	return
 }
 
-func getReplicaSetContainers(resource map[string]interface{}) []*string {
-	containers := make([]*string, 0)
+func getReplicaSetContainers(resource map[string]interface{}) (containers []*string, intContainers []*string) {
 	if s, ok := resource["spec"]; ok {
 		if sm, ok := s.(map[string]interface{}); ok {
 			if t, ok := sm["template"]; ok {
@@ -838,13 +863,27 @@ func getReplicaSetContainers(resource map[string]interface{}) []*string {
 									}
 								}
 							}
+							///initContainers.name
+							if c, ok := tmsm["initContainers"]; ok {
+								if cas, ok := c.([]interface{}); ok {
+									for _, ca := range cas {
+										if cam, ok := ca.(map[string]interface{}); ok {
+											if n, ok := cam["name"]; ok {
+												if cn, ok := n.(string); ok {
+													intContainers = append(intContainers, &cn)
+												}
+											}
+										}
+									}
+								}
+							}
 						}
 					}
 				}
 			}
 		}
 	}
-	return containers
+	return containers, intContainers
 }
 
 func getResourceName(resource map[string]interface{}) string {
