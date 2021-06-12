@@ -25,7 +25,9 @@ import (
 	"syscall"
 )
 
+
 func main() {
+
 	app, err := InitializeApp()
 	if err != nil {
 		log.Panic(err)
