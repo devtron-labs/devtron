@@ -198,3 +198,55 @@ const (
 func (d TelemetryEventType) String() string {
 	return [...]string{"Heartbeat", "InstallationStart", "InstallationSuccess", "InstallationFailure", "UpgradeSuccess", "UpgradeFailure", "Summery"}[d]
 }
+
+func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return
+	}
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return
+	}
+
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return
+	}
+	cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, "devtron-upid", client)
+	if err != nil && strings.Contains(err.Error(), "not found") {
+		// if not found, create new cm
+		//cm = &v12.ConfigMap{ObjectMeta: v13.ObjectMeta{Name: "devtron-upid"}}
+		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: "devtron-upid"}}
+		data := map[string]string{}
+		data["UCID"] = util.Generate(16) // generate unique random number
+		cm.Data = data
+		_, err = impl.K8sUtil.CreateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if err != nil {
+			return
+		}
+	}
+	if cm == nil {
+		return
+	}
+	dataMap := cm.Data
+	ucid := dataMap["UCID"]
+
+	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClient(cfg)
+	if err != nil {
+		return
+	}
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		return
+	}
+	payload := &TelemetryUserAnalyticsDto{Timestamp: time.Now(), EventType: Heartbeat, DevtronVersion: "v1"}
+	payload.UCID = ucid
+	payload.ServerVersion = k8sServerVersion.String()
+	reqBody, err := json.Marshal(payload)
+	if err != nil {
+		impl.logger.Errorw("HeartbeatEventForTelemetry, payload marshal error", "error", err)
+		return
+	}
+	fmt.Print(reqBody)
+}
