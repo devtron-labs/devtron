@@ -32,7 +32,7 @@ type TelemetryEventClientImpl struct {
 	environmentService   cluster.EnvironmentService
 	userService          user.UserService
 	appListingRepository repository.AppListingRepository
-	posthogClient        pubsub.PosthogClient
+	PosthogClient        *pubsub.PosthogClient
 }
 
 type TelemetryEventClient interface {
@@ -41,7 +41,7 @@ type TelemetryEventClient interface {
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *user.ACDAuthConfig, config *client.EventClientConfig,
 	environmentService cluster.EnvironmentService, userService user.UserService,
-	appListingRepository repository.AppListingRepository, posthogClient pubsub.PosthogClient) (*TelemetryEventClientImpl, error) {
+	appListingRepository repository.AppListingRepository, PosthogClient *pubsub.PosthogClient) (*TelemetryEventClientImpl, error) {
 	cronLogger := &CronLoggerImpl{logger: logger}
 	cron := cron.New(
 		cron.WithChain(
@@ -54,7 +54,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		client: client, clusterService: clusterService,
 		K8sUtil: K8sUtil, aCDAuthConfig: aCDAuthConfig, config: config,
 		environmentService: environmentService, userService: userService,
-		appListingRepository: appListingRepository, posthogClient: posthogClient,
+		appListingRepository: appListingRepository, PosthogClient: PosthogClient,
 	}
 	logger.Info()
 	_, err := cron.AddFunc(fmt.Sprintf("@every %dm", 3), watcher.SummeryEventForTelemetry)
@@ -208,7 +208,17 @@ func (impl *TelemetryEventClientImpl) SummeryEventForTelemetry() {
 		impl.logger.Errorw("SummeryEventForTelemetry, payload marshal error", "error", err)
 		return
 	}
-	fmt.Print(reqBody)
+	var prop map[string]interface{}
+	err = json.Unmarshal(reqBody, prop)
+	if err != nil {
+		impl.logger.Errorw("HeartbeatEventForTelemetry, payload unmarshal error", "error", err)
+		return
+	}
+	impl.PosthogClient.Client.Enqueue(posthog.Capture{
+		DistinctId: ucid,
+		Event:      fmt.Sprintf("event sent from orchestrator on startup userid=%d,time=%s", 1, time.Now()),
+		Properties: prop,
+	})
 }
 
 func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
@@ -260,11 +270,16 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		impl.logger.Errorw("HeartbeatEventForTelemetry, payload marshal error", "error", err)
 		return
 	}
-	fmt.Print(reqBody)
-
-	impl.posthogClient.Client.Enqueue(posthog.Capture{
+	var prop map[string]interface{}
+	err = json.Unmarshal(reqBody, prop)
+	if err != nil {
+		impl.logger.Errorw("HeartbeatEventForTelemetry, payload unmarshal error", "error", err)
+		return
+	}
+	impl.PosthogClient.Client.Enqueue(posthog.Capture{
 		DistinctId: ucid,
 		Event:      fmt.Sprintf("event sent from orchestrator on startup userid=%d,time=%s", 1, time.Now()),
+		Properties: prop,
 	})
 }
 
