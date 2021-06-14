@@ -15,7 +15,7 @@
  *
  */
 
-package pubsub
+package telemetry
 
 import (
 	"github.com/caarlos0/env"
@@ -28,7 +28,8 @@ type PosthogClient struct {
 }
 
 type PosthogConfig struct {
-	ApiKey string `env:"API_KEY" envDefault:""`
+	ApiKey          string `env:"API_KEY" envDefault:""`
+	PosthogEndpoint string `env:"POSTHOG_ENDPOINT" envDefault:"https://app.posthog.com"`
 }
 
 func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
@@ -38,14 +39,10 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 		logger.Error("err", err)
 		return &PosthogClient{}, err
 	}
-	client, _ := posthog.NewWithConfig(cfg.ApiKey, posthog.Config{Endpoint: "https://app.posthog.com"})
+	client, _ := posthog.NewWithConfig(cfg.ApiKey, posthog.Config{Endpoint: cfg.PosthogEndpoint})
 	//defer client.Close()
 	pgClient := &PosthogClient{
 		Client: client,
 	}
-	/*pgClient.Client.Enqueue(posthog.Capture{
-		DistinctId: "localhost-user",
-		Event:      fmt.Sprintf("event sent from orchestrator on startup userid=%d,time=%s", 1, time.Now()),
-	})*/
 	return pgClient, nil
 }

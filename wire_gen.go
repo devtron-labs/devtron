@@ -390,7 +390,7 @@ func InitializeApp() (*App, error) {
 	grafanaRouterImpl := router.NewGrafanaRouterImpl(sugaredLogger, grafanaConfig)
 	ssoLoginRestHandlerImpl := restHandler.NewSsoLoginRestHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, userServiceImpl, ssoLoginServiceImpl)
 	ssoLoginRouterImpl := router.NewSsoLoginRouterImpl(sugaredLogger, ssoLoginRestHandlerImpl, argocdServerConfig, dexConfig, argoCDSettings, userServiceImpl)
-	posthogClient, err := pubsub.NewPosthogClient(sugaredLogger)
+	posthogClient, err := telemetry.NewPosthogClient(sugaredLogger)
 	if err != nil {
 		return nil, err
 	}

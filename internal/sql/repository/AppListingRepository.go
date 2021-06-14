@@ -520,7 +520,7 @@ func (impl AppListingRepositoryImpl) FindAppCount(isProd bool) (int, error) {
 		" WHERE env.default = ? and app.active=true;"
 	_, err := impl.dbConnection.Query(&count, query, isProd)
 	if err != nil {
-		impl.Logger.Errorw("Exception caught:", err)
+		impl.Logger.Errorw("exception caught inside repository for fetching app count:", "err", err)
 		return count, err
 	}
 
