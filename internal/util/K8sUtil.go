@@ -146,6 +146,15 @@ func (impl K8sUtil) UpdateConfigMap(namespace string, cm *v1.ConfigMap, clusterC
 	}
 }
 
+func (impl K8sUtil) CreateConfigMapFast(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
+	cm, err := client.ConfigMaps(namespace).Create(cm)
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
+}
+
 func (impl K8sUtil) UpdateConfigMapFast(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
 	cm, err := client.ConfigMaps(namespace).Update(cm)
 	if err != nil {
