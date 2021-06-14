@@ -195,3 +195,7 @@ required = [
 [[constraint]]
   branch = "master"
   name = "github.com/posthog/posthog-go"
+
+[[constraint]]
+  name = "gopkg.in/robfig/cron.v3"
+  version = "3.0.1"

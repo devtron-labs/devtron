@@ -60,15 +60,14 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		environmentService: environmentService, userService: userService,
 		appListingRepository: appListingRepository,
 	}
-	//TelemetryEventClientImpl.WriteEventToTelemetryUserAnalyticsOnStartup()
-	//gocron.Every(1).Minute().Do(TelemetryEventClientImpl.WriteEventToTelemetryUserAnalytics)
+	TelemetryEventClientImpl.HeartbeatEventForTelemetry()
+	//gocron.Every(1).Minute().Do(TelemetryEventClientImpl.HeartbeatEventForTelemetry)
 	//<-gocron.Start()
-
 	return TelemetryEventClientImpl
 }
 
 func (impl *TelemetryEventClientImpl) WriteEventToTelemetryUserAnalyticsOnStartup() {
-	impl.logger.Info(">>>>>>>>>>  startup event ")
+	impl.logger.Info(">>>>>>>>>> startup event ")
 
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
@@ -200,6 +199,7 @@ func (d TelemetryEventType) String() string {
 }
 
 func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
+	impl.logger.Info(">>>>>>>>>>  startup HeartbeatEventForTelemetry ")
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
 		return

@@ -655,7 +655,8 @@ func InitializeApp() (*App, error) {
 		pubsub2.NewPosthogClient,
 		telemetry.NewTelemetryEventClientImpl,
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
-
+		telemetry.NewTelemetryWatcherImpl,
+		wire.Bind(new(telemetry.TelemetryWatcher), new(*telemetry.TelemetryWatcherImpl)),
 	)
 	return &App{}, nil
 }

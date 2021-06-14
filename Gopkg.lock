@@ -1567,6 +1567,14 @@
   version = "v0.0.2"
 
 [[projects]]
+  digest = "1:32db15a47b5be06a5d40e863ab0ebed107741845fd2d8676121f788284d26923"
+  name = "gopkg.in/robfig/cron.v3"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ccba498c397bb90a9c84945bbb0f7af2d72b6309"
+  version = "v3.0.1"
+
+[[projects]]
   digest = "1:8c05919580be8a5be668709d7e5a69d5cd19b8ee9f23d62ce5b10d3457bf6a13"
   name = "gopkg.in/square/go-jose.v2"
   packages = [
@@ -2026,6 +2034,7 @@
     "google.golang.org/grpc/status",
     "gopkg.in/go-playground/validator.v9",
     "gopkg.in/igm/sockjs-go.v3/sockjs",
+    "gopkg.in/robfig/cron.v3",
     "gopkg.in/src-d/go-git.v4",
     "gopkg.in/src-d/go-git.v4/config",
     "gopkg.in/src-d/go-git.v4/plumbing/object",
