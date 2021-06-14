@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/client/watcher"
 	"github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -653,10 +654,11 @@ func InitializeApp() (*App, error) {
 		restHandler.NewSsoLoginRestHandlerImpl,
 		wire.Bind(new(restHandler.SsoLoginRestHandler), new(*restHandler.SsoLoginRestHandlerImpl)),
 		pubsub2.NewPosthogClient,
+
 		telemetry.NewTelemetryEventClientImpl,
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
-		telemetry.NewTelemetryWatcherImpl,
-		wire.Bind(new(telemetry.TelemetryWatcher), new(*telemetry.TelemetryWatcherImpl)),
+		watcher.NewTelemetryWatcherImpl,
+		wire.Bind(new(watcher.TelemetryWatcher), new(*watcher.TelemetryWatcherImpl)),
 	)
 	return &App{}, nil
 }

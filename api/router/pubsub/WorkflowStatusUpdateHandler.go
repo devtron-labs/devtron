@@ -23,7 +23,6 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
-	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util/event"
@@ -44,8 +43,6 @@ type WorkflowStatusUpdateHandlerImpl struct {
 	eventFactory         client.EventFactory
 	eventClient          client.EventClient
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
-	telemetryEventClient telemetry.TelemetryEventClient
-	telemetryWatcher     telemetry.TelemetryWatcher
 }
 
 const workflowStatusUpdate = "WORKFLOW_STATUS_UPDATE"
@@ -57,8 +54,7 @@ const cdWorkflowStatusUpdateGroup = "CD_WORKFLOW_STATUS_UPDATE_GROUP-1"
 const cdWorkflowStatusUpdateDurable = "CD_WORKFLOW_STATUS_UPDATE_DURABLE-1"
 
 func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, ciHandler pipeline.CiHandler, cdHandler pipeline.CdHandler,
-	eventFactory client.EventFactory, eventClient client.EventClient, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	telemetryEventClient telemetry.TelemetryEventClient, telemetryWatcher telemetry.TelemetryWatcher) *WorkflowStatusUpdateHandlerImpl {
+	eventFactory client.EventFactory, eventClient client.EventClient, cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *WorkflowStatusUpdateHandlerImpl {
 	workflowStatusUpdateHandlerImpl := &WorkflowStatusUpdateHandlerImpl{
 		logger:               logger,
 		pubsubClient:         pubsubClient,
@@ -67,8 +63,6 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 		eventFactory:         eventFactory,
 		eventClient:          eventClient,
 		cdWorkflowRepository: cdWorkflowRepository,
-		telemetryEventClient: telemetryEventClient,
-		telemetryWatcher:     telemetryWatcher,
 	}
 	err := workflowStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
