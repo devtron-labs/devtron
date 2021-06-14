@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/client/watcher"
 	"github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -396,7 +395,7 @@ func InitializeApp() (*App, error) {
 	ssoLoginRestHandlerImpl := restHandler.NewSsoLoginRestHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, userServiceImpl, ssoLoginServiceImpl)
 	ssoLoginRouterImpl := router.NewSsoLoginRouterImpl(sugaredLogger, ssoLoginRestHandlerImpl, argocdServerConfig, dexConfig, argoCDSettings, userServiceImpl)
 	telemetryEventClientImpl := telemetry.NewTelemetryEventClientImpl(sugaredLogger, httpClient, clusterServiceImpl, k8sUtil, acdAuthConfig, eventClientConfig, environmentServiceImpl, userServiceImpl, appListingRepositoryImpl)
-	telemetryWatcherImpl, err := watcher.NewTelemetryWatcherImpl(sugaredLogger, httpClient, clusterServiceImpl, k8sUtil, acdAuthConfig, eventClientConfig, environmentServiceImpl, userServiceImpl, appListingRepositoryImpl)
+	telemetryWatcherImpl, err := telemetry.NewTelemetryEventClientImpl(sugaredLogger, httpClient, clusterServiceImpl, k8sUtil, acdAuthConfig, eventClientConfig, environmentServiceImpl, userServiceImpl, appListingRepositoryImpl)
 	if err != nil {
 		return nil, err
 	}

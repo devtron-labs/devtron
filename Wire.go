@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/client/watcher"
 	"github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -657,8 +656,6 @@ func InitializeApp() (*App, error) {
 
 		telemetry.NewTelemetryEventClientImpl,
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
-		watcher.NewTelemetryWatcherImpl,
-		wire.Bind(new(watcher.TelemetryWatcher), new(*watcher.TelemetryWatcherImpl)),
 	)
 	return &App{}, nil
 }
