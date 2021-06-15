@@ -471,7 +471,7 @@ spec:
             - name: storage
               mountPath: "/var/lib/grafana"
         - name: download-dashboards
-          image: "quay.io/giantswarm/curl:7.73.0"
+          image: "quay.io/devtron/curl:7.73.0"
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh"]
           args: [ "-c", "mkdir -p /var/lib/grafana/dashboards/default && /bin/sh /etc/grafana/download_dashboards.sh" ]
@@ -520,7 +520,7 @@ spec:
             - name: sc-dashboard-volume
               mountPath: "/tmp/dashboards"
         - name: grafana
-          image: "quay.io/bitnami/grafana:7.3.1"
+          image: "quay.io/devtron/grafana:7.3.1"
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: config
@@ -636,7 +636,7 @@ spec:
   serviceAccountName: devtron-grafana-test
   containers:
     - name: devtron-test
-      image: "bats/bats:v1.1.0"
+      image: "quay.io/devtron/bats:v1.1.0"
       imagePullPolicy: "IfNotPresent"
       command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
       volumeMounts:

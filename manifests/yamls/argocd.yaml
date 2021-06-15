@@ -2502,7 +2502,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: "quay.io/k8slz/redis:5.0.10-alpine"
+        image: "quay.io/devtron/redis:5.0.10-alpine"
         imagePullPolicy: IfNotPresent
         name: redis
         ports:

@@ -216,7 +216,7 @@ spec:
               mountPath: /bitnami/postgresql
               subPath: 
         - name: metrics
-          image: quay.io/testing-farm/postgres_exporter:v0.4.7
+          image: quay.io/devtron/postgres_exporter:v0.4.7
           imagePullPolicy: "IfNotPresent"
           env:
             - name: DATA_SOURCE_URI
