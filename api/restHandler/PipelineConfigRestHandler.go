@@ -54,6 +54,9 @@ import (
 )
 
 type PipelineConfigRestHandler interface {
+	GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request)
+	BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request)
+
 	CreateCiConfig(w http.ResponseWriter, r *http.Request)
 	ConfigureDeploymentTemplateForApp(w http.ResponseWriter, r *http.Request)
 	CreateApp(w http.ResponseWriter, r *http.Request)
@@ -208,6 +211,34 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 }
 
 const devtron = "DEVTRON"
+
+func (handler PipelineConfigRestHandlerImpl) GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request){
+	decoder := json.NewDecoder(r.Body)
+	var dem pipeline.Demo
+	err:= decoder.Decode(&dem)
+	if err!=nil{
+		fmt.Println(err.Error())
+		return
+	}
+	AppName,_,_:= handler.chartService.GetBulkAppNameAndId(dem)
+	w.WriteHeader(200)
+	w.Write(AppName)
+}
+func (handler PipelineConfigRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request){
+	decoder := json.NewDecoder(r.Body)
+	var dem pipeline.Demo
+	err:= decoder.Decode(&dem)
+	if err!=nil{
+		fmt.Println(err.Error())
+		return
+	}
+	resp,_:=handler.chartService.BulkUpdateDeploymentTemplate(dem)
+	w.WriteHeader(200)
+	w.Write(resp)
+}
+
+
+
 
 func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")

@@ -32,7 +32,6 @@ type PipelineConfigRouterImpl struct {
 
 func NewPipelineRouterImpl(restHandler restHandler.PipelineConfigRestHandler, appWorkflowRestHandler restHandler.AppWorkflowRestHandler) *PipelineConfigRouterImpl {
 	return &PipelineConfigRouterImpl{restHandler: restHandler, appWorkflowRestHandler: appWorkflowRestHandler}
-
 }
 
 func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mux.Router) {
@@ -132,6 +131,22 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/material-info/{appId}/{ciArtifactId}").HandlerFunc(router.restHandler.FetchMaterialInfo).Methods("GET")
 	configRouter.Path("/ci-pipeline/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetCIPipelineById).Methods("GET")
 
-	configRouter.Path("/pipeline/suggest/{type}/{appId}").
-		HandlerFunc(router.restHandler.PipelineNameSuggestion).Methods("GET")
+	configRouter.Path("/pipeline/suggest/{type}/{appId}").HandlerFunc(router.restHandler.PipelineNameSuggestion).Methods("GET")
+
+
+	configRouter.Path("/demo-resp-one").HandlerFunc(router.restHandler.GetAppNameDeploymentTemplate).Methods("POST")
+	configRouter.Path("/demo-resp-two").HandlerFunc(router.restHandler.BulkUpdateDeploymentTemplate).Methods("POST")
+
+	//configRouter.Path("/demo-resp").HandleFunc(router.restHandler.DemoResponse).Methods("GET")
 }
+
+
+/*
+func hello(w http.ResponseWriter, req * http.Request){
+	fmt.Fprintf(w,"hello\n")
+}
+func init() {
+	r := mux.NewRouter()
+	s := r.Host("https://demo.devtron.info:32443").Subrouter()
+	s.HandleFunc("/demo-resp",hello)
+}*/

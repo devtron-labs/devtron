@@ -22,7 +22,23 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 )
-
+type ChartEnvConfigOverride struct{
+	tableName struct{}  		`sql:"chart_env_config_override" pg:",discard_unknown_columns"`
+	Id int     					`sql:"id"`
+	ChartId int   				`sql:"chart_id"`
+	TargetEnvironment int    	`sql:"target_environment"`
+	EnvOverrideYaml string 		`sql:"env_override_yaml"`
+	Status string				`sql:"status"`
+	Reviewed bool				`sql:"reviewed"`
+	Active bool					`sql:"active"`
+	CreatedBy int				`sql:"created_by"`
+	UpdatedBy int				`sql:"updated_by"`
+	Namespace string			`sql:"namespace"`
+	Latest bool					`sql:"latest"`
+	Previous bool				`sql:"previous"`
+	IsOverride bool				`sql:"is_override"`
+	models.AuditLog
+}
 type Chart struct {
 	tableName               struct{}           `sql:"charts" pg:",discard_unknown_columns"`
 	Id                      int                `sql:"id,pk"`
@@ -50,6 +66,12 @@ type Chart struct {
 
 type ChartRepository interface {
 	//ChartReleasedToProduction(chartRepo, appName, chartVersion string) (bool, error)
+
+	FindBulkChartIsGlobal(appNameIncludes string,appNameExcludes string) ([]*Chart, error)
+	FindBulkChartIsNotGlobal(appId []int, envId int) ([]*ChartEnvConfigOverride, error)
+	FindBulkAppNameByAppId(appId []int)([]byte,error)
+	BulkUpdate(appId []int, envId int, isGlobal bool, final map[int]string) (error)
+
 	FindOne(chartRepo, appName, chartVersion string) (*Chart, error)
 	Save(*Chart) error
 	FindCurrentChartVersion(chartRepo, chartName, chartVersionPattern string) (string, error)
@@ -73,6 +95,78 @@ type ChartRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
+func (repositoryImpl ChartRepositoryImpl) FindBulkChartIsGlobal(appNameIncludes string,appNameExcludes string) ([]*Chart, error) {
+	var charts []*Chart
+	err := repositoryImpl.dbConnection.
+		Model(&charts).
+		Where("chart_name like ? and chart_name not like ?", "%"+appNameIncludes+"%","%"+appNameExcludes+"%").
+		Select()
+	return charts,err
+}
+func (repositoryImpl ChartRepositoryImpl) FindBulkChartIsNotGlobal(appId []int, envId int) ([]*ChartEnvConfigOverride, error) {
+	var charts []*ChartEnvConfigOverride
+	var err error
+	for _,appid := range appId {
+		temp :=  &ChartEnvConfigOverride{}
+		err = repositoryImpl.dbConnection.
+			Model(temp).
+			Where("id = ?", appid).
+			Where("target_environment = ?", envId).
+			Select()
+		charts = append(charts,temp)
+	}
+	return charts,err
+}
+
+func (repositoryImpl ChartRepositoryImpl) FindBulkAppNameByAppId(appId []int)([]byte,error){
+	var charts []*Chart
+		err := repositoryImpl.dbConnection.
+			Model(&charts).
+			Where("app_id = ?",appId).
+			Select()
+		if err!=nil{
+			panic(err)
+		}
+	appName := make([]byte,0)
+	for _,chart:=range charts{
+		appName = append(appName,chart.ChartName+"\n"...)
+	}
+	return appName,nil
+}
+
+
+func (repositoryImpl ChartRepositoryImpl) BulkUpdate(appId []int, envId int, isGlobal bool, final map[int]string) (error) {
+	if isGlobal{
+		chart := &Chart{}
+		for _,appid:=range appId {
+			_,err := repositoryImpl.dbConnection.
+				Model(chart).
+				Set("values_yaml = ?",final[appid]).
+				Where("app_id = ?",appid).
+				Update()
+
+			if err!=nil{
+				return err
+			}
+		}
+	} else{
+		chart :=  &ChartEnvConfigOverride{}
+		for _,appid:=range appId {
+			_,err := repositoryImpl.dbConnection.
+				Model(chart).
+				Set("env_override_yaml = ?",final[appid]).
+				Where("id = ?",appid).
+				Where("target_environment = ?",envId).
+				Update()
+
+			if err!=nil{
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (repositoryImpl ChartRepositoryImpl) FindOne(chartRepo, chartName, chartVersion string) (*Chart, error) {
 	chart := &Chart{}
 	err := repositoryImpl.dbConnection.
@@ -81,7 +175,6 @@ func (repositoryImpl ChartRepositoryImpl) FindOne(chartRepo, chartName, chartVer
 		Where("chart_version = ?", chartVersion).
 		Where("chart_repo = ? ", chartRepo).
 		Select()
-
 	return chart, err
 }
 func (repositoryImpl ChartRepositoryImpl) FindCurrentChartVersion(chartRepo, chartName, chartVersionPattern string) (string, error) {

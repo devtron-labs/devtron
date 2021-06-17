@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/util"
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -46,6 +47,14 @@ import (
 	"strings"
 	"time"
 )
+
+type Demo struct{
+	AppNameIncludes string  `json:"appNameIncludes"`
+	AppNameExcludes string  `json:"appNameExcludes"`
+	EnvId int `json:"envId"`
+	IsGlobal bool `json:"isGlobal"`
+	PatchJson string `json:"patchJson"`
+}
 
 type TemplateRequest struct {
 	Id                      int             `json:"id"  validate:"number"`
@@ -103,6 +112,9 @@ type RefChartDir string
 type DefaultChart string
 
 type ChartService interface {
+	GetBulkAppNameAndId(dem Demo)(AppName []byte,AppId []int,err error)
+	BulkUpdateDeploymentTemplate(dem Demo) (patch []byte,err error)
+
 	Create(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
 	CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
 	FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error)
@@ -174,6 +186,71 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 		client:                    client,
 	}
 }
+
+
+func(impl ChartServiceImpl) GetBulkAppNameAndId(dem Demo)( []byte, []int,error){
+	AppNameIsGlobal := make([]byte,0)
+	AppIdIsGlobal := make([]int,0)
+	results, _ := impl.chartRepository.FindBulkChartIsGlobal(dem.AppNameIncludes,dem.AppNameExcludes)
+	for _, result := range results {
+		AppIdIsGlobal = append(AppIdIsGlobal, result.AppId)
+		AppNameIsGlobal = append(AppNameIsGlobal,result.ChartName+"\n"...)
+	}
+	AppIdIsNotGlobal := make([]int,0)
+	if dem.IsGlobal==false{
+		results, _ := impl.chartRepository.FindBulkChartIsNotGlobal(AppIdIsGlobal,dem.EnvId)
+		for _, result := range results {
+			AppIdIsNotGlobal = append(AppIdIsNotGlobal, result.Id)
+		}
+		AppNameIsNotGlobal,err:= impl.chartRepository.FindBulkAppNameByAppId(AppIdIsNotGlobal)
+		return AppNameIsNotGlobal,AppIdIsNotGlobal,err
+	}
+	return AppNameIsGlobal,AppIdIsGlobal,nil
+}
+
+func(impl ChartServiceImpl) BulkUpdateDeploymentTemplate(dem Demo) ([]byte,error){
+		appid := make([]int,0)
+		final:=make(map[int]string)
+
+		modified:= make([]byte, 0)
+
+		patchJson:=[]byte(dem.PatchJson)
+		patch, err := jsonpatch.DecodePatch(patchJson)
+		if err != nil {
+		panic(err)
+	}
+
+	results, err := impl.chartRepository.FindBulkChartIsGlobal(dem.AppNameIncludes,dem.AppNameExcludes)
+	for _, result := range results {
+			appid = append(appid, result.AppId)
+			if dem.IsGlobal{
+				mod, err := patch.Apply([]byte(result.Values))
+				if err != nil {
+					panic(err)
+				}
+				final[result.AppId]=string(mod)
+				modified = append(modified,string(mod)+"\n"...)
+			}
+	}
+	 if !dem.IsGlobal{
+		results, _ := impl.chartRepository.FindBulkChartIsNotGlobal(appid,dem.EnvId)
+		for _, result := range results {
+			mod, err := patch.Apply([]byte(result.EnvOverrideYaml))
+			if err != nil {
+				panic(err)
+			}
+			final[result.Id]=string(mod)
+			modified = append(modified,string(mod)+"\n"...)
+		}
+	}
+	err=impl.chartRepository.BulkUpdate(appid,dem.EnvId,dem.IsGlobal,final)
+	if err != nil {
+		panic(err)
+	}
+
+	return modified,err
+}
+
 
 func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]json.RawMessage, error) {
 	refChart, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})

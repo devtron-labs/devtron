@@ -421,6 +421,8 @@ func contains(url string) bool {
 		"/orchestrator/security/policy/verify/webhook",
 		"/orchestrator/sso/list",
 		"/",
+		"/orchestrator/app/demo-resp-one",
+		"/orchestrator/app/demo-resp-two",
 	}
 	for _, a := range urls {
 		if a == url {
