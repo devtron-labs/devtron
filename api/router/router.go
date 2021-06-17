@@ -46,6 +46,7 @@ type MuxRouter struct {
 	CDRouter                         CDRouter
 	ProjectManagementRouter          ProjectManagementRouter
 	GitProviderRouter                GitProviderRouter
+	GitHostRouter                    GitHostRouter
 	DockerRegRouter                  DockerRegRouter
 	NotificationRouter               NotificationRouter
 	TeamRouter                       TeamRouter
@@ -79,7 +80,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	EnvironmentClusterMappingsRouter EnvironmentRouter, ClusterRouter ClusterRouter, ClusterHelmConfigRouter ClusterHelmConfigRouter,
 	WebHookRouter WebhookRouter, UserAuthRouter UserAuthRouter, ApplicationRouter ApplicationRouter,
 	CDRouter CDRouter, ProjectManagementRouter ProjectManagementRouter,
-	GitProviderRouter GitProviderRouter, DockerRegRouter DockerRegRouter,
+	GitProviderRouter GitProviderRouter, GitHostRouter GitHostRouter,
+	DockerRegRouter DockerRegRouter,
 	NotificationRouter NotificationRouter,
 	TeamRouter TeamRouter,
 	gitWebhookHandler pubsub.GitWebhookHandler,
@@ -108,6 +110,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		ProjectManagementRouter:          ProjectManagementRouter,
 		DockerRegRouter:                  DockerRegRouter,
 		GitProviderRouter:                GitProviderRouter,
+		GitHostRouter:                	  GitHostRouter,
 		NotificationRouter:               NotificationRouter,
 		TeamRouter:                       TeamRouter,
 		logger:                           logger,
@@ -194,6 +197,7 @@ func (r MuxRouter) Init() {
 
 	gitRouter := r.Router.PathPrefix("/orchestrator/git").Subrouter()
 	r.GitProviderRouter.InitGitProviderRouter(gitRouter)
+	r.GitHostRouter.InitGitHostRouter(gitRouter)
 
 	dockerRouter := r.Router.PathPrefix("/orchestrator/docker").Subrouter()
 	r.DockerRegRouter.InitDockerRegRouter(dockerRouter)
