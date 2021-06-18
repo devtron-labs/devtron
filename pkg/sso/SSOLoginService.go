@@ -218,7 +218,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
 		if err != nil {
 			return flag, err
 		}
@@ -230,7 +230,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 		data["dex.config"] = updatedData["dex.config"]
 		data["url"] = request.Url
 		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
 			impl.logger.Warnw("config map failed", "err", err)
 			continue

@@ -111,11 +111,7 @@ func (impl K8sUtil) deleteNs(namespace string, client *v12.CoreV1Client) error {
 	return err
 }
 
-func (impl K8sUtil) GetConfigMap(namespace string, name string, clusterConfig *ClusterConfig) (*v1.ConfigMap, error) {
-	client, err := impl.GetClient(clusterConfig)
-	if err != nil {
-		return nil, err
-	}
+func (impl K8sUtil) GetConfigMap(namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
 	cm, err := client.ConfigMaps(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -124,29 +120,7 @@ func (impl K8sUtil) GetConfigMap(namespace string, name string, clusterConfig *C
 	}
 }
 
-func (impl K8sUtil) GetConfigMapFast(namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
-	cm, err := client.ConfigMaps(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	} else {
-		return cm, nil
-	}
-}
-
-func (impl K8sUtil) UpdateConfigMap(namespace string, cm *v1.ConfigMap, clusterConfig *ClusterConfig) (*v1.ConfigMap, error) {
-	client, err := impl.GetClient(clusterConfig)
-	if err != nil {
-		return nil, err
-	}
-	cm, err = client.ConfigMaps(namespace).Update(cm)
-	if err != nil {
-		return nil, err
-	} else {
-		return cm, nil
-	}
-}
-
-func (impl K8sUtil) UpdateConfigMapFast(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
+func (impl K8sUtil) UpdateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
 	cm, err := client.ConfigMaps(namespace).Update(cm)
 	if err != nil {
 		return nil, err
@@ -205,7 +179,7 @@ type JsonPatchType struct {
 	Value interface{} `json:"value"`
 }
 
-func (impl K8sUtil) GetSecretFast(namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error) {
+func (impl K8sUtil) GetSecret(namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error) {
 	secret, err := client.Secrets(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -214,7 +188,7 @@ func (impl K8sUtil) GetSecretFast(namespace string, name string, client *v12.Cor
 	}
 }
 
-func (impl K8sUtil) CreateSecretFast(namespace string, data map[string][]byte, secretName string, client *v12.CoreV1Client) (*v1.Secret, error) {
+func (impl K8sUtil) CreateSecret(namespace string, data map[string][]byte, secretName string, client *v12.CoreV1Client) (*v1.Secret, error) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
@@ -229,7 +203,7 @@ func (impl K8sUtil) CreateSecretFast(namespace string, data map[string][]byte, s
 	}
 }
 
-func (impl K8sUtil) UpdateSecretFast(namespace string, secret *v1.Secret, client *v12.CoreV1Client) (*v1.Secret, error) {
+func (impl K8sUtil) UpdateSecret(namespace string, secret *v1.Secret, client *v12.CoreV1Client) (*v1.Secret, error) {
 	secret, err := client.Secrets(namespace).Update(secret)
 	if err != nil {
 		return nil, err
