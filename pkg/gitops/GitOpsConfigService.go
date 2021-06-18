@@ -197,6 +197,9 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 			return nil, err
 		}
 		updatedData := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
+		if updatedData == nil {
+			return nil, fmt.Errorf("unable to update configap for gitops")
+		}
 		data := cm.Data
 		data["repository.credentials"] = updatedData["repository.credentials"]
 		cm.Data = data
@@ -349,6 +352,9 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 			return err
 		}
 		updatedData := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
+		if updatedData == nil {
+			return fmt.Errorf("unable to update configap for gitops")
+		}
 		data := cm.Data
 		data["repository.credentials"] = updatedData["repository.credentials"]
 		cm.Data = data
@@ -445,17 +451,20 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 }
 
 func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *GitOpsConfigDto, secretName string, existingHost string) map[string]string {
+	repositoryCredentials := map[string]string{}
 	var newRepositories []*RepositoryCredentialsDto
 	var existingRepositories []*RepositoryCredentialsDto
 	repoStr := data["repository.credentials"]
 	if len(repoStr) > 0 {
 		repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
 		if err != nil {
-			panic(err)
+			impl.logger.Errorw("error while yaml to json in gitops config", "err", err)
+			return repositoryCredentials
 		}
 		err = json.Unmarshal(repoByte, &existingRepositories)
 		if err != nil {
-			panic(err)
+			impl.logger.Errorw("error while unmarshal repositories in gitops config", "err", err)
+			return repositoryCredentials
 		}
 	}
 
@@ -469,13 +478,14 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 
 	rb, err := json.Marshal(newRepositories)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error while marshal repositories in gitops config", "err", err)
+		return repositoryCredentials
 	}
 	repositoriesYamlByte, err := yaml.JSONToYAML(rb)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("error while json to yaml in gitops config", "err", err)
+		return repositoryCredentials
 	}
-	repositoryCredentials := map[string]string{}
 	if len(repositoriesYamlByte) > 0 {
 		repositoryCredentials["repository.credentials"] = string(repositoriesYamlByte)
 	}
