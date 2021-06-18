@@ -35,6 +35,9 @@ type GitHost struct {
 type GitHostRepository interface {
 	FindAll() ([]GitHost, error)
 	FindOneById(Id int) (GitHost, error)
+	FindOneByName(name string) (GitHost, error)
+	Exists(name string) (bool, error)
+	Save(gitHost *GitHost) error
 }
 
 type GitHostRepositoryImpl struct {
@@ -56,4 +59,25 @@ func (impl GitHostRepositoryImpl) FindOneById(id int) (GitHost, error) {
 	err := impl.dbConnection.Model(&host).
 		Where("id = ?", id).Select()
 	return host, err
+}
+
+func (impl GitHostRepositoryImpl) FindOneByName(name string) (GitHost, error) {
+	var host GitHost
+	err := impl.dbConnection.Model(&host).
+		Where("name = ?", name).Select()
+	return host, err
+}
+
+func (impl GitHostRepositoryImpl) Exists(name string) (bool, error) {
+	gitHost := &GitHost{}
+	exists, err := impl.dbConnection.
+		Model(gitHost).
+		Where("name = ?", name).
+		Exists()
+	return exists, err
+}
+
+func (impl GitHostRepositoryImpl) Save(gitHost *GitHost) error {
+	err := impl.dbConnection.Insert(gitHost)
+	return err
 }

@@ -42,19 +42,7 @@ ALTER TABLE git_provider
     ADD COLUMN git_host_id INTEGER;
 
 
----- Data migration of git_host_id in git_provider table
-UPDATE git_provider
-SET git_host_id = (CASE WHEN LOWER(url) like '%github.com%' THEN (select id from git_host where name = 'Github')
-                        WHEN LOWER(url) like '%bitbucket.com%' THEN (select id from git_host where name = 'Bitbucket Cloud')
-                        ELSE  (select id from git_host where name = 'Other')
-    END)
-WHERE git_host_id is NULL;
-
 
 ---- Add Foreign key constraint on git_host_id in Table git_provider
 ALTER TABLE git_provider
     ADD CONSTRAINT git_host_id_fkey FOREIGN KEY (git_host_id) REFERENCES public.git_host(id);
-
-
----- Add NOT NULL constraint on git_host_id in Table git_provider with Not NULL
-ALTER TABLE git_provider ALTER COLUMN git_host_id SET NOT NULL;

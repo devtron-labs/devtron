@@ -18,13 +18,19 @@
 package pipeline
 
 import (
+	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/juju/errors"
 	"go.uber.org/zap"
+	"time"
 )
 
 type GitHostConfig interface {
 	GetAll() ([]GitHostRequest, error)
 	GetById(id int) (*GitHostRequest, error)
+	Create(request *GitHostRequest) (int, error)
 }
 
 type GitHostConfigImpl struct {
@@ -45,6 +51,7 @@ type GitHostRequest struct {
 	Active      	bool                `json:"active"`
 	WebhookUrl  	string 				`json:"webhookUrl"`
 	WebhookSecret 	string 				`json:"webhookSecret"`
+	UserId      	int32               `json:"-"`
 }
 
 //get all git hosts
@@ -87,4 +94,42 @@ func (impl GitHostConfigImpl) GetById(id int) (*GitHostRequest, error) {
 	return gitHost, err
 }
 
+// Create in DB
+func (impl GitHostConfigImpl) Create(request *GitHostRequest) (int, error) {
+	impl.logger.Debugw("get git host create request", "req", request)
+	exist, err := impl.gitHostRepo.Exists(request.Name)
+	if err != nil {
+		impl.logger.Errorw("error in fetching git host ", "name", request.Name, "err", err)
+		err = &util.ApiError{
+			InternalMessage: "git host creation failed, error in fetching by name",
+			UserMessage:     "git host creation failed, error in fetching by name",
+		}
+		return 0, err
+	}
+	if exist {
+		impl.logger.Warnw("git host already exists", "name", request.Name)
+		err = &util.ApiError{
+			Code:            constants.GitHostCreateFailedAlreadyExists,
+			InternalMessage: "git host already exists",
+			UserMessage:     "git host already exists",
+		}
+		return 0, errors.NewAlreadyExists(err, request.Name)
+	}
+	gitHost := &repository.GitHost{
+		Name:        request.Name,
+		Active:      request.Active,
+		AuditLog:    models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+	}
+	err = impl.gitHostRepo.Save(gitHost)
+	if err != nil {
+		impl.logger.Errorw("error in saving git host in db", "data", gitHost, "err", err)
+		err = &util.ApiError{
+			Code:            constants.GitHostCreateFailedInDb,
+			InternalMessage: "git host failed to create in db",
+			UserMessage:     "git host failed to create in db",
+		}
+		return 0, err
+	}
+	return gitHost.Id, nil
+}
 

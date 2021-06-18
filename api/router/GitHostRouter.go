@@ -37,6 +37,9 @@ func (impl GitHostRouterImpl) InitGitHostRouter(configRouter *mux.Router) {
 	configRouter.Path("/host").
 		HandlerFunc(impl.gitHostRestHandler.GetGitHosts).
 		Methods("GET")
+	configRouter.Path("/host").
+		HandlerFunc(impl.gitHostRestHandler.CreateGitHost).
+		Methods("POST")
 	configRouter.Path("/host/{id}").
 		HandlerFunc(impl.gitHostRestHandler.GetGitHostById).
 		Methods("GET")

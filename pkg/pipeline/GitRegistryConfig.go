@@ -53,7 +53,7 @@ type GitRegistryRequest struct {
 	AuthMode    repository.AuthMode `json:"authMode,omitempty" validate:"required"`
 	Active      bool                `json:"active"`
 	UserId      int32               `json:"-"`
-	GitHostId   int					`json:"gitHostId"`
+	GitHostId   int 				`json:"gitHostId"`
 }
 
 func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo repository.GitProviderRepository, GitSensorClient gitSensor.GitSensorClient) *GitRegistryConfigImpl {
