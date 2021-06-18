@@ -795,10 +795,10 @@ spec:
         name: argocd-application-controller
         resources:
           requests:
-            memory: 2000Mi
+            memory: 1500Mi
             cpu: 1000m
           limits:
-            memory: 1500Mi
+            memory: 2000Mi
             cpu: 1000m
         ports:
         - containerPort: 8082
