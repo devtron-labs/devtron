@@ -30,8 +30,13 @@ const (
 )
 
 type SourceTypeConfig struct {
-	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY SOURCE_TYPE_TAG_REGEX"`
+	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY SOURCE_TYPE_TAG_REGEX SOURCE_TYPE_PULL_REQUEST"`
 	Value string                    `json:"value,omitempty" `
+}
+
+type PullRequestSourceConfig struct {
+	SourceBranchRegex string	`json:"sourceBranchRegex,omitempty"`
+	TargetBranchRegex string	`json:"targetBranchRegex,omitempty"`
 }
 
 type CreateAppDTO struct {
