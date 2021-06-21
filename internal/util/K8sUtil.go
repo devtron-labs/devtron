@@ -52,6 +52,20 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	return client, err
 }
 
+func (impl K8sUtil) GetClientForIncluster(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
+	// creates the in-cluster config
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		panic(err.Error())
+	}
+	// creates the clientset
+	clientset, err := v12.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	return clientset, err
+}
+
 func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error) {
 	cfg := &rest.Config{}
 	cfg.Host = clusterConfig.Host

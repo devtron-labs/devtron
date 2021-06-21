@@ -124,7 +124,7 @@ func (impl *TelemetryEventClientImpl) SummeryEventForTelemetry() {
 		return
 	}
 
-	client, err := impl.K8sUtil.GetClient(cfg)
+	client, err := impl.K8sUtil.GetClientForIncluster(cfg)
 	if err != nil {
 		return
 	}
@@ -230,7 +230,7 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		return
 	}
 
-	client, err := impl.K8sUtil.GetClient(cfg)
+	client, err := impl.K8sUtil.GetClientForIncluster(cfg)
 	if err != nil {
 		return
 	}
