@@ -212,7 +212,7 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkAppByAppId(appId []int)([]*App
 			}
 			apps = append(apps, app)
 		}
-		}
+	}
 	return apps,nil
 }
 func (repositoryImpl ChartRepositoryImpl)BulkUpdateChartByChartIdAndEnvID(final map[int]string)error{
@@ -223,7 +223,6 @@ func (repositoryImpl ChartRepositoryImpl)BulkUpdateChartByChartIdAndEnvID(final 
 			Set("env_override_yaml = ?",patch).
 			Where("chart_id = ?",chartid).
 			Update()
-
 		if err!=nil{
 			return err
 		}
