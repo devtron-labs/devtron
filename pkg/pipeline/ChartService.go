@@ -196,12 +196,19 @@ func(impl ChartServiceImpl) GetBulkAppNameAndId(dem Demo)( []byte, []int,error){
 		AppIdIsGlobal = append(AppIdIsGlobal, result.Id)
 		AppNameIsGlobal = append(AppNameIsGlobal,result.AppName+"\n"...)
 	}
+	AppNameIsGlobalUpdated := make([]byte,0)
+	AppIdIsGlobalUpdated := make([]int,0)
+	ChartIdIsGlobal := make([]int,0)
+	charts, _ := impl.chartRepository.FindBulkChartByAppId(AppIdIsGlobal)
+	for _, chart := range charts {
+		ChartIdIsGlobal = append(ChartIdIsGlobal, chart.Id)
+		AppIdIsGlobalUpdated = append(AppIdIsGlobalUpdated,chart.AppId)
+	}
+	newresults,_:=impl.chartRepository.FindBulkAppByAppId(AppIdIsGlobalUpdated)
+	for _,result:=range newresults{
+		AppNameIsGlobalUpdated = append(AppNameIsGlobalUpdated,result.AppName+"\n"...)
+	}
 	if dem.IsGlobal==false{
-		ChartIdIsGlobal := make([]int,0)
-		charts, _ := impl.chartRepository.FindBulkChartByAppId(AppIdIsGlobal)
-		for _, chart := range charts {
-			ChartIdIsGlobal = append(ChartIdIsGlobal, chart.Id)
-		}
 		envCharts,_:= impl.chartRepository.FindBulkEnvByChartIdAndEnvId(ChartIdIsGlobal,dem.EnvId)
 		ChartIdIsNotGlobal := make([]int,0)
 		for _,envChart:=range envCharts{
@@ -222,7 +229,7 @@ func(impl ChartServiceImpl) GetBulkAppNameAndId(dem Demo)( []byte, []int,error){
 
 	}
 	fmt.Println(AppNameIsGlobal)
-	return AppNameIsGlobal,AppIdIsGlobal,nil
+	return AppNameIsGlobalUpdated,AppIdIsGlobalUpdated,nil
 }
 
 func(impl ChartServiceImpl) BulkUpdateDeploymentTemplate(dem Demo) ([]byte,error){
