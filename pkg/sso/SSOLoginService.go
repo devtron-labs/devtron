@@ -30,6 +30,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
 	"time"
 )
 
@@ -360,9 +361,27 @@ func (impl SSOLoginServiceImpl) GetUCID(name string) (string, error) {
 		return "", err
 	}
 
-	_, err = impl.K8sUtil.GetClient(cfg)
+	client, err := impl.K8sUtil.GetClient(cfg)
 	if err != nil {
 		return "", err
 	}
-	return "", nil
+	cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	if err != nil && strings.Contains(err.Error(), "not found") {
+		// if not found, create new cm
+		//cm = &v12.ConfigMap{ObjectMeta: v13.ObjectMeta{Name: "devtron-upid"}}
+		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
+		data := map[string]string{}
+		data["UCID"] = util.Generate(16) // generate unique random number
+		cm.Data = data
+		_, err = impl.K8sUtil.CreateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if err != nil {
+			return "", err
+		}
+	}
+	if cm == nil {
+		return "", err
+	}
+	dataMap := cm.Data
+	ucid := dataMap["UCID"]
+	return ucid, nil
 }
