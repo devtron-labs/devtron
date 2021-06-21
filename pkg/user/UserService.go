@@ -40,16 +40,13 @@ type UserService interface {
 	UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
-	GetUsersByFilter(size int, from int) ([]bean.UserInfo, error)
 
-	GetUserByEmail(emailId string) (*bean.UserInfo, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
 	GetByIds(ids []int32) ([]bean.UserInfo, error)
 	DeleteUser(userInfo *bean.UserInfo) (bool, error)
 	CheckUserRoles(id int32) ([]string, error)
 	SyncOrchestratorToCasbin() (bool, error)
 	GetUserByToken(token string) (int32, error)
-	IsSuperAdmin(userId int) (bool, error)
 }
 
 type UserServiceImpl struct {
@@ -749,38 +746,6 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 	return response, nil
 }
 
-func (impl UserServiceImpl) GetUsersByFilter(size int, from int) ([]bean.UserInfo, error) {
-	model, err := impl.userRepository.GetUsersByFilter(size, from)
-	if err != nil {
-		impl.logger.Errorw("error while fetching user from db", "error", err)
-		return nil, err
-	}
-	var response []bean.UserInfo
-	for _, m := range model {
-		roles, err := impl.userAuthRepository.GetRolesByUserId(m.Id)
-		if err != nil {
-			impl.logger.Errorw("No Roles Found for user", "id", m.Id)
-			continue
-		}
-		var roleFilters []bean.RoleFilter
-		for _, role := range roles {
-			roleFilters = append(roleFilters, bean.RoleFilter{
-				Entity:      role.Entity,
-				Team:        role.Team,
-				Environment: role.Environment,
-				EntityName:  role.EntityName,
-				Action:      role.Action,
-			})
-		}
-		response = append(response, bean.UserInfo{
-			Id:          m.Id,
-			EmailId:     m.EmailId,
-			AccessToken: m.AccessToken,
-			RoleFilters: roleFilters,
-		})
-	}
-	return response, nil
-}
 func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, error) {
 	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
 	if err != nil {
@@ -949,16 +914,6 @@ func (impl UserServiceImpl) CheckUserRoles(id int32) ([]string, error) {
 }
 
 func (impl UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
-
-	/*dbConnection := impl.roleGroupRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		impl.logger.Errorw("error transaction begin", "error", err)
-		return false, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()*/
-
 	roles, err := impl.userAuthRepository.GetAllRole()
 	if err != nil {
 		impl.logger.Errorw("error while fetching roles from db", "error", err)
@@ -981,11 +936,6 @@ func (impl UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 		processed = processed + 1
 	}
 	impl.logger.Infow("total roles processed for sync", "len", processed)
-	/*err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error transaction commit", "error", err)
-		return false, err
-	}*/
 	return true, nil
 }
 

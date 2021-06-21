@@ -397,12 +397,13 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 		}
 	}
 
-	results, err := impl.notificationService.BuildNotificationSettingsResponse(filteredSettingViews)
+	results, deletedItemCount, err := impl.notificationService.BuildNotificationSettingsResponse(filteredSettingViews)
 	if err != nil {
 		impl.logger.Errorw("service err, GetAllNotificationSettings", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	totalCount = totalCount - deletedItemCount
 	if results == nil {
 		results = make([]*notifier.NotificationSettingsResponse, 0)
 	}

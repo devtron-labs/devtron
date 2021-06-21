@@ -71,6 +71,7 @@ type MuxRouter struct {
 	attributesRouter                 AttributesRouter
 	commonRouter                     CommonRouter
 	grafanaRouter                    GrafanaRouter
+	ssoLoginRouter                   SsoLoginRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -89,7 +90,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter,
-	commonRouter CommonRouter, grafanaRouter GrafanaRouter) *MuxRouter {
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -132,6 +133,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		dashboardRouter:                  dashboardRouter,
 		commonRouter:                     commonRouter,
 		grafanaRouter:                    grafanaRouter,
+		ssoLoginRouter:                   ssoLoginRouter,
 	}
 	return r
 }
@@ -251,4 +253,7 @@ func (r MuxRouter) Init() {
 
 	commonRouter := r.Router.PathPrefix("/orchestrator/global").Subrouter()
 	r.commonRouter.InitCommonRouter(commonRouter)
+
+	ssoLoginRouter := r.Router.PathPrefix("/orchestrator/sso").Subrouter()
+	r.ssoLoginRouter.initSsoLoginRouter(ssoLoginRouter)
 }
