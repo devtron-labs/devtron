@@ -237,9 +237,6 @@ func (handler PipelineConfigRestHandlerImpl) BulkUpdateDeploymentTemplate(w http
 	w.Write(resp)
 }
 
-
-
-
 func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)

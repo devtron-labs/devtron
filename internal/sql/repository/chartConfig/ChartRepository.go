@@ -22,6 +22,18 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 )
+type App struct{
+	tableName struct{}  		`sql:"app" pg:",discard_unknown_columns"`
+	Id int `sql:"id"`
+	AppName string `sql:"app_name"`
+	Active bool `sql:"active"`
+	CreatedOn string `sql:"created_on"`
+	CreatedBy string `sql:"created_by"`
+	UpdatedOn string `sql:"updated_on"`
+	UpdatedBy int `sql:"updated_by"`
+	TeamId int `sql:"team_id"`
+	AppStore bool `sql:"app_store"`
+}
 type ChartEnvConfigOverride struct{
 	tableName struct{}  		`sql:"chart_env_config_override" pg:",discard_unknown_columns"`
 	Id int     					`sql:"id"`
@@ -66,11 +78,13 @@ type Chart struct {
 
 type ChartRepository interface {
 	//ChartReleasedToProduction(chartRepo, appName, chartVersion string) (bool, error)
-
-	FindBulkChartIsGlobal(appNameIncludes string,appNameExcludes string) ([]*Chart, error)
-	FindBulkChartIsNotGlobal(appId []int, envId int) ([]*ChartEnvConfigOverride, error)
-	FindBulkAppNameByAppId(appId []int)([]byte,error)
-	BulkUpdate(appId []int, envId int, isGlobal bool, final map[int]string) (error)
+	FindBulkAppByAppNameSubstring(appNameIncludes string,appNameExcludes string) ([]*App, error)
+	BulkUpdateChartByAppId(final map[int]string) error
+	FindBulkChartByAppId(appId []int)([]*Chart,error)
+	FindBulkEnvByChartIdAndEnvId(chartId []int,envId int)([]*ChartEnvConfigOverride,error)
+	FindBulkChartByChartId(chartId []int)([]*Chart,error)
+	FindBulkAppByAppId(appId []int)([]*App,error)
+	BulkUpdateChartByChartIdAndEnvID(final map[int]string) error
 
 	FindOne(chartRepo, appName, chartVersion string) (*Chart, error)
 	Save(*Chart) error
@@ -95,77 +109,131 @@ type ChartRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
-func (repositoryImpl ChartRepositoryImpl) FindBulkChartIsGlobal(appNameIncludes string,appNameExcludes string) ([]*Chart, error) {
-	var charts []*Chart
+
+func (repositoryImpl ChartRepositoryImpl) FindBulkAppByAppNameSubstring(appNameIncludes string,appNameExcludes string) ([]*App, error){
+	var apps []*App
 	err := repositoryImpl.dbConnection.
-		Model(&charts).
-		Where("chart_name like ? and chart_name not like ?", "%"+appNameIncludes+"%","%"+appNameExcludes+"%").
+		Model(&apps).
+		Where("app_name like ? and app_name not like ?", "%"+appNameIncludes+"%","%"+appNameExcludes+"%").
 		Select()
-	return charts,err
+	return apps,err
 }
-func (repositoryImpl ChartRepositoryImpl) FindBulkChartIsNotGlobal(appId []int, envId int) ([]*ChartEnvConfigOverride, error) {
-	var charts []*ChartEnvConfigOverride
-	var err error
-	for _,appid := range appId {
-		temp :=  &ChartEnvConfigOverride{}
-		err = repositoryImpl.dbConnection.
-			Model(temp).
-			Where("id = ?", appid).
-			Where("target_environment = ?", envId).
-			Select()
-		charts = append(charts,temp)
-	}
-	return charts,err
-}
-
-func (repositoryImpl ChartRepositoryImpl) FindBulkAppNameByAppId(appId []int)([]byte,error){
-	var charts []*Chart
-		err := repositoryImpl.dbConnection.
-			Model(&charts).
-			Where("app_id = ?",appId).
-			Select()
+func (repositoryImpl ChartRepositoryImpl)BulkUpdateChartByAppId(final map[int]string)error{
+	chart := &Chart{}
+	for appid,patch:=range final {
+		_,err := repositoryImpl.dbConnection.
+			Model(chart).
+			Set("values_yaml = ?",patch).
+			Where("app_id = ?",appid).
+			Where("id is not null").
+			Update()
 		if err!=nil{
-			panic(err)
-		}
-	appName := make([]byte,0)
-	for _,chart:=range charts{
-		appName = append(appName,chart.ChartName+"\n"...)
-	}
-	return appName,nil
-}
-
-
-func (repositoryImpl ChartRepositoryImpl) BulkUpdate(appId []int, envId int, isGlobal bool, final map[int]string) (error) {
-	if isGlobal{
-		chart := &Chart{}
-		for _,appid:=range appId {
-			_,err := repositoryImpl.dbConnection.
-				Model(chart).
-				Set("values_yaml = ?",final[appid]).
-				Where("app_id = ?",appid).
-				Update()
-
-			if err!=nil{
-				return err
-			}
-		}
-	} else{
-		chart :=  &ChartEnvConfigOverride{}
-		for _,appid:=range appId {
-			_,err := repositoryImpl.dbConnection.
-				Model(chart).
-				Set("env_override_yaml = ?",final[appid]).
-				Where("id = ?",appid).
-				Where("target_environment = ?",envId).
-				Update()
-
-			if err!=nil{
-				return err
-			}
+			return err
 		}
 	}
 	return nil
 }
+func (repositoryImpl ChartRepositoryImpl) FindBulkChartByAppId(appId []int)([]*Chart,error){
+	var charts []*Chart
+	var err error
+	for _,appid := range appId {
+		temp :=  &Chart{}
+		exists,_:= repositoryImpl.dbConnection.
+			Model(temp).
+			Where("app_id = ?", appid).
+			Exists()
+		if exists {
+			err = repositoryImpl.dbConnection.
+				Model(temp).
+				Where("app_id = ?", appid).
+				Select()
+			charts = append(charts, temp)
+		}
+	}
+	return charts,err
+}
+func (repositoryImpl ChartRepositoryImpl) FindBulkEnvByChartIdAndEnvId(chartId []int,envId int)([]*ChartEnvConfigOverride,error){
+	var charts []*ChartEnvConfigOverride
+	var err error
+	for _,chartid := range chartId {
+		temp :=  &ChartEnvConfigOverride{}
+		exists,_:= repositoryImpl.dbConnection.
+			Model(temp).
+			Where("chart_id = ?", chartid).
+			Where("target_environment = ?",envId).
+			Exists()
+		if exists {
+			err = repositoryImpl.dbConnection.
+				Model(temp).
+				Where("chart_id = ?", chartid).
+				Where("target_environment = ?", envId).
+				Select()
+			charts = append(charts, temp)
+		}
+	}
+	return charts,err
+}
+func (repositoryImpl ChartRepositoryImpl) FindBulkChartByChartId(chartId []int)([]*Chart,error){
+	var charts []*Chart
+	for _,chartid := range chartId {
+		temp :=  &Chart{}
+		exists,_:= repositoryImpl.dbConnection.
+			Model(temp).
+			Where("id = ?", chartid).
+			Exists()
+			if exists {
+				err := repositoryImpl.dbConnection.
+					Model(temp).
+					Where("id = ?", chartid).
+					Select()
+				if err != nil {
+					panic(err)
+				}
+				charts = append(charts, temp)
+			}
+	}
+	return charts,nil
+}
+func (repositoryImpl ChartRepositoryImpl) FindBulkAppByAppId(appId []int)([]*App,error){
+	var apps []*App
+	for _,appid:=range appId {
+		app:=&App{}
+		exists,_:= repositoryImpl.dbConnection.
+			Model(app).
+			Where("id = ?", appid).
+			Exists()
+		if exists {
+			err := repositoryImpl.dbConnection.
+				Model(app).
+				Where("id = ?", appid).
+				Select()
+			if err != nil {
+				panic(err)
+			}
+			apps = append(apps, app)
+		}
+		}
+	return apps,nil
+}
+func (repositoryImpl ChartRepositoryImpl)BulkUpdateChartByChartIdAndEnvID(final map[int]string)error{
+	chart := &ChartEnvConfigOverride{}
+	for chartid,patch:=range final {
+		_,err := repositoryImpl.dbConnection.
+			Model(chart).
+			Set("env_override_yaml = ?",patch).
+			Where("chart_id = ?",chartid).
+			Update()
+
+		if err!=nil{
+			return err
+		}
+	}
+	return nil
+}
+
+
+
+
 
 func (repositoryImpl ChartRepositoryImpl) FindOne(chartRepo, chartName, chartVersion string) (*Chart, error) {
 	chart := &Chart{}
