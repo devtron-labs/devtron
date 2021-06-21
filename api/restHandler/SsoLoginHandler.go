@@ -38,6 +38,7 @@ type SsoLoginRestHandler interface {
 	GetAllSSOLoginConfig(w http.ResponseWriter, r *http.Request)
 	GetSSOLoginConfig(w http.ResponseWriter, r *http.Request)
 	GetSSOLoginConfigByName(w http.ResponseWriter, r *http.Request)
+	GetUCID(w http.ResponseWriter, r *http.Request)
 }
 
 type SsoLoginRestHandlerImpl struct {
@@ -49,7 +50,6 @@ type SsoLoginRestHandlerImpl struct {
 	userService     user.UserService
 	ssoLoginService sso.SSOLoginService
 }
-
 
 func NewSsoLoginRestHandlerImpl(userAuthService user.UserAuthService, validator *validator.Validate,
 	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService,
@@ -180,6 +180,16 @@ func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfigByName(w http.ResponseWr
 	res, err := handler.ssoLoginService.GetByName(name)
 	if err != nil {
 		handler.logger.Errorw("service err, GetSSOLoginConfigByName", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, nil, res, http.StatusOK)
+}
+
+func (handler SsoLoginRestHandlerImpl) GetUCID(w http.ResponseWriter, r *http.Request) {
+	res, err := handler.ssoLoginService.GetUCID()
+	if err != nil {
+		handler.logger.Errorw("service err, GetUCID", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

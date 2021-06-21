@@ -27,9 +27,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"k8s.io/api/core/v1"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 	"time"
 )
@@ -40,6 +43,7 @@ type SSOLoginService interface {
 	GetById(id int32) (*bean.SSOLoginDto, error)
 	GetAll() ([]*bean.SSOLoginDto, error)
 	GetByName(name string) (*bean.SSOLoginDto, error)
+	GetUCID() (string, error)
 }
 
 type SSOLoginServiceImpl struct {
@@ -76,6 +80,8 @@ func NewSSOLoginServiceImpl(userAuthRepository repository.UserAuthRepository, se
 	}
 	return serviceImpl
 }
+
+const DevtronUniqueClientIdConfigMap = "devtron-ucid"
 
 func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean.SSOLoginDto, error) {
 	dbConnection := impl.userRepository.GetConnection()
@@ -351,7 +357,7 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	return ssoLoginDto, nil
 }
 
-func (impl SSOLoginServiceImpl) GetUCID(name string) (string, error) {
+func (impl SSOLoginServiceImpl) GetUCID() (string, error) {
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
 		return "", err
@@ -360,7 +366,6 @@ func (impl SSOLoginServiceImpl) GetUCID(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	client, err := impl.K8sUtil.GetClient(cfg)
 	if err != nil {
 		return "", err
@@ -371,7 +376,7 @@ func (impl SSOLoginServiceImpl) GetUCID(name string) (string, error) {
 		//cm = &v12.ConfigMap{ObjectMeta: v13.ObjectMeta{Name: "devtron-upid"}}
 		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
 		data := map[string]string{}
-		data["UCID"] = util.Generate(16) // generate unique random number
+		data["UCID"] = util2.Generate(16) // generate unique random number
 		cm.Data = data
 		_, err = impl.K8sUtil.CreateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {

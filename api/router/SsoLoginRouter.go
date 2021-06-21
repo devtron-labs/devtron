@@ -61,4 +61,6 @@ func (router SsoLoginRouterImpl) initSsoLoginRouter(userAuthRouter *mux.Router) 
 		HandlerFunc(router.handler.GetSSOLoginConfig).Methods("GET")
 	userAuthRouter.Path("").Methods("GET").
 		Queries("name", "{name}").HandlerFunc(router.handler.GetSSOLoginConfigByName)
+	userAuthRouter.Path("/telemetry/ucid").
+		HandlerFunc(router.handler.GetUCID).Methods("GET")
 }
