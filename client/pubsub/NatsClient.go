@@ -42,7 +42,11 @@ type PubSubConfig struct {
 	AckDuration    string `env:"ACK_DURATION" envDefault:"30"`
 }
 
-const CD_SUCCESS = "ORCHESTRATOR.CD.TRIGGER"
+const (
+	CD_SUCCESS = "ORCHESTRATOR.CD.TRIGGER"
+	WEBHOOK_EVENT_TOPIC = "ORCHESTRATOR.WEBHOOK_EVENT"
+)
+
 
 /* #nosec */
 func NewPubSubClient(logger *zap.SugaredLogger) (*PubSubClient, error) {

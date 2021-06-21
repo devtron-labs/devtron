@@ -32,8 +32,8 @@ CREATE TABLE public.git_host (
 
 ---- Insert master data into git_host
 INSERT INTO git_host (name, created_on, created_by, active, webhook_url, webhook_secret)
-VALUES ('Github', NOW(), 1, 't', '/orchestrator/webhook/github', MD5(random()::text)),
-       ('Bitbucket Cloud', NOW(), 1, 't', '/orchestrator/webhook/bitbucket/' || MD5(random()::text), NULL),
+VALUES ('Github', NOW(), 1, 't', '/orchestrator/webhook/git/github', MD5(random()::text)),
+       ('Bitbucket Cloud', NOW(), 1, 't', '/orchestrator/webhook/git/bitbucket/' || MD5(random()::text), NULL),
        ('Other', NOW(), 1, 't', NULL, NULL);
 
 
