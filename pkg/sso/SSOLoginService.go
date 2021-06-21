@@ -349,3 +349,20 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	}
 	return ssoLoginDto, nil
 }
+
+func (impl SSOLoginServiceImpl) GetUCID(name string) (string, error) {
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return "", err
+	}
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return "", err
+	}
+	return "", nil
+}
