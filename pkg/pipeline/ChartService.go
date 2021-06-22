@@ -112,8 +112,8 @@ type RefChartDir string
 type DefaultChart string
 
 type ChartService interface {
-	GetBulkAppName(dem BulkUpdateInput)(AppName []byte,err error)
-	BulkUpdateDeploymentTemplate(dem BulkUpdateInput) (patch []byte,err error)
+	GetBulkAppName(bulkUpdateInput BulkUpdateInput)(AppName []byte,err error)
+	BulkUpdateDeploymentTemplate(bulkUpdateInput BulkUpdateInput) (patch []byte,err error)
 
 	Create(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
 	CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
