@@ -103,7 +103,7 @@ func NewClusterServiceImpl(repository cluster.ClusterRepository, environmentRepo
 }
 
 const ClusterName = "default_cluster"
-const TokenFilePath = "/Users/vikram/servicetoken"
+const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
 func (impl ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error) {
 	host := cluster.ServerUrl
