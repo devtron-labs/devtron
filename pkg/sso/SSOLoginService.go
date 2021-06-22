@@ -27,9 +27,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"k8s.io/api/core/v1"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 	"time"
 )
 
@@ -39,6 +43,7 @@ type SSOLoginService interface {
 	GetById(id int32) (*bean.SSOLoginDto, error)
 	GetAll() ([]*bean.SSOLoginDto, error)
 	GetByName(name string) (*bean.SSOLoginDto, error)
+	GetUCID() (*PosthogData, error)
 }
 
 type SSOLoginServiceImpl struct {
@@ -348,4 +353,49 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		Url:    model.Url,
 	}
 	return ssoLoginDto, nil
+}
+
+func (impl SSOLoginServiceImpl) GetUCID() (*PosthogData, error) {
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return nil, err
+	}
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, "devtron-ucid", client)
+	if err != nil && strings.Contains(err.Error(), "not found") {
+		// if not found, create new cm
+		//cm = &v12.ConfigMap{ObjectMeta: v13.ObjectMeta{Name: "devtron-upid"}}
+		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: "devtron-ucid"}}
+		data := map[string]string{}
+		data["UCID"] = util2.Generate(16) // generate unique random number
+		cm.Data = data
+		_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if cm == nil {
+		return nil, err
+	}
+	dataMap := cm.Data
+	ucid := dataMap["UCID"]
+	data := &PosthogData{
+		Url:  "https://posthog.com",
+		UCID: ucid,
+	}
+	return data, err
+}
+
+type PosthogData struct {
+	Url  string `json:"url,omitempty"`
+	UCID string `json:"ucid,omitempty"`
 }

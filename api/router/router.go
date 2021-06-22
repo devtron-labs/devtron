@@ -72,6 +72,7 @@ type MuxRouter struct {
 	commonRouter                     CommonRouter
 	grafanaRouter                    GrafanaRouter
 	ssoLoginRouter                   SsoLoginRouter
+	telemetryRouter                  TelemetryRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -90,7 +91,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter,
-	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter) *MuxRouter {
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, telemetryRouter TelemetryRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -134,6 +135,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		commonRouter:                     commonRouter,
 		grafanaRouter:                    grafanaRouter,
 		ssoLoginRouter:                   ssoLoginRouter,
+		telemetryRouter:                  telemetryRouter,
 	}
 	return r
 }
@@ -256,4 +258,7 @@ func (r MuxRouter) Init() {
 
 	ssoLoginRouter := r.Router.PathPrefix("/orchestrator/sso").Subrouter()
 	r.ssoLoginRouter.initSsoLoginRouter(ssoLoginRouter)
+
+	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
+	r.telemetryRouter.initTelemetryRouter(telemetryRouter)
 }

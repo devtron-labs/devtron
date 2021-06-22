@@ -124,6 +124,15 @@ func (impl K8sUtil) GetConfigMap(namespace string, name string, clusterConfig *C
 	}
 }
 
+func (impl K8sUtil) CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
+	cm, err := client.ConfigMaps(namespace).Create(cm)
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
+}
+
 func (impl K8sUtil) GetConfigMapFast(namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
 	cm, err := client.ConfigMaps(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
