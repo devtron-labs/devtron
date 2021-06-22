@@ -137,7 +137,7 @@ func (impl *TelemetryEventClientImpl) SummeryEventForTelemetry() {
 		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
 		return
 	}
-	cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		// if not found, create new cm
 		//cm = &v12.ConfigMap{ObjectMeta: v13.ObjectMeta{Name: "devtron-upid"}}
@@ -145,7 +145,7 @@ func (impl *TelemetryEventClientImpl) SummeryEventForTelemetry() {
 		data := map[string]string{}
 		data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
 		cm.Data = data
-		_, err = impl.K8sUtil.CreateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
 			return
 		}
@@ -256,7 +256,7 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
 		return
 	}
-	cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		// if not found, create new cm
 		//cm = &v12.ConfigMap{ObjectMeta: v13.ObjectMeta{Name: "devtron-upid"}}
@@ -264,7 +264,7 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		data := map[string]string{}
 		data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
 		cm.Data = data
-		_, err = impl.K8sUtil.CreateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
 			return
