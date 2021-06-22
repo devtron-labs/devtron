@@ -217,24 +217,30 @@ func (handler PipelineConfigRestHandlerImpl) GetAppNameDeploymentTemplate(w http
 	var bulkUpdateInput pipeline.BulkUpdateInput
 	err:= decoder.Decode(&bulkUpdateInput)
 	if err!=nil{
-		fmt.Println(err.Error())
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	AppName,_:= handler.chartService.GetBulkAppName(bulkUpdateInput)
-	w.WriteHeader(200)
-	w.Write(AppName)
+	AppName,err:= handler.chartService.GetBulkAppName(bulkUpdateInput)
+	if err != nil {
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, err, AppName, http.StatusOK)
 }
 func (handler PipelineConfigRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request){
 	decoder := json.NewDecoder(r.Body)
 	var bulkUpdateInput pipeline.BulkUpdateInput
 	err:= decoder.Decode(&bulkUpdateInput)
 	if err!=nil{
-		fmt.Println(err.Error())
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	resp,_:=handler.chartService.BulkUpdateDeploymentTemplate(bulkUpdateInput)
-	w.WriteHeader(200)
-	w.Write(resp)
+	resp,err:=handler.chartService.BulkUpdateDeploymentTemplate(bulkUpdateInput)
+	if err != nil {
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, err, resp, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r *http.Request) {
