@@ -656,6 +656,8 @@ func InitializeApp() (*App, error) {
 
 		telemetry.NewTelemetryEventClientImpl,
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
+
+		telemetry.GetPosthogConfig,
 	)
 	return &App{}, nil
 }

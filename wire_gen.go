@@ -394,7 +394,11 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	telemetryEventClientImpl, err := telemetry.NewTelemetryEventClientImpl(sugaredLogger, httpClient, clusterServiceImpl, k8sUtil, acdAuthConfig, eventClientConfig, environmentServiceImpl, userServiceImpl, appListingRepositoryImpl, posthogClient, ciPipelineRepositoryImpl, pipelineRepositoryImpl)
+	posthogConfig, err := telemetry.GetPosthogConfig()
+	if err != nil {
+		return nil, err
+	}
+	telemetryEventClientImpl, err := telemetry.NewTelemetryEventClientImpl(sugaredLogger, httpClient, clusterServiceImpl, k8sUtil, acdAuthConfig, eventClientConfig, environmentServiceImpl, userServiceImpl, appListingRepositoryImpl, posthogClient, ciPipelineRepositoryImpl, pipelineRepositoryImpl, posthogConfig)
 	if err != nil {
 		return nil, err
 	}

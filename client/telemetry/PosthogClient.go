@@ -28,8 +28,19 @@ type PosthogClient struct {
 }
 
 type PosthogConfig struct {
-	ApiKey          string `env:"API_KEY" envDefault:""`
-	PosthogEndpoint string `env:"POSTHOG_ENDPOINT" envDefault:"https://app.posthog.com"`
+	ApiKey            string `env:"API_KEY" envDefault:""`
+	PosthogEndpoint   string `env:"POSTHOG_ENDPOINT" envDefault:"https://app.posthog.com"`
+	SummaryInterval   int    `env:"SUMMARY_INTERVAL" envDefault:"2"`
+	HeartbeatInterval int    `env:"HEARTBEAT_INTERVAL" envDefault:"5"`
+}
+
+func GetPosthogConfig() (*PosthogConfig, error) {
+	cfg := &PosthogConfig{}
+	err := env.Parse(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return cfg, err
 }
 
 func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {

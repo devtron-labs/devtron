@@ -51,17 +51,17 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	return client, err
 }
 
-func (impl K8sUtil) GetClientForIncluster(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
+func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
+		impl.logger.Errorw("error", "error", err)
 		return nil, err
 	}
 	// creates the clientset
 	clientset, err := v12.NewForConfig(config)
 	if err != nil {
-		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
+		impl.logger.Errorw("error", "error", err)
 		return nil, err
 	}
 	return clientset, err
@@ -75,6 +75,20 @@ func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discov
 	client, err := discovery.NewDiscoveryClientForConfig(cfg)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
+		return nil, err
+	}
+	return client, err
+}
+
+func (impl K8sUtil) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error", "error", err)
+		return nil, err
+	}
+	client, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		impl.logger.Errorw("error", "error", err)
 		return nil, err
 	}
 	return client, err
