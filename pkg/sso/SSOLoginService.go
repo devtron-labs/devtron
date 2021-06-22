@@ -355,41 +355,49 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	return ssoLoginDto, nil
 }
 
+const DevtronUniqueClientIdConfigMap = "devtron-ucid"
+const DevtronUniqueClientIdConfigMapKey = "UCID"
+
 func (impl SSOLoginServiceImpl) GetUCID() (*PosthogData, error) {
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return nil, err
 	}
 	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
 	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return nil, err
 	}
 	client, err := impl.K8sUtil.GetClient(cfg)
 	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return nil, err
 	}
 
-	cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, "devtron-ucid", client)
+	cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		// if not found, create new cm
 		//cm = &v12.ConfigMap{ObjectMeta: v13.ObjectMeta{Name: "devtron-upid"}}
-		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: "devtron-ucid"}}
+		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
 		data := map[string]string{}
-		data["UCID"] = util2.Generate(16) // generate unique random number
+		data[DevtronUniqueClientIdConfigMapKey] = util2.Generate(16) // generate unique random number
 		cm.Data = data
 		_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
+			impl.logger.Errorw("exception while getting unique client id", "error", err)
 			return nil, err
 		}
 	}
 
 	if cm == nil {
+		impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
 		return nil, err
 	}
 	dataMap := cm.Data
-	ucid := dataMap["UCID"]
+	ucid := dataMap[DevtronUniqueClientIdConfigMapKey]
 	data := &PosthogData{
-		Url:  "https://posthog.com",
+		Url:  "https://app.posthog.com/",
 		UCID: ucid,
 	}
 	return data, err
