@@ -61,7 +61,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
 	}
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(fmt.Sprintf("@every %dm", 5), watcher.SummeryEventForTelemetry)
+	_, err := cron.AddFunc(fmt.Sprintf("@every %dm", 5), watcher.SummaryEventForTelemetry)
 	if err != nil {
 		fmt.Println("error in starting summery event", "err", err)
 		return nil, err
@@ -84,17 +84,17 @@ type TelemetryEventDto struct {
 	Timestamp      time.Time          `json:"timestamp"`
 	EventMessage   string             `json:"eventMessage"`
 	EventType      TelemetryEventType `json:"eventType"`
-	Summery        *SummeryDto        `json:"summery"`
+	Summary        *SummaryDto        `json:"summary"`
 	ServerVersion  string             `json:"serverVersion"`
 	DevtronVersion string             `json:"devtronVersion"`
 }
 
-type SummeryDto struct {
+type SummaryDto struct {
 	ProdAppCount            int `json:"prodAppCount"`
 	NonProdAppCount         int `json:"nonProdAppCount"`
 	UserCount               int `json:"userCount"`
 	EnvironmentCount        int `json:"environmentCount"`
-	ClusterCount            int `json:"nonProdApps"`
+	ClusterCount            int `json:"clusterCount"`
 	CiCountPerDay           int `json:"ciCountPerDay"`
 	CdCountPerDay           int `json:"cdCountPerDay"`
 	HelmChartCount          int `json:"helmChartCount"`
@@ -113,28 +113,28 @@ const (
 	InstallationFailure
 	UpgradeSuccess
 	UpgradeFailure
-	Summery
+	Summary
 )
 
 func (d TelemetryEventType) String() string {
-	return [...]string{"Heartbeat", "InstallationStart", "InstallationSuccess", "InstallationFailure", "UpgradeSuccess", "UpgradeFailure", "Summery"}[d]
+	return [...]string{"Heartbeat", "InstallationStart", "InstallationSuccess", "InstallationFailure", "UpgradeSuccess", "UpgradeFailure", "Summary"}[d]
 }
 
-func (impl *TelemetryEventClientImpl) SummeryEventForTelemetry() {
+func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 
 	client, err := impl.K8sUtil.GetClientForIncluster(cfg)
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
@@ -151,7 +151,7 @@ func (impl *TelemetryEventClientImpl) SummeryEventForTelemetry() {
 		}
 	}
 	if cm == nil {
-		impl.logger.Errorw("cm found nil inside telemetry summery event", "cm", cm)
+		impl.logger.Errorw("cm found nil inside telemetry summary event", "cm", cm)
 		return
 	}
 	dataMap := cm.Data
@@ -159,25 +159,25 @@ func (impl *TelemetryEventClientImpl) SummeryEventForTelemetry() {
 
 	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClient(cfg)
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 	k8sServerVersion, err := discoveryClient.ServerVersion()
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
-	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: Summery, DevtronVersion: "v1"}
+	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 	clusters, err := impl.clusterService.FindAllActive()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 
 	environments, err := impl.environmentService.GetAllActive()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 
@@ -189,29 +189,29 @@ func (impl *TelemetryEventClientImpl) SummeryEventForTelemetry() {
 
 	prodApps, err := impl.appListingRepository.FindAppCount(true)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 
 	nonProdApps, err := impl.appListingRepository.FindAppCount(false)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 
 	ciPipeline, err := impl.ciPipelineRepository.FindAllPipelineInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 
 	cdPipeline, err := impl.pipelineRepository.FindAllPipelineInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 
-	summery := &SummeryDto{
+	summery := &SummaryDto{
 		ProdAppCount:     prodApps,
 		NonProdAppCount:  nonProdApps,
 		UserCount:        len(users),
@@ -220,16 +220,16 @@ func (impl *TelemetryEventClientImpl) SummeryEventForTelemetry() {
 		CiCountPerDay:    len(ciPipeline),
 		CdCountPerDay:    len(cdPipeline),
 	}
-	payload.Summery = summery
+	payload.Summary = summery
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
-		impl.logger.Errorw("SummeryEventForTelemetry, payload marshal error", "error", err)
+		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)
 		return
 	}
 	prop := make(map[string]interface{})
 	err = json.Unmarshal(reqBody, &prop)
 	if err != nil {
-		impl.logger.Errorw("SummeryEventForTelemetry, payload unmarshal error", "error", err)
+		impl.logger.Errorw("SummaryEventForTelemetry, payload unmarshal error", "error", err)
 		return
 	}
 	impl.PosthogClient.Client.Enqueue(posthog.Capture{
