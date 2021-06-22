@@ -36,7 +36,7 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 	cfg := &PosthogConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
-		logger.Error("err", err)
+		logger.Errorw("exception caught while parsing posthog config", "err", err)
 		return &PosthogClient{}, err
 	}
 	client, _ := posthog.NewWithConfig(cfg.ApiKey, posthog.Config{Endpoint: cfg.PosthogEndpoint})

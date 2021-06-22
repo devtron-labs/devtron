@@ -45,11 +45,8 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	environmentService cluster.EnvironmentService, userService user.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) (*TelemetryEventClientImpl, error) {
-	cronLogger := &CronLoggerImpl{logger: logger}
 	cron := cron.New(
-		cron.WithChain(
-			cron.SkipIfStillRunning(cronLogger),
-			cron.Recover(cronLogger)))
+		cron.WithChain())
 	cron.Start()
 	watcher := &TelemetryEventClientImpl{
 		cron:   cron,
@@ -251,7 +248,7 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		return
 	}
 
-	client, err := impl.K8sUtil.GetClientForIncluster(cfg)
+	client, err := impl.K8sUtil.GetClient(cfg)
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
 		return
@@ -307,15 +304,3 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 	})
 }
 
-type CronLoggerImpl struct {
-	logger *zap.SugaredLogger
-}
-
-func (impl *CronLoggerImpl) Info(msg string, keysAndValues ...interface{}) {
-	impl.logger.Infow(msg, keysAndValues...)
-}
-
-func (impl *CronLoggerImpl) Error(err error, msg string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"err", err}, keysAndValues...)
-	impl.logger.Errorw(msg, keysAndValues...)
-}
