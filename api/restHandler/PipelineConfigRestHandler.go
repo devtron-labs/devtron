@@ -214,25 +214,25 @@ const devtron = "DEVTRON"
 
 func (handler PipelineConfigRestHandlerImpl) GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request){
 	decoder := json.NewDecoder(r.Body)
-	var dem pipeline.Demo
-	err:= decoder.Decode(&dem)
+	var bulkUpdateInput pipeline.BulkUpdateInput
+	err:= decoder.Decode(&bulkUpdateInput)
 	if err!=nil{
 		fmt.Println(err.Error())
 		return
 	}
-	AppName,_,_:= handler.chartService.GetBulkAppNameAndId(dem)
+	AppName,_:= handler.chartService.GetBulkAppName(bulkUpdateInput)
 	w.WriteHeader(200)
 	w.Write(AppName)
 }
 func (handler PipelineConfigRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request){
 	decoder := json.NewDecoder(r.Body)
-	var dem pipeline.Demo
-	err:= decoder.Decode(&dem)
+	var bulkUpdateInput pipeline.BulkUpdateInput
+	err:= decoder.Decode(&bulkUpdateInput)
 	if err!=nil{
 		fmt.Println(err.Error())
 		return
 	}
-	resp,_:=handler.chartService.BulkUpdateDeploymentTemplate(dem)
+	resp,_:=handler.chartService.BulkUpdateDeploymentTemplate(bulkUpdateInput)
 	w.WriteHeader(200)
 	w.Write(resp)
 }
