@@ -30,8 +30,8 @@ type PosthogClient struct {
 type PosthogConfig struct {
 	ApiKey            string `env:"API_KEY" envDefault:""`
 	PosthogEndpoint   string `env:"POSTHOG_ENDPOINT" envDefault:"https://app.posthog.com"`
-	SummaryInterval   int    `env:"SUMMARY_INTERVAL" envDefault:"2"`
-	HeartbeatInterval int    `env:"HEARTBEAT_INTERVAL" envDefault:"5"`
+	SummaryInterval   int    `env:"SUMMARY_INTERVAL" envDefault:"24"`
+	HeartbeatInterval int    `env:"HEARTBEAT_INTERVAL" envDefault:"3"`
 }
 
 func GetPosthogConfig() (*PosthogConfig, error) {
