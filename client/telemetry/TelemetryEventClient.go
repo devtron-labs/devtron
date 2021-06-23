@@ -40,6 +40,7 @@ type TelemetryEventClientImpl struct {
 }
 
 type TelemetryEventClient interface {
+	GetUCID() (*PosthogData, error)
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
@@ -282,4 +283,54 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		Event:      Heartbeat.String(),
 		Properties: prop,
 	})
+}
+
+
+func (impl *TelemetryEventClientImpl) GetUCID() (*PosthogData, error) {
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return nil, err
+	}
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return nil, err
+	}
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return nil, err
+	}
+
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
+		// if not found, create new cm
+		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
+		data := map[string]string{}
+		data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
+		cm.Data = data
+		_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if err != nil {
+			impl.logger.Errorw("exception while getting unique client id", "error", err)
+			return nil, err
+		}
+	}
+
+	if cm == nil {
+		impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
+		return nil, err
+	}
+	dataMap := cm.Data
+	ucid := dataMap[DevtronUniqueClientIdConfigMapKey]
+	data := &PosthogData{
+		Url:  impl.posthogConfig.PosthogEndpoint,
+		UCID: ucid,
+	}
+	return data, err
+}
+
+type PosthogData struct {
+	Url  string `json:"url,omitempty"`
+	UCID string `json:"ucid,omitempty"`
 }

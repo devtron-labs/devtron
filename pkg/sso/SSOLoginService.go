@@ -28,14 +28,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/api/core/v1"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 )
 
@@ -45,7 +40,6 @@ type SSOLoginService interface {
 	GetById(id int32) (*bean.SSOLoginDto, error)
 	GetAll() ([]*bean.SSOLoginDto, error)
 	GetByName(name string) (*bean.SSOLoginDto, error)
-	GetUCID() (*PosthogData, error)
 }
 
 type SSOLoginServiceImpl struct {
@@ -357,53 +351,4 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		Url:    model.Url,
 	}
 	return ssoLoginDto, nil
-}
-
-func (impl SSOLoginServiceImpl) GetUCID() (*PosthogData, error) {
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
-	if err != nil {
-		impl.logger.Errorw("exception while getting unique client id", "error", err)
-		return nil, err
-	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
-	if err != nil {
-		impl.logger.Errorw("exception while getting unique client id", "error", err)
-		return nil, err
-	}
-	client, err := impl.K8sUtil.GetClient(cfg)
-	if err != nil {
-		impl.logger.Errorw("exception while getting unique client id", "error", err)
-		return nil, err
-	}
-
-	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, telemetry.DevtronUniqueClientIdConfigMap, client)
-	if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
-		// if not found, create new cm
-		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: telemetry.DevtronUniqueClientIdConfigMap}}
-		data := map[string]string{}
-		data[telemetry.DevtronUniqueClientIdConfigMapKey] = util2.Generate(16) // generate unique random number
-		cm.Data = data
-		_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-		if err != nil {
-			impl.logger.Errorw("exception while getting unique client id", "error", err)
-			return nil, err
-		}
-	}
-
-	if cm == nil {
-		impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
-		return nil, err
-	}
-	dataMap := cm.Data
-	ucid := dataMap[telemetry.DevtronUniqueClientIdConfigMapKey]
-	data := &PosthogData{
-		Url:  impl.posthogConfig.PosthogEndpoint,
-		UCID: ucid,
-	}
-	return data, err
-}
-
-type PosthogData struct {
-	Url  string `json:"url,omitempty"`
-	UCID string `json:"ucid,omitempty"`
 }

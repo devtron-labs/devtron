@@ -19,7 +19,7 @@ package restHandler
 
 import (
 	"github.com/devtron-labs/devtron/client/pubsub"
-	"github.com/devtron-labs/devtron/pkg/sso"
+	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
@@ -32,25 +32,26 @@ type TelemetryRestHandler interface {
 }
 
 type TelemetryRestHandlerImpl struct {
-	userAuthService user.UserAuthService
-	validator       *validator.Validate
-	logger          *zap.SugaredLogger
-	enforcer        rbac.Enforcer
-	natsClient      *pubsub.PubSubClient
-	userService     user.UserService
-	ssoLoginService sso.SSOLoginService
+	userAuthService      user.UserAuthService
+	validator            *validator.Validate
+	logger               *zap.SugaredLogger
+	enforcer             rbac.Enforcer
+	natsClient           *pubsub.PubSubClient
+	userService          user.UserService
+	telemetryEventClient telemetry.TelemetryEventClient
 }
 
 func NewTelemetryRestHandlerImpl(userAuthService user.UserAuthService, validator *validator.Validate,
 	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService,
-	ssoLoginService sso.SSOLoginService) *TelemetryRestHandlerImpl {
+	telemetryEventClient telemetry.TelemetryEventClient) *TelemetryRestHandlerImpl {
 	handler := &TelemetryRestHandlerImpl{userAuthService: userAuthService, validator: validator, logger: logger,
-		enforcer: enforcer, natsClient: natsClient, userService: userService, ssoLoginService: ssoLoginService}
+		enforcer: enforcer, natsClient: natsClient, userService: userService,
+		telemetryEventClient: telemetryEventClient}
 	return handler
 }
 
 func (handler TelemetryRestHandlerImpl) GetUCID(w http.ResponseWriter, r *http.Request) {
-	res, err := handler.ssoLoginService.GetUCID()
+	res, err := handler.telemetryEventClient.GetUCID()
 	if err != nil {
 		handler.logger.Errorw("service err, GetUCID", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)

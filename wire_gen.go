@@ -279,7 +279,11 @@ func InitializeApp() (*App, error) {
 	pubSubClientRestHandlerImpl := restHandler.NewPubSubClientRestHandlerImpl(natsPublishClientImpl, sugaredLogger, cdConfig)
 	webhookRouterImpl := router.NewWebhookRouterImpl(gitWebhookRestHandlerImpl, pipelineConfigRestHandlerImpl, externalCiRestHandlerImpl, pubSubClientRestHandlerImpl)
 	ssoLoginRepositoryImpl := repository.NewSSOLoginRepositoryImpl(db)
-	ssoLoginServiceImpl := sso.NewSSOLoginServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, ssoLoginRepositoryImpl, k8sUtil, clusterServiceImpl, environmentServiceImpl, acdAuthConfig)
+	posthogConfig, err := telemetry.GetPosthogConfig()
+	if err != nil {
+		return nil, err
+	}
+	ssoLoginServiceImpl := sso.NewSSOLoginServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, ssoLoginRepositoryImpl, k8sUtil, clusterServiceImpl, environmentServiceImpl, acdAuthConfig, posthogConfig)
 	userAuthHandlerImpl := restHandler.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, userServiceImpl, ssoLoginServiceImpl)
 	userAuthRouterImpl := router.NewUserAuthRouterImpl(sugaredLogger, userAuthHandlerImpl, argocdServerConfig, dexConfig, argoCDSettings, userServiceImpl)
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
@@ -390,13 +394,7 @@ func InitializeApp() (*App, error) {
 	grafanaRouterImpl := router.NewGrafanaRouterImpl(sugaredLogger, grafanaConfig)
 	ssoLoginRestHandlerImpl := restHandler.NewSsoLoginRestHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, userServiceImpl, ssoLoginServiceImpl)
 	ssoLoginRouterImpl := router.NewSsoLoginRouterImpl(sugaredLogger, ssoLoginRestHandlerImpl, argocdServerConfig, dexConfig, argoCDSettings, userServiceImpl)
-	telemetryRestHandlerImpl := restHandler.NewTelemetryRestHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, userServiceImpl, ssoLoginServiceImpl)
-	telemetryRouterImpl := router.NewTelemetryRouterImpl(sugaredLogger, telemetryRestHandlerImpl)
 	posthogClient, err := telemetry.NewPosthogClient(sugaredLogger)
-	if err != nil {
-		return nil, err
-	}
-	posthogConfig, err := telemetry.GetPosthogConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -404,6 +402,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	telemetryRestHandlerImpl := restHandler.NewTelemetryRestHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, userServiceImpl, telemetryEventClientImpl)
+	telemetryRouterImpl := router.NewTelemetryRouterImpl(sugaredLogger, telemetryRestHandlerImpl)
 	muxRouter := router.NewMuxRouter(sugaredLogger, helmRouterImpl, pipelineConfigRouterImpl, migrateDbRouterImpl, clusterAccountsRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, clusterHelmConfigRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, projectManagementRouterImpl, gitProviderRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusUpdateHandlerImpl, ciEventHandlerImpl, pubSubClient, userRouterImpl, cronBasedEventReceiverImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, testSuitRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImpl)
 	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, sessionManager, versionServiceImpl, enforcer, db, pubSubClient)
 	return mainApp, nil
