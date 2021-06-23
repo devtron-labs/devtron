@@ -13,11 +13,12 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/posthog/posthog-go"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"gopkg.in/robfig/cron.v3"
 	"k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -127,9 +128,8 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		return
 	}
 	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
-	if err != nil && strings.Contains(err.Error(), "not found") {
+	if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
 		// if not found, create new cm
-		//cm = &v12.ConfigMap{ObjectMeta: v13.ObjectMeta{Name: "devtron-upid"}}
 		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
 		data := map[string]string{}
 		data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
@@ -235,9 +235,8 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		return
 	}
 	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
-	if err != nil && strings.Contains(err.Error(), "not found") {
+	if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
 		// if not found, create new cm
-		//cm = &v12.ConfigMap{ObjectMeta: v13.ObjectMeta{Name: "devtron-upid"}}
 		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
 		data := map[string]string{}
 		data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
