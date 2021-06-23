@@ -23,6 +23,7 @@ import (
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 	"strconv"
+	"time"
 )
 
 type CiPipeline struct {
@@ -90,6 +91,7 @@ type CiPipelineRepository interface {
 	FetchParentCiPipelinesForDG() ([]*CiPipelinesMap, error)
 	FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*CiPipeline, int, error)
 	FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error)
+	FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -296,4 +298,12 @@ func (impl *CiPipelineRepositoryImpl) FinDByParentCiPipelineAndAppId(parentCiPip
 		Where("app_id in (?)", pg.In(appIds)).
 		Select()
 	return ciPipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("ci_pipeline.*").
+		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
+		Select()
+	return pipelines, err
 }

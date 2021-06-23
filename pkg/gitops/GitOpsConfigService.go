@@ -146,7 +146,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		return nil, err
 	}
 
-	secret, err := impl.K8sUtil.GetSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
+	secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
 	statusError, _ := err.(*errors.StatusError)
 	if err != nil && statusError.Status().Code != http.StatusNotFound {
 		impl.logger.Errorw("secret not found", "err", err)
@@ -156,26 +156,26 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 	data["username"] = []byte(request.Username)
 	data["password"] = []byte(request.Token)
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, client)
+		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, client)
 		if err != nil {
 			impl.logger.Errorw("err on creating secret", "err", err)
 			return nil, err
 		}
 	} else {
 		secret.Data = data
-		secret, err = impl.K8sUtil.UpdateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+		secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
 		if err != nil {
 			operationComplete := false
 			retryCount := 0
 			for !operationComplete && retryCount < 3 {
 				retryCount = retryCount + 1
-				secret, err := impl.K8sUtil.GetSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
+				secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
 				if err != nil {
 					impl.logger.Errorw("secret not found", "err", err)
 					return nil, err
 				}
 				secret.Data = data
-				secret, err = impl.K8sUtil.UpdateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+				secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
 				if err != nil {
 					continue
 				}
@@ -192,7 +192,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 	for !operationComplete && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
 		if err != nil {
 			return nil, err
 		}
@@ -200,7 +200,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		data := cm.Data
 		data["repository.credentials"] = updatedData["repository.credentials"]
 		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
 			continue
 		}
@@ -298,7 +298,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 		return err
 	}
 
-	secret, err := impl.K8sUtil.GetSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
+	secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
 	statusError, _ := err.(*errors.StatusError)
 	if err != nil && statusError.Status().Code != http.StatusNotFound {
 		impl.logger.Errorw("secret not found", "err", err)
@@ -308,26 +308,26 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 	data["username"] = []byte(request.Username)
 	data["password"] = []byte(request.Token)
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, client)
+		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, client)
 		if err != nil {
 			impl.logger.Errorw("err on creating secret", "err", err)
 			return err
 		}
 	} else {
 		secret.Data = data
-		secret, err = impl.K8sUtil.UpdateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+		secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
 		if err != nil {
 			operationComplete := false
 			retryCount := 0
 			for !operationComplete && retryCount < 3 {
 				retryCount = retryCount + 1
-				secret, err := impl.K8sUtil.GetSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
+				secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
 				if err != nil {
 					impl.logger.Errorw("secret not found", "err", err)
 					return err
 				}
 				secret.Data = data
-				secret, err = impl.K8sUtil.UpdateSecretFast(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
+				secret, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
 				if err != nil {
 					continue
 				}
@@ -344,7 +344,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 	for !operationComplete && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
 		if err != nil {
 			return err
 		}
@@ -352,7 +352,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 		data := cm.Data
 		data["repository.credentials"] = updatedData["repository.credentials"]
 		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
 			continue
 		}

@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -73,6 +74,7 @@ type MuxRouter struct {
 	grafanaRouter                    GrafanaRouter
 	ssoLoginRouter                   SsoLoginRouter
 	telemetryRouter                  TelemetryRouter
+	telemetryWatcher                 telemetry.TelemetryEventClient
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -91,7 +93,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter,
-	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, telemetryRouter TelemetryRouter) *MuxRouter {
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -136,6 +138,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		grafanaRouter:                    grafanaRouter,
 		ssoLoginRouter:                   ssoLoginRouter,
 		telemetryRouter:                  telemetryRouter,
+		telemetryWatcher:                 telemetryWatcher,
 	}
 	return r
 }

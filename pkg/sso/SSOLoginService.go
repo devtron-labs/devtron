@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
+	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -31,9 +32,10 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
 	"time"
 )
 
@@ -58,13 +60,14 @@ type SSOLoginServiceImpl struct {
 	clusterService      cluster.ClusterService
 	envService          cluster.EnvironmentService
 	aCDAuthConfig       *user.ACDAuthConfig
+	posthogConfig       *telemetry.PosthogConfig
 }
 
 func NewSSOLoginServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
 	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
 	userGroupRepository repository.RoleGroupRepository, ssoLoginRepository repository.SSOLoginRepository,
 	K8sUtil *util.K8sUtil, clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	aCDAuthConfig *user.ACDAuthConfig) *SSOLoginServiceImpl {
+	aCDAuthConfig *user.ACDAuthConfig, posthogConfig *telemetry.PosthogConfig) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		userAuthRepository:  userAuthRepository,
 		sessionManager:      sessionManager,
@@ -77,6 +80,7 @@ func NewSSOLoginServiceImpl(userAuthRepository repository.UserAuthRepository, se
 		clusterService:      clusterService,
 		envService:          envService,
 		aCDAuthConfig:       aCDAuthConfig,
+		posthogConfig:       posthogConfig,
 	}
 	return serviceImpl
 }
@@ -223,7 +227,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
 		if err != nil {
 			return flag, err
 		}
@@ -235,7 +239,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 		data["dex.config"] = updatedData["dex.config"]
 		data["url"] = request.Url
 		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
 			impl.logger.Warnw("config map failed", "err", err)
 			continue
@@ -355,9 +359,6 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 	return ssoLoginDto, nil
 }
 
-const DevtronUniqueClientIdConfigMap = "devtron-ucid"
-const DevtronUniqueClientIdConfigMapKey = "UCID"
-
 func (impl SSOLoginServiceImpl) GetUCID() (*PosthogData, error) {
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
@@ -375,13 +376,12 @@ func (impl SSOLoginServiceImpl) GetUCID() (*PosthogData, error) {
 		return nil, err
 	}
 
-	cm, err := impl.K8sUtil.GetConfigMapFast(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
-	if err != nil && strings.Contains(err.Error(), "not found") {
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, telemetry.DevtronUniqueClientIdConfigMap, client)
+	if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
 		// if not found, create new cm
-		//cm = &v12.ConfigMap{ObjectMeta: v13.ObjectMeta{Name: "devtron-upid"}}
-		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
+		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: telemetry.DevtronUniqueClientIdConfigMap}}
 		data := map[string]string{}
-		data[DevtronUniqueClientIdConfigMapKey] = util2.Generate(16) // generate unique random number
+		data[telemetry.DevtronUniqueClientIdConfigMapKey] = util2.Generate(16) // generate unique random number
 		cm.Data = data
 		_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
@@ -395,9 +395,9 @@ func (impl SSOLoginServiceImpl) GetUCID() (*PosthogData, error) {
 		return nil, err
 	}
 	dataMap := cm.Data
-	ucid := dataMap[DevtronUniqueClientIdConfigMapKey]
+	ucid := dataMap[telemetry.DevtronUniqueClientIdConfigMapKey]
 	data := &PosthogData{
-		Url:  "https://app.posthog.com/",
+		Url:  impl.posthogConfig.PosthogEndpoint,
 		UCID: ucid,
 	}
 	return data, err
