@@ -83,23 +83,23 @@ func (impl *TelemetryEventClientImpl) StopCron() {
 type TelemetryEventDto struct {
 	UCID           string             `json:"ucid"` //unique client id
 	Timestamp      time.Time          `json:"timestamp"`
-	EventMessage   string             `json:"eventMessage"`
+	EventMessage   string             `json:"eventMessage,omitempty"`
 	EventType      TelemetryEventType `json:"eventType"`
-	Summary        *SummaryDto        `json:"summary"`
-	ServerVersion  string             `json:"serverVersion"`
-	DevtronVersion string             `json:"devtronVersion"`
+	Summary        *SummaryDto        `json:"summary,omitempty"`
+	ServerVersion  string             `json:"serverVersion,omitempty"`
+	DevtronVersion string             `json:"devtronVersion,omitempty"`
 }
 
 type SummaryDto struct {
-	ProdAppCount            int `json:"prodAppCount"`
-	NonProdAppCount         int `json:"nonProdAppCount"`
-	UserCount               int `json:"userCount"`
-	EnvironmentCount        int `json:"environmentCount"`
-	ClusterCount            int `json:"clusterCount"`
-	CiCountPerDay           int `json:"ciCountPerDay"`
-	CdCountPerDay           int `json:"cdCountPerDay"`
-	HelmChartCount          int `json:"helmChartCount"`
-	SecurityScanCountPerDay int `json:"securityScanCountPerDay"`
+	ProdAppCount            int `json:"prodAppCount,omitempty"`
+	NonProdAppCount         int `json:"nonProdAppCount,omitempty"`
+	UserCount               int `json:"userCount,omitempty"`
+	EnvironmentCount        int `json:"environmentCount,omitempty"`
+	ClusterCount            int `json:"clusterCount,omitempty"`
+	CiCountPerDay           int `json:"ciCountPerDay,omitempty"`
+	CdCountPerDay           int `json:"cdCountPerDay,omitempty"`
+	HelmChartCount          int `json:"helmChartCount,omitempty"`
+	SecurityScanCountPerDay int `json:"securityScanCountPerDay,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -223,7 +223,7 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 	}
 	impl.PosthogClient.Client.Enqueue(posthog.Capture{
 		DistinctId: ucid,
-		Event:      "Summary Event",
+		Event:      Summary.String(),
 		Properties: prop,
 	})
 }
@@ -279,7 +279,7 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 	}
 	impl.PosthogClient.Client.Enqueue(posthog.Capture{
 		DistinctId: ucid,
-		Event:      "Heartbeat Event",
+		Event:      Heartbeat.String(),
 		Properties: prop,
 	})
 }
