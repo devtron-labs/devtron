@@ -28,6 +28,7 @@ import (
 	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -651,6 +652,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.SsoLoginRouter), new(*router.SsoLoginRouterImpl)),
 		restHandler.NewSsoLoginRestHandlerImpl,
 		wire.Bind(new(restHandler.SsoLoginRestHandler), new(*restHandler.SsoLoginRestHandlerImpl)),
+		telemetry.NewPosthogClient,
+
+		telemetry.NewTelemetryEventClientImpl,
+		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
+
+		telemetry.GetPosthogConfig,
 	)
 	return &App{}, nil
 }
