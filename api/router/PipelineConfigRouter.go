@@ -133,13 +133,12 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/pipeline/suggest/{type}/{appId}").HandlerFunc(router.restHandler.PipelineNameSuggestion).Methods("GET")
 
-
-	configRouter.Path("/demo-resp-one").HandlerFunc(router.restHandler.GetAppNameDeploymentTemplate).Methods("POST")
-	configRouter.Path("/demo-resp-two").HandlerFunc(router.restHandler.BulkUpdateDeploymentTemplate).Methods("POST")
+	configRouter.Path("/see-example").HandlerFunc(router.restHandler.GetExampleInputBulkUpdate).Methods("GET")
+	configRouter.Path("/impacted-objects").HandlerFunc(router.restHandler.GetAppNameDeploymentTemplate).Methods("POST")
+	configRouter.Path("/bulk-update").HandlerFunc(router.restHandler.BulkUpdateDeploymentTemplate).Methods("POST")
 
 	//configRouter.Path("/demo-resp").HandleFunc(router.restHandler.DemoResponse).Methods("GET")
 }
-
 
 /*
 func hello(w http.ResponseWriter, req * http.Request){

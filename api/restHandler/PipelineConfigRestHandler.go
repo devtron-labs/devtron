@@ -54,6 +54,7 @@ import (
 )
 
 type PipelineConfigRestHandler interface {
+	GetExampleInputBulkUpdate(w http.ResponseWriter, r *http.Request)
 	GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 
@@ -212,30 +213,43 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 
 const devtron = "DEVTRON"
 
-func (handler PipelineConfigRestHandlerImpl) GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request){
+func (handler PipelineConfigRestHandlerImpl) GetExampleInputBulkUpdate(w http.ResponseWriter, r *http.Request) {
+	payload := pipeline.BulkUpdateInput{AppNameIncludes: "AppNameIncludes: Enter App Name Includes String",
+		AppNameExcludes: "AppNameExcludes: Enter App Name Excludes String",
+		EnvId:           0,
+		IsGlobal:        true,
+		PatchJson:       "PatchJson: Enter Patch String"}
+	exampleInput := pipeline.BulkUpdatePayload{
+		Task:    "Deployment-Template",
+		Payload: payload,
+		Readme:  "",
+	}
+	writeJsonResp(w, nil, exampleInput, http.StatusOK)
+}
+func (handler PipelineConfigRestHandlerImpl) GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var bulkUpdateInput pipeline.BulkUpdateInput
-	err:= decoder.Decode(&bulkUpdateInput)
-	if err!=nil{
+	err := decoder.Decode(&bulkUpdateInput)
+	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	AppName,err:= handler.chartService.GetBulkAppName(bulkUpdateInput)
+	AppName, err := handler.chartService.GetBulkAppName(bulkUpdateInput)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	writeJsonResp(w, err, AppName, http.StatusOK)
 }
-func (handler PipelineConfigRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request){
+func (handler PipelineConfigRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var bulkUpdateInput pipeline.BulkUpdateInput
-	err:= decoder.Decode(&bulkUpdateInput)
-	if err!=nil{
+	err := decoder.Decode(&bulkUpdateInput)
+	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	resp,err:=handler.chartService.BulkUpdateDeploymentTemplate(bulkUpdateInput)
+	resp, err := handler.chartService.BulkUpdateDeploymentTemplate(bulkUpdateInput)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
