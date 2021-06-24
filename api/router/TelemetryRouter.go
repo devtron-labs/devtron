@@ -41,5 +41,5 @@ func NewTelemetryRouterImpl(logger *zap.SugaredLogger, handler restHandler.Telem
 
 func (router TelemetryRouterImpl) initTelemetryRouter(telemetryRouter *mux.Router) {
 	telemetryRouter.Path("/ucid").
-		HandlerFunc(router.handler.GetUCID).Methods("GET")
+		HandlerFunc(router.handler.GetClientPlatformIdAndTelemetryUrl).Methods("GET")
 }

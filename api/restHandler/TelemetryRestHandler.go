@@ -18,42 +18,30 @@
 package restHandler
 
 import (
-	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 )
 
 type TelemetryRestHandler interface {
-	GetUCID(w http.ResponseWriter, r *http.Request)
+	GetClientPlatformIdAndTelemetryUrl(w http.ResponseWriter, r *http.Request)
 }
 
 type TelemetryRestHandlerImpl struct {
-	userAuthService      user.UserAuthService
-	validator            *validator.Validate
 	logger               *zap.SugaredLogger
-	enforcer             rbac.Enforcer
-	natsClient           *pubsub.PubSubClient
-	userService          user.UserService
 	telemetryEventClient telemetry.TelemetryEventClient
 }
 
-func NewTelemetryRestHandlerImpl(userAuthService user.UserAuthService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService,
+func NewTelemetryRestHandlerImpl(logger *zap.SugaredLogger,
 	telemetryEventClient telemetry.TelemetryEventClient) *TelemetryRestHandlerImpl {
-	handler := &TelemetryRestHandlerImpl{userAuthService: userAuthService, validator: validator, logger: logger,
-		enforcer: enforcer, natsClient: natsClient, userService: userService,
-		telemetryEventClient: telemetryEventClient}
+	handler := &TelemetryRestHandlerImpl{logger: logger, telemetryEventClient: telemetryEventClient}
 	return handler
 }
 
-func (handler TelemetryRestHandlerImpl) GetUCID(w http.ResponseWriter, r *http.Request) {
-	res, err := handler.telemetryEventClient.GetUCID()
+func (handler TelemetryRestHandlerImpl) GetClientPlatformIdAndTelemetryUrl(w http.ResponseWriter, r *http.Request) {
+	res, err := handler.telemetryEventClient.GetClientPlatformIdAndTelemetryUrl()
 	if err != nil {
-		handler.logger.Errorw("service err, GetUCID", "err", err)
+		handler.logger.Errorw("service err, GetClientPlatformIdAndTelemetryUrl", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

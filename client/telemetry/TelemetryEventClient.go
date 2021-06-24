@@ -3,7 +3,6 @@ package telemetry
 import (
 	"encoding/json"
 	"fmt"
-	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -29,7 +28,6 @@ type TelemetryEventClientImpl struct {
 	clusterService       cluster.ClusterService
 	K8sUtil              *util2.K8sUtil
 	aCDAuthConfig        *user.ACDAuthConfig
-	config               *client.EventClientConfig
 	environmentService   cluster.EnvironmentService
 	userService          user.UserService
 	appListingRepository repository.AppListingRepository
@@ -40,11 +38,11 @@ type TelemetryEventClientImpl struct {
 }
 
 type TelemetryEventClient interface {
-	GetUCID() (*PosthogData, error)
+	GetClientPlatformIdAndTelemetryUrl() (*PosthogData, error)
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-	K8sUtil *util2.K8sUtil, aCDAuthConfig *user.ACDAuthConfig, config *client.EventClientConfig,
+	K8sUtil *util2.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
 	environmentService cluster.EnvironmentService, userService user.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
@@ -56,7 +54,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		cron:   cron,
 		logger: logger,
 		client: client, clusterService: clusterService,
-		K8sUtil: K8sUtil, aCDAuthConfig: aCDAuthConfig, config: config,
+		K8sUtil: K8sUtil, aCDAuthConfig: aCDAuthConfig,
 		environmentService: environmentService, userService: userService,
 		appListingRepository: appListingRepository, PosthogClient: PosthogClient,
 		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
@@ -123,25 +121,9 @@ func (d TelemetryEventType) String() string {
 }
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
-	client, err := impl.K8sUtil.GetClientForInCluster()
+	cm, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
-	if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
-		// if not found, create new cm
-		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
-		data := map[string]string{}
-		data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
-		cm.Data = data
-		_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-		if err != nil {
-			return
-		}
-	}
-	if cm == nil {
-		impl.logger.Errorw("cm found nil inside telemetry summary event", "cm", cm)
 		return
 	}
 	dataMap := cm.Data
@@ -230,26 +212,9 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 }
 
 func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
-	client, err := impl.K8sUtil.GetClientForInCluster()
+	cm, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
-		return
-	}
-	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
-	if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
-		// if not found, create new cm
-		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
-		data := map[string]string{}
-		data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
-		cm.Data = data
-		_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
-			return
-		}
-	}
-	if cm == nil {
-		impl.logger.Errorw("configmap found nil for telemetry heartbeat event", "cm", cm)
 		return
 	}
 	dataMap := cm.Data
@@ -285,36 +250,11 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 	})
 }
 
-
-func (impl *TelemetryEventClientImpl) GetUCID() (*PosthogData, error) {
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+func (impl *TelemetryEventClientImpl) GetClientPlatformIdAndTelemetryUrl() (*PosthogData, error) {
+	cm, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return nil, err
-	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
-	if err != nil {
-		impl.logger.Errorw("exception while getting unique client id", "error", err)
-		return nil, err
-	}
-	client, err := impl.K8sUtil.GetClient(cfg)
-	if err != nil {
-		impl.logger.Errorw("exception while getting unique client id", "error", err)
-		return nil, err
-	}
-
-	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
-	if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
-		// if not found, create new cm
-		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
-		data := map[string]string{}
-		data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
-		cm.Data = data
-		_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-		if err != nil {
-			impl.logger.Errorw("exception while getting unique client id", "error", err)
-			return nil, err
-		}
 	}
 
 	if cm == nil {
@@ -333,4 +273,31 @@ func (impl *TelemetryEventClientImpl) GetUCID() (*PosthogData, error) {
 type PosthogData struct {
 	Url  string `json:"url,omitempty"`
 	UCID string `json:"ucid,omitempty"`
+}
+
+func (impl *TelemetryEventClientImpl) getUCID() (*v1.ConfigMap, error) {
+	client, err := impl.K8sUtil.GetClientForInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return nil, err
+	}
+
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
+		// if not found, create new cm
+		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
+		data := map[string]string{}
+		data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
+		cm.Data = data
+		_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if err != nil {
+			impl.logger.Errorw("exception while getting unique client id", "error", err)
+			return nil, err
+		}
+	}
+	if cm == nil {
+		impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
+		return nil, err
+	}
+	return cm, nil
 }
