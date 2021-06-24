@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"github.com/patrickmn/go-cache"
 	"github.com/posthog/posthog-go"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -60,6 +61,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
 		posthogConfig: posthogConfig,
 	}
+
 	watcher.HeartbeatEventForTelemetry()
 	_, err := cron.AddFunc(fmt.Sprintf("@every %dm", watcher.posthogConfig.SummaryInterval), watcher.SummaryEventForTelemetry)
 	if err != nil {
@@ -121,14 +123,11 @@ func (d TelemetryEventType) String() string {
 }
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
-	cm, err := impl.getUCID()
+	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
-	dataMap := cm.Data
-	ucid := dataMap[DevtronUniqueClientIdConfigMapKey]
-
 	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
@@ -212,14 +211,11 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 }
 
 func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
-	cm, err := impl.getUCID()
+	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
 		return
 	}
-	dataMap := cm.Data
-	ucid := dataMap[DevtronUniqueClientIdConfigMapKey]
-
 	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
@@ -251,18 +247,11 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 }
 
 func (impl *TelemetryEventClientImpl) GetClientPlatformIdAndTelemetryUrl() (*PosthogData, error) {
-	cm, err := impl.getUCID()
+	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return nil, err
 	}
-
-	if cm == nil {
-		impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
-		return nil, err
-	}
-	dataMap := cm.Data
-	ucid := dataMap[DevtronUniqueClientIdConfigMapKey]
 	data := &PosthogData{
 		Url:  impl.posthogConfig.PosthogEndpoint,
 		UCID: ucid,
@@ -275,29 +264,37 @@ type PosthogData struct {
 	UCID string `json:"ucid,omitempty"`
 }
 
-func (impl *TelemetryEventClientImpl) getUCID() (*v1.ConfigMap, error) {
-	client, err := impl.K8sUtil.GetClientForInCluster()
-	if err != nil {
-		impl.logger.Errorw("exception while getting unique client id", "error", err)
-		return nil, err
-	}
-
-	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
-	if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
-		// if not found, create new cm
-		cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
-		data := map[string]string{}
-		data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
-		cm.Data = data
-		_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+func (impl *TelemetryEventClientImpl) getUCID() (string, error) {
+	ucid, found := impl.PosthogClient.cache.Get(DevtronUniqueClientIdConfigMapKey)
+	if found {
+		return ucid.(string), nil
+	} else {
+		client, err := impl.K8sUtil.GetClientForInCluster()
 		if err != nil {
 			impl.logger.Errorw("exception while getting unique client id", "error", err)
-			return nil, err
+			return "", err
+		}
+
+		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+		if errStatus, ok := status.FromError(err); !ok || errStatus.Code() == codes.NotFound || errStatus.Code() == codes.Unknown {
+			// if not found, create new cm
+			cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
+			data := map[string]string{}
+			data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
+			cm.Data = data
+			_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				impl.logger.Errorw("exception while getting unique client id", "error", err)
+				return "", err
+			}
+		}
+		dataMap := cm.Data
+		ucid = dataMap[DevtronUniqueClientIdConfigMapKey]
+		impl.PosthogClient.cache.Set(DevtronUniqueClientIdConfigMapKey, ucid, cache.DefaultExpiration)
+		if cm == nil {
+			impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
+			return ucid.(string), err
 		}
 	}
-	if cm == nil {
-		impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
-		return nil, err
-	}
-	return cm, nil
+	return ucid.(string), nil
 }
