@@ -652,6 +652,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.SsoLoginRouter), new(*router.SsoLoginRouterImpl)),
 		restHandler.NewSsoLoginRestHandlerImpl,
 		wire.Bind(new(restHandler.SsoLoginRestHandler), new(*restHandler.SsoLoginRestHandlerImpl)),
+
+		router.NewTelemetryRouterImpl,
+		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
+		restHandler.NewTelemetryRestHandlerImpl,
+		wire.Bind(new(restHandler.TelemetryRestHandler), new(*restHandler.TelemetryRestHandlerImpl)),
 		telemetry.NewPosthogClient,
 
 		telemetry.NewTelemetryEventClientImpl,

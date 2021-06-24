@@ -19,12 +19,15 @@ package telemetry
 
 import (
 	"github.com/caarlos0/env"
+	"github.com/patrickmn/go-cache"
 	"github.com/posthog/posthog-go"
 	"go.uber.org/zap"
+	"time"
 )
 
 type PosthogClient struct {
 	Client posthog.Client
+	cache  *cache.Cache
 }
 
 type PosthogConfig struct {
@@ -32,6 +35,7 @@ type PosthogConfig struct {
 	PosthogEndpoint   string `env:"POSTHOG_ENDPOINT" envDefault:"https://app.posthog.com"`
 	SummaryInterval   int    `env:"SUMMARY_INTERVAL" envDefault:"24"`
 	HeartbeatInterval int    `env:"HEARTBEAT_INTERVAL" envDefault:"3"`
+	CacheExpiry       int    `env:"CACHE_EXPIRY" envDefault:"120"`
 }
 
 func GetPosthogConfig() (*PosthogConfig, error) {
@@ -52,8 +56,11 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 	}
 	client, _ := posthog.NewWithConfig(cfg.ApiKey, posthog.Config{Endpoint: cfg.PosthogEndpoint})
 	//defer client.Close()
+	d := time.Duration(cfg.CacheExpiry)
+	c := cache.New(d*time.Minute, 240*time.Minute)
 	pgClient := &PosthogClient{
 		Client: client,
+		cache:  c,
 	}
 	return pgClient, nil
 }
