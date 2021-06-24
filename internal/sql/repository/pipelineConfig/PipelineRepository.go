@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type PipelineType string
@@ -79,6 +80,7 @@ type PipelineRepository interface {
 	FindByIdsInAndEnvironment(ids []int, environmentId int) ([]*Pipeline, error)
 	FindActiveByAppIdAndEnvironmentIdV2() (pipelines []*Pipeline, err error)
 	GetConnection() *pg.DB
+	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
 }
 
 type CiArtifactDTO struct {
@@ -288,6 +290,15 @@ func (impl PipelineRepositoryImpl) FindByPipelineTriggerGitHash(gitHash string) 
 		Column("pipeline.*").
 		Join("INNER JOIN pipeline_config_override pco on pco.pipeline_id = pipeline.id").
 		Where("pco.git_hash = ?", gitHash).Order(" ORDER BY pco.created_on DESC").Limit(1).
+		Select()
+	return pipelines, err
+}
+
+
+func (impl PipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.*").
+		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
 		Select()
 	return pipelines, err
 }

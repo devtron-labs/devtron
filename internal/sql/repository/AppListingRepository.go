@@ -50,6 +50,7 @@ type AppListingRepository interface {
 	FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error)
 	FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error)
 	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
+	FindAppCount(isProd bool) (int, error)
 }
 
 type DeploymentStatus struct {
@@ -509,4 +510,19 @@ func (impl AppListingRepositoryImpl) DeploymentDetailByArtifactId(ciArtifactId i
 	}
 
 	return deploymentDetail, nil
+}
+
+func (impl AppListingRepositoryImpl) FindAppCount(isProd bool) (int, error) {
+	var count int
+	query := "SELECT count(distinct pipeline.app_id) from pipeline pipeline " +
+		" INNER JOIN environment env on env.id=pipeline.environment_id" +
+		" INNER JOIN app app on app.id=pipeline.app_id" +
+		" WHERE env.default = ? and app.active=true;"
+	_, err := impl.dbConnection.Query(&count, query, isProd)
+	if err != nil {
+		impl.Logger.Errorw("exception caught inside repository for fetching app count:", "err", err)
+		return count, err
+	}
+
+	return count, nil
 }
