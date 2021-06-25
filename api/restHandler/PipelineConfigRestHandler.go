@@ -214,11 +214,13 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 const devtron = "DEVTRON"
 
 func (handler PipelineConfigRestHandlerImpl) GetExampleInputBulkUpdate(w http.ResponseWriter, r *http.Request) {
-	payload := pipeline.BulkUpdateInput{AppNameIncludes: "AppNameIncludes: Enter App Name Includes String",
-		AppNameExcludes: "AppNameExcludes: Enter App Name Excludes String",
-		EnvId:           0,
-		IsGlobal:        true,
-		PatchJson:       "PatchJson: Enter Patch String"}
+	includes := pipeline.NameIncludesExcludes{Type: "Application", Name: "abc"}
+	excludes := pipeline.NameIncludesExcludes{Type: "Application", Name: "abc"}
+	payload := pipeline.BulkUpdateInput{Includes: includes,
+		Excludes:  excludes,
+		EnvId:     0,
+		IsGlobal:  true,
+		PatchJson: "PatchJson: Enter Patch String"}
 	exampleInput := pipeline.BulkUpdatePayload{
 		Task:    "Deployment-Template",
 		Payload: payload,

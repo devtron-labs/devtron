@@ -136,16 +136,4 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/see-example").HandlerFunc(router.restHandler.GetExampleInputBulkUpdate).Methods("GET")
 	configRouter.Path("/impacted-objects").HandlerFunc(router.restHandler.GetAppNameDeploymentTemplate).Methods("POST")
 	configRouter.Path("/bulk-update").HandlerFunc(router.restHandler.BulkUpdateDeploymentTemplate).Methods("POST")
-
-	//configRouter.Path("/demo-resp").HandleFunc(router.restHandler.DemoResponse).Methods("GET")
 }
-
-/*
-func hello(w http.ResponseWriter, req * http.Request){
-	fmt.Fprintf(w,"hello\n")
-}
-func init() {
-	r := mux.NewRouter()
-	s := r.Host("https://demo.devtron.info:32443").Subrouter()
-	s.HandleFunc("/demo-resp",hello)
-}*/
