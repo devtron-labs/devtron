@@ -31,7 +31,7 @@ type PosthogClient struct {
 }
 
 type PosthogConfig struct {
-	ApiKey            string `env:"API_KEY" envDefault:""`
+	PosthogApiKey     string `env:"POSTHOG_API_KEY" envDefault:""`
 	PosthogEndpoint   string `env:"POSTHOG_ENDPOINT" envDefault:"https://app.posthog.com"`
 	SummaryInterval   int    `env:"SUMMARY_INTERVAL" envDefault:"24"`
 	HeartbeatInterval int    `env:"HEARTBEAT_INTERVAL" envDefault:"3"`
@@ -54,7 +54,7 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 		logger.Errorw("exception caught while parsing posthog config", "err", err)
 		return &PosthogClient{}, err
 	}
-	client, _ := posthog.NewWithConfig(cfg.ApiKey, posthog.Config{Endpoint: cfg.PosthogEndpoint})
+	client, _ := posthog.NewWithConfig(cfg.PosthogApiKey, posthog.Config{Endpoint: cfg.PosthogEndpoint})
 	//defer client.Close()
 	d := time.Duration(cfg.CacheExpiry)
 	c := cache.New(d*time.Minute, 240*time.Minute)
