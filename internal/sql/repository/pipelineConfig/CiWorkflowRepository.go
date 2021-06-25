@@ -87,7 +87,22 @@ type GitCommit struct {
 	Date    time.Time
 	Message string
 	Changes []string
+	PrData PrData
 }
+
+type PrData struct {
+	PrTitle        		string
+	PrUrl        		string
+	SourceBranchName    string
+	SourceBranchHash    string
+	TargetBranchName    string
+	TargetBranchHash    string
+	AuthorName		    string
+	LastCommitMessage	string
+	PrCreatedOn   		time.Time
+	PrUpdatedOn   		time.Time
+}
+
 
 type CiWorkflowConfig struct {
 	tableName                struct{} `sql:"ci_workflow_config" pg:",discard_unknown_columns"`

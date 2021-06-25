@@ -316,10 +316,16 @@ func (impl *CiHandlerImpl) validateBuildSequence(gitCiTriggerRequest bean.GitCiT
 		impl.Logger.Errorw("cannot get last build for pipeline", "pipelineId", pipelineId)
 		return false, err
 	}
-	if gitCiTriggerRequest.CiPipelineMaterial.GitCommit.Date.Before(lastTriggeredBuild.GitTriggers[gitCiTriggerRequest.CiPipelineMaterial.Id].Date) {
-		impl.Logger.Warnw("older commit cannot be built for pipeline", "pipelineId", pipelineId, "ciMaterial", gitCiTriggerRequest.CiPipelineMaterial.Id)
-		isValid = false
+
+	ciPipelineMaterial := gitCiTriggerRequest.CiPipelineMaterial
+
+	if ciPipelineMaterial.Type !=  string(pipelineConfig.SOURCE_TYPE_PULL_REQUEST) {
+		if ciPipelineMaterial.GitCommit.Date.Before(lastTriggeredBuild.GitTriggers[ciPipelineMaterial.Id].Date) {
+			impl.Logger.Warnw("older commit cannot be built for pipeline", "pipelineId", pipelineId, "ciMaterial", gitCiTriggerRequest.CiPipelineMaterial.Id)
+			isValid = false
+		}
 	}
+
 	return isValid, nil
 }
 
@@ -814,6 +820,7 @@ func (impl *CiHandlerImpl) buildAutomaticTriggerCommitHashes(ciMaterials []*pipe
 		if ciMaterial.Id == request.CiPipelineMaterial.Id {
 			commitHashes[ciMaterial.Id] = request.CiPipelineMaterial.GitCommit
 		} else {
+			// this is possible in case of non PR, as there would be only one pipeline material per git material in case of PR
 			lastCommit, err := impl.getLastSeenCommit(ciMaterial.Id)
 			if err != nil {
 				return map[int]bean.GitCommit{}, err

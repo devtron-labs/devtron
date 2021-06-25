@@ -166,13 +166,29 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 	commitHashes map[int]bean.GitCommit, userId int32) (wf *pipelineConfig.CiWorkflow, error error) {
 	gitTriggers := make(map[int]pipelineConfig.GitCommit)
 	for k, v := range commitHashes {
-		gitTriggers[k] = pipelineConfig.GitCommit{
+		gitCommit := pipelineConfig.GitCommit{
 			Commit:  v.Commit,
 			Author:  v.Author,
 			Date:    v.Date,
 			Message: v.Message,
 			Changes: v.Changes,
 		}
+		if v.PrData != nil {
+			gitCommit.PrData = pipelineConfig.PrData{
+				PrTitle : v.PrData.PrTitle,
+				PrUrl: v.PrData.PrUrl,
+				SourceBranchName: v.PrData.SourceBranchName,
+				TargetBranchName: v.PrData.TargetBranchName,
+				SourceBranchHash: v.PrData.SourceBranchHash,
+				TargetBranchHash: v.PrData.TargetBranchHash,
+				AuthorName: v.PrData.AuthorName,
+				LastCommitMessage: v.PrData.LastCommitMessage,
+				PrCreatedOn: v.PrData.PrCreatedOn,
+				PrUpdatedOn: v.PrData.PrUpdatedOn,
+			}
+		}
+
+		gitTriggers[k] = gitCommit
 	}
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
@@ -210,18 +226,19 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var ciProjectDetails []CiProjectDetails
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
+		commitHashForPipelineId := commitHashes[ciMaterial.Id]
 		ciProjectDetail := CiProjectDetails{
 			GitRepository: ciMaterial.GitMaterial.Url,
 			MaterialName:  ciMaterial.GitMaterial.Name,
 			CheckoutPath:  ciMaterial.GitMaterial.CheckoutPath,
-			CommitHash:    commitHashes[ciMaterial.Id].Commit,
-			Author:        commitHashes[ciMaterial.Id].Author,
+			CommitHash:    commitHashForPipelineId.Commit,
+			Author:        commitHashForPipelineId.Author,
 			SourceType:    ciMaterial.Type,
 			SourceValue:   ciMaterial.Value,
 			GitTag:        ciMaterial.GitTag,
-			Message:       commitHashes[ciMaterial.Id].Message,
+			Message:       commitHashForPipelineId.Message,
 			Type:          string(ciMaterial.Type),
-			CommitTime:    commitHashes[ciMaterial.Id].Date,
+			CommitTime:    commitHashForPipelineId.Date,
 			GitOptions: GitOptions{
 				UserName:    ciMaterial.GitMaterial.GitProvider.UserName,
 				Password:    ciMaterial.GitMaterial.GitProvider.Password,
@@ -230,6 +247,23 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 				AuthMode:    ciMaterial.GitMaterial.GitProvider.AuthMode,
 			},
 		}
+
+		if ciMaterial.Type ==  pipelineConfig.SOURCE_TYPE_PULL_REQUEST {
+			prData := commitHashForPipelineId.PrData
+			ciProjectDetail.PrData = pipelineConfig.PrData{
+				PrTitle : prData.PrTitle,
+				PrUrl: prData.PrUrl,
+				SourceBranchName: prData.SourceBranchName,
+				TargetBranchName: prData.TargetBranchName,
+				SourceBranchHash: prData.SourceBranchHash,
+				TargetBranchHash: prData.TargetBranchHash,
+				AuthorName: prData.AuthorName,
+				LastCommitMessage: prData.LastCommitMessage,
+				PrCreatedOn: prData.PrCreatedOn,
+				PrUpdatedOn: prData.PrUpdatedOn,
+			}
+		}
+
 		ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
 	}
 

@@ -56,7 +56,9 @@ type FetchScmChangesRequest struct {
 type HeadRequest struct {
 	MaterialIds []int `json:"materialIds"`
 }
+
 type SourceType string
+
 type CiPipelineMaterial struct {
 	Id            int
 	GitMaterialId int
@@ -87,13 +89,30 @@ type GitProvider struct {
 	Active      bool
 	AuthMode    repository.AuthMode
 }
+
 type GitCommit struct {
 	Commit  string //git hash
 	Author  string
 	Date    time.Time
 	Message string
 	Changes []string
+	PrData   *PrData  `json:"prData"`
 }
+
+type PrData struct {
+	PrTitle        		string  `json:"prTitle"`
+	PrUrl        		string	`json:"prUrl"`
+	SourceBranchName    string	`json:"sourceBranchName"`
+	SourceBranchHash    string	`json:"sourceBranchHash"`
+	TargetBranchName    string	`json:"targetBranchName"`
+	TargetBranchHash    string	`json:"targetBranchHash"`
+	AuthorName		    string	`json:"authorName"`
+	LastCommitMessage	string	`json:"lastCommitMessage"`
+	PrCreatedOn   		time.Time `json:"prCreatedOn"`
+	PrUpdatedOn   		time.Time `json:"prUpdatedOn"`
+}
+
+
 type MaterialChangeResp struct {
 	Commits        []*GitCommit `json:"commits"`
 	LastFetchTime  time.Time    `json:"lastFetchTime"`
