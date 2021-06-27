@@ -63,6 +63,7 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 	if string(gitWebhookRequest.Type) == string(pipelineConfig.SOURCE_TYPE_PULL_REQUEST) {
 		prData := gitWebhookRequest.GitCommit.PrData
 		ciPipelineMaterial.GitCommit.PrData = &bean.PrData {
+			Id : prData.Id,
 			PrTitle : prData.PrTitle,
 			PrUrl: prData.PrUrl,
 			SourceBranchName: prData.SourceBranchName,

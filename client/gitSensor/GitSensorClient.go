@@ -100,6 +100,7 @@ type GitCommit struct {
 }
 
 type PrData struct {
+	Id					int 	`json:"id"`
 	PrTitle        		string  `json:"prTitle"`
 	PrUrl        		string	`json:"prUrl"`
 	SourceBranchName    string	`json:"sourceBranchName"`
@@ -137,6 +138,15 @@ type RefreshGitMaterialResponse struct {
 	LastFetchTime time.Time `json:"lastFetchTime"`
 }
 
+type LatestCommitMetadataRequest struct {
+	PipelineMaterialId int    `json:"pipelineMaterialId"`
+	BranchName         string `json:"branchName"`
+}
+
+type PrDataRequest struct {
+	Id int `json:"id"`
+}
+
 type GitSensorClient interface {
 	GetHeadForPipelineMaterials(req *HeadRequest) (material []*CiPipelineMaterial, err error)
 	FetchChanges(changeRequest *FetchScmChangesRequest) (materialChangeResp *MaterialChangeResp, err error)
@@ -147,6 +157,9 @@ type GitSensorClient interface {
 	UpdateRepo(material *GitMaterial) (materialRes *GitMaterial, err error)
 	SavePipelineMaterial(material []*CiPipelineMaterial) (materialRes []*CiPipelineMaterial, err error)
 	RefreshGitMaterial(req *RefreshGitMaterialRequest) (refreshRes *RefreshGitMaterialResponse, err error)
+
+	GetLatestCommitMetadata(req *LatestCommitMetadataRequest) (*GitCommit, error)
+	GetPrData(req *PrDataRequest) (*PrData, error)
 }
 
 //----------------------impl
@@ -291,4 +304,18 @@ func (session GitSensorClientImpl) RefreshGitMaterial(req *RefreshGitMaterialReq
 	request := &ClientRequest{ResponseBody: refreshRes, Method: "POST", RequestBody: req, Path: "git-repo/refresh"}
 	_, _, err = session.doRequest(request)
 	return refreshRes, err
+}
+
+func (session GitSensorClientImpl) GetLatestCommitMetadata(req *LatestCommitMetadataRequest) (*GitCommit, error) {
+	commit := new(GitCommit)
+	request := &ClientRequest{ResponseBody: commit, Method: "POST", RequestBody: req, Path: "latest-commit-metadata"}
+	_, _, err := session.doRequest(request)
+	return commit, err
+}
+
+func (session GitSensorClientImpl) GetPrData(req *PrDataRequest) (*PrData, error) {
+	prData := new(PrData)
+	request := &ClientRequest{ResponseBody: prData, Method: "POST", RequestBody: req, Path: "pr-data"}
+	_, _, err := session.doRequest(request)
+	return prData, err
 }

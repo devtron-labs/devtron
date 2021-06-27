@@ -173,18 +173,20 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 			Message: v.Message,
 			Changes: v.Changes,
 		}
-		if v.PrData != nil {
+		prData := v.PrData
+		if prData != nil {
 			gitCommit.PrData = pipelineConfig.PrData{
-				PrTitle : v.PrData.PrTitle,
-				PrUrl: v.PrData.PrUrl,
-				SourceBranchName: v.PrData.SourceBranchName,
-				TargetBranchName: v.PrData.TargetBranchName,
-				SourceBranchHash: v.PrData.SourceBranchHash,
-				TargetBranchHash: v.PrData.TargetBranchHash,
-				AuthorName: v.PrData.AuthorName,
-				LastCommitMessage: v.PrData.LastCommitMessage,
-				PrCreatedOn: v.PrData.PrCreatedOn,
-				PrUpdatedOn: v.PrData.PrUpdatedOn,
+				Id: prData.Id,
+				PrTitle : prData.PrTitle,
+				PrUrl: prData.PrUrl,
+				SourceBranchName: prData.SourceBranchName,
+				TargetBranchName: prData.TargetBranchName,
+				SourceBranchHash: prData.SourceBranchHash,
+				TargetBranchHash: prData.TargetBranchHash,
+				AuthorName: prData.AuthorName,
+				LastCommitMessage: prData.LastCommitMessage,
+				PrCreatedOn: prData.PrCreatedOn,
+				PrUpdatedOn: prData.PrUpdatedOn,
 			}
 		}
 
@@ -251,6 +253,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		if ciMaterial.Type ==  pipelineConfig.SOURCE_TYPE_PULL_REQUEST {
 			prData := commitHashForPipelineId.PrData
 			ciProjectDetail.PrData = pipelineConfig.PrData{
+				Id : prData.Id,
 				PrTitle : prData.PrTitle,
 				PrUrl: prData.PrUrl,
 				SourceBranchName: prData.SourceBranchName,

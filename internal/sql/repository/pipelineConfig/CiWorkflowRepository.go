@@ -91,6 +91,7 @@ type GitCommit struct {
 }
 
 type PrData struct {
+	Id					int
 	PrTitle        		string
 	PrUrl        		string
 	SourceBranchName    string

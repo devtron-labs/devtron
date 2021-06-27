@@ -177,6 +177,7 @@ type GitCommit struct {
 }
 
 type PrData struct {
+	Id					int 	`json:"id"`
 	PrTitle        		string  `json:"prTitle"`
 	PrUrl        		string	`json:"prUrl"`
 	SourceBranchName    string	`json:"sourceBranchName"`

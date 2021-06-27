@@ -833,28 +833,96 @@ func (impl *CiHandlerImpl) buildAutomaticTriggerCommitHashes(ciMaterials []*pipe
 
 func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.CiTriggerRequest) (map[int]bean.GitCommit, error) {
 	commitHashes := map[int]bean.GitCommit{}
-	for _, m := range ciTriggerRequest.CiPipelineMaterial {
-		commitMetadataRequest := &gitSensor.CommitMetadataRequest{
-			PipelineMaterialId: m.Id,
-			GitHash:            m.GitCommit.Commit,
-			GitTag:             m.GitTag,
+	for _, ciPipelineMaterial := range ciTriggerRequest.CiPipelineMaterial {
+		if ciPipelineMaterial.Type != string(pipelineConfig.SOURCE_TYPE_PULL_REQUEST) {
+			gitCommit, err := impl.BuildManualTriggerCommitHashesForNonPr(ciPipelineMaterial)
+			if err != nil {
+				impl.Logger.Errorw("err", "err", err)
+				return map[int]bean.GitCommit{}, err
+			}
+			commitHashes[ciPipelineMaterial.Id] = gitCommit
+		}else{
+			gitCommit, err := impl.BuildManualTriggerCommitHashesForPr(ciPipelineMaterial)
+			if err != nil {
+				impl.Logger.Errorw("err", "err", err)
+				return map[int]bean.GitCommit{}, err
+			}
+			commitHashes[ciPipelineMaterial.Id] = gitCommit
 		}
-		gitCommitResponse, err := impl.gitSensorClient.GetCommitMetadata(commitMetadataRequest)
-		if err != nil {
-			impl.Logger.Errorw("err", "err", err)
-			return map[int]bean.GitCommit{}, err
-		}
-		gitCommit := bean.GitCommit{
-			Commit:  gitCommitResponse.Commit,
-			Author:  gitCommitResponse.Author,
-			Date:    gitCommitResponse.Date,
-			Message: gitCommitResponse.Message,
-			Changes: gitCommitResponse.Changes,
-		}
-		commitHashes[m.Id] = gitCommit
+
 	}
 	return commitHashes, nil
 }
+
+func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForNonPr(ciPipelineMaterial bean.CiPipelineMaterial) (bean.GitCommit, error) {
+	commitMetadataRequest := &gitSensor.CommitMetadataRequest{
+		PipelineMaterialId: ciPipelineMaterial.Id,
+		GitHash:            ciPipelineMaterial.GitCommit.Commit,
+		GitTag:             ciPipelineMaterial.GitTag,
+	}
+	gitCommitResponse, err := impl.gitSensorClient.GetCommitMetadata(commitMetadataRequest)
+	if err != nil {
+		impl.Logger.Errorw("err", "err", err)
+		return bean.GitCommit{}, err
+	}
+
+	gitCommit := bean.GitCommit{
+		Commit:  gitCommitResponse.Commit,
+		Author:  gitCommitResponse.Author,
+		Date:    gitCommitResponse.Date,
+		Message: gitCommitResponse.Message,
+		Changes: gitCommitResponse.Changes,
+	}
+
+	return gitCommit, nil
+}
+
+
+func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForPr(ciPipelineMaterial bean.CiPipelineMaterial) (bean.GitCommit, error) {
+	prDataInput := ciPipelineMaterial.GitCommit.PrData
+
+	// fetch PR data on the basis of Id
+	prDataRequest := &gitSensor.PrDataRequest{
+		Id: prDataInput.Id,
+	}
+
+	prData, err := impl.gitSensorClient.GetPrData(prDataRequest)
+	if err != nil {
+		impl.Logger.Errorw("err", "err", err)
+		return bean.GitCommit{}, err
+	}
+
+	// get latest commit hash for target branch
+	latestCommitMetadataRequest := &gitSensor.LatestCommitMetadataRequest{
+		PipelineMaterialId: ciPipelineMaterial.Id,
+		BranchName: prDataInput.TargetBranchName,
+	}
+	latestCommit, err := impl.gitSensorClient.GetLatestCommitMetadata(latestCommitMetadataRequest)
+	if err != nil {
+		impl.Logger.Errorw("err", "err", err)
+		return bean.GitCommit{}, err
+	}
+
+	// build git commit
+	gitCommit := bean.GitCommit{
+		PrData: &bean.PrData {
+			Id: prData.Id,
+			PrTitle : prData.PrTitle,
+			PrUrl: prData.PrUrl,
+			SourceBranchName: prData.SourceBranchName,
+			TargetBranchName: prData.TargetBranchName,
+			SourceBranchHash: prData.SourceBranchHash,
+			TargetBranchHash: latestCommit.Commit,
+			AuthorName: prData.AuthorName,
+			LastCommitMessage: prData.LastCommitMessage,
+			PrCreatedOn: prData.PrCreatedOn,
+			PrUpdatedOn: prData.PrUpdatedOn,
+		},
+	}
+
+	return gitCommit, nil
+}
+
 
 func (impl *CiHandlerImpl) getLastSeenCommit(ciMaterialId int) (bean.GitCommit, error) {
 	var materialIds []int
