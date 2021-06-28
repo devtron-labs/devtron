@@ -266,7 +266,7 @@ func (impl *TelemetryEventClientImpl) GetTelemetryMetaInfo() (*TelemetryMetaInfo
 	data := &TelemetryMetaInfo{
 		Url:    impl.posthogConfig.PosthogEndpoint,
 		UCID:   ucid,
-		ApiKey: impl.PosthogClient.posthogConfig.PosthogApiKey,
+		ApiKey: impl.PosthogClient.cfg.PosthogEncodedApiKey,
 	}
 	return data, err
 }
