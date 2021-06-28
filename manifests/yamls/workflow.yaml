@@ -228,7 +228,7 @@ spec:
           value: "false"
         - name: BASE_HREF
           value: /
-        image: quay.io/devtron/argoui:v2.3.0
+        image: "quay.io/devtron/argoui:v2.3.0"
         name: argo-ui
       serviceAccountName: argo-ui
 ---
@@ -253,6 +253,6 @@ spec:
         - argoproj/argoexec:v2.3.0
         command:
         - workflow-controller
-        image: quay.io/argoproj/workflow-controller:v2.3.0
+        image: "quay.io/argoproj/workflow-controller:v2.3.0"
         name: workflow-controller
       serviceAccountName: argo
