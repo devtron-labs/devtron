@@ -49,20 +49,25 @@ import (
 )
 
 type NameIncludesExcludes struct {
-	Type string `json:"type"`
 	Name string `json:"name"`
 }
+type Specs struct {
+	PatchJson string `json:"patchJson"`
+}
+type Tasks struct {
+	Spec Specs `json:"spec"`
+}
 type BulkUpdateInput struct {
-	Includes  NameIncludesExcludes `json:"includes"`
-	Excludes  NameIncludesExcludes `json:"excludes"`
-	EnvId     int                  `json:"envId"`
-	IsGlobal  bool                 `json:"isGlobal"`
-	PatchJson string               `json:"patchJson"`
+	Includes           NameIncludesExcludes `json:"includes"`
+	Excludes           NameIncludesExcludes `json:"excludes"`
+	EnvIds             []int                `json:"envIds"`
+	Global             bool                 `json:"global"`
+	DeploymentTemplate Tasks                `json:"deploymentTemplate"`
 }
 type BulkUpdatePayload struct {
-	Task    string          `json:"task"`
-	Payload BulkUpdateInput `json:"payload"`
-	Readme  string          `json:"readme"`
+	ApiVersion string          `json:"apiVersion"`
+	Kind       string          `json:"kind"`
+	Payload    BulkUpdateInput `json:"payload"`
 }
 type TemplateRequest struct {
 	Id                      int             `json:"id"  validate:"number"`
@@ -197,7 +202,7 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 
 func (impl ChartServiceImpl) GetBulkAppName(bulkUpdateInput BulkUpdateInput) ([]string, error) {
 	BulkAppName := make([]string, 0)
-	if bulkUpdateInput.IsGlobal && bulkUpdateInput.EnvId == 0 {
+	if bulkUpdateInput.Global {
 		appsGlobal, err := impl.chartRepository.
 			FindBulkAppNameIsGlobal(bulkUpdateInput.Includes.Name, bulkUpdateInput.Excludes.Name)
 		if err != nil {
@@ -206,9 +211,10 @@ func (impl ChartServiceImpl) GetBulkAppName(bulkUpdateInput BulkUpdateInput) ([]
 		for _, app := range appsGlobal {
 			BulkAppName = append(BulkAppName, app.AppName)
 		}
-	} else if bulkUpdateInput.EnvId > 0 {
+	}
+	for _, envId := range bulkUpdateInput.EnvIds {
 		appsNotGlobal, err := impl.chartRepository.
-			FindBulkAppNameIsNotGlobal(bulkUpdateInput.Includes.Name, bulkUpdateInput.Excludes.Name, bulkUpdateInput.EnvId)
+			FindBulkAppNameIsNotGlobal(bulkUpdateInput.Includes.Name, bulkUpdateInput.Excludes.Name, envId)
 		if err != nil {
 			return nil, err
 		}
@@ -220,14 +226,15 @@ func (impl ChartServiceImpl) GetBulkAppName(bulkUpdateInput BulkUpdateInput) ([]
 }
 
 func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdateInput BulkUpdateInput) ([]string, error) {
-	patchJson := []byte(bulkUpdateInput.PatchJson)
+	patchJson := []byte(bulkUpdateInput.DeploymentTemplate.Spec.PatchJson)
+	fmt.Println(patchJson)
 	patch, err := jsonpatch.DecodePatch(patchJson)
 	if err != nil {
 		panic(err)
 	}
 	UpdatedPatchMap := make(map[int]string)
 	ResponseByte := make([]string, 0)
-	if bulkUpdateInput.IsGlobal {
+	if bulkUpdateInput.Global {
 		charts, err := impl.chartRepository.FindBulkChartsByAppNameSubstring(bulkUpdateInput.Includes.Name, bulkUpdateInput.Excludes.Name)
 		if err != nil {
 			panic(err)
@@ -241,21 +248,28 @@ func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdateInput BulkUp
 			ResponseByte = append(ResponseByte, string(modified))
 		}
 		err = impl.chartRepository.BulkUpdateChartsValuesYamlById(UpdatedPatchMap)
-		return ResponseByte, err
-	}
-	chartsEnv, err := impl.chartRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdateInput.Includes.Name, bulkUpdateInput.Excludes.Name, bulkUpdateInput.EnvId)
-	if err != nil {
-		panic(err)
-	}
-	for _, chartEnv := range chartsEnv {
-		modified, err := patch.Apply([]byte(chartEnv.EnvOverrideYaml))
 		if err != nil {
 			panic(err)
 		}
-		UpdatedPatchMap[chartEnv.Id] = string(modified)
-		ResponseByte = append(ResponseByte, string(modified))
 	}
-	err = impl.chartRepository.BulkUpdateChartsEnvOverrideYamlById(UpdatedPatchMap)
+	for _, envId := range bulkUpdateInput.EnvIds {
+		chartsEnv, err := impl.chartRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdateInput.Includes.Name, bulkUpdateInput.Excludes.Name, envId)
+		if err != nil {
+			panic(err)
+		}
+		for _, chartEnv := range chartsEnv {
+			modified, err := patch.Apply([]byte(chartEnv.EnvOverrideYaml))
+			if err != nil {
+				panic(err)
+			}
+			UpdatedPatchMap[chartEnv.Id] = string(modified)
+			ResponseByte = append(ResponseByte, string(modified))
+		}
+		err = impl.chartRepository.BulkUpdateChartsEnvOverrideYamlById(UpdatedPatchMap)
+		if err != nil {
+			panic(err)
+		}
+	}
 	return ResponseByte, err
 }
 

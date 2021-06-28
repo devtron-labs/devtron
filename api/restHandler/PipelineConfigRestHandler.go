@@ -214,29 +214,36 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 const devtron = "DEVTRON"
 
 func (handler PipelineConfigRestHandlerImpl) GetExampleInputBulkUpdate(w http.ResponseWriter, r *http.Request) {
-	includes := pipeline.NameIncludesExcludes{Type: "Application", Name: "abc"}
-	excludes := pipeline.NameIncludesExcludes{Type: "Application", Name: "abc"}
-	payload := pipeline.BulkUpdateInput{Includes: includes,
-		Excludes:  excludes,
-		EnvId:     0,
-		IsGlobal:  true,
-		PatchJson: "PatchJson: Enter Patch String"}
+	includes := pipeline.NameIncludesExcludes{Name: "abc"}
+	excludes := pipeline.NameIncludesExcludes{Name: "abc"}
+	spec := pipeline.Specs{
+		PatchJson: "Enter Patch String"}
+	task := pipeline.Tasks{
+		Spec: spec,
+	}
+	payload := pipeline.BulkUpdateInput{
+		Includes:           includes,
+		Excludes:           excludes,
+		EnvIds:             make([]int, 0),
+		Global:             true,
+		DeploymentTemplate: task}
+
 	exampleInput := pipeline.BulkUpdatePayload{
-		Task:    "Deployment-Template",
-		Payload: payload,
-		Readme:  "",
+		ApiVersion: "core/v1beta1",
+		Kind:       "Application",
+		Payload:    payload,
 	}
 	writeJsonResp(w, nil, exampleInput, http.StatusOK)
 }
 func (handler PipelineConfigRestHandlerImpl) GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var bulkUpdateInput pipeline.BulkUpdateInput
-	err := decoder.Decode(&bulkUpdateInput)
+	var bulkUpdatePayload pipeline.BulkUpdatePayload
+	err := decoder.Decode(&bulkUpdatePayload)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	AppName, err := handler.chartService.GetBulkAppName(bulkUpdateInput)
+	AppName, err := handler.chartService.GetBulkAppName(bulkUpdatePayload.Payload)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -245,13 +252,13 @@ func (handler PipelineConfigRestHandlerImpl) GetAppNameDeploymentTemplate(w http
 }
 func (handler PipelineConfigRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var bulkUpdateInput pipeline.BulkUpdateInput
-	err := decoder.Decode(&bulkUpdateInput)
+	var bulkUpdatePayload pipeline.BulkUpdatePayload
+	err := decoder.Decode(&bulkUpdatePayload)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	resp, err := handler.chartService.BulkUpdateDeploymentTemplate(bulkUpdateInput)
+	resp, err := handler.chartService.BulkUpdateDeploymentTemplate(bulkUpdatePayload.Payload)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
