@@ -39,7 +39,7 @@ type TelemetryEventClientImpl struct {
 }
 
 type TelemetryEventClient interface {
-	GetClientPlatformIdAndTelemetryUrl() (*PosthogData, error)
+	GetTelemetryMetaInfo() (*TelemetryMetaInfo, error)
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
@@ -203,11 +203,17 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		impl.logger.Errorw("SummaryEventForTelemetry, payload unmarshal error", "error", err)
 		return
 	}
-	impl.PosthogClient.Client.Enqueue(posthog.Capture{
-		DistinctId: ucid,
-		Event:      Summary.String(),
-		Properties: prop,
-	})
+
+	if impl.PosthogClient.Client != nil {
+		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
+			DistinctId: ucid,
+			Event:      Summary.String(),
+			Properties: prop,
+		})
+		if err != nil {
+			impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "error", err)
+		}
+	}
 }
 
 func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
@@ -239,29 +245,36 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		impl.logger.Errorw("HeartbeatEventForTelemetry, payload unmarshal error", "error", err)
 		return
 	}
-	impl.PosthogClient.Client.Enqueue(posthog.Capture{
-		DistinctId: ucid,
-		Event:      Heartbeat.String(),
-		Properties: prop,
-	})
+	if impl.PosthogClient.Client != nil {
+		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
+			DistinctId: ucid,
+			Event:      Heartbeat.String(),
+			Properties: prop,
+		})
+		if err != nil {
+			impl.logger.Errorw("HeartbeatEventForTelemetry, failed to push event", "error", err)
+		}
+	}
 }
 
-func (impl *TelemetryEventClientImpl) GetClientPlatformIdAndTelemetryUrl() (*PosthogData, error) {
+func (impl *TelemetryEventClientImpl) GetTelemetryMetaInfo() (*TelemetryMetaInfo, error) {
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception while getting unique client id", "error", err)
 		return nil, err
 	}
-	data := &PosthogData{
-		Url:  impl.posthogConfig.PosthogEndpoint,
-		UCID: ucid,
+	data := &TelemetryMetaInfo{
+		Url:    impl.posthogConfig.PosthogEndpoint,
+		UCID:   ucid,
+		ApiKey: impl.PosthogClient.cfg.PosthogEncodedApiKey,
 	}
 	return data, err
 }
 
-type PosthogData struct {
-	Url  string `json:"url,omitempty"`
-	UCID string `json:"ucid,omitempty"`
+type TelemetryMetaInfo struct {
+	Url    string `json:"url,omitempty"`
+	UCID   string `json:"ucid,omitempty"`
+	ApiKey string `json:"apiKey,omitempty"`
 }
 
 func (impl *TelemetryEventClientImpl) getUCID() (string, error) {
