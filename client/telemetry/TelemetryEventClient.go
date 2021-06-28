@@ -203,11 +203,17 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		impl.logger.Errorw("SummaryEventForTelemetry, payload unmarshal error", "error", err)
 		return
 	}
-	impl.PosthogClient.Client.Enqueue(posthog.Capture{
-		DistinctId: ucid,
-		Event:      Summary.String(),
-		Properties: prop,
-	})
+
+	if impl.PosthogClient.Client != nil {
+		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
+			DistinctId: ucid,
+			Event:      Summary.String(),
+			Properties: prop,
+		})
+		if err != nil {
+			impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "error", err)
+		}
+	}
 }
 
 func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
@@ -239,11 +245,16 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		impl.logger.Errorw("HeartbeatEventForTelemetry, payload unmarshal error", "error", err)
 		return
 	}
-	impl.PosthogClient.Client.Enqueue(posthog.Capture{
-		DistinctId: ucid,
-		Event:      Heartbeat.String(),
-		Properties: prop,
-	})
+	if impl.PosthogClient.Client != nil {
+		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
+			DistinctId: ucid,
+			Event:      Heartbeat.String(),
+			Properties: prop,
+		})
+		if err != nil {
+			impl.logger.Errorw("HeartbeatEventForTelemetry, failed to push event", "error", err)
+		}
+	}
 }
 
 func (impl *TelemetryEventClientImpl) GetClientPlatformIdAndTelemetryUrl() (*PosthogData, error) {
