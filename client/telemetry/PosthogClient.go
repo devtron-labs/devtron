@@ -84,7 +84,6 @@ func getPosthogApiKey(encodedPosthogApiKeyUrl string) (string, error) {
 		return "", err
 	}
 	apiKeyUrl := string(dncodedPosthogApiKeyUrl)
-	apiKeyUrl=""
 	req, err := http.NewRequest(http.MethodGet, apiKeyUrl, nil)
 	if err != nil {
 		return "", err
