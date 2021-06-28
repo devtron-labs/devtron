@@ -227,7 +227,6 @@ func (impl ChartServiceImpl) GetBulkAppName(bulkUpdateInput BulkUpdateInput) ([]
 
 func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdateInput BulkUpdateInput) ([]string, error) {
 	patchJson := []byte(bulkUpdateInput.DeploymentTemplate.Spec.PatchJson)
-	fmt.Println(patchJson)
 	patch, err := jsonpatch.DecodePatch(patchJson)
 	if err != nil {
 		panic(err)
