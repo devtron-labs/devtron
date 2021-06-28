@@ -107,11 +107,13 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 
 		var branch string
 		var tag string
+		var prData pipelineConfig.PrData
 		if p.SourceType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
 			branch = p.SourceValue
-		}
-		if p.SourceType == pipelineConfig.SOURCE_TYPE_TAG_REGEX {
+		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_TAG_REGEX {
 			tag = p.SourceValue
+		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_PULL_REQUEST {
+			prData = p.PrData
 		}
 
 		modification := repository.Modification{
@@ -120,8 +122,10 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 			Author:       p.Author,
 			Branch:       branch,
 			Tag:          tag,
+			PrData: 	  prData,
 			Message:      p.Message,
 		}
+
 		modifications = append(modifications, modification)
 		ciMaterialInfo := repository.CiMaterialInfo{
 			Material: repository.Material{

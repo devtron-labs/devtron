@@ -491,6 +491,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				AccessToken: gitMaterial.GitProvider.AccessToken,
 				AuthMode:    gitMaterial.GitProvider.AuthMode,
 			},
+			PrData: ciMaterialCurrent.Modifications[0].PrData,
 		}
 		ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
 	}
