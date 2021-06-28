@@ -28,7 +28,7 @@
 - [Why Devtron](https://github.com/devtron-labs/devtron#bulb-why-devtron) 
 - [Features](https://github.com/devtron-labs/devtron#tada-features)
 - [Getting Started](https://github.com/devtron-labs/devtron#rocket-getting-started)
-- [Documentation](https://docs.devtron.ai/)
+- <a href="https://docs.devtron.ai/" target="_blank">Documentation</a>
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
 - [Contribute](https://github.com/devtron-labs/devtron#handshake-contribute)
@@ -124,7 +124,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 --set secrets.POSTGRESQL_PASSWORD=change-me
 ```
 
-For detailed instructions and other options, check out [devtron installation documentation](https://docs.devtron.ai/setup/install)
+For detailed instructions and other options, check out  <a href="https://docs.devtron.ai/setup/install" target="_blank">devtron installation documentation</a>
 
 
 #### :key: Access Devtron dashboard
