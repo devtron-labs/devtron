@@ -30,8 +30,9 @@ import (
 )
 
 type PosthogClient struct {
-	Client posthog.Client
-	cache  *cache.Cache
+	Client        posthog.Client
+	cache         *cache.Cache
+	posthogConfig *PosthogConfig
 }
 
 type PosthogConfig struct {
@@ -72,8 +73,9 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 	d := time.Duration(cfg.CacheExpiry)
 	c := cache.New(d*time.Minute, 240*time.Minute)
 	pgClient := &PosthogClient{
-		Client: client,
-		cache:  c,
+		Client:        client,
+		cache:         c,
+		posthogConfig: cfg,
 	}
 	return pgClient, nil
 }
