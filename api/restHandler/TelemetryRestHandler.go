@@ -24,7 +24,7 @@ import (
 )
 
 type TelemetryRestHandler interface {
-	GetClientPlatformIdAndTelemetryUrl(w http.ResponseWriter, r *http.Request)
+	GetTelemetryMetaInfo(w http.ResponseWriter, r *http.Request)
 }
 
 type TelemetryRestHandlerImpl struct {
@@ -38,10 +38,10 @@ func NewTelemetryRestHandlerImpl(logger *zap.SugaredLogger,
 	return handler
 }
 
-func (handler TelemetryRestHandlerImpl) GetClientPlatformIdAndTelemetryUrl(w http.ResponseWriter, r *http.Request) {
-	res, err := handler.telemetryEventClient.GetClientPlatformIdAndTelemetryUrl()
+func (handler TelemetryRestHandlerImpl) GetTelemetryMetaInfo(w http.ResponseWriter, r *http.Request) {
+	res, err := handler.telemetryEventClient.GetTelemetryMetaInfo()
 	if err != nil {
-		handler.logger.Errorw("service err, GetClientPlatformIdAndTelemetryUrl", "err", err)
+		handler.logger.Errorw("service err, GetTelemetryMetaInfo", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
