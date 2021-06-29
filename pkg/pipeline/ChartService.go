@@ -69,6 +69,11 @@ type BulkUpdatePayload struct {
 	Kind       string          `json:"kind"`
 	Payload    BulkUpdateInput `json:"payload"`
 }
+type BulkUpdateGet struct{
+	Task string `json:"task"`
+	Payload BulkUpdatePayload `json:"payload"`
+	Readme string `json:"readme"`
+}
 type TemplateRequest struct {
 	Id                      int             `json:"id"  validate:"number"`
 	AppId                   int             `json:"appId,omitempty"  validate:"number,required"`
