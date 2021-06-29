@@ -85,6 +85,9 @@ func (impl GitHostRestHandlerImpl) GetGitHosts(w http.ResponseWriter, r *http.Re
 	writeJsonResp(w, err, res, http.StatusOK)
 }
 
+
+
+// Need to make this call RBAC free as this API is called from the create app flow (configuring ci)
 func (impl GitHostRestHandlerImpl) GetGitHostById(w http.ResponseWriter, r *http.Request) {
 
 	// check if user is logged in or not
@@ -110,14 +113,6 @@ func (impl GitHostRestHandlerImpl) GetGitHostById(w http.ResponseWriter, r *http
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceGit, rbac.ActionGet, strings.ToLower(res.Name)); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
 
 	writeJsonResp(w, err, res, http.StatusOK)
 }
