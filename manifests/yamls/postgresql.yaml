@@ -120,7 +120,7 @@ spec:
         fsGroup: 1001
       initContainers:
         - name: init-chmod-data
-          image: "quay.io/bitnami/minideb:buster-snapshot-20210603T213110Z"
+          image: "quay.io/bitnami/minideb:latest"
           imagePullPolicy: "IfNotPresent"
           resources:
             requests:
