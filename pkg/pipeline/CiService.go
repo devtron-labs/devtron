@@ -134,9 +134,11 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *WorkflowRequest) {
 	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, nil, util2.CI)
 	material := &client.MaterialTriggerInfo{}
-	gitT := make(map[int]pipelineConfig.GitCommit)
+
+	gitTriggers := make(map[int]pipelineConfig.GitCommit)
+
 	for k, v := range trigger.CommitHashes {
-		gitT[k] = pipelineConfig.GitCommit{
+		gitTriggers[k] = pipelineConfig.GitCommit{
 			Commit:  v.Commit,
 			Author:  v.Author,
 			Changes: v.Changes,
@@ -144,7 +146,31 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipeli
 			Date:    v.Date,
 		}
 	}
-	material.GitTriggers = gitT
+
+	// set PR data in gitTriggers
+	for _, ciMaterial := range trigger.CiMaterials {
+		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_PULL_REQUEST {
+			pipelineMaterialId := ciMaterial.Id
+			prData := trigger.CommitHashes[pipelineMaterialId].PrData
+			gitTrigger := gitTriggers[pipelineMaterialId]
+			gitTrigger.PrData = pipelineConfig.PrData {
+				Id: prData.Id,
+				PrTitle : prData.PrTitle,
+				PrUrl: prData.PrUrl,
+				SourceBranchName: prData.SourceBranchName,
+				TargetBranchName: prData.TargetBranchName,
+				SourceBranchHash: prData.SourceBranchHash,
+				TargetBranchHash: prData.TargetBranchHash,
+				AuthorName: prData.AuthorName,
+				LastCommitMessage: prData.LastCommitMessage,
+				PrCreatedOn: prData.PrCreatedOn,
+				PrUpdatedOn: prData.PrUpdatedOn,
+			}
+		}
+	}
+
+	material.GitTriggers = gitTriggers
+
 	event.UserId = int(trigger.TriggeredBy)
 	event.CiWorkflowRunnerId = workflowRequest.WorkflowId
 	event = impl.eventFactory.BuildExtraCIData(event, material, workflowRequest.CiImage)
