@@ -250,7 +250,7 @@ spec:
         - --configmap
         - workflow-controller-configmap
         - --executor-image
-        - argoproj/argoexec:v2.3.0
+        - quay.io/argoproj/workflow-controller:v2.3.0 
         command:
         - workflow-controller
         image: "quay.io/argoproj/workflow-controller:v2.3.0"
