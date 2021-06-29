@@ -129,7 +129,10 @@ args:
     - touch /tmp/healthy; sleep 30; rm -rf /tmp/healthy; sleep 600
 
 #For adding custom labels to pods
-#podLabels:
+
+podLabels: {}
+#  customKey: customValue
+podAnnotations: {}
 #  customKey: customValue
 
 rawYaml: []

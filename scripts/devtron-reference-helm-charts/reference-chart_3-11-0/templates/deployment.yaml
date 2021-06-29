@@ -44,6 +44,12 @@ spec:
   minReadySeconds: {{ $.Values.MinReadySeconds }}
   template:
     metadata:
+    {{- if .Values.podAnnotations }}
+      annotations:
+      {{- range $key, $value := .Values.podAnnotations }}
+        {{ $key }}: {{ $value | quote }}
+      {{- end }}
+    {{- end }}
       labels:
         app: {{ template ".Chart.Name .name" $ }}
         appId: {{ $.Values.app | quote }}
