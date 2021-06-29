@@ -2,26 +2,30 @@
 
 ## What is the need for Bulk Update?
 
-It was an easy task to configure the `Deployment Template` of one or more applications, but the task becomes laborious to update the hundreds of applications. Here **Bulk Updates** comes into the picture.
-This feature allows users to configure the `Deployment Template` of multiple applications at once. Users can do that by writing a script in this section.
+Need to make some common changes across multiple devtron applications?
+Bulk Update allows you to do that.
+Eg. Change `MaxReplicas` in `Deployment Templates` of multiple devtron apps.
 
-* **See Examples**
+Bulk edit is supported for:
+ - Deployment Template
 
-First of all user needs to get the sample script. For that Click on the `See Examples` . Copy the script part and paste it to the code editor section.
+## Steps:
 
+1. Click on `Bulk update` option in main navigation. This is where you can write and execute scripts to perform bulk updates.
+ <br/><br/>
+2. To help you get started, Click on the `See Examples` we have added examples for supported bulk update use cases.<br/>
 
-There are two more buttons at the topmost section:
+![](../.gitbook/assets/bulk-update-empty.png)
 
-* **Run**
-* **Show Impacted Objects**
+<br/>
+4. Select the desired operation from the dropdown and copy the sample script.
+<br/><br/>
 
+5. Paste the sample script in the code editor and make desired changes
+<br/><br/>
 
-### 1. Run :
+6. You can click on `Show Impacted Objects` button to see names of all applications that will be modified with the script.
+<br/><br/>
 
-After Inserting a valid script in the code editor section. Click on the `Run` button at the top. After clicking `Run` a bottom drawer with a selected `Output` section will open that is showing output. 
-
-## 2. Show Impacted Objects:
-
-To see a list of all the names of the impacted applications. Click on the `Show Impacted Objects` button at the top. A bottom drawer with a selected `Impacted Objects` section will appear.
-
-
+7. Click on `Run` button to execute the script. Status/Output of the script execution will be shown in the Output section of the bottom drawer.
+<br/>
