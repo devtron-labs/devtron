@@ -5,10 +5,10 @@
 
 ## OVERVIEW
 
-Devtron uses telemetry data for monitoring and managing client engaged with our open source application. to provide
+Devtron uses telemetry data for monitoring and managing clients engaged with our open source application. to provide
 better service and feature we have to measure the current usage.
 
-Once client start installation, application start sending events on different stages. commonly `installattion start`
+Once a client starts installation, applications start sending events on different stages. commonly `installation start`
 , `installation in progress`,
 `installation failure`, `upgrade start`,`upgrade success`,`upgrade failure` etc.
 
@@ -21,7 +21,7 @@ Once client start installation, application start sending events on different st
 `Dashboard`
 
 * Sample event json below for all types of events comes from different applications
-* Only properties has different for each event types. for example below is the sample event for heartbeat event.
+* Only properties are different for each event type. for example below is the sample event for heartbeat event.
 
 | Key | Description |
 | :--- | :--- |
@@ -62,9 +62,9 @@ Once client start installation, application start sending events on different st
 }
 ```
 
-### 1. Inception (operator)
+### 1. Event Sends from Inception (operator)
 
-* `installattion start`
+* `installation start`
 * `installation in progress`
 * `installation failure`
 * `upgrade start`
@@ -72,18 +72,18 @@ Once client start installation, application start sending events on different st
 * `upgrade failure`
 
 
-* All the above event's comes from operator when devtron being install or upgrade. event is same as sample json
+* All the above event's come from the operator when devtron is being installed or upgraded. event is same as sample json
   except `event:"InstallationStart"` changes.
 
-### 2. Devtron (orchestrator)
+### 2. Event Sends from devtron (orchestrator)
 
 * `Heartbeat`
 * `Summary`
 
 
-* All the above event's comes from operator when devtron being install or upgrade. event is same as sample json
+* All the above event's come from the operator when devtron is being installed or upgraded. event is same as sample json
   except `event:"Heartbeat"` changes.
-* `Summary` events sent the daily operation done by user, single event in 24 hour sent the below data.
+* `Summary` events send the daily operation done by user, single event in 24 hour sent the below data.
 
 | Key | Description |
 | :--- | :--- |
@@ -107,9 +107,9 @@ Once client start installation, application start sending events on different st
 }
 ```
 
-### 3. Dashboard
+### 3. Event Sends from dashboard
 
 * `"identify`
 
-* All the above event's comes from Dashboards when unique users visited the dashboard first time. event is same as
+* All the above event's come from Dashboards when unique users visited the dashboard for the first time. event is same as 
   sample json except `"event": "$identify"` changes.
