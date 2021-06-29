@@ -68,7 +68,7 @@ func (impl WebhookListenerGithubImpl) OnWebhookEvent(w http.ResponseWriter, r *h
 	// validate supported Event type
 	eventType := r.Header.Get("X-GitHub-Event")
 	impl.logger.Debugw("eventType : ", eventType)
-	if !supportedEventType(eventType){
+	if !supportedGitGubEventType(eventType){
 		impl.logger.Errorw("Event type not supported ", eventType)
 		return
 	}
@@ -80,14 +80,14 @@ func (impl WebhookListenerGithubImpl) OnWebhookEvent(w http.ResponseWriter, r *h
 		WebhookEventType:        	WebhookEventType(eventType),
 	}
 
+	// write event
 	err = impl.eventClient.WriteNatsEvent(pubsub.WEBHOOK_EVENT_TOPIC, webhookEvent)
-
 	if err != nil {
 		impl.logger.Errorw("Error while handling webhook in git-sensor", "err", err)
 	}
 }
 
-func supportedEventType(eventTypeRequest string) bool {
+func supportedGitGubEventType(eventTypeRequest string) bool {
 	supportedEventTypes := []string {
 		"pull_request",
 	}

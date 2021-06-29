@@ -43,7 +43,7 @@ func (impl WebhookListenerRouterImpl) InitWebhookListenerRouter(configRouter *mu
 	configRouter.Path("/github").
 		HandlerFunc(impl.webhookListenerGithubImpl.OnWebhookEvent).
 		Methods("POST")
-	configRouter.Path("/bitbucket/{secret}").
+	configRouter.Path("/bitbucket-cl/{secret}").
 		HandlerFunc(impl.webhookListenerBitbucketImpl.OnWebhookEvent).
 		Methods("POST")
 }

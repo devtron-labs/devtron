@@ -491,8 +491,26 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				AccessToken: gitMaterial.GitProvider.AccessToken,
 				AuthMode:    gitMaterial.GitProvider.AuthMode,
 			},
-			PrData: ciMaterialCurrent.Modifications[0].PrData,
 		}
+
+		// set pr data
+		if m.Type == pipelineConfig.SOURCE_TYPE_PULL_REQUEST {
+			prData := ciMaterialCurrent.Modifications[0].PrData
+			ciProjectDetail.PrData = pipelineConfig.PrData {
+				Id : prData.Id,
+				PrTitle : prData.PrTitle,
+				PrUrl: prData.PrUrl,
+				SourceBranchName: prData.SourceBranchName,
+				TargetBranchName: prData.TargetBranchName,
+				SourceBranchHash: prData.SourceBranchHash,
+				TargetBranchHash: prData.TargetBranchHash,
+				AuthorName: prData.AuthorName,
+				LastCommitMessage: prData.LastCommitMessage,
+				PrCreatedOn: prData.PrCreatedOn,
+				PrUpdatedOn: prData.PrUpdatedOn,
+			}
+		}
+
 		ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
 	}
 

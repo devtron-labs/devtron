@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -337,7 +336,21 @@ type Modification struct {
 	Message      string            `json:"message"`
 	Branch       string            `json:"branch"`
 	Tag          string            `json:"tag,omitempty"`
-	PrData 		 pipelineConfig.PrData	`json:"prData,omitempty"`
+	PrData 		 PrData				`json:"prData,omitempty"`
+}
+
+type PrData struct {
+	Id					int 	`json:"id"`
+	PrTitle        		string  `json:"prTitle"`
+	PrUrl        		string	`json:"prUrl"`
+	SourceBranchName    string	`json:"sourceBranchName"`
+	SourceBranchHash    string	`json:"sourceBranchHash"`
+	TargetBranchName    string	`json:"targetBranchName"`
+	TargetBranchHash    string	`json:"targetBranchHash"`
+	AuthorName		    string	`json:"authorName"`
+	LastCommitMessage	string	`json:"lastCommitMessage"`
+	PrCreatedOn   		time.Time `json:"prCreatedOn"`
+	PrUpdatedOn   		time.Time `json:"prUpdatedOn"`
 }
 
 type CiMaterialInfo struct {
