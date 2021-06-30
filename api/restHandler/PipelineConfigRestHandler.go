@@ -238,7 +238,9 @@ func (handler PipelineConfigRestHandlerImpl) GetExampleInputBulkUpdate(w http.Re
 		Payload: exampleInput,
 		Readme: " ",
 	}
-	writeJsonResp(w, nil, getResponse, http.StatusOK)
+	var response []pipeline.BulkUpdateGet
+	response = append(response,getResponse)
+	writeJsonResp(w, nil, response, http.StatusOK)
 }
 func (handler PipelineConfigRestHandlerImpl) GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
@@ -263,12 +265,12 @@ func (handler PipelineConfigRestHandlerImpl) BulkUpdateDeploymentTemplate(w http
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	_, err = handler.chartService.BulkUpdateDeploymentTemplate(bulkUpdatePayload.Payload)
+	response, err := handler.chartService.BulkUpdateDeploymentTemplate(bulkUpdatePayload.Payload)
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		writeJsonResp(w, err, response, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, "Bulk Update is successful", http.StatusOK)
+	writeJsonResp(w, err, response, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r *http.Request) {
