@@ -61,7 +61,7 @@ type ChartValues struct {
 
 func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	chartWorkingDir ChartWorkingDir,
-	 client *http.Client,
+	client *http.Client,
 	gitFactory *GitFactory) *ChartTemplateServiceImpl {
 	return &ChartTemplateServiceImpl{
 		randSource:      rand.NewSource(time.Now().UnixNano()),

@@ -579,7 +579,6 @@ func InitializeApp() (*App, error) {
 		restHandler.NewTestSuitRestHandlerImpl,
 		wire.Bind(new(restHandler.TestSuitRestHandler), new(*restHandler.TestSuitRestHandlerImpl)),
 
-
 		router.NewImageScanRouterImpl,
 		wire.Bind(new(router.ImageScanRouter), new(*router.ImageScanRouterImpl)),
 		restHandler.NewImageScanRestHandlerImpl,
@@ -632,7 +631,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(gitops.GitOpsConfigService), new(*gitops.GitOpsConfigServiceImpl)),
 		repository.NewGitOpsConfigRepositoryImpl,
 		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
-
 
 		router.NewAttributesRouterImpl,
 		wire.Bind(new(router.AttributesRouter), new(*router.AttributesRouterImpl)),

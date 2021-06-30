@@ -119,12 +119,12 @@ func (handler BulkUpdateRestHandlerImpl) GetExampleInputBulkUpdate(w http.Respon
 		Payload:    payload,
 	}
 	getResponse := pipeline.BulkUpdateGet{
-		Task: "deployment-template",
+		Task:    "deployment-template",
 		Payload: exampleInput,
-		Readme: " ",
+		Readme:  " ",
 	}
 	var response []pipeline.BulkUpdateGet
-	response = append(response,getResponse)
+	response = append(response, getResponse)
 	writeJsonResp(w, nil, response, http.StatusOK)
 }
 func (handler BulkUpdateRestHandlerImpl) GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request) {

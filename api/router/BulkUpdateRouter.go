@@ -10,7 +10,7 @@ type BulkUpdateRouter interface {
 }
 
 type BulkUpdateRouterImpl struct {
-restHandler   restHandler.BulkUpdateRestHandler
+	restHandler restHandler.BulkUpdateRestHandler
 }
 
 func NewBulkUpdateRouterImpl(handler restHandler.BulkUpdateRestHandler) *BulkUpdateRouterImpl {

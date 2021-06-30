@@ -15,7 +15,7 @@ type GrafanaRouter interface {
 }
 
 type GrafanaRouterImpl struct {
-	logger         *zap.SugaredLogger
+	logger       *zap.SugaredLogger
 	grafanaProxy func(writer http.ResponseWriter, request *http.Request)
 }
 
@@ -34,7 +34,7 @@ func NewGrafanaRouterImpl(logger *zap.SugaredLogger, grafanaCfg *grafana.Config)
 	grafanaProxy := grafana.NewGrafanaHTTPReverseProxy(fmt.Sprintf("http://%s:%s", grafanaCfg.Host, grafanaCfg.Port), client.Transport)
 	router := &GrafanaRouterImpl{
 		grafanaProxy: grafanaProxy,
-		logger:         logger,
+		logger:       logger,
 	}
 	return router
 }

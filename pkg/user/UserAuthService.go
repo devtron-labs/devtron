@@ -419,6 +419,9 @@ func contains(url string) bool {
 		"/orchestrator/app/see-example",
 		"/orchestrator/app/impacted-objects",
 		"/orchestrator/app/bulk-update",
+		"/orchestrator/batch/v1beta1/application/see-example",
+		"/orchestrator/batch/v1beta1/application",
+		"/orchestrator/batch/v1beta1/application/{dryrun}",
 	}
 	for _, a := range urls {
 		if a == url {
