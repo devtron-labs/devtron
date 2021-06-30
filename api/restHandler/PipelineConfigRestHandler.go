@@ -54,10 +54,6 @@ import (
 )
 
 type PipelineConfigRestHandler interface {
-	GetExampleInputBulkUpdate(w http.ResponseWriter, r *http.Request)
-	GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request)
-	BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request)
-
 	CreateCiConfig(w http.ResponseWriter, r *http.Request)
 	ConfigureDeploymentTemplateForApp(w http.ResponseWriter, r *http.Request)
 	CreateApp(w http.ResponseWriter, r *http.Request)
@@ -212,66 +208,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 }
 
 const devtron = "DEVTRON"
-
-func (handler PipelineConfigRestHandlerImpl) GetExampleInputBulkUpdate(w http.ResponseWriter, r *http.Request) {
-	includes := pipeline.NameIncludesExcludes{Name: "abc"}
-	excludes := pipeline.NameIncludesExcludes{Name: "abc"}
-	spec := pipeline.Specs{
-		PatchJson: "Enter Patch String"}
-	task := pipeline.Tasks{
-		Spec: spec,
-	}
-	payload := pipeline.BulkUpdateInput{
-		Includes:           includes,
-		Excludes:           excludes,
-		EnvIds:             make([]int, 0),
-		Global:             true,
-		DeploymentTemplate: task}
-
-	exampleInput := pipeline.BulkUpdatePayload{
-		ApiVersion: "core/v1beta1",
-		Kind:       "Application",
-		Payload:    payload,
-	}
-	getResponse := pipeline.BulkUpdateGet{
-		Task:    "deployment-template",
-		Payload: exampleInput,
-		Readme:  " ",
-	}
-	var response []pipeline.BulkUpdateGet
-	response = append(response, getResponse)
-	writeJsonResp(w, nil, response, http.StatusOK)
-}
-func (handler PipelineConfigRestHandlerImpl) GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	var bulkUpdatePayload pipeline.BulkUpdatePayload
-	err := decoder.Decode(&bulkUpdatePayload)
-	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	AppName, err := handler.chartService.GetBulkAppName(bulkUpdatePayload.Payload)
-	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, err, AppName, http.StatusOK)
-}
-func (handler PipelineConfigRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	var bulkUpdatePayload pipeline.BulkUpdatePayload
-	err := decoder.Decode(&bulkUpdatePayload)
-	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	response, err := handler.chartService.BulkUpdateDeploymentTemplate(bulkUpdatePayload.Payload)
-	if err != nil {
-		writeJsonResp(w, err, response, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, err, response, http.StatusOK)
-}
 
 func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")

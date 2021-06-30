@@ -130,6 +130,7 @@ type RefChartDir string
 type DefaultChart string
 
 type ChartService interface {
+	GetBulkUpdateInput(task string) (response BulkUpdateGet, err error)
 	GetBulkAppName(bulkUpdateInput BulkUpdateInput) (AppName []string, err error)
 	BulkUpdateDeploymentTemplate(bulkUpdateInput BulkUpdateInput) (response string, err error)
 
@@ -204,7 +205,21 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 		client:                    client,
 	}
 }
-
+func (impl ChartServiceImpl) GetBulkUpdateInput(task string) (BulkUpdateGet, error) {
+	bulkUpdateInputExample, err := impl.chartRepository.FindBulkUpdateInputValues(task)
+	var response BulkUpdateGet
+	if err != nil {
+		return response, err
+	}
+	payload := BulkUpdatePayload{}
+	json.Unmarshal([]byte(bulkUpdateInputExample.Payload), &payload)
+	response = BulkUpdateGet{
+		Task:    bulkUpdateInputExample.Task,
+		Payload: payload,
+		Readme:  bulkUpdateInputExample.Readme,
+	}
+	return response, nil
+}
 func (impl ChartServiceImpl) GetBulkAppName(bulkUpdateInput BulkUpdateInput) ([]string, error) {
 	BulkAppName := make([]string, 0)
 	if bulkUpdateInput.Global {

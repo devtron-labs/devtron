@@ -24,6 +24,13 @@ import (
 	"github.com/go-pg/pg"
 )
 
+type BulkUpdateInput struct {
+	tableName struct{} `sql:"bulk_update_input_values" pg:",discard_unknown_columns"`
+	Id        int      `sql:"id"`
+	Task      string   `sql:"task"`
+	Payload   string   `sql:"payload"`
+	Readme    string   `sql:"readme"`
+}
 type App struct {
 	tableName struct{} `sql:"app" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id"`
@@ -80,6 +87,7 @@ type Chart struct {
 
 type ChartRepository interface {
 	//ChartReleasedToProduction(chartRepo, appName, chartVersion string) (bool, error)
+	FindBulkUpdateInputValues(task string) (*BulkUpdateInput, error)
 	FindBulkAppNameIsGlobal(appNameIncludes string, appNameExcludes string) ([]*App, error)
 	FindBulkAppNameIsNotGlobal(appNameIncludes string, appNameExcludes string, envId int) ([]*App, error)
 	FindBulkChartsByAppNameSubstring(appNameIncludes string, appNameExcludes string) ([]*Chart, error)
@@ -108,6 +116,14 @@ func NewChartRepository(dbConnection *pg.DB) *ChartRepositoryImpl {
 
 type ChartRepositoryImpl struct {
 	dbConnection *pg.DB
+}
+
+func (repositoryImpl ChartRepositoryImpl) FindBulkUpdateInputValues(task string) (*BulkUpdateInput, error) {
+	bulkUpdateInputExample := &BulkUpdateInput{}
+	err := repositoryImpl.dbConnection.
+		Model(bulkUpdateInputExample).Where("task like ?", task).
+		Select()
+	return bulkUpdateInputExample, err
 }
 
 func (repositoryImpl ChartRepositoryImpl) FindBulkAppNameIsGlobal(appNameIncludes string, appNameExcludes string) ([]*App, error) {

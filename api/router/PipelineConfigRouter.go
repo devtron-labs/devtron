@@ -132,8 +132,4 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/ci-pipeline/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetCIPipelineById).Methods("GET")
 
 	configRouter.Path("/pipeline/suggest/{type}/{appId}").HandlerFunc(router.restHandler.PipelineNameSuggestion).Methods("GET")
-
-	configRouter.Path("/see-example").HandlerFunc(router.restHandler.GetExampleInputBulkUpdate).Methods("GET")
-	configRouter.Path("/impacted-objects").HandlerFunc(router.restHandler.GetAppNameDeploymentTemplate).Methods("POST")
-	configRouter.Path("/bulk-update").HandlerFunc(router.restHandler.BulkUpdateDeploymentTemplate).Methods("POST")
 }

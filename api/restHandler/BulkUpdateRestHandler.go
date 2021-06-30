@@ -99,33 +99,14 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logg
 }
 
 func (handler BulkUpdateRestHandlerImpl) GetExampleInputBulkUpdate(w http.ResponseWriter, r *http.Request) {
-	includes := pipeline.NameIncludesExcludes{Name: "abc"}
-	excludes := pipeline.NameIncludesExcludes{Name: "abc"}
-	spec := pipeline.Specs{
-		PatchJson: "Enter Patch String"}
-	task := pipeline.Tasks{
-		Spec: spec,
+	response, err := handler.chartService.GetBulkUpdateInput("deployment-template")
+	if err != nil {
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
-	payload := pipeline.BulkUpdateInput{
-		Includes:           includes,
-		Excludes:           excludes,
-		EnvIds:             make([]int, 0),
-		Global:             true,
-		DeploymentTemplate: task}
-
-	exampleInput := pipeline.BulkUpdatePayload{
-		ApiVersion: "core/v1beta1",
-		Kind:       "Application",
-		Payload:    payload,
-	}
-	getResponse := pipeline.BulkUpdateGet{
-		Task:    "deployment-template",
-		Payload: exampleInput,
-		Readme:  " ",
-	}
-	var response []pipeline.BulkUpdateGet
-	response = append(response, getResponse)
-	writeJsonResp(w, nil, response, http.StatusOK)
+	var responseArr []pipeline.BulkUpdateGet
+	responseArr = append(responseArr, response)
+	writeJsonResp(w, nil, responseArr, http.StatusOK)
 }
 func (handler BulkUpdateRestHandlerImpl) GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
