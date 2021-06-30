@@ -1,0 +1,23 @@
+# nginx.default
+
+server {
+    listen       8000 default_server;
+    listen       [::]:8000 default_server;
+    server_name  example.org;
+    root         /app;
+
+    location / {
+        include uwsgi_params;
+        uwsgi_pass unix:/tmp/uwsgi.socket;
+    }
+
+    location /static {
+    root /app;
+    }
+
+    # For https uncomment the below lines
+    
+    # listen 443 ssl; 
+    # give your ssl_certificate in this block
+    
+}
