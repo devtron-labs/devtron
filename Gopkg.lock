@@ -1000,6 +1000,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:07f9f2ba2fac91dc2e324b8250dba25508a671defa0b5b04fc1f28985da1657e"
+  name = "github.com/posthog/posthog-go"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "cd4408afb35aad6fbbabd38f487484ccfa053ed1"
+
+[[projects]]
+  branch = "master"
   digest = "1:bd9efe4e0b0f768302a1e2f0c22458149278de533e521206e5ddc71848c269a0"
   name = "github.com/pquerna/cachecontrol"
   packages = [
@@ -1182,6 +1190,14 @@
   pruneopts = "UT"
   revision = "6a3e2ff9e7c564f36873c2e36413f634534f1c44"
   version = "v0.2.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:2f9538da7381bb981fb8451b2b0fb304c2bc7f1724228dc336a8f002e6fec704"
+  name = "github.com/xtgo/uuid"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "a0b114877d4caeffbd7f87e3757c17fce570fea7"
 
 [[projects]]
   digest = "1:a5158647b553c61877aa9ae74f4015000294e47981e6b8b07525edcbb0747c81"
@@ -1549,6 +1565,14 @@
   pruneopts = "UT"
   revision = "4480c480c9cd343b54b0acb5b62261cbd33d7adf"
   version = "v0.0.2"
+
+[[projects]]
+  digest = "1:32db15a47b5be06a5d40e863ab0ebed107741845fd2d8676121f788284d26923"
+  name = "gopkg.in/robfig/cron.v3"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ccba498c397bb90a9c84945bbb0f7af2d72b6309"
+  version = "v3.0.1"
 
 [[projects]]
   digest = "1:8c05919580be8a5be668709d7e5a69d5cd19b8ee9f23d62ce5b10d3457bf6a13"
@@ -1985,13 +2009,13 @@
     "github.com/juju/errors",
     "github.com/lib/pq",
     "github.com/microsoft/azure-devops-go-api/azuredevops",
-    "github.com/microsoft/azure-devops-go-api/azuredevops/core",
     "github.com/microsoft/azure-devops-go-api/azuredevops/git",
     "github.com/nats-io/nats.go",
     "github.com/nats-io/stan",
     "github.com/otiai10/copy",
     "github.com/patrickmn/go-cache",
     "github.com/pkg/errors",
+    "github.com/posthog/posthog-go",
     "github.com/prometheus/client_golang/api",
     "github.com/prometheus/client_golang/api/prometheus/v1",
     "github.com/prometheus/client_golang/prometheus",
@@ -2010,9 +2034,10 @@
     "google.golang.org/grpc/status",
     "gopkg.in/go-playground/validator.v9",
     "gopkg.in/igm/sockjs-go.v3/sockjs",
+    "gopkg.in/robfig/cron.v3",
     "gopkg.in/src-d/go-git.v4",
+    "gopkg.in/src-d/go-git.v4/config",
     "gopkg.in/src-d/go-git.v4/plumbing/object",
-    "gopkg.in/src-d/go-git.v4/plumbing/transport",
     "gopkg.in/src-d/go-git.v4/plumbing/transport/http",
     "gopkg.in/yaml.v2",
     "k8s.io/api/apps/v1",
