@@ -25,7 +25,7 @@ import (
 )
 
 type BulkUpdateInput struct {
-	tableName struct{} `sql:"bulk_update_input_values" pg:",discard_unknown_columns"`
+	tableName struct{} `sql:"batch_operation_example" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id"`
 	Task      string   `sql:"task"`
 	Payload   string   `sql:"payload"`

@@ -1,23 +1,5 @@
 package pipeline
 
-/*
-import (
-	"encoding/csv"
-	"io"
-	"log"
-	"os"
-	"testing"
-)
-
-
-import (
-	"encoding/csv"
-	"io"
-	"log"
-	"os"
-	"testing"
-)
-
 import (
 	"encoding/csv"
 	"encoding/json"
@@ -31,18 +13,17 @@ import (
 )
 
 func TestBulkUpdateDeploymentTemplate(t *testing.T) {
-
 	type test struct {
 		ApiVersion string
 		Kind       string
 		Payload    Pipeline.BulkUpdateInput
 		want       string
 	}
-	csvfile, err := os.Open("ChartService_test.csv")
+	TestsCsvFile, err := os.Open("ChartService_test.csv")
 	if err != nil {
 		log.Fatalln("Couldn't open the csv file", err)
 	}
-	r := csv.NewReader(csvfile)
+	r := csv.NewReader(TestsCsvFile)
 	r.LazyQuotes = true
 	var tests []test
 	for {
@@ -53,7 +34,7 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 		if err != nil {
 			log.Fatal(err)
 		}
-
+		fmt.Println(record[6])
 		var envId []int
 		if err := json.Unmarshal([]byte(record[4]), &envId); err != nil {
 			panic(err)
@@ -83,16 +64,16 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 			want:       record[7],
 		}
 		tests = append(tests, Input)
+		fmt.Println(Input)
 	}
+
 	for _, tt := range tests {
 		testname := fmt.Sprintf("%s,%s", tt.Payload.Includes, tt.Payload.Excludes)
 		t.Run(testname, func(t *testing.T) {
-			got, _ := Pipeline.ChartService.BulkUpdateDeploymentTemplate(tt.Payload)
+			got, _ := Pipeline.ChartService.BulkUpdateDeploymentTemplate(Pipeline.ChartServiceImpl{}, tt.Payload)
 			if got != tt.want {
 				t.Errorf("got %s, want %s", got, tt.want)
 			}
 		})
 	}
 }
-
-*/
