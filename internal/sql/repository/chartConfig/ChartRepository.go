@@ -24,11 +24,11 @@ import (
 	"github.com/go-pg/pg"
 )
 
-type BulkUpdateInput struct {
+type BatchOperationExample struct {
 	tableName struct{} `sql:"batch_operation_example" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id"`
 	Task      string   `sql:"task"`
-	Payload   string   `sql:"payload"`
+	Script    string   `sql:"script"`
 	Readme    string   `sql:"readme"`
 }
 type App struct {
@@ -87,12 +87,12 @@ type Chart struct {
 
 type ChartRepository interface {
 	//ChartReleasedToProduction(chartRepo, appName, chartVersion string) (bool, error)
-	FindBulkUpdateInputValues(task string) (*BulkUpdateInput, error)
+	FindBatchOperationExample(task string) (*BatchOperationExample, error)
 	FindBulkAppNameIsGlobal(appNameIncludes string, appNameExcludes string) ([]*App, error)
 	FindBulkAppNameIsNotGlobal(appNameIncludes string, appNameExcludes string, envId int) ([]*App, error)
 	FindBulkChartsByAppNameSubstring(appNameIncludes string, appNameExcludes string) ([]*Chart, error)
 	FindBulkChartsEnvByAppNameSubstring(appNameIncludes string, appNameExcludes string, envId int) ([]*ChartEnvConfigOverride, error)
-	BulkUpdateChartsValuesYamlById(final map[int]string) error
+	BulkUpdateChartsValuesYamlAndGlobalOverrideById(final map[int]string) error
 	BulkUpdateChartsEnvOverrideYamlById(final map[int]string) error
 
 	FindOne(chartRepo, appName, chartVersion string) (*Chart, error)
@@ -118,12 +118,12 @@ type ChartRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
-func (repositoryImpl ChartRepositoryImpl) FindBulkUpdateInputValues(task string) (*BulkUpdateInput, error) {
-	bulkUpdateInputExample := &BulkUpdateInput{}
+func (repositoryImpl ChartRepositoryImpl) FindBatchOperationExample(task string) (*BatchOperationExample, error) {
+	batchOperationExample := &BatchOperationExample{}
 	err := repositoryImpl.dbConnection.
-		Model(bulkUpdateInputExample).Where("task like ?", task).
+		Model(batchOperationExample).Where("task like ?", task).
 		Select()
-	return bulkUpdateInputExample, err
+	return batchOperationExample, err
 }
 
 func (repositoryImpl ChartRepositoryImpl) FindBulkAppNameIsGlobal(appNameIncludes string, appNameExcludes string) ([]*App, error) {
@@ -173,12 +173,13 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkChartsEnvByAppNameSubstring(ap
 		Select()
 	return charts, err
 }
-func (repositoryImpl ChartRepositoryImpl) BulkUpdateChartsValuesYamlById(final map[int]string) error {
+func (repositoryImpl ChartRepositoryImpl) BulkUpdateChartsValuesYamlAndGlobalOverrideById(final map[int]string) error {
 	chart := &Chart{}
 	for id, patch := range final {
 		_, err := repositoryImpl.dbConnection.
 			Model(chart).
 			Set("values_yaml = ?", patch).
+			Set("global_override = ?", patch).
 			Where("id = ?", id).
 			Update()
 		if err != nil {

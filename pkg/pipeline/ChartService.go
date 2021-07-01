@@ -57,22 +57,22 @@ type Specs struct {
 type Tasks struct {
 	Spec Specs `json:"spec"`
 }
-type BulkUpdateInput struct {
+type BulkUpdatePayload struct {
 	Includes           NameIncludesExcludes `json:"includes"`
 	Excludes           NameIncludesExcludes `json:"excludes"`
 	EnvIds             []int                `json:"envIds"`
 	Global             bool                 `json:"global"`
 	DeploymentTemplate Tasks                `json:"deploymentTemplate"`
 }
-type BulkUpdatePayload struct {
-	ApiVersion string          `json:"apiVersion"`
-	Kind       string          `json:"kind"`
-	Payload    BulkUpdateInput `json:"payload"`
+type BulkUpdateScript struct {
+	ApiVersion string            `json:"apiVersion"`
+	Kind       string            `json:"kind"`
+	Payload    BulkUpdatePayload `json:"payload"`
 }
-type BulkUpdateGet struct {
-	Task    string            `json:"task"`
-	Payload BulkUpdatePayload `json:"payload"`
-	Readme  string            `json:"readme"`
+type BulkUpdateRequest struct {
+	Task   string           `json:"task"`
+	Script BulkUpdateScript `json:"script"`
+	Readme string           `json:"readme"`
 }
 type TemplateRequest struct {
 	Id                      int             `json:"id"  validate:"number"`
@@ -130,9 +130,9 @@ type RefChartDir string
 type DefaultChart string
 
 type ChartService interface {
-	GetBulkUpdateInput(task string) (response BulkUpdateGet, err error)
-	GetBulkAppName(bulkUpdateInput BulkUpdateInput) (AppName []string, err error)
-	BulkUpdateDeploymentTemplate(bulkUpdateInput BulkUpdateInput) (response string, err error)
+	GetBulkUpdateRequestExample(task string) (response BulkUpdateRequest, err error)
+	GetBulkAppName(bulkUpdateRequest BulkUpdatePayload) (AppName []string, err error)
+	BulkUpdateDeploymentTemplate(bulkUpdateRequest BulkUpdatePayload) (response string, err error)
 
 	Create(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
 	CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
@@ -205,26 +205,26 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 		client:                    client,
 	}
 }
-func (impl ChartServiceImpl) GetBulkUpdateInput(task string) (BulkUpdateGet, error) {
-	bulkUpdateInputExample, err := impl.chartRepository.FindBulkUpdateInputValues(task)
-	var response BulkUpdateGet
+func (impl ChartServiceImpl) GetBulkUpdateRequestExample(task string) (BulkUpdateRequest, error) {
+	bulkUpdateInputExample, err := impl.chartRepository.FindBatchOperationExample(task)
+	var response BulkUpdateRequest
 	if err != nil {
 		return response, err
 	}
-	payload := BulkUpdatePayload{}
-	json.Unmarshal([]byte(bulkUpdateInputExample.Payload), &payload)
-	response = BulkUpdateGet{
-		Task:    bulkUpdateInputExample.Task,
-		Payload: payload,
-		Readme:  bulkUpdateInputExample.Readme,
+	script := BulkUpdateScript{}
+	json.Unmarshal([]byte(bulkUpdateInputExample.Script), &script)
+	response = BulkUpdateRequest{
+		Task:   bulkUpdateInputExample.Task,
+		Script: script,
+		Readme: bulkUpdateInputExample.Readme,
 	}
 	return response, nil
 }
-func (impl ChartServiceImpl) GetBulkAppName(bulkUpdateInput BulkUpdateInput) ([]string, error) {
+func (impl ChartServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePayload) ([]string, error) {
 	BulkAppName := make([]string, 0)
-	if bulkUpdateInput.Global {
+	if bulkUpdatePayload.Global {
 		appsGlobal, err := impl.chartRepository.
-			FindBulkAppNameIsGlobal(bulkUpdateInput.Includes.Name, bulkUpdateInput.Excludes.Name)
+			FindBulkAppNameIsGlobal(bulkUpdatePayload.Includes.Name, bulkUpdatePayload.Excludes.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -232,9 +232,9 @@ func (impl ChartServiceImpl) GetBulkAppName(bulkUpdateInput BulkUpdateInput) ([]
 			BulkAppName = append(BulkAppName, app.AppName)
 		}
 	}
-	for _, envId := range bulkUpdateInput.EnvIds {
+	for _, envId := range bulkUpdatePayload.EnvIds {
 		appsNotGlobal, err := impl.chartRepository.
-			FindBulkAppNameIsNotGlobal(bulkUpdateInput.Includes.Name, bulkUpdateInput.Excludes.Name, envId)
+			FindBulkAppNameIsNotGlobal(bulkUpdatePayload.Includes.Name, bulkUpdatePayload.Excludes.Name, envId)
 		if err != nil {
 			return nil, err
 		}
@@ -245,15 +245,15 @@ func (impl ChartServiceImpl) GetBulkAppName(bulkUpdateInput BulkUpdateInput) ([]
 	return BulkAppName, nil
 }
 
-func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdateInput BulkUpdateInput) (string, error) {
-	patchJson := []byte(bulkUpdateInput.DeploymentTemplate.Spec.PatchJson)
+func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload BulkUpdatePayload) (string, error) {
+	patchJson := []byte(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson)
 	patch, err := jsonpatch.DecodePatch(patchJson)
 	if err != nil {
 		return "Bulk Update Failed", err
 	}
 	UpdatedPatchMap := make(map[int]string)
-	if bulkUpdateInput.Global {
-		charts, err := impl.chartRepository.FindBulkChartsByAppNameSubstring(bulkUpdateInput.Includes.Name, bulkUpdateInput.Excludes.Name)
+	if bulkUpdatePayload.Global {
+		charts, err := impl.chartRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Name, bulkUpdatePayload.Excludes.Name)
 		if err != nil {
 			return "Bulk Update Failed", err
 		}
@@ -264,13 +264,13 @@ func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdateInput BulkUp
 			}
 			UpdatedPatchMap[chart.Id] = string(modified)
 		}
-		err = impl.chartRepository.BulkUpdateChartsValuesYamlById(UpdatedPatchMap)
+		err = impl.chartRepository.BulkUpdateChartsValuesYamlAndGlobalOverrideById(UpdatedPatchMap)
 		if err != nil {
 			return "Bulk Update Failed", err
 		}
 	}
-	for _, envId := range bulkUpdateInput.EnvIds {
-		chartsEnv, err := impl.chartRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdateInput.Includes.Name, bulkUpdateInput.Excludes.Name, envId)
+	for _, envId := range bulkUpdatePayload.EnvIds {
+		chartsEnv, err := impl.chartRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdatePayload.Includes.Name, bulkUpdatePayload.Excludes.Name, envId)
 		if err != nil {
 			return "Bulk Update Failed", err
 		}

@@ -16,7 +16,7 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 	type test struct {
 		ApiVersion string
 		Kind       string
-		Payload    Pipeline.BulkUpdateInput
+		Payload    Pipeline.BulkUpdatePayload
 		want       string
 	}
 	TestsCsvFile, err := os.Open("ChartService_test.csv")
@@ -50,7 +50,7 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 		task := Pipeline.Tasks{
 			Spec: spec,
 		}
-		payload := Pipeline.BulkUpdateInput{
+		payload := Pipeline.BulkUpdatePayload{
 			Includes:           includes,
 			Excludes:           excludes,
 			EnvIds:             envId,

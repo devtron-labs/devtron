@@ -20,7 +20,7 @@ func NewBulkUpdateRouterImpl(handler restHandler.BulkUpdateRestHandler) *BulkUpd
 	return router
 }
 func (router BulkUpdateRouterImpl) initBulkUpdateRouter(bulkRouter *mux.Router) {
-	bulkRouter.Path("/application/see-example").HandlerFunc(router.restHandler.GetExampleInputBulkUpdate).Methods("GET")
+	bulkRouter.Path("/application/see-example").HandlerFunc(router.restHandler.GetExampleOperationBulkUpdate).Methods("GET")
 	bulkRouter.Path("/application/{dryrun}").HandlerFunc(router.restHandler.GetAppNameDeploymentTemplate).Methods("POST")
 	bulkRouter.Path("/application").HandlerFunc(router.restHandler.BulkUpdateDeploymentTemplate).Methods("POST")
 }
