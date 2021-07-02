@@ -63,13 +63,13 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(fmt.Sprintf("@every %dm", watcher.posthogConfig.SummaryInterval), watcher.SummaryEventForTelemetry)
+	_, err := cron.AddFunc(fmt.Sprintf("@every %dh", watcher.posthogConfig.SummaryInterval), watcher.SummaryEventForTelemetry)
 	if err != nil {
 		fmt.Println("error in starting summery event", "err", err)
 		return nil, err
 	}
 
-	_, err = cron.AddFunc(fmt.Sprintf("@every %dm", watcher.posthogConfig.HeartbeatInterval), watcher.HeartbeatEventForTelemetry)
+	_, err = cron.AddFunc(fmt.Sprintf("@every %dh", watcher.posthogConfig.HeartbeatInterval), watcher.HeartbeatEventForTelemetry)
 	if err != nil {
 		fmt.Println("error in starting heartbeat event", "err", err)
 		return nil, err
