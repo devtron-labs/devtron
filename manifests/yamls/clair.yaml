@@ -60,7 +60,7 @@ spec:
           secretName: clair
       initContainers:
       - name: pg-ready-wait
-        image: postgres:11.3
+        image: "quay.io/devtron/postgres:11.3"
         command: [ "sh", "-c",
           "until pg_isready -h postgresql-postgresql.devtroncd -p 5432;
           do echo waiting for database; sleep 1; done;"]

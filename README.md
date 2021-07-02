@@ -1,25 +1,25 @@
-<p align="center"><img width="200" height="156" src="./assets/logo.png"></p>
+<p align="center"><img width="200" height="156" src="./assets/devtron-logo.png"></p>
 <p align="center">Devtron is an open source software delivery workflow for kubernetes written in go.
 <br>
-<a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
+<a href="https://docs.devtron.ai/" target="_blank" rel="nofollow"><strong>Explore documentation »</strong></a>
 <br>
 <br>
-<a href="https://devtron.ai/">Website</a>
+<a href="https://devtron.ai/" target="_blank">Website</a>
 ·
-<a href="https://devtron.ai/blog/">Blog</a>
+<a href="https://devtron.ai/blog/" target="_blank">Blog</a>
 ·
-<a href="https://discord.gg/jsRG5qx2gp">Join Discord</a>
+<a href="https://discord.gg/jsRG5qx2gp" target="_blank">Join Discord</a>
 ·
-<a href="https://twitter.com/DevtronL">Twitter</a>
+<a href="https://twitter.com/DevtronL" target="_blank">Twitter</a>
 
 </p>
 <p align="center">
-<a href="https://discord.gg/jsRG5qx2gp"><img src="https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg" alt="Join Discord"></a>
-<a href="https://goreportcard.com/badge/github.com/devtron-labs/devtron"><img src="https://goreportcard.com/badge/github.com/devtron-labs/devtron" alt="Go Report Card"></a>
-<a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
-<a href="https://bestpractices.coreinfrastructure.org/projects/4411"><img src="https://bestpractices.coreinfrastructure.org/projects/4411/badge" alt="CII Best Practices"></a>
-<a href="http://golang.org"><img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go"></a>
-<a href="http://devtron.ai/"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
+<a href="https://discord.gg/jsRG5qx2gp" target="_blank"><img src="https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg" alt="Join Discord"></a>
+<a href="https://goreportcard.com/badge/github.com/devtron-labs/devtron" target="_blank"><img src="https://goreportcard.com/badge/github.com/devtron-labs/devtron" alt="Go Report Card"></a>
+<a href="./LICENSE" target="_blank"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+<a href="https://bestpractices.coreinfrastructure.org/projects/4411" target="_blank"><img src="https://bestpractices.coreinfrastructure.org/projects/4411/badge" alt="CII Best Practices"></a>
+<a href="http://golang.org" target="_blank"><img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go"></a>
+<a href="http://devtron.ai/" target="_blank"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
 
 </p>
 
@@ -28,7 +28,7 @@
 - [Why Devtron](https://github.com/devtron-labs/devtron#bulb-why-devtron) 
 - [Features](https://github.com/devtron-labs/devtron#tada-features)
 - [Getting Started](https://github.com/devtron-labs/devtron#rocket-getting-started)
-- [Documentation](https://docs.devtron.ai/)
+- <a href="https://docs.devtron.ai/" target="_blank">Documentation</a>
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
 - [Contribute](https://github.com/devtron-labs/devtron#handshake-contribute)
@@ -124,7 +124,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 --set secrets.POSTGRESQL_PASSWORD=change-me
 ```
 
-For detailed instructions and other options, check out [devtron installation documentation](https://docs.devtron.ai/setup/install)
+For detailed instructions and other options, check out  <a href="https://docs.devtron.ai/setup/install" target="_blank">devtron installation documentation</a>
 
 
 #### :key: Access Devtron dashboard

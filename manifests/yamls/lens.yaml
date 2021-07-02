@@ -229,7 +229,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: envoy
-          image: envoyproxy/envoy:v1.14.1
+          image: "quay.io/devtron/envoy:v1.14.1"
           ports:
             - containerPort: 9901
               protocol: TCP

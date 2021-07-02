@@ -32,6 +32,7 @@ import (
 type PosthogClient struct {
 	Client posthog.Client
 	cache  *cache.Cache
+	cfg    *PosthogConfig
 }
 
 type PosthogConfig struct {
@@ -41,6 +42,7 @@ type PosthogConfig struct {
 	HeartbeatInterval       int    `env:"HEARTBEAT_INTERVAL" envDefault:"3"`
 	CacheExpiry             int    `env:"CACHE_EXPIRY" envDefault:"120"`
 	TelemetryApiKeyEndpoint string `env:"TELEMETRY_API_KEY_ENDPOINT" envDefault:"aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9hcGlrZXk="`
+	PosthogEncodedApiKey    string
 }
 
 func GetPosthogConfig() (*PosthogConfig, error) {
@@ -60,12 +62,13 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 		//return &PosthogClient{}, err
 	}
 	if len(cfg.PosthogApiKey) == 0 {
-		apiKey, err := getPosthogApiKey(cfg.TelemetryApiKeyEndpoint)
+		encodedApiKey, apiKey, err := getPosthogApiKey(cfg.TelemetryApiKeyEndpoint)
 		if err != nil {
 			logger.Errorw("exception caught while getting api key", "err", err)
 			//return &PosthogClient{}, err
 		}
 		cfg.PosthogApiKey = apiKey
+		cfg.PosthogEncodedApiKey = encodedApiKey
 	}
 	client, _ := posthog.NewWithConfig(cfg.PosthogApiKey, posthog.Config{Endpoint: cfg.PosthogEndpoint})
 	//defer client.Close()
@@ -74,42 +77,43 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 	pgClient := &PosthogClient{
 		Client: client,
 		cache:  c,
+		cfg:    cfg,
 	}
 	return pgClient, nil
 }
 
-func getPosthogApiKey(encodedPosthogApiKeyUrl string) (string, error) {
+func getPosthogApiKey(encodedPosthogApiKeyUrl string) (string, string, error) {
 	dncodedPosthogApiKeyUrl, err := base64.StdEncoding.DecodeString(encodedPosthogApiKeyUrl)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	apiKeyUrl := string(dncodedPosthogApiKeyUrl)
 	req, err := http.NewRequest(http.MethodGet, apiKeyUrl, nil)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	//var client *http.Client
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if res.StatusCode >= 200 && res.StatusCode <= 299 {
 		resBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		var apiRes map[string]interface{}
 		err = json.Unmarshal(resBody, &apiRes)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		encodedApiKey := apiRes["result"].(string)
 		apiKey, err := base64.StdEncoding.DecodeString(encodedApiKey)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
-		return string(apiKey), err
+		return encodedApiKey, string(apiKey), err
 	}
-	return "", err
+	return "", "", err
 }

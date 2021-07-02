@@ -55,7 +55,7 @@ spec:
                   release: "devtron"
       containers:
       - name: nats-streaming
-        image: docker.io/nats-streaming:0.11.2
+        image: "quay.io/devtron/nats-streaming:0.11.2"
         imagePullPolicy: IfNotPresent
         env:
         - name: POD_NAME
