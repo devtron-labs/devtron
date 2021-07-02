@@ -207,7 +207,7 @@ data:
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13321/revisions/2/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
+      "https://grafana.com/api/dashboards/13321/revisions/5/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
     > "/var/lib/grafana/dashboards/devtron-provider/response-status.json"
     curl -skf \
     --connect-timeout 60 \
