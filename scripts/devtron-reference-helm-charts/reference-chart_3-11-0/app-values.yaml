@@ -213,3 +213,8 @@ envoyproxy:
     requests:
       cpu: 50m
       memory: 50Mi
+
+
+imagePullSecrets: []
+  # - test1
+  # - test2
