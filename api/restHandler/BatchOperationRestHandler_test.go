@@ -16,7 +16,7 @@
  */
 
 package restHandler
-
+/*
 import (
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"testing"
@@ -82,4 +82,4 @@ func Test_validatePipeline(t *testing.T) {
 			}
 		})
 	}
-}
+*/

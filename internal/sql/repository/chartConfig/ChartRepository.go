@@ -131,11 +131,11 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkAppNameIsGlobal(appNameInclude
 	//Concatenating string according to sql LIKE operator required format
 	var appNameIncludesQuery string
 	for _,appNameInclude :=range appNameIncludes{
-		appNameIncludesQuery += fmt.Sprintf("%s%s%s"," app_name like '%", appNameInclude, "%' and")
+		appNameIncludesQuery += fmt.Sprintf("%s%s%s"," app_name like '", appNameInclude, "' and")
 	}
 	var appNameExcludesQuery string
 	for _,appNameExclude :=range appNameExcludes{
-		appNameExcludesQuery += fmt.Sprintf("%s%s%s"," app_name like '%", appNameExclude, "%' and")
+		appNameExcludesQuery += fmt.Sprintf("%s%s%s"," app_name like '", appNameExclude, "' and")
 	}
 	err := repositoryImpl.dbConnection.
 		Model(&apps).Join("inner join charts on app.id = app_id").
@@ -150,11 +150,11 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkAppNameIsNotGlobal(appNameIncl
 	//Concatenating string according to sql LIKE operator required format
 	var appNameIncludesQuery string
 	for _,appNameInclude :=range appNameIncludes{
-		appNameIncludesQuery += fmt.Sprintf("%s%s%s"," app_name like '%", appNameInclude, "%' and")
+		appNameIncludesQuery += fmt.Sprintf("%s%s%s"," app_name like '", appNameInclude, "' and")
 	}
 	var appNameExcludesQuery string
 	for _,appNameExclude :=range appNameExcludes{
-		appNameExcludesQuery += fmt.Sprintf("%s%s%s"," app_name like '%", appNameExclude, "%' and")
+		appNameExcludesQuery += fmt.Sprintf("%s%s%s"," app_name like '", appNameExclude, "' and")
 	}
 	err := repositoryImpl.dbConnection.
 		Model(&apps).Join("inner join charts on app.id = app_id").
@@ -168,11 +168,11 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkChartsByAppNameSubstring(appNa
 	//Concatenating string according to sql LIKE operator required format
 	var appNameIncludesQuery string
 	for _,appNameInclude :=range appNameIncludes{
-		appNameIncludesQuery += fmt.Sprintf("%s%s%s"," app_name like '%", appNameInclude, "%' and")
+		appNameIncludesQuery += fmt.Sprintf("%s%s%s"," app_name like '", appNameInclude, "' and")
 	}
 	var appNameExcludesQuery string
 	for _,appNameExclude :=range appNameExcludes{
-		appNameExcludesQuery += fmt.Sprintf("%s%s%s"," app_name like '%", appNameExclude, "%' and")
+		appNameExcludesQuery += fmt.Sprintf("%s%s%s"," app_name like '", appNameExclude, "' and")
 	}
 	err := repositoryImpl.dbConnection.
 		Model(&charts).Join("inner join app on app.id=app_id ").
@@ -185,11 +185,11 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkChartsEnvByAppNameSubstring(ap
 	//Concatenating string according to sql LIKE operator required format
 	var appNameIncludesQuery string
 	for _,appNameInclude :=range appNameIncludes{
-		appNameIncludesQuery += fmt.Sprintf("%s%s%s"," app_name like '%", appNameInclude, "%' and")
+		appNameIncludesQuery += fmt.Sprintf("%s%s%s"," app_name like '", appNameInclude, "' and")
 	}
 	var appNameExcludesQuery string
 	for _,appNameExclude :=range appNameExcludes{
-		appNameExcludesQuery += fmt.Sprintf("%s%s%s"," app_name like '%", appNameExclude, "%' and")
+		appNameExcludesQuery += fmt.Sprintf("%s%s%s"," app_name like '", appNameExclude, "' and")
 	}
 	err := repositoryImpl.dbConnection.
 		Model(&charts).Join("inner join charts on charts.id=chart_id").
