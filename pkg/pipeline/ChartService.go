@@ -49,7 +49,7 @@ import (
 )
 
 type NameIncludesExcludes struct {
-	Name string `json:"name"`
+	Name []string `json:"name"`
 }
 type Specs struct {
 	PatchJson string `json:"patchJson"`
@@ -139,6 +139,7 @@ type DefaultChart string
 type ChartService interface {
 	GetBulkUpdateRequestExample(task string) (response BulkUpdateRequest, err error)
 	GetBulkAppName(bulkUpdateRequest BulkUpdatePayload) ([]*ImpactedObjectsResponse, error)
+	ApplyJsonPatch(patch jsonpatch.Patch,target string) (string, error)
 	BulkUpdateDeploymentTemplate(bulkUpdateRequest BulkUpdatePayload) (response string, err error)
 
 	Create(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
@@ -260,7 +261,13 @@ func (impl ChartServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePayload)
 	}
 	return impactedObjectsResponse, nil
 }
-
+func (impl ChartServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch,target string) (string, error) {
+	modified, err:= patch.Apply([]byte(target))
+	if err != nil {
+		return "Patch Failed", err
+	}
+	return string(modified),err
+}
 func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload BulkUpdatePayload) (string, error) {
 	patchJson := []byte(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson)
 	patch, err := jsonpatch.DecodePatch(patchJson)
@@ -274,11 +281,11 @@ func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload Bulk
 			return "Bulk Update Failed", err
 		}
 		for _, chart := range charts {
-			modified, err := patch.Apply([]byte(chart.Values))
+			modified, err := impl.ApplyJsonPatch(patch,chart.Values)
 			if err != nil {
 				return "Bulk Update Failed", err
 			}
-			UpdatedPatchMap[chart.Id] = string(modified)
+			UpdatedPatchMap[chart.Id] = modified
 		}
 		err = impl.chartRepository.BulkUpdateChartsValuesYamlAndGlobalOverrideById(UpdatedPatchMap)
 		if err != nil {
@@ -291,7 +298,7 @@ func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload Bulk
 			return "Bulk Update Failed", err
 		}
 		for _, chartEnv := range chartsEnv {
-			modified, err := patch.Apply([]byte(chartEnv.EnvOverrideYaml))
+			modified, err := impl.ApplyJsonPatch(patch,chartEnv.EnvOverrideYaml)
 			if err != nil {
 				return "Bulk Update Failed", err
 			}
