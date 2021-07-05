@@ -38,8 +38,8 @@ type PosthogClient struct {
 type PosthogConfig struct {
 	PosthogApiKey           string `env:"POSTHOG_API_KEY" envDefault:""`
 	PosthogEndpoint         string `env:"POSTHOG_ENDPOINT" envDefault:"https://app.posthog.com"`
-	SummaryCronExpr         string `env:"SUMMARY_CRON_EXPR" envDefault:"0 0 * * *"` // Run once a day, midnight
-	HeartbeatCronExpr       string `env:"HEARTBEAT_CRON_EXPR" envDefault:"0/5 * * * *"`
+	SummaryCronExpr         string `env:"SUMMARY_CRON_EXPR" envDefault:"0 0 * * *"`     // Run once a day, midnight
+	HeartbeatCronExpr       string `env:"HEARTBEAT_CRON_EXPR" envDefault:"0/5 * * * *"` // Run every 5 min
 	CacheExpiry             int    `env:"CACHE_EXPIRY" envDefault:"120"`
 	TelemetryApiKeyEndpoint string `env:"TELEMETRY_API_KEY_ENDPOINT" envDefault:"aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9hcGlrZXk="`
 	PosthogEncodedApiKey    string
