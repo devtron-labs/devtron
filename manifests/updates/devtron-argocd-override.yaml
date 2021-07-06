@@ -1,0 +1,117 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: argocd-ssh-known-hosts-cm
+    update:
+      data:
+        ssh_known_hosts: |
+          ssh-public-key
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-dex-server
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              resources:
+                limits:
+                  cpu: 1m
+                  memory: 50Mi
+                requests:
+                  cpu: 0.2m
+                  memory: 10Mi
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-redis
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              resources:
+                limits:
+                  cpu: 5m
+                  memory: 10Mi
+                requests:
+                  cpu: 1m
+                  memory: 2Mi
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-repo-server
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              resources:
+                limits:
+                  cpu: 800m
+                  memory: 330Mi
+                requests:
+                  cpu: 300m
+                  memory: 110Mi
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-server
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              resources:
+                limits:
+                  cpu: 10m
+                  memory: 60Mi
+                requests:
+                  cpu: 3m
+                  memory: 20Mi
+    ---
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: argocd-application-controller
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              resources:
+                limits:
+                  cpu: 300m
+                  memory: 220Mi
+                requests:
+                  cpu: 100m
+                  memory: 100Mi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

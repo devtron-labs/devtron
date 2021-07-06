@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-operator-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: nats-operator
+    update:
+      spec:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              ports:
+              - name: readyz
+                containerPort: 8080
+              env:
+              - name: MY_POD_NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+              - name: MY_POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              resources:
+                limits:
+                  cpu: 5m
+                  memory: 20Mi
+                requests:
+                  cpu: 1m
+                  memory: 10Mi

@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lens-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: lens-cm
+    update:
+      date:
+        GIT_SENSOR_URL: http://git-sensor-service.devtroncd:80
+        NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+        PG_ADDR: postgresql-postgresql.devtroncd
+        PG_PORT: "5432"
+        PG_USER: postgres
+        PG_DATABASE: lens
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: lens
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              env:
+              - name: CONFIG_HASH
+                value: 1b9a3decafa1e6653dbe094dc6214c1caff4f2185f1a533d5dc566cd5bdebc2a
+              - name: SECRET_HASH
+                value: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+              - name: POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              resources:
+                limits:
+                  cpu: 200m
+                  memory: 20Mi
+                requests:
+                  cpu: 50m
+                  memory: 10Mi

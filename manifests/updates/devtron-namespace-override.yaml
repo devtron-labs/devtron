@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: namespace-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: monitoring
+    update:
+      metadata:
+        name: monitoring
+        annotations:
+          owner: abhinav
+    ---
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: devtron-ci
+    update:
+      metadata:
+        name: devtron-ci
+        annotations:
+          owner: abhinav

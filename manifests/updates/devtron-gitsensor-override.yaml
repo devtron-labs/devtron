@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: git-sensor-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: git-sensor-cm
+    update:
+      data:
+        PG_ADDR: postgresql-postgresql.devtroncd
+        PG_USER: change-me
+    ---
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: git-sensor
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 220Mi
+                requests:
+                  cpu: 20m
+                  memory: 100Mi
+        volumeClaimTemplates:
+          spec:
+            resources:
+              requests:
+                storage: 2Gi

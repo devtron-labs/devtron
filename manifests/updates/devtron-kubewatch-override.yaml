@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubewatch-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: kubewatch
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              env:
+              - name: devtroncd_NAMESPACE
+                value: "devtron-ci"
+              - name: CI_INFORMER
+                value: "true"
+              - name: ACD_NAMESPACE
+                value: devtroncd
+              - name: ACD_INFORMER
+                value: "true"
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 20Mi
+                limits:
+                  cpu: 1m
+                  memory: 5Mi

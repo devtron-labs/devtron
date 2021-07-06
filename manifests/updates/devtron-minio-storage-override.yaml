@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-storage-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: devtron-minio
+    update:
+      data:
+        accesskey: ""
+        secretkey: ""
+    ---
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: devtron-minio
+    update:
+      spec:
+        replicas: 4
+        template:
+          spec:
+            containers:
+              env:
+              - name: MINIO_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: devtron-minio
+                    key: accesskey
+              - name: MINIO_SECRET_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: devtron-minio
+                    key: secretkey
+              resources:
+                requests:
+                  memory: 1Gi
+    ---
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: devtron-minio-make-bucket-job
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              resources:
+                requests:
+                  memory: 128Mi
+
+
+
+
+
+
+
+
+
+
+
+
+
+

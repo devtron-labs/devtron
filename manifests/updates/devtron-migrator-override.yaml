@@ -1,0 +1,192 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: migrator-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: postgresql-migrate-devtron
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              env:
+              - name: GIT_BRANCH
+                value: main
+              - name: SCRIPT_LOCATION
+                value: scripts/sql/
+              - name: GIT_REPO_URL
+                value: https://github.com/devtron-labs/devtron.git
+              - name: DB_TYPE
+                value: postgres
+              - name: DB_USER_NAME
+                value: postgres
+              - name: DB_HOST
+                value: postgresql-postgresql.devtroncd
+              - name: DB_PORT
+                value: "5432"
+              - name: DB_NAME
+                value: orchestrator                      
+              - name: MIGRATE_TO_VERSION
+                value: "0"
+              - name: GIT_HASH
+                value: 8a4fa90e576500bba21f546d5ce5c78d8592e7e1
+                envFrom:
+                  - secretRef:
+                      name: postgresql-migrator
+    ---
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: postgresql-migrate-casbin
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              env:
+              - name: SCRIPT_LOCATION
+                value: scripts/casbin/
+              - name: GIT_REPO_URL
+                value: https://github.com/devtron-labs/devtron.git
+              - name: DB_TYPE
+                value: postgres
+              - name: DB_USER_NAME
+                value: postgres
+              - name: DB_HOST
+                value: postgresql-postgresql.devtroncd
+              - name: DB_PORT
+                value: "5432"
+              - name: DB_NAME
+                value: casbin
+              - name: MIGRATE_TO_VERSION
+                value: "0"
+              - name: GIT_HASH
+                value: 4ed6cdfcf6f13a93eb0c3c58d8b4f13292856960
+              - name: GIT_BRANCH
+                value: main
+              envFrom:
+                - secretRef:
+                    name: postgresql-migrator
+    ---
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: postgresql-migrate-gitsensor
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              env:
+              - name: SCRIPT_LOCATION
+                value: scripts/sql/
+              - name: GIT_REPO_URL
+                value: https://github.com/devtron-labs/git-sensor.git
+              - name: DB_TYPE
+                value: postgres
+              - name: DB_USER_NAME
+                value: postgres
+              - name: DB_HOST
+                value: postgresql-postgresql.devtroncd
+              - name: DB_PORT
+                value: "5432"
+              - name: DB_NAME
+                value: git_sensor
+              - name: MIGRATE_TO_VERSION
+                value: "0"
+              - name: GIT_BRANCH
+                value: main
+              - name: GIT_HASH
+                value: 8badb0374525dd0cef0b6d00bc91195d659135c2
+              envFrom:
+              - secretRef:
+                  name: postgresql-migrator
+    ---
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: postgresql-migrate-lens
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              env:
+              - name: SCRIPT_LOCATION
+                value: scripts/sql/
+              - name: GIT_REPO_URL
+                value: https://github.com/devtron-labs/lens.git
+              - name: DB_TYPE
+                value: postgres
+              - name: DB_USER_NAME
+                value: postgres
+              - name: DB_HOST
+                value: postgresql-postgresql.devtroncd
+              - name: DB_PORT
+                value: "5432"
+              - name: DB_NAME
+                value: lens
+              - name: MIGRATE_TO_VERSION
+                value: "0"
+              - name: GIT_BRANCH
+                value: main
+              - name: GIT_HASH
+                value: 772fcb2a4b3198879efb6139ed3a27dfb40ed681
+              envFrom:
+              - secretRef:
+                  name: postgresql-migrator
+    ---
+    apiVersion: batch/v1beta1
+    kind: CronJob
+    metadata:
+      name: app-sync-cronjob
+    update:
+      spec:
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                  env:
+                  - name: PG_ADDR
+                    value: postgresql-postgresql.devtroncd
+                  - name: PG_DATABASE
+                    value: orchestrator
+                  - name: PG_USER
+                    value: postgres
+                  envFrom:
+                  - secretRef:
+                      name: devtron-secret
+    ---
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: app-sync-job
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+              env:
+              - name: PG_ADDR
+                value: postgresql-postgresql.devtroncd
+              - name: PG_DATABASE
+                value: orchestrator
+              - name: PG_USER
+                value: postgres
+              envFrom:
+              - secretRef:
+                  name: devtron-secret
+
+
+
+
+
+
+
+
