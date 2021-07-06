@@ -49,7 +49,7 @@ import (
 )
 
 type NameIncludesExcludes struct {
-	Name []string `json:"name"`
+	Names []string `json:"names"`
 }
 type Specs struct {
 	PatchJson string `json:"patchJson"`
@@ -65,13 +65,13 @@ type BulkUpdatePayload struct {
 	DeploymentTemplate Tasks                `json:"deploymentTemplate"`
 }
 type BulkUpdateScript struct {
-	ApiVersion string            `json:"apiVersion"`
-	Kind       string            `json:"kind"`
-	Payload    BulkUpdatePayload `json:"payload"`
+	ApiVersion string            `json:"apiVersion" validate:"required"`
+	Kind       string            `json:"kind" validate:"required"`
+	Payload    BulkUpdatePayload `json:"payload" validate:"required"`
 }
 type BulkUpdateRequest struct {
 	Task   string           `json:"task"`
-	Script BulkUpdateScript `json:"script"`
+	Script BulkUpdateScript `json:"script" validate:"required"`
 	Readme string           `json:"readme"`
 }
 
@@ -229,14 +229,19 @@ func (impl ChartServiceImpl) GetBulkUpdateRequestExample(task string) (BulkUpdat
 	return response, nil
 }
 func (impl ChartServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePayload) ([]*ImpactedObjectsResponse, error) {
-	var impactedObjectsResponse []*ImpactedObjectsResponse
+	impactedObjectsResponse:= []*ImpactedObjectsResponse{}
+	AppTrackMap := make(map[int]string)
 	if bulkUpdatePayload.Global {
 		appsGlobal, err := impl.chartRepository.
-			FindBulkAppNameIsGlobal(bulkUpdatePayload.Includes.Name, bulkUpdatePayload.Excludes.Name)
+			FindBulkAppNameIsGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
 		if err != nil {
 			return nil, err
 		}
 		for _, app := range appsGlobal {
+			if _,AppAlreadyAddedToResponse:=AppTrackMap[app.Id];AppAlreadyAddedToResponse{
+				continue
+			}
+			AppTrackMap[app.Id] = app.AppName
 			impactedObject := &ImpactedObjectsResponse{
 				AppId:   app.Id,
 				AppName: app.AppName,
@@ -246,11 +251,14 @@ func (impl ChartServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePayload)
 	}
 	for _, envId := range bulkUpdatePayload.EnvIds {
 		appsNotGlobal, err := impl.chartRepository.
-			FindBulkAppNameIsNotGlobal(bulkUpdatePayload.Includes.Name, bulkUpdatePayload.Excludes.Name, envId)
+			FindBulkAppNameIsNotGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
 		if err != nil {
 			return nil, err
 		}
 		for _, app := range appsNotGlobal {
+			if _,AppAlreadyAddedToResponse:=AppTrackMap[app.Id];AppAlreadyAddedToResponse{
+				continue
+			}
 			impactedObject := &ImpactedObjectsResponse{
 				AppId:   app.Id,
 				AppName: app.AppName,
@@ -276,7 +284,7 @@ func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload Bulk
 	}
 	UpdatedPatchMap := make(map[int]string)
 	if bulkUpdatePayload.Global {
-		charts, err := impl.chartRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Name, bulkUpdatePayload.Excludes.Name)
+		charts, err := impl.chartRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
 		if err != nil {
 			return "Bulk Update Failed", err
 		}
@@ -293,7 +301,7 @@ func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload Bulk
 		}
 	}
 	for _, envId := range bulkUpdatePayload.EnvIds {
-		chartsEnv, err := impl.chartRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdatePayload.Includes.Name, bulkUpdatePayload.Excludes.Name, envId)
+		chartsEnv, err := impl.chartRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
 		if err != nil {
 			return "Bulk Update Failed", err
 		}
