@@ -9,20 +9,20 @@ data:
     kind: Deployment
     metadata:
       name: argo-ui
-    update:
-      spec:
-        template:
-          spec:
-            containers:
-            - env:
-              - name: ARGO_NAMESPACE
-                valueFrom:
-                  fieldRef:
-                    apiVersion: v1
-                    fieldPath: metadata.namespace
-              - name: IN_CLUSTER
-                value: "true"
-              - name: ENABLE_WEB_CONSOLE
-                value: "false"
-              - name: BASE_HREF
-                value: /
+#    update:
+#      spec:
+#        template:
+#          spec:
+#            containers:
+#            - env:
+#              - name: ARGO_NAMESPACE
+#                valueFrom:
+#                  fieldRef:
+#                    apiVersion: v1
+#                    fieldPath: metadata.namespace
+#              - name: IN_CLUSTER
+#                value: "true"
+#              - name: ENABLE_WEB_CONSOLE
+#                value: "false"
+#              - name: BASE_HREF
+#                value: /

@@ -15,15 +15,12 @@ data:
       template:
         spec:
           containers:
-            resources:
-              limits:
-                cpu: 40m
-                memory: 250Mi
+          - resources:
               requests:
                 cpu: 10m
-                memory: 100Mi
-            env:
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
+                memory: 50Mi
+#            env:
+#            - name: POD_NAME
+#              valueFrom:
+#                fieldRef:
+#                  fieldPath: metadata.name

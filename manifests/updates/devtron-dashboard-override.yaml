@@ -16,12 +16,13 @@ data:
         template:
           spec:
             containers:
+            - 
             - resources:
                 limits:
                   cpu: 20m
                   memory: 40Mi
                 requests:
                   cpu: 10m
-                  memory: 20Mi
+                  memory: 10Mi
 
 

@@ -14,18 +14,10 @@ data:
         template:
           spec:
             containers:
-              resources:
+            - resources:
                 requests:
                   cpu: 200m
                   memory: 550Mi
-              env:
-              - name: POSTGRES_USER
-                value: "postgres"
-              - name: POSTGRES_PASSWORD
-                valueFrom:
-                  secretKeyRef:
-                    name: postgresql-postgresql
-                    key: postgresql-password
             volumeClaimTemplates:
               spec:
                 resources:

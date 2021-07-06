@@ -9,10 +9,10 @@ data:
     kind: ConfigMap
     metadata:
       name: argocd-ssh-known-hosts-cm
-    update:
-      data:
-        ssh_known_hosts: |
-          ssh-public-key
+ #   update:
+ #     data:
+ #       ssh_known_hosts: |
+ #         ssh-public-key
     ---
     apiVersion: apps/v1
     kind: Deployment
@@ -23,13 +23,13 @@ data:
         template:
           spec:
             containers:
-              resources:
+            - resources:
                 limits:
                   cpu: 1m
-                  memory: 50Mi
+                  memory: 25Mi
                 requests:
-                  cpu: 0.2m
-                  memory: 10Mi
+                  cpu: 1m
+                  memory: 20Mi
     ---
     apiVersion: apps/v1
     kind: Deployment
@@ -40,13 +40,13 @@ data:
         template:
           spec:
             containers:
-              resources:
+            - resources:
                 limits:
                   cpu: 5m
                   memory: 10Mi
                 requests:
-                  cpu: 1m
-                  memory: 2Mi
+                  cpu: 4m
+                  memory: 9Mi
     ---
     apiVersion: apps/v1
     kind: Deployment
@@ -57,13 +57,10 @@ data:
         template:
           spec:
             containers:
-              resources:
-                limits:
-                  cpu: 800m
-                  memory: 330Mi
+            - resources:
                 requests:
-                  cpu: 300m
-                  memory: 110Mi
+                  cpu: 100m
+                  memory: 50Mi
     ---
     apiVersion: apps/v1
     kind: Deployment
@@ -74,13 +71,13 @@ data:
         template:
           spec:
             containers:
-              resources:
+            - resources:
                 limits:
                   cpu: 10m
                   memory: 60Mi
                 requests:
-                  cpu: 3m
-                  memory: 20Mi
+                  cpu: 9m
+                  memory: 50Mi
     ---
     apiVersion: apps/v1
     kind: StatefulSet
@@ -91,13 +88,10 @@ data:
         template:
           spec:
             containers:
-              resources:
-                limits:
-                  cpu: 300m
-                  memory: 220Mi
+            - resources:
                 requests:
                   cpu: 100m
-                  memory: 100Mi
+                  memory: 50Mi
 
 
 

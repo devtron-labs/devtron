@@ -13,19 +13,16 @@ data:
       spec:
         template:
           spec:
-            containers"
-            - env:
-              - name: CONFIG_HASH
-                value: give-value
-              - name: SECRET_HASH
-                value: give-value
-              - name: DEVTRON_APP_NAME
-                value: guard
-            resources:
-              limits:
-                cpu: 200m
-                memory: 120Mi
-              requests:
-                cpu: 100m
-                memory: 50Mi
+            containers:
+            - resources:
+                requests:
+                  cpu: 100m
+                  memory: 50Mi
+#             env:
+#              - name: CONFIG_HASH
+#                value: give-value
+#              - name: SECRET_HASH
+#                value: give-value
+#              - name: DEVTRON_APP_NAME
+#                value: guard
 

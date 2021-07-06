@@ -21,15 +21,11 @@ data:
       name: devtron-grafana
     update:
       spec:
-        replicas: 1
         template:
           spec:
             containers:
-              resources:
-                limits:
-                  cpu: 300m
-                  memory: 400Mi
-              requests:
-                cpu: 300m
-                memory: 400Mi
+            - resources:
+                requests:
+                  cpu: 30m
+                  memory: 100Mi
 
