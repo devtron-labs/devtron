@@ -216,7 +216,7 @@ func (impl TeamRestHandlerImpl) FindTeamByAppName(w http.ResponseWriter, r *http
 	appName := vars["appName"]
 	team, err := impl.teamService.FindTeamByAppName(appName)
 	if err != nil {
-		impl.logger.Errorw("service err, FindTeamByAppName", "err", err, "appName", appName)
+		impl.logger.Errorw("service err, FindActiveTeamByAppName", "err", err, "appName", appName)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

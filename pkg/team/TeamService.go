@@ -89,7 +89,7 @@ func (impl TeamServiceImpl) Create(request *TeamRequest) (*TeamRequest, error) {
 
 func (impl TeamServiceImpl) FetchAll() ([]TeamRequest, error) {
 	impl.logger.Debug("fetch all team from db")
-	teams, err := impl.teamRepository.FindAll()
+	teams, err := impl.teamRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all team", "err", err)
 		return nil, err
@@ -169,7 +169,7 @@ func (impl TeamServiceImpl) FindTeamByAppId(appId int) (*TeamBean, error) {
 }
 
 func (impl TeamServiceImpl) FindTeamByAppName(appName string) (*TeamBean, error) {
-	team, err := impl.teamRepository.FindTeamByAppName(appName)
+	team, err := impl.teamRepository.FindActiveTeamByAppName(appName)
 	if err != nil {
 		impl.logger.Errorw("error while fetching team", "err", err)
 		return nil, err
@@ -180,7 +180,7 @@ func (impl TeamServiceImpl) FindTeamByAppName(appName string) (*TeamBean, error)
 
 func (impl TeamServiceImpl) FetchForAutocomplete() ([]TeamRequest, error) {
 	impl.logger.Debug("fetch all team from db")
-	teams, err := impl.teamRepository.FindAll()
+	teams, err := impl.teamRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all team", "err", err)
 		return nil, err
