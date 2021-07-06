@@ -229,7 +229,8 @@ func (impl ChartServiceImpl) GetBulkUpdateRequestExample(task string) (BulkUpdat
 	return response, nil
 }
 func (impl ChartServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePayload) ([]*ImpactedObjectsResponse, error) {
-	var impactedObjectsResponse []*ImpactedObjectsResponse
+	impactedObjectsResponse:= []*ImpactedObjectsResponse{}
+	AppTrackMap := make(map[int]string)
 	if bulkUpdatePayload.Global {
 		appsGlobal, err := impl.chartRepository.
 			FindBulkAppNameIsGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
@@ -237,6 +238,10 @@ func (impl ChartServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePayload)
 			return nil, err
 		}
 		for _, app := range appsGlobal {
+			if _,AppAlreadyAddedToResponse:=AppTrackMap[app.Id];AppAlreadyAddedToResponse{
+				continue
+			}
+			AppTrackMap[app.Id] = app.AppName
 			impactedObject := &ImpactedObjectsResponse{
 				AppId:   app.Id,
 				AppName: app.AppName,
@@ -251,6 +256,9 @@ func (impl ChartServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePayload)
 			return nil, err
 		}
 		for _, app := range appsNotGlobal {
+			if _,AppAlreadyAddedToResponse:=AppTrackMap[app.Id];AppAlreadyAddedToResponse{
+				continue
+			}
 			impactedObject := &ImpactedObjectsResponse{
 				AppId:   app.Id,
 				AppName: app.AppName,

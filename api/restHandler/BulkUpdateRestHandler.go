@@ -119,6 +119,12 @@ func (handler BulkUpdateRestHandlerImpl) GetAppNameDeploymentTemplate(w http.Res
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	err = handler.validator.Struct(script)
+	if err != nil {
+		handler.Logger.Errorw("validation err, Script", "err", err, "BulkUpdateScript", script)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	token := r.Header.Get("token")
 	impactedApps, err := handler.chartService.GetBulkAppName(script.Payload)
 	if err != nil {
@@ -148,6 +154,12 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.Res
 	var script pipeline.BulkUpdateScript
 	err := decoder.Decode(&script)
 	if err != nil {
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(script)
+	if err != nil {
+		handler.Logger.Errorw("validation err, Script", "err", err, "BulkUpdateScript", script)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}

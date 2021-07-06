@@ -121,7 +121,7 @@ type ChartRepositoryImpl struct {
 func (repositoryImpl ChartRepositoryImpl) FindBatchOperationExample(task string) (*BatchOperationExample, error) {
 	batchOperationExample := &BatchOperationExample{}
 	err := repositoryImpl.dbConnection.
-		Model(batchOperationExample).Where("task like ?", task).
+		Model(batchOperationExample).Where("task LIKE ?", task).
 		Select()
 	return batchOperationExample, err
 }
@@ -159,24 +159,24 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkAppNameIsNotGlobal(appNameIncl
 	var appNameIncludesQuery string
 	for i, appNameInclude := range appNameIncludes {
 		if i == 0 {
-			appNameIncludesQuery += fmt.Sprintf("app_name like '%s' ", appNameInclude)
+			appNameIncludesQuery += fmt.Sprintf("app_name LIKE '%s' ", appNameInclude)
 		} else {
-			appNameIncludesQuery += fmt.Sprintf("OR app_name like '%s'", appNameInclude)
+			appNameIncludesQuery += fmt.Sprintf("OR app_name LIKE '%s'", appNameInclude)
 		}
 	}
 	var appNameExcludesQuery string
 	for i, appNameExclude := range appNameExcludes {
 		if i == 0 {
-			appNameExcludesQuery += fmt.Sprintf("app_name not like '%s' ", appNameExclude)
+			appNameExcludesQuery += fmt.Sprintf("app_name NOT LIKE '%s' ", appNameExclude)
 		} else {
-			appNameExcludesQuery += fmt.Sprintf("AND app_name not like '%s'", appNameExclude)
+			appNameExcludesQuery += fmt.Sprintf("AND app_name NOT LIKE '%s'", appNameExclude)
 		}
 	}
 	appNameQuery := fmt.Sprintf("%s AND %s", appNameIncludesQuery, appNameExcludesQuery)
 	err := repositoryImpl.dbConnection.
-		Model(&apps).Join("inner join charts on app.id = app_id").
-		Join("inner join chart_env_config_override on charts.id = chart_id").
-		Where(appNameQuery, " and target_environment = ? and chart_env_config_override.latest = ?", envId, true).
+		Model(&apps).Join("INNER JOIN charts ON app.id = app_id").
+		Join("INNER JOIN chart_env_config_override ON charts.id = chart_id").
+		Where(appNameQuery, " AND target_environment = ? AND chart_env_config_override.latest = ?", envId, true).
 		Select()
 	return apps, err
 }
@@ -186,23 +186,23 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkChartsByAppNameSubstring(appNa
 	var appNameIncludesQuery string
 	for i, appNameInclude := range appNameIncludes {
 		if i == 0 {
-			appNameIncludesQuery += fmt.Sprintf("app_name like '%s' ", appNameInclude)
+			appNameIncludesQuery += fmt.Sprintf("app_name LIKE '%s' ", appNameInclude)
 		} else {
-			appNameIncludesQuery += fmt.Sprintf("OR app_name like '%s'", appNameInclude)
+			appNameIncludesQuery += fmt.Sprintf("OR app_name LIKE '%s'", appNameInclude)
 		}
 	}
 	var appNameExcludesQuery string
 	for i, appNameExclude := range appNameExcludes {
 		if i == 0 {
-			appNameExcludesQuery += fmt.Sprintf("app_name not like '%s' ", appNameExclude)
+			appNameExcludesQuery += fmt.Sprintf("app_name NOT LIKE '%s' ", appNameExclude)
 		} else {
-			appNameExcludesQuery += fmt.Sprintf("AND app_name not like '%s'", appNameExclude)
+			appNameExcludesQuery += fmt.Sprintf("AND app_name NOT LIKE '%s'", appNameExclude)
 		}
 	}
 	appNameQuery := fmt.Sprintf("%s AND %s", appNameIncludesQuery, appNameExcludesQuery)
 	err := repositoryImpl.dbConnection.
-		Model(&charts).Join("inner join app on app.id=app_id ").
-		Where(appNameQuery, " and latest = ?", true).
+		Model(&charts).Join("INNER JOIN app ON app.id=app_id ").
+		Where(appNameQuery, " AND latest = ?", true).
 		Select()
 	return charts, err
 }
@@ -212,24 +212,24 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkChartsEnvByAppNameSubstring(ap
 	var appNameIncludesQuery string
 	for i, appNameInclude := range appNameIncludes {
 		if i == 0 {
-			appNameIncludesQuery += fmt.Sprintf("app_name like '%s' ", appNameInclude)
+			appNameIncludesQuery += fmt.Sprintf("app_name LIKE '%s' ", appNameInclude)
 		} else {
-			appNameIncludesQuery += fmt.Sprintf("OR app_name like '%s'", appNameInclude)
+			appNameIncludesQuery += fmt.Sprintf("OR app_name LIKE '%s'", appNameInclude)
 		}
 	}
 	var appNameExcludesQuery string
 	for i, appNameExclude := range appNameExcludes {
 		if i == 0 {
-			appNameExcludesQuery += fmt.Sprintf("app_name not like '%s' ", appNameExclude)
+			appNameExcludesQuery += fmt.Sprintf("app_name NOT LIKE '%s' ", appNameExclude)
 		} else {
-			appNameExcludesQuery += fmt.Sprintf("AND app_name not like '%s'", appNameExclude)
+			appNameExcludesQuery += fmt.Sprintf("AND app_name NOT LIKE '%s'", appNameExclude)
 		}
 	}
 	appNameQuery := fmt.Sprintf("%s AND %s", appNameIncludesQuery, appNameExcludesQuery)
 	err := repositoryImpl.dbConnection.
-		Model(&charts).Join("inner join charts on charts.id=chart_id").
-		Join("inner join app on app.id=app_id").
-		Where(appNameQuery, "and target_environment = ? and chart_env_config_override.latest = ?", envId, true).
+		Model(&charts).Join("INNER JOIN charts ON charts.id=chart_id").
+		Join("INNER JOIN app ON app.id=app_id").
+		Where(appNameQuery, " AND target_environment = ? AND chart_env_config_override.latest = ?", envId, true).
 		Select()
 	return charts, err
 }
