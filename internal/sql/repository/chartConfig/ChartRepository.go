@@ -185,7 +185,7 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkChartsByAppNameSubstring(appNa
 	//Concatenating string according to sql LIKE operator required format
 	var appNameIncludesQuery string
 	for i, appNameInclude := range appNameIncludes {
-		if i == 1 {
+		if i == 0 {
 			appNameIncludesQuery += fmt.Sprintf("app_name like '%s' ", appNameInclude)
 		} else {
 			appNameIncludesQuery += fmt.Sprintf("or app_name like '%s'", appNameInclude)
@@ -193,7 +193,7 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkChartsByAppNameSubstring(appNa
 	}
 	var appNameExcludesQuery string
 	for i, appNameExclude := range appNameExcludes {
-		if i == 1 {
+		if i == 0 {
 			appNameExcludesQuery += fmt.Sprintf("app_name not like '%s' ", appNameExclude)
 		} else {
 			appNameExcludesQuery += fmt.Sprintf("or app_name not like '%s'", appNameExclude)
@@ -211,7 +211,7 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkChartsEnvByAppNameSubstring(ap
 	//Concatenating string according to sql LIKE operator required format
 	var appNameIncludesQuery string
 	for i, appNameInclude := range appNameIncludes {
-		if i == 1 {
+		if i == 0 {
 			appNameIncludesQuery += fmt.Sprintf("app_name like '%s' ", appNameInclude)
 		} else {
 			appNameIncludesQuery += fmt.Sprintf("or app_name like '%s'", appNameInclude)
@@ -219,7 +219,7 @@ func (repositoryImpl ChartRepositoryImpl) FindBulkChartsEnvByAppNameSubstring(ap
 	}
 	var appNameExcludesQuery string
 	for i, appNameExclude := range appNameExcludes {
-		if i == 1 {
+		if i == 0 {
 			appNameExcludesQuery += fmt.Sprintf("app_name not like '%s' ", appNameExclude)
 		} else {
 			appNameExcludesQuery += fmt.Sprintf("or app_name not like '%s'", appNameExclude)
