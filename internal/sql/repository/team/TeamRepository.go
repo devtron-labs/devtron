@@ -57,7 +57,7 @@ func (impl TeamRepositoryImpl) Save(team *Team) error {
 
 func (impl TeamRepositoryImpl) FindAll() ([]Team, error) {
 	var teams []Team
-	err := impl.dbConnection.Model(&teams).Select()
+	err := impl.dbConnection.Model(&teams).Where("active = ?", true).Select()
 	return teams, err
 }
 
@@ -92,7 +92,7 @@ func (repo TeamRepositoryImpl) FindTeamByAppName(appName string) (*Team, error) 
 	team := &Team{}
 	err := repo.dbConnection.Model(team).Column("team.*").
 		Join("inner join app a on a.team_id = team.id").Where("a.app_name = ?", appName).
-		Where("a.active = ?", true).Select()
+		Where("team.active = ?", true).Where("a.active = ?", true).Select()
 	return team, err
 }
 
@@ -100,7 +100,7 @@ func (repo TeamRepositoryImpl) FindTeamByAppNameV2() ([]*TeamRbacObjects, error)
 	var rbacObjects []*TeamRbacObjects
 	err := repo.dbConnection.Model(&rbacObjects).Column("a.app_name as appName, a.id as appId, team.name as teamName").
 		Join("inner join app a on a.team_id = team.id").Where("a.active = ?", true).
-		Select()
+		Where("team.active = ?", true).Select()
 	return rbacObjects, err
 }
 
