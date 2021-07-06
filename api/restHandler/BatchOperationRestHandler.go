@@ -94,7 +94,7 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 			writeJsonResp(w, errors.New("app name cannot be empty"), nil, http.StatusBadRequest)
 		}
 
-		team, err := handler.teamService.FindTeamByAppName(*workflow.Destination.App)
+		team, err := handler.teamService.FindActiveTeamByAppName(*workflow.Destination.App)
 
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
 			writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)

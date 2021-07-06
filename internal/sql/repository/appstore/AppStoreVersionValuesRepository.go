@@ -27,7 +27,7 @@ type AppStoreVersionValuesRepository interface {
 	CreateAppStoreVersionValues(model *AppStoreVersionValues) (*AppStoreVersionValues, error)
 	UpdateAppStoreVersionValues(model *AppStoreVersionValues) (*AppStoreVersionValues, error)
 	DeleteAppStoreVersionValues(model *AppStoreVersionValues) (bool, error)
-	/*	FindAll() ([]*AppStoreVersionValues, error)*/
+	/*	FindAllActive() ([]*AppStoreVersionValues, error)*/
 	FindById(id int) (*AppStoreVersionValues, error)
 	FindValuesByAppStoreId(appStoreVersionId int) ([]*AppStoreVersionValues, error)
 	FindValuesByAppStoreIdAndReferenceType(appStoreVersionId int, referenceType string) ([]*AppStoreVersionValues, error)
@@ -81,7 +81,7 @@ func (impl AppStoreVersionValuesRepositoryImpl) DeleteAppStoreVersionValues(mode
 	return true, nil
 }
 
-/*func (impl *AppStoreVersionValuesRepositoryImpl) FindAll() ([]*AppStoreVersionValues, error) {
+/*func (impl *AppStoreVersionValuesRepositoryImpl) FindAllActive() ([]*AppStoreVersionValues, error) {
 	var appStoreWithVersion []*AppStoreVersionValues
 	err := impl.dbConnection.
 		Model(appStoreWithVersion).

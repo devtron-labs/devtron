@@ -32,14 +32,13 @@ type Team struct {
 
 type TeamRepository interface {
 	Save(team *Team) error
-	FindAll() ([]Team, error)
+	FindAllActive() ([]Team, error)
 	FindOne(id int) (Team, error)
 	FindByTeamName(name string) (Team, error)
 	Update(team *Team) error
 
 	FindTeamByAppId(appId int) (*Team, error)
-	FindTeamByAppName(appName string) (*Team, error)
-	FindTeamByAppNameV2() ([]*TeamRbacObjects, error)
+	FindActiveTeamByAppName(appName string) (*Team, error)
 	FindByIds(ids []*int) ([]*Team, error)
 }
 type TeamRepositoryImpl struct {
@@ -55,9 +54,9 @@ func (impl TeamRepositoryImpl) Save(team *Team) error {
 	return err
 }
 
-func (impl TeamRepositoryImpl) FindAll() ([]Team, error) {
+func (impl TeamRepositoryImpl) FindAllActive() ([]Team, error) {
 	var teams []Team
-	err := impl.dbConnection.Model(&teams).Select()
+	err := impl.dbConnection.Model(&teams).Where("active = ?", true).Select()
 	return teams, err
 }
 
@@ -88,20 +87,12 @@ func (repo TeamRepositoryImpl) FindTeamByAppId(appId int) (*Team, error) {
 	return team, err
 }
 
-func (repo TeamRepositoryImpl) FindTeamByAppName(appName string) (*Team, error) {
+func (repo TeamRepositoryImpl) FindActiveTeamByAppName(appName string) (*Team, error) {
 	team := &Team{}
 	err := repo.dbConnection.Model(team).Column("team.*").
 		Join("inner join app a on a.team_id = team.id").Where("a.app_name = ?", appName).
-		Where("a.active = ?", true).Select()
+		Where("team.active = ?", true).Where("a.active = ?", true).Select()
 	return team, err
-}
-
-func (repo TeamRepositoryImpl) FindTeamByAppNameV2() ([]*TeamRbacObjects, error) {
-	var rbacObjects []*TeamRbacObjects
-	err := repo.dbConnection.Model(&rbacObjects).Column("a.app_name as appName, a.id as appId, team.name as teamName").
-		Join("inner join app a on a.team_id = team.id").Where("a.active = ?", true).
-		Select()
-	return rbacObjects, err
 }
 
 func (repo TeamRepositoryImpl) FindByIds(ids []*int) ([]*Team, error) {
