@@ -40,7 +40,7 @@ type TeamRestHandler interface {
 
 	FindTeamByAppId(w http.ResponseWriter, r *http.Request)
 	FetchForUser(w http.ResponseWriter, r *http.Request)
-	FindTeamByAppName(w http.ResponseWriter, r *http.Request)
+	FindActiveTeamByAppName(w http.ResponseWriter, r *http.Request)
 
 	FetchForAutocomplete(w http.ResponseWriter, r *http.Request)
 }
@@ -112,9 +112,9 @@ func (impl TeamRestHandlerImpl) SaveTeam(w http.ResponseWriter, r *http.Request)
 
 func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	res, err := impl.teamService.FetchAll()
+	res, err := impl.teamService.FetchAllActive()
 	if err != nil {
-		impl.logger.Errorw("service err, FetchAll", "err", err)
+		impl.logger.Errorw("service err, FetchAllActive", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -211,12 +211,12 @@ func (impl TeamRestHandlerImpl) FindTeamByAppId(w http.ResponseWriter, r *http.R
 	writeJsonResp(w, err, team, http.StatusOK)
 }
 
-func (impl TeamRestHandlerImpl) FindTeamByAppName(w http.ResponseWriter, r *http.Request) {
+func (impl TeamRestHandlerImpl) FindActiveTeamByAppName(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appName := vars["appName"]
-	team, err := impl.teamService.FindTeamByAppName(appName)
+	team, err := impl.teamService.FindActiveTeamByAppName(appName)
 	if err != nil {
-		impl.logger.Errorw("service err, FindTeamByAppName", "err", err, "appName", appName)
+		impl.logger.Errorw("service err, FindActiveTeamByAppName", "err", err, "appName", appName)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

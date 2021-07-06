@@ -63,13 +63,13 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(fmt.Sprintf("@every %dm", watcher.posthogConfig.SummaryInterval), watcher.SummaryEventForTelemetry)
+	_, err := cron.AddFunc(watcher.posthogConfig.SummaryCronExpr, watcher.SummaryEventForTelemetry)
 	if err != nil {
 		fmt.Println("error in starting summery event", "err", err)
 		return nil, err
 	}
 
-	_, err = cron.AddFunc(fmt.Sprintf("@every %dm", watcher.posthogConfig.HeartbeatInterval), watcher.HeartbeatEventForTelemetry)
+	_, err = cron.AddFunc(watcher.posthogConfig.HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
 	if err != nil {
 		fmt.Println("error in starting heartbeat event", "err", err)
 		return nil, err
@@ -105,22 +105,25 @@ type SummaryDto struct {
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
 const DevtronUniqueClientIdConfigMapKey = "UCID"
+const InstallEventKey = "installEvent"
 
-type TelemetryEventType int
+type TelemetryEventType string
 
 const (
-	Heartbeat TelemetryEventType = iota
-	InstallationStart
-	InstallationSuccess
-	InstallationFailure
-	UpgradeSuccess
-	UpgradeFailure
-	Summary
+	Heartbeat                    TelemetryEventType = "Heartbeat"
+	InstallationStart            TelemetryEventType = "InstallationStart"
+	InstallationInProgress       TelemetryEventType = "InstallationInProgress"
+	InstallationInterrupt        TelemetryEventType = "InstallationInterrupt"
+	InstallationSuccess          TelemetryEventType = "InstallationSuccess"
+	InstallationFailure          TelemetryEventType = "InstallationFailure"
+	UpgradeStart                 TelemetryEventType = "UpgradeStart"
+	UpgradeInProgress            TelemetryEventType = "UpgradeInProgress"
+	UpgradeInterrupt             TelemetryEventType = "UpgradeInterrupt"
+	UpgradeSuccess               TelemetryEventType = "UpgradeSuccess"
+	UpgradeFailure               TelemetryEventType = "UpgradeFailure"
+	Summary                      TelemetryEventType = "Summary"
+	InstallationApplicationError TelemetryEventType = "InstallationApplicationError"
 )
-
-func (d TelemetryEventType) String() string {
-	return [...]string{"Heartbeat", "InstallationStart", "InstallationSuccess", "InstallationFailure", "UpgradeSuccess", "UpgradeFailure", "Summary"}[d]
-}
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 	ucid, err := impl.getUCID()
@@ -207,7 +210,7 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 	if impl.PosthogClient.Client != nil {
 		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
 			DistinctId: ucid,
-			Event:      Summary.String(),
+			Event:      string(Summary),
 			Properties: prop,
 		})
 		if err != nil {
@@ -248,7 +251,7 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 	if impl.PosthogClient.Client != nil {
 		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
 			DistinctId: ucid,
-			Event:      Heartbeat.String(),
+			Event:      string(Heartbeat),
 			Properties: prop,
 		})
 		if err != nil {
@@ -294,6 +297,7 @@ func (impl *TelemetryEventClientImpl) getUCID() (string, error) {
 			cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
 			data := map[string]string{}
 			data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
+			data[InstallEventKey] = "1"                                 // used in operator to detect event is install or upgrade
 			cm.Data = data
 			_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 			if err != nil {
