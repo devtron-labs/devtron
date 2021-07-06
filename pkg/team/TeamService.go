@@ -31,12 +31,12 @@ import (
 
 type TeamService interface {
 	Create(request *TeamRequest) (*TeamRequest, error)
-	FetchAll() ([]TeamRequest, error)
+	FetchAllActive() ([]TeamRequest, error)
 	FetchOne(id int) (*TeamRequest, error)
 	FindTeamsByUser(userId int32) ([]team.Team, error)
 	Update(request *TeamRequest) (*TeamRequest, error)
 	FindTeamByAppId(appId int) (*TeamBean, error)
-	FindTeamByAppName(appName string) (*TeamBean, error)
+	FindActiveTeamByAppName(appName string) (*TeamBean, error)
 	FetchForAutocomplete() ([]TeamRequest, error)
 	FindByIds(ids []*int) ([]*TeamBean, error)
 }
@@ -87,7 +87,7 @@ func (impl TeamServiceImpl) Create(request *TeamRequest) (*TeamRequest, error) {
 	return request, nil
 }
 
-func (impl TeamServiceImpl) FetchAll() ([]TeamRequest, error) {
+func (impl TeamServiceImpl) FetchAllActive() ([]TeamRequest, error) {
 	impl.logger.Debug("fetch all team from db")
 	teams, err := impl.teamRepository.FindAllActive()
 	if err != nil {
@@ -168,7 +168,7 @@ func (impl TeamServiceImpl) FindTeamByAppId(appId int) (*TeamBean, error) {
 	return teamBean, err
 }
 
-func (impl TeamServiceImpl) FindTeamByAppName(appName string) (*TeamBean, error) {
+func (impl TeamServiceImpl) FindActiveTeamByAppName(appName string) (*TeamBean, error) {
 	team, err := impl.teamRepository.FindActiveTeamByAppName(appName)
 	if err != nil {
 		impl.logger.Errorw("error while fetching team", "err", err)
