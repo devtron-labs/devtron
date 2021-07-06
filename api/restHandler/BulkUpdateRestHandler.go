@@ -125,7 +125,6 @@ func (handler BulkUpdateRestHandlerImpl) GetAppNameDeploymentTemplate(w http.Res
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	for _, impactedApp := range impactedApps {
 		resourceName := handler.enforcerUtil.GetAppRBACName(impactedApp.AppName)
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); !ok {
