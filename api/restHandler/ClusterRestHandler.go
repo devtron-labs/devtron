@@ -215,7 +215,7 @@ func (impl ClusterRestHandlerImpl) FindAll(w http.ResponseWriter, r *http.Reques
 	token := r.Header.Get("token")
 	clusterList, err := impl.clusterService.FindAll()
 	if err != nil {
-		impl.logger.Errorw("service err, FindAllActive", "err", err)
+		impl.logger.Errorw("service err, FindAll", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
