@@ -8,7 +8,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"go.uber.org/zap"
 	"io"
 	"log"
 	"os"
@@ -21,7 +20,8 @@ var chartRepository chartConfig.ChartRepositoryImpl
 
 func setup() {
 	config, _ := models.GetConfig()
-	dbConnection, _ := models.NewDbConnection(config, &zap.SugaredLogger{})
+	logger := util.NewSugardLogger()
+	dbConnection, _ := models.NewDbConnection(config, logger)
 	chartRepository := chartConfig.NewChartRepository(dbConnection)
 	chartService = pipeline.NewChartServiceImpl(chartRepository, nil, nil, nil, nil, "",
 		pipeline.DefaultChart(""), util.MergeUtil{}, nil, nil, nil, nil, nil,
@@ -59,8 +59,10 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		includes := pipeline.NameIncludesExcludes{Name: record[2]}
-		excludes := pipeline.NameIncludesExcludes{Name: record[3]}
+		var nameIn []string
+		var nameEx []string
+		includes := pipeline.NameIncludesExcludes{Name: append(nameIn, record[2])}
+		excludes := pipeline.NameIncludesExcludes{Name: append(nameEx, record[3])}
 		spec := pipeline.Specs{
 			PatchJson: record[6]}
 		task := pipeline.Tasks{
