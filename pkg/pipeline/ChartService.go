@@ -65,13 +65,13 @@ type BulkUpdatePayload struct {
 	DeploymentTemplate Tasks                `json:"deploymentTemplate"`
 }
 type BulkUpdateScript struct {
-	ApiVersion string            `json:"apiVersion"`
-	Kind       string            `json:"kind"`
-	Payload    BulkUpdatePayload `json:"payload"`
+	ApiVersion string            `json:"apiVersion" validate:"required"`
+	Kind       string            `json:"kind" validate:"required"`
+	Payload    BulkUpdatePayload `json:"payload" validate:"required"`
 }
 type BulkUpdateRequest struct {
 	Task   string           `json:"task"`
-	Script BulkUpdateScript `json:"script"`
+	Script BulkUpdateScript `json:"script" validate:"required"`
 	Readme string           `json:"readme"`
 }
 
