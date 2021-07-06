@@ -14,7 +14,7 @@ data:
         template:
           spec:
             containers:
-              resources:
+            - resources:
                 requests:                  
                   cpu: 10m
                   memory: 40Mi

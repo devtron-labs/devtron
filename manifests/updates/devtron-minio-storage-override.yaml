@@ -36,7 +36,7 @@ data:
 #        template:
 #          spec:
 #            containers:
-#              resources:
+#            - resources:
 #                requests:
 #                  memory: 128Mi
 
