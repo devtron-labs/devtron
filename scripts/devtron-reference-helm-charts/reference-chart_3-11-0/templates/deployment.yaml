@@ -80,8 +80,12 @@ spec:
       tolerations:
 {{ toYaml .Values.tolerations | indent 8 }}
   {{- end }}
-
-
+{{- if $.Values.imagePullSecrets}}
+      imagePullSecrets:
+  {{- range .Values.imagePullSecrets }}
+        - name: {{ . }}
+  {{- end }}
+{{- end}}
 {{- if $.Values.initContainers}}
       initContainers:
 {{- range $i, $c := .Values.initContainers }}

@@ -154,7 +154,7 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 		return nil, err
 	}
 
-	project, err := impl.teamRepository.FindAll()
+	project, err := impl.teamRepository.FindAllActive()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err
