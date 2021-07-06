@@ -62,8 +62,8 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 		}
 		var nameIn []string
 		var nameEx []string
-		includes := pipeline.NameIncludesExcludes{Name: append(nameIn, record[2])}
-		excludes := pipeline.NameIncludesExcludes{Name: append(nameEx, record[3])}
+		includes := pipeline.NameIncludesExcludes{Names: append(nameIn, record[2])}
+		excludes := pipeline.NameIncludesExcludes{Names: append(nameEx, record[3])}
 		spec := pipeline.Specs{
 			PatchJson: record[6]}
 		task := pipeline.Tasks{

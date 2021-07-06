@@ -196,102 +196,102 @@ core/v1beta1, Application,["viki-may-1%","viki-may-2%"],["viki-may-15","viki-may
 core/v1beta1, Application,["viki-may-1%","viki-may-2%"],["viki-may-15","viki-may-16","viki-may-3%"],"[1,2,3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
 core/v1beta1, Application,["viki-may-1%","viki-may-2%"],["viki-may-15","viki-may-16","viki-may-3%"],"[1,2,3]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
 core/v1beta1, Application,["viki-may-1%","viki-may-2%"],["viki-may-15","viki-may-16","viki-may-3%"],"[1,2,3]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[2]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[3]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
-core/v1beta1, Application,["app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”add”,”path": “/GracePeriod"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[2]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[3]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",true,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”remove”,”path": “/GracePeriod"},{"op": ”remove”,”path": “/MaxSurge"} ]",Bulk Update Failed
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”add”,”path": “/GracePeriod"},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
+core/v1beta1, Application,["%app%"],["go%","az%"],"[1,2,3]",false,"[ {"op": ”replace”,”path": “/GracePeriod”,”value”: 30},{"op": ”add”,”path": “/MaxSurge"} ]",Bulk Update is successful
