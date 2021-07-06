@@ -441,6 +441,12 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		}
 	)
 
+	//
+	if len(impl.cdConfig.NodeLabel) > 0 {
+		cdWorkflow.Spec.NodeSelector = impl.cdConfig.NodeLabel
+	}
+	//
+
 	wfTemplate, err := json.Marshal(cdWorkflow)
 	if err != nil {
 		impl.Logger.Error(err)
