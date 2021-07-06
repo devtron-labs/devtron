@@ -49,7 +49,7 @@ import (
 )
 
 type NameIncludesExcludes struct {
-	Name []string `json:"name"`
+	Names []string `json:"names"`
 }
 type Specs struct {
 	PatchJson string `json:"patchJson"`
@@ -232,7 +232,7 @@ func (impl ChartServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePayload)
 	var impactedObjectsResponse []*ImpactedObjectsResponse
 	if bulkUpdatePayload.Global {
 		appsGlobal, err := impl.chartRepository.
-			FindBulkAppNameIsGlobal(bulkUpdatePayload.Includes.Name, bulkUpdatePayload.Excludes.Name)
+			FindBulkAppNameIsGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
 		if err != nil {
 			return nil, err
 		}
@@ -246,7 +246,7 @@ func (impl ChartServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePayload)
 	}
 	for _, envId := range bulkUpdatePayload.EnvIds {
 		appsNotGlobal, err := impl.chartRepository.
-			FindBulkAppNameIsNotGlobal(bulkUpdatePayload.Includes.Name, bulkUpdatePayload.Excludes.Name, envId)
+			FindBulkAppNameIsNotGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
 		if err != nil {
 			return nil, err
 		}
@@ -276,7 +276,7 @@ func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload Bulk
 	}
 	UpdatedPatchMap := make(map[int]string)
 	if bulkUpdatePayload.Global {
-		charts, err := impl.chartRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Name, bulkUpdatePayload.Excludes.Name)
+		charts, err := impl.chartRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
 		if err != nil {
 			return "Bulk Update Failed", err
 		}
@@ -293,7 +293,7 @@ func (impl ChartServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload Bulk
 		}
 	}
 	for _, envId := range bulkUpdatePayload.EnvIds {
-		chartsEnv, err := impl.chartRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdatePayload.Includes.Name, bulkUpdatePayload.Excludes.Name, envId)
+		chartsEnv, err := impl.chartRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
 		if err != nil {
 			return "Bulk Update Failed", err
 		}
