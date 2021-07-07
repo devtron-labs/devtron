@@ -71,9 +71,6 @@ spec:
         name: git-volume
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        resources:
-          requests:
-            storage: 2Gi
 ---
 # Source: gitsensor/templates/servicemonitor.yaml
 apiVersion: monitoring.coreos.com/v1

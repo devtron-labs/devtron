@@ -263,13 +263,6 @@ spec:
               name: lens-cm
           - secretRef:
               name: lens-secret
-          resources:
-            limits:
-              cpu: "0.05"
-              memory: 50Mi
-            requests:
-              cpu: "0.01"
-              memory: 10Mi
           volumeMounts: []
       volumes:
         - name: envoy-config-volume
