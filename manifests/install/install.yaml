@@ -86,13 +86,6 @@ spec:
               containerPort: 8080
               name: app
               protocol: TCP
-          resources:
-            limits:
-              cpu: 50m
-              memory: 500Mi
-            requests:
-              cpu: 10m
-              memory: 100Mi
       restartPolicy: Always
       serviceAccountName: installer
       terminationGracePeriodSeconds: 30
