@@ -18,48 +18,11 @@
 package chartConfig
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 )
 
-type BatchOperationExample struct {
-	tableName struct{} `sql:"batch_operation_example" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id"`
-	Task      string   `sql:"task"`
-	Script    string   `sql:"script"`
-	Readme    string   `sql:"readme"`
-}
-type App struct {
-	tableName struct{} `sql:"app" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id"`
-	AppName   string   `sql:"app_name"`
-	Active    bool     `sql:"active"`
-	CreatedOn string   `sql:"created_on"`
-	CreatedBy string   `sql:"created_by"`
-	UpdatedOn string   `sql:"updated_on"`
-	UpdatedBy int      `sql:"updated_by"`
-	TeamId    int      `sql:"team_id"`
-	AppStore  bool     `sql:"app_store"`
-}
-type ChartEnvConfigOverride struct {
-	tableName         struct{} `sql:"chart_env_config_override" pg:",discard_unknown_columns"`
-	Id                int      `sql:"id"`
-	ChartId           int      `sql:"chart_id"`
-	TargetEnvironment int      `sql:"target_environment"`
-	EnvOverrideYaml   string   `sql:"env_override_yaml"`
-	Status            string   `sql:"status"`
-	Reviewed          bool     `sql:"reviewed"`
-	Active            bool     `sql:"active"`
-	CreatedBy         int      `sql:"created_by"`
-	UpdatedBy         int      `sql:"updated_by"`
-	Namespace         string   `sql:"namespace"`
-	Latest            bool     `sql:"latest"`
-	Previous          bool     `sql:"previous"`
-	IsOverride        bool     `sql:"is_override"`
-	models.AuditLog
-}
 type Chart struct {
 	tableName               struct{}           `sql:"charts" pg:",discard_unknown_columns"`
 	Id                      int                `sql:"id,pk"`
@@ -87,14 +50,6 @@ type Chart struct {
 
 type ChartRepository interface {
 	//ChartReleasedToProduction(chartRepo, appName, chartVersion string) (bool, error)
-	FindBatchOperationExample(task string) (*BatchOperationExample, error)
-	FindBulkAppNameIsGlobal(appNameIncludes []string, appNameExcludes []string) ([]*App, error)
-	FindBulkAppNameIsNotGlobal(appNameIncludes []string, appNameExcludes []string, envId int) ([]*App, error)
-	FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*Chart, error)
-	FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*ChartEnvConfigOverride, error)
-	BulkUpdateChartsValuesYamlAndGlobalOverrideById(final map[int]string) error
-	BulkUpdateChartsEnvOverrideYamlById(final map[int]string) error
-
 	FindOne(chartRepo, appName, chartVersion string) (*Chart, error)
 	Save(*Chart) error
 	FindCurrentChartVersion(chartRepo, chartName, chartVersionPattern string) (string, error)
@@ -116,151 +71,6 @@ func NewChartRepository(dbConnection *pg.DB) *ChartRepositoryImpl {
 
 type ChartRepositoryImpl struct {
 	dbConnection *pg.DB
-}
-
-func (repositoryImpl ChartRepositoryImpl) FindBatchOperationExample(task string) (*BatchOperationExample, error) {
-	batchOperationExample := &BatchOperationExample{}
-	err := repositoryImpl.dbConnection.
-		Model(batchOperationExample).Where("task LIKE ?", task).
-		Select()
-	return batchOperationExample, err
-}
-
-func (repositoryImpl ChartRepositoryImpl) FindBulkAppNameIsGlobal(appNameIncludes []string, appNameExcludes []string) ([]*App, error) {
-	var apps []*App
-	//Concatenating string according to sql LIKE operator required format
-	var appNameIncludesQuery string
-	for i, appNameInclude := range appNameIncludes {
-		if i == 0 {
-			appNameIncludesQuery += fmt.Sprintf("app_name LIKE '%s' ", appNameInclude)
-		} else {
-			appNameIncludesQuery += fmt.Sprintf("OR app_name LIKE '%s' ", appNameInclude)
-		}
-	}
-	var appNameExcludesQuery string
-	for i, appNameExclude := range appNameExcludes {
-		if i == 0 {
-			appNameExcludesQuery += fmt.Sprintf("app_name NOT LIKE '%s' ", appNameExclude)
-		} else {
-			appNameExcludesQuery += fmt.Sprintf("AND app_name NOT LIKE '%s' ", appNameExclude)
-		}
-	}
-	appNameQuery := fmt.Sprintf("%s AND %s", appNameIncludesQuery, appNameExcludesQuery)
-	err := repositoryImpl.dbConnection.
-		Model(&apps).Join("INNER JOIN charts ON app.id = app_id").
-		Where(appNameQuery, "AND charts.latest = ?", true).
-		Select()
-	return apps, err
-}
-
-func (repositoryImpl ChartRepositoryImpl) FindBulkAppNameIsNotGlobal(appNameIncludes []string, appNameExcludes []string, envId int) ([]*App, error) {
-	var apps []*App
-	//Concatenating string according to sql LIKE operator required format
-	var appNameIncludesQuery string
-	for i, appNameInclude := range appNameIncludes {
-		if i == 0 {
-			appNameIncludesQuery += fmt.Sprintf("app_name LIKE '%s' ", appNameInclude)
-		} else {
-			appNameIncludesQuery += fmt.Sprintf("OR app_name LIKE '%s'", appNameInclude)
-		}
-	}
-	var appNameExcludesQuery string
-	for i, appNameExclude := range appNameExcludes {
-		if i == 0 {
-			appNameExcludesQuery += fmt.Sprintf("app_name NOT LIKE '%s' ", appNameExclude)
-		} else {
-			appNameExcludesQuery += fmt.Sprintf("AND app_name NOT LIKE '%s'", appNameExclude)
-		}
-	}
-	appNameQuery := fmt.Sprintf("%s AND %s", appNameIncludesQuery, appNameExcludesQuery)
-	err := repositoryImpl.dbConnection.
-		Model(&apps).Join("INNER JOIN charts ON app.id = app_id").
-		Join("INNER JOIN chart_env_config_override ON charts.id = chart_id").
-		Where(appNameQuery, " AND target_environment = ? AND chart_env_config_override.latest = ?", envId, true).
-		Select()
-	return apps, err
-}
-func (repositoryImpl ChartRepositoryImpl) FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*Chart, error) {
-	var charts []*Chart
-	//Concatenating string according to sql LIKE operator required format
-	var appNameIncludesQuery string
-	for i, appNameInclude := range appNameIncludes {
-		if i == 0 {
-			appNameIncludesQuery += fmt.Sprintf("app_name LIKE '%s' ", appNameInclude)
-		} else {
-			appNameIncludesQuery += fmt.Sprintf("OR app_name LIKE '%s'", appNameInclude)
-		}
-	}
-	var appNameExcludesQuery string
-	for i, appNameExclude := range appNameExcludes {
-		if i == 0 {
-			appNameExcludesQuery += fmt.Sprintf("app_name NOT LIKE '%s' ", appNameExclude)
-		} else {
-			appNameExcludesQuery += fmt.Sprintf("AND app_name NOT LIKE '%s'", appNameExclude)
-		}
-	}
-	appNameQuery := fmt.Sprintf("%s AND %s", appNameIncludesQuery, appNameExcludesQuery)
-	err := repositoryImpl.dbConnection.
-		Model(&charts).Join("INNER JOIN app ON app.id=app_id ").
-		Where(appNameQuery, " AND latest = ?", true).
-		Select()
-	return charts, err
-}
-func (repositoryImpl ChartRepositoryImpl) FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*ChartEnvConfigOverride, error) {
-	var charts []*ChartEnvConfigOverride
-	//Concatenating string according to sql LIKE operator required format
-	var appNameIncludesQuery string
-	for i, appNameInclude := range appNameIncludes {
-		if i == 0 {
-			appNameIncludesQuery += fmt.Sprintf("app_name LIKE '%s' ", appNameInclude)
-		} else {
-			appNameIncludesQuery += fmt.Sprintf("OR app_name LIKE '%s'", appNameInclude)
-		}
-	}
-	var appNameExcludesQuery string
-	for i, appNameExclude := range appNameExcludes {
-		if i == 0 {
-			appNameExcludesQuery += fmt.Sprintf("app_name NOT LIKE '%s' ", appNameExclude)
-		} else {
-			appNameExcludesQuery += fmt.Sprintf("AND app_name NOT LIKE '%s'", appNameExclude)
-		}
-	}
-	appNameQuery := fmt.Sprintf("%s AND %s", appNameIncludesQuery, appNameExcludesQuery)
-	err := repositoryImpl.dbConnection.
-		Model(&charts).Join("INNER JOIN charts ON charts.id=chart_id").
-		Join("INNER JOIN app ON app.id=app_id").
-		Where(appNameQuery, " AND target_environment = ? AND chart_env_config_override.latest = ?", envId, true).
-		Select()
-	return charts, err
-}
-func (repositoryImpl ChartRepositoryImpl) BulkUpdateChartsValuesYamlAndGlobalOverrideById(final map[int]string) error {
-	chart := &Chart{}
-	for id, patch := range final {
-		_, err := repositoryImpl.dbConnection.
-			Model(chart).
-			Set("values_yaml = ?", patch).
-			Set("global_override = ?", patch).
-			Where("id = ?", id).
-			Update()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-func (repositoryImpl ChartRepositoryImpl) BulkUpdateChartsEnvOverrideYamlById(final map[int]string) error {
-	chartEnv := &ChartEnvConfigOverride{}
-	for id, patch := range final {
-		_, err := repositoryImpl.dbConnection.
-			Model(chartEnv).
-			Set("env_override_yaml = ?", patch).
-			Where("id = ?", id).
-			Update()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (repositoryImpl ChartRepositoryImpl) FindOne(chartRepo, chartName, chartVersion string) (*Chart, error) {

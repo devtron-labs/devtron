@@ -267,6 +267,6 @@ func (r MuxRouter) Init() {
 	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
 	r.telemetryRouter.initTelemetryRouter(telemetryRouter)
 
-	bulkUpdateRouter := r.Router.PathPrefix("/orchestrator/batch/v1beta1").Subrouter()
+	bulkUpdateRouter := r.Router.PathPrefix("/orchestrator/batch").Subrouter()
 	r.bulkUpdateRouter.initBulkUpdateRouter(bulkUpdateRouter)
 }
