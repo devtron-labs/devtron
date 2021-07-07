@@ -302,6 +302,9 @@ spec:
                 secretKeyRef:
                   name: devtron-minio
                   key: secretkey
+          resources:
+            requests:
+              memory: 1Gi
       volumes:
         - name: minio-user
           secret:
@@ -311,6 +314,9 @@ spec:
         name: export
       spec:
         accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 50Gi
 ---
 # Source: minio/templates/post-install-create-bucket-job.yaml
 apiVersion: batch/v1
