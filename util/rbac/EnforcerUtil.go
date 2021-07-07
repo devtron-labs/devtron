@@ -62,7 +62,7 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 }
 
 func (impl EnforcerUtilImpl) GetAppRBACName(appName string) string {
-	team, err := impl.teamRepository.FindTeamByAppName(appName)
+	team, err := impl.teamRepository.FindActiveTeamByAppName(appName)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
 	}
