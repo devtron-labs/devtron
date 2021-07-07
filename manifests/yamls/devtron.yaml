@@ -174,13 +174,6 @@ spec:
               name: devtron-cm
           - secretRef:
               name: devtron-secret
-          resources:
-            limits:
-              cpu: "0.5"
-              memory: 500Mi
-            requests:
-              cpu: "0.2"
-              memory: 100Mi
           volumeMounts:
             - mountPath: /cluster/component
               name: devtron-cluster-components-vol

@@ -217,13 +217,6 @@ spec:
       containers:
         - name: envoy
           image: "quay.io/devtron/envoy:v1.14.1"
-          resources:
-            limits:
-              cpu: 50m
-              memory: 50Mi
-            requests:
-              cpu: 50m
-              memory: 50Mi
           ports:
             - containerPort: 9901
               protocol: TCP
@@ -259,13 +252,6 @@ spec:
               name: dashboard-cm
           - secretRef:    
               name: devtron-dashboard-secret
-          resources:
-            limits:
-              cpu: "0.05"
-              memory: 50Mi
-            requests:
-              cpu: "0.01"
-              memory: 10Mi
           volumeMounts: []
       volumes:
         - name: envoy-config-volume
