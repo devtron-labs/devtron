@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -13,21 +13,23 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 )
 
-var chartService *pipeline.ChartServiceImpl
-var chartRepository chartConfig.ChartRepositoryImpl
+var bulkUpdateService *pipeline.BulkUpdateServiceImpl
+var bulkUpdateRepository bulkUpdate.BulkUpdateRepositoryImpl
 
 func setup() {
 	config, _ := models.GetConfig()
 	logger := util.NewSugardLogger()
 	dbConnection, _ := models.NewDbConnection(config, logger)
-	chartRepository := chartConfig.NewChartRepository(dbConnection)
-	chartService = pipeline.NewChartServiceImpl(chartRepository, nil, nil, nil, nil, "",
+	bulkUpdateRepository := bulkUpdate.NewBulkUpdateRepository(dbConnection, logger)
+	bulkUpdateService = pipeline.NewBulkUpdateServiceImpl(bulkUpdateRepository, nil, nil, nil, nil, nil, "",
 		pipeline.DefaultChart(""), util.MergeUtil{}, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil)
 }
+
 func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 	setup()
 	type test struct {
@@ -60,11 +62,11 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		var nameIn []string
-		var nameEx []string
-		includes := pipeline.NameIncludesExcludes{Names: append(nameIn, record[2])}
-		excludes := pipeline.NameIncludesExcludes{Names: append(nameEx, record[3])}
-		spec := pipeline.Specs{
+		namesIncludes := strings.Fields(record[2])
+		namesExcludes := strings.Fields(record[3])
+		includes := pipeline.NameIncludesExcludes{Names: namesIncludes}
+		excludes := pipeline.NameIncludesExcludes{Names: namesExcludes}
+		spec := pipeline.Spec{
 			PatchJson: record[6]}
 		task := pipeline.Tasks{
 			Spec: spec,
@@ -89,7 +91,7 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 	for _, tt := range tests {
 		testname := fmt.Sprintf("%s,%s", tt.Payload.Includes, tt.Payload.Excludes)
 		t.Run(testname, func(t *testing.T) {
-			got, _ := chartService.BulkUpdateDeploymentTemplate(tt.Payload)
+			got, _ := bulkUpdateService.BulkUpdateDeploymentTemplate(tt.Payload)
 			if got != tt.want {
 				t.Errorf("got %s, want %s", got, tt.want)
 			}
@@ -97,7 +99,7 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 	}
 }
 
-func UnitTestBulkUpdateDeploymentTemplate(t *testing.T) {
+func TestUnitBulkUpdateDeploymentTemplate(t *testing.T) {
 	setup()
 	type test struct {
 		patch  jsonpatch.Patch
@@ -119,6 +121,9 @@ func UnitTestBulkUpdateDeploymentTemplate(t *testing.T) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		fmt.Println(record[0])
+		fmt.Println(record[1])
+		fmt.Println(record[2])
 		patchJson, err := jsonpatch.DecodePatch([]byte(record[0]))
 		if err != nil {
 			log.Fatal(err)
@@ -135,7 +140,7 @@ func UnitTestBulkUpdateDeploymentTemplate(t *testing.T) {
 	for _, tt := range tests {
 		testname := fmt.Sprintf("%s", tt.target)
 		t.Run(testname, func(t *testing.T) {
-			got, _ := chartService.ApplyJsonPatch(tt.patch, tt.target)
+			got, _ := bulkUpdateService.ApplyJsonPatch(tt.patch, tt.target)
 			if got != tt.want {
 				t.Errorf("got %s, want %s", got, tt.want)
 			}

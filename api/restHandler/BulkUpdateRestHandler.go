@@ -30,6 +30,7 @@ type BulkUpdateRestHandlerImpl struct {
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	ciHandler               pipeline.CiHandler
 	Logger                  *zap.SugaredLogger
+	bulkUpdateService       pipeline.BulkUpdateService
 	chartService            pipeline.ChartService
 	propertiesConfigService pipeline.PropertiesConfigService
 	dbMigrationService      pipeline.DbMigrationService
@@ -53,6 +54,7 @@ type BulkUpdateRestHandlerImpl struct {
 }
 
 func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
+	bulkUpdateService pipeline.BulkUpdateService,
 	chartService pipeline.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	dbMigrationService pipeline.DbMigrationService,
@@ -74,6 +76,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logg
 	return &BulkUpdateRestHandlerImpl{
 		pipelineBuilder:         pipelineBuilder,
 		Logger:                  Logger,
+		bulkUpdateService:       bulkUpdateService,
 		chartService:            chartService,
 		propertiesConfigService: propertiesConfigService,
 		dbMigrationService:      dbMigrationService,
@@ -100,14 +103,14 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logg
 }
 
 func (handler BulkUpdateRestHandlerImpl) GetExampleOperationBulkUpdate(w http.ResponseWriter, r *http.Request) {
-	response, err := handler.chartService.GetBulkUpdateRequestExample("deployment-template")
+	response, err := handler.bulkUpdateService.GetBulkUpdateInputExample("deployment-template")
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
+	fmt.Println(response.ReadMe)
 	//auth free, only login required
-	var responseArr []pipeline.BulkUpdateRequest
+	var responseArr []pipeline.BulkUpdateResponse
 	responseArr = append(responseArr, response)
 	writeJsonResp(w, nil, responseArr, http.StatusOK)
 }
@@ -126,7 +129,7 @@ func (handler BulkUpdateRestHandlerImpl) GetAppNameDeploymentTemplate(w http.Res
 		return
 	}
 	token := r.Header.Get("token")
-	impactedApps, err := handler.chartService.GetBulkAppName(script.Payload)
+	impactedApps, err := handler.bulkUpdateService.GetBulkAppName(script.Spec)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -166,7 +169,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.Res
 		return
 	}
 	token := r.Header.Get("token")
-	impactedApps, err := handler.chartService.GetBulkAppName(script.Payload)
+	impactedApps, err := handler.bulkUpdateService.GetBulkAppName(script.Spec)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -187,7 +190,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.Res
 		}
 	}
 
-	response, err := handler.chartService.BulkUpdateDeploymentTemplate(script.Payload)
+	response, err := handler.bulkUpdateService.BulkUpdateDeploymentTemplate(script.Spec)
 	if err != nil {
 		writeJsonResp(w, err, response, http.StatusInternalServerError)
 		return
