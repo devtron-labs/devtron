@@ -38,6 +38,7 @@ type EnforcerUtil interface {
 	GetEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId int, envId int) string
 	GetTeamRbacObjectByCiPipelineId(ciPipelineId int) string
 	GetTeamAndEnvironmentRbacObjectByCDPipelineId(pipelineId int) (string, string)
+	GetRbacObjectsForAllAppsAndEnvironments() (map[int]string, map[string]string)
 }
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
@@ -234,4 +235,34 @@ func (impl EnforcerUtilImpl) GetTeamAndEnvironmentRbacObjectByCDPipelineId(pipel
 	teamRbac := fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(pipeline.App.AppName))
 	envRbac := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.Environment.Name), strings.ToLower(pipeline.App.AppName))
 	return teamRbac, envRbac
+}
+
+func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsAndEnvironments() (map[int]string, map[string]string) {
+	appObjects := make(map[int]string)
+	envObjects := make(map[string]string)
+	apps, err := impl.appRepo.FindAllActiveAppsWithTeam()
+	if err != nil {
+		impl.logger.Errorw("exception while fetching all active apps for rbac objects", "err", err)
+		return appObjects, envObjects
+	}
+	for _, item := range apps {
+		if _, ok := appObjects[item.Id]; !ok {
+			appObjects[item.Id] = fmt.Sprintf("%s/%s", strings.ToLower(item.Team.Name), strings.ToLower(item.AppName))
+		}
+	}
+
+	envs, err := impl.environmentRepository.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("exception while fetching all active env for rbac objects", "err", err)
+		return appObjects, envObjects
+	}
+	for _, env := range envs {
+		for _, app := range apps {
+			key := fmt.Sprintf("%d-%d", env.Id, app.Id)
+			if _, ok := envObjects[key]; !ok {
+				envObjects[key] = fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(app.AppName))
+			}
+		}
+	}
+	return appObjects, envObjects
 }

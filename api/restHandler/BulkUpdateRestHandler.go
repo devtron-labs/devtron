@@ -133,15 +133,17 @@ func (handler BulkUpdateRestHandlerImpl) GetAppNameDeploymentTemplate(w http.Res
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	appResourceObjects, envResourceObjects := handler.enforcerUtil.GetRbacObjectsForAllAppsAndEnvironments()
 	for _, impactedApp := range impactedApps {
-		resourceName := handler.enforcerUtil.GetAppRBACName(impactedApp.AppName)
+		resourceName := appResourceObjects[impactedApp.AppId]
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); !ok {
 			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 		if impactedApp.EnvId > 0 {
-			resourceName := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(impactedApp.AppName, impactedApp.EnvId)
-			if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionGet, resourceName); !ok {
+			key := fmt.Sprintf("%d-%d", impactedApp.EnvId, impactedApp.AppId)
+			envResourceName := envResourceObjects[key]
+			if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionGet, envResourceName); !ok {
 				writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
@@ -171,8 +173,9 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.Res
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, impactedApp := range impactedApps {
-		resourceName := handler.enforcerUtil.GetAppRBACName(impactedApp.AppName)
+		resourceName := rbacObjects[impactedApp.AppId]
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, resourceName); !ok {
 			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
