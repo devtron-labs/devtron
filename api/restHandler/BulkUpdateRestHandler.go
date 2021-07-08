@@ -108,7 +108,6 @@ func (handler BulkUpdateRestHandlerImpl) GetExampleOperationBulkUpdate(w http.Re
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	fmt.Println(response.ReadMe)
 	//auth free, only login required
 	var responseArr []pipeline.BulkUpdateResponse
 	responseArr = append(responseArr, response)
