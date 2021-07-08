@@ -55,7 +55,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) BuildAppNameQuery(appNameIncludes
 			appNameExcludesQuery += fmt.Sprintf("AND app_name NOT LIKE '%s' ", appNameExclude)
 		}
 	}
-	appNameQuery := fmt.Sprintf("%s AND %s", appNameIncludesQuery, appNameExcludesQuery)
+	appNameQuery := fmt.Sprintf("( %s ) AND ( %s )", appNameIncludesQuery, appNameExcludesQuery)
 	return appNameQuery
 }
 
