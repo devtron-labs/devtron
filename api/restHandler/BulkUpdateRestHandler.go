@@ -15,13 +15,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 )
 
 type BulkUpdateRestHandler interface {
-	GetExampleOperationBulkUpdate(w http.ResponseWriter, r *http.Request)
+	FindBulkUpdateReadme(w http.ResponseWriter, r *http.Request)
 	GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 	BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request)
 }
@@ -102,8 +103,13 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logg
 	}
 }
 
-func (handler BulkUpdateRestHandlerImpl) GetExampleOperationBulkUpdate(w http.ResponseWriter, r *http.Request) {
-	response, err := handler.bulkUpdateService.GetBulkUpdateInputExample("deployment-template")
+func (handler BulkUpdateRestHandlerImpl) FindBulkUpdateReadme(w http.ResponseWriter, r *http.Request) {
+	var operation string
+	vars := mux.Vars(r)
+	apiVersion := vars["apiVersion"]
+	kind := vars["kind"]
+	operation = fmt.Sprintf("%s/%s", apiVersion, kind)
+	response, err := handler.bulkUpdateService.FindBulkUpdateReadme(operation)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

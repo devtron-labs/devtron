@@ -8,17 +8,17 @@ import (
 	"go.uber.org/zap"
 )
 
-type BatchOperationExample struct {
-	tableName struct{} `sql:"batch_operation_example" pg:",discard_unknown_columns"`
+type BulkUpdateReadme struct {
+	tableName struct{} `sql:"bulk_update_readme" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id"`
-	Task      string   `sql:"task"`
+	Operation string   `sql:"operation"`
 	Script    string   `sql:"script"`
 	Readme    string   `sql:"readme"`
 }
 
 type BulkUpdateRepository interface {
 	BuildAppNameQuery(appNameIncludes []string, appNameExcludes []string) string
-	FindBatchOperationExample(task string) (*BatchOperationExample, error)
+	FindBulkUpdateReadme(operation string) (*BulkUpdateReadme, error)
 	FindBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*pipelineConfig.App, error)
 	FindBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*pipelineConfig.App, error)
 	FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartConfig.Chart, error)
@@ -59,12 +59,12 @@ func (repositoryImpl BulkUpdateRepositoryImpl) BuildAppNameQuery(appNameIncludes
 	return appNameQuery
 }
 
-func (repositoryImpl BulkUpdateRepositoryImpl) FindBatchOperationExample(task string) (*BatchOperationExample, error) {
-	batchOperationExample := &BatchOperationExample{}
+func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkUpdateReadme(operation string) (*BulkUpdateReadme, error) {
+	bulkUpdateReadme := &BulkUpdateReadme{}
 	err := repositoryImpl.dbConnection.
-		Model(batchOperationExample).Where("task LIKE ?", task).
+		Model(bulkUpdateReadme).Where("operation LIKE ?", operation).
 		Select()
-	return batchOperationExample, err
+	return bulkUpdateReadme, err
 }
 
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*pipelineConfig.App, error) {
