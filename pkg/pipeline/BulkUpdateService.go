@@ -36,9 +36,9 @@ type BulkUpdateScript struct {
 	Spec       BulkUpdatePayload `json:"spec" validate:"required"`
 }
 type BulkUpdateResponse struct {
-	Task   string           `json:"task"`
-	Script BulkUpdateScript `json:"script" validate:"required"`
-	ReadMe string           `json:"readme"`
+	Operation string           `json:"operation"`
+	Script    BulkUpdateScript `json:"script" validate:"required"`
+	ReadMe    string           `json:"readme"`
 }
 
 type ImpactedObjectsResponse struct {
@@ -48,7 +48,7 @@ type ImpactedObjectsResponse struct {
 }
 
 type BulkUpdateService interface {
-	GetBulkUpdateInputExample(task string) (response BulkUpdateResponse, err error)
+	FindBulkUpdateReadme(operation string) (response BulkUpdateResponse, err error)
 	GetBulkAppName(bulkUpdateRequest BulkUpdatePayload) ([]*ImpactedObjectsResponse, error)
 	ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error)
 	BulkUpdateDeploymentTemplate(bulkUpdateRequest BulkUpdatePayload) (response string, err error)
@@ -115,23 +115,23 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		client:                    client,
 	}
 }
-func (impl BulkUpdateServiceImpl) GetBulkUpdateInputExample(task string) (BulkUpdateResponse, error) {
-	bulkUpdateInputExample, err := impl.bulkUpdateRepository.FindBatchOperationExample(task)
+func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (BulkUpdateResponse, error) {
+	bulkUpdateReadme, err := impl.bulkUpdateRepository.FindBulkUpdateReadme(operation)
 	response := BulkUpdateResponse{}
 	if err != nil {
 		impl.logger.Errorw("error in fetching batch operation example", "err", err)
 		return response, err
 	}
 	script := BulkUpdateScript{}
-	err = json.Unmarshal([]byte(bulkUpdateInputExample.Script), &script)
+	err = json.Unmarshal([]byte(bulkUpdateReadme.Script), &script)
 	if err != nil {
 		impl.logger.Errorw("error in script value(in db) of batch operation example", "err", err)
 		return response, err
 	}
 	response = BulkUpdateResponse{
-		Task:   bulkUpdateInputExample.Task,
-		Script: script,
-		ReadMe: bulkUpdateInputExample.Readme,
+		Operation: bulkUpdateReadme.Operation,
+		Script:    script,
+		ReadMe:    bulkUpdateReadme.Readme,
 	}
 	return response, nil
 }
