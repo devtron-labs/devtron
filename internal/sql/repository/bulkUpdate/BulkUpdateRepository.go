@@ -74,8 +74,10 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForGlobal(appNameI
 	}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
 	err := repositoryImpl.dbConnection.
-		Model(&apps).Join("INNER JOIN charts ON app.id = app_id").
-		Where(appNameQuery, "AND charts.latest = ?", true).
+		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
+		Where(appNameQuery).
+		Where("app.active = ?", true).
+		Where("ch.latest = ?",true).
 		Select()
 	return apps, err
 }
@@ -87,9 +89,12 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForEnv(appNameIncl
 	}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
 	err := repositoryImpl.dbConnection.
-		Model(&apps).Join("INNER JOIN charts ON app.id = app_id").
-		Join("INNER JOIN chart_env_config_override ON charts.id = chart_id").
-		Where(appNameQuery, " AND target_environment = ? AND chart_env_config_override.latest = ?", envId, true).
+		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
+		Join("INNER JOIN env_config_override ON ch.id = env_config_override.chart_id").
+		Where(appNameQuery).
+		Where("app.active = ?", true).
+		Where("env_config_override.target_environment = ? ", envId).
+		Where("env_config_override.latest = ?",true).
 		Select()
 	return apps, err
 }
@@ -101,7 +106,9 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsByAppNameSubstring(
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
 	err := repositoryImpl.dbConnection.
 		Model(&charts).Join("INNER JOIN app ON app.id=app_id ").
-		Where(appNameQuery, " AND latest = ?", true).
+		Where(appNameQuery).
+		Where("app.active = ?", true).
+		Where("latest = ?",true).
 		Select()
 	return charts, err
 }
@@ -112,9 +119,12 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsEnvByAppNameSubstri
 	}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
 	err := repositoryImpl.dbConnection.
-		Model(&charts).Join("INNER JOIN charts ON charts.id=chart_id").
-		Join("INNER JOIN app ON app.id=app_id").
-		Where(appNameQuery, " AND target_environment = ? AND chart_env_config_override.latest = ?", envId, true).
+		Model(&charts).Join("INNER JOIN charts ch ON ch.id=env_config_override.chart_id").
+		Join("INNER JOIN app ON app.id=ch.app_id").
+		Where(appNameQuery).
+		Where("app.active = ?", true).
+		Where("env_config_override.target_environment = ?", envId).
+		Where("env_config_override.latest = ?", true).
 		Select()
 	return charts, err
 }

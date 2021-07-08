@@ -168,6 +168,7 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePay
 			if _, AppAlreadyAddedToResponse := AppTrackMap[app.Id]; AppAlreadyAddedToResponse {
 				continue
 			}
+			AppTrackMap[app.Id] = app.AppName
 			impactedObject := &ImpactedObjectsResponse{
 				AppId:   app.Id,
 				AppName: app.AppName,
