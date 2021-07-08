@@ -188,6 +188,9 @@ func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target s
 	return string(modified), err
 }
 func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload BulkUpdatePayload) (string, error) {
+	if len(bulkUpdatePayload.Includes.Names)==0 || len(bulkUpdatePayload.Excludes.Names)==0{
+		return "Please don't leave includes.names/excludes.names array empty", nil
+	}
 	patchJson := []byte(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson)
 	patch, err := jsonpatch.DecodePatch(patchJson)
 	SuccessMessage := "Bulk Update is successful"
