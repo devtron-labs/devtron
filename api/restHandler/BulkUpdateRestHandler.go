@@ -197,8 +197,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.Res
 
 	response, err := handler.bulkUpdateService.BulkUpdateDeploymentTemplate(script.Spec)
 	if err != nil {
-		writeJsonResp(w, err, response, http.StatusInternalServerError)
-		return
+		handler.Logger.Errorw("error in bulk updating deployment template","err",err)
 	}
-	writeJsonResp(w, err, response, http.StatusOK)
+	writeJsonResp(w, nil, response, http.StatusOK)
 }
