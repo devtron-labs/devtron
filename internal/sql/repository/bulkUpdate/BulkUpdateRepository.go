@@ -90,11 +90,11 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForEnv(appNameIncl
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
 	err := repositoryImpl.dbConnection.
 		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
-		Join("INNER JOIN env_config_override ON ch.id = env_config_override.chart_id").
+		Join("INNER JOIN chart_env_config_override ON ch.id = chart_env_config_override.chart_id").
 		Where(appNameQuery).
 		Where("app.active = ?", true).
-		Where("env_config_override.target_environment = ? ", envId).
-		Where("env_config_override.latest = ?",true).
+		Where("chart_env_config_override.target_environment = ? ", envId).
+		Where("chart_env_config_override.latest = ?",true).
 		Select()
 	return apps, err
 }
