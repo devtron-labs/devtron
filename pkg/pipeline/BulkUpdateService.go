@@ -188,7 +188,7 @@ func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target s
 	return string(modified), err
 }
 func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload BulkUpdatePayload) (string, error) {
-	if len(bulkUpdatePayload.Includes.Names)==0 || len(bulkUpdatePayload.Excludes.Names)==0{
+	if len(bulkUpdatePayload.Includes.Names) == 0 || len(bulkUpdatePayload.Excludes.Names) == 0 {
 		return "Please don't leave includes.names/excludes.names array empty", nil
 	}
 	patchJson := []byte(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson)
@@ -199,8 +199,9 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 		return "The patch string you entered seems wrong, please check and try again", err
 	}
 	UpdatedPatchMap := make(map[int]string)
+	var charts []*chartConfig.Chart
 	if bulkUpdatePayload.Global {
-		charts, err := impl.bulkUpdateRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
+		charts, err = impl.bulkUpdateRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
 		if err != nil {
 			impl.logger.Error("error in fetching charts by app name substring")
 			return "Internal server error", err
@@ -219,8 +220,9 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 			return "Internal server error - Bulk Update Failed", err
 		}
 	}
+	var chartsEnv []*chartConfig.EnvConfigOverride
 	for _, envId := range bulkUpdatePayload.EnvIds {
-		chartsEnv, err := impl.bulkUpdateRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
+		chartsEnv, err = impl.bulkUpdateRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching charts(for env) by app name substring", "err", err)
 			return "Internal server error", err
@@ -238,6 +240,9 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 			impl.logger.Errorw("error in bulk updating charts(for env)", "err", err)
 			return "Internal server error - Bulk Update Failed", err
 		}
+	}
+	if len(charts) == 0 && len(chartsEnv) == 0 {
+		return "There are no matching apps to update, please try again with different inputs", nil
 	}
 	return SuccessMessage, err
 }
