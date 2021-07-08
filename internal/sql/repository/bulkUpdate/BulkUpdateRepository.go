@@ -77,7 +77,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForGlobal(appNameI
 		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
 		Where(appNameQuery).
 		Where("app.active = ?", true).
-		Where("ch.latest = ?",true).
+		Where("ch.latest = ?", true).
 		Select()
 	return apps, err
 }
@@ -94,7 +94,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForEnv(appNameIncl
 		Where(appNameQuery).
 		Where("app.active = ?", true).
 		Where("chart_env_config_override.target_environment = ? ", envId).
-		Where("chart_env_config_override.latest = ?",true).
+		Where("chart_env_config_override.latest = ?", true).
 		Select()
 	return apps, err
 }
@@ -108,7 +108,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsByAppNameSubstring(
 		Model(&charts).Join("INNER JOIN app ON app.id=app_id ").
 		Where(appNameQuery).
 		Where("app.active = ?", true).
-		Where("latest = ?",true).
+		Where("latest = ?", true).
 		Select()
 	return charts, err
 }
