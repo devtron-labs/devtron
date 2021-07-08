@@ -190,51 +190,50 @@ func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target s
 func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload BulkUpdatePayload) (string, error) {
 	patchJson := []byte(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson)
 	patch, err := jsonpatch.DecodePatch(patchJson)
-	FailureMessage := "Bulk Update Failed"
 	SuccessMessage := "Bulk Update is successful"
 	if err != nil {
 		impl.logger.Errorw("error in decoding JSON patch", "err", err)
-		return FailureMessage, err
+		return "The patch string you entered seems wrong, please check and try again", err
 	}
 	UpdatedPatchMap := make(map[int]string)
 	if bulkUpdatePayload.Global {
 		charts, err := impl.bulkUpdateRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
 		if err != nil {
 			impl.logger.Error("error in fetching charts by app name substring")
-			return FailureMessage, err
+			return "Internal server error", err
 		}
 		for _, chart := range charts {
 			modified, err := impl.ApplyJsonPatch(patch, chart.Values)
 			if err != nil {
 				impl.logger.Error("error in applying JSON patch")
-				return FailureMessage, err
+				return "Error in applying patch, please check your script again", err
 			}
 			UpdatedPatchMap[chart.Id] = modified
 		}
 		err = impl.bulkUpdateRepository.BulkUpdateChartsValuesYamlAndGlobalOverrideById(UpdatedPatchMap)
 		if err != nil {
 			impl.logger.Error("error in bulk updating charts")
-			return FailureMessage, err
+			return "Internal server error - Bulk Update Failed", err
 		}
 	}
 	for _, envId := range bulkUpdatePayload.EnvIds {
 		chartsEnv, err := impl.bulkUpdateRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching charts(for env) by app name substring", "err", err)
-			return FailureMessage, err
+			return "Internal server error", err
 		}
 		for _, chartEnv := range chartsEnv {
 			modified, err := impl.ApplyJsonPatch(patch, chartEnv.EnvOverrideValues)
 			if err != nil {
-				impl.logger.Errorw("error in applying json patch", "err", err)
-				return FailureMessage, err
+				impl.logger.Errorw("Error in applying patch, please check your script again", "err", err)
+				return "Error in applying patch, please check your script again", err
 			}
 			UpdatedPatchMap[chartEnv.Id] = modified
 		}
 		err = impl.bulkUpdateRepository.BulkUpdateChartsEnvYamlOverrideById(UpdatedPatchMap)
 		if err != nil {
 			impl.logger.Errorw("error in bulk updating charts(for env)", "err", err)
-			return FailureMessage, err
+			return "Internal server error - Bulk Update Failed", err
 		}
 	}
 	return SuccessMessage, err
