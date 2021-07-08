@@ -30,6 +30,7 @@ type BulkUpdateRestHandlerImpl struct {
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	ciHandler               pipeline.CiHandler
 	Logger                  *zap.SugaredLogger
+	bulkUpdateService       pipeline.BulkUpdateService
 	chartService            pipeline.ChartService
 	propertiesConfigService pipeline.PropertiesConfigService
 	dbMigrationService      pipeline.DbMigrationService
@@ -53,6 +54,7 @@ type BulkUpdateRestHandlerImpl struct {
 }
 
 func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
+	bulkUpdateService pipeline.BulkUpdateService,
 	chartService pipeline.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	dbMigrationService pipeline.DbMigrationService,
@@ -74,6 +76,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logg
 	return &BulkUpdateRestHandlerImpl{
 		pipelineBuilder:         pipelineBuilder,
 		Logger:                  Logger,
+		bulkUpdateService:       bulkUpdateService,
 		chartService:            chartService,
 		propertiesConfigService: propertiesConfigService,
 		dbMigrationService:      dbMigrationService,
@@ -100,14 +103,13 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logg
 }
 
 func (handler BulkUpdateRestHandlerImpl) GetExampleOperationBulkUpdate(w http.ResponseWriter, r *http.Request) {
-	response, err := handler.chartService.GetBulkUpdateRequestExample("deployment-template")
+	response, err := handler.bulkUpdateService.GetBulkUpdateInputExample("deployment-template")
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	//auth free, only login required
-	var responseArr []pipeline.BulkUpdateRequest
+	var responseArr []pipeline.BulkUpdateResponse
 	responseArr = append(responseArr, response)
 	writeJsonResp(w, nil, responseArr, http.StatusOK)
 }
@@ -126,20 +128,22 @@ func (handler BulkUpdateRestHandlerImpl) GetAppNameDeploymentTemplate(w http.Res
 		return
 	}
 	token := r.Header.Get("token")
-	impactedApps, err := handler.chartService.GetBulkAppName(script.Payload)
+	impactedApps, err := handler.bulkUpdateService.GetBulkAppName(script.Spec)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	appResourceObjects, envResourceObjects := handler.enforcerUtil.GetRbacObjectsForAllAppsAndEnvironments()
 	for _, impactedApp := range impactedApps {
-		resourceName := handler.enforcerUtil.GetAppRBACName(impactedApp.AppName)
+		resourceName := appResourceObjects[impactedApp.AppId]
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); !ok {
 			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 		if impactedApp.EnvId > 0 {
-			resourceName := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(impactedApp.AppName, impactedApp.EnvId)
-			if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionGet, resourceName); !ok {
+			key := fmt.Sprintf("%d-%d", impactedApp.EnvId, impactedApp.AppId)
+			envResourceName := envResourceObjects[key]
+			if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionGet, envResourceName); !ok {
 				writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
@@ -164,13 +168,14 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.Res
 		return
 	}
 	token := r.Header.Get("token")
-	impactedApps, err := handler.chartService.GetBulkAppName(script.Payload)
+	impactedApps, err := handler.bulkUpdateService.GetBulkAppName(script.Spec)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, impactedApp := range impactedApps {
-		resourceName := handler.enforcerUtil.GetAppRBACName(impactedApp.AppName)
+		resourceName := rbacObjects[impactedApp.AppId]
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, resourceName); !ok {
 			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
@@ -184,7 +189,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.Res
 		}
 	}
 
-	response, err := handler.chartService.BulkUpdateDeploymentTemplate(script.Payload)
+	response, err := handler.bulkUpdateService.BulkUpdateDeploymentTemplate(script.Spec)
 	if err != nil {
 		writeJsonResp(w, err, response, http.StatusInternalServerError)
 		return
