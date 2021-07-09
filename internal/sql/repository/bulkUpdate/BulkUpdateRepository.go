@@ -41,6 +41,7 @@ type BulkUpdateRepositoryImpl struct {
 }
 
 func (repositoryImpl BulkUpdateRepositoryImpl) BuildAppNameQuery(appNameIncludes []string, appNameExcludes []string) string {
+	var appNameQuery string
 	var appNameIncludesQuery string
 	for i, appNameInclude := range appNameIncludes {
 		if i == 0 {
@@ -49,15 +50,19 @@ func (repositoryImpl BulkUpdateRepositoryImpl) BuildAppNameQuery(appNameIncludes
 			appNameIncludesQuery += fmt.Sprintf("OR app_name LIKE '%s' ", appNameInclude)
 		}
 	}
+	appNameQuery = fmt.Sprintf("( %s ) ", appNameIncludesQuery)
+
 	var appNameExcludesQuery string
-	for i, appNameExclude := range appNameExcludes {
-		if i == 0 {
-			appNameExcludesQuery += fmt.Sprintf("app_name NOT LIKE '%s' ", appNameExclude)
-		} else {
-			appNameExcludesQuery += fmt.Sprintf("AND app_name NOT LIKE '%s' ", appNameExclude)
+	if appNameExcludes != nil {
+		for i, appNameExclude := range appNameExcludes {
+			if i == 0 {
+				appNameExcludesQuery += fmt.Sprintf("app_name NOT LIKE '%s' ", appNameExclude)
+			} else {
+				appNameExcludesQuery += fmt.Sprintf("AND app_name NOT LIKE '%s' ", appNameExclude)
+			}
 		}
+		appNameQuery += fmt.Sprintf("AND ( %s ) ", appNameExcludesQuery)
 	}
-	appNameQuery := fmt.Sprintf("( %s ) AND ( %s )", appNameIncludesQuery, appNameExcludesQuery)
 	return appNameQuery
 }
 
@@ -71,7 +76,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkUpdateReadme(operation st
 
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*pipelineConfig.App, error) {
 	apps := []*pipelineConfig.App{}
-	if len(appNameIncludes) == 0 || len(appNameExcludes) == 0 {
+	if len(appNameIncludes) == 0 {
 		return apps, nil
 	}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
@@ -86,7 +91,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForGlobal(appNameI
 
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*pipelineConfig.App, error) {
 	apps := []*pipelineConfig.App{}
-	if len(appNameIncludes) == 0 || len(appNameExcludes) == 0 {
+	if len(appNameIncludes) == 0 {
 		return apps, nil
 	}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
@@ -123,7 +128,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartEnvId(chartEnvId in
 }
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartConfig.Chart, error) {
 	charts := []*chartConfig.Chart{}
-	if len(appNameIncludes) == 0 || len(appNameExcludes) == 0 {
+	if len(appNameIncludes) == 0 {
 		return charts, nil
 	}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
@@ -138,7 +143,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsByAppNameSubstring(
 
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error) {
 	charts := []*chartConfig.EnvConfigOverride{}
-	if len(appNameIncludes) == 0 || len(appNameExcludes) == 0 {
+	if len(appNameIncludes)  == 0 {
 		return charts, nil
 	}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
