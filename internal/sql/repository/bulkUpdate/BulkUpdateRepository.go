@@ -21,12 +21,12 @@ type BulkUpdateRepository interface {
 	FindBulkUpdateReadme(operation string) (*BulkUpdateReadme, error)
 	FindBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*pipelineConfig.App, error)
 	FindBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*pipelineConfig.App, error)
-	FindAppByChartId(chartId int) ([]*pipelineConfig.App, error)
-	FindAppByChartEnvId(chartEnvId int) ([]*pipelineConfig.App, error)
+	FindAppByChartId(chartId int) (*pipelineConfig.App, error)
+	FindAppByChartEnvId(chartEnvId int) (*pipelineConfig.App, error)
 	FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartConfig.Chart, error)
 	FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error)
-	BulkUpdateChartsValuesYamlAndGlobalOverrideById(final map[int]string) error
-	BulkUpdateChartsEnvYamlOverrideById(final map[int]string) error
+	BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patch string) error
+	BulkUpdateChartsEnvYamlOverrideById(id int, patch string) error
 }
 
 func NewBulkUpdateRepository(dbConnection *pg.DB,
@@ -76,9 +76,6 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkUpdateReadme(operation st
 
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*pipelineConfig.App, error) {
 	apps := []*pipelineConfig.App{}
-	if len(appNameIncludes) == 0 {
-		return apps, nil
-	}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
 	err := repositoryImpl.dbConnection.
 		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
@@ -91,9 +88,6 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForGlobal(appNameI
 
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*pipelineConfig.App, error) {
 	apps := []*pipelineConfig.App{}
-	if len(appNameIncludes) == 0 {
-		return apps, nil
-	}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
 	err := repositoryImpl.dbConnection.
 		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
@@ -105,32 +99,29 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForEnv(appNameIncl
 		Select()
 	return apps, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartId(chartId int) ([]*pipelineConfig.App, error){
-	apps := []*pipelineConfig.App{}
+func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartId(chartId int) (*pipelineConfig.App, error) {
+	app := &pipelineConfig.App{}
 	err := repositoryImpl.dbConnection.
-		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
+		Model(app).Join("INNER JOIN charts ch ON app.id = ch.app_id").
 		Where("ch.id = ?", chartId).
 		Where("app.active = ?", true).
 		Where("ch.latest = ?", true).
 		Select()
-	return apps, err
+	return app, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartEnvId(chartEnvId int) ([]*pipelineConfig.App, error){
-	apps := []*pipelineConfig.App{}
+func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartEnvId(chartEnvId int) (*pipelineConfig.App, error) {
+	app := &pipelineConfig.App{}
 	err := repositoryImpl.dbConnection.
-		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
+		Model(app).Join("INNER JOIN charts ch ON app.id = ch.app_id").
 		Join("INNER JOIN chart_env_config_override ON ch.id = chart_env_config_override.chart_id").
 		Where("app.active = ?", true).
 		Where("chart_env_config_override.id = ? ", chartEnvId).
 		Where("chart_env_config_override.latest = ?", true).
 		Select()
-	return apps, err
+	return app, err
 }
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartConfig.Chart, error) {
 	charts := []*chartConfig.Chart{}
-	if len(appNameIncludes) == 0 {
-		return charts, nil
-	}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
 	err := repositoryImpl.dbConnection.
 		Model(&charts).Join("INNER JOIN app ON app.id=app_id ").
@@ -143,9 +134,6 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsByAppNameSubstring(
 
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error) {
 	charts := []*chartConfig.EnvConfigOverride{}
-	if len(appNameIncludes)  == 0 {
-		return charts, nil
-	}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
 	err := repositoryImpl.dbConnection.
 		Model(&charts).Join("INNER JOIN charts ch ON ch.id=env_config_override.chart_id").
@@ -157,34 +145,30 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsEnvByAppNameSubstri
 		Select()
 	return charts, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsValuesYamlAndGlobalOverrideById(final map[int]string) error {
+func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patch string) error {
 	chart := &chartConfig.Chart{}
-	for id, patch := range final {
-		_, err := repositoryImpl.dbConnection.
-			Model(chart).
-			Set("values_yaml = ?", patch).
-			Set("global_override = ?", patch).
-			Where("id = ?", id).
-			Update()
-		if err != nil {
-			repositoryImpl.logger.Errorw("error in bulk updating deployment template for charts", "err", err)
-			return err
-		}
+	_, err := repositoryImpl.dbConnection.
+		Model(chart).
+		Set("values_yaml = ?", patch).
+		Set("global_override = ?", patch).
+		Where("id = ?", id).
+		Update()
+	if err != nil {
+		repositoryImpl.logger.Errorw("error in bulk updating deployment template for charts", "err", err)
+		return err
 	}
 	return nil
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsEnvYamlOverrideById(final map[int]string) error {
+func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsEnvYamlOverrideById(id int, patch string) error {
 	chartEnv := &chartConfig.EnvConfigOverride{}
-	for id, patch := range final {
-		_, err := repositoryImpl.dbConnection.
-			Model(chartEnv).
-			Set("env_override_yaml = ?", patch).
-			Where("id = ?", id).
-			Update()
-		if err != nil {
-			repositoryImpl.logger.Errorw("error in bulk updating deployment template charts(for env)", "err", err)
-			return err
-		}
+	_, err := repositoryImpl.dbConnection.
+		Model(chartEnv).
+		Set("env_override_yaml = ?", patch).
+		Where("id = ?", id).
+		Update()
+	if err != nil {
+		repositoryImpl.logger.Errorw("error in bulk updating deployment template charts(for env)", "err", err)
+		return err
 	}
 	return nil
 }
