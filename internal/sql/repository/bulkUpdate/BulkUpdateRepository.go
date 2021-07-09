@@ -21,6 +21,8 @@ type BulkUpdateRepository interface {
 	FindBulkUpdateReadme(operation string) (*BulkUpdateReadme, error)
 	FindBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*pipelineConfig.App, error)
 	FindBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*pipelineConfig.App, error)
+	FindAppByChartId(chartId int) ([]*pipelineConfig.App, error)
+	FindAppByChartEnvId(chartEnvId int) ([]*pipelineConfig.App, error)
 	FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartConfig.Chart, error)
 	FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error)
 	BulkUpdateChartsValuesYamlAndGlobalOverrideById(final map[int]string) error
@@ -98,6 +100,27 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkAppNameForEnv(appNameIncl
 		Select()
 	return apps, err
 }
+func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartId(chartId int) ([]*pipelineConfig.App, error){
+	apps := []*pipelineConfig.App{}
+	err := repositoryImpl.dbConnection.
+		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
+		Where("ch.id = ?", chartId).
+		Where("app.active = ?", true).
+		Where("ch.latest = ?", true).
+		Select()
+	return apps, err
+}
+func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartEnvId(chartEnvId int) ([]*pipelineConfig.App, error){
+	apps := []*pipelineConfig.App{}
+	err := repositoryImpl.dbConnection.
+		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
+		Join("INNER JOIN chart_env_config_override ON ch.id = chart_env_config_override.chart_id").
+		Where("app.active = ?", true).
+		Where("chart_env_config_override.id = ? ", chartEnvId).
+		Where("chart_env_config_override.latest = ?", true).
+		Select()
+	return apps, err
+}
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartConfig.Chart, error) {
 	charts := []*chartConfig.Chart{}
 	if len(appNameIncludes) == 0 || len(appNameExcludes) == 0 {
@@ -112,6 +135,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsByAppNameSubstring(
 		Select()
 	return charts, err
 }
+
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error) {
 	charts := []*chartConfig.EnvConfigOverride{}
 	if len(appNameIncludes) == 0 || len(appNameExcludes) == 0 {

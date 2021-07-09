@@ -35,7 +35,7 @@ type BulkUpdateScript struct {
 	Kind       string            `json:"kind" validate:"required"`
 	Spec       BulkUpdatePayload `json:"spec" validate:"required"`
 }
-type BulkUpdateResponse struct {
+type BulkUpdateSeeExampleResponse struct {
 	Operation string           `json:"operation"`
 	Script    BulkUpdateScript `json:"script" validate:"required"`
 	ReadMe    string           `json:"readme"`
@@ -46,9 +46,19 @@ type ImpactedObjectsResponse struct {
 	AppName string `json:"appName"`
 	EnvId   int    `json:"envId"`
 }
-
+type BulkUpdateResponseStatusForOneApp struct{
+	AppId   int    `json:"appId"`
+	AppName string `json:"appName"`
+	EnvId   int    `json:"envId"`
+	Message string `json:"message"`
+}
+type BulkUpdateResponse struct {
+ 	Message []string `json:"message"`
+ 	Failure BulkUpdateResponseStatusForOneApp `json:"failure"`
+ 	Successful BulkUpdateResponseStatusForOneApp `json:"successful"`
+}
 type BulkUpdateService interface {
-	FindBulkUpdateReadme(operation string) (response BulkUpdateResponse, err error)
+	FindBulkUpdateReadme(operation string) (response BulkUpdateSeeExampleResponse, err error)
 	GetBulkAppName(bulkUpdateRequest BulkUpdatePayload) ([]*ImpactedObjectsResponse, error)
 	ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error)
 	BulkUpdateDeploymentTemplate(bulkUpdateRequest BulkUpdatePayload) (response string, err error)
@@ -115,9 +125,9 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		client:                    client,
 	}
 }
-func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (BulkUpdateResponse, error) {
+func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (BulkUpdateSeeExampleResponse, error) {
 	bulkUpdateReadme, err := impl.bulkUpdateRepository.FindBulkUpdateReadme(operation)
-	response := BulkUpdateResponse{}
+	response := BulkUpdateSeeExampleResponse{}
 	if err != nil {
 		impl.logger.Errorw("error in fetching batch operation example", "err", err)
 		return response, err
@@ -128,7 +138,7 @@ func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (BulkUp
 		impl.logger.Errorw("error in script value(in db) of batch operation example", "err", err)
 		return response, err
 	}
-	response = BulkUpdateResponse{
+	response = BulkUpdateSeeExampleResponse{
 		Operation: bulkUpdateReadme.Operation,
 		Script:    script,
 		ReadMe:    bulkUpdateReadme.Readme,
