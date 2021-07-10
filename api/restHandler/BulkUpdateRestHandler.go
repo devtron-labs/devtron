@@ -30,7 +30,7 @@ type BulkUpdateRestHandlerImpl struct {
 	pipelineBuilder         pipeline.PipelineBuilder
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	ciHandler               pipeline.CiHandler
-	Logger                  *zap.SugaredLogger
+	logger                  *zap.SugaredLogger
 	bulkUpdateService       pipeline.BulkUpdateService
 	chartService            pipeline.ChartService
 	propertiesConfigService pipeline.PropertiesConfigService
@@ -54,7 +54,7 @@ type BulkUpdateRestHandlerImpl struct {
 	scanResultRepository    security.ImageScanResultRepository
 }
 
-func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
+func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logger *zap.SugaredLogger,
 	bulkUpdateService pipeline.BulkUpdateService,
 	chartService pipeline.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
@@ -76,7 +76,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logg
 	scanResultRepository security.ImageScanResultRepository) *BulkUpdateRestHandlerImpl {
 	return &BulkUpdateRestHandlerImpl{
 		pipelineBuilder:         pipelineBuilder,
-		Logger:                  Logger,
+		logger:                  logger,
 		bulkUpdateService:       bulkUpdateService,
 		chartService:            chartService,
 		propertiesConfigService: propertiesConfigService,
@@ -115,7 +115,7 @@ func (handler BulkUpdateRestHandlerImpl) FindBulkUpdateReadme(w http.ResponseWri
 		return
 	}
 	//auth free, only login required
-	var responseArr []pipeline.BulkUpdateResponse
+	var responseArr []pipeline.BulkUpdateSeeExampleResponse
 	responseArr = append(responseArr, response)
 	writeJsonResp(w, nil, responseArr, http.StatusOK)
 }
@@ -129,7 +129,7 @@ func (handler BulkUpdateRestHandlerImpl) GetAppNameDeploymentTemplate(w http.Res
 	}
 	err = handler.validator.Struct(script)
 	if err != nil {
-		handler.Logger.Errorw("validation err, Script", "err", err, "BulkUpdateScript", script)
+		handler.logger.Errorw("validation err, Script", "err", err, "BulkUpdateScript", script)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -169,7 +169,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.Res
 	}
 	err = handler.validator.Struct(script)
 	if err != nil {
-		handler.Logger.Errorw("validation err, Script", "err", err, "BulkUpdateScript", script)
+		handler.logger.Errorw("validation err, Script", "err", err, "BulkUpdateScript", script)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -195,9 +195,6 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.Res
 		}
 	}
 
-	response, err := handler.bulkUpdateService.BulkUpdateDeploymentTemplate(script.Spec)
-	if err != nil {
-		handler.Logger.Errorw("error in bulk updating deployment template", "err", err)
-	}
+	response := handler.bulkUpdateService.BulkUpdateDeploymentTemplate(script.Spec)
 	writeJsonResp(w, nil, response, http.StatusOK)
 }
