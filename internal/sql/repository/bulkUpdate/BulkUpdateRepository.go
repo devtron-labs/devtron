@@ -42,25 +42,27 @@ type BulkUpdateRepositoryImpl struct {
 
 func (repositoryImpl BulkUpdateRepositoryImpl) BuildAppNameQuery(appNameIncludes []string, appNameExcludes []string) string {
 	var appNameQuery string
-	var appNameIncludesQuery string
+	appNameIncludesQuery := "app_name LIKE ANY (array["
 	for i, appNameInclude := range appNameIncludes {
 		if i == 0 {
-			appNameIncludesQuery += fmt.Sprintf("app_name LIKE '%s' ", appNameInclude)
+			appNameIncludesQuery += fmt.Sprintf("'%s'", appNameInclude)
 		} else {
-			appNameIncludesQuery += fmt.Sprintf("OR app_name LIKE '%s' ", appNameInclude)
+			appNameIncludesQuery += fmt.Sprintf(",'%s'", appNameInclude)
 		}
 	}
+	appNameIncludesQuery += "])"
 	appNameQuery = fmt.Sprintf("( %s ) ", appNameIncludesQuery)
 
-	var appNameExcludesQuery string
 	if appNameExcludes != nil {
+		appNameExcludesQuery := "app_name NOT LIKE ALL (array["
 		for i, appNameExclude := range appNameExcludes {
 			if i == 0 {
-				appNameExcludesQuery += fmt.Sprintf("app_name NOT LIKE '%s' ", appNameExclude)
+				appNameExcludesQuery += fmt.Sprintf("'%s'", appNameExclude)
 			} else {
-				appNameExcludesQuery += fmt.Sprintf("AND app_name NOT LIKE '%s' ", appNameExclude)
+				appNameExcludesQuery += fmt.Sprintf(",'%s'", appNameExclude)
 			}
 		}
+		appNameIncludesQuery += "])"
 		appNameQuery += fmt.Sprintf("AND ( %s ) ", appNameExcludesQuery)
 	}
 	return appNameQuery

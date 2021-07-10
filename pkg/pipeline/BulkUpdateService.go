@@ -209,7 +209,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 		charts, err = impl.bulkUpdateRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
 		if err != nil {
 			impl.logger.Error("error in fetching charts by app name substring")
-			bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, "Unable to bulk update apps globally : error in connecting with db")
+			bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
 		} else {
 			if len(charts) == 0 {
 				bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, "No matching apps to update globally")
@@ -222,7 +222,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 						bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
 							AppId:   appDetailsByChart.Id,
 							AppName: appDetailsByChart.AppName,
-							Message: "Error in applying JSON patch",
+							Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
 						}
 						bulkUpdateResponse.Failure = append(bulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 					} else {
@@ -232,7 +232,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
 								AppId:   appDetailsByChart.Id,
 								AppName: appDetailsByChart.AppName,
-								Message: "Error in updating in db",
+								Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
 							}
 							bulkUpdateResponse.Failure = append(bulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 						} else {
@@ -253,7 +253,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 		chartsEnv, err = impl.bulkUpdateRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching charts(for env) by app name substring", "err", err)
-			bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for envId = %d , error in connecting with db", envId))
+			bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for envId = %d , %s", envId, err.Error()))
 		} else {
 			if len(chartsEnv) == 0 {
 				bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId = %d", envId))
@@ -262,12 +262,12 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 					appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartEnvId(chartEnv.Id)
 					modified, err := impl.ApplyJsonPatch(patch, chartEnv.EnvOverrideValues)
 					if err != nil {
-						impl.logger.Error("error in applying JSON patch")
+						impl.logger.Errorw("error in applying JSON patch", "err", err)
 						bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
 							AppId:   appDetailsByChart.Id,
 							AppName: appDetailsByChart.AppName,
 							EnvId:   envId,
-							Message: "Error in applying JSON patch",
+							Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
 						}
 						bulkUpdateResponse.Failure = append(bulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 					} else {
@@ -278,7 +278,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 								AppId:   appDetailsByChart.Id,
 								AppName: appDetailsByChart.AppName,
 								EnvId:   envId,
-								Message: "Error in updating in db",
+								Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
 							}
 							bulkUpdateResponse.Failure = append(bulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 						} else {
