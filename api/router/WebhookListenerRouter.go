@@ -27,23 +27,20 @@ type WebhookListenerRouter interface {
 }
 
 type WebhookListenerRouterImpl struct {
-	webhookListenerGithubImpl restHandler.WebhookListenerIFace
-	webhookListenerBitbucketImpl restHandler.WebhookListenerIFace
+	webhookEventHandler restHandler.WebhookEventHandler
 }
 
-func NewWebhookListenerRouterImpl(webhookListenerGithubImpl restHandler.WebhookListenerIFace,
-	webhookListenerBitbucketImpl restHandler.WebhookListenerIFace) *WebhookListenerRouterImpl {
+func NewWebhookListenerRouterImpl(webhookEventHandler restHandler.WebhookEventHandler) *WebhookListenerRouterImpl {
 	return &WebhookListenerRouterImpl{
-		webhookListenerGithubImpl: webhookListenerGithubImpl,
-		webhookListenerBitbucketImpl : webhookListenerBitbucketImpl,
+		webhookEventHandler: webhookEventHandler,
 	}
 }
 
 func (impl WebhookListenerRouterImpl) InitWebhookListenerRouter(configRouter *mux.Router) {
-	configRouter.Path("/github").
-		HandlerFunc(impl.webhookListenerGithubImpl.OnWebhookEvent).
+	configRouter.Path("/{gitHostId}").
+		HandlerFunc(impl.webhookEventHandler.OnWebhookEvent).
 		Methods("POST")
-	configRouter.Path("/bitbucket-cl/{secret}").
-		HandlerFunc(impl.webhookListenerBitbucketImpl.OnWebhookEvent).
+	configRouter.Path("/{gitHostId}/{secret}").
+		HandlerFunc(impl.webhookEventHandler.OnWebhookEvent).
 		Methods("POST")
 }

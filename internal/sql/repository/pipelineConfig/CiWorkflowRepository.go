@@ -87,21 +87,12 @@ type GitCommit struct {
 	Date    time.Time
 	Message string
 	Changes []string
-	PrData PrData
+	WebhookData WebhookData
 }
 
-type PrData struct {
-	Id					int
-	PrTitle        		string
-	PrUrl        		string
-	SourceBranchName    string
-	SourceBranchHash    string
-	TargetBranchName    string
-	TargetBranchHash    string
-	AuthorName		    string
-	LastCommitMessage	string
-	PrCreatedOn   		time.Time
-	PrUpdatedOn   		time.Time
+type WebhookData struct {
+	Id		int
+	Data    map[string]string
 }
 
 

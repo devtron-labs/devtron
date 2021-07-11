@@ -493,21 +493,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			},
 		}
 
-		// set pr data
-		if m.Type == pipelineConfig.SOURCE_TYPE_PULL_REQUEST {
-			prData := ciMaterialCurrent.Modifications[0].PrData
-			ciProjectDetail.PrData = pipelineConfig.PrData {
-				Id : prData.Id,
-				PrTitle : prData.PrTitle,
-				PrUrl: prData.PrUrl,
-				SourceBranchName: prData.SourceBranchName,
-				TargetBranchName: prData.TargetBranchName,
-				SourceBranchHash: prData.SourceBranchHash,
-				TargetBranchHash: prData.TargetBranchHash,
-				AuthorName: prData.AuthorName,
-				LastCommitMessage: prData.LastCommitMessage,
-				PrCreatedOn: prData.PrCreatedOn,
-				PrUpdatedOn: prData.PrUpdatedOn,
+		// set webhook data
+		if m.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+			webhookData := ciMaterialCurrent.Modifications[0].WebhookData
+			ciProjectDetail.WebhookData = pipelineConfig.WebhookData {
+				Id : webhookData.Id,
+				Data : webhookData.Data,
 			}
 		}
 

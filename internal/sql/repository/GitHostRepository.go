@@ -29,6 +29,9 @@ type GitHost struct {
 	Active      	bool      `sql:"active,notnull"`
 	WebhookUrl  	string    `sql:"webhook_url"`
 	WebhookSecret   string    `sql:"webhook_secret"`
+	EventTypeHeader string    `sql:"event_type_header"`
+	SecretHeader    string    `sql:"secret_header"`
+	SecretValidator string    `sql:"secret_validator"`
 	models.AuditLog
 }
 

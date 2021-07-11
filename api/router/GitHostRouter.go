@@ -43,4 +43,10 @@ func (impl GitHostRouterImpl) InitGitHostRouter(configRouter *mux.Router) {
 	configRouter.Path("/host/{id}").
 		HandlerFunc(impl.gitHostRestHandler.GetGitHostById).
 		Methods("GET")
+	configRouter.Path("/host/{id}/event").
+		HandlerFunc(impl.gitHostRestHandler.GetAllWebhookEventConfig).
+		Methods("GET")
+	configRouter.Path("/host/event/{eventId}").
+		HandlerFunc(impl.gitHostRestHandler.GetWebhookEventConfig).
+		Methods("GET")
 }

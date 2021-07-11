@@ -365,11 +365,6 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 			config := auth.GetConfig()
 			authEnabled = config.AuthEnabled
 
-			if authIgnore(r.URL.Path){
-				authEnabled = false
-				pass = true
-			}
-
 			if len(token) != 0 && authEnabled && !contains(r.URL.Path) {
 				_, err := sessionManager.VerifyToken(token)
 				if err != nil {
@@ -407,20 +402,6 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 	}
 }
 
-func authIgnore(requestUrlPath string) bool {
-	authIgnoreUrlsSubPath := []string {
-		"/orchestrator/webhook/git/github",
-		"/orchestrator/webhook/git/bitbucket",
-	}
-	for _, ignoreUrlSubPath := range authIgnoreUrlsSubPath {
-		if strings.Contains(requestUrlPath, ignoreUrlSubPath)  {
-			return true
-		}
-	}
-	return false
-}
-
-
 
 func contains(url string) bool {
 	urls := []string{
@@ -450,6 +431,7 @@ func contains(url string) bool {
 		"/orchestrator/auth/callback",
 		"/orchestrator/auth/login",
 		"/dashboard",
+		"/orchestrator/webhook/git",
 	}
 	for _, a := range prefixUrls {
 		if strings.Contains(url, a) {

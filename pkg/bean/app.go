@@ -30,14 +30,10 @@ const (
 )
 
 type SourceTypeConfig struct {
-	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY SOURCE_TYPE_TAG_REGEX SOURCE_TYPE_PULL_REQUEST"`
+	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY SOURCE_TYPE_TAG_REGEX WEBHOOK"`
 	Value string                    `json:"value,omitempty" `
 }
 
-type PullRequestSourceTypeValue struct {
-	SourceBranchRegex string	`json:"sourceBranchRegex,omitempty"`
-	TargetBranchRegex string	`json:"targetBranchRegex,omitempty"`
-}
 
 type CreateAppDTO struct {
 	Id         int            `json:"id,omitempty" validate:"number"`
@@ -148,6 +144,20 @@ const (
 	EXTERNAL PipelineType = "EXTERNAL"
 )
 
+const (
+	WEBHOOK_SELECTOR_UNIQUE_ID_NAME string = "unique id"
+	WEBHOOK_SELECTOR_REPOSITORY_URL_NAME string = "repository url"
+	WEBHOOK_SELECTOR_HEADER_NAME string = "header"
+	WEBHOOK_SELECTOR_GIT_URL_NAME string = "git url"
+	WEBHOOK_SELECTOR_AUTHOR_NAME string = "author"
+	WEBHOOK_SELECTOR_DATE_NAME string = "date"
+	WEBHOOK_SELECTOR_TARGET_COMMIT_HASH_NAME string = "target commit hash"
+	WEBHOOK_SELECTOR_SOURCE_COMMIT_HASH_NAME string = "source commit hash"
+	WEBHOOK_SELECTOR_TARGET_BRANCH_NAME_NAME string = "target branch name"
+	WEBHOOK_SELECTOR_SOURCE_BRANCH_NAME_NAME string = "source branch name"
+)
+
+
 func (a PatchAction) String() string {
 	return [...]string{"CREATE", "UPDATE_SOURCE", "DELETE", "DEACTIVATE"}[a]
 
@@ -173,21 +183,12 @@ type GitCommit struct {
 	Date    time.Time
 	Message string
 	Changes []string
-	PrData *PrData
+	WebhookData *WebhookData
 }
 
-type PrData struct {
-	Id					int 	`json:"id"`
-	PrTitle        		string  `json:"prTitle"`
-	PrUrl        		string	`json:"prUrl"`
-	SourceBranchName    string	`json:"sourceBranchName"`
-	SourceBranchHash    string	`json:"sourceBranchHash"`
-	TargetBranchName    string	`json:"targetBranchName"`
-	TargetBranchHash    string	`json:"targetBranchHash"`
-	AuthorName		    string	`json:"authorName"`
-	LastCommitMessage	string	`json:"lastCommitMessage"`
-	PrCreatedOn   		time.Time `json:"prCreatedOn"`
-	PrUpdatedOn   		time.Time `json:"prUpdatedOn"`
+type WebhookData struct {
+	Id		int 				`json:"id"`
+	Data    map[string]string	`json:"data"`
 }
 
 type SourceType string

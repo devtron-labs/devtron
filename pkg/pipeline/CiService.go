@@ -147,24 +147,15 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipeli
 		}
 	}
 
-	// set PR data in gitTriggers
+	// set webhook data in gitTriggers
 	for _, ciMaterial := range trigger.CiMaterials {
-		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_PULL_REQUEST {
+		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
 			pipelineMaterialId := ciMaterial.Id
-			prData := trigger.CommitHashes[pipelineMaterialId].PrData
+			webhookData := trigger.CommitHashes[pipelineMaterialId].WebhookData
 			gitTrigger := gitTriggers[pipelineMaterialId]
-			gitTrigger.PrData = pipelineConfig.PrData {
-				Id: prData.Id,
-				PrTitle : prData.PrTitle,
-				PrUrl: prData.PrUrl,
-				SourceBranchName: prData.SourceBranchName,
-				TargetBranchName: prData.TargetBranchName,
-				SourceBranchHash: prData.SourceBranchHash,
-				TargetBranchHash: prData.TargetBranchHash,
-				AuthorName: prData.AuthorName,
-				LastCommitMessage: prData.LastCommitMessage,
-				PrCreatedOn: prData.PrCreatedOn,
-				PrUpdatedOn: prData.PrUpdatedOn,
+			gitTrigger.WebhookData = pipelineConfig.WebhookData {
+				Id: webhookData.Id,
+				Data : webhookData.Data,
 			}
 		}
 	}
@@ -199,20 +190,11 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 			Message: v.Message,
 			Changes: v.Changes,
 		}
-		prData := v.PrData
-		if prData != nil {
-			gitCommit.PrData = pipelineConfig.PrData{
-				Id: prData.Id,
-				PrTitle : prData.PrTitle,
-				PrUrl: prData.PrUrl,
-				SourceBranchName: prData.SourceBranchName,
-				TargetBranchName: prData.TargetBranchName,
-				SourceBranchHash: prData.SourceBranchHash,
-				TargetBranchHash: prData.TargetBranchHash,
-				AuthorName: prData.AuthorName,
-				LastCommitMessage: prData.LastCommitMessage,
-				PrCreatedOn: prData.PrCreatedOn,
-				PrUpdatedOn: prData.PrUpdatedOn,
+		webhookData := v.WebhookData
+		if webhookData != nil {
+			gitCommit.WebhookData = pipelineConfig.WebhookData{
+				Id: webhookData.Id,
+				Data : webhookData.Data,
 			}
 		}
 
@@ -276,20 +258,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			},
 		}
 
-		if ciMaterial.Type ==  pipelineConfig.SOURCE_TYPE_PULL_REQUEST {
-			prData := commitHashForPipelineId.PrData
-			ciProjectDetail.PrData = pipelineConfig.PrData{
-				Id : prData.Id,
-				PrTitle : prData.PrTitle,
-				PrUrl: prData.PrUrl,
-				SourceBranchName: prData.SourceBranchName,
-				TargetBranchName: prData.TargetBranchName,
-				SourceBranchHash: prData.SourceBranchHash,
-				TargetBranchHash: prData.TargetBranchHash,
-				AuthorName: prData.AuthorName,
-				LastCommitMessage: prData.LastCommitMessage,
-				PrCreatedOn: prData.PrCreatedOn,
-				PrUpdatedOn: prData.PrUpdatedOn,
+		if ciMaterial.Type ==  pipelineConfig.SOURCE_TYPE_WEBHOOK {
+			webhookData := commitHashForPipelineId.WebhookData
+			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
+				Id : webhookData.Id,
+				Data : webhookData.Data,
 			}
 		}
 

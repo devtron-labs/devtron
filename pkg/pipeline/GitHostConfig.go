@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
-	"strings"
 	"time"
 )
 
@@ -32,7 +31,6 @@ type GitHostConfig interface {
 	GetAll() ([]GitHostRequest, error)
 	GetById(id int) (*GitHostRequest, error)
 	Create(request *GitHostRequest) (int, error)
-	GetGitHostSecretByName(name string) (string, error)
 }
 
 type GitHostConfigImpl struct {
@@ -47,11 +45,6 @@ func NewGitHostConfigImpl(gitHostRepo repository.GitHostRepository, logger *zap.
 	}
 }
 
-const (
-	GIT_HOST_NAME_GITHUB string = "Github"
-	GIT_HOST_NAME_BITBUCKET_CLOUD string = "Bitbucket Cloud"
-)
-
 
 type GitHostRequest struct {
 	Id          	int                 `json:"id,omitempty" validate:"number"`
@@ -59,6 +52,9 @@ type GitHostRequest struct {
 	Active      	bool                `json:"active"`
 	WebhookUrl  	string 				`json:"webhookUrl"`
 	WebhookSecret 	string 				`json:"webhookSecret"`
+	EventTypeHeader string 				`json:"eventTypeHeader"`
+	SecretHeader 	string 				`json:"secretHeader"`
+	SecretValidator string 				`json:"secretValidator"`
 	UserId      	int32               `json:"-"`
 }
 
@@ -97,6 +93,9 @@ func (impl GitHostConfigImpl) GetById(id int) (*GitHostRequest, error) {
 		Active:  host.Active,
 		WebhookUrl : host.WebhookUrl,
 		WebhookSecret  : host.WebhookSecret,
+		EventTypeHeader : host.EventTypeHeader,
+		SecretHeader : host.SecretHeader,
+		SecretValidator : host.SecretValidator,
 	}
 
 	return gitHost, err
@@ -139,30 +138,6 @@ func (impl GitHostConfigImpl) Create(request *GitHostRequest) (int, error) {
 		return 0, err
 	}
 	return gitHost.Id, nil
-}
-
-//get git host secret by name
-func (impl GitHostConfigImpl) GetGitHostSecretByName(name string) (string, error) {
-	impl.logger.Debug("get host secret fetch for name", name)
-	host, err := impl.gitHostRepo.FindOneByName(name)
-	if err != nil {
-		impl.logger.Errorw("error in getting git host", "err", err)
-		return "", err
-	}
-
-	gitHost := &GitHostRequest{
-		WebhookUrl : host.WebhookUrl,
-		WebhookSecret  : host.WebhookSecret,
-	}
-
-	if name == GIT_HOST_NAME_GITHUB {
-		return gitHost.WebhookSecret, nil
-	}  else if name == GIT_HOST_NAME_BITBUCKET_CLOUD {
-		return gitHost.WebhookUrl[strings.LastIndex(gitHost.WebhookUrl, "/")+1:], nil
-	}
-
-	return "", nil
-
 }
 
 

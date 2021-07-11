@@ -319,7 +319,7 @@ func (impl *CiHandlerImpl) validateBuildSequence(gitCiTriggerRequest bean.GitCiT
 
 	ciPipelineMaterial := gitCiTriggerRequest.CiPipelineMaterial
 
-	if ciPipelineMaterial.Type !=  string(pipelineConfig.SOURCE_TYPE_PULL_REQUEST) {
+	if ciPipelineMaterial.Type !=  string(pipelineConfig.SOURCE_TYPE_WEBHOOK) {
 		if ciPipelineMaterial.GitCommit.Date.Before(lastTriggeredBuild.GitTriggers[ciPipelineMaterial.Id].Date) {
 			impl.Logger.Warnw("older commit cannot be built for pipeline", "pipelineId", pipelineId, "ciMaterial", gitCiTriggerRequest.CiPipelineMaterial.Id)
 			isValid = false
@@ -834,15 +834,15 @@ func (impl *CiHandlerImpl) buildAutomaticTriggerCommitHashes(ciMaterials []*pipe
 func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.CiTriggerRequest) (map[int]bean.GitCommit, error) {
 	commitHashes := map[int]bean.GitCommit{}
 	for _, ciPipelineMaterial := range ciTriggerRequest.CiPipelineMaterial {
-		if ciPipelineMaterial.Type != string(pipelineConfig.SOURCE_TYPE_PULL_REQUEST) {
-			gitCommit, err := impl.BuildManualTriggerCommitHashesForNonPr(ciPipelineMaterial)
+		if ciPipelineMaterial.Type != string(pipelineConfig.SOURCE_TYPE_WEBHOOK) {
+			gitCommit, err := impl.BuildManualTriggerCommitHashesForNonWebhook(ciPipelineMaterial)
 			if err != nil {
 				impl.Logger.Errorw("err", "err", err)
 				return map[int]bean.GitCommit{}, err
 			}
 			commitHashes[ciPipelineMaterial.Id] = gitCommit
 		}else{
-			gitCommit, err := impl.BuildManualTriggerCommitHashesForPr(ciPipelineMaterial)
+			gitCommit, err := impl.BuildManualTriggerCommitHashesForWebhook(ciPipelineMaterial)
 			if err != nil {
 				impl.Logger.Errorw("err", "err", err)
 				return map[int]bean.GitCommit{}, err
@@ -854,7 +854,7 @@ func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.
 	return commitHashes, nil
 }
 
-func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForNonPr(ciPipelineMaterial bean.CiPipelineMaterial) (bean.GitCommit, error) {
+func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForNonWebhook(ciPipelineMaterial bean.CiPipelineMaterial) (bean.GitCommit, error) {
 	commitMetadataRequest := &gitSensor.CommitMetadataRequest{
 		PipelineMaterialId: ciPipelineMaterial.Id,
 		GitHash:            ciPipelineMaterial.GitCommit.Commit,
@@ -878,45 +878,48 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForNonPr(ciPipelineMate
 }
 
 
-func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForPr(ciPipelineMaterial bean.CiPipelineMaterial) (bean.GitCommit, error) {
-	prDataInput := ciPipelineMaterial.GitCommit.PrData
+func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForWebhook(ciPipelineMaterial bean.CiPipelineMaterial) (bean.GitCommit, error) {
+	webhookDataInput := ciPipelineMaterial.GitCommit.WebhookData
 
-	// fetch PR data on the basis of Id
-	prDataRequest := &gitSensor.PrDataRequest{
-		Id: prDataInput.Id,
+	// fetch webhook data on the basis of Id
+	webhookDataRequest := &gitSensor.WebhookDataRequest{
+		Id: webhookDataInput.Id,
 	}
 
-	prData, err := impl.gitSensorClient.GetPrData(prDataRequest)
+	webhookData, err := impl.gitSensorClient.GetWebhookData(webhookDataRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
+		return bean.GitCommit{}, err
+	}
+
+	// get target branch name from webhook
+	targetBranchName := webhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_BRANCH_NAME_NAME]
+	if len(targetBranchName) == 0{
+		impl.Logger.Error("target branch not found from webhook data",)
 		return bean.GitCommit{}, err
 	}
 
 	// get latest commit hash for target branch
-	latestCommitMetadataRequest := &gitSensor.LatestCommitMetadataRequest{
+	latestCommitMetadataRequest := &gitSensor.CommitMetadataRequest{
 		PipelineMaterialId: ciPipelineMaterial.Id,
-		BranchName: prDataInput.TargetBranchName,
+		BranchName: targetBranchName,
 	}
-	latestCommit, err := impl.gitSensorClient.GetLatestCommitMetadata(latestCommitMetadataRequest)
+
+	latestCommit, err := impl.gitSensorClient.GetCommitMetadata(latestCommitMetadataRequest)
+
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return bean.GitCommit{}, err
 	}
 
+	// update webhookData (local) with target latest hash
+	webhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_COMMIT_HASH_NAME] = latestCommit.Commit
+
 	// build git commit
 	gitCommit := bean.GitCommit{
-		PrData: &bean.PrData {
-			Id: prData.Id,
-			PrTitle : prData.PrTitle,
-			PrUrl: prData.PrUrl,
-			SourceBranchName: prData.SourceBranchName,
-			TargetBranchName: prData.TargetBranchName,
-			SourceBranchHash: prData.SourceBranchHash,
-			TargetBranchHash: latestCommit.Commit,
-			AuthorName: prData.AuthorName,
-			LastCommitMessage: prData.LastCommitMessage,
-			PrCreatedOn: prData.PrCreatedOn,
-			PrUpdatedOn: prData.PrUpdatedOn,
+		WebhookData: &bean.WebhookData {
+			Id: webhookData.Id,
+			Data : webhookData.Data,
 		},
 	}
 

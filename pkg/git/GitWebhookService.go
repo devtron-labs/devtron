@@ -60,20 +60,11 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 		},
 	}
 
-	if string(gitWebhookRequest.Type) == string(pipelineConfig.SOURCE_TYPE_PULL_REQUEST) {
-		prData := gitWebhookRequest.GitCommit.PrData
-		ciPipelineMaterial.GitCommit.PrData = &bean.PrData {
-			Id : prData.Id,
-			PrTitle : prData.PrTitle,
-			PrUrl: prData.PrUrl,
-			SourceBranchName: prData.SourceBranchName,
-			TargetBranchName: prData.TargetBranchName,
-			SourceBranchHash: prData.SourceBranchHash,
-			TargetBranchHash: prData.TargetBranchHash,
-			AuthorName: prData.AuthorName,
-			LastCommitMessage: prData.LastCommitMessage,
-			PrCreatedOn: prData.PrCreatedOn,
-			PrUpdatedOn: prData.PrUpdatedOn,
+	if string(gitWebhookRequest.Type) == string(pipelineConfig.SOURCE_TYPE_WEBHOOK) {
+		webhookData := gitWebhookRequest.GitCommit.WebhookData
+		ciPipelineMaterial.GitCommit.WebhookData = &bean.WebhookData {
+			Id : webhookData.Id,
+			Data : webhookData.Data,
 		}
 	}
 

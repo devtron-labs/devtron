@@ -107,24 +107,15 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 
 		var branch string
 		var tag string
-		var prData repository.PrData
+		var webhookData repository.WebhookData
 		if p.SourceType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
 			branch = p.SourceValue
 		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_TAG_REGEX {
 			tag = p.SourceValue
-		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_PULL_REQUEST {
-			prData = repository.PrData {
-				Id : p.PrData.Id,
-				PrTitle : p.PrData.PrTitle,
-				PrUrl: p.PrData.PrUrl,
-				SourceBranchName: p.PrData.SourceBranchName,
-				TargetBranchName: p.PrData.TargetBranchName,
-				SourceBranchHash: p.PrData.SourceBranchHash,
-				TargetBranchHash: p.PrData.TargetBranchHash,
-				AuthorName: p.PrData.AuthorName,
-				LastCommitMessage: p.PrData.LastCommitMessage,
-				PrCreatedOn: p.PrData.PrCreatedOn,
-				PrUpdatedOn: p.PrData.PrUpdatedOn,
+		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+			webhookData = repository.WebhookData {
+				Id : p.WebhookData.Id,
+				Data: p.WebhookData.Data,
 			}
 		}
 
@@ -134,7 +125,7 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 			Author:       p.Author,
 			Branch:       branch,
 			Tag:          tag,
-			PrData: 	  prData,
+			WebhookData:  webhookData,
 			Message:      p.Message,
 		}
 

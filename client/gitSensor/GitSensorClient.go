@@ -96,21 +96,12 @@ type GitCommit struct {
 	Date    time.Time
 	Message string
 	Changes []string
-	PrData   *PrData  `json:"prData"`
+	WebhookData   *WebhookData  `json:"webhookData"`
 }
 
-type PrData struct {
-	Id					int 	`json:"id"`
-	PrTitle        		string  `json:"prTitle"`
-	PrUrl        		string	`json:"prUrl"`
-	SourceBranchName    string	`json:"sourceBranchName"`
-	SourceBranchHash    string	`json:"sourceBranchHash"`
-	TargetBranchName    string	`json:"targetBranchName"`
-	TargetBranchHash    string	`json:"targetBranchHash"`
-	AuthorName		    string	`json:"authorName"`
-	LastCommitMessage	string	`json:"lastCommitMessage"`
-	PrCreatedOn   		time.Time `json:"prCreatedOn"`
-	PrUpdatedOn   		time.Time `json:"prUpdatedOn"`
+type WebhookData struct {
+	Id		int 				`json:"id"`
+	Data    map[string]string	`json:"data"`
 }
 
 
@@ -127,25 +118,55 @@ type CommitMetadataRequest struct {
 	PipelineMaterialId int    `json:"pipelineMaterialId"`
 	GitHash            string `json:"gitHash"`
 	GitTag             string `json:"gitTag"`
+	BranchName		   string `json:"branchName"`
 }
 
 type RefreshGitMaterialRequest struct {
 	GitMaterialId int `json:"gitMaterialId"`
 }
+
 type RefreshGitMaterialResponse struct {
 	Message       string    `json:"message"`
 	ErrorMsg      string    `json:"errorMsg"`
 	LastFetchTime time.Time `json:"lastFetchTime"`
 }
 
-type LatestCommitMetadataRequest struct {
-	PipelineMaterialId int    `json:"pipelineMaterialId"`
-	BranchName         string `json:"branchName"`
-}
 
-type PrDataRequest struct {
+type WebhookDataRequest struct {
 	Id int `json:"id"`
 }
+
+type WebhookEventConfigRequest struct {
+	GitHostId int `json:"gitHostId"`
+	EventId   int `json:"eventId"`
+}
+
+
+type WebhookEventConfig struct {
+	Id          int      `json:"id"`
+	GitHostId   int      `json:"gitHostId"`
+	Name        string   `json:"name"`
+	EventTypesCsv string `json:"eventTypesCsv"`
+	ActionType  string 	 `json:"actionType"`
+	IsActive	bool	 `json:"isActive"`
+	CreatedOn   time.Time `json:"createdOn"`
+	UpdatedOn   time.Time `json:"updatedOn"`
+
+	Selectors   []*WebhookEventSelectors  `json:"selectors"`
+}
+
+type WebhookEventSelectors struct {
+	Id          int      `json:"id"`
+	EventId     int 	 `json:"eventId"`
+	Name        string   `json:"name"`
+	Selector    string   `json:"selector"`
+	ToShow		bool	 `json:"toShow"`
+	PossibleValues string `json:"possibleValues"`
+	IsActive	bool	 `json:"isActive"`
+	CreatedOn   time.Time `json:"createdOn"`
+	UpdatedOn   time.Time `json:"updatedOn"`
+}
+
 
 type GitSensorClient interface {
 	GetHeadForPipelineMaterials(req *HeadRequest) (material []*CiPipelineMaterial, err error)
@@ -158,8 +179,11 @@ type GitSensorClient interface {
 	SavePipelineMaterial(material []*CiPipelineMaterial) (materialRes []*CiPipelineMaterial, err error)
 	RefreshGitMaterial(req *RefreshGitMaterialRequest) (refreshRes *RefreshGitMaterialResponse, err error)
 
-	GetLatestCommitMetadata(req *LatestCommitMetadataRequest) (*GitCommit, error)
-	GetPrData(req *PrDataRequest) (*PrData, error)
+	GetWebhookData(req *WebhookDataRequest) (*WebhookData, error)
+
+	GetAllWebhookEventConfigForHost(req *WebhookEventConfigRequest) (webhookEvents []*WebhookEventConfig, err error)
+	GetWebhookEventConfig(req *WebhookEventConfigRequest) (webhookEvent *WebhookEventConfig, err error)
+
 }
 
 //----------------------impl
@@ -306,16 +330,21 @@ func (session GitSensorClientImpl) RefreshGitMaterial(req *RefreshGitMaterialReq
 	return refreshRes, err
 }
 
-func (session GitSensorClientImpl) GetLatestCommitMetadata(req *LatestCommitMetadataRequest) (*GitCommit, error) {
-	commit := new(GitCommit)
-	request := &ClientRequest{ResponseBody: commit, Method: "POST", RequestBody: req, Path: "latest-commit-metadata"}
+func (session GitSensorClientImpl) GetWebhookData(req *WebhookDataRequest) (*WebhookData, error) {
+	webhookData := new(WebhookData)
+	request := &ClientRequest{ResponseBody: webhookData, Method: "POST", RequestBody: req, Path: "webhook/data"}
 	_, _, err := session.doRequest(request)
-	return commit, err
+	return webhookData, err
 }
 
-func (session GitSensorClientImpl) GetPrData(req *PrDataRequest) (*PrData, error) {
-	prData := new(PrData)
-	request := &ClientRequest{ResponseBody: prData, Method: "POST", RequestBody: req, Path: "pr-data"}
-	_, _, err := session.doRequest(request)
-	return prData, err
+func (session GitSensorClientImpl) GetAllWebhookEventConfigForHost(req *WebhookEventConfigRequest) (webhookEvents []*WebhookEventConfig, err error) {
+	request := &ClientRequest{ResponseBody: &webhookEvents, Method: "POST", RequestBody: req, Path: "/webhook/host/events"}
+	_, _, err = session.doRequest(request)
+	return webhookEvents, err
+}
+
+func (session GitSensorClientImpl) GetWebhookEventConfig(req *WebhookEventConfigRequest) (webhookEvent *WebhookEventConfig, err error) {
+	request := &ClientRequest{ResponseBody: &webhookEvent, Method: "POST", RequestBody: req, Path: "/webhook/host/event"}
+	_, _, err = session.doRequest(request)
+	return webhookEvent, err
 }

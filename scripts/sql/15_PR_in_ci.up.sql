@@ -21,6 +21,9 @@ CREATE TABLE public.git_host (
      active bool NOT NULL,
      webhook_url character varying(500),
      webhook_secret character varying(250),
+     event_type_header character varying(250),
+     secret_header character varying(250),
+     secret_validator character varying(250),
      created_on timestamptz NOT NULL,
      created_by INTEGER NOT NULL,
      updated_on timestamptz,
@@ -31,9 +34,9 @@ CREATE TABLE public.git_host (
 
 
 ---- Insert master data into git_host
-INSERT INTO git_host (name, created_on, created_by, active, webhook_url, webhook_secret)
-VALUES ('Github', NOW(), 1, 't', '/orchestrator/webhook/git/github', MD5(random()::text)),
-       ('Bitbucket Cloud', NOW(), 1, 't', '/orchestrator/webhook/git/bitbucket-cl/' || MD5(random()::text), NULL);
+INSERT INTO git_host (name, created_on, created_by, active, webhook_url, webhook_secret, event_type_header, secret_header, secret_validator)
+VALUES ('Github', NOW(), 1, 't', '/orchestrator/webhook/git/1', MD5(random()::text), 'X-GitHub-Event', 'X-Hub-Signature' , 'SHA-1'),
+       ('Bitbucket Cloud', NOW(), 1, 't', '/orchestrator/webhook/git/2/' || MD5(random()::text), NULL, 'X-Event-Key', NULL, 'URL_APPEND');
 
 
 ---- add column in git_provider (git_host.id)

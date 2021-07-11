@@ -336,21 +336,12 @@ type Modification struct {
 	Message      string            `json:"message"`
 	Branch       string            `json:"branch"`
 	Tag          string            `json:"tag,omitempty"`
-	PrData 		 PrData				`json:"prData,omitempty"`
+	WebhookData  WebhookData	   `json:"webhookData,omitempty"`
 }
 
-type PrData struct {
-	Id					int 	`json:"id"`
-	PrTitle        		string  `json:"prTitle"`
-	PrUrl        		string	`json:"prUrl"`
-	SourceBranchName    string	`json:"sourceBranchName"`
-	SourceBranchHash    string	`json:"sourceBranchHash"`
-	TargetBranchName    string	`json:"targetBranchName"`
-	TargetBranchHash    string	`json:"targetBranchHash"`
-	AuthorName		    string	`json:"authorName"`
-	LastCommitMessage	string	`json:"lastCommitMessage"`
-	PrCreatedOn   		time.Time `json:"prCreatedOn"`
-	PrUpdatedOn   		time.Time `json:"prUpdatedOn"`
+type WebhookData struct {
+	Id		int
+	Data    map[string]string
 }
 
 type CiMaterialInfo struct {

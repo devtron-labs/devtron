@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -34,6 +35,8 @@ type GitHostRestHandler interface {
 	GetGitHosts(w http.ResponseWriter, r *http.Request)
 	GetGitHostById(w http.ResponseWriter, r *http.Request)
 	CreateGitHost(w http.ResponseWriter, r *http.Request)
+	GetAllWebhookEventConfig(w http.ResponseWriter, r *http.Request)
+	GetWebhookEventConfig(w http.ResponseWriter, r *http.Request)
 }
 
 type GitHostRestHandlerImpl struct {
@@ -42,17 +45,19 @@ type GitHostRestHandlerImpl struct {
 	userAuthService      user.UserService
 	validator            *validator.Validate
 	enforcer             rbac.Enforcer
+	gitSensorClient      gitSensor.GitSensorClient
 }
 
 func NewGitHostRestHandlerImpl(logger *zap.SugaredLogger,
 	gitHostConfig pipeline.GitHostConfig, userAuthService user.UserService,
-	validator *validator.Validate, enforcer rbac.Enforcer) *GitHostRestHandlerImpl {
+	validator *validator.Validate, enforcer rbac.Enforcer, gitSensorClient gitSensor.GitSensorClient) *GitHostRestHandlerImpl {
 	return &GitHostRestHandlerImpl{
 		logger:               logger,
 		gitHostConfig:    gitHostConfig,
 		userAuthService: userAuthService,
 		validator: validator,
 		enforcer: enforcer,
+		gitSensorClient: gitSensorClient,
 	}
 }
 
@@ -159,5 +164,73 @@ func (impl GitHostRestHandlerImpl) CreateGitHost(w http.ResponseWriter, r *http.
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+// Need to make this call RBAC free as this API is called from the create app flow (configuring ci)
+func (impl GitHostRestHandlerImpl) GetAllWebhookEventConfig(w http.ResponseWriter, r *http.Request) {
+
+	// check if user is logged in or not
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	params := mux.Vars(r)
+	id, err :=  strconv.Atoi(params["id"])
+
+	if err != nil {
+		impl.logger.Errorw("service err in parsing Id , GetAllWebhookEventConfig", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	webhookEventRequest := &gitSensor.WebhookEventConfigRequest{
+		GitHostId: id,
+	}
+
+	res, err := impl.gitSensorClient.GetAllWebhookEventConfigForHost(webhookEventRequest)
+
+	if err != nil {
+		impl.logger.Errorw("service err, GetAllWebhookEventConfig", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	writeJsonResp(w, err, res, http.StatusOK)
+}
+
+// Need to make this call RBAC free as this API is called from the create app flow (configuring ci)
+func (impl GitHostRestHandlerImpl) GetWebhookEventConfig(w http.ResponseWriter, r *http.Request) {
+
+	// check if user is logged in or not
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	params := mux.Vars(r)
+	eventId, err :=  strconv.Atoi(params["eventId"])
+
+	if err != nil {
+		impl.logger.Errorw("service err in parsing eventId , GetWebhookEventConfig", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	webhookEventRequest := &gitSensor.WebhookEventConfigRequest{
+		EventId: eventId,
+	}
+
+	res, err := impl.gitSensorClient.GetWebhookEventConfig(webhookEventRequest)
+
+	if err != nil {
+		impl.logger.Errorw("service err, GetWebhookEventConfig", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	writeJsonResp(w, err, res, http.StatusOK)
 }
