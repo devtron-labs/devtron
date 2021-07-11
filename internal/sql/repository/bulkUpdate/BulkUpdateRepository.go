@@ -62,7 +62,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) BuildAppNameQuery(appNameIncludes
 				appNameExcludesQuery += fmt.Sprintf(",'%s'", appNameExclude)
 			}
 		}
-		appNameIncludesQuery += "])"
+		appNameExcludesQuery += "])"
 		appNameQuery += fmt.Sprintf("AND ( %s ) ", appNameExcludesQuery)
 	}
 	return appNameQuery
