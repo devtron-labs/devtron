@@ -6,12 +6,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
 )
 
 type BulkUpdateReadme struct {
 	tableName struct{} `sql:"bulk_update_readme" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id"`
-	Operation string   `sql:"operation"`
+	Resource  string   `sql:"resource"`
 	Script    string   `sql:"script"`
 	Readme    string   `sql:"readme"`
 }
@@ -43,35 +44,23 @@ type BulkUpdateRepositoryImpl struct {
 func (repositoryImpl BulkUpdateRepositoryImpl) BuildAppNameQuery(appNameIncludes []string, appNameExcludes []string) string {
 	var appNameQuery string
 	appNameIncludesQuery := "app_name LIKE ANY (array["
-	for i, appNameInclude := range appNameIncludes {
-		if i == 0 {
-			appNameIncludesQuery += fmt.Sprintf("'%s'", appNameInclude)
-		} else {
-			appNameIncludesQuery += fmt.Sprintf(",'%s'", appNameInclude)
-		}
-	}
+	appNameIncludesQuery += "'" + strings.Join(appNameIncludes, "', '") + "'"
 	appNameIncludesQuery += "])"
 	appNameQuery = fmt.Sprintf("( %s ) ", appNameIncludesQuery)
 
 	if appNameExcludes != nil {
 		appNameExcludesQuery := "app_name NOT LIKE ALL (array["
-		for i, appNameExclude := range appNameExcludes {
-			if i == 0 {
-				appNameExcludesQuery += fmt.Sprintf("'%s'", appNameExclude)
-			} else {
-				appNameExcludesQuery += fmt.Sprintf(",'%s'", appNameExclude)
-			}
-		}
+		appNameExcludesQuery += "'" + strings.Join(appNameExcludes, "', '") + "'"
 		appNameExcludesQuery += "])"
 		appNameQuery += fmt.Sprintf("AND ( %s ) ", appNameExcludesQuery)
 	}
 	return appNameQuery
 }
 
-func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkUpdateReadme(operation string) (*BulkUpdateReadme, error) {
+func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkUpdateReadme(resource string) (*BulkUpdateReadme, error) {
 	bulkUpdateReadme := &BulkUpdateReadme{}
 	err := repositoryImpl.dbConnection.
-		Model(bulkUpdateReadme).Where("operation LIKE ?", operation).
+		Model(bulkUpdateReadme).Where("resource LIKE ?", resource).
 		Select()
 	return bulkUpdateReadme, err
 }

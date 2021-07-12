@@ -4,13 +4,13 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_bulk_update_readme;
 -- Table Definition
 CREATE TABLE "public"."bulk_update_readme" (
                                                "id" int4 NOT NULL DEFAULT nextval('id_seq_bulk_update_readme'::regclass),
-                                               "operation" varchar(255) NOT NULL,
+                                               "resource" varchar(255) NOT NULL,
                                                "readme" text,
                                                "script" jsonb,
                                                PRIMARY KEY ("id")
 );
 
-INSERT INTO "public"."bulk_update_readme" ("id", "operation", "readme", "script") VALUES
+INSERT INTO "public"."bulk_update_readme" ("id", "resource", "readme", "script") VALUES
 (1, 'v1beta1/application', '# Bulk Update - Application
 
 This feature helps you to update deployment template for multiple apps in one go! You can filter the apps on the basis of environments, global flag, and app names(we provide support for both substrings included and excluded in the app name).
@@ -54,3 +54,5 @@ The following tables list the configurable parameters of the Payload component i
 | `patchJson`      | String having the update operation(you can apply more than one changes at a time). It supports [JSON patch ](http://jsonpatch.com/) specifications for update. | `''[ { "op": "add", "path": "/MaxSurge", "value": 1 }, { "op": "replace", "path": "/GracePeriod", "value": "30" }]''` |
 
 ', '{"kind": "Application", "spec": {"envIds": [1, 2, 3], "global": false, "excludes": {"names": ["%xyz%"]}, "includes": {"names": ["%abc%"]}, "deploymentTemplate": {"spec": {"patchJson": "Enter Patch String"}}}, "apiVersion": "core/v1beta1"}');
+
+CREATE INDEX ON bulk_update_readme (resource);
