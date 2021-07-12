@@ -11,7 +11,7 @@ import (
 type BulkUpdateReadme struct {
 	tableName struct{} `sql:"bulk_update_readme" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id"`
-	Operation string   `sql:"operation"`
+	Resource  string   `sql:"resource"`
 	Script    string   `sql:"script"`
 	Readme    string   `sql:"readme"`
 }
@@ -68,10 +68,10 @@ func (repositoryImpl BulkUpdateRepositoryImpl) BuildAppNameQuery(appNameIncludes
 	return appNameQuery
 }
 
-func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkUpdateReadme(operation string) (*BulkUpdateReadme, error) {
+func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkUpdateReadme(resource string) (*BulkUpdateReadme, error) {
 	bulkUpdateReadme := &BulkUpdateReadme{}
 	err := repositoryImpl.dbConnection.
-		Model(bulkUpdateReadme).Where("operation LIKE ?", operation).
+		Model(bulkUpdateReadme).Where("resource LIKE ?", resource).
 		Select()
 	return bulkUpdateReadme, err
 }

@@ -139,7 +139,7 @@ func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (BulkUp
 		return response, err
 	}
 	response = BulkUpdateSeeExampleResponse{
-		Operation: bulkUpdateReadme.Operation,
+		Operation: bulkUpdateReadme.Resource,
 		Script:    script,
 		ReadMe:    bulkUpdateReadme.Readme,
 	}
