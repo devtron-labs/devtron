@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
 )
 
 type BulkUpdateReadme struct {
@@ -43,25 +44,13 @@ type BulkUpdateRepositoryImpl struct {
 func (repositoryImpl BulkUpdateRepositoryImpl) BuildAppNameQuery(appNameIncludes []string, appNameExcludes []string) string {
 	var appNameQuery string
 	appNameIncludesQuery := "app_name LIKE ANY (array["
-	for i, appNameInclude := range appNameIncludes {
-		if i == 0 {
-			appNameIncludesQuery += fmt.Sprintf("'%s'", appNameInclude)
-		} else {
-			appNameIncludesQuery += fmt.Sprintf(",'%s'", appNameInclude)
-		}
-	}
+	appNameIncludesQuery += "'" + strings.Join(appNameIncludes, "', '") + "'"
 	appNameIncludesQuery += "])"
 	appNameQuery = fmt.Sprintf("( %s ) ", appNameIncludesQuery)
 
 	if appNameExcludes != nil {
 		appNameExcludesQuery := "app_name NOT LIKE ALL (array["
-		for i, appNameExclude := range appNameExcludes {
-			if i == 0 {
-				appNameExcludesQuery += fmt.Sprintf("'%s'", appNameExclude)
-			} else {
-				appNameExcludesQuery += fmt.Sprintf(",'%s'", appNameExclude)
-			}
-		}
+		appNameExcludesQuery += "'" + strings.Join(appNameExcludes, "', '") + "'"
 		appNameExcludesQuery += "])"
 		appNameQuery += fmt.Sprintf("AND ( %s ) ", appNameExcludesQuery)
 	}
