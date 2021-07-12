@@ -8,7 +8,7 @@
 Introduction
 ============
 
-Devtron services collects anonymous telemetry data that helps the Devtron team in understanding how the product is being used and in deciding what to focus on next.
+Devtron collects anonymous telemetry data that helps the Devtron team in understanding how the product is being used and in deciding what to focus on next.
 
 The data collected is minimal, **non PII**, statistical in nature and **cannot be used to uniquely identify an user**.
 
