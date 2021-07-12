@@ -12,16 +12,15 @@ Click on Bulk edit button at the left panel. To run a script, add the details as
 
 ![](../../.gitbook/assets/bulk-update-1.png)
 
-For Run script result go to the bottom section, there is a tab `Output` you can check bulk update response here.
-
+To execute the script click on `Run` button on the top. Result can be viewed in the `Output` tab at the bottom.
 To check the impacted application from script that user has provided, click on `Show Impacted Objects` which will gives
 you the result of app names.
 
-Response will be write at bottom section, in a tab called `Impacted Objects`.
+Response will be write at bottom section, in the tab called `Impacted Objects`.
 
 ![](../../.gitbook/assets/bulk-update-2.png)
 
-Operation readme can be fetch from right section, there is link `See Examples`, it will fetch the README based on option
+Readme can be fetch from right section, there is link `See Examples`, it will fetch the README based on option
 you have selected from drop down. currently there is one `Application` which allow you to update your application
 deployment template.
 
@@ -36,19 +35,19 @@ task.
 apiVersion: batch/v1beta1
 kind: Application
 spec:
-  includes:
-    names:
-    - "%app-name%"
-    - "%app-name%"
-  excludes:
-    names:
-    - "%app-name%"
-    - "%app-name%"
-  envIds: []
-  global: true
-  deploymentTemplate:
-    spec:
-      patchJson: Enter Patch String
+includes:
+names:
+- "%abc%"
+- "%xyz%"
+excludes:
+names:
+- "%abcx%"
+- "xyz"
+envIds: [23]
+global: false
+deploymentTemplate:
+spec:
+patchJson: [ { "op": "add", "path": "/MaxSurge", "value": 1 }, { "op": "replace", "path": "/GracePeriod", "value": "30" }]
 ```
 
 ## Payload Configuration
