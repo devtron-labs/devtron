@@ -1,36 +1,28 @@
-# Telemetry
+# Telemetry Guide
+
+* [Introduction](#introduction)
+* [What data is collected?](#what-data-collected)
+* [Where is the data sent?](#where-data-sent)
 
 
-- Note: Devtron does not sent personal information and URLs from client cluster 
+Introduction
+============
 
-## OVERVIEW
+Devtron services collects anonymous telemetry data that helps the Devtron team in understanding how the product is being used and in deciding what to focus on next.
 
-Devtron uses telemetry data for monitoring and managing clients engaged with our open source application. to provide
-better service and feature we have to measure the current usage.
+The data collected is minimal, **non PII**, statistical in nature and **cannot be used to uniquely identify an user**.
 
-Once a client starts installation, applications start sending events on different stages. commonly `installation start`
-, `installation in progress`,
-`installation failure`, `upgrade start`,`upgrade success`,`upgrade failure` etc.
+Please see the next section to see what data is collected and sent. Access to collected data is strictly limited to the Devtron team.
 
-## Events sent from these applications
+As a growing community, it is very valuable in helping us make the Devtron a better product for everyone!
 
-`Inception (operator)`
 
-`Devtron (orchestrator)`
 
-`Dashboard`
+What data is collected?
+======================
 
-* Sample event json below for all types of events comes from different applications
-* Only properties are different for each event type. for example below is the sample event for heartbeat event.
+Here is a sample event JSON which is collected and sent:
 
-| Key | Description |
-| :--- | :--- |
-| `event` | Name of the new app you want to Create |
-| `distinct_id` | Unique user id or client id|
-| `devtronVersion` | devtron version |
-| `serverVersion` | kubernetes cluster version |
-| `eventType` | event type |
-| `ucid` | Unique client id |
 
 ```json
 {
@@ -62,37 +54,41 @@ Once a client starts installation, applications start sending events on differen
 }
 ```
 
-### 1. Event Sends from Inception (operator)
-
-* `installation start`
-* `installation in progress`
-* `installation failure`
-* `upgrade start`
-* `upgrade success`
-* `upgrade failure`
-
-
-* All the above event's come from the operator when devtron is being installed or upgraded. event is same as sample json
-  except `event:"InstallationStart"` changes.
-
-### 2. Event Sends from devtron (orchestrator)
-
-* `Heartbeat`
-* `Summary`
-
-
-* All the above event's come from the operator when devtron is being installed or upgraded. event is same as sample json
-  except `event:"Heartbeat"` changes.
-* `Summary` events send the daily operation done by user, single event in 24 hour sent the below data.
 
 | Key | Description |
 | :--- | :--- |
-| `cdCountPerDay` | cd pipeline created in last 24 hour |
-| `ciCountPerDay` | ci pipeline created in last 24 hour |
-| `clusterCount` | total cluster in the system |
-| `environmentCount` | total environment in the system |
-| `nonProdAppCount` | total non prod apps created |
-| `userCount` | total user created in the system |
+| `event` | Name of the event |
+| `distinct_id` | Unique user id or client id|
+| `devtronVersion` | devtron version |
+| `serverVersion` | kubernetes cluster version |
+| `eventType` | event type |
+| `ucid` | Unique client id |
+
+
+
+### Inception (operator)
+Inception sends the installation and upgradation events of the Devtron tool to measure the churn rate.
+
+Events which are sent by Inception :
+* `InstallationStart`
+* `InstallationInProgress`
+* `InstallationSuccess`
+* `UpgradeStart`
+* `UpgradeInProgress`
+* `UpgradeSuccess`
+
+Event is same as sample json with event name mentioned above.
+
+### Devtron (orchestrator)
+Orchestrator sends the summary events of the Devtron tool to measure the daily usage.
+
+Events which are sent by Orchestrator :
+* `Heartbeat`
+* `Summary`
+
+Orchestrator sends the `Summary` event once in 24 hours with the daily operation done by user.
+
+Here is a sample summary JSON which is available under properties:
 
 ```json
 {
@@ -107,9 +103,24 @@ Once a client starts installation, applications start sending events on differen
 }
 ```
 
-### 3. Event Sends from dashboard
+| Key | Description |
+| :--- | :--- |
+| `cdCountPerDay` | cd pipeline created in last 24 hour |
+| `ciCountPerDay` | ci pipeline created in last 24 hour |
+| `clusterCount` | total cluster in the system |
+| `environmentCount` | total environment in the system |
+| `nonProdAppCount` | total non prod apps created |
+| `userCount` | total user created in the system |
 
-* `"identify`
+### Dashboard
+Dashboard sends the events to measure dashboard visit of the Devtron tool.
 
-* All the above event's come from Dashboards when unique users visited the dashboard for the first time. event is same as 
-  sample json except `"event": "$identify"` changes.
+Events which are sent by Orchestrator :
+* `identify`
+
+Dashboard sends the `identify` event when user visits the Dashboard for the first time.
+
+Where is the data sent?
+======================
+
+The data is sent to Posthog server.
