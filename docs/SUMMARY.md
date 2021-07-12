@@ -50,5 +50,5 @@
   * [Connect SpringBoot with Mysql Database](user-guide/use-cases/connect-springboot-with-mysql-database.md)
   * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
   * [Connect Django With Mysql Database](user-guide/use-cases/untitled-3.md)
-* [Bulk Update](user-guide/bulk-update/bulk-update.md)
+* [Bulk Update](user-guide/bulk-update.md)
 

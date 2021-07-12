@@ -10,7 +10,7 @@ name).
 
 Click on Bulk edit button at the left panel. To run a script, add the details as mentioned in sample script.
 
-![](../../.gitbook/assets/bulk-update-1.png)
+![](../.gitbook/assets/bulk-update-1.png)
 
 For Run script result go to the bottom section, there is a tab `Output` you can check bulk update response here.
 
@@ -19,13 +19,13 @@ you the result of app names.
 
 Response will be write at bottom section, in a tab called `Impacted Objects`.
 
-![](../../.gitbook/assets/bulk-update-2.png)
+![](../.gitbook/assets/bulk-update-2.png)
 
 Operation readme can be fetch from right section, there is link `See Examples`, it will fetch the README based on option
 you have selected from drop down. currently there is one `Application` which allow you to update your application
 deployment template.
 
-![](../../.gitbook/assets/bulk-update-3.png)
+![](../.gitbook/assets/bulk-update-3.png)
 
 ## Sample Script
 
