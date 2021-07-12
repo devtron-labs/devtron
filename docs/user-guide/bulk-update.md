@@ -70,11 +70,11 @@ Note - We use [JSON patch](http://jsonpatch.com/) logic for updation, visit the 
 
 4. Once you have modified the script, you can click on the `Show Impacted Objects` button to see the names of all applications that will be modified when the script is `Run`.
 <br><br>
-![](../.gitbook/assets/bulk-update-empty.png)
+![](../.gitbook/assets/bulk-update-impacted.png)
 <br>
 
 5. Click on the `Run` button to execute the script. Status/Output of the script execution will be shown in the `Output` section of the bottom drawer.
 <br><br>
-![](../.gitbook/assets/bulk-update-empty.png)
+![](../.gitbook/assets/bulk-update-message.png)
 <br>
 
