@@ -1,0 +1,267 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Swagger Petstore
+  description: A sample API that uses a petstore as an example to demonstrate features in the OpenAPI 3.0 specification
+  termsOfService: http://swagger.io/terms/
+  contact:
+    name: Swagger API Team
+    email: apiteam@swagger.io
+    url: http://swagger.io
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://petstore.swagger.io/api
+paths:
+  /orchestrator/app:
+    post:
+      summary: create app
+      description: create app
+      operationId: createApp
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppCreate'
+      responses:
+        '200':
+          description: App create response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: object
+                    description: string
+                    $ref: '#/components/schemas/AppCreate'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorReponse'
+
+  /orchestrator/app/list:
+    post:
+      summary: app listing
+      description: app listing
+      operationId: app listing
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppListingRequest'
+      responses:
+        '200':
+          description: App create response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: object
+                    description: string
+                    properties:
+                      appCount:
+                        type: integer
+                        description: app count
+                      appContainers:
+                        type: object
+                        description: app containers
+                        $ref: '#/components/schemas/AppContainers'
+                      deploymentGroup:
+                        type: object
+                        description: deployment group
+                        $ref: '#/components/schemas/DeploymentGroup'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorReponse'
+
+
+# components mentioned below
+components:
+  schemas:
+    AppCreate:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: app id not required in create api
+        appName:
+          type: string
+          description: app name
+        teamId:
+          type: integer
+          description: project id
+        templateId:
+          type: integer
+          description: reference app id, used for clone, default value 0 for blank app.
+        labels:
+          type: array
+          description: project id
+          items:
+            type: string
+
+    AppListingRequest:
+      type: object
+      properties:
+        appNameSearch:
+          type: string
+          description: app name search
+        offset:
+          type: integer
+          description: offset
+        size:
+          type: integer
+          description: result size
+        sortBy:
+          type: string
+          description: sort by
+        sortOrder:
+          type: string
+          description: sort order
+        environments:
+          type: array
+          description: environment id
+          items:
+            type: integer
+        teams:
+          type: array
+          description: team id
+          items:
+            type: integer
+        labels:
+          type: array
+          description: app labels
+          items:
+            type: string
+        statuses:
+          type: array
+          description: status
+          items:
+            type: string
+
+    AppContainers:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: app id
+        appName:
+          type: string
+          description: app name
+        environments:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvContainers'
+
+    EnvContainers:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: app id
+        appName:
+          type: string
+          description: app name
+        cdStageStatus:
+          type: string
+          description: app name
+        dataSource:
+          type: string
+          description: app name
+        ciArtifactId:
+          type: integer
+          description: app name
+        deleted:
+          type: bool
+          description: app name
+        environmentId:
+          type: integer
+          description: app name
+        environmentName:
+          type: string
+          description: app name
+        status:
+          type: string
+          description: app name
+        postStageStatus:
+          type: string
+          description: app name
+        preStageStatus:
+          type: string
+          description: app name
+        lastDeployedTime:
+          type: string
+          description: deployed time
+        materialInfo:
+          type: array
+          items:
+            type: object
+
+    DeploymentGroup:
+      type: object
+      required:
+        - appId
+      properties:
+        appId:
+          type: integer
+          description: app id
+        Labels:
+          type: array
+          items:
+            type: string
+
+    ErrorReponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message
