@@ -1,18 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Swagger Petstore
-  description: A sample API that uses a petstore as an example to demonstrate features in the OpenAPI 3.0 specification
-  termsOfService: http://swagger.io/terms/
-  contact:
-    name: Swagger API Team
-    email: apiteam@swagger.io
-    url: http://swagger.io
-  license:
-    name: Apache 2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0.html
-servers:
-  - url: http://petstore.swagger.io/api
+  title: Devtron Labs
 paths:
   /orchestrator/app/labels/list:
     get:
@@ -43,7 +32,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorReponse'
+                $ref: '#/components/schemas/ErrorResponse'
 
   /orchestrator/app/meta/info/{appId}:
     get:
@@ -79,7 +68,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorReponse'
+                $ref: '#/components/schemas/ErrorResponse'
 
 
   /orchestrator/app/labels:
@@ -116,7 +105,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorReponse'
+                $ref: '#/components/schemas/ErrorResponse'
 
 
 # components mentioned below
@@ -171,7 +160,7 @@ components:
           items:
             type: string
 
-    ErrorReponse:
+    ErrorResponse:
       required:
         - code
         - status
