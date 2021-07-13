@@ -38,19 +38,20 @@ task.
 apiVersion: batch/v1beta1
 kind: Application
 spec:
-includes:
-names:
-- abc%
-- xyz%
-excludes:
-names:
-- abcx%
-- xyz%
-envIds: [23]
-global: false
-deploymentTemplate:
-spec:
-patchJson: [ { "op": "add", "path": "/MaxSurge", "value": 1 }, { "op": "replace", "path": "/GracePeriod", "value": "30" }]
+  includes:
+    names:
+    - "%abc%"
+    - "%xyz%"
+  excludes:
+    names:
+    - "%abcd%"
+    - "%xyza%"
+  envIds:
+  - 23
+  global: false
+  deploymentTemplate:
+    spec:
+      patchJson: '[{ "op": "add", "path": "/MaxSurge", "value": 1 },{"op": "replace","path":"/GracePeriod","value": "30"]'
 ```
 
 ### Payload Configuration
