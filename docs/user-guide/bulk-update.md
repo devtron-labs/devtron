@@ -19,7 +19,7 @@ _Ability to edit more devtron components will be added in future._
 ![](../.gitbook/assets/bulk-update-empty.png)
 <br>
 
-2. To help you get started, a script template is provided under the `See Examples` section.
+2. To help you get started, a script template is provided under the `See Samples` section.
 
 ![](../.gitbook/assets/bulk-update-sample.png)
 <br>
