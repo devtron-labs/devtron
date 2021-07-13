@@ -67,15 +67,19 @@ OR** `"%y"` as one of their substring, example - appz, test-app-y etc.)         
 | `global`       | Will filter apps by global flag (optional)           | `true`,`false`                                                        |
 | `patchJson`      | String having the update operation(you can apply more than one changes at a time) (required for run only) | `''[ { "op": "add", "path": "/MaxSurge", "value": 1 }, { "op": "replace", "path": "/GracePeriod", "value": "30" }]''` |
 
- Note - We use [JSON patch](http://jsonpatch.com/) logic for updation, visit the link for more info on this. 
 
 
-<!-- <br> -->
+ > Note - We use [JSON patch](http://jsonpatch.com/) logic for updation, visit the link for more info on this. 
+
+
+<br>
+
 
 4. Once you have modified the script, you can click on the `Show Impacted Objects` button to see the names of all applications that will be modified when the script is `Run`.
 
 
 ![](../.gitbook/assets/bulk-update-impacted.png)
+
 <br>
 
 5. Click on the `Run` button to execute the script. Status/Output of the script execution will be shown in the `Output` section of the bottom drawer.
