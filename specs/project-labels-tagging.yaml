@@ -26,15 +26,24 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AppLabelsListResponse'
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: string
+                    items:
+                      $ref: '#/components/schemas/AppLabels'
         default:
           description: unexpected error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorReponse'
 
   /orchestrator/app/meta/info/{appId}:
     get:
@@ -54,13 +63,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AppMetaInfoResponse'
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: object
+                    description: meta info project name and labels
+                    $ref: '#/components/schemas/AppMetaInfoResponse'
         default:
           description: unexpected error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorReponse'
 
 
   /orchestrator/app/labels:
@@ -74,32 +93,42 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AppLabelsEditRequest'
+              $ref: '#/components/schemas/AppLabelsEdit'
       responses:
         '200':
           description: AppLabels edit response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AppLabelsEditResponse'
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: string
+                    $ref: '#/components/schemas/AppLabelsEdit'
         default:
           description: unexpected error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorReponse'
 
 
 # components mentioned below
 components:
   schemas:
-    AppLabelsListResponse:
+    AppLabels:
       type: object
       properties:
-        Id:
+        id:
           type: integer
           description: app id
-        Label:
+        label:
           type: string
           description: label, key:value
 
@@ -129,7 +158,7 @@ components:
           type: string
           description: app created by
 
-    AppLabelsEditRequest:
+    AppLabelsEdit:
       type: object
       required:
         - appId
@@ -142,26 +171,36 @@ components:
           items:
             type: string
 
-    AppLabelsEditResponse:
-      type: object
-      properties:
-        appId:
-          type: integer
-          description: app id
-        Labels:
-          type: array
-          items:
-            type: string
-
-    Error:
+    ErrorReponse:
       required:
         - code
-        - message
+        - status
       properties:
         code:
           type: integer
           format: int32
           description: Error code
-        message:
+        status:
           type: string
           description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message
