@@ -29,32 +29,6 @@ const (
 	LayoutRFC3339 = "2006-01-02T15:04:05Z07:00"
 )
 
-type AppLabelsCreateRequest struct {
-	Labels []string `json:"labels,notnull"`
-	AppId  int      `json:"appId"`
-	UserId int32    `json:"-"`
-}
-
-type AppLabelsDto struct {
-	Id     int    `json:"id,pk"`
-	Label  string `json:"label,notnull"`
-	AppId  int    `json:"appId"`
-	Active bool   `json:"active,notnull"`
-	UserId int32  `json:"-"`
-}
-
-type AppMetaInfoDto struct {
-	AppId       int             `json:"appId"`
-	AppName     string          `json:"appName"`
-	ProjectId   int             `json:"projectId"`
-	ProjectName string          `json:"projectName"`
-	CreatedBy   string          `json:"createdBy"`
-	CreatedOn   time.Time       `json:"createdOn"`
-	Active      bool            `json:"active,notnull"`
-	Labels      []*AppLabelsDto `json:"labels"`
-	UserId      int32           `json:"-"`
-}
-
 type SourceTypeConfig struct {
 	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY SOURCE_TYPE_TAG_REGEX"`
 	Value string                    `json:"value,omitempty" `

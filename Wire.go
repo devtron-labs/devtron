@@ -663,6 +663,17 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
 
 		telemetry.GetPosthogConfig,
+
+		router.NewAppLabelsRouterImpl,
+		wire.Bind(new(router.AppLabelsRouter), new(*router.AppLabelsRouterImpl)),
+		restHandler.NewAppTagRestHandlerImpl,
+		wire.Bind(new(restHandler.AppLabelsRestHandler), new(*restHandler.AppLabelsRestHandlerImpl)),
+
+		app.NewAppLabelsServiceImpl,
+		wire.Bind(new(app.AppLabelsService), new(*app.AppLabelsServiceImpl)),
+		pipelineConfig.NewAppLabelsRepositoryImpl,
+		wire.Bind(new(pipelineConfig.AppLabelsRepository), new(*pipelineConfig.AppLabelsRepositoryImpl)),
+
 	)
 	return &App{}, nil
 }
