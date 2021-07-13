@@ -64,7 +64,7 @@ OR** `"%y"` as one of their substring, example - appz, test-app-y etc.)         
 | `global`       | Will filter apps by global flag (optional)           | `true`,`false`                                                        |
 | `patchJson`      | String having the update operation(you can apply more than one changes at a time) (required for run only) | `''[ { "op": "add", "path": "/MaxSurge", "value": 1 }, { "op": "replace", "path": "/GracePeriod", "value": "30" }]''` |
 
-Note - We use [JSON patch](http://jsonpatch.com/) logic for updation, visit the link for more info on this.', '{"kind": "Application", "spec": {"envIds": [1, 2, 3], "global": false, "excludes": {"names": ["%xyz%"]}, "includes": {"names": ["%abc%"]}, "deploymentTemplate": {"spec": {"patchJson": "Enter Patch String"}}}, "apiVersion": "core/v1beta1"}');
+Note - We use [JSON patch](http://jsonpatch.com/) logic for updation, visit the link for more info on this.
 
 <br>
 
