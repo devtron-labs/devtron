@@ -15,15 +15,18 @@ _Ability to edit more devtron components will be added in future._
 ## Steps:
 
 1. Click on the `Bulk Edit` option in the main navigation. This is where you can write and execute scripts to perform bulk updates.
- <br><br>
+ 
 ![](../.gitbook/assets/bulk-update-empty.png)
 <br>
 
-2. To help you get started, a script template is provided under the `See Examples` section.<br><br>
+2. To help you get started, a script template is provided under the `See Examples` section.
+
 ![](../.gitbook/assets/bulk-update-sample.png)
 <br>
 
-3. Copy and Paste the `Sample Script` in the code editor and make desired changes. Refer `Payload Configuration` in the Readme to understand the parameters.<br><br>
+3. Copy and Paste the `Sample Script` in the code editor and make desired changes. Refer `Payload Configuration` in the Readme to understand the parameters.
+
+
 ![](../.gitbook/assets/bulk-update-editor.png)
 
 ### Sample Script
@@ -64,17 +67,22 @@ OR** `"%y"` as one of their substring, example - appz, test-app-y etc.)         
 | `global`       | Will filter apps by global flag (optional)           | `true`,`false`                                                        |
 | `patchJson`      | String having the update operation(you can apply more than one changes at a time) (required for run only) | `''[ { "op": "add", "path": "/MaxSurge", "value": 1 }, { "op": "replace", "path": "/GracePeriod", "value": "30" }]''` |
 
-Note - We use [JSON patch](http://jsonpatch.com/) logic for updation, visit the link for more info on this.
+ Note - We use [JSON patch](http://jsonpatch.com/) logic for updation, visit the link for more info on this. 
 
-<br>
+
+<!-- <br> -->
 
 4. Once you have modified the script, you can click on the `Show Impacted Objects` button to see the names of all applications that will be modified when the script is `Run`.
-<br><br>
+
+
 ![](../.gitbook/assets/bulk-update-impacted.png)
 <br>
 
 5. Click on the `Run` button to execute the script. Status/Output of the script execution will be shown in the `Output` section of the bottom drawer.
-<br><br>
+
+
 ![](../.gitbook/assets/bulk-update-message.png)
 <br>
+
+
 
