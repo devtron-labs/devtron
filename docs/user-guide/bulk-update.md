@@ -1,4 +1,5 @@
 # Bulk Updates
+This feature helps you to update deployment template for multiple apps in one go! You can filter the apps on the basis of environments, global flag, and app names(we provide support for both substrings included and excluded in the app name).
 
 ## Overview
 
@@ -29,6 +30,12 @@ _Ability to edit more devtron components will be added in future._
 
 ![](../.gitbook/assets/bulk-update-editor.png)
 
+### Example
+Example below will select all applications having `abc and xyz` present in their name and out of those will exclude applications having `abcd and xyza` in their name. Since global flag is false and envId 23 is provided, it will make changes in envId 23 and not in global deployment template for this application.
+If you want to update global deployment template then please set `global: true`.  If you have provided envId by deployment template is not overridden for that particular environment then it will not apply the changes.
+
+
+
 ### Sample Script
 
 This is the piece of code which works as the input and has to be pasted in the code editor for achieving bulk updation
@@ -54,20 +61,16 @@ spec:
       patchJson: '[{ "op": "add", "path": "/MaxSurge", "value": 1 },{"op": "replace","path":"/GracePeriod","value": "30"]'
 ```
 
+
 ### Payload Configuration
-
-The following table lists the configurable parameters of the Payload component in the Script and their description along with example.
-
+The following tables list the configurable parameters of the Payload component in the Script and their description along with example.
 | Parameter                      | Description                        | Example                                                    |
 | -------------------------- | ---------------------------------- | ---------------------------------------------------------- |
-|`includes.names `        | Will filter apps having similar substrings (required)                | `["app%","%abc"]` (will include all apps having `"app%"` **
-OR** `"%abc"` as one of their substring, example - app1, app-test, test-abc etc.)    |
-| `excludes.names`          | Will filter apps not having similar substrings (optional)              | `["%z","%y"]`       (will filter out all apps having `"%z"` **
-OR** `"%y"` as one of their substring, example - appz, test-app-y etc.)                                        |
-| `envIds`       |Will filter apps by all environment with IDs in this array (optional)             | `[1,2,3]`                                                   |
-| `global`       | Will filter apps by global flag (optional)           | `true`,`false`                                                        |
-| `patchJson`      | String having the update operation(you can apply more than one changes at a time) (required for run only) | `''[ { "op": "add", "path": "/MaxSurge", "value": 1 }, { "op": "replace", "path": "/GracePeriod", "value": "30" }]''` |
-
+|`includes.names `        | Will filter apps having exact string or similar substrings                 | `["app%","%abc", "xyz"]` (will include all apps having `"app%"` **OR** `"%abc"` as one of their substring, example - app1, app-test, test-abc etc. **OR** application with name xyz)    |
+| `excludes.names`          | Will filter apps not having exact string or similar substrings.              | `["%z","%y", "abc"]`       (will filter out all apps having `"%z"` **OR** `"%y"` as one of their substring, example - appz, test-app-y etc. **OR** application with name abc)                                        |
+| `envIds`       | List of envIds to be updated for the selected applications           | `[1,2,3]`                                                   |
+| `global`       | Flag to update global deployment template of applications            | `true`,`false`                                                        |
+| `patchJson`      | String having the update operation(you can apply more than one changes at a time). It supports [JSON patch ](http://jsonpatch.com/) specifications for update. | `''[ { "op": "add", "path": "/MaxSurge", "value": 1 }, { "op": "replace", "path": "/GracePeriod", "value": "30" }]''` |
 
 
  > Note - We use [JSON patch](http://jsonpatch.com/) logic for updation, visit the link for more info on this. 
