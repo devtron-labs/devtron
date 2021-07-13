@@ -33,11 +33,12 @@ spec:
     names:
     - "%abcd%"
     - "%xyza%"
-  envIds: [23]
+  envIds:
+  - 23
   global: false
   deploymentTemplate:
     spec:
-      patchJson: [ { "op": "add", "path": "/MaxSurge", "value": 1 }, { "op": "replace", "path": "/GracePeriod", "value": "30" }]
+      patchJson: ''[{ "op": "add", "path": "/MaxSurge", "value": 1 },{"op": "replace","path":"/GracePeriod","value": "30"]''
 ```
 
 ## Payload Configuration
