@@ -72,9 +72,10 @@ paths:
                         type: integer
                         description: app count
                       appContainers:
-                        type: object
+                        type: array
                         description: app containers
-                        $ref: '#/components/schemas/AppContainers'
+                        items:
+                          $ref: '#/components/schemas/AppContainers'
                       deploymentGroup:
                         type: object
                         description: deployment group
@@ -210,16 +211,26 @@ components:
 
     DeploymentGroup:
       type: object
-      required:
-        - appId
       properties:
-        appId:
+        id:
           type: integer
-          description: app id
-        Labels:
-          type: array
-          items:
-            type: string
+          description: id
+        ciPipelineId:
+          type: integer
+          description: ciPipelineId
+        environmentId:
+          type: integer
+          description: environmentId
+        appCount:
+          type: integer
+          description: appCount
+        name:
+          type: string
+          description: name
+        noOfApps:
+          type: string
+          description: noOfApps
+
 
     ErrorResponse:
       required:
