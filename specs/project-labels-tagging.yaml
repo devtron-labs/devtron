@@ -1,0 +1,167 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Swagger Petstore
+  description: A sample API that uses a petstore as an example to demonstrate features in the OpenAPI 3.0 specification
+  termsOfService: http://swagger.io/terms/
+  contact:
+    name: Swagger API Team
+    email: apiteam@swagger.io
+    url: http://swagger.io
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: http://petstore.swagger.io/api
+paths:
+  /orchestrator/app/labels/list:
+    get:
+      summary: Returns all App Labels
+      description: Returns all App Labels
+      operationId: findAppLabels
+      parameters: [ ]
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppLabelsListResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/meta/info/{appId}:
+    get:
+      description: application basic info, projects and labels
+      operationId: app meta info
+      parameters:
+        - name: appId
+          in: path
+          description: application id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: application basic info, projects and labels
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppMetaInfoResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+  /orchestrator/app/labels:
+    post:
+      summary: edit AppLabels
+      description: edit AppLabels api.
+      operationId: editAppLabels
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppLabelsEditRequest'
+      responses:
+        '200':
+          description: AppLabels edit response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppLabelsEditResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+# components mentioned below
+components:
+  schemas:
+    AppLabelsListResponse:
+      type: object
+      properties:
+        Id:
+          type: integer
+          description: app id
+        Label:
+          type: string
+          description: label, key:value
+
+    AppMetaInfoResponse:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: app id
+        projectId:
+          type: integer
+          description: team/project id
+        appName:
+          type: string
+          description: app name
+        projectName:
+          type: string
+          description: team/project name
+        Labels:
+          type: array
+          items:
+            type: string
+        createdOn:
+          type: string
+          description: app creation date
+        createdBy:
+          type: string
+          description: app created by
+
+    AppLabelsEditRequest:
+      type: object
+      required:
+        - appId
+      properties:
+        appId:
+          type: integer
+          description: app id
+        Labels:
+          type: array
+          items:
+            type: string
+
+    AppLabelsEditResponse:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: app id
+        Labels:
+          type: array
+          items:
+            type: string
+
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message

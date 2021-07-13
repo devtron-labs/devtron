@@ -29,6 +29,32 @@ const (
 	LayoutRFC3339 = "2006-01-02T15:04:05Z07:00"
 )
 
+type AppLabelsCreateRequest struct {
+	Labels []string `json:"labels,notnull"`
+	AppId  int      `json:"appId"`
+	UserId int32    `json:"-"`
+}
+
+type AppLabelsDto struct {
+	Id     int    `json:"id,pk"`
+	Label  string `json:"label,notnull"`
+	AppId  int    `json:"appId"`
+	Active bool   `json:"active,notnull"`
+	UserId int32  `json:"-"`
+}
+
+type AppMetaInfoDto struct {
+	AppId       int             `json:"appId"`
+	AppName     string          `json:"appName"`
+	ProjectId   int             `json:"projectId"`
+	ProjectName string          `json:"projectName"`
+	CreatedBy   string          `json:"createdBy"`
+	CreatedOn   time.Time       `json:"createdOn"`
+	Active      bool            `json:"active,notnull"`
+	Labels      []*AppLabelsDto `json:"labels"`
+	UserId      int32           `json:"-"`
+}
+
 type SourceTypeConfig struct {
 	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY SOURCE_TYPE_TAG_REGEX"`
 	Value string                    `json:"value,omitempty" `
@@ -41,6 +67,7 @@ type CreateAppDTO struct {
 	Material   []*GitMaterial `json:"material" validate:"dive,min=1"`
 	TeamId     int            `json:"teamId,omitempty" validate:"number,required"`
 	TemplateId int            `json:"templateId"`
+	AppLabels  []string       `json:"appLabels,omitempty"`
 }
 
 type CreateMaterialDTO struct {
@@ -131,8 +158,8 @@ type PipelineType string
 
 const (
 	CREATE        PatchAction = iota
-	UPDATE_SOURCE  //update value of SourceTypeConfig
-	DELETE         //delete this pipeline
+	UPDATE_SOURCE             //update value of SourceTypeConfig
+	DELETE                    //delete this pipeline
 	//DEACTIVATE     //pause/deactivate this pipeline
 )
 
@@ -475,7 +502,7 @@ type CdPatchAction int
 
 const (
 	CD_CREATE CdPatchAction = iota
-	CD_DELETE  //delete this pipeline
+	CD_DELETE               //delete this pipeline
 	CD_UPDATE
 )
 
