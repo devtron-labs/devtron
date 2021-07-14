@@ -21,10 +21,15 @@ paths:
                     type: string
                     description: status
                   result:
-                    type: array
-                    description: string
-                    items:
-                      $ref: '#/components/schemas/AppLabel'
+                    allOf:
+                      - type: object
+                        properties:
+                          appId:
+                            type: integer
+                            description: unique application id
+                        required:
+                          - appId
+                      - $ref: '#/components/schemas/AppLabel'
         default:
           description: unexpected error
           content:
@@ -77,7 +82,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AppLabelEdit'
+              $ref: '#/components/schemas/AppLabels'
       responses:
         '200':
           description: app labels edit response
@@ -94,7 +99,7 @@ paths:
                   result:
                     type: array
                     description: string
-                    $ref: '#/components/schemas/AppLabelEdit'
+                    $ref: '#/components/schemas/AppLabels'
         default:
           description: unexpected error
           content:
@@ -109,15 +114,29 @@ components:
     AppLabel:
       type: object
       required:
-        - id
-        - label
+        - key
+        - value
       properties:
-        id:
-          type: integer
-          description: app id
-        label:
+        key:
           type: string
-          description: label, key:value
+          description: label key
+        value:
+          type: string
+          description: label value
+
+    AppLabels:
+      type: object
+      required:
+        - appId
+        - labels
+      properties:
+        appId:
+          type: integer
+          description: application id
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppLabel'
 
     AppMetaInfo:
       type: object
@@ -145,26 +164,13 @@ components:
         labels:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/AppLabel'
         createdOn:
           type: string
           description: app creation date
         createdBy:
           type: string
           description: app created by
-
-    AppLabelEdit:
-      type: object
-      required:
-        - appId
-      properties:
-        appId:
-          type: integer
-          description: application id
-        labels:
-          type: array
-          items:
-            type: string
 
     ErrorResponse:
       required:

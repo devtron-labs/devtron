@@ -534,11 +534,9 @@ type AppLabelsDto struct {
 }
 
 type AppLabelDto struct {
-	Id     int    `json:"id,pk"`
 	Key    string `json:"key,notnull"`
 	Value  string `json:"value,notnull"`
 	AppId  int    `json:"appId"`
-	Active bool   `json:"active,notnull"`
 	UserId int32  `json:"-"`
 }
 

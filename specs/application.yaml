@@ -71,6 +71,10 @@ paths:
                   result:
                     type: object
                     description: string
+                    required:
+                      -  appCount
+                      -  appContainers
+                      -  deploymentGroup
                     properties:
                       appCount:
                         type: integer
@@ -95,6 +99,19 @@ paths:
 # components mentioned below
 components:
   schemas:
+    AppLabel:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          description: label key
+        value:
+          type: string
+          description: label value
+
     App:
       type: object
       required:
@@ -105,7 +122,6 @@ components:
         appName:
           type: string
           description: app name
-          required: true
         teamId:
           type: integer
           description: project id
@@ -116,7 +132,7 @@ components:
           type: array
           description: each apps may have multiple labels. these are optional.
           items:
-            type: string
+            $ref: '#/components/schemas/AppLabel'
 
     AppListingRequest:
       type: object

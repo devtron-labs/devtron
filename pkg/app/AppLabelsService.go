@@ -48,21 +48,27 @@ func NewAppLabelServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository
 }
 
 func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto) (*bean.AppLabelDto, error) {
-	model := &pipelineConfig.AppLabel{
-		Key:   request.Key,
-		Value: request.Value,
-		AppId: request.AppId,
-	}
-	model.CreatedBy = request.UserId
-	model.UpdatedBy = request.UserId
-	model.CreatedOn = time.Now()
-	model.UpdatedOn = time.Now()
-	_, err := impl.appLabelRepository.Create(model)
-	if err != nil {
-		impl.logger.Errorw("error in creating new app labels", "error", err)
+	_, err := impl.appLabelRepository.FindByAppIdAndKeyAndValue(request.AppId, request.Key, request.Value)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching app label", "error", err)
 		return nil, err
 	}
-	request.Id = model.Id
+	if err == pg.ErrNoRows {
+		model := &pipelineConfig.AppLabel{
+			Key:   request.Key,
+			Value: request.Value,
+			AppId: request.AppId,
+		}
+		model.CreatedBy = request.UserId
+		model.UpdatedBy = request.UserId
+		model.CreatedOn = time.Now()
+		model.UpdatedOn = time.Now()
+		_, err = impl.appLabelRepository.Create(model)
+		if err != nil {
+			impl.logger.Errorw("error in creating new app labels", "error", err)
+			return nil, err
+		}
+	}
 	return request, nil
 }
 
@@ -103,7 +109,9 @@ func (impl AppLabelServiceImpl) FindById(id int) (*bean.AppLabelDto, error) {
 		return nil, nil
 	}
 	ssoLoginDto := &bean.AppLabelDto{
-		Id: model.Id,
+		Key:   model.Key,
+		Value: model.Value,
+		AppId: model.AppId,
 	}
 	return ssoLoginDto, nil
 }
@@ -120,7 +128,6 @@ func (impl AppLabelServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 	}
 	for _, model := range models {
 		dto := &bean.AppLabelDto{
-			Id:    model.Id,
 			AppId: model.AppId,
 			Key:   model.Key,
 			Value: model.Value,
@@ -148,7 +155,6 @@ func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto,
 	var labels []*bean.AppLabelDto
 	for _, model := range models {
 		dto := &bean.AppLabelDto{
-			Id:    model.Id,
 			AppId: model.AppId,
 			Key:   model.Key,
 			Value: model.Value,
