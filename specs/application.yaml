@@ -5,16 +5,14 @@ info:
 paths:
   /orchestrator/app:
     post:
-      summary: create app
-      description: create app
-      operationId: createApp
+      description: create new application
       requestBody:
         description: json as request body
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AppCreate'
+              $ref: '#/components/schemas/App'
       responses:
         '200':
           description: App create response
@@ -31,7 +29,15 @@ paths:
                   result:
                     type: object
                     description: string
-                    $ref: '#/components/schemas/AppCreate'
+                    allOf:
+                      - type: object
+                        properties:
+                          id:
+                            type: integer
+                            description: unique application id
+                        required:
+                          - id
+                      - $ref: '#/components/schemas/App'
         default:
           description: unexpected error
           content:
@@ -41,9 +47,7 @@ paths:
 
   /orchestrator/app/list:
     post:
-      summary: app listing
-      description: app listing
-      operationId: app listing
+      description: app listing, collection of deployed applications or undeployed or incomplete configured apps.
       requestBody:
         description: json as request body
         required: true
@@ -70,12 +74,12 @@ paths:
                     properties:
                       appCount:
                         type: integer
-                        description: app count
+                        description: app count, total number of apps available based on filter provided in request.
                       appContainers:
                         type: array
                         description: app containers
                         items:
-                          $ref: '#/components/schemas/AppContainers'
+                          $ref: '#/components/schemas/AppContainer'
                       deploymentGroup:
                         type: object
                         description: deployment group
@@ -91,33 +95,38 @@ paths:
 # components mentioned below
 components:
   schemas:
-    AppCreate:
+    App:
       type: object
+      required:
+        - appName
+        - teamId
+        - templateId
       properties:
-        id:
-          type: integer
-          description: app id not required in create api
         appName:
           type: string
           description: app name
+          required: true
         teamId:
           type: integer
           description: project id
         templateId:
           type: integer
-          description: reference app id, used for clone, default value 0 for blank app.
+          description: reference app id, used for clone, set default value 0 for blank app.
         labels:
           type: array
-          description: project id
+          description: each apps may have multiple labels. these are optional.
           items:
             type: string
 
     AppListingRequest:
       type: object
+      required:
+        - offset
+        - size
       properties:
         appNameSearch:
           type: string
-          description: app name search
+          description: app name search, wildcard match
         offset:
           type: integer
           description: offset
@@ -137,7 +146,7 @@ components:
             type: integer
         teams:
           type: array
-          description: team id
+          description: team id, teams ids are projects ids
           items:
             type: integer
         labels:
@@ -151,8 +160,12 @@ components:
           items:
             type: string
 
-    AppContainers:
+    AppContainer:
       type: object
+      required:
+        - appId
+        - appName
+        - environments
       properties:
         appId:
           type: integer
@@ -163,10 +176,15 @@ components:
         environments:
           type: array
           items:
-            $ref: '#/components/schemas/EnvContainers'
+            $ref: '#/components/schemas/EnvContainer'
 
-    EnvContainers:
+    EnvContainer:
       type: object
+      required:
+        - appId
+        - appName
+        - environmentId
+        - environmentName
       properties:
         appId:
           type: integer
@@ -211,6 +229,8 @@ components:
 
     DeploymentGroup:
       type: object
+      required:
+        - id
       properties:
         id:
           type: integer

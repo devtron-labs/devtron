@@ -5,9 +5,7 @@ info:
 paths:
   /orchestrator/app/labels/list:
     get:
-      summary: Returns all App Labels
-      description: Returns all App Labels
-      operationId: findAppLabels
+      description: this api will return all the labels available in database.
       parameters: [ ]
       responses:
         '200':
@@ -26,7 +24,7 @@ paths:
                     type: array
                     description: string
                     items:
-                      $ref: '#/components/schemas/AppLabels'
+                      $ref: '#/components/schemas/AppLabel'
         default:
           description: unexpected error
           content:
@@ -37,7 +35,6 @@ paths:
   /orchestrator/app/meta/info/{appId}:
     get:
       description: application basic info, projects and labels
-      operationId: app meta info
       parameters:
         - name: appId
           in: path
@@ -62,7 +59,7 @@ paths:
                   result:
                     type: object
                     description: meta info project name and labels
-                    $ref: '#/components/schemas/AppMetaInfoResponse'
+                    $ref: '#/components/schemas/AppMetaInfo'
         default:
           description: unexpected error
           content:
@@ -73,19 +70,17 @@ paths:
 
   /orchestrator/app/labels:
     post:
-      summary: edit AppLabels
-      description: edit AppLabels api.
-      operationId: editAppLabels
+      description: edit labels to the apps, add or remove from this api.
       requestBody:
         description: json as request body
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AppLabelsEdit'
+              $ref: '#/components/schemas/AppLabelEdit'
       responses:
         '200':
-          description: AppLabels edit response
+          description: app labels edit response
           content:
             application/json:
               schema:
@@ -99,7 +94,7 @@ paths:
                   result:
                     type: array
                     description: string
-                    $ref: '#/components/schemas/AppLabelsEdit'
+                    $ref: '#/components/schemas/AppLabelEdit'
         default:
           description: unexpected error
           content:
@@ -111,8 +106,11 @@ paths:
 # components mentioned below
 components:
   schemas:
-    AppLabels:
+    AppLabel:
       type: object
+      required:
+        - id
+        - label
       properties:
         id:
           type: integer
@@ -121,8 +119,16 @@ components:
           type: string
           description: label, key:value
 
-    AppMetaInfoResponse:
+    AppMetaInfo:
       type: object
+      required:
+        - appId
+        - projectId
+        - appName
+        - projectName
+        - createdOn
+        - createdBy
+        - labels
       properties:
         appId:
           type: integer
@@ -136,7 +142,7 @@ components:
         projectName:
           type: string
           description: team/project name
-        Labels:
+        labels:
           type: array
           items:
             type: string
@@ -147,15 +153,15 @@ components:
           type: string
           description: app created by
 
-    AppLabelsEdit:
+    AppLabelEdit:
       type: object
       required:
         - appId
       properties:
         appId:
           type: integer
-          description: app id
-        Labels:
+          description: application id
+        labels:
           type: array
           items:
             type: string
