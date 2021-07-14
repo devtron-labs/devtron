@@ -352,3 +352,7 @@ tolerations: []
   #    operator: "Equal|Exists"
   #    value: "value"
   #    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
+
+imagePullSecrets: []
+  # - test1
+  # - test2

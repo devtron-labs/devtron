@@ -429,6 +429,21 @@ Alerting rules allow you to define alert conditions based on Prometheus expressi
 
 In this case, Prometheus will check that the alert continues to be active during each evaluation for 1 minute before firing the alert. Elements that are active, but not firing yet, are in the pending state.
 
+### Pod Labels
+Labels are key/value pairs that are attached to pods. Labels are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system. Labels can be used to organize and to select subsets of objects.
+```yaml
+podLabels:
+  severity: critical
+```
+
+### Pod Annotations
+Pod Annotations are widely used to attach metadata and configs in Kubernetes.
+
+```yaml
+podAnnotations:
+  fluentbit.io/exclude: "true"
+```
+
 ### Custom Metrics in HPA
 
 ```yaml

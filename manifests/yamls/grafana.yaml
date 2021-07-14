@@ -459,7 +459,7 @@ spec:
         runAsUser: 472
       initContainers:
         - name: init-chown-data
-          image: "busybox:1.31.1"
+          image: "quay.io/devtron/busybox:1.31.1"
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsNonRoot: false
@@ -471,7 +471,7 @@ spec:
             - name: storage
               mountPath: "/var/lib/grafana"
         - name: download-dashboards
-          image: "curlimages/curl:7.73.0"
+          image: "quay.io/devtron/curl:7.73.0"
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh"]
           args: [ "-c", "mkdir -p /var/lib/grafana/dashboards/default && /bin/sh /etc/grafana/download_dashboards.sh" ]
@@ -485,7 +485,7 @@ spec:
             - name: storage
               mountPath: "/var/lib/grafana"
         - name: grafana-sc-datasources
-          image: "kiwigrid/k8s-sidecar:1.1.0"
+          image: "quay.io/kiwigrid/k8s-sidecar:1.1.0"
           imagePullPolicy: IfNotPresent
           env:
             - name: METHOD
@@ -503,7 +503,7 @@ spec:
               mountPath: "/etc/grafana/provisioning/datasources"
       containers:
         - name: grafana-sc-dashboard
-          image: "kiwigrid/k8s-sidecar:1.1.0"
+          image: "quay.io/kiwigrid/k8s-sidecar:1.1.0"
           imagePullPolicy: IfNotPresent
           env:
             - name: METHOD
@@ -520,7 +520,7 @@ spec:
             - name: sc-dashboard-volume
               mountPath: "/tmp/dashboards"
         - name: grafana
-          image: "grafana/grafana:7.3.1"
+          image: "quay.io/devtron/grafana:7.3.1"
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: config
@@ -636,7 +636,7 @@ spec:
   serviceAccountName: devtron-grafana-test
   containers:
     - name: devtron-test
-      image: "bats/bats:v1.1.0"
+      image: "quay.io/devtron/bats:v1.1.0"
       imagePullPolicy: "IfNotPresent"
       command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
       volumeMounts:

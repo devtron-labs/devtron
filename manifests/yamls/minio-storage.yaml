@@ -279,7 +279,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: minio
-          image: minio/minio:RELEASE.2021-02-14T04-01-33Z
+          image: "quay.io/devtron/minio:RELEASE.2021-02-14T04-01-33Z"
           imagePullPolicy: IfNotPresent
 
           command: [ "/bin/sh",
@@ -350,7 +350,7 @@ spec:
       serviceAccountName: "devtron-minio"
       containers:
         - name: minio-mc
-          image: "minio/mc:RELEASE.2021-02-14T04-28-06Z"
+          image: "quay.io/devtron/minio-mc:RELEASE.2021-02-14T04-28-06Z"
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "/config/initialize"]
           env:
