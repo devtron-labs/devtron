@@ -5,17 +5,17 @@ This feature helps you to update deployment template for multiple apps in one go
 
 Need to make some common changes across multiple devtron applications?
 **Bulk Edit** allows you to do that.<br>
-Eg. You can change the value for `MaxReplicas` in Deployment Templates of multiple devtron applications.
+Eg. You can change the value for `MaxReplicas` in Deployment Templates of multiple Devtron applications.
 
 ## Support
 Bulk edit is currently supported for:
  - Deployment Template
 
-_Ability to edit more devtron components will be added in future._
+_Ability to edit more Devtron components will be added in the future._
 
 ## Steps:
 
-1. Click on the `Bulk Edit` option in the main navigation. This is where you can write and execute scripts to perform bulk updates.
+1. Click on the `Bulk Edit` option in the main navigation. This is where you can write and execute scripts to perform bulk updates in Devtron objects.
  
 ![](../.gitbook/assets/bulk-update-empty.png)
 <br>
@@ -31,8 +31,8 @@ _Ability to edit more devtron components will be added in future._
 ![](../.gitbook/assets/bulk-update-script.png)
 
 ### Example
-Example below will select all applications having `abc and xyz` present in their name and out of those will exclude applications having `abcd and xyza` in their name. Since global flag is false and envId 23 is provided, it will make changes in envId 23 and not in global deployment template for this application.
-If you want to update global deployment template then please set `global: true`.  If you have provided envId by deployment template is not overridden for that particular environment then it will not apply the changes.
+Example below will select all applications having `abc or xyz` in their name and out of those will exclude applications having `abcd or xyza` in their name. Since global flag is false and envId 23 is provided, it will make changes in envId 23 and not in global deployment template for the selected applications.
+If you want to update global deployment template then please set `global: true`. You can set both `global: true` and envIds in the script. If you have provided envId but deployment template is not overridden for that particular environment then it will not apply the changes.
 
 
 
@@ -58,7 +58,7 @@ spec:
   global: false
   deploymentTemplate:
     spec:
-      patchJson: '[{ "op": "add", "path": "/MaxSurge", "value": 1 },{"op": "replace","path":"/GracePeriod","value": "30"]'
+      patchJson: '[{ "op": "add", "path": "/MaxSurge", "value": 1 },{"op": "replace","path":"/GracePeriod","value": "30"}]'
 ```
 
 
@@ -72,8 +72,6 @@ The following tables list the configurable parameters of the Payload component i
 | `global`       | Flag to update global deployment template of applications            | `true`,`false`                                                        |
 | `patchJson`      | String having the update operation(you can apply more than one changes at a time). It supports [JSON patch ](http://jsonpatch.com/) specifications for update. | `''[ { "op": "add", "path": "/MaxSurge", "value": 1 }, { "op": "replace", "path": "/GracePeriod", "value": "30" }]''` |
 
-
- > Note - We use [JSON patch](http://jsonpatch.com/) logic for updation, visit the link for more info on this. 
 
 
 <br>
