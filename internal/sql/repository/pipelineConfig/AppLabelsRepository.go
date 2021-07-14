@@ -23,42 +23,43 @@ import (
 	"github.com/go-pg/pg"
 )
 
-type AppLabels struct {
-	tableName struct{} `sql:"app_labels" pg:",discard_unknown_columns"`
+type AppLabel struct {
+	tableName struct{} `sql:"app_label" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id,pk"`
-	Label     string   `sql:"label,notnull"`
+	Key       string   `sql:"key,notnull"`
+	Value     string   `sql:"value,notnull"`
 	AppId     int      `sql:"app_id"`
-	Active    bool     `sql:"active,notnull"`
 	App       App
 	models.AuditLog
 }
 
-type AppLabelsRepository interface {
-	Create(model *AppLabels) (*AppLabels, error)
-	Update(model *AppLabels) (*AppLabels, error)
-	FindById(id int) (*AppLabels, error)
-	FindAllActive() ([]AppLabels, error)
-	FindByLabel(label string) (*AppLabels, error)
-	FindByLabels(labels []string) ([]AppLabels, error)
-	FindAllActiveByAppId(appId int) ([]AppLabels, error)
+type AppLabelRepository interface {
+	Create(model *AppLabel) (*AppLabel, error)
+	Update(model *AppLabel) (*AppLabel, error)
+	FindById(id int) (*AppLabel, error)
+	FindAll() ([]*AppLabel, error)
+	FindByLabelKey(key string) ([]*AppLabel, error)
+	FindByAppIdAndKeyAndValue(appId int, key string, value string) (*AppLabel, error)
+	FindByLabels(labels []string) ([]*AppLabel, error)
+	FindAllByAppId(appId int) ([]*AppLabel, error)
 }
 
-type AppLabelsRepositoryImpl struct {
+type AppLabelRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
-func NewAppLabelsRepositoryImpl(dbConnection *pg.DB) *AppLabelsRepositoryImpl {
-	return &AppLabelsRepositoryImpl{dbConnection: dbConnection}
+func NewAppLabelRepositoryImpl(dbConnection *pg.DB) *AppLabelRepositoryImpl {
+	return &AppLabelRepositoryImpl{dbConnection: dbConnection}
 }
 
-func (impl AppLabelsRepositoryImpl) Create(model *AppLabels) (*AppLabels, error) {
+func (impl AppLabelRepositoryImpl) Create(model *AppLabel) (*AppLabel, error) {
 	err := impl.dbConnection.Insert(model)
 	if err != nil {
 		return model, err
 	}
 	return model, nil
 }
-func (impl AppLabelsRepositoryImpl) Update(model *AppLabels) (*AppLabels, error) {
+func (impl AppLabelRepositoryImpl) Update(model *AppLabel) (*AppLabel, error) {
 	err := impl.dbConnection.Update(model)
 	if err != nil {
 		return model, err
@@ -66,34 +67,39 @@ func (impl AppLabelsRepositoryImpl) Update(model *AppLabels) (*AppLabels, error)
 
 	return model, nil
 }
-func (impl AppLabelsRepositoryImpl) FindById(id int) (*AppLabels, error) {
-	var model AppLabels
+func (impl AppLabelRepositoryImpl) FindById(id int) (*AppLabel, error) {
+	var model AppLabel
 	err := impl.dbConnection.Model(&model).Where("id = ?", id).Order("id desc").Limit(1).Select()
 	return &model, err
 }
-func (impl AppLabelsRepositoryImpl) FindAllActive() ([]AppLabels, error) {
-	var userModel []AppLabels
-	err := impl.dbConnection.Model(&userModel).Where("active=?", true).Order("updated_on desc").Select()
+func (impl AppLabelRepositoryImpl) FindAll() ([]*AppLabel, error) {
+	var userModel []*AppLabel
+	err := impl.dbConnection.Model(&userModel).Order("updated_on desc").Select()
 	return userModel, err
 }
-func (impl AppLabelsRepositoryImpl) FindByLabel(label string) (*AppLabels, error) {
-	var model AppLabels
-	err := impl.dbConnection.Model(&model).Where("label = ?", label).Select()
-	return &model, err
+func (impl AppLabelRepositoryImpl) FindByLabelKey(key string) ([]*AppLabel, error) {
+	var model []*AppLabel
+	err := impl.dbConnection.Model(&model).Where("key = ?", key).Select()
+	return model, err
+}
+func (impl AppLabelRepositoryImpl) FindByAppIdAndKeyAndValue(appId int, key string, value string) (*AppLabel, error) {
+	var model *AppLabel
+	err := impl.dbConnection.Model(&model).Where("appId = ?", appId).
+		Where("key = ?", key).Where("value = ?", value).Select()
+	return model, err
 }
 
-func (impl AppLabelsRepositoryImpl) FindByLabels(labels []string) ([]AppLabels, error) {
+func (impl AppLabelRepositoryImpl) FindByLabels(labels []string) ([]*AppLabel, error) {
 	if len(labels) == 0 {
 		return nil, fmt.Errorf("no labels provided for search")
 	}
-	var models []AppLabels
+	var models []*AppLabel
 	err := impl.dbConnection.Model(&models).Where("labels in (?)", pg.In(labels)).Select()
 	return models, err
 }
 
-func (impl AppLabelsRepositoryImpl) FindAllActiveByAppId(appId int) ([]AppLabels, error) {
-	var models []AppLabels
-	err := impl.dbConnection.Model(&models).Where("app_id=?", appId).
-		Where("active=?", true).Select()
+func (impl AppLabelRepositoryImpl) FindAllByAppId(appId int) ([]*AppLabel, error) {
+	var models []*AppLabel
+	err := impl.dbConnection.Model(&models).Where("app_id=?", appId).Select()
 	return models, err
 }

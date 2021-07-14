@@ -41,7 +41,7 @@ type CreateAppDTO struct {
 	Material   []*GitMaterial `json:"material" validate:"dive,min=1"`
 	TeamId     int            `json:"teamId,omitempty" validate:"number,required"`
 	TemplateId int            `json:"templateId"`
-	AppLabels  []string       `json:"appLabels,omitempty"`
+	AppLabels  []string       `json:"labels,omitempty" validate:"dive,app-label-component"`
 }
 
 type CreateMaterialDTO struct {
@@ -525,4 +525,30 @@ type CiArtifactResponse struct {
 	//AppId           int      `json:"app_id"`
 	CdPipelineId int              `json:"cd_pipeline_id,notnull"`
 	CiArtifacts  []CiArtifactBean `json:"ci_artifacts,notnull"`
+}
+
+type AppLabelsDto struct {
+	Labels []string `json:"labels,notnull" validate:"dive,app-label-component"`
+	AppId  int      `json:"appId"`
+	UserId int32    `json:"-"`
+}
+
+type AppLabelDto struct {
+	Id     int    `json:"id,pk"`
+	Label  string `json:"label,notnull"`
+	AppId  int    `json:"appId"`
+	Active bool   `json:"active,notnull"`
+	UserId int32  `json:"-"`
+}
+
+type AppMetaInfoDto struct {
+	AppId       int            `json:"appId"`
+	AppName     string         `json:"appName"`
+	ProjectId   int            `json:"projectId"`
+	ProjectName string         `json:"projectName"`
+	CreatedBy   string         `json:"createdBy"`
+	CreatedOn   time.Time      `json:"createdOn"`
+	Active      bool           `json:"active,notnull"`
+	Labels      []*AppLabelDto `json:"labels"`
+	UserId      int32          `json:"-"`
 }

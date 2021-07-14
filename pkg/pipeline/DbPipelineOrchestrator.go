@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
@@ -74,6 +75,7 @@ type DbPipelineOrchestratorImpl struct {
 	envRepository                cluster.EnvironmentRepository
 	attributesService            attributes.AttributesService
 	appListingRepository         repository.AppListingRepository
+	appLabelsService             app.AppLabelService
 }
 
 func NewDbPipelineOrchestrator(
@@ -88,6 +90,7 @@ func NewDbPipelineOrchestrator(
 	envRepository cluster.EnvironmentRepository,
 	attributesService attributes.AttributesService,
 	appListingRepository repository.AppListingRepository,
+	appLabelsService app.AppLabelService,
 ) *DbPipelineOrchestratorImpl {
 
 	return &DbPipelineOrchestratorImpl{
@@ -103,6 +106,7 @@ func NewDbPipelineOrchestrator(
 		envRepository:                envRepository,
 		attributesService:            attributesService,
 		appListingRepository:         appListingRepository,
+		appLabelsService:             appLabelsService,
 	}
 }
 
@@ -656,6 +660,20 @@ func (impl DbPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateAppDT
 	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId)
 	if err != nil {
 		return nil, err
+	}
+	// create labels and tags with app
+	if app.Active && len(createRequest.AppLabels) > 0 {
+		for _, label := range createRequest.AppLabels {
+			request := &bean.AppLabelDto{
+				AppId: app.Id,
+				Label: label,
+			}
+			_, err := impl.appLabelsService.Create(request)
+			if err != nil {
+				impl.logger.Errorw("error on creating labels for app id ", "err", err, "appId", app.Id)
+				return nil, err
+			}
+		}
 	}
 	createRequest.Id = app.Id
 	return createRequest, nil

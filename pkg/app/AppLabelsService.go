@@ -18,69 +18,47 @@
 package app
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
 
-type AppLabelsCreateRequest struct {
-	Labels []string `json:"labels,notnull"`
-	AppId  int      `json:"appId"`
-	UserId int32    `json:"-"`
+type AppLabelService interface {
+	Create(request *bean.AppLabelDto) (*bean.AppLabelDto, error)
+	UpdateLabelsInApp(request *bean.AppLabelsDto) (*bean.AppLabelsDto, error)
+	FindById(id int) (*bean.AppLabelDto, error)
+	FindAllActive() ([]*bean.AppLabelDto, error)
+	GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error)
+}
+type AppLabelServiceImpl struct {
+	logger             *zap.SugaredLogger
+	appLabelRepository pipelineConfig.AppLabelRepository
+	appRepository      pipelineConfig.AppRepository
 }
 
-type AppLabelsDto struct {
-	Id     int    `json:"id,pk"`
-	Label  string `json:"label,notnull"`
-	AppId  int    `json:"appId"`
-	Active bool   `json:"active,notnull"`
-	UserId int32  `json:"-"`
-}
-
-type AppMetaInfoDto struct {
-	AppId       int             `json:"appId"`
-	AppName     string          `json:"appName"`
-	ProjectId   int             `json:"projectId"`
-	ProjectName string          `json:"projectName"`
-	CreatedBy   string          `json:"createdBy"`
-	CreatedOn   time.Time       `json:"createdOn"`
-	Active      bool            `json:"active,notnull"`
-	Labels      []*AppLabelsDto `json:"labels"`
-	UserId      int32           `json:"-"`
-}
-
-type AppLabelsService interface {
-	Create(request *AppLabelsDto) (*AppLabelsDto, error)
-	EditAppLabels(request *AppLabelsCreateRequest) (*AppLabelsCreateRequest, error)
-	FindById(id int) (*AppLabelsDto, error)
-	FindAllActive() ([]*AppLabelsDto, error)
-	GetAppMetaInfo(appId int) (*AppMetaInfoDto, error)
-}
-type AppLabelsServiceImpl struct {
-	logger              *zap.SugaredLogger
-	appLabelsRepository pipelineConfig.AppLabelsRepository
-	appRepository       pipelineConfig.AppRepository
-}
-
-func NewAppLabelsServiceImpl(appLabelsRepository pipelineConfig.AppLabelsRepository,
-	logger *zap.SugaredLogger, appRepository pipelineConfig.AppRepository) *AppLabelsServiceImpl {
-	return &AppLabelsServiceImpl{
-		appLabelsRepository: appLabelsRepository,
-		logger:              logger,
-		appRepository:       appRepository,
+func NewAppLabelServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
+	logger *zap.SugaredLogger, appRepository pipelineConfig.AppRepository) *AppLabelServiceImpl {
+	return &AppLabelServiceImpl{
+		appLabelRepository: appLabelRepository,
+		logger:             logger,
+		appRepository:      appRepository,
 	}
 }
 
-func (impl AppLabelsServiceImpl) Create(request *AppLabelsDto) (*AppLabelsDto, error) {
-	model := &pipelineConfig.AppLabels{
+func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto) (*bean.AppLabelDto, error) {
+	model := &pipelineConfig.AppLabel{
+		Key:   request.Label,
+		Value: request.Label,
+		AppId: request.AppId,
 	}
-	model.Active = true
 	model.CreatedBy = request.UserId
 	model.UpdatedBy = request.UserId
 	model.CreatedOn = time.Now()
 	model.UpdatedOn = time.Now()
-	_, err := impl.appLabelsRepository.Create(model)
+	_, err := impl.appLabelRepository.Create(model)
 	if err != nil {
 		impl.logger.Errorw("error in creating new app labels", "error", err)
 		return nil, err
@@ -89,20 +67,24 @@ func (impl AppLabelsServiceImpl) Create(request *AppLabelsDto) (*AppLabelsDto, e
 	return request, nil
 }
 
-func (impl AppLabelsServiceImpl) EditAppLabels(request *AppLabelsCreateRequest) (*AppLabelsCreateRequest, error) {
+func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.AppLabelsDto) (*bean.AppLabelsDto, error) {
 	for _, label := range request.Labels {
-		model, err := impl.appLabelsRepository.FindByLabel(label)
+		model, err := impl.appLabelRepository.FindByAppIdAndKeyAndValue(request.AppId, label, label)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching app label", "error", err)
 			return nil, err
 		}
 		if err == pg.ErrNoRows {
-			model = &pipelineConfig.AppLabels{}
-			model.Active = true
+			model = &pipelineConfig.AppLabel{
+				Key:   label,
+				Value: label,
+				AppId: request.AppId,
+			}
+			model.CreatedBy = request.UserId
 			model.UpdatedBy = request.UserId
 			model.CreatedOn = time.Now()
 			model.UpdatedOn = time.Now()
-			_, err = impl.appLabelsRepository.Create(model)
+			_, err = impl.appLabelRepository.Create(model)
 			if err != nil {
 				impl.logger.Errorw("error in creating new app labels", "error", err)
 				return nil, err
@@ -112,8 +94,8 @@ func (impl AppLabelsServiceImpl) EditAppLabels(request *AppLabelsCreateRequest) 
 	return request, nil
 }
 
-func (impl AppLabelsServiceImpl) FindById(id int) (*AppLabelsDto, error) {
-	model, err := impl.appLabelsRepository.FindById(id)
+func (impl AppLabelServiceImpl) FindById(id int) (*bean.AppLabelDto, error) {
+	model, err := impl.appLabelRepository.FindById(id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app labels", "error", err)
 		return nil, err
@@ -121,41 +103,40 @@ func (impl AppLabelsServiceImpl) FindById(id int) (*AppLabelsDto, error) {
 	if err == pg.ErrNoRows {
 		return nil, nil
 	}
-	ssoLoginDto := &AppLabelsDto{
-		Id:     model.Id,
-		Active: model.Active,
+	ssoLoginDto := &bean.AppLabelDto{
+		Id: model.Id,
 	}
 	return ssoLoginDto, nil
 }
 
-func (impl AppLabelsServiceImpl) FindAllActive() ([]*AppLabelsDto, error) {
-	results := make([]*AppLabelsDto, 0)
-	models, err := impl.appLabelsRepository.FindAllActive()
+func (impl AppLabelServiceImpl) FindAllActive() ([]*bean.AppLabelDto, error) {
+	results := make([]*bean.AppLabelDto, 0)
+	models, err := impl.appLabelRepository.FindAll()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching FindAllActive app labels", "error", err)
+		impl.logger.Errorw("error in fetching FindAll app labels", "error", err)
 		return nil, err
 	}
 	if err == pg.ErrNoRows {
 		return results, nil
 	}
 	for _, model := range models {
-		dto := &AppLabelsDto{
+		dto := &bean.AppLabelDto{
 			Id:    model.Id,
-			Label: model.Label,
+			Label: fmt.Sprintf("%s:%s", model.Key, model.Value),
 		}
 		results = append(results, dto)
 	}
 	return results, nil
 }
 
-func (impl AppLabelsServiceImpl) GetAppMetaInfo(appId int) (*AppMetaInfoDto, error) {
+func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error) {
 	app, err := impl.appRepository.FindAppAndProjectByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching GetAppMetaInfo", "error", err)
 		return nil, err
 	}
 
-	models, err := impl.appLabelsRepository.FindAllActive()
+	models, err := impl.appLabelRepository.FindAll()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching GetAppMetaInfo", "error", err)
 		return nil, err
@@ -163,15 +144,15 @@ func (impl AppLabelsServiceImpl) GetAppMetaInfo(appId int) (*AppMetaInfoDto, err
 	if err == pg.ErrNoRows {
 		return nil, nil
 	}
-	var labels []*AppLabelsDto
+	var labels []*bean.AppLabelDto
 	for _, model := range models {
-		dto := &AppLabelsDto{
+		dto := &bean.AppLabelDto{
 			Id:    model.Id,
-			Label: model.Label,
+			Label: fmt.Sprintf("%s:%s", model.Key, model.Value),
 		}
 		labels = append(labels, dto)
 	}
-	info := &AppMetaInfoDto{
+	info := &bean.AppMetaInfoDto{
 		AppId:       app.Id,
 		AppName:     app.AppName,
 		ProjectId:   app.TeamId,

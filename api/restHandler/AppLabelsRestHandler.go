@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -29,19 +30,19 @@ import (
 )
 
 type AppLabelsRestHandler interface {
-	EditAppLabels(w http.ResponseWriter, r *http.Request)
+	UpdateLabelsInApp(w http.ResponseWriter, r *http.Request)
 	GetAllActiveLabels(w http.ResponseWriter, r *http.Request)
 	GetAppMetaInfo(w http.ResponseWriter, r *http.Request)
 }
 
 type AppLabelsRestHandlerImpl struct {
 	logger           *zap.SugaredLogger
-	appLabelsService app.AppLabelsService
+	appLabelsService app.AppLabelService
 	userAuthService  user.UserService
 	validator        *validator.Validate
 }
 
-func NewAppTagRestHandlerImpl(logger *zap.SugaredLogger, appLabelsService app.AppLabelsService,
+func NewAppTagRestHandlerImpl(logger *zap.SugaredLogger, appLabelsService app.AppLabelService,
 	userAuthService user.UserService, validator *validator.Validate) *AppLabelsRestHandlerImpl {
 	handler := &AppLabelsRestHandlerImpl{
 		logger:           logger,
@@ -89,31 +90,31 @@ func (handler AppLabelsRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r 
 	writeJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler AppLabelsRestHandlerImpl) EditAppLabels(w http.ResponseWriter, r *http.Request) {
+func (handler AppLabelsRestHandlerImpl) UpdateLabelsInApp(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var createRequest app.AppLabelsCreateRequest
-	err = decoder.Decode(&createRequest)
-	createRequest.UserId = userId
+	var request bean.AppLabelsDto
+	err = decoder.Decode(&request)
+	request.UserId = userId
 	if err != nil {
-		handler.logger.Errorw("request err, EditAppLabels", "err", err, "create request", createRequest)
+		handler.logger.Errorw("request err, UpdateLabelsInApp", "err", err, "request", request)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.logger.Infow("request payload, EditAppLabels", "create request", createRequest)
-	err = handler.validator.Struct(createRequest)
+	handler.logger.Infow("request payload, UpdateLabelsInApp", "request", request)
+	err = handler.validator.Struct(request)
 	if err != nil {
-		handler.logger.Errorw("validation err, EditAppLabels", "err", err, "create request", createRequest)
+		handler.logger.Errorw("validation err, UpdateLabelsInApp", "err", err, "request", request)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := handler.appLabelsService.EditAppLabels(&createRequest)
+	res, err := handler.appLabelsService.UpdateLabelsInApp(&request)
 	if err != nil {
-		handler.logger.Errorw("service err, EditAppLabels", "err", err)
+		handler.logger.Errorw("service err, UpdateLabelsInApp", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

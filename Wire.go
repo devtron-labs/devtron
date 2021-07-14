@@ -669,10 +669,10 @@ func InitializeApp() (*App, error) {
 		restHandler.NewAppTagRestHandlerImpl,
 		wire.Bind(new(restHandler.AppLabelsRestHandler), new(*restHandler.AppLabelsRestHandlerImpl)),
 
-		app.NewAppLabelsServiceImpl,
-		wire.Bind(new(app.AppLabelsService), new(*app.AppLabelsServiceImpl)),
-		pipelineConfig.NewAppLabelsRepositoryImpl,
-		wire.Bind(new(pipelineConfig.AppLabelsRepository), new(*pipelineConfig.AppLabelsRepositoryImpl)),
+		app.NewAppLabelServiceImpl,
+		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
+		pipelineConfig.NewAppLabelRepositoryImpl,
+		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 
 	)
 	return &App{}, nil

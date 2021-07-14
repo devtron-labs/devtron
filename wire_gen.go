@@ -175,7 +175,9 @@ func InitializeApp() (*App, error) {
 	}
 	appWorkflowRepositoryImpl := appWorkflow.NewAppWorkflowRepositoryImpl(sugaredLogger, db)
 	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, sessionManager, attributesRepositoryImpl)
-	dbPipelineOrchestratorImpl := pipeline.NewDbPipelineOrchestrator(appRepositoryImpl, sugaredLogger, materialRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, ciPipelineMaterialRepositoryImpl, gitSensorClientImpl, ciConfig, appWorkflowRepositoryImpl, environmentRepositoryImpl, attributesServiceImpl, appListingRepositoryImpl)
+	appLabelRepositoryImpl := pipelineConfig.NewAppLabelRepositoryImpl(db)
+	appLabelServiceImpl := app.NewAppLabelServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl)
+	dbPipelineOrchestratorImpl := pipeline.NewDbPipelineOrchestrator(appRepositoryImpl, sugaredLogger, materialRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, ciPipelineMaterialRepositoryImpl, gitSensorClientImpl, ciConfig, appWorkflowRepositoryImpl, environmentRepositoryImpl, attributesServiceImpl, appListingRepositoryImpl, appLabelServiceImpl)
 	utilMergeUtil := util.MergeUtil{
 		Logger: sugaredLogger,
 	}
@@ -404,9 +406,7 @@ func InitializeApp() (*App, error) {
 	}
 	telemetryRestHandlerImpl := restHandler.NewTelemetryRestHandlerImpl(sugaredLogger, telemetryEventClientImpl)
 	telemetryRouterImpl := router.NewTelemetryRouterImpl(sugaredLogger, telemetryRestHandlerImpl)
-	appLabelsRepositoryImpl := pipelineConfig.NewAppLabelsRepositoryImpl(db)
-	appLabelsServiceImpl := app.NewAppLabelsServiceImpl(appLabelsRepositoryImpl, sugaredLogger, appRepositoryImpl)
-	appLabelsRestHandlerImpl := restHandler.NewAppTagRestHandlerImpl(sugaredLogger, appLabelsServiceImpl, userServiceImpl, validate)
+	appLabelsRestHandlerImpl := restHandler.NewAppTagRestHandlerImpl(sugaredLogger, appLabelServiceImpl, userServiceImpl, validate)
 	appLabelsRouterImpl := router.NewAppLabelsRouterImpl(sugaredLogger, appLabelsRestHandlerImpl)
 	muxRouter := router.NewMuxRouter(sugaredLogger, helmRouterImpl, pipelineConfigRouterImpl, migrateDbRouterImpl, clusterAccountsRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, clusterHelmConfigRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, projectManagementRouterImpl, gitProviderRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusUpdateHandlerImpl, ciEventHandlerImpl, pubSubClient, userRouterImpl, cronBasedEventReceiverImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, testSuitRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImpl, appLabelsRouterImpl)
 	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, sessionManager, versionServiceImpl, enforcer, db, pubSubClient)
