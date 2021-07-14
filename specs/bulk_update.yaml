@@ -10,9 +10,16 @@ paths:
       description: Returns Readme for bulk update for different resource in the url
       operationId: FindBulkUpdateReadme
       parameters:
-       - name: resource
-         in: path
-         description : resource obtained from combining {apiVersion} & {kind}
+        - name: apiVersion
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: Successful GET operation
