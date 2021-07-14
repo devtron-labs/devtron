@@ -1,6 +1,6 @@
 # Debugging Deployment And Monitoring
 
-If the deployment your application is not successful, then debugging needs to be done to check the cause of the error.
+If the deployment of your application is not successful, then debugging needs to be done to check the cause of the error.
 
 This can be done through `App Details` section which you can access in the following way:-
 
