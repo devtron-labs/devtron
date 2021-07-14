@@ -73,20 +73,20 @@ func (impl AppLabelRepositoryImpl) FindById(id int) (*AppLabel, error) {
 	return &model, err
 }
 func (impl AppLabelRepositoryImpl) FindAll() ([]*AppLabel, error) {
-	var userModel []*AppLabel
-	err := impl.dbConnection.Model(&userModel).Order("updated_on desc").Select()
-	return userModel, err
+	var models []*AppLabel
+	err := impl.dbConnection.Model(&models).Order("updated_on desc").Select()
+	return models, err
 }
 func (impl AppLabelRepositoryImpl) FindByLabelKey(key string) ([]*AppLabel, error) {
-	var model []*AppLabel
-	err := impl.dbConnection.Model(&model).Where("key = ?", key).Select()
-	return model, err
+	var models []*AppLabel
+	err := impl.dbConnection.Model(&models).Where("key = ?", key).Select()
+	return models, err
 }
 func (impl AppLabelRepositoryImpl) FindByAppIdAndKeyAndValue(appId int, key string, value string) (*AppLabel, error) {
-	var model *AppLabel
+	var model AppLabel
 	err := impl.dbConnection.Model(&model).Where("app_id = ?", appId).
 		Where("key = ?", key).Where("value = ?", value).Select()
-	return model, err
+	return &model, err
 }
 
 func (impl AppLabelRepositoryImpl) FindByLabelValue(label string) ([]*AppLabel, error) {
