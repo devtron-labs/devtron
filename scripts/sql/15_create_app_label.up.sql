@@ -8,7 +8,6 @@ CREATE TABLE "public"."app_label"
     "app_id"     int4,
     "key"        varchar(255),
     "value"      varchar(255),
-    "active"     bool,
     "created_on" timestamptz,
     "created_by" int4,
     "updated_on" timestamptz,

@@ -665,9 +665,10 @@ func (impl DbPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateAppDT
 	if app.Active && len(createRequest.AppLabels) > 0 {
 		for _, label := range createRequest.AppLabels {
 			request := &bean.AppLabelDto{
-				AppId: app.Id,
-				Key:   label.Key,
-				Value: label.Value,
+				AppId:  app.Id,
+				Key:    label.Key,
+				Value:  label.Value,
+				UserId: createRequest.UserId,
 			}
 			_, err := impl.appLabelsService.Create(request)
 			if err != nil {
