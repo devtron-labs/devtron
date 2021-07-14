@@ -69,6 +69,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -122,6 +123,9 @@ func InitializeApp() (*App, error) {
 		app.NewAppService,
 		wire.Bind(new(app.AppService), new(*app.AppServiceImpl)),
 
+		bulkUpdate.NewBulkUpdateRepository,
+		wire.Bind(new(bulkUpdate.BulkUpdateRepository), new(*bulkUpdate.BulkUpdateRepositoryImpl)),
+
 		chartConfig.NewChartRepository,
 		wire.Bind(new(chartConfig.ChartRepository), new(*chartConfig.ChartRepositoryImpl)),
 		chartConfig.NewEnvConfigOverrideRepository,
@@ -158,6 +162,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
 		pipeline.NewChartServiceImpl,
 		wire.Bind(new(pipeline.ChartService), new(*pipeline.ChartServiceImpl)),
+		pipeline.NewBulkUpdateServiceImpl,
+		wire.Bind(new(pipeline.BulkUpdateService), new(*pipeline.BulkUpdateServiceImpl)),
 		chartConfig.NewChartRepoRepositoryImpl,
 		wire.Bind(new(chartConfig.ChartRepoRepository), new(*chartConfig.ChartRepoRepositoryImpl)),
 		chartConfig.NewChartRefRepositoryImpl,
@@ -579,7 +585,6 @@ func InitializeApp() (*App, error) {
 		restHandler.NewTestSuitRestHandlerImpl,
 		wire.Bind(new(restHandler.TestSuitRestHandler), new(*restHandler.TestSuitRestHandlerImpl)),
 
-
 		router.NewImageScanRouterImpl,
 		wire.Bind(new(router.ImageScanRouter), new(*router.ImageScanRouterImpl)),
 		restHandler.NewImageScanRestHandlerImpl,
@@ -633,7 +638,6 @@ func InitializeApp() (*App, error) {
 		repository.NewGitOpsConfigRepositoryImpl,
 		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
 
-
 		router.NewAttributesRouterImpl,
 		wire.Bind(new(router.AttributesRouter), new(*router.AttributesRouterImpl)),
 		restHandler.NewAttributesRestHandlerImpl,
@@ -663,6 +667,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
 
 		telemetry.GetPosthogConfig,
+		router.NewBulkUpdateRouterImpl,
+		wire.Bind(new(router.BulkUpdateRouter), new(*router.BulkUpdateRouterImpl)),
+		restHandler.NewBulkUpdateRestHandlerImpl,
+		wire.Bind(new(restHandler.BulkUpdateRestHandler), new(*restHandler.BulkUpdateRestHandlerImpl)),
 	)
 	return &App{}, nil
 }
