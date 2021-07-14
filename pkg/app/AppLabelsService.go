@@ -18,7 +18,6 @@
 package app
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
@@ -30,7 +29,7 @@ type AppLabelService interface {
 	Create(request *bean.AppLabelDto) (*bean.AppLabelDto, error)
 	UpdateLabelsInApp(request *bean.AppLabelsDto) (*bean.AppLabelsDto, error)
 	FindById(id int) (*bean.AppLabelDto, error)
-	FindAllActive() ([]*bean.AppLabelDto, error)
+	FindAll() ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error)
 }
 type AppLabelServiceImpl struct {
@@ -50,8 +49,8 @@ func NewAppLabelServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository
 
 func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto) (*bean.AppLabelDto, error) {
 	model := &pipelineConfig.AppLabel{
-		Key:   request.Label,
-		Value: request.Label,
+		Key:   request.Key,
+		Value: request.Value,
 		AppId: request.AppId,
 	}
 	model.CreatedBy = request.UserId
@@ -69,15 +68,15 @@ func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto) (*bean.AppLabe
 
 func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.AppLabelsDto) (*bean.AppLabelsDto, error) {
 	for _, label := range request.Labels {
-		model, err := impl.appLabelRepository.FindByAppIdAndKeyAndValue(request.AppId, label, label)
+		model, err := impl.appLabelRepository.FindByAppIdAndKeyAndValue(request.AppId, label.Key, label.Value)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching app label", "error", err)
 			return nil, err
 		}
 		if err == pg.ErrNoRows {
 			model = &pipelineConfig.AppLabel{
-				Key:   label,
-				Value: label,
+				Key:   label.Key,
+				Value: label.Value,
 				AppId: request.AppId,
 			}
 			model.CreatedBy = request.UserId
@@ -109,7 +108,7 @@ func (impl AppLabelServiceImpl) FindById(id int) (*bean.AppLabelDto, error) {
 	return ssoLoginDto, nil
 }
 
-func (impl AppLabelServiceImpl) FindAllActive() ([]*bean.AppLabelDto, error) {
+func (impl AppLabelServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 	results := make([]*bean.AppLabelDto, 0)
 	models, err := impl.appLabelRepository.FindAll()
 	if err != nil && err != pg.ErrNoRows {
@@ -122,7 +121,8 @@ func (impl AppLabelServiceImpl) FindAllActive() ([]*bean.AppLabelDto, error) {
 	for _, model := range models {
 		dto := &bean.AppLabelDto{
 			Id:    model.Id,
-			Label: fmt.Sprintf("%s:%s", model.Key, model.Value),
+			Key:   model.Key,
+			Value: model.Value,
 		}
 		results = append(results, dto)
 	}
@@ -148,7 +148,8 @@ func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto,
 	for _, model := range models {
 		dto := &bean.AppLabelDto{
 			Id:    model.Id,
-			Label: fmt.Sprintf("%s:%s", model.Key, model.Value),
+			Key:   model.Key,
+			Value: model.Value,
 		}
 		labels = append(labels, dto)
 	}

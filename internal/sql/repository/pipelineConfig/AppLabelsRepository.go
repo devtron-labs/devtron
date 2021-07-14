@@ -26,9 +26,9 @@ import (
 type AppLabel struct {
 	tableName struct{} `sql:"app_label" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id,pk"`
+	AppId     int      `sql:"app_id"`
 	Key       string   `sql:"key,notnull"`
 	Value     string   `sql:"value,notnull"`
-	AppId     int      `sql:"app_id"`
 	App       App
 	models.AuditLog
 }
@@ -40,7 +40,7 @@ type AppLabelRepository interface {
 	FindAll() ([]*AppLabel, error)
 	FindByLabelKey(key string) ([]*AppLabel, error)
 	FindByAppIdAndKeyAndValue(appId int, key string, value string) (*AppLabel, error)
-	FindByLabels(labels []string) ([]*AppLabel, error)
+	FindByLabelValue(label string) ([]*AppLabel, error)
 	FindAllByAppId(appId int) ([]*AppLabel, error)
 }
 
@@ -84,17 +84,17 @@ func (impl AppLabelRepositoryImpl) FindByLabelKey(key string) ([]*AppLabel, erro
 }
 func (impl AppLabelRepositoryImpl) FindByAppIdAndKeyAndValue(appId int, key string, value string) (*AppLabel, error) {
 	var model *AppLabel
-	err := impl.dbConnection.Model(&model).Where("appId = ?", appId).
+	err := impl.dbConnection.Model(&model).Where("app_id = ?", appId).
 		Where("key = ?", key).Where("value = ?", value).Select()
 	return model, err
 }
 
-func (impl AppLabelRepositoryImpl) FindByLabels(labels []string) ([]*AppLabel, error) {
-	if len(labels) == 0 {
+func (impl AppLabelRepositoryImpl) FindByLabelValue(label string) ([]*AppLabel, error) {
+	if len(label) == 0 {
 		return nil, fmt.Errorf("no labels provided for search")
 	}
 	var models []*AppLabel
-	err := impl.dbConnection.Model(&models).Where("labels in (?)", pg.In(labels)).Select()
+	err := impl.dbConnection.Model(&models).Where("value = ?", label).Select()
 	return models, err
 }
 

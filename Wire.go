@@ -664,10 +664,10 @@ func InitializeApp() (*App, error) {
 
 		telemetry.GetPosthogConfig,
 
-		router.NewAppLabelsRouterImpl,
-		wire.Bind(new(router.AppLabelsRouter), new(*router.AppLabelsRouterImpl)),
-		restHandler.NewAppTagRestHandlerImpl,
-		wire.Bind(new(restHandler.AppLabelsRestHandler), new(*restHandler.AppLabelsRestHandlerImpl)),
+		router.NewAppLabelRouterImpl,
+		wire.Bind(new(router.AppLabelRouter), new(*router.AppLabelRouterImpl)),
+		restHandler.NewAppLabelRestHandlerImpl,
+		wire.Bind(new(restHandler.AppLabelRestHandler), new(*restHandler.AppLabelRestHandlerImpl)),
 
 		app.NewAppLabelServiceImpl,
 		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),

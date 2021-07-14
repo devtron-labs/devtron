@@ -41,7 +41,7 @@ type CreateAppDTO struct {
 	Material   []*GitMaterial `json:"material" validate:"dive,min=1"`
 	TeamId     int            `json:"teamId,omitempty" validate:"number,required"`
 	TemplateId int            `json:"templateId"`
-	AppLabels  []string       `json:"labels,omitempty" validate:"dive,app-label-component"`
+	AppLabels  []*Label       `json:"labels,omitempty" validate:"dive,app-label-component"`
 }
 
 type CreateMaterialDTO struct {
@@ -528,17 +528,23 @@ type CiArtifactResponse struct {
 }
 
 type AppLabelsDto struct {
-	Labels []string `json:"labels,notnull" validate:"dive,app-label-component"`
+	Labels []*Label `json:"labels,notnull" validate:"dive,app-label-component"`
 	AppId  int      `json:"appId"`
 	UserId int32    `json:"-"`
 }
 
 type AppLabelDto struct {
 	Id     int    `json:"id,pk"`
-	Label  string `json:"label,notnull"`
+	Key    string `json:"key,notnull"`
+	Value  string `json:"value,notnull"`
 	AppId  int    `json:"appId"`
 	Active bool   `json:"active,notnull"`
 	UserId int32  `json:"-"`
+}
+
+type Label struct {
+	Key   string `json:"key,notnull"`
+	Value string `json:"value,notnull"`
 }
 
 type AppMetaInfoDto struct {

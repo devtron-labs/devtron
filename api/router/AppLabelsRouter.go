@@ -23,26 +23,26 @@ import (
 	"go.uber.org/zap"
 )
 
-type AppLabelsRouter interface {
-	initLabelsRouter(router *mux.Router)
+type AppLabelRouter interface {
+	initLabelRouter(router *mux.Router)
 }
 
-type AppLabelsRouterImpl struct {
+type AppLabelRouterImpl struct {
 	logger  *zap.SugaredLogger
-	handler restHandler.AppLabelsRestHandler
+	handler restHandler.AppLabelRestHandler
 }
 
-func NewAppLabelsRouterImpl(logger *zap.SugaredLogger, handler restHandler.AppLabelsRestHandler) *AppLabelsRouterImpl {
-	router := &AppLabelsRouterImpl{
+func NewAppLabelRouterImpl(logger *zap.SugaredLogger, handler restHandler.AppLabelRestHandler) *AppLabelRouterImpl {
+	router := &AppLabelRouterImpl{
 		logger:  logger,
 		handler: handler,
 	}
 	return router
 }
 
-func (router AppLabelsRouterImpl) initLabelsRouter(appLabelsRouter *mux.Router) {
+func (router AppLabelRouterImpl) initLabelRouter(appLabelsRouter *mux.Router) {
 	appLabelsRouter.Path("/labels/list").
-		HandlerFunc(router.handler.GetAllActiveLabels).Methods("GET")
+		HandlerFunc(router.handler.GetAllLabels).Methods("GET")
 	appLabelsRouter.Path("/meta/info/{appId}").
 		HandlerFunc(router.handler.GetAppMetaInfo).Methods("GET")
 	appLabelsRouter.Path("/labels").

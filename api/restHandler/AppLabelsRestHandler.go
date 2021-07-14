@@ -29,46 +29,46 @@ import (
 	"strconv"
 )
 
-type AppLabelsRestHandler interface {
+type AppLabelRestHandler interface {
 	UpdateLabelsInApp(w http.ResponseWriter, r *http.Request)
-	GetAllActiveLabels(w http.ResponseWriter, r *http.Request)
+	GetAllLabels(w http.ResponseWriter, r *http.Request)
 	GetAppMetaInfo(w http.ResponseWriter, r *http.Request)
 }
 
-type AppLabelsRestHandlerImpl struct {
-	logger           *zap.SugaredLogger
-	appLabelsService app.AppLabelService
-	userAuthService  user.UserService
-	validator        *validator.Validate
+type AppLabelRestHandlerImpl struct {
+	logger          *zap.SugaredLogger
+	appLabelService app.AppLabelService
+	userAuthService user.UserService
+	validator       *validator.Validate
 }
 
-func NewAppTagRestHandlerImpl(logger *zap.SugaredLogger, appLabelsService app.AppLabelService,
-	userAuthService user.UserService, validator *validator.Validate) *AppLabelsRestHandlerImpl {
-	handler := &AppLabelsRestHandlerImpl{
-		logger:           logger,
-		appLabelsService: appLabelsService,
-		userAuthService:  userAuthService,
-		validator:        validator,
+func NewAppLabelRestHandlerImpl(logger *zap.SugaredLogger, appLabelService app.AppLabelService,
+	userAuthService user.UserService, validator *validator.Validate) *AppLabelRestHandlerImpl {
+	handler := &AppLabelRestHandlerImpl{
+		logger:          logger,
+		appLabelService: appLabelService,
+		userAuthService: userAuthService,
+		validator:       validator,
 	}
 	return handler
 }
 
-func (handler AppLabelsRestHandlerImpl) GetAllActiveLabels(w http.ResponseWriter, r *http.Request) {
+func (handler AppLabelRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	res, err := handler.appLabelsService.FindAllActive()
+	res, err := handler.appLabelService.FindAll()
 	if err != nil {
-		handler.logger.Errorw("service err, GetAllActiveLabels", "err", err)
+		handler.logger.Errorw("service err, GetAllLabels", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	writeJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler AppLabelsRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.Request) {
+func (handler AppLabelRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -81,7 +81,7 @@ func (handler AppLabelsRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r 
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := handler.appLabelsService.GetAppMetaInfo(appId)
+	res, err := handler.appLabelService.GetAppMetaInfo(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -90,7 +90,7 @@ func (handler AppLabelsRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r 
 	writeJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler AppLabelsRestHandlerImpl) UpdateLabelsInApp(w http.ResponseWriter, r *http.Request) {
+func (handler AppLabelRestHandlerImpl) UpdateLabelsInApp(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -112,7 +112,7 @@ func (handler AppLabelsRestHandlerImpl) UpdateLabelsInApp(w http.ResponseWriter,
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := handler.appLabelsService.UpdateLabelsInApp(&request)
+	res, err := handler.appLabelService.UpdateLabelsInApp(&request)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateLabelsInApp", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
