@@ -22,13 +22,13 @@ _Ability to edit more devtron components will be added in future._
 
 2. To help you get started, a script template is provided under the `See Samples` section.
 
-![](../.gitbook/assets/bulk-update-sample.png)
+![](../.gitbook/assets/bulk-update-readme.png)
 <br>
 
 3. Copy and Paste the `Sample Script` in the code editor and make desired changes. Refer `Payload Configuration` in the Readme to understand the parameters.
 
 
-![](../.gitbook/assets/bulk-update-editor.png)
+![](../.gitbook/assets/bulk-update-script.png)
 
 ### Example
 Example below will select all applications having `abc and xyz` present in their name and out of those will exclude applications having `abcd and xyza` in their name. Since global flag is false and envId 23 is provided, it will make changes in envId 23 and not in global deployment template for this application.
@@ -82,14 +82,14 @@ The following tables list the configurable parameters of the Payload component i
 4. Once you have modified the script, you can click on the `Show Impacted Objects` button to see the names of all applications that will be modified when the script is `Run`.
 
 
-![](../.gitbook/assets/bulk-update-impacted.png)
+![](../.gitbook/assets/bulk-update-impactobj.png)
 
 <br>
 
 5. Click on the `Run` button to execute the script. Status/Output of the script execution will be shown in the `Output` section of the bottom drawer.
 
 
-![](../.gitbook/assets/bulk-update-message.png)
+![](../.gitbook/assets/bulk-update-run.png)
 <br>
 
 
