@@ -121,6 +121,7 @@ func (impl AppLabelServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 	for _, model := range models {
 		dto := &bean.AppLabelDto{
 			Id:    model.Id,
+			AppId: model.AppId,
 			Key:   model.Key,
 			Value: model.Value,
 		}
@@ -136,7 +137,7 @@ func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto,
 		return nil, err
 	}
 
-	models, err := impl.appLabelRepository.FindAll()
+	models, err := impl.appLabelRepository.FindAllByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching GetAppMetaInfo", "error", err)
 		return nil, err
@@ -148,6 +149,7 @@ func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto,
 	for _, model := range models {
 		dto := &bean.AppLabelDto{
 			Id:    model.Id,
+			AppId: model.AppId,
 			Key:   model.Key,
 			Value: model.Value,
 		}
