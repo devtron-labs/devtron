@@ -302,9 +302,7 @@ spec:
                 secretKeyRef:
                   name: devtron-minio
                   key: secretkey
-          resources:
-            requests:
-              memory: 1Gi
+          resources: {}
       volumes:
         - name: minio-user
           secret:
@@ -361,6 +359,4 @@ spec:
           volumeMounts:
             - name: minio-configuration
               mountPath: /config
-          resources:
-            requests:
-              memory: 128Mi
+          resources: {}

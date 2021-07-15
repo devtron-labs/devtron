@@ -273,9 +273,6 @@ spec:
                 secretKeyRef:
                   name: devtron-minio
                   key: secretkey
-          resources:
-            requests:
-              memory: 1Gi
       volumes:
         - name: minio-user
           secret:

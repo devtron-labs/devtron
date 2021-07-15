@@ -122,10 +122,6 @@ spec:
         - name: init-chmod-data
           image: "quay.io/bitnami/minideb:latest"
           imagePullPolicy: "IfNotPresent"
-          resources:
-            requests:
-              cpu: 250m
-              memory: 256Mi
           command:
             - /bin/sh
             - -cx
@@ -153,10 +149,6 @@ spec:
         - name: postgresql-postgresql
           image: quay.io/bitnami/postgresql:11.3.0-debian-9-r28
           imagePullPolicy: "IfNotPresent"
-          resources:
-            requests:
-              cpu: 250m
-              memory: 256Mi
           securityContext:
             runAsUser: 1001
           env:

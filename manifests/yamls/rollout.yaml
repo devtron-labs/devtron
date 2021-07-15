@@ -11014,13 +11014,6 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp
-        resources:
-          requests:
-            memory: 200Mi
-            cpu: 250m
-          limits:
-            memory: 200Mi
-            cpu: 250m
       serviceAccountName: argo-rollouts
       volumes:
       - emptyDir: {}
