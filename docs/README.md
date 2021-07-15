@@ -19,7 +19,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 #### Multi cloud deployment
 
-* Deploy to multiple Kubernetes clusters on multiple cloud from one Devtron setup.
+* Deploy to multiple Kubernetes clusters on multiple cloud/on-prem from one Devtron setup.
 * Works for all cloud providers and on-premise Kubernetes clusters.
 
 
