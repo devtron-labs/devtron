@@ -371,7 +371,7 @@ kubeYamlEdit(argocd, `data.repositories`, helmRepo, `/ConfigMap//argocd-cm` );
 #    kubeYamlEdit(argocd, `data.dex\.config`, dexConfig, `/ConfigMap//argocd-cm`);
 #}
 
-kubeYamlEdit(argocd, `data`, argocdResource, `/ConfigMap//argocd-cm`);
+kubeYamlEdit(argocd, `data`, argocdResource, `/ConfigMap//argocd-cm`, "asObject");
 
 kubeYamlEdit(argocd, `data.policy\.default`, `role:admin`, `/ConfigMap//argocd-rbac-cm`);
 # patchLoad = '{"data":{"url":"' + baseURL + '", "dex.config:"' + dexConfig + '}}';
