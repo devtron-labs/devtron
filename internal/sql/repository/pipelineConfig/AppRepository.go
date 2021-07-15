@@ -38,6 +38,7 @@ type AppRepository interface {
 	Save(pipelineGroup *App) error
 	SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error
 	Update(app *App) error
+	UpdateWithTxn(app *App, tx *pg.Tx) error
 	FindActiveByName(appName string) (pipelineGroup *App, err error)
 	FindActiveListByName(appName string) ([]*App, error)
 	FindById(id int) (pipelineGroup *App, err error)
@@ -52,6 +53,7 @@ type AppRepository interface {
 	FindByIds(ids []*int) ([]*App, error)
 	FetchAppsByFilterV2(appNameIncludes string, appNameExcludes string, environmentId int) ([]*App, error)
 	FindAppAndProjectByAppId(appId int) (*App, error)
+	GetConnection() *pg.DB
 }
 
 type AppRepositoryImpl struct {
@@ -60,6 +62,10 @@ type AppRepositoryImpl struct {
 
 func NewAppRepositoryImpl(dbConnection *pg.DB) *AppRepositoryImpl {
 	return &AppRepositoryImpl{dbConnection: dbConnection}
+}
+
+func (repo AppRepositoryImpl) GetConnection() *pg.DB {
+	return repo.dbConnection
 }
 
 func (repo AppRepositoryImpl) Save(pipelineGroup *App) error {
@@ -74,6 +80,11 @@ func (repo AppRepositoryImpl) SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error {
 
 func (repo AppRepositoryImpl) Update(app *App) error {
 	_, err := repo.dbConnection.Model(app).WherePK().UpdateNotNull()
+	return err
+}
+
+func (repo AppRepositoryImpl) UpdateWithTxn(app *App, tx *pg.Tx) error {
+	err := tx.Update(app)
 	return err
 }
 

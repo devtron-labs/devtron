@@ -657,7 +657,14 @@ func (impl DbPipelineOrchestratorImpl) addPipelineMaterialInGitSensor(pipelineMa
 }
 
 func (impl DbPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
-	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId)
+	dbConnection := impl.appRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -670,12 +677,17 @@ func (impl DbPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateAppDT
 				Value:  label.Value,
 				UserId: createRequest.UserId,
 			}
-			_, err := impl.appLabelsService.Create(request)
+			_, err := impl.appLabelsService.Create(request, tx)
 			if err != nil {
 				impl.logger.Errorw("error on creating labels for app id ", "err", err, "appId", app.Id)
 				return nil, err
 			}
 		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in commit repo", "error", err)
+		return nil, err
 	}
 	createRequest.Id = app.Id
 	return createRequest, nil
@@ -810,7 +822,7 @@ func (impl DbPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bea
 }
 
 //FIXME: not thread safe
-func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int) (*pipelineConfig.App, error) {
+func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, tx *pg.Tx) (*pipelineConfig.App, error) {
 	app, err := impl.appRepository.FindActiveByName(name)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -830,7 +842,7 @@ func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32,
 		TeamId:   teamId,
 		AuditLog: models.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
-	err = impl.appRepository.Save(pg)
+	err = impl.appRepository.SaveWithTxn(pg, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving entity ", "entity", pg)
 		return nil, err
@@ -845,7 +857,7 @@ func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32,
 		firstElement := apps[0]
 		if firstElement.Id != pg.Id {
 			pg.Active = false
-			err = impl.appRepository.Update(pg)
+			err = impl.appRepository.UpdateWithTxn(pg, tx)
 			if err != nil {
 				impl.logger.Errorw("error in saving entity ", "entity", pg)
 				return nil, err

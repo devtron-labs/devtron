@@ -34,7 +34,7 @@ type AppLabel struct {
 }
 
 type AppLabelRepository interface {
-	Create(model *AppLabel) (*AppLabel, error)
+	Create(model *AppLabel, tx *pg.Tx) (*AppLabel, error)
 	Update(model *AppLabel) (*AppLabel, error)
 	FindById(id int) (*AppLabel, error)
 	FindAll() ([]*AppLabel, error)
@@ -52,8 +52,8 @@ func NewAppLabelRepositoryImpl(dbConnection *pg.DB) *AppLabelRepositoryImpl {
 	return &AppLabelRepositoryImpl{dbConnection: dbConnection}
 }
 
-func (impl AppLabelRepositoryImpl) Create(model *AppLabel) (*AppLabel, error) {
-	err := impl.dbConnection.Insert(model)
+func (impl AppLabelRepositoryImpl) Create(model *AppLabel, tx *pg.Tx) (*AppLabel, error) {
+	err := tx.Insert(model)
 	if err != nil {
 		return model, err
 	}

@@ -26,7 +26,7 @@ import (
 )
 
 type AppLabelService interface {
-	Create(request *bean.AppLabelDto) (*bean.AppLabelDto, error)
+	Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error)
 	UpdateLabelsInApp(request *bean.AppLabelsDto) (*bean.AppLabelsDto, error)
 	FindById(id int) (*bean.AppLabelDto, error)
 	FindAll() ([]*bean.AppLabelDto, error)
@@ -47,7 +47,7 @@ func NewAppLabelServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository
 	}
 }
 
-func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto) (*bean.AppLabelDto, error) {
+func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error) {
 	_, err := impl.appLabelRepository.FindByAppIdAndKeyAndValue(request.AppId, request.Key, request.Value)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app label", "error", err)
@@ -63,7 +63,7 @@ func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto) (*bean.AppLabe
 		model.UpdatedBy = request.UserId
 		model.CreatedOn = time.Now()
 		model.UpdatedOn = time.Now()
-		_, err = impl.appLabelRepository.Create(model)
+		_, err = impl.appLabelRepository.Create(model, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating new app labels", "error", err)
 			return nil, err
@@ -73,6 +73,13 @@ func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto) (*bean.AppLabe
 }
 
 func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.AppLabelsDto) (*bean.AppLabelsDto, error) {
+	dbConnection := impl.appRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 	for _, label := range request.Labels {
 		model, err := impl.appLabelRepository.FindByAppIdAndKeyAndValue(request.AppId, label.Key, label.Value)
 		if err != nil && err != pg.ErrNoRows {
@@ -89,12 +96,17 @@ func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.AppLabelsDto) (*
 			model.UpdatedBy = request.UserId
 			model.CreatedOn = time.Now()
 			model.UpdatedOn = time.Now()
-			_, err = impl.appLabelRepository.Create(model)
+			_, err = impl.appLabelRepository.Create(model, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating new app labels", "error", err)
 				return nil, err
 			}
 		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in commit repo", "error", err)
+		return nil, err
 	}
 	return request, nil
 }
