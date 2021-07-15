@@ -83,14 +83,25 @@ func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.AppLabelsDto) (*
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	for _, label := range request.Labels {
-		model, err := impl.appLabelRepository.FindByAppIdAndKeyAndValue(request.AppId, label.Key, label.Value)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in fetching app label", "error", err)
-			return nil, err
+
+	appLabels, err := impl.appLabelRepository.FindAllByAppId(request.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching app label", "error", err)
+		return nil, err
+	}
+	appLabelMap := make(map[string]*pipelineConfig.AppLabel)
+	for _, appLabel := range appLabels {
+		uniqueLabelExists := fmt.Sprintf("%s:%s", appLabel.Key, appLabel.Value)
+		if _, ok := appLabelMap[uniqueLabelExists]; !ok {
+			appLabelMap[uniqueLabelExists] = appLabel
 		}
-		if err == pg.ErrNoRows {
-			model = &pipelineConfig.AppLabel{
+	}
+
+	for _, label := range request.Labels {
+		uniqueLabelRequest := fmt.Sprintf("%s:%s", label.Key, label.Value)
+		if _, ok := appLabelMap[uniqueLabelRequest]; !ok {
+			// create new
+			model := &pipelineConfig.AppLabel{
 				Key:   label.Key,
 				Value: label.Value,
 				AppId: request.AppId,
@@ -105,7 +116,15 @@ func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.AppLabelsDto) (*
 				return nil, err
 			}
 		} else {
-			return nil, fmt.Errorf("duplicate key found for app %d, %s", request.AppId, label.Key)
+			// delete from map so that item remain live, all other item will be delete from this app
+			delete(appLabelMap, uniqueLabelRequest)
+		}
+	}
+	for _, appLabel := range appLabelMap {
+		err = impl.appLabelRepository.Delete(appLabel, tx)
+		if err != nil {
+			impl.logger.Errorw("error in delete app label", "error", err)
+			return nil, err
 		}
 	}
 	err = tx.Commit()
@@ -123,14 +142,14 @@ func (impl AppLabelServiceImpl) FindById(id int) (*bean.AppLabelDto, error) {
 		return nil, err
 	}
 	if err == pg.ErrNoRows {
-		return nil, nil
+		return &bean.AppLabelDto{}, nil
 	}
-	ssoLoginDto := &bean.AppLabelDto{
+	label := &bean.AppLabelDto{
 		Key:   model.Key,
 		Value: model.Value,
 		AppId: model.AppId,
 	}
-	return ssoLoginDto, nil
+	return label, nil
 }
 
 func (impl AppLabelServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
@@ -169,7 +188,7 @@ func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto,
 	if err == pg.ErrNoRows {
 		return nil, nil
 	}
-	var labels []*bean.AppLabelDto
+	labels := make([]*bean.AppLabelDto, 0)
 	for _, model := range models {
 		dto := &bean.AppLabelDto{
 			AppId: model.AppId,

@@ -36,7 +36,9 @@ type AppLabel struct {
 type AppLabelRepository interface {
 	Create(model *AppLabel, tx *pg.Tx) (*AppLabel, error)
 	Update(model *AppLabel) (*AppLabel, error)
+	Delete(model *AppLabel, tx *pg.Tx) error
 	FindById(id int) (*AppLabel, error)
+	FindAllByIds(ids []int) ([]*AppLabel, error)
 	FindAll() ([]*AppLabel, error)
 	FindByLabelKey(key string) ([]*AppLabel, error)
 	FindByAppIdAndKeyAndValue(appId int, key string, value string) (*AppLabel, error)
@@ -67,10 +69,23 @@ func (impl AppLabelRepositoryImpl) Update(model *AppLabel) (*AppLabel, error) {
 
 	return model, nil
 }
+
+func (impl AppLabelRepositoryImpl) Delete(model *AppLabel, tx *pg.Tx) error {
+	err := tx.Delete(model)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func (impl AppLabelRepositoryImpl) FindById(id int) (*AppLabel, error) {
 	var model AppLabel
 	err := impl.dbConnection.Model(&model).Where("id = ?", id).Order("id desc").Limit(1).Select()
 	return &model, err
+}
+func (impl AppLabelRepositoryImpl) FindAllByIds(ids []int) ([]*AppLabel, error) {
+	var models []*AppLabel
+	err := impl.dbConnection.Model(&models).Where("id in (?)", pg.In(ids)).Order("updated_on desc").Select()
+	return models, err
 }
 func (impl AppLabelRepositoryImpl) FindAll() ([]*AppLabel, error) {
 	var models []*AppLabel
