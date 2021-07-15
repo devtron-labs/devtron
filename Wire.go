@@ -671,6 +671,17 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.BulkUpdateRouter), new(*router.BulkUpdateRouterImpl)),
 		restHandler.NewBulkUpdateRestHandlerImpl,
 		wire.Bind(new(restHandler.BulkUpdateRestHandler), new(*restHandler.BulkUpdateRestHandlerImpl)),
+
+		router.NewAppLabelRouterImpl,
+		wire.Bind(new(router.AppLabelRouter), new(*router.AppLabelRouterImpl)),
+		restHandler.NewAppLabelRestHandlerImpl,
+		wire.Bind(new(restHandler.AppLabelRestHandler), new(*restHandler.AppLabelRestHandlerImpl)),
+
+		app.NewAppLabelServiceImpl,
+		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
+		pipelineConfig.NewAppLabelRepositoryImpl,
+		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
+
 	)
 	return &App{}, nil
 }

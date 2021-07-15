@@ -1,0 +1,251 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Bulk Update - Deployment Template
+servers:
+  - url: http://localhost:3000/orchestrator/batch
+paths:
+  /{apiVersion}/{kind}/readme:
+    get:
+      description: Returns Readme for bulk update for different resource in the url
+      operationId: FindBulkUpdateReadme
+      parameters:
+        - name: apiVersion
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful GET operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkUpdateSeeExampleResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta1/application/dryrun:
+    post:
+      description: Returns details(id, name, envId) of all apps to be impacted with bulk update
+      operationId: GetAppNameDeploymentTemplate
+      requestBody:
+        description: A JSON object containing information by which apps will be filtered
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateScript'
+      responses:
+        '200':
+          description: Successfully return all impacted app details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImpactedObjectsResponse'
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta1/application:
+    post:
+      description: Bulk Updates all impacted apps
+      operationId: BulkUpdateDeploymentTemplate
+      requestBody:
+        description: A JSON object containing information about update changes and by which apps will be filtered
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateScript'
+      responses:
+        '200':
+          description: Successfully updated deployment template of all impacted apps.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkUpdateResponse'
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    BulkUpdateSeeExampleResponse:
+      type: object
+      required:
+        - Script
+      properties:
+        Operation:
+          type: string
+          description: Resource from url path, i.e. {apiVersion} & {kind}
+        Script:
+          type: object
+          items:
+            $ref: '#/components/schemas/BulkUpdateScript'
+          description: Input Script for bulk update
+        ReadMe:
+          type: string
+          description: Readme for bulk update
+    BulkUpdateScript:
+      type: object
+      required:
+        - ApiVersion
+        - Kind
+        - Spec
+      properties:
+        ApiVersion:
+          type: string
+          description: Api version from url
+          example:
+            - v1beta1
+        Kind:
+          type: string
+          description: Kind
+          example:
+            - application
+        Spec:
+          type: object
+          items:
+            $ref: '#/components/schemas/BulkUpdatePayload'
+          description: Payload for Bulk Update
+    BulkUpdatePayload:
+      type: object
+      properties:
+        Includes:
+          type: object
+          items:
+            $ref: '#/components/schemas/NameIncludesExcludes'
+          description: Object containing all the app names to be included
+        Excludes:
+          type: object
+          items:
+            $ref: '#/components/schemas/NameIncludesExcludes'
+          description: Object containing all the app names to be excluded
+        EnvIds:
+          type: integer
+          format: slice
+          description: All Env Id's for updating dependent apps
+        Global:
+          type: boolean
+          description: Global flag for updating dependent apps
+        DeploymentTemplate:
+          type: object
+          items:
+            $ref: '#/components/schemas/Tasks'
+          description: object to define task type
+    Tasks:
+      type: object
+      properties:
+        Spec:
+          type: object
+          items:
+            $ref: '#/components/schemas/Spec'
+          description: Spec of the Task
+    Spec:
+      type: object
+      properties:
+        PatchJson:
+          type: string
+          description: string with details of the patch to be used for updating
+    NameIncludesExcludes:
+      type: object
+      properties:
+        Names:
+          type: string
+          format: slice
+          description: All strings of app names to be included/excluded
+    ImpactedObjectsResponse:
+      type: object
+      properties:
+        AppId:
+          type: integer
+          description: Id of the impacted app
+        AppName:
+          type: string
+          description: Name of the impacted app
+        EnvId:
+          type: string
+          description: Env Id of the impacted app
+    BulkUpdateResponse:
+      type: object
+      properties:
+        Message:
+          type: string
+          format: slice
+          description: All top-level messages in response of bulk update action
+        Failure:
+          type: object
+          format: slice
+          items:
+            $ref: '#/components/schemas/BulkUpdateResponseStatusForOneApp'
+          description: Details of all apps on which bulk update failed
+        Successful:
+          type: object
+          format: slice
+          items:
+            $ref: '#/components/schemas/BulkUpdateResponseStatusForOneApp'
+          description: Details of all apps on which bulk update applied successfully
+    BulkUpdateResponseStatusForOneApp:
+      type: object
+      properties:
+        AppId:
+          type: integer
+          description: Id of the concerned app
+        AppName:
+          type: string
+          description: Name of the concerned app
+        EnvId:
+          type: integer
+          description: Env ID of the concerned app
+        Message:
+          type: string
+          description: App-level message for the concerned app
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

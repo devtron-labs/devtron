@@ -41,6 +41,7 @@ type CreateAppDTO struct {
 	Material   []*GitMaterial `json:"material" validate:"dive,min=1"`
 	TeamId     int            `json:"teamId,omitempty" validate:"number,required"`
 	TemplateId int            `json:"templateId"`
+	AppLabels  []*Label       `json:"labels,omitempty" validate:"dive"`
 }
 
 type CreateMaterialDTO struct {
@@ -131,8 +132,8 @@ type PipelineType string
 
 const (
 	CREATE        PatchAction = iota
-	UPDATE_SOURCE  //update value of SourceTypeConfig
-	DELETE         //delete this pipeline
+	UPDATE_SOURCE             //update value of SourceTypeConfig
+	DELETE                    //delete this pipeline
 	//DEACTIVATE     //pause/deactivate this pipeline
 )
 
@@ -475,7 +476,7 @@ type CdPatchAction int
 
 const (
 	CD_CREATE CdPatchAction = iota
-	CD_DELETE  //delete this pipeline
+	CD_DELETE               //delete this pipeline
 	CD_UPDATE
 )
 
@@ -524,4 +525,34 @@ type CiArtifactResponse struct {
 	//AppId           int      `json:"app_id"`
 	CdPipelineId int              `json:"cd_pipeline_id,notnull"`
 	CiArtifacts  []CiArtifactBean `json:"ci_artifacts,notnull"`
+}
+
+type AppLabelsDto struct {
+	Labels []*Label `json:"labels" validate:"dive"`
+	AppId  int      `json:"appId"`
+	UserId int32    `json:"-"`
+}
+
+type AppLabelDto struct {
+	Key    string `json:"key,notnull"`
+	Value  string `json:"value,notnull"`
+	AppId  int    `json:"appId"`
+	UserId int32  `json:"-"`
+}
+
+type Label struct {
+	Key   string `json:"key" validate:"required"`
+	Value string `json:"value" validate:"required"`
+}
+
+type AppMetaInfoDto struct {
+	AppId       int            `json:"appId"`
+	AppName     string         `json:"appName"`
+	ProjectId   int            `json:"projectId"`
+	ProjectName string         `json:"projectName"`
+	CreatedBy   string         `json:"createdBy"`
+	CreatedOn   time.Time      `json:"createdOn"`
+	Active      bool           `json:"active,notnull"`
+	Labels      []*AppLabelDto `json:"labels"`
+	UserId      int32          `json:"-"`
 }
