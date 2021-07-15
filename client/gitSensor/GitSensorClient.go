@@ -100,8 +100,9 @@ type GitCommit struct {
 }
 
 type WebhookData struct {
-	Id		int 				`json:"id"`
-	Data    map[string]string	`json:"data"`
+	Id					int 				`json:"id"`
+	EventActionType     string				`json:"eventActionType"`
+	Data    			map[string]string	`json:"data"`
 }
 
 

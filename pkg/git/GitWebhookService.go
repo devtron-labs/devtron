@@ -64,6 +64,7 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 		webhookData := gitWebhookRequest.GitCommit.WebhookData
 		ciPipelineMaterial.GitCommit.WebhookData = &bean.WebhookData {
 			Id : webhookData.Id,
+			EventActionType: webhookData.EventActionType,
 			Data : webhookData.Data,
 		}
 	}

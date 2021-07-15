@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"time"
@@ -36,12 +37,14 @@ type GitHostConfig interface {
 type GitHostConfigImpl struct {
 	logger          *zap.SugaredLogger
 	gitHostRepo repository.GitHostRepository
+	attributeService attributes.AttributesService
 }
 
-func NewGitHostConfigImpl(gitHostRepo repository.GitHostRepository, logger *zap.SugaredLogger) *GitHostConfigImpl {
+func NewGitHostConfigImpl(gitHostRepo repository.GitHostRepository, logger *zap.SugaredLogger, attributeService attributes.AttributesService) *GitHostConfigImpl {
 	return &GitHostConfigImpl{
 		logger: logger,
 		gitHostRepo: gitHostRepo,
+		attributeService: attributeService,
 	}
 }
 
@@ -87,11 +90,19 @@ func (impl GitHostConfigImpl) GetById(id int) (*GitHostRequest, error) {
 		return nil, err
 	}
 
+	// get orchestrator host
+	orchestratorHost, err := impl.attributeService.GetByKey("url")
+	if err != nil {
+		impl.logger.Errorw("error in fetching orchestrator host url from db", "err", err)
+		return nil, err
+	}
+
+
 	gitHost := &GitHostRequest{
 		Id:   host.Id,
 		Name: host.Name,
 		Active:  host.Active,
-		WebhookUrl : host.WebhookUrl,
+		WebhookUrl : orchestratorHost.Value + host.WebhookUrl,
 		WebhookSecret  : host.WebhookSecret,
 		EventTypeHeader : host.EventTypeHeader,
 		SecretHeader : host.SecretHeader,

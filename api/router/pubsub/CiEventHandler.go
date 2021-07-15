@@ -110,11 +110,10 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 		var webhookData repository.WebhookData
 		if p.SourceType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
 			branch = p.SourceValue
-		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_TAG_REGEX {
-			tag = p.SourceValue
 		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
 			webhookData = repository.WebhookData {
 				Id : p.WebhookData.Id,
+				EventActionType: p.WebhookData.EventActionType,
 				Data: p.WebhookData.Data,
 			}
 		}

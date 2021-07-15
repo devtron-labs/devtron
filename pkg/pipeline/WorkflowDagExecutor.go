@@ -498,6 +498,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			webhookData := ciMaterialCurrent.Modifications[0].WebhookData
 			ciProjectDetail.WebhookData = pipelineConfig.WebhookData {
 				Id : webhookData.Id,
+				EventActionType: webhookData.EventActionType,
 				Data : webhookData.Data,
 			}
 		}

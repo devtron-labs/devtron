@@ -30,7 +30,7 @@ const (
 )
 
 type SourceTypeConfig struct {
-	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY SOURCE_TYPE_TAG_REGEX WEBHOOK"`
+	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
 	Value string                    `json:"value,omitempty" `
 }
 
@@ -151,10 +151,13 @@ const (
 	WEBHOOK_SELECTOR_GIT_URL_NAME string = "git url"
 	WEBHOOK_SELECTOR_AUTHOR_NAME string = "author"
 	WEBHOOK_SELECTOR_DATE_NAME string = "date"
-	WEBHOOK_SELECTOR_TARGET_COMMIT_HASH_NAME string = "target commit hash"
-	WEBHOOK_SELECTOR_SOURCE_COMMIT_HASH_NAME string = "source commit hash"
+	WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME string = "target checkout"
+	WEBHOOK_SELECTOR_SOURCE_CHECKOUT_NAME string = "source checkout"
 	WEBHOOK_SELECTOR_TARGET_BRANCH_NAME_NAME string = "target branch name"
 	WEBHOOK_SELECTOR_SOURCE_BRANCH_NAME_NAME string = "source branch name"
+
+	WEBHOOK_EVENT_MERGED_ACTION_TYPE string = "merged"
+	WEBHOOK_EVENT_NON_MERGED_ACTION_TYPE string = "non-merged"
 )
 
 
@@ -187,8 +190,9 @@ type GitCommit struct {
 }
 
 type WebhookData struct {
-	Id		int 				`json:"id"`
-	Data    map[string]string	`json:"data"`
+	Id					int 				`json:"id"`
+	EventActionType     string				`json:"eventActionType"`
+	Data    			map[string]string	`json:"data"`
 }
 
 type SourceType string
@@ -201,34 +205,6 @@ type CiPipelineMaterial struct {
 	Active        bool      `json:"Active"`
 	GitCommit     GitCommit `json:"GitCommit"`
 	GitTag        string    `json:"GitTag"`
-}
-
-type CiGitWebhookTriggerRequest struct {
-	Ref          string     `json:"ref"`
-	RefType      string     `json:"ref_type"`
-	MasterBranch string     `json:"master_branch"`
-	Description  string     `json:"description"`
-	PusherType   string     `json:"pusher_type"`
-	Repository   Repository `json:"repository"`
-}
-
-type Repository struct {
-	Id        int       `json:"id"`
-	NodeId    string    `json:"node_id"`
-	Name      string    `json:"name"`
-	FullName  string    `json:"full_name"`
-	Private   bool      `json:"private"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	PushedAt  time.Time `json:"pushed_at"`
-	CloneUrl  string    `json:"clone_url"`
-	SvnUrl    string    `json:"svn_url"`
-}
-
-type Owner struct {
-	Login string `json:"login"`
-	Id    int    `json:"id"`
-	Type  string `json:"type"`
 }
 
 type CiTriggerRequest struct {

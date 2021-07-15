@@ -155,6 +155,7 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipeli
 			gitTrigger := gitTriggers[pipelineMaterialId]
 			gitTrigger.WebhookData = pipelineConfig.WebhookData {
 				Id: webhookData.Id,
+				EventActionType: webhookData.EventActionType,
 				Data : webhookData.Data,
 			}
 		}
@@ -194,6 +195,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 		if webhookData != nil {
 			gitCommit.WebhookData = pipelineConfig.WebhookData{
 				Id: webhookData.Id,
+				EventActionType: webhookData.EventActionType,
 				Data : webhookData.Data,
 			}
 		}
@@ -262,6 +264,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			webhookData := commitHashForPipelineId.WebhookData
 			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
 				Id : webhookData.Id,
+				EventActionType: webhookData.EventActionType,
 				Data : webhookData.Data,
 			}
 		}
