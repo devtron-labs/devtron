@@ -18,6 +18,7 @@
 package app
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
@@ -68,6 +69,8 @@ func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto, tx *pg.Tx) (*b
 			impl.logger.Errorw("error in creating new app labels", "error", err)
 			return nil, err
 		}
+	} else {
+		return nil, fmt.Errorf("duplicate key found for app %d, %s", request.AppId, request.Key)
 	}
 	return request, nil
 }
@@ -101,6 +104,8 @@ func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.AppLabelsDto) (*
 				impl.logger.Errorw("error in creating new app labels", "error", err)
 				return nil, err
 			}
+		} else {
+			return nil, fmt.Errorf("duplicate key found for app %d, %s", request.AppId, label.Key)
 		}
 	}
 	err = tx.Commit()

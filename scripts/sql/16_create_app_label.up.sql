@@ -1,4 +1,3 @@
--- Sequence and defined type
 CREATE SEQUENCE IF NOT EXISTS id_seq_app_label;
 
 -- Table Definition
@@ -16,3 +15,4 @@ CREATE TABLE "public"."app_label"
     PRIMARY KEY ("id")
 );
 
+CREATE UNIQUE INDEX "app_label_unique" ON "public"."app_label" USING BTREE ("app_id","key");
