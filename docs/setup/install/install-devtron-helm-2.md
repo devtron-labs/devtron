@@ -23,7 +23,7 @@ kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installa
 helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me \
---set configs.BLOB_STORAGE_PROVIDER=AWS \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
 --set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \

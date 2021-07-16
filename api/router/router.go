@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -74,6 +75,10 @@ type MuxRouter struct {
 	grafanaRouter                    GrafanaRouter
 	ssoLoginRouter                   SsoLoginRouter
 	WebhookListenerRouter		     WebhookListenerRouter
+	telemetryRouter                  TelemetryRouter
+	telemetryWatcher                 telemetry.TelemetryEventClient
+	bulkUpdateRouter                 BulkUpdateRouter
+	appLabelsRouter    AppLabelRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -93,7 +98,9 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter,
-	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, webhookListenerRouter WebhookListenerRouter) *MuxRouter {
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, webhookListenerRouter WebhookListenerRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter,
+	appLabelsRouter AppLabelRouter) *MuxRouter {
+
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -139,6 +146,10 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		grafanaRouter:                    grafanaRouter,
 		ssoLoginRouter:                   ssoLoginRouter,
 		WebhookListenerRouter:            webhookListenerRouter,
+		telemetryRouter:                  telemetryRouter,
+		telemetryWatcher:                 telemetryWatcher,
+		bulkUpdateRouter:                 bulkUpdateRouter,
+		appLabelsRouter:                  appLabelsRouter,
 	}
 	return r
 }
@@ -169,6 +180,7 @@ func (r MuxRouter) Init() {
 	r.PipelineConfigRouter.initPipelineConfigRouter(pipelineConfigRouter)
 	r.AppListingRouter.initAppListingRouter(pipelineConfigRouter)
 	r.HelmRouter.initHelmRouter(pipelineConfigRouter)
+	r.appLabelsRouter.initLabelRouter(pipelineConfigRouter)
 
 	migrateRouter := r.Router.PathPrefix("/orchestrator/migrate").Subrouter()
 	r.MigrateDbRouter.InitMigrateDbRouter(migrateRouter)
@@ -263,6 +275,13 @@ func (r MuxRouter) Init() {
 	ssoLoginRouter := r.Router.PathPrefix("/orchestrator/sso").Subrouter()
 	r.ssoLoginRouter.initSsoLoginRouter(ssoLoginRouter)
 
+
 	webhookListenerRouter := r.Router.PathPrefix("/orchestrator/webhook/git").Subrouter()
 	r.WebhookListenerRouter.InitWebhookListenerRouter(webhookListenerRouter)
+
+	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
+	r.telemetryRouter.initTelemetryRouter(telemetryRouter)
+
+	bulkUpdateRouter := r.Router.PathPrefix("/orchestrator/batch").Subrouter()
+	r.bulkUpdateRouter.initBulkUpdateRouter(bulkUpdateRouter)
 }

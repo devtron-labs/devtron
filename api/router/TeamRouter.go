@@ -42,7 +42,7 @@ func (impl TeamRouterImpl) InitTeamRouter(configRouter *mux.Router) {
 	configRouter.Path("").HandlerFunc(impl.teamRestHandler.UpdateTeam).Methods("PUT")
 
 	configRouter.Path("/app/by-id/{appId}").HandlerFunc(impl.teamRestHandler.FindTeamByAppId).Methods("GET")
-	configRouter.Path("/app/by-name/{appName}").HandlerFunc(impl.teamRestHandler.FindTeamByAppName).Methods("GET")
+	configRouter.Path("/app/by-name/{appName}").HandlerFunc(impl.teamRestHandler.FindActiveTeamByAppName).Methods("GET")
 
 	configRouter.Path("/app/user").HandlerFunc(impl.teamRestHandler.FetchForUser).Methods("GET")
 

@@ -11009,7 +11009,7 @@ spec:
       - command:
         - /bin/rollouts-controller
         image: quay.io/devtron/rollout:v0.6.0
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: argo-rollouts
         volumeMounts:
         - mountPath: /tmp

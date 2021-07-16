@@ -81,7 +81,6 @@ func (repositoryImpl ChartRepositoryImpl) FindOne(chartRepo, chartName, chartVer
 		Where("chart_version = ?", chartVersion).
 		Where("chart_repo = ? ", chartRepo).
 		Select()
-
 	return chart, err
 }
 func (repositoryImpl ChartRepositoryImpl) FindCurrentChartVersion(chartRepo, chartName, chartVersionPattern string) (string, error) {
