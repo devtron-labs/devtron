@@ -386,8 +386,8 @@ if hasArgocd {
 	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-ssh-known-hosts-cm`);
 	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-tls-certs-cm`);
 }
-pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json" -p argocdResource;
 argocd = kubectl apply -n devtroncd argocd -u argocdOverride;
+pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json" -p argocdResource;
 #patchLoad = '{"data":{"url":"' + baseURL + '", "dex.config:"' + dexConfig + '}}';
 #pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/merge-patch+json" -p patchLoad;
 log("executed argocd setup command");
