@@ -3,7 +3,7 @@
 In certain cases you may want to override default configurations provided by Devtron for eg For deployments or statefulsets you want to change memory or cpu requests or limit or may want to node affinity or add taint tolerance or for ingress you may want to add annotations or host. Samples are available inside the [manifests/updates](https://github.com/devtron-labs/devtron/tree/main/manifests/updates) directory. 
 
 In order to modify particular object it looks in namespace `devtroncd` for corresponding configmap as mentioned in mapping below
-|-|-|
+
 |component| configmap name| purpose|
 |-|-|-|
 |argocd| argocd-override-cm| gitops|
@@ -28,7 +28,7 @@ In order to modify particular object it looks in namespace `devtroncd` for corre
 |rollout| rollout-override-cm| manages blue-green and canary deployments|
 |minio| minio-override-cm| default store for CI logs and image cache|
 |minioStorage| minio-storage-override-cm| db config for minio|
-|-|-|
+
 
 Let us take an example to understand how we can override specific values. Assuming you want to override annotations and host in the ingress, that means you want to change devtronDexIngress, please copy file [devtron-ingress-override.yaml](https://github.com/devtron-labs/devtron/tree/main/manifests/updates/devtron-ingress-override.yaml). This file contains a configmap to modify devtronDexIngress as mentioned above. Please note the structure of this configmap, data should have key `override` with multiline string as value. 
 
