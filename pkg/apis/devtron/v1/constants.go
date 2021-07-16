@@ -34,7 +34,7 @@ const (
 	BranchFixed string = "BranchFixed"
 	BranchRegex string = "BranchRegex"
 	TagAny      string = "TagAny"
-	TagRegex    string = "TagRegex"
+	Webhook     string = "Webhook"
 
 	OperationUndefinedError     string = "undefined operator for %s"
 	OperationUnimplementedError string = "unimplemented operator %s for %s"

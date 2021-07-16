@@ -143,6 +143,7 @@ type CiProjectDetails struct {
 	GitOptions  GitOptions                `json:"gitOptions"`
 	SourceType  pipelineConfig.SourceType `json:"sourceType"`
 	SourceValue string                    `json:"sourceValue"`
+	WebhookData pipelineConfig.WebhookData
 }
 
 type GitOptions struct {
