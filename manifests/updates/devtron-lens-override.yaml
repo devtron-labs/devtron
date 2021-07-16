@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lens-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: lens-cm
+#    update:
+#      data:
+#        GIT_SENSOR_URL: http://git-sensor-service.devtroncd:80
+#        NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: lens
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 10m
+                  memory: 20Mi
+                requests:
+                  cpu: 5m
+                  memory: 5Mi

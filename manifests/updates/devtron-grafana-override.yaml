@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: devtron-grafana
+    update:
+      spec:
+        resources:
+          requests:
+            storage: "20Gi"
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: devtron-grafana
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                requests:
+                  cpu: 30m
+                  memory: 100Mi
+

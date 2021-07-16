@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-override-cm
+  namespace: devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: devtron-cm
+    update:
+      data:
+        GIT_SENSOR_TIMEOUT: "300"
+        LENS_TIMEOUT: "300"
+        DEFAULT_BUILD_LOGS_KEY_PREFIX: "devtron"
+        DEFAULT_CD_ARTIFACT_KEY_LOCATION: "devtron/cd-artifacts"
+        DEFAULT_CD_TIMEOUT: "3600"
+        CI_LOGS_KEY_PREFIX: "ci-artifacts"
+        DEFAULT_TIMEOUT: "3600"
+        CD_LIMIT_CI_CPU: "0.5"
+        CD_LIMIT_CI_MEM: "3G"
+        CD_REQ_CI_CPU: "0.5"
+        CD_REQ_CI_MEM: "500M"
+        LIMIT_CI_CPU: "0.5"
+        LIMIT_CI_MEM: "3G"
+        REQ_CI_CPU: "0.5"
+        REQ_CI_MEM: "500M"
+        CD_NODE_TAINTS_KEY: ""
+        CD_NODE_TAINTS_VALUE: ""
+        CI_NODE_TAINTS_KEY: ""
+        CI_NODE_TAINTS_VALUE: ""
+        CI_NODE_LABEL_SELECTOR: ""
+        CACHE_LIMIT: "5000000000"
+        DEFAULT_ARTIFACT_KEY_LOCATION: "devtron/ci-artifacts"
+        EXTERNAL_CI_PAYLOAD: "{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/srj92/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2019-10-31T20:55:21+05:30\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"Devtron Labs \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\",\"digest\":\"test1\",\"dataSource\":\"ext\",\"materialType\":\"git\"}"
+        ECR_REPO_NAME_PREFIX: "devtron/"
+    ---
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: devtron-secret
+    #update:
+    #  data:
+    #    GRAFANA_PASSWORD: "ssas"
+    #    GRAFANA_USERNAME: "admin"
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: devtron
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 20m
+                  memory: 60Mi
+                requests:
+                  cpu: 5m
+                  memory: 10Mi
+
+
+
+
+
+
+
