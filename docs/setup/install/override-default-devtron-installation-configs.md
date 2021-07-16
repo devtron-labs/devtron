@@ -45,7 +45,7 @@ kubectl apply -f file_name -n devtroncd
 
 For these changes to come into effect we need to run the following command.
 
-````bash
+```bash
 kubectl patch -n devtroncd installer installer-devtron --type='json' -p='[{"op": "add", "path": "/spec/reSync", "value": true }]'
 ```
 
