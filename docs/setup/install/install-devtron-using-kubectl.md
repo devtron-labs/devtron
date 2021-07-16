@@ -13,11 +13,7 @@ Edit the `devtron-operator-configs.yaml` to configure your Devtron installation.
 Once your configurations are ready, continue with following steps
 ```bash
 kubectl create ns devtroncd
-```
-```bash
 kubectl -n devtroncd apply -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
-```
-```bash
 kubectl apply -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/templates/install.yaml
 ```
 Edit devtron-operator-configs.yaml and input the values

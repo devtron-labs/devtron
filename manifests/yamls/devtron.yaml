@@ -48,7 +48,7 @@ data:
   CD_LIMIT_CI_CPU: "0.5"
   CD_LIMIT_CI_MEM: "3G"
   CD_REQ_CI_CPU: "0.5"
-  CD_REQ_CI_MEM: "3G"
+  CD_REQ_CI_MEM: "1G"
   CD_NODE_TAINTS_KEY: ""
   CD_WORKFLOW_SERVICE_ACCOUNT: "cd-runner"
   DEFAULT_BUILD_LOGS_KEY_PREFIX: "devtron"
@@ -56,7 +56,7 @@ data:
   CD_NODE_TAINTS_VALUE: ""
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
-  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:1a4797d0-138-4211"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:00ebc675-138-4656"
   DEFAULT_CD_TIMEOUT: "3600"
   WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
   CI_LOGS_KEY_PREFIX: "ci-artifacts"
@@ -65,7 +65,7 @@ data:
   LIMIT_CI_CPU: "0.5"
   LIMIT_CI_MEM: "3G"
   REQ_CI_CPU: "0.5"
-  REQ_CI_MEM: "3G"
+  REQ_CI_MEM: "1G"
   CI_NODE_TAINTS_KEY: ""
   CI_NODE_TAINTS_VALUE: ""
   CI_NODE_LABEL_SELECTOR: ""
@@ -174,13 +174,6 @@ spec:
               name: devtron-cm
           - secretRef:
               name: devtron-secret
-          resources:
-            limits:
-              cpu: "0.5"
-              memory: 500Mi
-            requests:
-              cpu: "0.2"
-              memory: 100Mi
           volumeMounts:
             - mountPath: /cluster/component
               name: devtron-cluster-components-vol

@@ -70,6 +70,7 @@ if !defaultCacheBucket {
 
 ######Generating raw urls
 argocd_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/argocd.yaml";
+argocdResource_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/argocd-resource.json";
 clair_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/clair.yaml";
 clairConfig_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/clair-config.yaml";
 dashboard_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/dashboard.yaml";
@@ -97,6 +98,7 @@ minioStorage_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/minio-storage.yaml";
 
 ######Downloading the manifests
 argocd = download(argocd_raw);
+argocdResource = download(argocdResource_raw);
 clair = download(clair_raw);
 clairConfig = download(clairConfig_raw);
 dashboard = download(dashboard_raw);
@@ -369,6 +371,8 @@ kubeYamlEdit(argocd, `data.repositories`, helmRepo, `/ConfigMap//argocd-cm` );
 #    kubeYamlEdit(argocd, `data.dex\.config`, dexConfig, `/ConfigMap//argocd-cm`);
 #}
 
+#kubeYamlEdit(argocd, `data`, argocdResource, `/ConfigMap//argocd-cm`, "asObject");
+
 kubeYamlEdit(argocd, `data.policy\.default`, `role:admin`, `/ConfigMap//argocd-rbac-cm`);
 # patchLoad = '{"data":{"url":"' + baseURL + '", "dex.config:"' + dexConfig + '}}';
 # pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/merge-patch+json" -p patchLoad;
@@ -383,6 +387,7 @@ if hasArgocd {
 	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-tls-certs-cm`);
 }
 argocd = kubectl apply -n devtroncd argocd -u argocdOverride;
+pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json" -p argocdResource;
 #patchLoad = '{"data":{"url":"' + baseURL + '", "dex.config:"' + dexConfig + '}}';
 #pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/merge-patch+json" -p patchLoad;
 log("executed argocd setup command");
