@@ -37,7 +37,6 @@ type TelemetryEventClientImpl struct {
 	PosthogClient        *PosthogClient
 	ciPipelineRepository pipelineConfig.CiPipelineRepository
 	pipelineRepository   pipelineConfig.PipelineRepository
-	posthogConfig        *PosthogConfig
 }
 
 type TelemetryEventClient interface {
@@ -48,8 +47,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
 	environmentService cluster.EnvironmentService, userService user.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	posthogConfig *PosthogConfig) (*TelemetryEventClientImpl, error) {
+	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository, ) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -61,7 +59,6 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		environmentService: environmentService, userService: userService,
 		appListingRepository: appListingRepository, PosthogClient: PosthogClient,
 		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
-		posthogConfig: posthogConfig,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -237,7 +234,7 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		impl.logger.Warnw("client is whitelisted by devtron, there will be no events capture", "ucid", ucid)
 		return
 	}
-	
+
 	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
@@ -325,7 +322,6 @@ func (impl *TelemetryEventClientImpl) getUCID() (string, error) {
 			impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
 			return ucid.(string), err
 		}
-
 		// TODO - check ucid whitelisted or not
 		flag, err := impl.checkWhitelist(ucid.(string))
 		if err != nil {
