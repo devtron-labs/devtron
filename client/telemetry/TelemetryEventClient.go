@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -16,6 +17,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/robfig/cron.v3"
+	"io/ioutil"
 	"k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
@@ -63,13 +65,13 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(watcher.posthogConfig.SummaryCronExpr, watcher.SummaryEventForTelemetry)
+	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetry)
 	if err != nil {
 		fmt.Println("error in starting summery event", "err", err)
 		return nil, err
 	}
 
-	_, err = cron.AddFunc(watcher.posthogConfig.HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
+	_, err = cron.AddFunc(HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
 	if err != nil {
 		fmt.Println("error in starting heartbeat event", "err", err)
 		return nil, err
@@ -131,6 +133,12 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
+
+	if IsWhitelisted {
+		impl.logger.Warnw("client is whitelisted by devtron, there will be no events capture", "ucid", ucid)
+		return
+	}
+
 	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
@@ -225,6 +233,11 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
 		return
 	}
+	if IsWhitelisted {
+		impl.logger.Warnw("client is whitelisted by devtron, there will be no events capture", "ucid", ucid)
+		return
+	}
+	
 	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
@@ -267,9 +280,9 @@ func (impl *TelemetryEventClientImpl) GetTelemetryMetaInfo() (*TelemetryMetaInfo
 		return nil, err
 	}
 	data := &TelemetryMetaInfo{
-		Url:    impl.posthogConfig.PosthogEndpoint,
+		Url:    PosthogEndpoint,
 		UCID:   ucid,
-		ApiKey: impl.PosthogClient.cfg.PosthogEncodedApiKey,
+		ApiKey: PosthogEncodedApiKey,
 	}
 	return data, err
 }
@@ -312,6 +325,54 @@ func (impl *TelemetryEventClientImpl) getUCID() (string, error) {
 			impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
 			return ucid.(string), err
 		}
+
+		// TODO - check ucid whitelisted or not
+		flag, err := impl.checkWhitelist(ucid.(string))
+		if err != nil {
+			impl.logger.Errorw("error sending event to posthog, failed check for whitelist", "err", err)
+			return "", err
+		}
+		IsWhitelisted = flag
 	}
 	return ucid.(string), nil
+}
+
+func (impl *TelemetryEventClientImpl) checkWhitelist(UCID string) (bool, error) {
+	decodedUrl, err := base64.StdEncoding.DecodeString(WhitelistApiBaseUrl)
+	if err != nil {
+		impl.logger.Errorw("check white list failed, decode error", "err", err)
+		return false, err
+	}
+	encodedUrl := string(decodedUrl)
+	url := fmt.Sprintf("%s/%s", encodedUrl, UCID)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		impl.logger.Errorw("check white list failed, rest api error", "err", err)
+		return false, err
+	}
+	//var client *http.Client
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		impl.logger.Errorw("check white list failed, rest api error", "err", err)
+		return false, err
+	}
+	if res.StatusCode >= 200 && res.StatusCode <= 299 {
+		resBody, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			impl.logger.Errorw("check white list failed, rest api error", "err", err)
+			return false, err
+		}
+		var apiRes map[string]interface{}
+		err = json.Unmarshal(resBody, &apiRes)
+		if err != nil {
+			impl.logger.Errorw("check white list failed, rest api error", "err", err)
+			return false, err
+		}
+		flag := apiRes["result"].(bool)
+		return flag, nil
+	} else {
+		impl.logger.Errorw("check white list, rest api error", "err", err)
+	}
+	return false, err
 }

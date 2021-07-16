@@ -36,14 +36,29 @@ type PosthogClient struct {
 }
 
 type PosthogConfig struct {
-	PosthogApiKey           string `env:"POSTHOG_API_KEY" envDefault:""`
-	PosthogEndpoint         string `env:"POSTHOG_ENDPOINT" envDefault:"https://app.posthog.com"`
-	SummaryCronExpr         string `env:"SUMMARY_CRON_EXPR" envDefault:"0 0 * * *"`     // Run once a day, midnight
-	HeartbeatCronExpr       string `env:"HEARTBEAT_CRON_EXPR" envDefault:"0 0/6 * * *"` // Run every 6 hour
-	CacheExpiry             int    `env:"CACHE_EXPIRY" envDefault:"120"`
-	TelemetryApiKeyEndpoint string `env:"TELEMETRY_API_KEY_ENDPOINT" envDefault:"aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9hcGlrZXk="`
-	PosthogEncodedApiKey    string
+	/*	PosthogApiKey           string `env:"POSTHOG_API_KEY" envDefault:""`
+		PosthogEndpoint         string `env:"POSTHOG_ENDPOINT" envDefault:"https://app.posthog.com"`
+		SummaryCronExpr         string `env:"SUMMARY_CRON_EXPR" envDefault:"0 0 * * *"`     // Run once a day, midnight
+		HeartbeatCronExpr       string `env:"HEARTBEAT_CRON_EXPR" envDefault:"0 0/6 * * *"` // Run every 6 hour
+		CacheExpiry             int    `env:"CACHE_EXPIRY" envDefault:"120"`
+		TelemetryApiKeyEndpoint string `env:"TELEMETRY_API_KEY_ENDPOINT" envDefault:"aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9hcGlrZXk="`
+		PosthogEncodedApiKey    string*/
 }
+
+var (
+	PosthogApiKey        string = ""
+	PosthogEndpoint      string = "https://app.posthog.com"
+	SummaryCronExpr      string = "SUMMARY_CRON_EXPR" // Run once a day, midnight
+	HeartbeatCronExpr    string = "0 0/6 * * *"
+	CacheExpiry          int    = 720
+	PosthogEncodedApiKey string = ""
+	IsWhitelisted        bool   = false
+)
+
+const (
+	TelemetryApiKeyEndpoint string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9hcGlrZXk="
+	WhitelistApiBaseUrl     string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS93aGl0ZWxpc3QvY2hlY2s="
+)
 
 func GetPosthogConfig() (*PosthogConfig, error) {
 	cfg := &PosthogConfig{}
@@ -59,21 +74,19 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 	err := env.Parse(cfg)
 	if err != nil {
 		logger.Errorw("exception caught while parsing posthog config", "err", err)
-		//return &PosthogClient{}, err
 	}
-	if len(cfg.PosthogApiKey) == 0 {
-		encodedApiKey, apiKey, err := getPosthogApiKey(cfg.TelemetryApiKeyEndpoint)
+	if len(PosthogApiKey) == 0 {
+		encodedApiKey, apiKey, err := getPosthogApiKey(TelemetryApiKeyEndpoint)
 		if err != nil {
 			logger.Errorw("exception caught while getting api key", "err", err)
-			//return &PosthogClient{}, err
 		}
-		cfg.PosthogApiKey = apiKey
-		cfg.PosthogEncodedApiKey = encodedApiKey
+		PosthogApiKey = apiKey
+		PosthogEncodedApiKey = encodedApiKey
 	}
-	client, _ := posthog.NewWithConfig(cfg.PosthogApiKey, posthog.Config{Endpoint: cfg.PosthogEndpoint})
+	client, _ := posthog.NewWithConfig(PosthogApiKey, posthog.Config{Endpoint: PosthogEndpoint})
 	//defer client.Close()
-	d := time.Duration(cfg.CacheExpiry)
-	c := cache.New(d*time.Minute, 240*time.Minute)
+	d := time.Duration(CacheExpiry)
+	c := cache.New(d*time.Minute, 1440*time.Minute)
 	pgClient := &PosthogClient{
 		Client: client,
 		cache:  c,
