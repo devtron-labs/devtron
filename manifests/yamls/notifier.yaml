@@ -86,13 +86,6 @@ spec:
               name: notifier-cm
           - secretRef:
               name: notifier-secret
-          resources:
-            limits:
-              cpu: "0.5"
-              memory: 600Mi
-            requests:
-              cpu: "0.2"
-              memory: 100Mi
           volumeMounts: []
       volumes: []
   revisionHistoryLimit: 3

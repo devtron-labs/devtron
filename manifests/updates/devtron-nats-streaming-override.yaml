@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-streaming-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+  apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    name: nats-streaming
+  update:
+    spec:
+      replicas: 3
+      template:
+        spec:
+          containers:
+          - resources:
+              requests:
+                cpu: 10m
+                memory: 50Mi
+#            env:
+#            - name: POD_NAME
+#              valueFrom:
+#                fieldRef:
+#                  fieldPath: metadata.name

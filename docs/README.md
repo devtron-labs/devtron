@@ -19,10 +19,9 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 #### Multi cloud deployment
 
-* deploy to multiple kubernetes cluster
-* test on aws cloud
+* Deploy to multiple Kubernetes clusters on multiple cloud/on-prem from one Devtron setup.
+* Works for all cloud providers and on-premise Kubernetes clusters.
 
-  > coming soon: support for GCP and microsoft azure
 
 #### Easy dev-sec-ops integration
 
@@ -63,7 +62,6 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 ## Compatibility notes
 
-* Only AWS kubernetes cluster is supported as of now
 * It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/).
 * application metrics only works for k8s 1.16+
 

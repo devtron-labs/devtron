@@ -91,13 +91,6 @@ spec:
               name: image-scanner-cm
           - secretRef:
               name: image-scanner-secret
-          resources:
-            limits:
-              cpu: "0.05"
-              memory: 50Mi
-            requests:
-              cpu: "0.01"
-              memory: 10Mi
           volumeMounts: []
       volumes: []
   revisionHistoryLimit: 3

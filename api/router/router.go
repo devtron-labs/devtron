@@ -74,11 +74,12 @@ type MuxRouter struct {
 	commonRouter                     CommonRouter
 	grafanaRouter                    GrafanaRouter
 	ssoLoginRouter                   SsoLoginRouter
-	WebhookListenerRouter		     WebhookListenerRouter
 	telemetryRouter                  TelemetryRouter
 	telemetryWatcher                 telemetry.TelemetryEventClient
 	bulkUpdateRouter                 BulkUpdateRouter
 	appLabelsRouter    AppLabelRouter
+	WebhookListenerRouter		     WebhookListenerRouter
+
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -98,8 +99,9 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter,
-	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, webhookListenerRouter WebhookListenerRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter,
-	appLabelsRouter AppLabelRouter) *MuxRouter {
+
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter,
+	appLabelsRouter AppLabelRouter, webhookListenerRouter WebhookListenerRouter) *MuxRouter {
 
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
@@ -145,11 +147,11 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		commonRouter:                     commonRouter,
 		grafanaRouter:                    grafanaRouter,
 		ssoLoginRouter:                   ssoLoginRouter,
-		WebhookListenerRouter:            webhookListenerRouter,
 		telemetryRouter:                  telemetryRouter,
 		telemetryWatcher:                 telemetryWatcher,
 		bulkUpdateRouter:                 bulkUpdateRouter,
 		appLabelsRouter:                  appLabelsRouter,
+		WebhookListenerRouter:            webhookListenerRouter,
 	}
 	return r
 }
@@ -276,12 +278,13 @@ func (r MuxRouter) Init() {
 	r.ssoLoginRouter.initSsoLoginRouter(ssoLoginRouter)
 
 
-	webhookListenerRouter := r.Router.PathPrefix("/orchestrator/webhook/git").Subrouter()
-	r.WebhookListenerRouter.InitWebhookListenerRouter(webhookListenerRouter)
-
 	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
 	r.telemetryRouter.initTelemetryRouter(telemetryRouter)
 
 	bulkUpdateRouter := r.Router.PathPrefix("/orchestrator/batch").Subrouter()
 	r.bulkUpdateRouter.initBulkUpdateRouter(bulkUpdateRouter)
+
+	webhookListenerRouter := r.Router.PathPrefix("/orchestrator/webhook/git").Subrouter()
+	r.WebhookListenerRouter.InitWebhookListenerRouter(webhookListenerRouter)
+
 }

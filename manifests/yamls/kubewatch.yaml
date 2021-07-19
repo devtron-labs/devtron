@@ -174,14 +174,7 @@ spec:
         volumeMounts:
         - name: kubewatch-config-map
           mountPath: /root/.kubewatch.yaml
-          subPath: .kubewatch.yaml
-        resources:
-          requests:
-            memory: 128Mi
-            cpu: 100m
-          limits:
-            memory: 128Mi
-            cpu: 100m          
+          subPath: .kubewatch.yaml       
       serviceAccountName: kubewatch
       tolerations: []
       restartPolicy: Always
