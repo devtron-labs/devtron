@@ -40,12 +40,12 @@ var (
 	HeartbeatCronExpr    string = "0 0/6 * * *"
 	CacheExpiry          int    = 720
 	PosthogEncodedApiKey string = ""
-	IsWhitelisted        bool   = false
+	IsOptOut        bool   = false
 )
 
 const (
 	TelemetryApiKeyEndpoint string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9hcGlrZXk="
-	WhitelistApiBaseUrl     string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS93aGl0ZWxpc3QvY2hlY2s="
+	TelemetryOptOutApiBaseUrl     string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9vcHQtb3V0"
 )
 
 func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {

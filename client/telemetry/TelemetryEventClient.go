@@ -131,8 +131,8 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		return
 	}
 
-	if IsWhitelisted {
-		impl.logger.Warnw("client is whitelisted by devtron, there will be no events capture", "ucid", ucid)
+	if IsOptOut {
+		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
 		return
 	}
 
@@ -230,8 +230,8 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
 		return
 	}
-	if IsWhitelisted {
-		impl.logger.Warnw("client is whitelisted by devtron, there will be no events capture", "ucid", ucid)
+	if IsOptOut {
+		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
 		return
 	}
 
@@ -322,53 +322,52 @@ func (impl *TelemetryEventClientImpl) getUCID() (string, error) {
 			impl.logger.Errorw("configmap not found while getting unique client id", "cm", cm)
 			return ucid.(string), err
 		}
-		// TODO - check ucid whitelisted or not
-		flag, err := impl.checkWhitelist(ucid.(string))
+		flag, err := impl.checkForOptOut(ucid.(string))
 		if err != nil {
-			impl.logger.Errorw("error sending event to posthog, failed check for whitelist", "err", err)
+			impl.logger.Errorw("error sending event to posthog, failed check for opt-out", "err", err)
 			return "", err
 		}
-		IsWhitelisted = flag
+		IsOptOut = flag
 	}
 	return ucid.(string), nil
 }
 
-func (impl *TelemetryEventClientImpl) checkWhitelist(UCID string) (bool, error) {
-	decodedUrl, err := base64.StdEncoding.DecodeString(WhitelistApiBaseUrl)
+func (impl *TelemetryEventClientImpl) checkForOptOut(UCID string) (bool, error) {
+	decodedUrl, err := base64.StdEncoding.DecodeString(TelemetryOptOutApiBaseUrl)
 	if err != nil {
-		impl.logger.Errorw("check white list failed, decode error", "err", err)
+		impl.logger.Errorw("check opt-out list failed, decode error", "err", err)
 		return false, err
 	}
 	encodedUrl := string(decodedUrl)
 	url := fmt.Sprintf("%s/%s", encodedUrl, UCID)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		impl.logger.Errorw("check white list failed, rest api error", "err", err)
+		impl.logger.Errorw("check opt-out list failed, rest api error", "err", err)
 		return false, err
 	}
 	//var client *http.Client
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		impl.logger.Errorw("check white list failed, rest api error", "err", err)
+		impl.logger.Errorw("check opt-out list failed, rest api error", "err", err)
 		return false, err
 	}
 	if res.StatusCode >= 200 && res.StatusCode <= 299 {
 		resBody, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			impl.logger.Errorw("check white list failed, rest api error", "err", err)
+			impl.logger.Errorw("check opt-out list failed, rest api error", "err", err)
 			return false, err
 		}
 		var apiRes map[string]interface{}
 		err = json.Unmarshal(resBody, &apiRes)
 		if err != nil {
-			impl.logger.Errorw("check white list failed, rest api error", "err", err)
+			impl.logger.Errorw("check opt-out list failed, rest api error", "err", err)
 			return false, err
 		}
 		flag := apiRes["result"].(bool)
 		return flag, nil
 	} else {
-		impl.logger.Errorw("check white list, rest api error", "err", err)
+		impl.logger.Errorw("check opt-out list failed, rest api error", "err", err)
 	}
 	return false, err
 }
