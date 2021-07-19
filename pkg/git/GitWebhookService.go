@@ -20,6 +20,7 @@ package git
 import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"
@@ -57,6 +58,15 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 			Message: gitWebhookRequest.GitCommit.Message,
 			Changes: gitWebhookRequest.GitCommit.Changes,
 		},
+	}
+
+	if string(gitWebhookRequest.Type) == string(pipelineConfig.SOURCE_TYPE_WEBHOOK) {
+		webhookData := gitWebhookRequest.GitCommit.WebhookData
+		ciPipelineMaterial.GitCommit.WebhookData = &bean.WebhookData {
+			Id : webhookData.Id,
+			EventActionType: webhookData.EventActionType,
+			Data : webhookData.Data,
+		}
 	}
 
 	resp, err := impl.ciHandler.HandleCIWebhook(bean.GitCiTriggerRequest{
