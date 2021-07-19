@@ -231,8 +231,8 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *AppStoreFilte
 	query = query + " inner join app_store aps on aps.id = asav.app_store_id"
 	query = query + " inner join chart_repo ch on ch.id = aps.chart_repo_id"
 	query = query + " where ia.active = true and iav.active = true"
-	if !filter.IncludeDeprecated {
-		query = query + " AND asav.deprecated = FALSE"
+	if filter.OnlyDeprecated {
+		query = query + " AND asav.deprecated = TRUE"
 	}
 	if len(filter.AppStoreName) > 0 {
 		query = query + " AND aps.name LIKE '%" + filter.AppStoreName + "%'"

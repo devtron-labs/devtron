@@ -250,12 +250,12 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 			envs = append(envs, env)
 		}
 	}
-	deprecated := false
-	deprecatedStr := v.Get("includeDeprecated")
+	onlyDeprecated := false
+	deprecatedStr := v.Get("onlyDeprecated")
 	if len(deprecatedStr) > 0 {
-		deprecated, err = strconv.ParseBool(deprecatedStr)
+		onlyDeprecated, err = strconv.ParseBool(deprecatedStr)
 		if err != nil {
-			deprecated = false
+			onlyDeprecated = false
 		}
 	}
 
@@ -282,7 +282,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	if len(sizeStr) > 0 {
 		size, _ = strconv.Atoi(sizeStr)
 	}
-	filter := &appstore2.AppStoreFilter{IncludeDeprecated: deprecated, ChartRepoId: chartRepoIds, AppStoreName: appStoreName, EnvIds: envs, AppName: appName}
+	filter := &appstore2.AppStoreFilter{OnlyDeprecated: onlyDeprecated, ChartRepoId: chartRepoIds, AppStoreName: appStoreName, EnvIds: envs, AppName: appName}
 	if size > 0 {
 		filter.Size = size
 		filter.Offset = offset
