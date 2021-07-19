@@ -23,7 +23,6 @@ import (
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
-	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -54,14 +53,13 @@ type SSOLoginServiceImpl struct {
 	clusterService      cluster.ClusterService
 	envService          cluster.EnvironmentService
 	aCDAuthConfig       *user.ACDAuthConfig
-	posthogConfig       *telemetry.PosthogConfig
 }
 
 func NewSSOLoginServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
 	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
 	userGroupRepository repository.RoleGroupRepository, ssoLoginRepository repository.SSOLoginRepository,
 	K8sUtil *util.K8sUtil, clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	aCDAuthConfig *user.ACDAuthConfig, posthogConfig *telemetry.PosthogConfig) *SSOLoginServiceImpl {
+	aCDAuthConfig *user.ACDAuthConfig) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		userAuthRepository:  userAuthRepository,
 		sessionManager:      sessionManager,
@@ -74,7 +72,6 @@ func NewSSOLoginServiceImpl(userAuthRepository repository.UserAuthRepository, se
 		clusterService:      clusterService,
 		envService:          envService,
 		aCDAuthConfig:       aCDAuthConfig,
-		posthogConfig:       posthogConfig,
 	}
 	return serviceImpl
 }
