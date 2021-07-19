@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: argocd-ssh-known-hosts-cm
+ #   update:
+ #     data:
+ #       ssh_known_hosts: |
+ #         ssh-public-key
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-dex-server
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 1m
+                  memory: 25Mi
+                requests:
+                  cpu: 1m
+                  memory: 20Mi
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-redis
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 5m
+                  memory: 10Mi
+                requests:
+                  cpu: 4m
+                  memory: 9Mi
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-repo-server
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                requests:
+                  cpu: 100m
+                  memory: 50Mi
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-server
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 10m
+                  memory: 60Mi
+                requests:
+                  cpu: 9m
+                  memory: 50Mi
+    ---
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: argocd-application-controller
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                requests:
+                  cpu: 100m
+                  memory: 50Mi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

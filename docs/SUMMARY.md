@@ -8,6 +8,7 @@
   * [Install using Helm3](setup/install/install-devtron-helm-3.md)
   * [Install using Helm2](setup/install/install-devtron-helm-2.md)
   * [Install using Kubectl](setup/install/install-devtron-using-kubectl.md)
+  * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
 * [Start Using devtron](setup/start-using.md)
 
 ## User Guide
@@ -44,10 +45,13 @@
   * [Projects](user-guide/global-configurations/projects.md)
   * [User Access](user-guide/global-configurations/user-access.md)
   * [Manage Notification](user-guide/global-configurations/manage-notification.md)
+* [Bulk Update](user-guide/bulk-update.md)
 * [Command Bar](user-guide/command-bar.md)
 * [Use Cases](user-guide/use-cases/README.md)
   * [Devtron Generic Helm Chart To Run Cron Job Or One Time Job](user-guide/use-cases/devtron-generic-helm-chart-to-run-cron-job-or-one-time-job.md)
   * [Connect SpringBoot with Mysql Database](user-guide/use-cases/connect-springboot-with-mysql-database.md)
   * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
   * [Connect Django With Mysql Database](user-guide/use-cases/untitled-3.md)
+* [Telemetry Overview](user-guide/telemetry.md)
+  
 

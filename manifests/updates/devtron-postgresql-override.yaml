@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: postgresql-postgresql
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                requests:
+                  cpu: 200m
+                  memory: 550Mi
+            volumeClaimTemplates:
+              spec:
+                resources:
+                  requests:
+                    storage: "5Gi"

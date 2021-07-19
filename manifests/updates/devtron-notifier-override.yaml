@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-server-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: notifier-cm
+#    update:
+#      data:
+#        DB_HOST: postgresql-postgresql.devtroncd
+#        DB_PORT: "5432"
+#        DB_USER: postgres
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: notifier
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 10m
+                  memory: 60Mi
+                requests:
+                  cpu: 2m
+                  memory: 50Mi
+#              env:
+#              - name: CONFIG_HASH
+#                value: f64a7abec5f850c3393a5f3a1efb3a3c62fbcb6530cc3c6807028c41677fc3ec
+#              - name: SECRET_HASH
+#                value: 613cf1b1ff0cf6a867565df5ff0b3585893258f3430f0cccef14cf8c600bc701
+#              - name: POD_NAME
+#                valueFrom:
+#                  fieldRef:
+#                    fieldPath: metadata.name
+                        

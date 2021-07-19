@@ -40,7 +40,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 8a4fa90e576500bba21f546d5ce5c78d8592e7e1
+          value: 9179b7cec7d41f6f2ceb6944e2df49a176eb8a06
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -211,3 +211,4 @@ spec:
       restartPolicy: OnFailure
   backoffLimit: 4
   activeDeadlineSeconds: 15000
+  
