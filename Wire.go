@@ -666,7 +666,6 @@ func InitializeApp() (*App, error) {
 		telemetry.NewTelemetryEventClientImpl,
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
 
-		telemetry.GetPosthogConfig,
 		router.NewBulkUpdateRouterImpl,
 		wire.Bind(new(router.BulkUpdateRouter), new(*router.BulkUpdateRouterImpl)),
 		restHandler.NewBulkUpdateRestHandlerImpl,
