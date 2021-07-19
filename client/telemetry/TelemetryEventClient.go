@@ -17,7 +17,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/robfig/cron.v3"
-	"io/ioutil"
 	"k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
@@ -64,13 +63,13 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	watcher.HeartbeatEventForTelemetry()
 	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetry)
 	if err != nil {
-		fmt.Println("error in starting summery event", "err", err)
+		logger.Errorw("error in starting summery event", "err", err)
 		return nil, err
 	}
 
 	_, err = cron.AddFunc(HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
 	if err != nil {
-		fmt.Println("error in starting heartbeat event", "err", err)
+		logger.Errorw("error in starting heartbeat event", "err", err)
 		return nil, err
 	}
 	return watcher, err
@@ -212,6 +211,13 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		return
 	}
 
+	if impl.PosthogClient.Client == nil {
+		impl.logger.Warn("no posthog client found, creating new")
+		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
+		if err == nil {
+			impl.PosthogClient.Client = client
+		}
+	}
 	if impl.PosthogClient.Client != nil {
 		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
 			DistinctId: ucid,
@@ -257,6 +263,14 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 	if err != nil {
 		impl.logger.Errorw("HeartbeatEventForTelemetry, payload unmarshal error", "error", err)
 		return
+	}
+
+	if impl.PosthogClient.Client == nil {
+		impl.logger.Warn("no posthog client found, creating new")
+		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
+		if err == nil {
+			impl.PosthogClient.Client = client
+		}
 	}
 	if impl.PosthogClient.Client != nil {
 		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
@@ -340,34 +354,21 @@ func (impl *TelemetryEventClientImpl) checkForOptOut(UCID string) (bool, error) 
 	}
 	encodedUrl := string(decodedUrl)
 	url := fmt.Sprintf("%s/%s", encodedUrl, UCID)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+
+	response, err := util.HttpRequest(url)
 	if err != nil {
 		impl.logger.Errorw("check opt-out list failed, rest api error", "err", err)
 		return false, err
 	}
-	//var client *http.Client
-	client := &http.Client{}
-	res, err := client.Do(req)
+	flag := response["result"].(bool)
+	return flag, err
+}
+
+func (impl *TelemetryEventClientImpl) retryPosthogClient(PosthogApiKey string, PosthogEndpoint string) (posthog.Client, error) {
+	client, err := posthog.NewWithConfig(PosthogApiKey, posthog.Config{Endpoint: PosthogEndpoint})
+	//defer client.Close()
 	if err != nil {
-		impl.logger.Errorw("check opt-out list failed, rest api error", "err", err)
-		return false, err
+		impl.logger.Errorw("exception caught while creating posthog client", "err", err)
 	}
-	if res.StatusCode >= 200 && res.StatusCode <= 299 {
-		resBody, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			impl.logger.Errorw("check opt-out list failed, rest api error", "err", err)
-			return false, err
-		}
-		var apiRes map[string]interface{}
-		err = json.Unmarshal(resBody, &apiRes)
-		if err != nil {
-			impl.logger.Errorw("check opt-out list failed, rest api error", "err", err)
-			return false, err
-		}
-		flag := apiRes["result"].(bool)
-		return flag, nil
-	} else {
-		impl.logger.Errorw("check opt-out list failed, rest api error", "err", err)
-	}
-	return false, err
+	return client, err
 }

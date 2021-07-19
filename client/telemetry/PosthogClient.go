@@ -19,12 +19,10 @@ package telemetry
 
 import (
 	"encoding/base64"
-	"encoding/json"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/patrickmn/go-cache"
 	"github.com/posthog/posthog-go"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"net/http"
 	"time"
 )
 
@@ -38,29 +36,32 @@ var (
 	PosthogEndpoint      string = "https://app.posthog.com"
 	SummaryCronExpr      string = "0 0 * * *" // Run once a day, midnight
 	HeartbeatCronExpr    string = "0 0/6 * * *"
-	CacheExpiry          int    = 720
+	CacheExpiry          int    = 1440
 	PosthogEncodedApiKey string = ""
-	IsOptOut        bool   = false
+	IsOptOut             bool   = false
 )
 
 const (
-	TelemetryApiKeyEndpoint string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9hcGlrZXk="
-	TelemetryOptOutApiBaseUrl     string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9vcHQtb3V0"
+	TelemetryApiKeyEndpoint   string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9hcGlrZXk="
+	TelemetryOptOutApiBaseUrl string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9vcHQtb3V0"
 )
 
 func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 	if len(PosthogApiKey) == 0 {
-		encodedApiKey, apiKey, err := getPosthogApiKey(TelemetryApiKeyEndpoint)
+		encodedApiKey, apiKey, err := getPosthogApiKey(TelemetryApiKeyEndpoint, logger)
 		if err != nil {
 			logger.Errorw("exception caught while getting api key", "err", err)
 		}
 		PosthogApiKey = apiKey
 		PosthogEncodedApiKey = encodedApiKey
 	}
-	client, _ := posthog.NewWithConfig(PosthogApiKey, posthog.Config{Endpoint: PosthogEndpoint})
+	client, err := posthog.NewWithConfig(PosthogApiKey, posthog.Config{Endpoint: PosthogEndpoint})
 	//defer client.Close()
+	if err != nil {
+		logger.Errorw("exception caught while creating posthog client", "err", err)
+	}
 	d := time.Duration(CacheExpiry)
-	c := cache.New(d*time.Minute, 1440*time.Minute)
+	c := cache.New(d*time.Minute, d*time.Minute)
 	pgClient := &PosthogClient{
 		Client: client,
 		cache:  c,
@@ -68,38 +69,22 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 	return pgClient, nil
 }
 
-func getPosthogApiKey(encodedPosthogApiKeyUrl string) (string, string, error) {
-	dncodedPosthogApiKeyUrl, err := base64.StdEncoding.DecodeString(encodedPosthogApiKeyUrl)
+func getPosthogApiKey(encodedPosthogApiKeyUrl string, logger *zap.SugaredLogger) (string, string, error) {
+	decodedPosthogApiKeyUrl, err := base64.StdEncoding.DecodeString(encodedPosthogApiKeyUrl)
+	if err != nil {
+		logger.Errorw("error fetching posthog api key, decode error", "err", err)
+		return "", "", err
+	}
+	apiKeyUrl := string(decodedPosthogApiKeyUrl)
+	response, err := util.HttpRequest(apiKeyUrl)
+	if err != nil {
+		logger.Errorw("error fetching posthog api key, http call", "err", err)
+		return "", "", err
+	}
+	encodedApiKey := response["result"].(string)
+	apiKey, err := base64.StdEncoding.DecodeString(encodedApiKey)
 	if err != nil {
 		return "", "", err
 	}
-	apiKeyUrl := string(dncodedPosthogApiKeyUrl)
-	req, err := http.NewRequest(http.MethodGet, apiKeyUrl, nil)
-	if err != nil {
-		return "", "", err
-	}
-	//var client *http.Client
-	client := &http.Client{}
-	res, err := client.Do(req)
-	if err != nil {
-		return "", "", err
-	}
-	if res.StatusCode >= 200 && res.StatusCode <= 299 {
-		resBody, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return "", "", err
-		}
-		var apiRes map[string]interface{}
-		err = json.Unmarshal(resBody, &apiRes)
-		if err != nil {
-			return "", "", err
-		}
-		encodedApiKey := apiRes["result"].(string)
-		apiKey, err := base64.StdEncoding.DecodeString(encodedApiKey)
-		if err != nil {
-			return "", "", err
-		}
-		return encodedApiKey, string(apiKey), err
-	}
-	return "", "", err
+	return encodedApiKey, string(apiKey), err
 }
