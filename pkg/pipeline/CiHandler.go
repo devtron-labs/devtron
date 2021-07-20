@@ -757,14 +757,23 @@ func (impl *CiHandlerImpl) buildAutomaticTriggerCommitHashes(ciMaterials []*pipe
 func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.CiTriggerRequest) (map[int]bean.GitCommit, error) {
 	commitHashes := map[int]bean.GitCommit{}
 	for _, ciPipelineMaterial := range ciTriggerRequest.CiPipelineMaterial {
-		if ciPipelineMaterial.Type == string(pipelineConfig.SOURCE_TYPE_BRANCH_FIXED) {
+
+		pipeLineMaterialFromDb, err := impl.ciPipelineMaterialRepository.GetById(ciPipelineMaterial.Id)
+		if err != nil {
+			impl.Logger.Errorw("err in fetching pipeline material by id", "err", err)
+			return map[int]bean.GitCommit{}, err
+		}
+
+		pipelineType := pipeLineMaterialFromDb.Type
+		if pipelineType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
 			gitCommit, err := impl.BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial)
 			if err != nil {
 				impl.Logger.Errorw("err", "err", err)
 				return map[int]bean.GitCommit{}, err
 			}
 			commitHashes[ciPipelineMaterial.Id] = gitCommit
-		}else if ciPipelineMaterial.Type == string(pipelineConfig.SOURCE_TYPE_WEBHOOK){
+			
+		}else if pipelineType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
 			gitCommit, err := impl.BuildManualTriggerCommitHashesForSourceTypeWebhook(ciPipelineMaterial)
 			if err != nil {
 				impl.Logger.Errorw("err", "err", err)
