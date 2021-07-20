@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -99,21 +100,26 @@ type FetchAppListingRequest struct {
 }
 
 type AppListingServiceImpl struct {
-	Logger                    *zap.SugaredLogger
-	application               application2.ServiceClient
-	appRepository             pipelineConfig.AppRepository
-	appListingRepository      repository.AppListingRepository
-	appListingViewBuilder     AppListingViewBuilder
-	pipelineRepository        pipelineConfig.PipelineRepository
-	cdWorkflowRepository      pipelineConfig.CdWorkflowRepository
-	linkoutsRepository        repository.LinkoutsRepository
-	appLevelMetricsRepository repository.AppLevelMetricsRepository
-	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository
-
+	Logger                     *zap.SugaredLogger
+	application                application2.ServiceClient
+	appRepository              pipelineConfig.AppRepository
+	appListingRepository       repository.AppListingRepository
+	appListingViewBuilder      AppListingViewBuilder
+	pipelineRepository         pipelineConfig.PipelineRepository
+	cdWorkflowRepository       pipelineConfig.CdWorkflowRepository
+	linkoutsRepository         repository.LinkoutsRepository
+	appLevelMetricsRepository  repository.AppLevelMetricsRepository
+	envLevelMetricsRepository  repository.EnvLevelAppMetricsRepository
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
+	environmentRepository      cluster.EnvironmentRepository
 }
 
-func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository, application application2.ServiceClient, appRepository pipelineConfig.AppRepository, appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository, linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository, envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, pipelineOverrideRepository chartConfig.PipelineOverrideRepository) *AppListingServiceImpl {
+func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
+	application application2.ServiceClient, appRepository pipelineConfig.AppRepository,
+	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
+	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
+	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository cluster.EnvironmentRepository) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                     Logger,
 		appListingRepository:       appListingRepository,
@@ -126,6 +132,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		envLevelMetricsRepository:  envLevelMetricsRepository,
 		cdWorkflowRepository:       cdWorkflowRepository,
 		pipelineOverrideRepository: pipelineOverrideRepository,
+		environmentRepository:      environmentRepository,
 	}
 	return serviceImpl
 }
@@ -250,25 +257,12 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	appEnvCdWorkflowRunnerMap := make(map[int][]*pipelineConfig.CdWorkflowRunner)
 
 	//get all the active cd pipelines
-	if pipelineIds == nil || len(pipelineIds) == 0 {
-		impl.Logger.Warnw("api response time testing", "pipelineIds", pipelineIds)
-		return appEnvMapping, err
-	}
-	pipelinesAll, err := impl.pipelineRepository.FindByIdsIn(pipelineIds) //TODO - OPTIMIZE 1
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", err)
-		return nil, err
-	}
-	/*var pipelineIds []int
-	for _, p := range pipelinesAll {
-		pipelineIds = append(pipelineIds, p.Id)
-	}*/
-	t2 = time.Now()
-	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3.1.3")
-	t1 = t2
 	if len(pipelineIds) > 0 {
-
-		impl.Logger.Infow("api response time testing", "pipelineIds", pipelineIds)
+		pipelinesAll, err := impl.pipelineRepository.FindByIdsIn(pipelineIds) //TODO - OPTIMIZE 1
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("err", err)
+			return nil, err
+		}
 		//here to build a map of pipelines list for each (appId and envId)
 		for _, p := range pipelinesAll {
 			key := fmt.Sprintf("%d-%d", p.AppId, p.EnvironmentId)
@@ -289,7 +283,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			impl.Logger.Error(err)
 			return nil, err
 		}
-		impl.Logger.Infow("api response time testing", "cdWorkflowAll", len(cdWorkflowAll))
 		// find and build a map of latest cd workflow for each (appId and envId), single latest CDWF for any of the cd pipelines.
 		var wfIds []int
 		for key, v := range appEnvPipelinesMap {
@@ -406,10 +399,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			if cdStageRunner != nil {
 				status := cdStageRunner.Status
 				if status == v1alpha1.HealthStatusHealthy {
-					/*stopType, err := impl.ISLastReleaseStopType(pipeline.AppId, pipeline.EnvironmentId)
-					if err != nil {
-						impl.Logger.Errorw("error in determining stop", "err", err)
-					}*/
 					stopType := releaseMap[pipeline.Id]
 					if stopType {
 						status = application2.HIBERNATING
@@ -584,6 +573,13 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 
 	appDetailContainer.LinkOuts = linkouts
 	appDetailContainer.AppId = appId
+
+	envModel, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching environment", "error", err)
+		return bean.AppDetailContainer{}, err
+	}
+	appDetailContainer.K8sVersion = envModel.Cluster.K8sVersion
 	return appDetailContainer, nil
 }
 

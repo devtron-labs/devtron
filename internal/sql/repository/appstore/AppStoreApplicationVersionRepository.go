@@ -21,11 +21,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strconv"
 	"time"
 )
 
 type AppStoreApplicationVersionRepository interface {
 	FindAll() ([]AppStoreWithVersion, error)
+	FindWithFilter(filter *AppStoreFilter) ([]AppStoreWithVersion, error)
 	FindById(id int) (*AppStoreApplicationVersion, error)
 	FindVersionsByAppStoreId(id int) ([]*AppStoreApplicationVersion, error)
 	FindChartVersionByAppStoreId(id int) ([]*AppStoreApplicationVersion, error)
@@ -82,6 +84,14 @@ type AppStoreWithVersion struct {
 	Deprecated                   bool      `json:"deprecated"`
 }
 
+type AppStoreFilter struct {
+	ChartRepoId       []int  `json:"chartRepoId"`
+	AppStoreName      string `json:"appStoreName"`
+	IncludeDeprecated bool   `json:"includeDeprecated"`
+	Offset            int    `json:"offset"`
+	Size              int    `json:"size"`
+}
+
 type ChartRepoSearch struct {
 	AppStoreApplicationVersionId int    `json:"appStoreApplicationVersionId"`
 	ChartId                      int    `json:"chartId"`
@@ -101,8 +111,45 @@ func (impl AppStoreApplicationVersionRepositoryImpl) GetReadMeById(id int) (*App
 
 func (impl *AppStoreApplicationVersionRepositoryImpl) FindAll() ([]AppStoreWithVersion, error) {
 	var appStoreWithVersion []AppStoreWithVersion
-	queryTemp := "select asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name from app_store_application_version asv inner join app_store aps on asv.app_store_id = aps.id inner join chart_repo ch on aps.chart_repo_id = ch.id where asv.latest is TRUE order by aps.name asc;"
-	_, err := impl.dbConnection.Query(&appStoreWithVersion, queryTemp)
+	queryTemp := "select asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name" +
+		" from app_store_application_version asv inner join app_store aps on asv.app_store_id = aps.id" +
+		" inner join chart_repo ch on aps.chart_repo_id = ch.id" +
+		" where asv.latest is TRUE and ch.active = ? order by aps.name asc;"
+	_, err := impl.dbConnection.Query(&appStoreWithVersion, queryTemp, true)
+	if err != nil {
+		return nil, err
+	}
+	return appStoreWithVersion, err
+}
+
+func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *AppStoreFilter) ([]AppStoreWithVersion, error) {
+	var appStoreWithVersion []AppStoreWithVersion
+	query := "SELECT asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name" +
+		" FROM app_store_application_version asv" +
+		" INNER JOIN app_store aps ON asv.app_store_id = aps.id" +
+		" INNER JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
+		" WHERE asv.latest IS TRUE AND ch.active = TRUE"
+	if !filter.IncludeDeprecated {
+		query = query + " AND asv.deprecated = FALSE"
+	}
+	if len(filter.AppStoreName) > 0 {
+		query = query + " AND aps.name LIKE '%" + filter.AppStoreName + "%'"
+	}
+	if len(filter.ChartRepoId) > 0 {
+		query = query + " AND ch.id IN (?)"
+	}
+	query = query + " ORDER BY aps.name ASC"
+	if filter.Size > 0 {
+		query = query + " OFFSET " + strconv.Itoa(filter.Offset) + " LIMIT " + strconv.Itoa(filter.Size) + ""
+	}
+	query = query + ";"
+
+	var err error
+	if len(filter.ChartRepoId) > 0 {
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, pg.In(filter.ChartRepoId))
+	} else {
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query)
+	}
 	if err != nil {
 		return nil, err
 	}

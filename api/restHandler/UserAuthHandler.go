@@ -19,44 +19,25 @@ package restHandler
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/casbin"
+	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/devtron-labs/devtron/util/response"
 	"github.com/gorilla/mux"
 	"github.com/nats-io/stan"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
 type UserAuthHandler interface {
 	LoginHandler(w http.ResponseWriter, r *http.Request)
 	CallbackHandler(w http.ResponseWriter, r *http.Request)
-	AddPolicy(w http.ResponseWriter, r *http.Request)
-	RemovePolicy(w http.ResponseWriter, r *http.Request)
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
-	//SessionOptions(w http.ResponseWriter, r *http.Request)
-
-	GetAllSubjectsFromCasbin(w http.ResponseWriter, r *http.Request)
-	GetRolesForUserFromCasbin(w http.ResponseWriter, r *http.Request)
-	GetUserByRoleFromCasbin(w http.ResponseWriter, r *http.Request)
-	DeleteRoleForUserFromCasbin(w http.ResponseWriter, r *http.Request)
-
-	CreateRoleFromOrchestrator(w http.ResponseWriter, r *http.Request)
-	UpdateRoleFromOrchestrator(w http.ResponseWriter, r *http.Request)
-
-	GetRolesByUserIdFromOrchestrator(w http.ResponseWriter, r *http.Request)
-	GetAllRoleFromOrchestrator(w http.ResponseWriter, r *http.Request)
-	GetRoleByFilterFromOrchestrator(w http.ResponseWriter, r *http.Request)
-	DeleteRoleFromOrchestrator(w http.ResponseWriter, r *http.Request)
-
 	AddDefaultPolicyAndRoles(w http.ResponseWriter, r *http.Request)
 	Subscribe() error
 	AuthVerification(w http.ResponseWriter, r *http.Request)
@@ -69,14 +50,16 @@ type UserAuthHandlerImpl struct {
 	enforcer        rbac.Enforcer
 	natsClient      *pubsub.PubSubClient
 	userService     user.UserService
+	ssoLoginService sso.SSOLoginService
 }
 
 const POLICY_UPDATE_TOPIC = "Policy.Update"
 
 func NewUserAuthHandlerImpl(userAuthService user.UserAuthService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService) *UserAuthHandlerImpl {
+	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService,
+	ssoLoginService sso.SSOLoginService) *UserAuthHandlerImpl {
 	userAuthHandler := &UserAuthHandlerImpl{userAuthService: userAuthService, validator: validator, logger: logger,
-		enforcer: enforcer, natsClient: natsClient, userService: userService}
+		enforcer: enforcer, natsClient: natsClient, userService: userService, ssoLoginService: ssoLoginService}
 
 	err := userAuthHandler.Subscribe()
 	if err != nil {
@@ -121,82 +104,6 @@ func (handler UserAuthHandlerImpl) RefreshTokenHandler(w http.ResponseWriter, r 
 	handler.userAuthService.HandleRefresh(w, r)
 }
 
-func (handler UserAuthHandlerImpl) AddPolicy(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	var policies bean.PolicyRequest
-	err = decoder.Decode(&policies)
-	if err != nil {
-		handler.logger.Errorw("request err, AddPolicy", "err", err, "payload", policies)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.logger.Infow("request payload, AddPolicy", "payload", policies)
-
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceAdmin, rbac.ActionCreate, string(userId)); !ok {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
-		return
-	}
-	//RBAC enforcer Ends
-
-	failedPolicies := casbin.AddPolicy(policies.Data)
-	//UPDATE CASBIN SUBJECT TABLE IN ORCHESTRATOR
-	if len(policies.Data) != len(failedPolicies) {
-		//e.LoadPolicy()
-		err := handler.natsClient.Conn.Publish(POLICY_UPDATE_TOPIC, []byte("{}"))
-		if err != nil {
-			handler.logger.Error("err", err)
-			return
-		}
-	}
-	if len(failedPolicies) > 0 {
-		writeJsonResp(w, err, "Few Polices Failed To Add", http.StatusPartialContent)
-	} else {
-		writeJsonResp(w, err, "Policies Successfully Added", http.StatusOK)
-	}
-	return
-}
-func (handler UserAuthHandlerImpl) RemovePolicy(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	var policies bean.PolicyRequest
-	err = decoder.Decode(&policies)
-	if err != nil {
-		handler.logger.Errorw("request err, RemovePolicy", "err", err, "payload", policies)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.logger.Infow("request payload, RemovePolicy", "payload", policies)
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceAdmin, rbac.ActionDelete, userId); !ok {
-		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
-		return
-	}
-	//RBAC enforcer Ends
-	mergeResp := casbin.RemovePolicy(policies.Data)
-	if len(mergeResp) == 0 {
-		writeJsonResp(w, err, []byte{}, http.StatusOK)
-	}
-	resJson, err := json.Marshal(mergeResp)
-	if err != nil {
-		handler.logger.Errorw("marshal err, RemovePolicy", "err", err, "payload", mergeResp)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, err, resJson, http.StatusOK)
-}
-
 func (handler UserAuthHandlerImpl) Subscribe() error {
 	_, err := handler.natsClient.Conn.Subscribe(POLICY_UPDATE_TOPIC, func(msg *stan.Msg) {
 		handler.logger.Debugw("msg received by subscriber for - Policy Load", "msg", msg)
@@ -207,129 +114,6 @@ func (handler UserAuthHandlerImpl) Subscribe() error {
 		return err
 	}
 	return nil
-}
-
-func (handler UserAuthHandlerImpl) GetAllSubjectsFromCasbin(w http.ResponseWriter, r *http.Request) {
-	pRes := casbin.GetAllSubjects()
-	writeJsonResp(w, nil, pRes, http.StatusOK)
-}
-func (handler UserAuthHandlerImpl) DeleteRoleForUserFromCasbin(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	user := vars["user"]
-	role := vars["role"]
-	pRes := casbin.DeleteRoleForUser(user, role)
-	writeJsonResp(w, nil, pRes, http.StatusOK)
-}
-func (handler UserAuthHandlerImpl) GetRolesForUserFromCasbin(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	user := vars["user"]
-	pRes, err := casbin.GetRolesForUser(user)
-	if err != nil {
-		handler.logger.Errorw("service err, GetRolesForUserFromCasbin", "err", err, "user", user)
-		writeJsonResp(w, err, pRes, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, nil, pRes, http.StatusOK)
-}
-func (handler UserAuthHandlerImpl) GetUserByRoleFromCasbin(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	role := vars["role"]
-	pRes, err := casbin.GetUserByRole(role)
-	if err != nil {
-		handler.logger.Errorw("service err, GetUserByRoleFromCasbin", "err", err, "role", role)
-		writeJsonResp(w, err, pRes, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, nil, pRes, http.StatusOK)
-}
-
-func (handler UserAuthHandlerImpl) CreateRoleFromOrchestrator(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	var roleData bean.RoleData
-	err := decoder.Decode(&roleData)
-	if err != nil {
-		handler.logger.Errorw("request err, CreateRoleFromOrchestrator", "err", err, "payload", roleData)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.logger.Infow("request payload, CreateRoleFromOrchestrator", "payload", roleData)
-	_, err = handler.userAuthService.CreateRole(&roleData)
-	if err != nil {
-		handler.logger.Errorw("service err, CreateRoleFromOrchestrator", "err", err, "payload", roleData)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, nil, nil, http.StatusOK)
-}
-func (handler UserAuthHandlerImpl) UpdateRoleFromOrchestrator(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	var roleData bean.RoleData
-	err := decoder.Decode(&roleData)
-	if err != nil {
-		handler.logger.Errorw("request err, UpdateRoleFromOrchestrator", "err", err, "payload", roleData)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.logger.Infow("request payload, UpdateRoleFromOrchestrator", "payload", roleData)
-	_, err = handler.userAuthService.UpdateRole(&roleData)
-	if err != nil {
-		handler.logger.Errorw("service err, UpdateRoleFromOrchestrator", "err", err, "payload", roleData)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, nil, nil, http.StatusOK)
-}
-func (handler UserAuthHandlerImpl) GetRolesByUserIdFromOrchestrator(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	/* #nosec */
-	userId, err := strconv.Atoi(vars["userId"])
-	if err != nil {
-		handler.logger.Errorw("request err, GetRolesByUserIdFromOrchestrator", "err", err, "userId", userId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	res, err := handler.userAuthService.GetRolesByUserId(int32(userId))
-	if err != nil {
-		handler.logger.Errorw("service err, GetRolesByUserIdFromOrchestrator", "err", err, "userId", userId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, nil, res, http.StatusOK)
-}
-func (handler UserAuthHandlerImpl) GetAllRoleFromOrchestrator(w http.ResponseWriter, r *http.Request) {
-	res, err := handler.userAuthService.GetAllRole()
-	if err != nil {
-		handler.logger.Errorw("service err, GetAllRoleFromOrchestrator", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, nil, res, http.StatusOK)
-}
-func (handler UserAuthHandlerImpl) GetRoleByFilterFromOrchestrator(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	entity := vars["entity"]
-	team := vars["team"]
-	app := vars["app"]
-	env := vars["env"]
-	act := vars["act"]
-	res, err := handler.userAuthService.GetRoleByFilter(entity, team, app, env, act)
-	if err != nil {
-		handler.logger.Errorw("service err, GetRoleByFilterFromOrchestrator", "err", err, "team", team, "app", app, "env", env, "act", act)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, nil, res, http.StatusOK)
-}
-func (handler UserAuthHandlerImpl) DeleteRoleFromOrchestrator(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	role := vars["role"]
-	flag, err := handler.userAuthService.DeleteRole(role)
-	if err != nil {
-		handler.logger.Errorw("service err, DeleteRoleFromOrchestrator", "err", err, "role", role)
-		writeJsonResp(w, err, false, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, nil, flag, http.StatusOK)
 }
 
 func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWriter, r *http.Request) {

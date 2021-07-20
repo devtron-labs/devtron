@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: dashboard
+      annotations:
+        name: change-me
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - 
+            - resources:
+                limits:
+                  cpu: 20m
+                  memory: 40Mi
+                requests:
+                  cpu: 10m
+                  memory: 10Mi
+
+

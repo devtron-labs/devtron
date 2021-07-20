@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -50,19 +51,26 @@ type ConfigDataRequest struct {
 
 type BulkPatchRequest struct {
 	Payload     []*BulkPatchPayload `json:"payload"`
+	Filter      *BulkPatchFilter    `json:"filter,omitempty"`
 	ProjectId   int                 `json:"projectId"`
 	Global      bool                `json:"global"`
 	Type        string              `json:"type"`
 	Name        string              `json:"name"`
 	Key         string              `json:"key"`
 	Value       string              `json:"value"`
-	PatchAction int                 `json:"patchAction"`
+	PatchAction int                 `json:"patchAction"` // 1=add, 2=update, 0=delete
 	UserId      int32               `json:"-"`
 }
 
 type BulkPatchPayload struct {
 	AppId int `json:"appId"`
 	EnvId int `json:"envId"`
+}
+
+type BulkPatchFilter struct {
+	AppNameIncludes string `json:"appNameIncludes,omitempty"`
+	AppNameExcludes string `json:"appNameExcludes,omitempty"`
+	EnvId           int    `json:"envId,omitempty"`
 }
 
 type ExternalSecret struct {
@@ -85,6 +93,8 @@ type ConfigData struct {
 	ExternalSecret        []ExternalSecret `json:"secretData"`
 	DefaultExternalSecret []ExternalSecret `json:"defaultSecretData,omitempty"`
 	RoleARN               string           `json:"roleARN"`
+	SubPath               bool             `json:"subPath"`
+	FilePermission        string           `json:"filePermission"`
 }
 
 const (
@@ -137,6 +147,7 @@ type ConfigMapServiceImpl struct {
 	configMapRepository         chartConfig.ConfigMapRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	commonService               commonService.CommonService
+	appRepository               pipelineConfig.AppRepository
 }
 
 func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -145,7 +156,7 @@ func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
 	mergeUtil util.MergeUtil,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
-	commonService commonService.CommonService) *ConfigMapServiceImpl {
+	commonService commonService.CommonService, appRepository pipelineConfig.AppRepository) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
 		chartRepository:             chartRepository,
 		logger:                      logger,
@@ -155,6 +166,7 @@ func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
 		configMapRepository:         configMapRepository,
 		environmentConfigRepository: environmentConfigRepository,
 		commonService:               commonService,
+		appRepository:               appRepository,
 	}
 }
 
@@ -211,6 +223,8 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *ConfigDataR
 				item.External = configData.External
 				item.ExternalSecretType = configData.ExternalSecretType
 				found = true
+				item.SubPath = configData.SubPath
+				item.FilePermission = configData.FilePermission
 			}
 			configs = append(configs, item)
 		}
@@ -331,6 +345,8 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *Config
 				item.Type = configData.Type
 				item.External = configData.External
 				item.ExternalSecretType = configData.ExternalSecretType
+				item.SubPath = configData.SubPath
+				item.FilePermission = configData.FilePermission
 				found = true
 			}
 			configs = append(configs, item)
@@ -441,6 +457,8 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*Conf
 			item.DefaultMountPath = item.MountPath
 			item.Data = nil
 			item.MountPath = ""
+			item.SubPath = item.SubPath
+			item.FilePermission = item.FilePermission
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		}
 	}
@@ -511,6 +529,8 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *ConfigDataR
 				item.ExternalSecret = configData.ExternalSecret
 				item.RoleARN = configData.RoleARN
 				found = true
+				item.SubPath=configData.SubPath
+				item.FilePermission=configData.FilePermission
 			}
 			configs = append(configs, item)
 		}
@@ -677,6 +697,8 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *Config
 				item.ExternalSecretType = configData.ExternalSecretType
 				item.ExternalSecret = configData.ExternalSecret
 				item.RoleARN = configData.RoleARN
+				item.SubPath = configData.SubPath
+				item.FilePermission = configData.FilePermission
 				found = true
 			}
 			configs = append(configs, item)
@@ -805,6 +827,8 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 			item.Data = nil
 			item.ExternalSecret = nil
 			item.MountPath = ""
+			item.SubPath = item.SubPath
+			item.FilePermission = item.FilePermission
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		}
 	}
@@ -1420,6 +1444,11 @@ func (impl ConfigMapServiceImpl) updateConfigData(configData *ConfigData, syncRe
 }
 
 func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error) {
+	_, err := impl.buildBulkPayload(bulkPatchRequest)
+	if err != nil {
+		impl.logger.Errorw("service err, ConfigSecretGlobalBulkPatch", "err", err, "payload", bulkPatchRequest)
+		return nil, fmt.Errorf("")
+	}
 	if len(bulkPatchRequest.Payload) == 0 {
 		return nil, fmt.Errorf("invalid request no payload found for sync")
 	}
@@ -1495,6 +1524,11 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *B
 }
 
 func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error) {
+	_, err := impl.buildBulkPayload(bulkPatchRequest)
+	if err != nil {
+		impl.logger.Errorw("service err, ConfigSecretEnvironmentBulkPatch", "err", err, "payload", bulkPatchRequest)
+		return nil, fmt.Errorf("")
+	}
 	if len(bulkPatchRequest.Payload) == 0 {
 		return nil, fmt.Errorf("invalid request no payload found for sync")
 	}
@@ -1596,4 +1630,36 @@ func (impl ConfigMapServiceImpl) validateExternalSecretChartCompatibility(appId 
 		}
 	}
 	return true, nil
+}
+
+func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error) {
+	var payload []*BulkPatchPayload
+	if bulkPatchRequest.Filter != nil {
+		apps, err := impl.appRepository.FetchAppsByFilterV2(bulkPatchRequest.Filter.AppNameIncludes, bulkPatchRequest.Filter.AppNameExcludes, bulkPatchRequest.Filter.EnvId)
+		if err != nil {
+			impl.logger.Errorw("chart version parsing", "err", err)
+			return bulkPatchRequest, err
+		}
+		for _, item := range apps {
+			if bulkPatchRequest.Global {
+				payload = append(payload, &BulkPatchPayload{AppId: item.Id})
+			} else {
+				payload = append(payload, &BulkPatchPayload{AppId: item.Id, EnvId: bulkPatchRequest.Filter.EnvId})
+			}
+		}
+		bulkPatchRequest.Payload = payload
+	} else if bulkPatchRequest.ProjectId > 0 && bulkPatchRequest.Global {
+		//backward compatibility
+		apps, err := impl.appRepository.FindAppsByTeamId(bulkPatchRequest.ProjectId)
+		if err != nil {
+			impl.logger.Errorw("service err, buildBulkPayload", "err", err, "payload", bulkPatchRequest)
+			return bulkPatchRequest, err
+		}
+		var payload []*BulkPatchPayload
+		for _, app := range apps {
+			payload = append(payload, &BulkPatchPayload{AppId: app.Id})
+		}
+		bulkPatchRequest.Payload = payload
+	}
+	return bulkPatchRequest, nil
 }

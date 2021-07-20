@@ -86,6 +86,22 @@ type WorkflowRequest struct {
 	CiArtifactLocation       string             `json:"ciArtifactLocation"`
 	InvalidateCache          bool               `json:"invalidateCache"`
 	ScanEnabled              bool               `json:"scanEnabled"`
+	CloudProvider            string             `json:"cloudProvider"`
+	AzureBlobConfig          *AzureBlobConfig   `json:"azureBlobConfig"`
+	MinioEndpoint            string             `json:"minioEndpoint"`
+}
+
+const BLOB_STORAGE_AZURE = "AZURE"
+const BLOB_STORAGE_S3 = "S3"
+const BLOB_STORAGE_GCP = "GCP"
+const BLOB_STORAGE_MINIO = "MINIO"
+
+type AzureBlobConfig struct {
+	Enabled              bool   `json:"enabled"`
+	AccountName          string `json:"accountName"`
+	BlobContainerCiLog   string `json:"blobContainerCiLog"`
+	BlobContainerCiCache string `json:"blobContainerCiCache"`
+	AccountKey           string `json:"accountKey"`
 }
 
 type ContainerResources struct {
@@ -145,6 +161,12 @@ const ciEvent = "CI"
 const cdStage = "CD"
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) (*v1alpha1.Workflow, error) {
+	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
+	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
+		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.MinioAccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.MinioSecretKey}}
+		containerEnvVariables = append(containerEnvVariables, miniCred...)
+	}
+
 	ciCdTriggerEvent := CiCdTriggerEvent{
 		Type:      ciEvent,
 		CiRequest: workflowRequest,
@@ -188,7 +210,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 					{
 						Name: "ci",
 						Container: &v12.Container{
-							Env:   []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}},
+							Env:   containerEnvVariables,
 							Image: workflowRequest.CiImage,
 							Args:  []string{string(workflowJson)},
 							SecurityContext: &v12.SecurityContext{

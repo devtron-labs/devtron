@@ -45,13 +45,12 @@ type AppListingRepository interface {
 
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 
-	GetDeploymentStatusByAppName(appName string) ([]DeploymentStatus, error)
-	SaveNewDeployment(deploymentStatus *DeploymentStatus) error
-	DeleteOldDeployments(appName string) (int, error)
+	SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error
 	FindLastDeployedStatus(appName string) (DeploymentStatus, error)
 	FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error)
 	FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error)
 	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
+	FindAppCount(isProd bool) (int, error)
 }
 
 type DeploymentStatus struct {
@@ -126,17 +125,21 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 	t1 = t2
 	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
 	for _, item := range appEnvContainer {
-
+		if item.EnvironmentId > 0 && item.PipelineId > 0 && item.Active == false {
+			// skip adding apps which have linked with cd pipeline and that environment has marked as deleted.
+			continue
+		}
+		// include only apps which are not linked with any cd pipeline + those linked with cd pipeline and env has active.
 		key := strconv.Itoa(item.AppId) + "_" + strconv.Itoa(item.EnvironmentId)
 		if _, ok := latestDeploymentStatusMap[key]; ok {
 			continue
 		}
 
-		if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
-			item.LastDeployedTime = lastDeployedTimeMap[item.PipelineId].LastDeployedTime
-			item.DataSource = lastDeployedTimeMap[item.PipelineId].DataSource
-			item.MaterialInfoJson = lastDeployedTimeMap[item.PipelineId].MaterialInfoJson
-			item.CiArtifactId = lastDeployedTimeMap[item.PipelineId].CiArtifactId
+		if lastDeployedTime, ok := lastDeployedTimeMap[item.PipelineId]; ok {
+			item.LastDeployedTime = lastDeployedTime.LastDeployedTime
+			item.DataSource = lastDeployedTime.DataSource
+			item.MaterialInfoJson = lastDeployedTime.MaterialInfoJson
+			item.CiArtifactId = lastDeployedTime.CiArtifactId
 		}
 
 		if len(item.DataSource) > 0 {
@@ -147,8 +150,10 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 				item.MaterialInfo = []byte("[]")
 			}
 			item.MaterialInfoJson = ""
+		} else {
+			item.MaterialInfo = []byte("[]")
+			item.MaterialInfoJson = ""
 		}
-
 		appEnvArr = append(appEnvArr, item)
 		latestDeploymentStatusMap[key] = item
 	}
@@ -172,7 +177,7 @@ func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int,
 		" INNER JOIN ci_artifact cia on cia.id = pco.ci_artifact_id" +
 		" INNER JOIN app a ON a.id=p.app_id" +
 		" LEFT JOIN users u on u.id=pco.created_by" +
-		" WHERE a.app_store is false AND a.id=? AND env.id=? AND p.deleted = FALSE" +
+		" WHERE a.app_store is false AND a.id=? AND env.id=? AND p.deleted = FALSE AND env.active = TRUE" +
 		" ORDER BY pco.created_on desc limit 1;"
 	impl.Logger.Debugf("query:", query)
 	_, err := impl.dbConnection.Query(&deploymentDetail, query, appId, envId)
@@ -244,7 +249,7 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(appId int, envId int) (bean.
 	var otherEnvironments []bean.Environment
 	query := "SELECT p.environment_id,env.environment_name from pipeline p" +
 		" INNER JOIN environment env on env.id=p.environment_id" +
-		" where p.app_id=? and p.deleted = FALSE GROUP by 1,2"
+		" where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP by 1,2"
 	impl.Logger.Debugw("other env query:", query)
 	_, err = impl.dbConnection.Query(&otherEnvironments, query, appId)
 
@@ -273,7 +278,7 @@ func (impl AppListingRepositoryImpl) PrometheusApiByEnvId(id int) (*string, erro
 	impl.Logger.Debug("reached at PrometheusApiByEnvId:")
 	var prometheusEndpoint string
 	query := "SELECT env.prometheus_endpoint from environment env" +
-		" WHERE env.id = ?"
+		" WHERE env.id = ? AND env.active = TRUE"
 	impl.Logger.Debugw("query", query)
 	//environments := []string{"QA"}
 	_, err := impl.dbConnection.Query(&prometheusEndpoint, query, id)
@@ -295,17 +300,8 @@ func (impl AppListingRepositoryImpl) FetchAppTriggerView(appId int) ([]bean.Trig
 		" INNER JOIN ci_pipeline cp on cp.id = p.ci_pipeline_id" +
 		" INNER JOIN app a ON a.id = p.app_id" +
 		" INNER JOIN environment env on env.id = p.environment_id" +
-		" WHERE p.app_id=? and p.deleted=false and a.app_store is false;"
+		" WHERE p.app_id=? and p.deleted=false and a.app_store is false AND env.active = TRUE;"
 
-	/* One Query For ALL
-	SELECT cp.id as ci_pipeline_id,cp.name as ci_pipeline_name, p.id as cd_pipeline_id, p.pipeline_name as cd_pipeline_name, pco.pipeline_release_counter, evt.release_version, evt.reason
-	FROM pipeline p
-	INNER JOIN ci_pipeline cp on cp.id = p.ci_pipeline_id
-	LEFT JOIN pipeline_config_override pco on pco.pipeline_id = p.id
-	LEFT JOIN events evt on evt.release_version=CAST(pco.pipeline_release_counter AS varchar) and evt.pipeline_name=p.pipeline_name
-	WHERE p.app_id=5 and p.environment_id=1
-	ORDER BY pco.created_on desc;
-	*/
 	impl.Logger.Debugw("query", query)
 	_, err := impl.dbConnection.Query(&triggerView, query, appId)
 	if err != nil {
@@ -452,7 +448,7 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	query := "SELECT p.environment_id,env.environment_name, env_app_m.app_metrics, env.default as prod, env_app_m.infra_metrics from pipeline p" +
 		" INNER JOIN environment env on env.id=p.environment_id" +
 		" LEFT JOIN env_level_app_metrics env_app_m on env.id=env_app_m.env_id and p.app_id = env_app_m.app_id" +
-		" where p.app_id=? and p.deleted = FALSE GROUP by 1,2,3,4, 5"
+		" where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP by 1,2,3,4, 5"
 	impl.Logger.Debugw("other env query:", query)
 	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId)
 	if err != nil {
@@ -461,27 +457,9 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	return otherEnvironments, nil
 }
 
-func (impl AppListingRepositoryImpl) GetDeploymentStatusByAppName(appName string) ([]DeploymentStatus, error) {
-	var deployments []DeploymentStatus
-	err := impl.dbConnection.Model(&deployments).
-		Where("app_name = ?", appName).
-		Order("id Desc").
-		Select()
-	return deployments, err
-}
-
-func (impl AppListingRepositoryImpl) SaveNewDeployment(deploymentStatus *DeploymentStatus) error {
-	err := impl.dbConnection.Insert(deploymentStatus)
+func (impl AppListingRepositoryImpl) SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error {
+	err := tx.Insert(deploymentStatus)
 	return err
-}
-
-func (impl AppListingRepositoryImpl) DeleteOldDeployments(appName string) (int, error) {
-	var deployment *DeploymentStatus
-	res, err := impl.dbConnection.Model(deployment).Where("app_name = ?", appName).Delete()
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected(), nil
 }
 
 func (impl AppListingRepositoryImpl) FindLastDeployedStatus(appName string) (DeploymentStatus, error) {
@@ -533,7 +511,7 @@ func (impl AppListingRepositoryImpl) DeploymentDetailByArtifactId(ciArtifactId i
 		" INNER JOIN pipeline p on p.id = pco.pipeline_id" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
 		" INNER JOIN app a on a.id = p.app_id" +
-		" WHERE pco.ci_artifact_id = ? and p.deleted=false " +
+		" WHERE pco.ci_artifact_id = ? and p.deleted=false AND env.active = TRUE" +
 		" ORDER BY pco.pipeline_release_counter desc LIMIT 1;"
 	impl.Logger.Debugw("last success full deployed artifact query:", query)
 
@@ -544,4 +522,19 @@ func (impl AppListingRepositoryImpl) DeploymentDetailByArtifactId(ciArtifactId i
 	}
 
 	return deploymentDetail, nil
+}
+
+func (impl AppListingRepositoryImpl) FindAppCount(isProd bool) (int, error) {
+	var count int
+	query := "SELECT count(distinct pipeline.app_id) from pipeline pipeline " +
+		" INNER JOIN environment env on env.id=pipeline.environment_id" +
+		" INNER JOIN app app on app.id=pipeline.app_id" +
+		" WHERE env.default = ? and app.active=true;"
+	_, err := impl.dbConnection.Query(&count, query, isProd)
+	if err != nil {
+		impl.Logger.Errorw("exception caught inside repository for fetching app count:", "err", err)
+		return count, err
+	}
+
+	return count, nil
 }

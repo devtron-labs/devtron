@@ -61,7 +61,7 @@ const (
 func (impl AppListingRepositoryQueryBuilder) BuildAppListingQuery(appListingFilter AppListingFilter) string {
 	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
 	orderByClause := impl.buildAppListingSortBy(appListingFilter)
-	query := "SELECT env.id AS environment_id, env.environment_name, a.id AS app_id, a.app_name,  env.default, p.id as pipeline_id" +
+	query := "SELECT env.id AS environment_id, env.environment_name, a.id AS app_id, a.app_name, env.default, p.id as pipeline_id, env.active" +
 		" FROM pipeline p" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
 		" RIGHT JOIN app a ON a.id=p.app_id  and p.deleted=false "

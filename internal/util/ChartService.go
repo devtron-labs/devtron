@@ -18,7 +18,6 @@
 package util
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/ghodss/yaml"
 	dirCopy "github.com/otiai10/copy"
@@ -28,7 +27,6 @@ import (
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"math/rand"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -39,18 +37,16 @@ import (
 type ChartWorkingDir string
 
 type ChartTemplateService interface {
-	CreateChart(chartMetaData *chart.Metadata, chartMuseumHost *url.URL, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error)
+	CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error)
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
-	DeleteFromChartMuseum(chartMuseumHost string, name string, version string) (bool, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource      rand.Source
 	logger          *zap.SugaredLogger
 	chartWorkingDir ChartWorkingDir
-	gitClient       GitClient
-	gitService      GitService
+	gitFactory      *GitFactory
 	client          *http.Client
 }
 
@@ -65,15 +61,14 @@ type ChartValues struct {
 
 func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	chartWorkingDir ChartWorkingDir,
-	gitClient GitClient,
-	gitService GitService, client *http.Client) *ChartTemplateServiceImpl {
+	 client *http.Client,
+	gitFactory *GitFactory) *ChartTemplateServiceImpl {
 	return &ChartTemplateServiceImpl{
 		randSource:      rand.NewSource(time.Now().UnixNano()),
 		logger:          logger,
 		chartWorkingDir: chartWorkingDir,
-		gitClient:       gitClient,
-		gitService:      gitService,
 		client:          client,
+		gitFactory:      gitFactory,
 	}
 }
 
@@ -101,7 +96,7 @@ func (ChartTemplateServiceImpl) GetChartVersion(location string) (string, error)
 	return chartContent.Version, nil
 }
 
-func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, chartMuseumHost *url.URL, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error) {
+func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.getDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
@@ -121,11 +116,6 @@ func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, 
 	archivePath, valuesYaml, err := impl.packageChart(chartDir, chartMetaData)
 	if err != nil {
 		impl.logger.Errorw("error in creating archive", "err", err)
-		return nil, nil, err
-	}
-	err = impl.pushToChartMuseum(archivePath, chartMuseumHost)
-	if err != nil {
-		impl.logger.Errorw("error in pushing chart", "path", archivePath, "err", err)
 		return nil, nil, err
 	}
 	values, err := impl.getValues(chartDir)
@@ -156,16 +146,16 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appName = space.ReplaceAllString(appName, "-")
-	repoUrl, _, err := impl.gitClient.CreateRepository(appName, "helm chart for "+appName)
+	repoUrl, _, err := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
 	if err != nil {
 		impl.logger.Errorw("error in creating git project", "name", appName, "err", err)
 		return nil, err
 	}
 
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
-	clonedDir := impl.gitService.GetCloneDirectory(chartDir)
+	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitService.Clone(repoUrl, chartDir)
+		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return nil, err
@@ -188,7 +178,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 		impl.logger.Errorw("error copying dir", "err", err)
 		return nil, nil
 	}
-	commit, err := impl.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
@@ -201,7 +191,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 			impl.logger.Errorw("error copying dir", "err", err)
 			return nil, err
 		}
-		commit, err = impl.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, err
@@ -309,65 +299,8 @@ func (impl ChartTemplateServiceImpl) getDir() string {
 	return strconv.FormatInt(r1, 10)
 }
 
-func (impl ChartTemplateServiceImpl) pushToChartMuseum(archivePath *string, chartMuseumHost *url.URL) error {
-	impl.logger.Debugw("pushing chart", "path", archivePath)
-	endpoint := "/api/charts"
-	url, err := chartMuseumHost.Parse(endpoint)
-	if err != nil {
-		impl.logger.Errorw("error in parsing url", "endpoint", endpoint, "err", err)
-		return err
-	}
-	f, err := os.Open(*archivePath)
-	if err != nil {
-		impl.logger.Errorw("error in opening file", "path", archivePath, "err", err)
-	}
-
-	res, err := http.DefaultClient.Post(url.String(), "application/octet-stream", f)
-	if err != nil {
-		impl.logger.Errorw("err in pushing", "url", url, "err", err)
-		return err
-	}
-	if c := res.StatusCode; 200 <= c && c <= 299 {
-		return nil
-	} else {
-		impl.logger.Errorf("res", "res", res)
-		return fmt.Errorf("error in publising chart code: %c", res.StatusCode)
-	}
-}
-
-func (impl ChartTemplateServiceImpl) DeleteFromChartMuseum(chartMuseumHost string, name string, version string) (bool, error) {
-	var reqBody = []byte("")
-	url := chartMuseumHost + name + "/" + version
-	req, err := http.NewRequest(http.MethodDelete, url, bytes.NewBuffer(reqBody))
-	if err != nil {
-		impl.logger.Errorw("error while delete", "err", err)
-		return false, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := impl.client.Do(req)
-	if err != nil {
-		impl.logger.Errorw("err", err)
-		return false, err
-	}
-
-	code := resp.StatusCode
-	resBody, err := ioutil.ReadAll(resp.Body)
-	if code >= 200 && code <= 299 {
-		if err != nil {
-			impl.logger.Errorw("error in communication ", "err", err)
-			return false, err
-		}
-
-	} else {
-		impl.logger.Errorw("api err", "res", string(resBody))
-		return false, fmt.Errorf("res not success, code: %d ,response body: %s", code, string(resBody))
-	}
-
-	return true, nil
-}
-
 func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error) {
-	chartMetaData.ApiVersion = "v1" // ensure always v1
+	chartMetaData.ApiVersion = "v2" // ensure always v2
 	dir := impl.getDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
@@ -410,16 +343,16 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
-	repoUrl, _, err := impl.gitClient.CreateRepository(appStoreName, "helm chart for "+appStoreName)
+	repoUrl, _, err := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName)
 	if err != nil {
 		impl.logger.Errorw("error in creating git project", "name", appStoreName, "err", err)
 		return nil, err
 	}
 
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
-	clonedDir := impl.gitService.GetCloneDirectory(chartDir)
+	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitService.Clone(repoUrl, chartDir)
+		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return nil, err
@@ -443,7 +376,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 		impl.logger.Errorw("error copying dir", "err", err)
 		return nil, err
 	}
-	commit, err := impl.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
@@ -456,7 +389,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			impl.logger.Errorw("error copying dir", "err", err)
 			return nil, err
 		}
-		commit, err = impl.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, err
@@ -468,10 +401,10 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 }
 
 func (impl ChartTemplateServiceImpl) GitPull(clonedDir string, repoUrl string, appStoreName string) error {
-	err := impl.gitService.Pull(clonedDir) //TODO check for local repo exists before clone
+	err := impl.gitFactory.gitService.Pull(clonedDir) //TODO check for local repo exists before clone
 	if err != nil {
 		impl.logger.Errorw("error in pulling git", "clonedDir", clonedDir, "err", err)
-		_, err := impl.gitService.Clone(repoUrl, appStoreName)
+		_, err := impl.gitFactory.gitService.Clone(repoUrl, appStoreName)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return err

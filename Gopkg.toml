@@ -187,3 +187,15 @@ required = [
 [[constraint]]
   name = "github.com/igm/sockjs-go"
   version = "3.0.0"
+
+[[constraint]]
+  branch = "dev"
+  name = "github.com/microsoft/azure-devops-go-api"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/posthog/posthog-go"
+
+[[constraint]]
+  name = "gopkg.in/robfig/cron.v3"
+  version = "3.0.1"

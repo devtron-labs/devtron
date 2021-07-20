@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -31,16 +32,17 @@ import (
 )
 
 type UserAuthRouter interface {
-	initUserAuthRouter(helmRouter *mux.Router)
+	initUserAuthRouter(router *mux.Router)
 }
 
 type UserAuthRouterImpl struct {
 	logger          *zap.SugaredLogger
 	userAuthHandler restHandler.UserAuthHandler
 	cdProxy         func(writer http.ResponseWriter, request *http.Request)
+	dexProxy        func(writer http.ResponseWriter, request *http.Request)
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandler.UserAuthHandler, cdCfg *argocdServer.Config, settings *settings.ArgoCDSettings, userService user.UserService) *UserAuthRouterImpl {
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandler.UserAuthHandler, cdCfg *argocdServer.Config, dexCfg *dex.Config, settings *settings.ArgoCDSettings, userService user.UserService) *UserAuthRouterImpl {
 	tlsConfig := settings.TLSConfig()
 	if tlsConfig != nil {
 		tlsConfig.InsecureSkipVerify = true
@@ -57,10 +59,24 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandle
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
+	dexClient := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+			Proxy:           http.ProxyFromEnvironment,
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+	dexProxy := argocdServer.NewDexHTTPReverseProxy(fmt.Sprintf("%s:%s", dexCfg.Host, dexCfg.Port), dexClient.Transport)
 	cdProxy := argocdServer.NewCDHTTPReverseProxy(fmt.Sprintf("https://%s:%s", cdCfg.Host, cdCfg.Port), client.Transport, userService.GetUserByToken)
 	router := &UserAuthRouterImpl{
 		userAuthHandler: userAuthHandler,
 		cdProxy:         cdProxy,
+		dexProxy:        dexProxy,
 		logger:          logger,
 	}
 	return router
@@ -72,55 +88,17 @@ func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) 
 			router.writeSuccess("Welcome @Devtron", writer)
 		}).Methods("GET")
 
+	userAuthRouter.PathPrefix("/api/dex").HandlerFunc(router.dexProxy)
 	userAuthRouter.Path("/login").HandlerFunc(router.cdProxy)
 	userAuthRouter.Path("/auth/login").HandlerFunc(router.cdProxy)
-	userAuthRouter.Path("/auth/callback").HandlerFunc(router.cdProxy)
+	userAuthRouter.PathPrefix("/auth/callback").HandlerFunc(router.cdProxy)
 
 	userAuthRouter.Path("/api/v1/session").HandlerFunc(router.userAuthHandler.LoginHandler)
-	userAuthRouter.Path("/orchestrator/api/dex/auth").HandlerFunc(router.cdProxy)
-	userAuthRouter.Path("/orchestrator/api/dex/auth/google").HandlerFunc(router.cdProxy)
-	userAuthRouter.Path("/orchestrator/api/dex/approval").HandlerFunc(router.cdProxy)
-	userAuthRouter.Path("/orchestrator/api/dex/callback").HandlerFunc(router.cdProxy)
 	userAuthRouter.Path("/refresh").HandlerFunc(router.userAuthHandler.RefreshTokenHandler)
-
-	// Policies Setup
-	userAuthRouter.Path("/admin/policy").
-		HandlerFunc(router.userAuthHandler.AddPolicy).Methods("POST")
-	userAuthRouter.Path("/admin/policy").
-		HandlerFunc(router.userAuthHandler.RemovePolicy).Methods("DELETE")
-	userAuthRouter.Path("/admin/policy/subject").
-		HandlerFunc(router.userAuthHandler.GetAllSubjectsFromCasbin).Methods("GET")
-	userAuthRouter.Path("/admin/policy/roles").
-		Queries("user", "{user}").
-		HandlerFunc(router.userAuthHandler.GetRolesForUserFromCasbin).Methods("GET")
-	userAuthRouter.Path("/admin/policy/users").
-		Queries("role", "{role}").
-		HandlerFunc(router.userAuthHandler.GetUserByRoleFromCasbin).Methods("GET")
-	userAuthRouter.Path("/admin/policy/subject").
-		Queries("user", "{user}").
-		Queries("role", "{role}").
-		HandlerFunc(router.userAuthHandler.DeleteRoleForUserFromCasbin).Methods("DELETE")
-
 	// Policies mapping in orchestrator
-	userAuthRouter.Path("/admin/role").
-		HandlerFunc(router.userAuthHandler.CreateRoleFromOrchestrator).Methods("POST")
-	userAuthRouter.Path("/admin/role").
-		HandlerFunc(router.userAuthHandler.UpdateRoleFromOrchestrator).Methods("PUT")
-	userAuthRouter.Path("/admin/role/user/{userId}").
-		HandlerFunc(router.userAuthHandler.GetRolesByUserIdFromOrchestrator).Methods("GET")
-	userAuthRouter.Path("/admin/role").
-		HandlerFunc(router.userAuthHandler.GetAllRoleFromOrchestrator).Methods("GET")
-	userAuthRouter.Path("/admin/role/filter").
-		Queries("team", "{team}", "app", "{app}", "env", "{env}", "act", "{act}").
-		HandlerFunc(router.userAuthHandler.GetRoleByFilterFromOrchestrator).Methods("GET")
-	userAuthRouter.Path("/admin/role").
-		Queries("role", "{role}").
-		HandlerFunc(router.userAuthHandler.DeleteRoleFromOrchestrator).Methods("DELETE")
-
 	userAuthRouter.Path("/admin/policy/default").
 		Queries("team", "{team}", "app", "{app}", "env", "{env}").
 		HandlerFunc(router.userAuthHandler.AddDefaultPolicyAndRoles).Methods("POST")
-
 	userAuthRouter.Path("/devtron/auth/verify").
 		HandlerFunc(router.userAuthHandler.AuthVerification).Methods("GET")
 }

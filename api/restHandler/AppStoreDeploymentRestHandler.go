@@ -124,6 +124,18 @@ func (handler InstalledAppRestHandlerImpl) CreateInstalledApp(w http.ResponseWri
 		return
 	}
 	//rback block ends here
+
+	isChartRepoActive, err := handler.installedAppService.IsChartRepoActive(request.AppStoreVersion)
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !isChartRepoActive {
+		writeJsonResp(w, fmt.Errorf("chart repo is disabled"), nil, http.StatusNotAcceptable)
+		return
+	}
+
 	request.UserId = userId
 	handler.Logger.Infow("request payload, CreateInstalledApp", "payload", request)
 	ctx, cancel := context.WithCancel(r.Context())
@@ -430,6 +442,18 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 	}
 	//RBAC block ends here
 
+	for _, item := range request.ChartGroupInstallChartRequest {
+		isChartRepoActive, err := handler.installedAppService.IsChartRepoActive(item.AppStoreVersion)
+		if err != nil {
+			handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		if !isChartRepoActive {
+			writeJsonResp(w, fmt.Errorf("chart repo is disabled"), nil, http.StatusNotAcceptable)
+			return
+		}
+	}
 	res, err := handler.installedAppService.DeployBulk(&request)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeployBulk", "err", err, "payload", request)

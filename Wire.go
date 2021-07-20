@@ -21,12 +21,14 @@ package main
 
 import (
 	"github.com/devtron-labs/devtron/api/router/pubsub"
+	"github.com/devtron-labs/devtron/client/dashboard"
 	eClient "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/grafana"
 	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -41,15 +43,18 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/appstore"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/devtron-labs/devtron/pkg/event"
 	"github.com/devtron-labs/devtron/pkg/git"
+	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
+	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -64,6 +69,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -94,7 +100,6 @@ func InitializeApp() (*App, error) {
 		wire.Value(appstore.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(pipeline.DefaultChart("reference-app-rolling")),
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
-		util.GetGitConfig,
 		session.SettingsManager,
 		session.CDSettingsManager,
 		session.SessionManager,
@@ -117,6 +122,9 @@ func InitializeApp() (*App, error) {
 
 		app.NewAppService,
 		wire.Bind(new(app.AppService), new(*app.AppServiceImpl)),
+
+		bulkUpdate.NewBulkUpdateRepository,
+		wire.Bind(new(bulkUpdate.BulkUpdateRepository), new(*bulkUpdate.BulkUpdateRepositoryImpl)),
 
 		chartConfig.NewChartRepository,
 		wire.Bind(new(chartConfig.ChartRepository), new(*chartConfig.ChartRepositoryImpl)),
@@ -154,6 +162,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
 		pipeline.NewChartServiceImpl,
 		wire.Bind(new(pipeline.ChartService), new(*pipeline.ChartServiceImpl)),
+		pipeline.NewBulkUpdateServiceImpl,
+		wire.Bind(new(pipeline.BulkUpdateService), new(*pipeline.BulkUpdateServiceImpl)),
 		chartConfig.NewChartRepoRepositoryImpl,
 		wire.Bind(new(chartConfig.ChartRepoRepository), new(*chartConfig.ChartRepoRepositoryImpl)),
 		chartConfig.NewChartRefRepositoryImpl,
@@ -257,10 +267,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiPipelineRepository), new(*pipelineConfig.CiPipelineRepositoryImpl)),
 		pipelineConfig.NewCiPipelineMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiPipelineMaterialRepository), new(*pipelineConfig.CiPipelineMaterialRepositoryImpl)),
-		util.NewGitLabClient,
-		//wire.Bind(new(util.GitClient), new(*util.GitLabClient)),
-		util.NewGitServiceImpl,
-		wire.Bind(new(util.GitService), new(*util.GitServiceImpl)),
+		util.NewGitFactory,
 
 		application.NewApplicationClientImpl,
 		wire.Bind(new(application.ServiceClient), new(*application.ServiceClientImpl)),
@@ -578,7 +585,6 @@ func InitializeApp() (*App, error) {
 		restHandler.NewTestSuitRestHandlerImpl,
 		wire.Bind(new(restHandler.TestSuitRestHandler), new(*restHandler.TestSuitRestHandlerImpl)),
 
-
 		router.NewImageScanRouterImpl,
 		wire.Bind(new(router.ImageScanRouter), new(*router.ImageScanRouterImpl)),
 		restHandler.NewImageScanRestHandlerImpl,
@@ -609,6 +615,61 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(terminal.TerminalSessionHandler), new(*terminal.TerminalSessionHandlerImpl)),
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
+
+		dashboard.GetConfig,
+		router.NewDashboardRouterImpl,
+		wire.Bind(new(router.DashboardRouter), new(*router.DashboardRouterImpl)),
+
+		grafana.GetConfig,
+		router.NewGrafanaRouterImpl,
+		wire.Bind(new(router.GrafanaRouter), new(*router.GrafanaRouterImpl)),
+
+		sso.NewSSOLoginServiceImpl,
+		wire.Bind(new(sso.SSOLoginService), new(*sso.SSOLoginServiceImpl)),
+		repository.NewSSOLoginRepositoryImpl,
+		wire.Bind(new(repository.SSOLoginRepository), new(*repository.SSOLoginRepositoryImpl)),
+
+		router.NewGitOpsConfigRouterImpl,
+		wire.Bind(new(router.GitOpsConfigRouter), new(*router.GitOpsConfigRouterImpl)),
+		restHandler.NewGitOpsConfigRestHandlerImpl,
+		wire.Bind(new(restHandler.GitOpsConfigRestHandler), new(*restHandler.GitOpsConfigRestHandlerImpl)),
+		gitops.NewGitOpsConfigServiceImpl,
+		wire.Bind(new(gitops.GitOpsConfigService), new(*gitops.GitOpsConfigServiceImpl)),
+		repository.NewGitOpsConfigRepositoryImpl,
+		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
+
+		router.NewAttributesRouterImpl,
+		wire.Bind(new(router.AttributesRouter), new(*router.AttributesRouterImpl)),
+		restHandler.NewAttributesRestHandlerImpl,
+		wire.Bind(new(restHandler.AttributesRestHandler), new(*restHandler.AttributesRestHandlerImpl)),
+		attributes.NewAttributesServiceImpl,
+		wire.Bind(new(attributes.AttributesService), new(*attributes.AttributesServiceImpl)),
+		repository.NewAttributesRepositoryImpl,
+		wire.Bind(new(repository.AttributesRepository), new(*repository.AttributesRepositoryImpl)),
+
+		router.NewCommonRouterImpl,
+		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
+		restHandler.NewCommonRestHanlderImpl,
+		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
+		util.NewGitCliUtil,
+		router.NewSsoLoginRouterImpl,
+		wire.Bind(new(router.SsoLoginRouter), new(*router.SsoLoginRouterImpl)),
+		restHandler.NewSsoLoginRestHandlerImpl,
+		wire.Bind(new(restHandler.SsoLoginRestHandler), new(*restHandler.SsoLoginRestHandlerImpl)),
+
+		router.NewTelemetryRouterImpl,
+		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
+		restHandler.NewTelemetryRestHandlerImpl,
+		wire.Bind(new(restHandler.TelemetryRestHandler), new(*restHandler.TelemetryRestHandlerImpl)),
+		telemetry.NewPosthogClient,
+
+		telemetry.NewTelemetryEventClientImpl,
+		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
+
+		router.NewBulkUpdateRouterImpl,
+		wire.Bind(new(router.BulkUpdateRouter), new(*router.BulkUpdateRouterImpl)),
+		restHandler.NewBulkUpdateRestHandlerImpl,
+		wire.Bind(new(restHandler.BulkUpdateRestHandler), new(*restHandler.BulkUpdateRestHandlerImpl)),
 	)
 	return &App{}, nil
 }

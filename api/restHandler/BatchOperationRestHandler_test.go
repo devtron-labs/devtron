@@ -82,4 +82,4 @@ func Test_validatePipeline(t *testing.T) {
 			}
 		})
 	}
-}
+

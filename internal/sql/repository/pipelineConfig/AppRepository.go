@@ -39,8 +39,8 @@ type AppRepository interface {
 	SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error
 	Update(app *App) error
 	FindActiveByName(appName string) (pipelineGroup *App, err error)
+	FindActiveListByName(appName string) ([]*App, error)
 	FindById(id int) (pipelineGroup *App, err error)
-	AppExists(appName string) (bool, error)
 	FindAppsByTeamId(teamId int) ([]App, error)
 	FindAppsByTeamIds(teamId []int) ([]App, error)
 	FindAppsByTeamName(teamName string) ([]App, error)
@@ -50,6 +50,7 @@ type AppRepository interface {
 	CheckAppExists(appNames []string) ([]*App, error)
 
 	FindByIds(ids []*int) ([]*App, error)
+	FetchAppsByFilterV2(appNameIncludes string, appNameExcludes string, environmentId int) ([]*App, error)
 }
 
 type AppRepositoryImpl struct {
@@ -81,17 +82,22 @@ func (repo AppRepositoryImpl) FindActiveByName(appName string) (*App, error) {
 		Model(pipelineGroup).
 		Where("app_name = ?", appName).
 		Where("active = ?", true).
+		Order("id DESC").Limit(1).
 		Select()
+	// there is only single active app will be present in db with a same name.
 	return pipelineGroup, err
 }
 
-func (repo AppRepositoryImpl) AppExists(appName string) (bool, error) {
-	app := &App{}
-	exists, err := repo.dbConnection.
-		Model(app).
+func (repo AppRepositoryImpl) FindActiveListByName(appName string) ([]*App, error) {
+	var apps []*App
+	err := repo.dbConnection.
+		Model(&apps).
 		Where("app_name = ?", appName).
-		Exists()
-	return exists, err
+		Where("active = ?", true).
+		Order("id ASC").
+		Select()
+	// there is only single active app will be present in db with a same name. but check for concurrency
+	return apps, err
 }
 
 func (repo AppRepositoryImpl) CheckAppExists(appNames []string) ([]*App, error) {
@@ -155,5 +161,36 @@ func (repo AppRepositoryImpl) FindAllActiveAppsWithTeam() ([]*App, error) {
 func (repo AppRepositoryImpl) FindByIds(ids []*int) ([]*App, error) {
 	var apps []*App
 	err := repo.dbConnection.Model(&apps).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
+	return apps, err
+}
+
+func (repo AppRepositoryImpl) FetchAppsByFilterV2(appNameIncludes string, appNameExcludes string, environmentId int) ([]*App, error) {
+	var apps []*App
+	var err error
+	if environmentId > 0 && len(appNameExcludes) > 0 {
+		err = repo.dbConnection.Model(&apps).ColumnExpr("DISTINCT app.*").
+			Join("inner join pipeline p on p.app_id=app.id").
+			Where("app.app_name like ?", ""+appNameIncludes+"%").Where("app.app_name not like ?", ""+appNameExcludes+"%").
+			Where("app.active=?", true).Where("app_store=?", false).
+			Where("p.environment_id = ?", environmentId).Where("p.deleted = ?", false).
+			Select()
+	} else if environmentId > 0 && len(appNameExcludes) == 0 {
+		err = repo.dbConnection.Model(&apps).ColumnExpr("DISTINCT app.*").
+			Join("inner join pipeline p on p.app_id=app.id").
+			Where("app.app_name like ?", ""+appNameIncludes+"%").
+			Where("app.active=?", true).Where("app_store=?", false).
+			Where("p.environment_id = ?", environmentId).Where("p.deleted = ?", false).
+			Select()
+	} else if environmentId == 0 && len(appNameExcludes) > 0 {
+		err = repo.dbConnection.Model(&apps).ColumnExpr("DISTINCT app.*").
+			Where("app.app_name like ?", ""+appNameIncludes+"%").Where("app.app_name not like ?", ""+appNameExcludes+"%").
+			Where("app.active=?", true).Where("app_store=?", false).
+			Select()
+	} else if environmentId == 0 && len(appNameExcludes) == 0 {
+		err = repo.dbConnection.Model(&apps).ColumnExpr("DISTINCT app.*").
+			Where("app.app_name like ?", ""+appNameIncludes+"%").
+			Where("app.active=?", true).Where("app_store=?", false).
+			Select()
+	}
 	return apps, err
 }

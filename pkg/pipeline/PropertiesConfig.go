@@ -26,10 +26,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
-	"strconv"
 	"time"
 )
 
@@ -251,14 +251,9 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		IsOverride:        envOverride.IsOverride,
 	}
 
-	chartMajorVersion, err := strconv.Atoi(chart.ChartVersion[:1])
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chart.ChartVersion)
 	if err != nil {
-		impl.logger.Error(err)
-		return nil, err
-	}
-	chartMinorVersion, err := strconv.Atoi(chart.ChartVersion[2:3])
-	if err != nil {
-		impl.logger.Error(err)
+		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
 	}
 
@@ -329,14 +324,9 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		return nil, fmt.Errorf("namespace name update not supported")
 	}
 
-	chartMajorVersion, err := strconv.Atoi(oldEnvOverride.Chart.ChartVersion[:1])
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(oldEnvOverride.Chart.ChartVersion)
 	if err != nil {
-		impl.logger.Error(err)
-		return nil, err
-	}
-	chartMinorVersion, err := strconv.Atoi(oldEnvOverride.Chart.ChartVersion[2:3])
-	if err != nil {
-		impl.logger.Error(err)
+		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
 	}
 
@@ -423,7 +413,6 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Char
 	}
 	return envOverride, nil
 }
-
 
 func (impl PropertiesConfigServiceImpl) GetEnvironmentPropertiesById(envId int) ([]EnvironmentProperties, error) {
 
@@ -599,14 +588,10 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 			}
 			return nil, err
 		}
-		chartMajorVersion, err := strconv.Atoi(currentChart.Chart.ChartVersion[:1])
+
+		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(currentChart.Chart.ChartVersion)
 		if err != nil {
-			impl.logger.Error(err)
-			return nil, err
-		}
-		chartMinorVersion, err := strconv.Atoi(currentChart.Chart.ChartVersion[2:3])
-		if err != nil {
-			impl.logger.Error(err)
+			impl.logger.Errorw("chart version parsing", "err", err)
 			return nil, err
 		}
 		if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {

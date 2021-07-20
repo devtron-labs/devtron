@@ -34,7 +34,7 @@ import (
 type NotificationConfigService interface {
 	CreateOrUpdateNotificationSettings(notificationSettingsRequest *NotificationRequest, userId int32) (int, error)
 	FindAll(offset int, size int) ([]*repository.NotificationSettingsViewWithAppEnv, int, error)
-	BuildNotificationSettingsResponse(notificationSettings []*repository.NotificationSettingsViewWithAppEnv) ([]*NotificationSettingsResponse, error)
+	BuildNotificationSettingsResponse(notificationSettings []*repository.NotificationSettingsViewWithAppEnv) ([]*NotificationSettingsResponse, int, error)
 	DeleteNotificationSettings(request NSDeleteRequest) error
 	FindNotificationSettingOptions(request *repository.SearchRequest) ([]*SearchFilterResponse, error)
 
@@ -54,6 +54,7 @@ type NotificationConfigServiceImpl struct {
 	environmentRepository          cluster.EnvironmentRepository
 	appRepository                  pipelineConfig.AppRepository
 	userRepository                 repository.UserRepository
+	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
 }
 
 type NotificationSettingRequest struct {
@@ -144,9 +145,11 @@ type EnvResponse struct {
 }
 
 type PipelineResponse struct {
-	Id              *int   `json:"id"`
-	Name            string `json:"name"`
-	EnvironmentName string `json:"environmentName,omitempty"`
+	Id              *int     `json:"id"`
+	Name            string   `json:"name"`
+	EnvironmentName string   `json:"environmentName,omitempty"`
+	AppName         string   `json:"appName,omitempty"`
+	Branches        []string `json:"branches,omitempty"`
 }
 
 type ProvidersConfig struct {
@@ -160,7 +163,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository,
 	sesRepository repository.SESNotificationRepository, teamRepository team.TeamRepository,
 	environmentRepository cluster.EnvironmentRepository, appRepository pipelineConfig.AppRepository,
-	userRepository repository.UserRepository) *NotificationConfigServiceImpl {
+	userRepository repository.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,
 		notificationSettingsRepository: notificationSettingsRepository,
@@ -173,6 +176,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		environmentRepository:          environmentRepository,
 		appRepository:                  appRepository,
 		userRepository:                 userRepository,
+		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
 	}
 }
 
@@ -298,8 +302,9 @@ func (impl *NotificationConfigServiceImpl) UpdateNotificationSettings(notificati
 	return configId, nil
 }
 
-func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(notificationSettingViews []*repository.NotificationSettingsViewWithAppEnv) ([]*NotificationSettingsResponse, error) {
+func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(notificationSettingViews []*repository.NotificationSettingsViewWithAppEnv) ([]*NotificationSettingsResponse, int, error) {
 	var notificationSettingsResponses []*NotificationSettingsResponse
+	deletedItemCount := 0
 	for _, ns := range notificationSettingViews {
 		notificationSettingsResponse := &NotificationSettingsResponse{
 			Id:         ns.Id,
@@ -311,14 +316,14 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 		err := json.Unmarshal(configJson, &config)
 		if err != nil {
 			impl.logger.Errorw("unmarshal error", "err", err)
-			return notificationSettingsResponses, err
+			return notificationSettingsResponses, deletedItemCount, err
 		}
 
 		if config.TeamId != nil && len(config.TeamId) > 0 {
 			teams, err := impl.teamRepository.FindByIds(config.TeamId)
 			if err != nil && err != pg.ErrNoRows {
 				impl.logger.Errorw("error in fetching team", "err", err)
-				return notificationSettingsResponses, err
+				return notificationSettingsResponses, deletedItemCount, err
 			}
 			var teamResponse []*TeamResponse
 			for _, item := range teams {
@@ -331,7 +336,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			environments, err := impl.environmentRepository.FindByIds(config.EnvId)
 			if err != nil && err != pg.ErrNoRows {
 				impl.logger.Errorw("error in fetching env", "err", err)
-				return notificationSettingsResponses, err
+				return notificationSettingsResponses, deletedItemCount, err
 			}
 			var envResponse []*EnvResponse
 			for _, item := range environments {
@@ -344,7 +349,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			applications, err := impl.appRepository.FindByIds(config.AppId)
 			if err != nil && err != pg.ErrNoRows {
 				impl.logger.Errorw("error in fetching app", "err", err)
-				return notificationSettingsResponses, err
+				return notificationSettingsResponses, deletedItemCount, err
 			}
 			var appResponse []*AppResponse
 			for _, item := range applications {
@@ -371,7 +376,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				slackConfigs, err := impl.slackRepository.FindByIds(slackIds)
 				if err != nil && err != pg.ErrNoRows {
 					impl.logger.Errorw("error in fetching slack config", "err", err)
-					return notificationSettingsResponses, err
+					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range slackConfigs {
 					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: item.Id, ConfigName: item.ConfigName, Dest: string(util.Slack)})
@@ -382,7 +387,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				sesConfigs, err := impl.userRepository.GetByIds(userIds)
 				if err != nil && err != pg.ErrNoRows {
 					impl.logger.Errorw("error in fetching user", "error", err)
-					return notificationSettingsResponses, err
+					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range sesConfigs {
 					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: int(item.Id), ConfigName: item.EmailId, Dest: string(util.SES)})
@@ -405,23 +410,36 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				pipeline, err := impl.pipelineRepository.FindById(*config.PipelineId)
 				if err != nil && err != pg.ErrNoRows {
 					impl.logger.Errorw("error in fetching cd pipeline", "err", err)
-					return notificationSettingsResponses, err
+					return notificationSettingsResponses, deletedItemCount, err
 				}
 				if err == pg.ErrNoRows {
+					deletedItemCount = deletedItemCount + 1
 					continue
 				}
 				pipelineResponse.EnvironmentName = pipeline.Environment.Name
 				pipelineResponse.Name = pipeline.Name
+				if pipeline.App.Id > 0 {
+					pipelineResponse.AppName = pipeline.App.AppName
+				}
 			} else if config.PipelineType == util.CI {
 				pipeline, err := impl.ciPipelineRepository.FindById(*config.PipelineId)
 				if err != nil && err != pg.ErrNoRows {
 					impl.logger.Errorw("error in fetching ci pipeline", "err", err)
-					return notificationSettingsResponses, err
+					return notificationSettingsResponses, deletedItemCount, err
 				}
 				if err == pg.ErrNoRows {
+					deletedItemCount = deletedItemCount + 1
 					continue
 				}
 				pipelineResponse.Name = pipeline.Name
+				if pipeline.App != nil {
+					pipelineResponse.AppName = pipeline.App.AppName
+				}
+				if pipeline.CiPipelineMaterials != nil {
+					for _, item := range pipeline.CiPipelineMaterials {
+						pipelineResponse.Branches = append(pipelineResponse.Branches, item.Value)
+					}
+				}
 			}
 			notificationSettingsResponse.PipelineResponse = pipelineResponse
 		}
@@ -431,7 +449,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 
 		notificationSettingsResponses = append(notificationSettingsResponses, notificationSettingsResponse)
 	}
-	return notificationSettingsResponses, nil
+	return notificationSettingsResponses, deletedItemCount, nil
 }
 
 func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) ([]ProvidersConfig, error) {
@@ -704,12 +722,11 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 		impl.logger.Errorw("error while fetching notification deployment option", "err", err)
 		return searchFilterResponse, err
 	}
-
 	for _, item := range settingOptionResponseDeployment {
 		item.PipelineType = string(util.CD)
 		result := &SearchFilterResponse{
 			PipelineType:     item.PipelineType,
-			PipelineResponse: &PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName, EnvironmentName: item.EnvironmentName},
+			PipelineResponse: &PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName, EnvironmentName: item.EnvironmentName, AppName: item.AppName},
 		}
 		searchFilterResponse = append(searchFilterResponse, result)
 	}
@@ -721,9 +738,21 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	}
 	for _, item := range settingOptionResponseBuild {
 		item.PipelineType = string(util.CI)
+
+		pipelineMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(item.PipelineId)
+		if err != nil && !util2.IsErrNoRows(err) {
+			impl.logger.Errorw("error while fetching material", "err", err)
+			return searchFilterResponse, err
+		}
+		var branches []string
+		if pipelineMaterials != nil {
+			for _, pipelineMaterial := range pipelineMaterials {
+				branches = append(branches, pipelineMaterial.Value)
+			}
+		}
 		result := &SearchFilterResponse{
 			PipelineType:     item.PipelineType,
-			PipelineResponse: &PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName},
+			PipelineResponse: &PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName, AppName: item.AppName, Branches: branches},
 		}
 		searchFilterResponse = append(searchFilterResponse, result)
 	}

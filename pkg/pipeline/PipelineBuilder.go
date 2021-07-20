@@ -35,7 +35,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -43,7 +45,6 @@ import (
 	"google.golang.org/grpc/status"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -115,8 +116,9 @@ type PipelineBuilderImpl struct {
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	appService                    app.AppService
 	imageScanResultRepository     security.ImageScanResultRepository
-	GitClient                     util.GitClient
+	GitFactory                    *util.GitFactory
 	ArgoK8sClient                 argocdServer.ArgoK8sClient
+	attributesService             attributes.AttributesService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -141,8 +143,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	appService app.AppService,
 	imageScanResultRepository security.ImageScanResultRepository,
-	GitClient util.GitClient,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
+	GitFactory *util.GitFactory, attributesService attributes.AttributesService,
 ) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
@@ -167,8 +169,9 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciConfig:                      ciConfig,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		imageScanResultRepository:     imageScanResultRepository,
-		GitClient:                     GitClient,
 		ArgoK8sClient:                 ArgoK8sClient,
+		GitFactory:                    GitFactory,
+		attributesService:             attributesService,
 	}
 }
 
@@ -304,13 +307,18 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		impl.logger.Debugw("error in AfterDockerBuild json unmarshal", "app", appId, "err", err)
 		return nil, err
 	}
+	regHost, err := template.DockerRegistry.GetRegistryLocation()
+	if err != nil {
+		impl.logger.Errorw("invalid reg url", "err", err)
+		return nil, err
+	}
 	ciConfig = &bean.CiConfigRequest{
 		Id:                template.Id,
 		AppId:             template.AppId,
 		AppName:           template.App.AppName,
 		DockerRepository:  template.DockerRepository,
 		DockerRegistry:    template.DockerRegistry.Id,
-		DockerRegistryUrl: template.DockerRegistry.GetRegistryLocation(),
+		DockerRegistryUrl: regHost,
 		BeforeDockerBuild: beforeDockerBuild,
 		AfterDockerBuild:  afterDockerBuild,
 		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId},
@@ -334,8 +342,18 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
 		return nil, err
 	}
-	var ciPipelineResp []*bean.CiPipeline
 
+	if len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			return nil, err
+		}
+		if hostUrl != nil {
+			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+		}
+	}
+
+	var ciPipelineResp []*bean.CiPipeline
 	for _, pipeline := range pipelines {
 
 		dockerArgs := make(map[string]string)
@@ -479,13 +497,18 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		impl.logger.Errorw("error in fetching DockerRegistry  for update", "appId", updateRequest.Id, "err", err, "registry", updateRequest.DockerRegistry)
 		return nil, err
 	}
+	regHost, err := dockerArtifaceStore.GetRegistryLocation()
+	if err != nil {
+		impl.logger.Errorw("invalid reg url", "err", err)
+		return nil, err
+	}
 
 	originalCiConf.AfterDockerBuild = updateRequest.AfterDockerBuild
 	originalCiConf.BeforeDockerBuild = updateRequest.BeforeDockerBuild
 	originalCiConf.DockerBuildConfig = updateRequest.DockerBuildConfig
 	originalCiConf.DockerRegistry = updateRequest.DockerRegistry
 	originalCiConf.DockerRepository = updateRequest.DockerRepository
-	originalCiConf.DockerRegistryUrl = dockerArtifaceStore.GetRegistryLocation()
+	originalCiConf.DockerRegistryUrl = regHost
 
 	argByte, err := json.Marshal(originalCiConf.DockerBuildConfig.Args)
 	if err != nil {
@@ -535,23 +558,37 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 		impl.logger.Errorw("error in fetching docker store ", "id", createRequest.DockerRepository, "err", err)
 		return nil, err
 	}
-	createRequest.DockerRegistryUrl = store.GetRegistryLocation()
+	regHost, err := store.GetRegistryLocation()
+	if err != nil {
+		impl.logger.Errorw("invalid reg url", "err", err)
+		return nil, err
+	}
+	createRequest.DockerRegistryUrl = regHost
 	createRequest.DockerRegistry = store.Id
 
-	if createRequest.DockerRepository == "" {
-		repo := impl.ecrConfig.EcrPrefix + app.AppName
-		impl.logger.Debugw("repo is empty creating ecr repo ", "repo", repo)
-		err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
+	var repo string
+	if createRequest.DockerRepository != "" {
+		repo = createRequest.DockerRepository
+	} else {
+		repo = impl.ecrConfig.EcrPrefix + app.AppName
+	}
+
+	if store.RegistryType == repository.REGISTRYTYPE_ECR {
+		impl.logger.Debugw("attempting repo creation ", "repo", repo)
+		err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId,
+			store.AWSSecretAccessKey)
 		if err != nil {
 			if errors.IsAlreadyExists(err) {
-				impl.logger.Warnw("repo already exists , skipping", "repo", repo)
+				impl.logger.Warnw("this repo already exists!!, skipping repo creation", "repo", repo)
 			} else {
-				impl.logger.Errorw("error in creating repo", "repo", repo, "err", err)
+				impl.logger.Errorw("ecr repo creation failed, it might be due to authorization or any other external " +
+					"dependency. please create repo manually before triggering ci", "repo", repo, "err", err)
 				return nil, err
 			}
 		}
-		createRequest.DockerRepository = repo
 	}
+	createRequest.DockerRepository = repo
+
 	//--ecr config	end
 	//-- template config start
 
@@ -651,6 +688,27 @@ func (impl PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMat
 
 func (impl PipelineBuilderImpl) addpipelineToTemplate(createRequest *bean.CiConfigRequest) (resp *bean.CiConfigRequest, err error) {
 
+	if createRequest.AppWorkflowId == 0 {
+		// create workflow
+		wf := &appWorkflow.AppWorkflow{
+			Name:   fmt.Sprintf("wf-%d-%s", createRequest.AppId, util2.Generate(4)),
+			AppId:  createRequest.AppId,
+			Active: true,
+			AuditLog: models.AuditLog{
+				CreatedOn: time.Now(),
+				UpdatedOn: time.Now(),
+				CreatedBy: createRequest.UserId,
+				UpdatedBy: createRequest.UserId,
+			},
+		}
+		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflow(wf)
+		if err != nil {
+			impl.logger.Errorw("err", err)
+			return nil, err
+		}
+		// workflow creation ends
+		createRequest.AppWorkflowId = savedAppWf.Id
+	}
 	//single ci in same wf validation
 	workflowMapping, err := impl.appWorkflowRepository.FindWFCIMappingByWorkflowId(createRequest.AppWorkflowId)
 	if err != nil && err != pg.ErrNoRows {
@@ -875,6 +933,21 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines,
 		}
 	}
 
+	// validation added for pipeline from ACD
+	for _, pipeline := range cdPipelines.Pipelines {
+		envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+		if err != nil {
+			return nil, err
+		}
+		argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
+		_, err = impl.application.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName})
+		appStatus, _ := status.FromError(err)
+		if appStatus.Code() == codes.OK {
+			impl.logger.Infow("argo app already exists", "app", argoAppName, "pipeline", pipeline.Name)
+			return nil, fmt.Errorf("argo app already exists, or delete in progress for previous pipeline")
+		}
+	}
+
 	for _, pipeline := range cdPipelines.Pipelines {
 		id, err := impl.createCdPipeline(ctx, app, pipeline, cdPipelines.UserId)
 		if err != nil {
@@ -1028,13 +1101,6 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 	if err != nil {
 		return 0, err
 	}
-	/*exists, err := impl.dbPipelineOrchestrator.PipelineExists(pipeline.Name)
-	if err != nil {
-		impl.logger.Errorw("error in pipeline name duplicate check", "name", pipeline.Name, "err", err)
-	}
-	if exists {
-		return 0, errors.AlreadyExistsf("pipeline already exists name:%s", pipeline.Name)
-	}*/
 
 	chartGitAttr := &util.ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
@@ -1043,7 +1109,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 		ChartLocation:  chart.ChartLocation,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
 	}
-	_, err = impl.GitClient.CommitValues(chartGitAttr)
+	_, err = impl.GitFactory.Client.CommitValues(chartGitAttr)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return 0, err
@@ -1799,14 +1865,9 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 	})
 
 	chartVersion := chart.ChartVersion
-	chartMajorVersion, err := strconv.Atoi(chartVersion[:1])
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
 	if err != nil {
-		impl.logger.Errorw("err", err)
-		return pipelineStrategiesResponse, err
-	}
-	chartMinorVersion, err := strconv.Atoi(chartVersion[2:3])
-	if err != nil {
-		impl.logger.Errorw("err", err)
+		impl.logger.Errorw("chart version parsing", "err", err)
 		return pipelineStrategiesResponse, err
 	}
 	if chartMajorVersion <= 3 && chartMinorVersion < 2 {
@@ -1954,6 +2015,17 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		}
 	}
 
+	if len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", pipeline)
+			return nil, err
+		}
+		if hostUrl != nil {
+			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+		}
+	}
+
 	var externalCiConfig bean.ExternalCiConfig
 	if pipeline.ExternalCiPipeline != nil {
 		externalCiConfig = bean.ExternalCiConfig{
@@ -2026,5 +2098,12 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		return nil, err
 	}
 	ciPipeline.LinkedCount = len(linkedCis)
+
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCIMappingByCIPipelineId(ciPipeline.Id)
+	for _, mapping := range appWorkflowMappings {
+		//there will be only one active entry in db always
+		ciPipeline.AppWorkflowId = mapping.AppWorkflowId
+	}
+
 	return ciPipeline, err
 }

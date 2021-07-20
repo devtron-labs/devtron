@@ -145,7 +145,6 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "2")
 	t1 = t2
 	appEnvs := make([]*bean.AppEnvironmentContainer, 0)
-
 	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	t2 = time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "2.1")
@@ -268,15 +267,6 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		start := time.Now()
 		resp, err := handler.application.ResourceTree(ctx, query)
 		elapsed := time.Since(start)
-		if resp.Status == v1alpha1.HealthStatusHealthy {
-			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
-			} else if status {
-				resp.Status = application.HIBERNATING
-			}
-		}
-		handler.logger.Debugf("FetchAppDetails, time elapsed %s in fetching application %s for environment %s", elapsed, appId, envId)
 		if err != nil {
 			handler.logger.Errorw("service err, FetchAppDetails, resource tree", "err", err, "app", appId, "env", envId)
 			err = &util.ApiError{
@@ -287,6 +277,15 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 			writeJsonResp(w, err, "", http.StatusInternalServerError)
 			return
 		}
+		if resp.Status == v1alpha1.HealthStatusHealthy {
+			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
+			if err != nil {
+				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
+			} else if status {
+				resp.Status = application.HIBERNATING
+			}
+		}
+		handler.logger.Debugf("FetchAppDetails, time elapsed %s in fetching application %s for environment %s", elapsed, appId, envId)
 
 		if resp.Status == v1alpha1.HealthStatusDegraded {
 			count, err := handler.appListingService.GetReleaseCount(appId, envId)

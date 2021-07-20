@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -39,7 +40,6 @@ import (
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"net/http"
-	"net/url"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -126,7 +126,6 @@ type ChartServiceImpl struct {
 	repositoryService         repository.ServiceClient
 	refChartDir               RefChartDir
 	defaultChart              DefaultChart
-	gitConfig                 *util.GitConfig
 	chartRefRepository        chartConfig.ChartRefRepository
 	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository  chartConfig.PipelineConfigRepository
@@ -146,7 +145,6 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 	defaultChart DefaultChart,
 	mergeUtil util.MergeUtil,
 	repositoryService repository.ServiceClient,
-	config *util.GitConfig,
 	chartRefRepository chartConfig.ChartRefRepository,
 	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
@@ -166,7 +164,6 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 		refChartDir:               refChartDir,
 		defaultChart:              defaultChart,
 		repositoryService:         repositoryService,
-		gitConfig:                 config,
 		chartRefRepository:        chartRefRepository,
 		envOverrideRepository:     envOverrideRepository,
 		pipelineConfigRepository:  pipelineConfigRepository,
@@ -234,14 +231,9 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
-	chartMajorVersion, err := strconv.Atoi(chartversion[:1])
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartversion)
 	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil, err
-	}
-	chartMinorVersion, err := strconv.Atoi(chartversion[2:3])
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
+		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
 	}
 
@@ -287,26 +279,13 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 
 	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
 
-	url, err := url.Parse(chartRepo.Url)
-	if err != nil {
-		impl.logger.Errorw("error in parsing repo url ", "url", chartRepo.Url, "err", err)
-		return nil, err
-	}
-
 	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
 	chartMeta.Version = version
 	if err != nil {
 		return nil, err
 	}
-	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, url, refChart, templateName)
+	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName)
 	if err != nil {
-
-		//If found any error, rollback chart museum
-		flag, err := impl.chartTemplateService.DeleteFromChartMuseum(chartRepo.Url, chartMeta.Name, chartMeta.Version)
-		if flag == false || err != nil {
-			return nil, err
-		}
-
 		return nil, err
 	}
 	override, err := templateRequest.ValuesOverride.MarshalJSON()
@@ -361,10 +340,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		impl.logger.Errorw("error in saving chart ", "chart", chart, "error", err)
 		//If found any error, rollback chart museum
-		flag, err := impl.chartTemplateService.DeleteFromChartMuseum(chartRepo.Url, chartMeta.Name, chartMeta.Version)
-		if flag == false || err != nil {
-			return nil, err
-		}
 		return nil, err
 	}
 
@@ -408,14 +383,9 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 
-	chartMajorVersion, err := strconv.Atoi(chartversion[:1])
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartversion)
 	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil, err
-	}
-	chartMinorVersion, err := strconv.Atoi(chartversion[2:3])
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
+		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
 	}
 
@@ -426,18 +396,12 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 
 	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
 
-	url, err := url.Parse(chartRepo.Url)
-	if err != nil {
-		impl.logger.Errorw("error in parsing repo url ", "url", chartRepo.Url, "err", err)
-		return nil, err
-	}
-
 	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
 	chartMeta.Version = version
 	if err != nil {
 		return nil, err
 	}
-	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, url, refChart, templateName)
+	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName)
 
 	if err != nil {
 		return nil, err
@@ -507,9 +471,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 
 func (impl ChartServiceImpl) registerInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
 	repo := &v1alpha1.Repository{
-		Username: impl.gitConfig.GetUserName(),
-		Password: impl.gitConfig.GetPassword(),
-		Repo:     chartGitAttribute.RepoUrl,
+		Repo: chartGitAttribute.RepoUrl,
 	}
 	repo, err := impl.repositoryService.Create(ctx, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
@@ -693,14 +655,9 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 		return nil, err
 	}
 
-	chartMajorVersion, err := strconv.Atoi(template.ChartVersion[:1])
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(template.ChartVersion)
 	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return nil, err
-	}
-	chartMinorVersion, err := strconv.Atoi(template.ChartVersion[2:3])
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
+		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
 	}
 
@@ -1050,16 +1007,12 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 			}
 			return nil, err
 		}
-		chartMajorVersion, err := strconv.Atoi(currentChart.ChartVersion[:1])
+		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(currentChart.ChartVersion)
 		if err != nil {
-			impl.logger.Errorw("err", "err", err)
+			impl.logger.Errorw("chart version parsing", "err", err)
 			return nil, err
 		}
-		chartMinorVersion, err := strconv.Atoi(currentChart.ChartVersion[2:3])
-		if err != nil {
-			impl.logger.Errorw("err", "err", err)
-			return nil, err
-		}
+
 		if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
 			err = &util.ApiError{
 				InternalMessage: "chart version in not compatible for app metrics",

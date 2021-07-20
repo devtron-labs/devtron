@@ -1,25 +1,25 @@
-<p align="center"><img width="200" height="156" src="./assets/logo.png"></p>
+<p align="center"><img width="200" height="156" src="./assets/devtron-logo.png"></p>
 <p align="center">Devtron is an open source software delivery workflow for kubernetes written in go.
 <br>
-<a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
+<a href="https://docs.devtron.ai/" target="_blank" rel="nofollow"><strong>Explore documentation »</strong></a>
 <br>
 <br>
-<a href="https://devtron.ai/">Website</a>
+<a href="https://devtron.ai/" target="_blank">Website</a>
 ·
-<a href="https://devtron.ai/blog/">Blog</a>
+<a href="https://devtron.ai/blog/" target="_blank">Blog</a>
 ·
-<a href="https://discord.gg/72JDKy4">Join Discord</a>
+<a href="https://discord.gg/jsRG5qx2gp" target="_blank">Join Discord</a>
 ·
-<a href="https://twitter.com/DevtronL">Twitter</a>
+<a href="https://twitter.com/DevtronL" target="_blank">Twitter</a>
 
 </p>
 <p align="center">
-<a href="https://discord.gg/72JDKy4"><img src="https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg" alt="Join Discord"></a>
-<a href="https://goreportcard.com/badge/github.com/devtron-labs/devtron"><img src="https://goreportcard.com/badge/github.com/devtron-labs/devtron" alt="Go Report Card"></a>
-<a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
-<a href="https://bestpractices.coreinfrastructure.org/projects/4411"><img src="https://bestpractices.coreinfrastructure.org/projects/4411/badge" alt="CII Best Practices"></a>
-<a href="http://golang.org"><img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go"></a>
-<a href="http://devtron.ai/"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
+<a href="https://discord.gg/jsRG5qx2gp" target="_blank"><img src="https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg" alt="Join Discord"></a>
+<a href="https://goreportcard.com/badge/github.com/devtron-labs/devtron" target="_blank"><img src="https://goreportcard.com/badge/github.com/devtron-labs/devtron" alt="Go Report Card"></a>
+<a href="./LICENSE" target="_blank"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+<a href="https://bestpractices.coreinfrastructure.org/projects/4411" target="_blank"><img src="https://bestpractices.coreinfrastructure.org/projects/4411/badge" alt="CII Best Practices"></a>
+<a href="http://golang.org" target="_blank"><img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go"></a>
+<a href="http://devtron.ai/" target="_blank"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
 
 </p>
 
@@ -28,7 +28,7 @@
 - [Why Devtron](https://github.com/devtron-labs/devtron#bulb-why-devtron) 
 - [Features](https://github.com/devtron-labs/devtron#tada-features)
 - [Getting Started](https://github.com/devtron-labs/devtron#rocket-getting-started)
-- [Documentation](https://docs.devtron.ai/)
+- <a href="https://docs.devtron.ai/" target="_blank">Documentation</a>
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
 - [Contribute](https://github.com/devtron-labs/devtron#handshake-contribute)
@@ -58,8 +58,6 @@ It is designed as a self-serve platform for operationalizing and maintaining app
  <br> 
  
  - Deploy to multiple kubernetes cluster
- - Test on aws cloud 
-   > coming soon: support for GCP and microsoft azure  
 </details>
 <details>
  <summary> <b> Easy dev-sec-ops integration </b> </summary>
@@ -116,29 +114,35 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 ## :rocket: Getting Started
 
-#### Installing devtron with Helm 
+#### Quick installation with default settings
+
+This installation will use Minio for storing build logs and cache. Please make sure to edit the POSTGRESQL_PASSWORD value.
 
 ```bash
-$ git clone https://github.com/devtron-labs/devtron-installation-script.git
-$ cd devtron-installation-script/charts
-$ #modify values in values.yaml
-$ helm install devtron . -f values.yaml
+helm repo add devtron https://helm.devtron.ai
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+--set secrets.POSTGRESQL_PASSWORD=change-me
 ```
-For detail instructions checkout [devtron installation project](https://github.com/devtron-labs/devtron-installation-script/)
+
+For detailed instructions and other options, check out  <a href="https://docs.devtron.ai/setup/install" target="_blank">devtron installation documentation</a>
 
 
 #### :key: Access Devtron dashboard
 
-Devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` same as provided in `values.yaml`
+By default Devtron creates a loadbalancer. Use the following command to get the dashboard url.
 
-
-*****For login use username:`admin` and for password run command mentioned below.*****
-
-```bash
-$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+```text
+kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
 ```
 
-*****[Detail configuration options](https://docs.devtron.ai/setup/install#configuration)*****
+*****Devtron Admin credentials*****
+
+
+For admin login use username:`admin` and for password run the following command.
+
+```bash
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+```
 
 #### Using devtron
   
@@ -157,7 +161,6 @@ $ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWOR
 
 ## :memo: Compatibility notes
 
-- Only AWS kubernetes cluster is supported as of now
 - It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
 - Application metrics only works for k8s 1.16+
 
@@ -165,7 +168,7 @@ $ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWOR
 
 Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
 
- - Join the [Discord Community](https://discord.gg/72JDKy4) 
+ - Join the [Discord Community](https://discord.gg/jsRG5qx2gp) 
  - Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
  - Raise feature requests, suggest enhancements, report bugs at [GitHub issues](https://github.com/devtron-labs/devtron/issues)
  - Read the [Devtron blog](https://devtron.ai/blog/)

@@ -84,6 +84,8 @@ type InstalledAppService interface {
 	CheckAppExists(appNames []*AppNames) ([]*AppNames, error)
 
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
+	IsChartRepoActive(appStoreVersionId int) (bool, error)
+	DeployDefaultComponent(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -96,12 +98,10 @@ type InstalledAppServiceImpl struct {
 	installedAppRepository               appstore.InstalledAppRepository
 	chartTemplateService                 util.ChartTemplateService
 	refChartDir                          RefChartProxyDir
-	gitConfig                            *util.GitConfig
 	repositoryService                    repository.ServiceClient
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository
 	environmentRepository                cluster.EnvironmentRepository
 	teamRepository                       team.TeamRepository
-	GitClient                            util.GitClient
 	appRepository                        pipelineConfig.AppRepository
 	acdClient                            application2.ServiceClient
 	appStoreValuesService                AppStoreValuesService
@@ -111,6 +111,7 @@ type InstalledAppServiceImpl struct {
 	envService                           cluster2.EnvironmentService
 	clusterInstalledAppsRepository       appstore.ClusterInstalledAppsRepository
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
+	gitFactory                           *util.GitFactory
 }
 
 func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -121,10 +122,9 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	installedAppRepository appstore.InstalledAppRepository,
 	chartTemplateService util.ChartTemplateService, refChartDir RefChartProxyDir,
-	gitConfig *util.GitConfig, repositoryService repository.ServiceClient,
+	repositoryService repository.ServiceClient,
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository,
 	environmentRepository cluster.EnvironmentRepository, teamRepository team.TeamRepository,
-	GitClient util.GitClient,
 	appRepository pipelineConfig.AppRepository,
 	acdClient application2.ServiceClient,
 	appStoreValuesService AppStoreValuesService,
@@ -133,7 +133,8 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	chartGroupDeploymentRepository chartGroup.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService,
 	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository,
-	argoK8sClient argocdServer.ArgoK8sClient) (*InstalledAppServiceImpl, error) {
+	argoK8sClient argocdServer.ArgoK8sClient,
+	gitFactory *util.GitFactory) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		chartRepository:                      chartRepository,
 		logger:                               logger,
@@ -144,12 +145,10 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 		installedAppRepository:               installedAppRepository,
 		chartTemplateService:                 chartTemplateService,
 		refChartDir:                          refChartDir,
-		gitConfig:                            gitConfig,
 		repositoryService:                    repositoryService,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		environmentRepository:                environmentRepository,
 		teamRepository:                       teamRepository,
-		GitClient:                            GitClient,
 		appRepository:                        appRepository,
 		acdClient:                            acdClient,
 		appStoreValuesService:                appStoreValuesService,
@@ -159,6 +158,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 		envService:                           envService,
 		clusterInstalledAppsRepository:       clusterInstalledAppsRepository,
 		ArgoK8sClient:                        argoK8sClient,
+		gitFactory:                           gitFactory,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -183,6 +183,19 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	}
 	installAppVersionRequest.EnvironmentId = installedApp.EnvironmentId
 	installAppVersionRequest.AppName = installedApp.App.AppName
+
+	environment, err := impl.environmentRepository.FindById(installedApp.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("fetching error", "err", err)
+		return nil, err
+	}
+	team, err := impl.teamRepository.FindOne(installedApp.App.TeamId)
+	if err != nil {
+		impl.logger.Errorw("fetching error", "err", err)
+		return nil, err
+	}
+	impl.logger.Debug(team.Name)
+	argocdAppName := installedApp.App.AppName + "-" + environment.Name
 
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
@@ -229,56 +242,22 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 				return nil, err
 			}
 			installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
+
+			//update requirements yaml in chart
+			err = impl.updateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion)
+			if err != nil {
+				return nil, err
+			}
+
 		} else {
 			installedAppVersion = installedAppVersionModel
 		}
 
-		environment, err := impl.environmentRepository.FindById(installedApp.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("fetching error", "err", err)
-			return nil, err
-		}
-		team, err := impl.teamRepository.FindOne(installedApp.App.TeamId)
-		if err != nil {
-			impl.logger.Errorw("fetching error", "err", err)
-			return nil, err
-		}
-		impl.logger.Debug(team.Name)
-
-		argocdAppName := installedApp.App.AppName + "-" + environment.Name
-
 		//update values yaml in chart
-		valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
+		err = impl.updateValuesYaml(environment, installedAppVersion, installAppVersionRequest)
 		if err != nil {
-			impl.logger.Errorw("error in json patch", "err", err)
 			return nil, err
 		}
-		var dat map[string]interface{}
-		err = json.Unmarshal(valuesOverrideByte, &dat)
-		if err != nil {
-			impl.logger.Errorw("error in unmarshal", "err", err)
-			return nil, err
-		}
-		valuesMap := make(map[string]map[string]interface{})
-		valuesMap[installedAppVersion.AppStoreApplicationVersion.AppStore.Name] = dat
-		valuesByte, err := json.Marshal(valuesMap)
-		if err != nil {
-			impl.logger.Errorw("error in marshaling", "err", err)
-			return nil, err
-		}
-		valuesYaml := &util.ChartConfig{
-			FileName:       VALUES_YAML_FILE,
-			FileContent:    string(valuesByte),
-			ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
-			ChartLocation:  argocdAppName,
-			ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
-		}
-		_, err = impl.GitClient.CommitValues(valuesYaml)
-		if err != nil {
-			impl.logger.Errorw("error in git commit", "err", err)
-			return nil, err
-		}
-
 		installAppVersionRequest.ACDAppName = argocdAppName
 		installAppVersionRequest.Environment = environment
 
@@ -304,6 +283,80 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		return nil, err
 	}
 	return installAppVersionRequest, nil
+}
+
+func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *cluster.Environment, installedAppVersion *appstore.InstalledAppVersions,
+	installAppVersionRequest *InstallAppVersionDTO, appStoreAppVersion *appstore.AppStoreApplicationVersion) error {
+
+	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
+	dependency := Dependency{
+		Name:       appStoreAppVersion.AppStore.Name,
+		Version:    appStoreAppVersion.Version,
+		Repository: appStoreAppVersion.AppStore.ChartRepo.Url,
+	}
+	var dependencies []Dependency
+	dependencies = append(dependencies, dependency)
+	requirementDependencies := &Dependencies{
+		Dependencies: dependencies,
+	}
+	requirementDependenciesByte, err := json.Marshal(requirementDependencies)
+	if err != nil {
+		return err
+	}
+	requirementDependenciesByte, err = yaml.JSONToYAML(requirementDependenciesByte)
+	if err != nil {
+		return err
+	}
+	chartGitAttrForRequirement := &util.ChartConfig{
+		FileName:       REQUIREMENTS_YAML_FILE,
+		FileContent:    string(requirementDependenciesByte),
+		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+		ChartLocation:  argocdAppName,
+		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
+	}
+	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement)
+	if err != nil {
+		impl.logger.Errorw("error in git commit", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl InstalledAppServiceImpl) updateValuesYaml(environment *cluster.Environment, installedAppVersion *appstore.InstalledAppVersions,
+	installAppVersionRequest *InstallAppVersionDTO) error {
+
+	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
+	valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
+	if err != nil {
+		impl.logger.Errorw("error in json patch", "err", err)
+		return err
+	}
+	var dat map[string]interface{}
+	err = json.Unmarshal(valuesOverrideByte, &dat)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return err
+	}
+	valuesMap := make(map[string]map[string]interface{})
+	valuesMap[installedAppVersion.AppStoreApplicationVersion.AppStore.Name] = dat
+	valuesByte, err := json.Marshal(valuesMap)
+	if err != nil {
+		impl.logger.Errorw("error in marshaling", "err", err)
+		return err
+	}
+	valuesYaml := &util.ChartConfig{
+		FileName:       VALUES_YAML_FILE,
+		FileContent:    string(valuesByte),
+		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+		ChartLocation:  argocdAppName,
+		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
+	}
+	_, err = impl.gitFactory.Client.CommitValues(valuesYaml)
+	if err != nil {
+		impl.logger.Errorw("error in git commit", "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO, tx *pg.Tx) (*InstallAppVersionDTO, *appstore.InstalledAppVersions, error) {
@@ -528,9 +581,7 @@ func (impl InstalledAppServiceImpl) chartAdaptor2(chart *appstore.InstalledApps)
 
 func (impl InstalledAppServiceImpl) registerInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
 	repo := &v1alpha1.Repository{
-		Username: impl.gitConfig.GetUserName(),
-		Password: impl.gitConfig.GetPassword(),
-		Repo:     chartGitAttribute.RepoUrl,
+		Repo: chartGitAttribute.RepoUrl,
 	}
 	repo, err := impl.repositoryService.Create(ctx, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
@@ -590,15 +641,19 @@ func (impl InstalledAppServiceImpl) CheckAppExists(appNames []*AppNames) ([]*App
 	return appNames, nil
 }
 
-func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx) (*bean.CreateAppDTO, error) {
-
-	exists, err := impl.appRepository.AppExists(createRequest.AppName)
-	if err != nil {
+func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
+	app, err := impl.appRepository.FindActiveByName(createRequest.AppName)
+	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if exists {
+	if app != nil && app.Id > 0 {
 		impl.logger.Infow(" app already exists", "name", createRequest.AppName)
-		return nil, fmt.Errorf("an app with name %s already exists", createRequest.AppName)
+		err = &util.ApiError{
+			Code:            constants.AppAlreadyExists.Code,
+			InternalMessage: "app already exists",
+			UserMessage:     fmt.Sprintf("app already exists with name %s", createRequest.AppName),
+		}
+		return nil, err
 	}
 	pg := &pipelineConfig.App{
 		Active:   true,
@@ -607,11 +662,35 @@ func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.Cre
 		AppStore: true,
 		AuditLog: models.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
-	err = impl.appRepository.SaveWithTxn(pg, tx)
+	err = impl.appRepository.Save(pg)
 	if err != nil {
 		impl.logger.Errorw("error in saving entity ", "entity", pg)
 		return nil, err
 	}
+
+	apps, err := impl.appRepository.FindActiveListByName(createRequest.AppName)
+	if err != nil {
+		return nil, err
+	}
+	appLen := len(apps)
+	if appLen > 1 {
+		firstElement := apps[0]
+		if firstElement.Id != pg.Id {
+			pg.Active = false
+			err = impl.appRepository.Update(pg)
+			if err != nil {
+				impl.logger.Errorw("error in saving entity ", "entity", pg)
+				return nil, err
+			}
+			err = &util.ApiError{
+				Code:            constants.AppAlreadyExists.Code,
+				InternalMessage: "app already exists",
+				UserMessage:     fmt.Sprintf("app already exists with name %s", createRequest.AppName),
+			}
+			return nil, err
+		}
+	}
+
 	createRequest.Id = pg.Id
 	return createRequest, nil
 }
@@ -738,7 +817,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGr
 	for _, chartGroupInstall := range chartGroupInstallRequest.ChartGroupInstallChartRequest {
 		installAppVersionDTO, err := impl.requestBuilderForBulkDeployment(chartGroupInstall, chartGroupInstallRequest.ProjectId, chartGroupInstallRequest.UserId)
 		if err != nil {
-			impl.logger.Errorw("error in transformation", "err", err)
+			impl.logger.Errorw("DeployBulk, error in request builder", "err", err)
 			return nil, err
 		}
 		installAppVersionDTOList = append(installAppVersionDTOList, installAppVersionDTO)
@@ -754,7 +833,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGr
 	for _, installAppVersionDTO := range installAppVersionDTOList {
 		installAppVersionDTO, err = impl.AppStoreDeployOperationDB(installAppVersionDTO, tx)
 		if err != nil {
-			impl.logger.Errorw(" error", "err", err)
+			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
 		}
 		installAppVersions = append(installAppVersions, installAppVersionDTO)
@@ -768,7 +847,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGr
 			chartGroupEntry := impl.createChartGroupEntryObject(installAppVersionDTO, chartGroupInstallRequest.ChartGroupId, groupINstallationId)
 			err := impl.chartGroupDeploymentRepository.Save(tx, chartGroupEntry)
 			if err != nil {
-				impl.logger.Errorw(" error in creating createChartGroupEntryObject", "err", err)
+				impl.logger.Errorw("DeployBulk, error in creating ChartGroupEntryObject", "err", err)
 				return nil, err
 			}
 		}
@@ -776,6 +855,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGr
 	//commit transaction
 	err = tx.Commit()
 	if err != nil {
+		impl.logger.Errorw("DeployBulk, error in tx commit", "err", err)
 		return nil, err
 	}
 	//nats event
@@ -865,7 +945,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 			impl.logger.Errorw("fetching error", "err", err)
 			return nil, err
 		}
-		repoUrl, err := impl.GitClient.GetRepoUrl(installedAppVersion.AppStoreName)
+		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(installedAppVersion.AppStoreName)
 		if err != nil {
 			//will allow to continue to persist status on next operation
 			impl.logger.Errorw("fetching error", "err", err)
@@ -1039,7 +1119,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 		ChartLocation:  argocdAppName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
-	_, err = impl.GitClient.CommitValues(chartGitAttrForRequirement)
+	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return nil, nil, err
@@ -1048,7 +1128,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 	//GIT PULL
 	space := regexp.MustCompile(`\s+`)
 	appStoreName := space.ReplaceAllString(chartMeta.Name, "-")
-	clonedDir := impl.gitConfig.GitWorkingDir + "" + appStoreName
+	clonedDir := impl.gitFactory.GitWorkingDir + "" + appStoreName
 	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName)
 	if err != nil {
 		impl.logger.Errorw("error in git pull", "err", err)
@@ -1080,7 +1160,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 		ChartLocation:  argocdAppName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
-	_, err = impl.GitClient.CommitValues(valuesYaml)
+	_, err = impl.gitFactory.Client.CommitValues(valuesYaml)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return nil, nil, err
@@ -1143,25 +1223,6 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationACD(installAppVersion
 
 func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *InstallAppVersionDTO, tx *pg.Tx) (*InstallAppVersionDTO, error) {
 
-	app, err := impl.appRepository.FindActiveByName(installAppVersionRequest.AppName)
-	if err != nil && err != pg.ErrNoRows {
-		return nil, err
-	}
-	if app != nil && app.Id > 0 {
-		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByAppIdAndEnvId(app.Id, installAppVersionRequest.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching from db", "error", err)
-			return nil, err
-		}
-		if installedAppVersion != nil && installedAppVersion.InstalledApp.Status != appstore.WF_UNKNOWN {
-			impl.logger.Infow("AppStoreDeployOperationDB already done for this app and env, proceed for further step", "app", app.AppName, "installedAppId", installedAppVersion.InstalledAppId, "existing status", installedAppVersion.InstalledApp.Status)
-			installAppVersionRequest.AppId = app.Id
-			installAppVersionRequest.InstalledAppId = installedAppVersion.InstalledApp.Id
-			installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
-			installAppVersionRequest.Status = installedAppVersion.InstalledApp.Status
-			return installAppVersionRequest, nil
-		}
-	}
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
@@ -1181,7 +1242,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionR
 		UserId:  installAppVersionRequest.UserId,
 	}
 
-	appCreateRequest, err = impl.createAppForAppStore(appCreateRequest, tx)
+	appCreateRequest, err = impl.createAppForAppStore(appCreateRequest)
 	if err != nil {
 		impl.logger.Errorw("error while creating app", "error", err)
 		return nil, err
@@ -1282,7 +1343,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 		} else {
 			err := impl.pubsubClient.Conn.Publish(BULK_APPSTORE_DEPLOY_TOPIC, data)
 			if err != nil {
-				impl.logger.Errorw("err in publishing msg", "msg", data, "err", err)
+				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
 				status = appstore.QUE_ERROR
 			} else {
 				status = appstore.ENQUEUED
@@ -1290,10 +1351,10 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 
 		}
 		if versions.Status == appstore.DEPLOY_INIT || versions.Status == appstore.QUE_ERROR || versions.Status == appstore.ENQUEUED {
-			impl.logger.Debugw("status", "status", status)
+			impl.logger.Debugw("status for bulk app-store deploy", "status", status)
 			_, err = impl.AppStoreDeployOperationStatusUpdate(payload.InstalledAppVersionId, status)
 			if err != nil {
-				impl.logger.Errorw(" error", "err", err)
+				impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
 			}
 		}
 	}
@@ -1313,12 +1374,8 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 		_, err = impl.performDeployStage(deployPayload.InstalledAppVersionId)
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
-			/*_, err = impl.AppStoreDeployOperationStatusUpdate(deployPayload.InstalledAppVersionId, appstore.TRIGGER_ERROR)
-			if err != nil {
-				impl.logger.Errorw(" error", "err", err)
-			}*/
 		}
-	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(180)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(200)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(3))
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err
@@ -1344,6 +1401,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 		}
 		_, err := impl.envService.Create(env, userId)
 		if err != nil {
+			impl.logger.Errorw("DeployDefaultChartOnCluster, error in creating environment", "data", env, "err", err)
 			return false, err
 		}
 	}
@@ -1362,7 +1420,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 		}
 		err = impl.teamRepository.Save(t)
 		if err != nil {
-			impl.logger.Errorw("error in saving team", "data", t, "err", err)
+			impl.logger.Errorw("DeployDefaultChartOnCluster, error in creating team", "data", t, "err", err)
 			return false, err
 		}
 	}
@@ -1377,7 +1435,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 	} else {
 		fileInfo, err := ioutil.ReadDir(CLUSTER_COMPONENT_DIR_PATH)
 		if err != nil {
-			impl.logger.Errorw("err while reading directory for cluster component", "err", err)
+			impl.logger.Errorw("DeployDefaultChartOnCluster, err while reading directory", "err", err)
 			return false, err
 		}
 		for _, file := range fileInfo {
@@ -1385,7 +1443,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 			if strings.Contains(file.Name(), ".yaml") {
 				content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", CLUSTER_COMPONENT_DIR_PATH, file.Name()))
 				if err != nil {
-					impl.logger.Errorw("error on reading file", "err", err)
+					impl.logger.Errorw("DeployDefaultChartOnCluster, error on reading file", "err", err)
 					return false, err
 				}
 				chartComponent := &ChartComponent{
@@ -1409,7 +1467,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 			for _, item := range charts.ChartComponent {
 				appStore, err := impl.appStoreApplicationVersionRepository.FindByAppStoreName(item.Name)
 				if err != nil {
-					impl.logger.Errorw("error in getting app store", "data", t, "err", err)
+					impl.logger.Errorw("DeployDefaultChartOnCluster, error in getting app store", "data", t, "err", err)
 					return false, err
 				}
 				chartGroupInstallChartRequest := &ChartGroupInstallChartRequest{
@@ -1427,9 +1485,9 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 
 			impl.logger.Info("STEP 5 - deploy bulk initiated")
 			// STEP 5 - deploy
-			_, err = impl.DeployBulk(chartGroupInstallRequest)
+			_, err = impl.DeployDefaultComponent(chartGroupInstallRequest)
 			if err != nil {
-				impl.logger.Errorw("error on installation of default component in cluster", "err", err)
+				impl.logger.Errorw("DeployDefaultChartOnCluster, error on bulk deploy", "err", err)
 				return false, err
 			}
 		}
@@ -1443,4 +1501,79 @@ type ChartComponents struct {
 type ChartComponent struct {
 	Name   string `json:"name"`
 	Values string `json:"values"`
+}
+
+func (impl *InstalledAppServiceImpl) IsChartRepoActive(appStoreVersionId int) (bool, error) {
+	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreVersionId)
+	if err != nil {
+		impl.logger.Errorw("fetching error", "err", err)
+		return false, err
+	}
+	return appStoreAppVersion.AppStore.ChartRepo.Active, nil
+}
+
+func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error) {
+	impl.logger.Debugw("bulk app install request", "req", chartGroupInstallRequest)
+	//save in db
+	// raise nats event
+
+	var installAppVersionDTOList []*InstallAppVersionDTO
+	for _, chartGroupInstall := range chartGroupInstallRequest.ChartGroupInstallChartRequest {
+		installAppVersionDTO, err := impl.requestBuilderForBulkDeployment(chartGroupInstall, chartGroupInstallRequest.ProjectId, chartGroupInstallRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("DeployBulk, error in request builder", "err", err)
+			return nil, err
+		}
+		installAppVersionDTOList = append(installAppVersionDTOList, installAppVersionDTO)
+	}
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	var installAppVersions []*InstallAppVersionDTO
+	// Rollback tx on error.
+	defer tx.Rollback()
+	for _, installAppVersionDTO := range installAppVersionDTOList {
+		installAppVersionDTO, err = impl.AppStoreDeployOperationDB(installAppVersionDTO, tx)
+		if err != nil {
+			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
+			return nil, err
+		}
+		installAppVersions = append(installAppVersions, installAppVersionDTO)
+	}
+	if chartGroupInstallRequest.ChartGroupId > 0 {
+		groupINstallationId, err := impl.getInstallationId(installAppVersions)
+		if err != nil {
+			return nil, err
+		}
+		for _, installAppVersionDTO := range installAppVersions {
+			chartGroupEntry := impl.createChartGroupEntryObject(installAppVersionDTO, chartGroupInstallRequest.ChartGroupId, groupINstallationId)
+			err := impl.chartGroupDeploymentRepository.Save(tx, chartGroupEntry)
+			if err != nil {
+				impl.logger.Errorw("DeployBulk, error in creating ChartGroupEntryObject", "err", err)
+				return nil, err
+			}
+		}
+	}
+	//commit transaction
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("DeployBulk, error in tx commit", "err", err)
+		return nil, err
+	}
+	//nats event
+
+	for _, versions := range installAppVersions {
+		_, err := impl.performDeployStage(versions.InstalledAppVersionId)
+		if err != nil {
+			impl.logger.Errorw("error in performing deploy stage", "deployPayload", versions, "err", err)
+			_, err = impl.AppStoreDeployOperationStatusUpdate(versions.InstalledAppVersionId, appstore.QUE_ERROR)
+			if err != nil {
+				impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
+			}
+		}
+	}
+
+	return &ChartGroupInstallAppRes{}, nil
 }

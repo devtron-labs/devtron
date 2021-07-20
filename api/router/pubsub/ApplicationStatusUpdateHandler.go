@@ -69,7 +69,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("unmarshal error", "err", err)
 			return
 		}
-		isHealthy, err := impl.appService.AppendCurrentApplicationStatus(application)
+		isHealthy, err := impl.appService.UpdateApplicationStatusAndCheckIsHealthy(application)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 			return
@@ -79,13 +79,6 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 		if isHealthy == true {
 			impl.logger.Debugw("git hash history", "list", application.Status.History)
 			var gitHash string
-			/*if application.Status.History != nil && len(application.Status.History) > 0 {
-				appHistory := application.Status.History
-				sort.Slice(appHistory, func(i, j int) bool {
-					return appHistory[j].DeployedAt.Before(&appHistory[i].DeployedAt)
-				})
-				gitHash = appHistory[0].Revision
-			}*/
 			if application.Operation != nil && application.Operation.Sync != nil {
 				gitHash = application.Operation.Sync.Revision
 			} else if application.Status.OperationState != nil && application.Status.OperationState.Operation.Sync != nil {

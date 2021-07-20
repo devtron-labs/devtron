@@ -309,8 +309,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		AwsRegion:                pipeline.CiTemplate.DockerRegistry.AWSRegion,
 		AccessKey:                pipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
 		SecretKey:                pipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
-		CiCacheLocation:          ciWorkflowConfig.CiCacheBucket,
-		CiCacheRegion:            ciWorkflowConfig.CiCacheRegion,
 		CiCacheFileName:          pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
 		CiProjectDetails:         ciProjectDetails,
 		Namespace:                ciWorkflowConfig.Namespace,
@@ -324,6 +322,25 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		CiArtifactLocation:       ciArtifactLocation,
 		InvalidateCache:          trigger.InvalidateCache,
 		ScanEnabled:              pipeline.ScanEnabled,
+		CloudProvider:            impl.ciConfig.CloudProvider,
+	}
+
+	switch workflowRequest.CloudProvider {
+	case BLOB_STORAGE_S3:
+		workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion
+		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
+	case BLOB_STORAGE_AZURE:
+		workflowRequest.AzureBlobConfig = &AzureBlobConfig{
+			Enabled:              impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
+			AccountName:          impl.ciConfig.AzureAccountName,
+			BlobContainerCiCache: impl.ciConfig.AzureBlobContainerCiCache,
+			AccountKey:           impl.ciConfig.AzureAccountKey,
+		}
+	case BLOB_STORAGE_MINIO:
+		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
+		workflowRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
+	default:
+		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)
 	}
 	return workflowRequest, nil
 }

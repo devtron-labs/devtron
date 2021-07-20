@@ -28,13 +28,17 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -68,6 +72,8 @@ type DbPipelineOrchestratorImpl struct {
 	ciConfig                     *CiConfig
 	appWorkflowRepository        appWorkflow.AppWorkflowRepository
 	envRepository                cluster.EnvironmentRepository
+	attributesService            attributes.AttributesService
+	appListingRepository         repository.AppListingRepository
 }
 
 func NewDbPipelineOrchestrator(
@@ -80,6 +86,8 @@ func NewDbPipelineOrchestrator(
 	GitSensorClient gitSensor.GitSensorClient, ciConfig *CiConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository cluster.EnvironmentRepository,
+	attributesService attributes.AttributesService,
+	appListingRepository repository.AppListingRepository,
 ) *DbPipelineOrchestratorImpl {
 
 	return &DbPipelineOrchestratorImpl{
@@ -93,6 +101,8 @@ func NewDbPipelineOrchestrator(
 		ciConfig:                     ciConfig,
 		appWorkflowRepository:        appWorkflowRepository,
 		envRepository:                envRepository,
+		attributesService:            attributesService,
+		appListingRepository:         appListingRepository,
 	}
 }
 
@@ -548,6 +558,16 @@ func (impl DbPipelineOrchestratorImpl) generateApiKey(ciPipelineId int, ciPipeli
 }
 
 func (impl DbPipelineOrchestratorImpl) generateExternalCiPayload(ciPipeline *bean.CiPipeline, externalCiPipeline *pipelineConfig.ExternalCiPipeline, keyPrefix string, apiKey string) *bean.CiPipeline {
+	if len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
+		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		if err != nil {
+			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", ciPipeline)
+			return nil
+		}
+		if hostUrl != nil {
+			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+		}
+	}
 	accessKey := keyPrefix + "." + apiKey
 	ciPipeline.ExternalCiConfig = bean.ExternalCiConfig{
 		WebhookUrl: impl.ciConfig.ExternalCiWebhookUrl,
@@ -771,12 +791,12 @@ func (impl DbPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bea
 
 //FIXME: not thread safe
 func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int) (*pipelineConfig.App, error) {
-	exists, err := impl.appRepository.AppExists(name)
-	if err != nil {
+	app, err := impl.appRepository.FindActiveByName(name)
+	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if exists {
-		impl.logger.Infow(" pipeline already exists", "name", name)
+	if app != nil && app.Id > 0 {
+		impl.logger.Warnw("app already exists", "name", name)
 		err = &util.ApiError{
 			Code:            constants.AppAlreadyExists.Code,
 			InternalMessage: "app already exists",
@@ -794,6 +814,29 @@ func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32,
 	if err != nil {
 		impl.logger.Errorw("error in saving entity ", "entity", pg)
 		return nil, err
+	}
+
+	apps, err := impl.appRepository.FindActiveListByName(name)
+	if err != nil {
+		return nil, err
+	}
+	appLen := len(apps)
+	if appLen > 1 {
+		firstElement := apps[0]
+		if firstElement.Id != pg.Id {
+			pg.Active = false
+			err = impl.appRepository.Update(pg)
+			if err != nil {
+				impl.logger.Errorw("error in saving entity ", "entity", pg)
+				return nil, err
+			}
+			err = &util.ApiError{
+				Code:            constants.AppAlreadyExists.Code,
+				InternalMessage: "app already exists",
+				UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+			}
+			return nil, err
+		}
 	}
 	return pg, nil
 }
@@ -850,7 +893,14 @@ func (impl DbPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.Up
 		return nil, validationErr
 	}
 	currentMaterial.Url = updateMaterialDTO.Material.Url
-	currentMaterial.Name = strconv.Itoa(updateMaterialDTO.Material.GitProviderId) + "-" + updateMaterialDTO.Material.Url[strings.LastIndex(updateMaterialDTO.Material.Url, "/")+1:strings.LastIndex(updateMaterialDTO.Material.Url, ".git")]
+	materialUrl, err := url.Parse(updateMaterialDTO.Material.Url)
+	if err != nil {
+		return nil, err
+	}
+	basePath := path.Base(materialUrl.Path)
+	basePath = strings.TrimSuffix(basePath, ".git")
+
+	currentMaterial.Name = strconv.Itoa(updateMaterialDTO.Material.GitProviderId) + "-" + basePath
 	currentMaterial.GitProviderId = updateMaterialDTO.Material.GitProviderId
 	currentMaterial.CheckoutPath = updateMaterialDTO.Material.CheckoutPath
 	currentMaterial.AuditLog = models.AuditLog{UpdatedBy: updateMaterialDTO.UserId, CreatedBy: currentMaterial.CreatedBy, UpdatedOn: time.Now(), CreatedOn: currentMaterial.CreatedOn}
@@ -864,16 +914,22 @@ func (impl DbPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.Up
 }
 
 func (impl DbPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitMaterial, appId int, userId int32) (*pipelineConfig.GitMaterial, error) {
+	materialUrl, err := url.Parse(inputMaterial.Url)
+	if err != nil {
+		return nil, err
+	}
+	basePath := path.Base(materialUrl.Path)
+	basePath = strings.TrimSuffix(basePath, ".git")
 	material := &pipelineConfig.GitMaterial{
 		Url:           inputMaterial.Url,
 		AppId:         appId,
-		Name:          strconv.Itoa(inputMaterial.GitProviderId) + "-" + inputMaterial.Url[strings.LastIndex(inputMaterial.Url, "/")+1:strings.LastIndex(inputMaterial.Url, ".git")],
+		Name:          strconv.Itoa(inputMaterial.GitProviderId) + "-" + basePath,
 		GitProviderId: inputMaterial.GitProviderId,
 		Active:        true,
 		CheckoutPath:  inputMaterial.CheckoutPath,
 		AuditLog:      models.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
-	err := impl.materialRepository.SaveMaterial(material)
+	err = impl.materialRepository.SaveMaterial(material)
 	if err != nil {
 		impl.logger.Errorw("error in saving material", "material", material, "err", err)
 		return nil, err

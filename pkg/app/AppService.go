@@ -61,7 +61,7 @@ type AppServiceImpl struct {
 	logger                        *zap.SugaredLogger
 	ciArtifactRepository          repository.CiArtifactRepository
 	pipelineRepository            pipelineConfig.PipelineRepository
-	GitClient                     GitClient
+	gitFactory                    *GitFactory
 	dbMigrationConfigRepository   pipelineConfig.DbMigrationConfigRepository
 	eventClient                   client.EventClient
 	eventFactory                  client.EventFactory
@@ -91,10 +91,10 @@ type AppServiceImpl struct {
 type AppService interface {
 	TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (id int, err error)
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
-	AppendCurrentApplicationStatus(application v1alpha1.Application) (bool, error)
+	UpdateApplicationStatusAndCheckIsHealthy(application v1alpha1.Application) (bool, error)
 	TriggerCD(artifact *repository.CiArtifact, cdWorkflowId int, pipeline *pipelineConfig.Pipeline, async bool) error
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
-	UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application) error
+	UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application, cdWorkflowId int) error
 	GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
 }
@@ -105,7 +105,6 @@ func NewAppService(
 	mergeUtil *MergeUtil,
 	logger *zap.SugaredLogger,
 	ciArtifactRepository repository.CiArtifactRepository,
-	GitClient GitClient,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	dbMigrationConfigRepository pipelineConfig.DbMigrationConfigRepository,
 	eventClient client.EventClient,
@@ -121,7 +120,8 @@ func NewAppService(
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
-	ArgoK8sClient argocdServer.ArgoK8sClient) *AppServiceImpl {
+	ArgoK8sClient argocdServer.ArgoK8sClient,
+	gitFactory *GitFactory) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:   environmentConfigRepository,
 		mergeUtil:                     mergeUtil,
@@ -129,7 +129,6 @@ func NewAppService(
 		logger:                        logger,
 		ciArtifactRepository:          ciArtifactRepository,
 		pipelineRepository:            pipelineRepository,
-		GitClient:                     GitClient,
 		dbMigrationConfigRepository:   dbMigrationConfigRepository,
 		eventClient:                   eventClient,
 		eventFactory:                  eventFactory,
@@ -153,6 +152,7 @@ func NewAppService(
 		imageScanDeployInfoRepository: imageScanDeployInfoRepository,
 		imageScanHistoryRepository:    imageScanHistoryRepository,
 		ArgoK8sClient:                 ArgoK8sClient,
+		gitFactory:                    gitFactory,
 	}
 	return appServiceImpl
 }
@@ -166,11 +166,13 @@ func (impl AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.Release
 	return count == 1, nil
 }
 
-func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Application) (bool, error) {
+func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1.Application) (bool, error) {
 	isHealthy := false
-	appName := app.Name[:strings.LastIndex(app.Name, "-")]
-	evnName := app.Name[strings.LastIndex(app.Name, "-")+1:]
-
+	repoUrl := app.Spec.Source.RepoURL
+	repoUrl = repoUrl[strings.LastIndex(repoUrl, "/")+1:]
+	appName := strings.ReplaceAll(repoUrl, ".git", "")
+	evnName := strings.ReplaceAll(app.Name, appName+"-", "")
+	impl.logger.Debugw("event received ", "appName", appName, "evnName", evnName, "app", app)
 	dbApp, err := impl.appRepository.FindActiveByName(appName)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app name", "err", err, "appName", appName)
@@ -203,6 +205,12 @@ func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Applicati
 		if err != nil {
 			return isHealthy, err
 		}
+
+		if pipelineOverride.Pipeline.AppId != dbApp.Id {
+			impl.logger.Warnw("event received for other deleted app", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "dbApp", dbApp)
+			return isHealthy, nil
+		}
+
 		releaseCounter, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineOverride.PipelineId)
 		if err != nil {
 			return isHealthy, err
@@ -217,17 +225,28 @@ func (impl AppServiceImpl) AppendCurrentApplicationStatus(app v1alpha1.Applicati
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 			}
-			err := impl.appListingRepository.SaveNewDeployment(newDeploymentStatus)
+			dbConnection := impl.pipelineRepository.GetConnection()
+			tx, err := dbConnection.Begin()
 			if err != nil {
-				impl.logger.Errorw("err", err)
 				return isHealthy, err
 			}
-			err = impl.UpdateCdWorkflowRunnerByACDObject(app)
-			if err != nil {
-				impl.logger.Errorw("err", err)
-				return isHealthy, err
-			}
+			// Rollback tx on error.
+			defer tx.Rollback()
 
+			err = impl.appListingRepository.SaveNewDeployment(newDeploymentStatus, tx)
+			if err != nil {
+				impl.logger.Errorw("err", err)
+				return isHealthy, err
+			}
+			err = impl.UpdateCdWorkflowRunnerByACDObject(app, pipelineOverride.CdWorkflowId)
+			if err != nil {
+				impl.logger.Errorw("err", err)
+				return isHealthy, err
+			}
+			err = tx.Commit()
+			if err != nil {
+				return isHealthy, err
+			}
 			if string(application.Healthy) == newDeploymentStatus.Status {
 				isHealthy = true
 				go impl.WriteCDSuccessEvent(newDeploymentStatus.AppId, appName, newDeploymentStatus.EnvId, evnName, pipelineOverride)
@@ -553,9 +572,20 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			CreatedOn: time.Now(),
 			UpdatedOn: time.Now(),
 		}
-		err = impl.appListingRepository.SaveNewDeployment(deploymentStatus)
+		dbConnection := impl.pipelineRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			return 0, err
+		}
+		// Rollback tx on error.
+		defer tx.Rollback()
+		err = impl.appListingRepository.SaveNewDeployment(deploymentStatus, tx)
 		if err != nil {
 			impl.logger.Errorw("error in saving new deployment history", "req", overrideRequest, "err", err)
+			return 0, err
+		}
+		err = tx.Commit()
+		if err != nil {
 			return 0, err
 		}
 		impl.synchCD(pipeline, ctx, overrideRequest, envOverride)
@@ -613,16 +643,12 @@ func (impl AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDige
 
 func (impl AppServiceImpl) validateVersionForStrategy(envOverride *chartConfig.EnvConfigOverride, strategy *chartConfig.PipelineStrategy) (bool, error) {
 	chartVersion := envOverride.Chart.ChartVersion
-	chartMajorVersion, err := strconv.Atoi(chartVersion[:1])
+	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
 	if err != nil {
-		impl.logger.Errorw("err", err)
+		impl.logger.Errorw("chart version parsing", "err", err)
 		return false, err
 	}
-	chartMinorVersion, err := strconv.Atoi(chartVersion[2:3])
-	if err != nil {
-		impl.logger.Errorw("err", err)
-		return false, err
-	}
+
 	if (chartMajorVersion <= 3 && chartMinorVersion < 2) &&
 		(strategy.Strategy == pipelineConfig.DEPLOYMENT_TEMPLATE_CANARY || strategy.Strategy == pipelineConfig.DEPLOYMENT_TEMPLATE_RECREATE) {
 		err = &ApiError{
@@ -1052,7 +1078,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		ChartLocation:  envOverride.Chart.ChartLocation,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", override.Id, envOverride.TargetEnvironment),
 	}
-	commitHash, err := impl.GitClient.CommitValues(chartGitAttr)
+	commitHash, err := impl.gitFactory.Client.CommitValues(chartGitAttr)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return 0, 0, err
@@ -1162,7 +1188,7 @@ func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, en
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipelineName)
 
 		if application.Spec.Source.Path != envOverride.Chart.ChartLocation {
-			patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation , RepoURL: envOverride.Chart.GitRepoUrl}}}
+			patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl}}}
 			reqbyte, err := json.Marshal(patchReq)
 			if err != nil {
 				impl.logger.Errorw("error in creating patch", "err", err)
@@ -1186,26 +1212,8 @@ func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, en
 	}
 }
 
-func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application) error {
-	var gitHash string
-	/*if app.Status.History != nil && len(app.Status.History) > 0 {
-		appHistory := app.Status.History
-		sort.Slice(appHistory, func(i, j int) bool {
-			return appHistory[j].DeployedAt.Before(&appHistory[i].DeployedAt)
-		})
-		gitHash = appHistory[0].Revision
-	}*/
-	if app.Operation != nil && app.Operation.Sync != nil {
-		gitHash = app.Operation.Sync.Revision
-	} else if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-		gitHash = app.Status.OperationState.Operation.Sync.Revision
-	}
-	impl.logger.Debugw("git hash for updating WFR: ", "gitHash", gitHash)
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
-	if err != nil {
-		return err
-	}
-	cdWorkflow, err := impl.cdWorkflowRepository.FindById(pipelineOverride.CdWorkflowId)
+func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application, cdWorkflowId int) error {
+	cdWorkflow, err := impl.cdWorkflowRepository.FindById(cdWorkflowId)
 	if err != nil {
 		return err
 	}
