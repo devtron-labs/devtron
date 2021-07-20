@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: nats-server-override-cm
+  name: notifier-override-cm
   namespace:  devtroncd
 data:
   override: |
