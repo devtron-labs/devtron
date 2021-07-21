@@ -144,16 +144,31 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	t2 := time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "2")
 	t1 = t2
+
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
+		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+
 	appEnvs := make([]*bean.AppEnvironmentContainer, 0)
-	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
+	rbacObjects := make(map[int]string)
+	if !isActionUserSuperAdmin {
+		rbacObjects = handler.enforcerUtil.GetRbacObjectsForAllApps()
+	}
 	for _, env := range envContainers {
 		if fetchAppListingRequest.DeploymentGroupId > 0 {
 			if env.EnvironmentId != 0 && env.EnvironmentId != dg.EnvironmentId {
 				continue
 			}
 		}
-		object := rbacObjects[env.AppId]
-		if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+		if !isActionUserSuperAdmin {
+			object := rbacObjects[env.AppId]
+			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+				appEnvs = append(appEnvs, env)
+			}
+		} else {
 			appEnvs = append(appEnvs, env)
 		}
 	}
