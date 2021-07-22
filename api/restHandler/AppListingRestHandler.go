@@ -151,31 +151,51 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
 	}
-
-	appEnvs := make([]*bean.AppEnvironmentContainer, 0)
-	rbacObjects := make(map[int]string)
-	if !isActionUserSuperAdmin {
-		rbacObjects = handler.enforcerUtil.GetRbacObjectsForAllApps()
-	}
-	for _, env := range envContainers {
-		if fetchAppListingRequest.DeploymentGroupId > 0 {
-			if env.EnvironmentId != 0 && env.EnvironmentId != dg.EnvironmentId {
-				continue
+	appEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
+	if isActionUserSuperAdmin {
+		for _, envContainer := range envContainers {
+			appEnvContainers = append(appEnvContainers, envContainer)
+		}
+	} else {
+		var teamIds []*int
+		var authorizedTeams map[int]int
+		for _, envContainer := range envContainers {
+			teamIds = append(teamIds, &envContainer.TeamId)
+		}
+		teams, err := handler.teamService.FindByIds(teamIds)
+		if err != nil {
+			handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
+			writeJsonResp(w, err, "", http.StatusInternalServerError)
+		}
+		for _, team := range teams {
+			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceTeam, rbac.ActionGet, team.Name); ok {
+				authorizedTeams[team.Id] = team.Id
 			}
 		}
-		if !isActionUserSuperAdmin {
-			object := rbacObjects[env.AppId]
-			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
-				appEnvs = append(appEnvs, env)
+		filteredAppEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
+		for _, envContainer := range envContainers {
+			if _, ok := authorizedTeams[envContainer.TeamId]; ok {
+				filteredAppEnvContainers = append(filteredAppEnvContainers, envContainer)
 			}
-		} else {
-			appEnvs = append(appEnvs, env)
+		}
+		rbacObjects := make(map[int]string)
+		rbacObjects = handler.enforcerUtil.GetRbacObjectsForAllApps()
+		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
+			if fetchAppListingRequest.DeploymentGroupId > 0 {
+				if filteredAppEnvContainer.EnvironmentId != 0 && filteredAppEnvContainer.EnvironmentId != dg.EnvironmentId {
+					continue
+				}
+			}
+			object := rbacObjects[filteredAppEnvContainer.AppId]
+			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+				appEnvContainers = append(appEnvContainers, filteredAppEnvContainer)
+			}
 		}
 	}
 	t2 = time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3")
 	t1 = t2
-	apps, err := handler.appListingService.BuildAppListingResponse(fetchAppListingRequest, appEnvs)
+	apps, err := handler.appListingService.BuildAppListingResponse(fetchAppListingRequest, appEnvContainers)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		writeJsonResp(w, err, "", http.StatusInternalServerError)
