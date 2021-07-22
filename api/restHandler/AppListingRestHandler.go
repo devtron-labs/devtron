@@ -158,7 +158,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		}
 	} else {
 		var teamIds []*int
-		var authorizedTeams map[int]int
+		authorizedTeams := make(map[int]int)
 		for _, envContainer := range envContainers {
 			teamIds = append(teamIds, &envContainer.TeamId)
 		}
