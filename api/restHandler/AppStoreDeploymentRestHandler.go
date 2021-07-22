@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appstore"
@@ -233,9 +234,10 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	v := r.URL.Query()
 	token := r.Header.Get("token")
 	var envs []int
-	envsQueryParam := r.URL.Query().Get("envs")
+	envsQueryParam := v.Get("envs")
 	if envsQueryParam != "" {
 		envsStr := strings.Split(envsQueryParam, ",")
 		for _, t := range envsStr {
@@ -248,8 +250,45 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 			envs = append(envs, env)
 		}
 	}
+	onlyDeprecated := false
+	deprecatedStr := v.Get("onlyDeprecated")
+	if len(deprecatedStr) > 0 {
+		onlyDeprecated, err = strconv.ParseBool(deprecatedStr)
+		if err != nil {
+			onlyDeprecated = false
+		}
+	}
+
+	var chartRepoIds []int
+	chartRepoIdsStr := v.Get("chartRepoId")
+	if len(chartRepoIdsStr) > 0 {
+		chartRepoIdStrArr := strings.Split(chartRepoIdsStr, ",")
+		for _, chartRepoIdStr := range chartRepoIdStrArr {
+			chartRepoId, err := strconv.Atoi(chartRepoIdStr)
+			if err == nil {
+				chartRepoIds = append(chartRepoIds, chartRepoId)
+			}
+		}
+	}
+	appStoreName := v.Get("appStoreName")
+	appName := v.Get("appName")
+	offset := 0
+	offsetStr := v.Get("offset")
+	if len(offsetStr) > 0 {
+		offset, _ = strconv.Atoi(offsetStr)
+	}
+	size := 0
+	sizeStr := v.Get("size")
+	if len(sizeStr) > 0 {
+		size, _ = strconv.Atoi(sizeStr)
+	}
+	filter := &appstore2.AppStoreFilter{OnlyDeprecated: onlyDeprecated, ChartRepoId: chartRepoIds, AppStoreName: appStoreName, EnvIds: envs, AppName: appName}
+	if size > 0 {
+		filter.Size = size
+		filter.Offset = offset
+	}
 	handler.Logger.Infow("request payload, GetAllInstalledApp", "envsQueryParam", envsQueryParam)
-	res, err := handler.installedAppService.GetAll(envs)
+	res, err := handler.installedAppService.GetAll(filter)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetAllInstalledApp", "err", err, "envsQueryParam", envsQueryParam)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
