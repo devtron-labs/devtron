@@ -82,6 +82,9 @@ type CdWorkflowRequest struct {
 	OrchestratorToken         string             `json:"orchestratorToken"`
 	IsExtRun                  bool               `json:"isExtRun"`
 	ExtraEnvironmentVariables map[string]string  `json:"extraEnvironmentVariables"`
+	CloudProvider             string             `json:"cloudProvider"`
+	AzureBlobConfig           *AzureBlobConfig   `json:"azureBlobConfig"`
+	MinioEndpoint             string             `json:"minioEndpoint"`
 }
 
 const PRE = "PRE"

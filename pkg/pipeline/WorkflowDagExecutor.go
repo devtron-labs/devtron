@@ -538,6 +538,20 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		OrchestratorHost:          impl.cdConfig.OrchestratorHost,
 		OrchestratorToken:         impl.cdConfig.OrchestratorToken,
 		ExtraEnvironmentVariables: extraEnvVariables,
+		CloudProvider:             impl.cdConfig.CloudProvider,
+	}
+	switch cdStageWorkflowRequest.CloudProvider {
+	case BLOB_STORAGE_AZURE:
+		cdStageWorkflowRequest.AzureBlobConfig = &AzureBlobConfig{
+			Enabled:              impl.cdConfig.CloudProvider == BLOB_STORAGE_AZURE,
+			AccountName:          impl.cdConfig.AzureAccountName,
+			BlobContainerCiCache: impl.cdConfig.AzureBlobContainerCiCache,
+			AccountKey:           impl.cdConfig.AzureAccountKey,
+		}
+	case BLOB_STORAGE_MINIO:
+		cdStageWorkflowRequest.MinioEndpoint = impl.cdConfig.MinioEndpoint
+	default:
+		impl.logger.Errorw("cloudprovider %s not supported", cdStageWorkflowRequest.CloudProvider)
 	}
 	return cdStageWorkflowRequest, nil
 }
