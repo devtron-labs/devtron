@@ -543,7 +543,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	switch cdStageWorkflowRequest.CloudProvider {
 	case BLOB_STORAGE_AZURE:
 		cdStageWorkflowRequest.AzureBlobConfig = &AzureBlobConfig{
-			Enabled:              impl.cdConfig.CloudProvider == BLOB_STORAGE_AZURE,
+			Enabled:              true,
 			AccountName:          impl.cdConfig.AzureAccountName,
 			BlobContainerCiCache: impl.cdConfig.AzureBlobContainerCiCache,
 			AccountKey:           impl.cdConfig.AzureAccountKey,
