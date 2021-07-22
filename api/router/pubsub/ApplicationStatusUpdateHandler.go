@@ -66,9 +66,10 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 		application := v1alpha12.Application{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &application)
 		if err != nil {
-			impl.logger.Errorw("unmarshal error", "err", err)
+			impl.logger.Errorw("unmarshal error on app update status", "err", err)
 			return
 		}
+		impl.logger.Infow("app update request", "application", application)
 		isHealthy, err := impl.appService.UpdateApplicationStatusAndCheckIsHealthy(application)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
@@ -86,7 +87,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			}
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash)
 			if err != nil {
-				impl.logger.Errorw("success event error", "err", err)
+				impl.logger.Errorw("success event error", "gitHash", gitHash, "err", err)
 				return
 			}
 		}

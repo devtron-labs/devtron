@@ -654,6 +654,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	err = impl.appService.TriggerCD(artifact, cdWf.Id, pipeline, async)
 	err1 := impl.updatePreviousDeploymentStatus(runner, pipeline.Id, err)
 	if err1 != nil || err != nil {
+		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
 		return err
 	}
 	return nil
@@ -667,7 +668,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 		currentRunner.FinishedOn = time.Now()
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(currentRunner)
 		if err != nil {
-			impl.logger.Errorw("error in updating status", "err", err)
+			impl.logger.Errorw("error updating cd wf runner status", "err", err, "currentRunner", currentRunner)
 			return err
 		}
 		return nil
@@ -675,30 +676,32 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 	} else {
 		//update n-1th  deploy status as aborted if not termainal(Healthy, Degraded)
 		terminalStatus := []string{v1alpha1.HealthStatusHealthy, v1alpha1.HealthStatusDegraded, WorkflowAborted, WorkflowFailed}
-		previousNonTermanalRunners, err := impl.cdWorkflowRepository.FindPreviousCdWfRunnerByStatus(pipelineId, currentRunner.Id, terminalStatus)
+		previousNonTerminalRunners, err := impl.cdWorkflowRepository.FindPreviousCdWfRunnerByStatus(pipelineId, currentRunner.Id, terminalStatus)
 		if err != nil {
-			impl.logger.Errorw("error in updating runner", "err", err)
+			impl.logger.Errorw("error fetching previous wf runner, updating cd wf runner status,", "err", err, "currentRunner", currentRunner)
 			return err
-		} else if len(previousNonTermanalRunners) == 0 {
-			impl.logger.Errorw("no previous runner")
+		} else if len(previousNonTerminalRunners) == 0 {
+			impl.logger.Errorw("no previous runner found in updating cd wf runner status,", "err", err, "currentRunner", currentRunner)
 			return nil
 		}
-		for _, previousRunner := range previousNonTermanalRunners {
+		for _, previousRunner := range previousNonTerminalRunners {
 			if previousRunner.Status == v1alpha1.HealthStatusHealthy ||
 				previousRunner.Status == v1alpha1.HealthStatusDegraded ||
 				previousRunner.Status == WorkflowAborted ||
 				previousRunner.Status == WorkflowFailed {
-				//terminal ststus return
+				//terminal status return
+				impl.logger.Infow("skip updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 				return nil
 			}
+			impl.logger.Infow("updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 			previousRunner.FinishedOn = time.Now()
 			previousRunner.Message = "triggered new deployment"
 			previousRunner.Status = WorkflowAborted
 		}
 
-		err = impl.cdWorkflowRepository.UpdateWorkFlowRunners(previousNonTermanalRunners)
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunners(previousNonTerminalRunners)
 		if err != nil {
-			impl.logger.Errorw("error in updating status", "err", err)
+			impl.logger.Errorw("error updating cd wf runner status", "err", err, "previousNonTerminalRunners", previousNonTerminalRunners)
 			return err
 		}
 		return nil
@@ -879,6 +882,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		}*/
 		err1 := impl.updatePreviousDeploymentStatus(runner, cdPipeline.Id, err)
 		if err1 != nil || err != nil {
+			impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
 			return 0, err
 		}
 	} else if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST {
