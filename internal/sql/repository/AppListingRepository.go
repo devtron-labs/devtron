@@ -81,8 +81,11 @@ It will return the list of filtered apps with details related to each env
 */
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
+	t1 := time.Now()
+	t2 := time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "1.1")
+	t1 = t2
 	var appEnvArr []*bean.AppEnvironmentContainer
-
 	query := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryLastDeploymentTime()
 	impl.Logger.Debugw("basic app detail query: ", query)
 	var lastDeployedTimeDTO []*bean.AppEnvironmentContainer
@@ -92,6 +95,9 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 		impl.Logger.Error(err)
 		return appEnvArr, err
 	}
+	t2 = time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "1.2")
+	t1 = t2
 	for _, item := range lastDeployedTimeDTO {
 		if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
 			continue
@@ -103,7 +109,9 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 			CiArtifactId:     item.CiArtifactId,
 		}
 	}
-
+	t2 = time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "1.3")
+	t1 = t2
 	var appEnvContainer []*bean.AppEnvironmentContainer
 	appsEnvquery := impl.appListingRepositoryQueryBuilder.BuildAppListingQuery(appListingFilter)
 	impl.Logger.Debugw("basic app detail query: ", appsEnvquery)
@@ -112,7 +120,9 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 		impl.Logger.Error(appsErr)
 		return appEnvContainer, appsErr
 	}
-
+	t2 = time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "1.4")
+	t1 = t2
 	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
 	for _, item := range appEnvContainer {
 		if item.EnvironmentId > 0 && item.PipelineId > 0 && item.Active == false {
@@ -147,7 +157,9 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 		appEnvArr = append(appEnvArr, item)
 		latestDeploymentStatusMap[key] = item
 	}
-
+	t2 = time.Now()
+	impl.Logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "1.5")
+	t1 = t2
 	return appEnvArr, nil
 }
 
