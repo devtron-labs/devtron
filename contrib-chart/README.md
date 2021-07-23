@@ -8,7 +8,18 @@ Very soon we are coming up with a new feature in the charts section of devtron w
 
 ## Pre-requisite
 
-Make sure your chart follows [image descriptor template](https://github.com/devtron-labs/devtron/blob/main/contrib-chart/.image_descriptor_template.json) according to devtron. As devtron focuses on complete software delivery workflow on top of K8s, the chart has to be deployed with the help of CI/CD pipeline, an environment has to be described, a deployment strategy should be followed and version number is to be maintained. You can check the other charts in this repository for reference.
+Make sure your chart follows [image descriptor template](https://github.com/devtron-labs/devtron/blob/main/contrib-chart/.image_descriptor_template.json) according to devtron. As devtron focuses on complete software delivery workflow on top of K8s, the chart has to be deployed with the help of CI/CD pipeline, an environment has to be described, a deployment strategy should be followed and version number is to be maintained. You can check the other charts in this repository for reference. The rendered output looks like this:
+
+| Syntax | Output |
+| ----------- | ----------- |
+| {{ server.deployment.image }} | Image Name |
+| {{ server.deployment.image_tag }} | Image Tag |
+| {{ .pipelineName }} | Pipeline Name |
+| {{ .releaseVersion }} | Release Version |
+| {{ .deploymentType }} | Deployment Type |
+| {{ .app }} | App Name |
+| {{ .env }} | Env Name |
+| {{ .appMetrics }} | App Metrics |
 
 ## How to Share Chart
 
