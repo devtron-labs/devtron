@@ -6,9 +6,9 @@ We at Devtron strongly believe that a product is always incomplete without the c
 
 Very soon we are coming up with a new feature in the charts section of devtron which will be called `Community Charts` where we'll upload the charts submitted by you for all the users who love to deploy and build pipelines on devtron. **All of your charts will have your name associated with it for all users to know who made their life easier by uploading that chart**. So what are you waiting for? Now is the time to do that
 
-## Pre-requisite
+## Use dynamic devrtron variables in your template
 
-Make sure your chart follows [image descriptor template](https://github.com/devtron-labs/devtron/blob/main/contrib-chart/.image_descriptor_template.json) according to devtron and it should have the keys in the same order. Devtron uses the values from the following keys and those should be there as it is. You can check the other charts in this repository for reference. The rendered output looks like this:
+Devtron injects [some variables](https://github.com/devtron-labs/devtron/blob/main/contrib-chart/reference-chart_3-11-0/.image_descriptor_template.json) in values.yaml in order to fully integrate with automatic CD capability. In Template you can use these variables wherever required.
 
 | Syntax | Output |
 | ----------- | ----------- |
