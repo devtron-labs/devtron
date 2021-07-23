@@ -158,9 +158,16 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		}
 	} else {
 		var teamIds []*int
-		authorizedTeams := make(map[int]int)
+		uniqueTeams := make(map[int]bool)
+		authorizedTeams := make(map[int]bool)
 		for _, envContainer := range envContainers {
-			teamIds = append(teamIds, &envContainer.TeamId)
+			if _, ok := uniqueTeams[envContainer.TeamId]; !ok {
+				uniqueTeams[envContainer.TeamId] = true
+			}
+		}
+		for k, _ := range uniqueTeams {
+			teamId := k
+			teamIds = append(teamIds, &teamId)
 		}
 		teams, err := handler.teamService.FindByIds(teamIds)
 		if err != nil {
@@ -169,7 +176,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		}
 		for _, team := range teams {
 			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceTeam, rbac.ActionGet, team.Name); ok {
-				authorizedTeams[team.Id] = team.Id
+				authorizedTeams[team.Id] = true
 			}
 		}
 		filteredAppEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
@@ -178,15 +185,13 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 				filteredAppEnvContainers = append(filteredAppEnvContainers, envContainer)
 			}
 		}
-		rbacObjects := make(map[int]string)
-		rbacObjects = handler.enforcerUtil.GetRbacObjectsForAllApps()
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
 			if fetchAppListingRequest.DeploymentGroupId > 0 {
 				if filteredAppEnvContainer.EnvironmentId != 0 && filteredAppEnvContainer.EnvironmentId != dg.EnvironmentId {
 					continue
 				}
 			}
-			object := rbacObjects[filteredAppEnvContainer.AppId]
+			object := fmt.Sprintf("%s/%s", filteredAppEnvContainer.TeamName, filteredAppEnvContainer.AppName)
 			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
 				appEnvContainers = append(appEnvContainers, filteredAppEnvContainer)
 			}
