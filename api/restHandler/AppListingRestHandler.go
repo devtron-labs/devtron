@@ -157,26 +157,16 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			appEnvContainers = append(appEnvContainers, envContainer)
 		}
 	} else {
-		var teamIds []*int
-		uniqueTeams := make(map[int]bool)
+		uniqueTeams := make(map[int]string)
 		authorizedTeams := make(map[int]bool)
 		for _, envContainer := range envContainers {
 			if _, ok := uniqueTeams[envContainer.TeamId]; !ok {
-				uniqueTeams[envContainer.TeamId] = true
+				uniqueTeams[envContainer.TeamId] = envContainer.TeamName
 			}
 		}
-		for k, _ := range uniqueTeams {
-			teamId := k
-			teamIds = append(teamIds, &teamId)
-		}
-		teams, err := handler.teamService.FindByIds(teamIds)
-		if err != nil {
-			handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
-			writeJsonResp(w, err, "", http.StatusInternalServerError)
-		}
-		for _, team := range teams {
-			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceTeam, rbac.ActionGet, team.Name); ok {
-				authorizedTeams[team.Id] = true
+		for teamId, teamName := range uniqueTeams {
+			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceTeam, rbac.ActionGet, teamName); ok {
+				authorizedTeams[teamId] = true
 			}
 		}
 		filteredAppEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
