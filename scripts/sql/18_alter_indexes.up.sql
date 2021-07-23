@@ -2,3 +2,8 @@ CREATE INDEX "app_name_idx" ON "public"."app" USING BTREE ("app_name");
 CREATE INDEX "ci_artifact_id_idx" ON "public"."pipeline_config_override" USING BTREE ("ci_artifact_id");
 CREATE INDEX "environment_id_idx" ON "public"."pipeline" USING BTREE ("environment_id");
 CREATE INDEX "app_id_idx" ON "public"."pipeline" USING BTREE ("app_id");
+CREATE INDEX "cdwf_pipeline_id_idx" ON "public"."cd_workflow" USING BTREE ("pipeline_id");
+CREATE INDEX "cdwf_workflow_status_idx" ON "public"."cd_workflow" USING BTREE ("workflow_status");
+CREATE INDEX "pco_pipeline_id_idx" ON "public"."pipeline_config_override" USING BTREE ("pipeline_id");
+CREATE INDEX "pco_deployment_type_idx" ON "public"."pipeline_config_override" USING BTREE ("deployment_type");
+CREATE INDEX "cdwfr_cd_workflow_id_idx" ON "public"."cd_workflow_runner" USING BTREE ("cd_workflow_id");
