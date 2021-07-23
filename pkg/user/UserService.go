@@ -47,6 +47,7 @@ type UserService interface {
 	CheckUserRoles(id int32) ([]string, error)
 	SyncOrchestratorToCasbin() (bool, error)
 	GetUserByToken(token string) (int32, error)
+	IsSuperAdmin(userId int) (bool, error)
 }
 
 type UserServiceImpl struct {
