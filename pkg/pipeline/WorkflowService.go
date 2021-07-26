@@ -228,7 +228,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 							},
 							Ports: []v12.ContainerPort{{
 								Name:          "app-data",
-								ContainerPort: 9087,
+								ContainerPort: 9102,
 							}},
 						},
 						ActiveDeadlineSeconds: &workflowRequest.ActiveDeadlineSeconds,
