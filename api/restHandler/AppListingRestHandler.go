@@ -165,7 +165,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 		}
 		for teamId, teamName := range uniqueTeams {
-			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceTeam, rbac.ActionGet, teamName); ok {
+			object := strings.ToLower(teamName)
+			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceTeam, rbac.ActionGet, object); ok {
 				authorizedTeams[teamId] = true
 			}
 		}
@@ -182,6 +183,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 				}
 			}
 			object := fmt.Sprintf("%s/%s", filteredAppEnvContainer.TeamName, filteredAppEnvContainer.AppName)
+			object = strings.ToLower(object)
 			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
 				appEnvContainers = append(appEnvContainers, filteredAppEnvContainer)
 			}
