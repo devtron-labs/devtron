@@ -23,8 +23,8 @@ import (
 
 type BulkUpdateRestHandler interface {
 	FindBulkUpdateReadme(w http.ResponseWriter, r *http.Request)
-	GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request)
-	BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request)
+	GetImpactedAppsName(w http.ResponseWriter, r *http.Request)
+	BulkUpdate(w http.ResponseWriter, r *http.Request)
 }
 type BulkUpdateRestHandlerImpl struct {
 	pipelineBuilder         pipeline.PipelineBuilder
@@ -119,7 +119,7 @@ func (handler BulkUpdateRestHandlerImpl) FindBulkUpdateReadme(w http.ResponseWri
 	responseArr = append(responseArr, response)
 	writeJsonResp(w, nil, responseArr, http.StatusOK)
 }
-func (handler BulkUpdateRestHandlerImpl) GetAppNameDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
+func (handler BulkUpdateRestHandlerImpl) GetImpactedAppsName(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var script pipeline.BulkUpdateScript
 	err := decoder.Decode(&script)
@@ -159,7 +159,7 @@ func (handler BulkUpdateRestHandlerImpl) GetAppNameDeploymentTemplate(w http.Res
 	writeJsonResp(w, err, impactedApps, http.StatusOK)
 }
 
-func (handler BulkUpdateRestHandlerImpl) BulkUpdateDeploymentTemplate(w http.ResponseWriter, r *http.Request) {
+func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var script pipeline.BulkUpdateScript
 	err := decoder.Decode(&script)
