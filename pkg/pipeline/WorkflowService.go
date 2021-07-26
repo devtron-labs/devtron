@@ -226,6 +226,10 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 									"memory": resource.MustParse(reqMem),
 								},
 							},
+							Ports: []v12.ContainerPort{{
+								Name:          "app-data",
+								ContainerPort: 9087,
+							}},
 						},
 						ActiveDeadlineSeconds: &workflowRequest.ActiveDeadlineSeconds,
 						ArchiveLocation: &v1alpha1.ArtifactLocation{
