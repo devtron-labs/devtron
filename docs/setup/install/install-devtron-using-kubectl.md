@@ -14,7 +14,7 @@ Once your configurations are ready, continue with following steps
 ```bash
 kubectl create ns devtroncd
 kubectl -n devtroncd apply -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
-kubectl apply -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/templates/install.yaml
+kubectl apply -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/install/install.yaml
 ```
 Edit devtron-operator-configs.yaml and input the values
 ```bash
