@@ -230,7 +230,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *AppStoreFilte
 	query = query + " inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id"
 	query = query + " inner join app_store aps on aps.id = asav.app_store_id"
 	query = query + " inner join chart_repo ch on ch.id = aps.chart_repo_id"
-	query = query + " where ia.active = true and iav.active = true"
+	query = query + " where ia.active = true and iav.active = true and a.active=true"
 	if filter.OnlyDeprecated {
 		query = query + " AND asav.deprecated = TRUE"
 	}
@@ -269,7 +269,7 @@ func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId
 		" inner join app_store aps on asav.app_store_id = aps.id " +
 		" inner join environment env on ia.environment_id = env.id " +
 		" left join users u on u.id = ia.updated_by " +
-		" where aps.id = " + strconv.Itoa(appStoreId) + " and ia.active=true and iav.active=true and env.active=true"
+		" where aps.id = " + strconv.Itoa(appStoreId) + " and ia.active=true and iav.active=true and env.active=true and a.active=true"
 	_, err := impl.dbConnection.Query(&installedAppAndEnvDetails, queryTemp)
 	if err != nil {
 		return nil, err
