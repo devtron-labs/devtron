@@ -589,6 +589,13 @@ spec:
         image: quay.io/dexidp/dex:v2.25.0
         imagePullPolicy: Always
         name: dex
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 0.10
+          limits:
+            memory: 200Mi
+            cpu: 0.10
         ports:
         - containerPort: 5556
         - containerPort: 5557
@@ -656,11 +663,11 @@ spec:
         name: redis
         resources:
           requests:
-            memory: 300Mi
-            cpu: 100m
+            memory: 100Mi
+            cpu: 0.10
           limits:
-            memory: 500Mi
-            cpu: 200m
+            memory: 200Mi
+            cpu: 0.10
         ports:
         - containerPort: 6379
       securityContext:
@@ -714,11 +721,11 @@ spec:
         name: argocd-repo-server
         resources:
           requests:
-            memory: 1000Mi
-            cpu: 500m
+            memory: 2Gi
+            cpu: 2.0
           limits:
-            memory: 1000Mi
-            cpu: 500m
+            memory: 2Gi
+            cpu: 3.0
         ports:
         - containerPort: 8081
         - containerPort: 8084
@@ -758,6 +765,7 @@ metadata:
     app.kubernetes.io/part-of: argocd
   name: argocd-server
 spec:
+  replicas: 5
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-server
@@ -791,11 +799,11 @@ spec:
         name: argocd-server
         resources:
           requests:
-            memory: 1000Mi
-            cpu: 1000m
+            memory: 2Gi 
+            cpu: 1.0
           limits:
-            memory: 2000Mi
-            cpu: 1500m
+            memory: 2Gi
+            cpu: 1.0
         ports:
         - containerPort: 8080
         - containerPort: 8083
@@ -873,11 +881,11 @@ spec:
         name: argocd-application-controller
         resources:
           requests:
-            memory: 1500Mi
-            cpu: 1000m
+            memory: 2Gi
+            cpu: 1.50
           limits:
-            memory: 2000Mi
-            cpu: 1000m
+            memory: 2Gi
+            cpu: 1.50
         ports:
         - containerPort: 8082
         readinessProbe:
