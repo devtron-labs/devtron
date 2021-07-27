@@ -256,16 +256,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ciWorkflowConfig.CiCacheBucket = impl.ciConfig.DefaultCacheBucket
 	}
 
-	if ciWorkflowConfig.LogsBucket == "" {
-		ciWorkflowConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
-	}
-
-	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
-	if ciArtifactLocationFormat == "" {
-		ciArtifactLocationFormat = impl.ciConfig.CiArtifactLocationFormat
-	}
-	ciArtifactLocation := fmt.Sprintf("s3://%s/"+impl.ciConfig.DefaultArtifactKeyPrefix+"/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, savedWf.Id, savedWf.Id)
-
 	if ciWorkflowConfig.CiCacheRegion == "" {
 		ciWorkflowConfig.CiCacheRegion = impl.ciConfig.DefaultCacheBucketRegion
 	}
@@ -319,7 +309,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		CacheLimit:               impl.ciConfig.CacheLimit,
 		BeforeDockerBuildScripts: beforeDockerBuildScripts,
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
-		CiArtifactLocation:       ciArtifactLocation,
 		InvalidateCache:          trigger.InvalidateCache,
 		ScanEnabled:              pipeline.ScanEnabled,
 		CloudProvider:            impl.ciConfig.CloudProvider,
@@ -327,8 +316,16 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 	switch workflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
-		workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion
-		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
+		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
+		if ciWorkflowConfig.LogsBucket == "" {
+			ciWorkflowConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
+		}
+		ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
+		if ciArtifactLocationFormat == "" {
+			ciArtifactLocationFormat = impl.ciConfig.CiArtifactLocationFormat
+		}
+		workflowRequest.CiArtifactLocation = fmt.Sprintf("s3://%s/"+impl.ciConfig.DefaultArtifactKeyPrefix+"/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, savedWf.Id, savedWf.Id)
+
 	case BLOB_STORAGE_AZURE:
 		workflowRequest.AzureBlobConfig = &AzureBlobConfig{
 			Enabled:              impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
@@ -337,7 +334,15 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			AccountKey:           impl.ciConfig.AzureAccountKey,
 		}
 	case BLOB_STORAGE_MINIO:
-		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
+		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
+		if ciWorkflowConfig.LogsBucket == "" {
+			ciWorkflowConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
+		}
+		ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
+		if ciArtifactLocationFormat == "" {
+			ciArtifactLocationFormat = impl.ciConfig.CiArtifactLocationFormat
+		}
+		workflowRequest.CiArtifactLocation = fmt.Sprintf("s3://%s/"+impl.ciConfig.DefaultArtifactKeyPrefix+"/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, savedWf.Id, savedWf.Id)
 		workflowRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
 	default:
 		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)

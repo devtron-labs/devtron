@@ -427,15 +427,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		return nil, err
 	}
 
-	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
-	if cdArtifactLocationFormat == "" {
-		cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
-	}
-	if cdWorkflowConfig.LogsBucket == "" {
-		cdWorkflowConfig.LogsBucket = impl.cdConfig.DefaultBuildLogsBucket
-	}
-	cdArtifactLocation := fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
-
 	artifact, err := impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
 	if err != nil {
 		return nil, err
@@ -515,7 +506,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		CdPipelineId:          cdWf.PipelineId,
 		TriggeredBy:           triggeredBy,
 		StageYaml:             stageYaml,
-		ArtifactLocation:      cdArtifactLocation,
 		CiProjectDetails:      ciProjectDetails,
 		Namespace:             runner.Namespace,
 		ActiveDeadlineSeconds: impl.cdConfig.DefaultTimeout,
@@ -542,8 +532,15 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 	switch cdStageWorkflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
-		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
-		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
+		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
+		cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
+		if cdArtifactLocationFormat == "" {
+			cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
+		}
+		if cdWorkflowConfig.LogsBucket == "" {
+			cdWorkflowConfig.LogsBucket = impl.cdConfig.DefaultBuildLogsBucket
+		}
+		cdStageWorkflowRequest.ArtifactLocation = fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
 	case BLOB_STORAGE_AZURE:
 		cdStageWorkflowRequest.AzureBlobConfig = &AzureBlobConfig{
 			Enabled:              true,
@@ -552,10 +549,18 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			AccountKey:           impl.cdConfig.AzureAccountKey,
 		}
 	case BLOB_STORAGE_MINIO:
-		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
+		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
+		cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
+		if cdArtifactLocationFormat == "" {
+			cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
+		}
+		if cdWorkflowConfig.LogsBucket == "" {
+			cdWorkflowConfig.LogsBucket = impl.cdConfig.DefaultBuildLogsBucket
+		}
+		cdStageWorkflowRequest.ArtifactLocation = fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
 		cdStageWorkflowRequest.MinioEndpoint = impl.cdConfig.MinioEndpoint
 	default:
-		impl.logger.Errorw("cloudprovider %s not supported", cdStageWorkflowRequest.CloudProvider)
+		return nil, fmt.Errorf("cloudprovider %s not supported", cdStageWorkflowRequest.CloudProvider)
 	}
 	return cdStageWorkflowRequest, nil
 }
