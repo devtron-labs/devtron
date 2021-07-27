@@ -20,6 +20,8 @@ type BulkUpdateReadme struct {
 type BulkUpdateRepository interface {
 	BuildAppNameQuery(appNameIncludes []string, appNameExcludes []string) string
 	FindBulkUpdateReadme(operation string) (*BulkUpdateReadme, error)
+
+	// For Deployment Template :
 	FindBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*pipelineConfig.App, error)
 	FindBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*pipelineConfig.App, error)
 	FindAppByChartId(chartId int) (*pipelineConfig.App, error)

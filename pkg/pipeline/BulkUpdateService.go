@@ -61,7 +61,7 @@ type BulkUpdateService interface {
 	FindBulkUpdateReadme(operation string) (response BulkUpdateSeeExampleResponse, err error)
 	GetBulkAppName(bulkUpdateRequest BulkUpdatePayload) ([]*ImpactedObjectsResponse, error)
 	ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error)
-	BulkUpdateDeploymentTemplate(bulkUpdateRequest BulkUpdatePayload) (bulkUpdateResponse BulkUpdateResponse)
+	BulkUpdate(bulkUpdateRequest BulkUpdatePayload) (bulkUpdateResponse BulkUpdateResponse)
 }
 
 type BulkUpdateServiceImpl struct {
@@ -191,7 +191,7 @@ func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target s
 	}
 	return string(modified), err
 }
-func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload BulkUpdatePayload) BulkUpdateResponse {
+func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload BulkUpdatePayload) BulkUpdateResponse {
 	var bulkUpdateResponse BulkUpdateResponse
 	if len(bulkUpdatePayload.Includes.Names) == 0 {
 		bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, "Please don't leave includes.names array empty")

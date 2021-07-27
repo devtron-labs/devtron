@@ -195,6 +195,6 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *ht
 		}
 	}
 
-	response := handler.bulkUpdateService.BulkUpdateDeploymentTemplate(script.Spec)
+	response := handler.bulkUpdateService.BulkUpdate(script.Spec)
 	writeJsonResp(w, nil, response, http.StatusOK)
 }
