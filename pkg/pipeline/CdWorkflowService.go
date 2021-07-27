@@ -76,6 +76,8 @@ type CdWorkflowRequest struct {
 	AwsRegion                 string             `json:"awsRegion"`
 	SecretKey                 string             `json:"secretKey"`
 	AccessKey                 string             `json:"accessKey"`
+	CdCacheLocation           string             `json:"cdCacheLocation"`
+	CdCacheRegion             string             `json:"cdCacheRegion"`
 	DockerRegistryType        string             `json:"dockerRegistryType"`
 	DockerRegistryURL         string             `json:"dockerRegistryURL"`
 	OrchestratorHost          string             `json:"orchestratorHost"`
