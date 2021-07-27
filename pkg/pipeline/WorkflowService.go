@@ -227,6 +227,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 								},
 							},
 							Ports: []v12.ContainerPort{{
+								//exposed for user specific data from ci container
 								Name:          "app-data",
 								ContainerPort: 9102,
 							}},
