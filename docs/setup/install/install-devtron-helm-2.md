@@ -4,7 +4,7 @@ To install Helm2, please check [Installing Helm2](https://v2.helm.sh/docs/instal
 
 {% tabs %}
 {% tab title="Install with default configurations" %}
-This installation will use Minio for storing build logs and cache. Please make sure to edit the POSTGRESQL_PASSWORD value.
+This installation will use Minio for storing build logs and cache. 
 ```bash
 kubectl create namespace devtroncd
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml

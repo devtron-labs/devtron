@@ -116,7 +116,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 #### Quick installation with default settings
 
-This installation will use Minio for storing build logs and cache. Please make sure to edit the POSTGRESQL_PASSWORD value.
+This installation will use Minio for storing build logs and cache. 
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
