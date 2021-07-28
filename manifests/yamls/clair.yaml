@@ -66,7 +66,7 @@ spec:
           do echo waiting for database; sleep 1; done;"]
       containers:
       - name: clair
-        image: "quay.io/coreos/clair:v2.1.4"
+        image: "quay.io/coreos/clair:v2.1.7"
         imagePullPolicy: IfNotPresent
         args:
         - "-log-level=info"
