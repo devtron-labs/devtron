@@ -160,7 +160,7 @@ spec:
     spec:
       containers:
       - name: kubewatch
-        image: quay.io/devtron/kubewatch:8aef551d-128-2196
+        image: quay.io/devtron/kubewatch:v0.1.0
         env:
         - name: devtroncd_NAMESPACE
           value: "devtron-ci"
@@ -174,7 +174,7 @@ spec:
         volumeMounts:
         - name: kubewatch-config-map
           mountPath: /root/.kubewatch.yaml
-          subPath: .kubewatch.yaml       
+          subPath: .kubewatch.yaml
       serviceAccountName: kubewatch
       tolerations: []
       restartPolicy: Always
