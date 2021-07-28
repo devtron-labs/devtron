@@ -25,9 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/nats-io/stan"
 	"go.uber.org/zap"
-	"time"
 )
 
 type CiEventHandler interface {
@@ -72,31 +70,7 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 }
 
 func (impl *CiEventHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(CI_COMPLETE_TOPIC, CI_COMPLETE_GROUP, func(msg *stan.Msg) {
-		impl.logger.Debug("ci complete event received")
-		defer msg.Ack()
-		ciCompleteEvent := CiCompleteEvent{}
-		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
-		if err != nil {
-			impl.logger.Error("err", err)
-			return
-		}
-		impl.logger.Debugw("ci complete event for ci", "ciPipelineId", ciCompleteEvent.PipelineId)
-		req, err := impl.BuildCiArtifactRequest(ciCompleteEvent)
-		if err != nil {
-			return
-		}
-		resp, err := impl.webhookService.SaveCiArtifactWebhook(ciCompleteEvent.PipelineId, req)
-		if err != nil {
-			impl.logger.Error(err)
-			return
-		}
-		impl.logger.Debug(resp)
-	}, stan.DurableName(CI_COMPLETE_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
-	if err != nil {
-		impl.logger.Error(err)
-		return err
-	}
+
 	return nil
 }
 

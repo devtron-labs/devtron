@@ -18,14 +18,10 @@
 package pubsub
 
 import (
-	"encoding/json"
-	v1alpha12 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/nats-io/stan"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ApplicationStatusUpdateHandler interface {
@@ -60,43 +56,6 @@ func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClie
 }
 
 func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(applicationStatusUpdate, applicationStatusUpdateGroup, func(msg *stan.Msg) {
-		impl.logger.Debug("received app update request")
-		defer msg.Ack()
-		application := v1alpha12.Application{}
-		err := json.Unmarshal([]byte(string(msg.Data)), &application)
-		if err != nil {
-			impl.logger.Errorw("unmarshal error on app update status", "err", err)
-			return
-		}
-		impl.logger.Infow("app update request", "application", application)
-		isHealthy, err := impl.appService.UpdateApplicationStatusAndCheckIsHealthy(application)
-		if err != nil {
-			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
-			return
-		}
 
-		// invoke DagExecutor, for cd success which will trigger post stage if exist.
-		if isHealthy == true {
-			impl.logger.Debugw("git hash history", "list", application.Status.History)
-			var gitHash string
-			if application.Operation != nil && application.Operation.Sync != nil {
-				gitHash = application.Operation.Sync.Revision
-			} else if application.Status.OperationState != nil && application.Status.OperationState.Operation.Sync != nil {
-				gitHash = application.Status.OperationState.Operation.Sync.Revision
-			}
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash)
-			if err != nil {
-				impl.logger.Errorw("success event error", "gitHash", gitHash, "err", err)
-				return
-			}
-		}
-		impl.logger.Debug("app" + application.Name + " updated")
-	}, stan.DurableName(applicationStatusUpdateDurable), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
-
-	if err != nil {
-		impl.logger.Error(err)
-		return err
-	}
 	return nil
 }

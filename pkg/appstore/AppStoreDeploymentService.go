@@ -47,7 +47,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/stan"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -1337,17 +1336,11 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 	for _, versions := range installAppVersions {
 		var status appstore.AppstoreDeploymentStatus
 		payload := &DeployPayload{InstalledAppVersionId: versions.InstalledAppVersionId}
-		data, err := json.Marshal(payload)
+		_, err := json.Marshal(payload)
 		if err != nil {
 			status = appstore.QUE_ERROR
 		} else {
-			err := impl.pubsubClient.Conn.Publish(BULK_APPSTORE_DEPLOY_TOPIC, data)
-			if err != nil {
-				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
-				status = appstore.QUE_ERROR
-			} else {
-				status = appstore.ENQUEUED
-			}
+
 
 		}
 		if versions.Status == appstore.DEPLOY_INIT || versions.Status == appstore.QUE_ERROR || versions.Status == appstore.ENQUEUED {
@@ -1361,25 +1354,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 }
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_APPSTORE_DEPLOY_TOPIC, BULK_APPSTORE_DEPLOY_GROUP, func(msg *stan.Msg) {
-		impl.logger.Debug("cd stage event received")
-		defer msg.Ack()
-		deployPayload := &DeployPayload{}
-		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
-		if err != nil {
-			impl.logger.Error("err", err)
-			return
-		}
-		impl.logger.Debugw("deployPayload:", "deployPayload", deployPayload)
-		_, err = impl.performDeployStage(deployPayload.InstalledAppVersionId)
-		if err != nil {
-			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
-		}
-	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(200)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(3))
-	if err != nil {
-		impl.logger.Error("err", err)
-		return err
-	}
+
 	return nil
 }
 

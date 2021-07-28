@@ -252,11 +252,11 @@ func (impl *EventRESTClientImpl) SendEvent(event Event) (bool, error) {
 }
 
 func (impl *EventRESTClientImpl) WriteNatsEvent(channel string, payload interface{}) error {
-	body, err := json.Marshal(payload)
+	_, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
-	err = impl.pubsubClient.Conn.Publish(channel, body)
+	//err = impl.pubsubClient.Conn.Publish(channel, body)
 	return err
 }
 

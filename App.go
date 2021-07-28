@@ -108,16 +108,6 @@ func (app *App) Stop() {
 	if err != nil {
 		app.Logger.Errorw("error in closing db connection", "err", err)
 	}
-	nc := app.pubsubClient.Conn.NatsConn()
-	//closing nats
-	err = app.pubsubClient.Conn.Close()
-	if err != nil {
-		app.Logger.Errorw("error in closing stan", "err", err)
-	}
-	err = nc.Drain()
-	if err != nil {
-		app.Logger.Errorw("error in draining nats", "err", err)
-	}
-	nc.Close()
+
 	app.Logger.Infow("housekeeping done. exiting now")
 }

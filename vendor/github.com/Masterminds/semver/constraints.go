@@ -1,7 +1,6 @@
 package semver
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"regexp"
@@ -24,18 +23,7 @@ func NewConstraint(c string) (*Constraints, error) {
 	ors := strings.Split(c, "||")
 	or := make([][]*constraint, len(ors))
 	for k, v := range ors {
-
-		// TODO: Find a way to validate and fetch all the constraints in a simpler form
-
-		// Validate the segment
-		if !validConstraintRegex.MatchString(v) {
-			return nil, fmt.Errorf("improper constraint: %s", v)
-		}
-
-		cs := findConstraintRegex.FindAllString(v, -1)
-		if cs == nil {
-			cs = append(cs, v)
-		}
+		cs := strings.Split(v, ",")
 		result := make([]*constraint, len(cs))
 		for i, s := range cs {
 			pc, err := parseConstraint(s)
@@ -97,7 +85,7 @@ func (cs Constraints) Validate(v *Version) (bool, []error) {
 			} else {
 
 				if !c.check(v) {
-					em := fmt.Errorf(constraintMsg[c.origfunc], v, c.orig)
+					em := fmt.Errorf(c.msg, v, c.orig)
 					e = append(e, em)
 					joy = false
 				}
@@ -112,41 +100,9 @@ func (cs Constraints) Validate(v *Version) (bool, []error) {
 	return false, e
 }
 
-func (cs Constraints) String() string {
-	buf := make([]string, len(cs.constraints))
-	var tmp bytes.Buffer
-
-	for k, v := range cs.constraints {
-		tmp.Reset()
-		vlen := len(v)
-		for kk, c := range v {
-			tmp.WriteString(c.string())
-
-			// Space separate the AND conditions
-			if vlen > 1 && kk < vlen-1 {
-				tmp.WriteString(" ")
-			}
-		}
-		buf[k] = tmp.String()
-	}
-
-	return strings.Join(buf, " || ")
-}
-
 var constraintOps map[string]cfunc
 var constraintMsg map[string]string
 var constraintRegex *regexp.Regexp
-var constraintRangeRegex *regexp.Regexp
-
-// Used to find individual constraints within a multi-constraint string
-var findConstraintRegex *regexp.Regexp
-
-// Used to validate an segment of ANDs is valid
-var validConstraintRegex *regexp.Regexp
-
-const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
-	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
-	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
 func init() {
 	constraintOps = map[string]cfunc{
@@ -192,29 +148,22 @@ func init() {
 	constraintRangeRegex = regexp.MustCompile(fmt.Sprintf(
 		`\s*(%s)\s+-\s+(%s)\s*`,
 		cvRegex, cvRegex))
-
-	findConstraintRegex = regexp.MustCompile(fmt.Sprintf(
-		`(%s)\s*(%s)`,
-		strings.Join(ops, "|"),
-		cvRegex))
-
-	validConstraintRegex = regexp.MustCompile(fmt.Sprintf(
-		`^(\s*(%s)\s*(%s)\s*\,?)+$`,
-		strings.Join(ops, "|"),
-		cvRegex))
 }
 
 // An individual constraint
 type constraint struct {
+	// The callback function for the restraint. It performs the logic for
+	// the constraint.
+	function cfunc
+
+	msg string
+
 	// The version used in the constraint check. For example, if a constraint
 	// is '<= 2.0.0' the con a version instance representing 2.0.0.
 	con *Version
 
 	// The original parsed version (e.g., 4.x from != 4.x)
 	orig string
-
-	// The original operator for the constraint
-	origfunc string
 
 	// When an x is used as part of the version (e.g., 1.x)
 	minorDirty bool
@@ -224,64 +173,36 @@ type constraint struct {
 
 // Check if a version meets the constraint
 func (c *constraint) check(v *Version) bool {
-	return constraintOps[c.origfunc](v, c)
-}
-
-// String prints an individual constraint into a string
-func (c *constraint) string() string {
-	return c.origfunc + c.orig
+	return c.function(v, c)
 }
 
 type cfunc func(v *Version, c *constraint) bool
 
 func parseConstraint(c string) (*constraint, error) {
-	if len(c) > 0 {
-		m := constraintRegex.FindStringSubmatch(c)
-		if m == nil {
-			return nil, fmt.Errorf("improper constraint: %s", c)
-		}
-
-		cs := &constraint{
-			orig:     m[2],
-			origfunc: m[1],
-		}
-
-		ver := m[2]
-		minorDirty := false
-		patchDirty := false
-		dirty := false
-		if isX(m[3]) || m[3] == "" {
-			ver = "0.0.0"
-			dirty = true
-		} else if isX(strings.TrimPrefix(m[4], ".")) || m[4] == "" {
-			minorDirty = true
-			dirty = true
-			ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
-		} else if isX(strings.TrimPrefix(m[5], ".")) || m[5] == "" {
-			dirty = true
-			patchDirty = true
-			ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
-		}
-
-		con, err := NewVersion(ver)
-		if err != nil {
-
-			// The constraintRegex should catch any regex parsing errors. So,
-			// we should never get here.
-			return nil, errors.New("constraint Parser Error")
-		}
-
-		cs.con = con
-		cs.minorDirty = minorDirty
-		cs.patchDirty = patchDirty
-		cs.dirty = dirty
-
-		return cs, nil
+	m := constraintRegex.FindStringSubmatch(c)
+	if m == nil {
+		return nil, fmt.Errorf("improper constraint: %s", c)
 	}
 
-	// The rest is the special case where an empty string was passed in which
-	// is equivalent to * or >=0.0.0
-	con, err := StrictNewVersion("0.0.0")
+	ver := m[2]
+	orig := ver
+	minorDirty := false
+	patchDirty := false
+	dirty := false
+	if isX(m[3]) {
+		ver = "0.0.0"
+		dirty = true
+	} else if isX(strings.TrimPrefix(m[4], ".")) || m[4] == "" {
+		minorDirty = true
+		dirty = true
+		ver = fmt.Sprintf("%s.0.0%s", m[3], m[6])
+	} else if isX(strings.TrimPrefix(m[5], ".")) {
+		dirty = true
+		patchDirty = true
+		ver = fmt.Sprintf("%s%s.0%s", m[3], m[4], m[6])
+	}
+
+	con, err := NewVersion(ver)
 	if err != nil {
 
 		// The constraintRegex should catch any regex parsing errors. So,
@@ -290,12 +211,13 @@ func parseConstraint(c string) (*constraint, error) {
 	}
 
 	cs := &constraint{
+		function:   constraintOps[m[1]],
+		msg:        constraintMsg[m[1]],
 		con:        con,
-		orig:       c,
-		origfunc:   "",
-		minorDirty: false,
-		patchDirty: false,
-		dirty:      true,
+		orig:       orig,
+		minorDirty: minorDirty,
+		patchDirty: patchDirty,
+		dirty:      dirty,
 	}
 	return cs, nil
 }
@@ -318,15 +240,9 @@ func constraintNotEqual(v *Version, c *constraint) bool {
 			return true
 		} else if c.minorDirty {
 			return false
-		} else if c.con.Patch() != v.Patch() && !c.patchDirty {
-			return true
-		} else if c.patchDirty {
-			// Need to handle prereleases if present
-			if v.Prerelease() != "" || c.con.Prerelease() != "" {
-				return comparePrerelease(v.Prerelease(), c.con.Prerelease()) != 0
-			}
-			return false
 		}
+
+		return false
 	}
 
 	return !v.Equal(c.con)
@@ -341,26 +257,6 @@ func constraintGreaterThan(v *Version, c *constraint) bool {
 		return false
 	}
 
-	if !c.dirty {
-		return v.Compare(c.con) == 1
-	}
-
-	if v.Major() > c.con.Major() {
-		return true
-	} else if v.Major() < c.con.Major() {
-		return false
-	} else if c.minorDirty {
-		// This is a range case such as >11. When the version is something like
-		// 11.1.0 is it not > 11. For that we would need 12 or higher
-		return false
-	} else if c.patchDirty {
-		// This is for ranges such as >11.1. A version of 11.1.1 is not greater
-		// which one of 11.2.1 is greater
-		return v.Minor() > c.con.Minor()
-	}
-
-	// If we have gotten here we are not comparing pre-preleases and can use the
-	// Compare function to accomplish that.
 	return v.Compare(c.con) == 1
 }
 
@@ -372,7 +268,17 @@ func constraintLessThan(v *Version, c *constraint) bool {
 		return false
 	}
 
-	return v.Compare(c.con) < 0
+	if !c.dirty {
+		return v.Compare(c.con) < 0
+	}
+
+	if v.Major() > c.con.Major() {
+		return false
+	} else if v.Minor() > c.con.Minor() && !c.minorDirty {
+		return false
+	}
+
+	return true
 }
 
 func constraintGreaterThanEqual(v *Version, c *constraint) bool {
@@ -455,21 +361,19 @@ func constraintTildeOrEqual(v *Version, c *constraint) bool {
 	}
 
 	if c.dirty {
+		c.msg = constraintMsg["~"]
 		return constraintTilde(v, c)
 	}
 
 	return v.Equal(c.con)
 }
 
-// ^*      -->  (any)
-// ^1.2.3  -->  >=1.2.3 <2.0.0
-// ^1.2    -->  >=1.2.0 <2.0.0
-// ^1      -->  >=1.0.0 <2.0.0
-// ^0.2.3  -->  >=0.2.3 <0.3.0
-// ^0.2    -->  >=0.2.0 <0.3.0
-// ^0.0.3  -->  >=0.0.3 <0.0.4
-// ^0.0    -->  >=0.0.0 <0.1.0
-// ^0      -->  >=0.0.0 <1.0.0
+// ^* --> (any)
+// ^2, ^2.x, ^2.x.x --> >=2.0.0, <3.0.0
+// ^2.0, ^2.0.x --> >=2.0.0, <3.0.0
+// ^1.2, ^1.2.x --> >=1.2.0, <2.0.0
+// ^1.2.3 --> >=1.2.3, <2.0.0
+// ^1.2.0 --> >=1.2.0, <2.0.0
 func constraintCaret(v *Version, c *constraint) bool {
 	// If there is a pre-release on the version but the constraint isn't looking
 	// for them assume that pre-releases are not compatible. See issue 21 for
@@ -478,30 +382,22 @@ func constraintCaret(v *Version, c *constraint) bool {
 		return false
 	}
 
-	// This less than handles prereleases
 	if v.LessThan(c.con) {
 		return false
 	}
 
-	// ^ when the major > 0 is >=x.y.z < x+1
-	if c.con.Major() > 0 || c.minorDirty {
-
-		// ^ has to be within a major range for > 0. Everything less than was
-		// filtered out with the LessThan call above. This filters out those
-		// that greater but not within the same major range.
-		return v.Major() == c.con.Major()
+	if v.Major() != c.con.Major() {
+		return false
 	}
 
-	// ^ when the major is 0 and minor > 0 is >=0.y.z < 0.y+1
-	// If the con Minor is > 0 it is not dirty
-	if c.con.Minor() > 0 || c.patchDirty {
-		return v.Minor() == c.con.Minor()
-	}
-
-	// At this point the major is 0 and the minor is 0 and not dirty. The patch
-	// is not dirty so we need to check if they are equal. If they are not equal
-	return c.con.Patch() == v.Patch()
+	return true
 }
+
+var constraintRangeRegex *regexp.Regexp
+
+const cvRegex string = `v?([0-9|x|X|\*]+)(\.[0-9|x|X|\*]+)?(\.[0-9|x|X|\*]+)?` +
+	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
+	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
 func isX(x string) bool {
 	switch x {

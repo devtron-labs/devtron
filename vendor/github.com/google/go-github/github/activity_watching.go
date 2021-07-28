@@ -28,9 +28,9 @@ type Subscription struct {
 // ListWatchers lists watchers of a particular repo.
 //
 // GitHub API docs: https://developer.github.com/v3/activity/watching/#list-watchers
-func (s *ActivityService) ListWatchers(ctx context.Context, owner, repo string, opts *ListOptions) ([]*User, *Response, error) {
+func (s *ActivityService) ListWatchers(ctx context.Context, owner, repo string, opt *ListOptions) ([]*User, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/subscribers", owner, repo)
-	u, err := addOptions(u, opts)
+	u, err := addOptions(u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -52,16 +52,15 @@ func (s *ActivityService) ListWatchers(ctx context.Context, owner, repo string, 
 // ListWatched lists the repositories the specified user is watching. Passing
 // the empty string will fetch watched repos for the authenticated user.
 //
-// GitHub API docs: https://developer.github.com/v3/activity/watching/#list-repositories-watched-by-a-user
-// GitHub API docs: https://developer.github.com/v3/activity/watching/#list-repositories-watched-by-the-authenticated-user
-func (s *ActivityService) ListWatched(ctx context.Context, user string, opts *ListOptions) ([]*Repository, *Response, error) {
+// GitHub API docs: https://developer.github.com/v3/activity/watching/#list-repositories-being-watched
+func (s *ActivityService) ListWatched(ctx context.Context, user string, opt *ListOptions) ([]*Repository, *Response, error) {
 	var u string
 	if user != "" {
 		u = fmt.Sprintf("users/%v/subscriptions", user)
 	} else {
 		u = "user/subscriptions"
 	}
-	u, err := addOptions(u, opts)
+	u, err := addOptions(u, opt)
 	if err != nil {
 		return nil, nil, err
 	}

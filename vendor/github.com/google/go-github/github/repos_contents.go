@@ -12,7 +12,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,10 +21,7 @@ import (
 
 // RepositoryContent represents a file or directory in a github repository.
 type RepositoryContent struct {
-	Type *string `json:"type,omitempty"`
-	// Target is only set if the type is "symlink" and the target is not a normal file.
-	// If Target is set, Path will be the symlink path.
-	Target   *string `json:"target,omitempty"`
+	Type     *string `json:"type,omitempty"`
 	Encoding *string `json:"encoding,omitempty"`
 	Size     *int    `json:"size,omitempty"`
 	Name     *string `json:"name,omitempty"`
@@ -77,9 +73,6 @@ func (r *RepositoryContent) GetContent() (string, error) {
 
 	switch encoding {
 	case "base64":
-		if r.Content == nil {
-			return "", errors.New("malformed response: base64 encoding of null content")
-		}
 		c, err := base64.StdEncoding.DecodeString(*r.Content)
 		return string(c), err
 	case "":
@@ -94,10 +87,10 @@ func (r *RepositoryContent) GetContent() (string, error) {
 
 // GetReadme gets the Readme file for the repository.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/contents/#get-a-repository-readme
-func (s *RepositoriesService) GetReadme(ctx context.Context, owner, repo string, opts *RepositoryContentGetOptions) (*RepositoryContent, *Response, error) {
+// GitHub API docs: https://developer.github.com/v3/repos/contents/#get-the-readme
+func (s *RepositoriesService) GetReadme(ctx context.Context, owner, repo string, opt *RepositoryContentGetOptions) (*RepositoryContent, *Response, error) {
 	u := fmt.Sprintf("repos/%v/%v/readme", owner, repo)
-	u, err := addOptions(u, opts)
+	u, err := addOptions(u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -117,10 +110,10 @@ func (s *RepositoriesService) GetReadme(ctx context.Context, owner, repo string,
 // specified file. This function will work with files of any size, as opposed
 // to GetContents which is limited to 1 Mb files. It is the caller's
 // responsibility to close the ReadCloser.
-func (s *RepositoriesService) DownloadContents(ctx context.Context, owner, repo, filepath string, opts *RepositoryContentGetOptions) (io.ReadCloser, error) {
+func (s *RepositoriesService) DownloadContents(ctx context.Context, owner, repo, filepath string, opt *RepositoryContentGetOptions) (io.ReadCloser, error) {
 	dir := path.Dir(filepath)
 	filename := path.Base(filepath)
-	_, dirContents, _, err := s.GetContents(ctx, owner, repo, dir, opts)
+	_, dirContents, _, err := s.GetContents(ctx, owner, repo, dir, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -146,11 +139,11 @@ func (s *RepositoriesService) DownloadContents(ctx context.Context, owner, repo,
 // as possible, both result types will be returned but only one will contain a
 // value and the other will be nil.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/contents/#get-repository-content
-func (s *RepositoriesService) GetContents(ctx context.Context, owner, repo, path string, opts *RepositoryContentGetOptions) (fileContent *RepositoryContent, directoryContent []*RepositoryContent, resp *Response, err error) {
+// GitHub API docs: https://developer.github.com/v3/repos/contents/#get-contents
+func (s *RepositoriesService) GetContents(ctx context.Context, owner, repo, path string, opt *RepositoryContentGetOptions) (fileContent *RepositoryContent, directoryContent []*RepositoryContent, resp *Response, err error) {
 	escapedPath := (&url.URL{Path: path}).String()
 	u := fmt.Sprintf("repos/%s/%s/contents/%s", owner, repo, escapedPath)
-	u, err = addOptions(u, opts)
+	u, err = addOptions(u, opt)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -177,10 +170,10 @@ func (s *RepositoriesService) GetContents(ctx context.Context, owner, repo, path
 // CreateFile creates a new file in a repository at the given path and returns
 // the commit and file metadata.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/contents/#create-or-update-file-contents
-func (s *RepositoriesService) CreateFile(ctx context.Context, owner, repo, path string, opts *RepositoryContentFileOptions) (*RepositoryContentResponse, *Response, error) {
+// GitHub API docs: https://developer.github.com/v3/repos/contents/#create-a-file
+func (s *RepositoriesService) CreateFile(ctx context.Context, owner, repo, path string, opt *RepositoryContentFileOptions) (*RepositoryContentResponse, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/contents/%s", owner, repo, path)
-	req, err := s.client.NewRequest("PUT", u, opts)
+	req, err := s.client.NewRequest("PUT", u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -195,10 +188,10 @@ func (s *RepositoriesService) CreateFile(ctx context.Context, owner, repo, path 
 // UpdateFile updates a file in a repository at the given path and returns the
 // commit and file metadata. Requires the blob SHA of the file being updated.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/contents/#create-or-update-file-contents
-func (s *RepositoriesService) UpdateFile(ctx context.Context, owner, repo, path string, opts *RepositoryContentFileOptions) (*RepositoryContentResponse, *Response, error) {
+// GitHub API docs: https://developer.github.com/v3/repos/contents/#update-a-file
+func (s *RepositoriesService) UpdateFile(ctx context.Context, owner, repo, path string, opt *RepositoryContentFileOptions) (*RepositoryContentResponse, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/contents/%s", owner, repo, path)
-	req, err := s.client.NewRequest("PUT", u, opts)
+	req, err := s.client.NewRequest("PUT", u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -214,9 +207,9 @@ func (s *RepositoriesService) UpdateFile(ctx context.Context, owner, repo, path 
 // Requires the blob SHA of the file to be deleted.
 //
 // GitHub API docs: https://developer.github.com/v3/repos/contents/#delete-a-file
-func (s *RepositoriesService) DeleteFile(ctx context.Context, owner, repo, path string, opts *RepositoryContentFileOptions) (*RepositoryContentResponse, *Response, error) {
+func (s *RepositoriesService) DeleteFile(ctx context.Context, owner, repo, path string, opt *RepositoryContentFileOptions) (*RepositoryContentResponse, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/contents/%s", owner, repo, path)
-	req, err := s.client.NewRequest("DELETE", u, opts)
+	req, err := s.client.NewRequest("DELETE", u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -228,15 +221,15 @@ func (s *RepositoriesService) DeleteFile(ctx context.Context, owner, repo, path 
 	return deleteResponse, resp, nil
 }
 
-// ArchiveFormat is used to define the archive type when calling GetArchiveLink.
-type ArchiveFormat string
+// archiveFormat is used to define the archive type when calling GetArchiveLink.
+type archiveFormat string
 
 const (
 	// Tarball specifies an archive in gzipped tar format.
-	Tarball ArchiveFormat = "tarball"
+	Tarball archiveFormat = "tarball"
 
 	// Zipball specifies an archive in zip format.
-	Zipball ArchiveFormat = "zipball"
+	Zipball archiveFormat = "zipball"
 )
 
 // GetArchiveLink returns an URL to download a tarball or zipball archive for a
@@ -244,28 +237,15 @@ const (
 // or github.Zipball constant.
 //
 // GitHub API docs: https://developer.github.com/v3/repos/contents/#get-archive-link
-func (s *RepositoriesService) GetArchiveLink(ctx context.Context, owner, repo string, archiveformat ArchiveFormat, opts *RepositoryContentGetOptions, followRedirects bool) (*url.URL, *Response, error) {
+func (s *RepositoriesService) GetArchiveLink(ctx context.Context, owner, repo string, archiveformat archiveFormat, opt *RepositoryContentGetOptions) (*url.URL, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/%s", owner, repo, archiveformat)
-	if opts != nil && opts.Ref != "" {
-		u += fmt.Sprintf("/%s", opts.Ref)
+	if opt != nil && opt.Ref != "" {
+		u += fmt.Sprintf("/%s", opt.Ref)
 	}
-	resp, err := s.getArchiveLinkFromURL(ctx, u, followRedirects)
+	req, err := s.client.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	if resp.StatusCode != http.StatusFound {
-		return nil, newResponse(resp), fmt.Errorf("unexpected status code: %s", resp.Status)
-	}
-	parsedURL, err := url.Parse(resp.Header.Get("Location"))
-	return parsedURL, newResponse(resp), err
-}
-
-func (s *RepositoriesService) getArchiveLinkFromURL(ctx context.Context, u string, followRedirects bool) (*http.Response, error) {
-	req, err := s.client.NewRequest("GET", u, nil)
-	if err != nil {
-		return nil, err
-	}
-
 	var resp *http.Response
 	// Use http.DefaultTransport if no custom Transport is configured
 	req = withContext(ctx, req)
@@ -275,14 +255,12 @@ func (s *RepositoriesService) getArchiveLinkFromURL(ctx context.Context, u strin
 		resp, err = s.client.client.Transport.RoundTrip(req)
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	resp.Body.Close()
-
-	// If redirect response is returned, follow it
-	if followRedirects && resp.StatusCode == http.StatusMovedPermanently {
-		u = resp.Header.Get("Location")
-		resp, err = s.getArchiveLinkFromURL(ctx, u, false)
+	if resp.StatusCode != http.StatusFound {
+		return nil, newResponse(resp), fmt.Errorf("unexpected status code: %s", resp.Status)
 	}
-	return resp, err
+	parsedURL, err := url.Parse(resp.Header.Get("Location"))
+	return parsedURL, newResponse(resp), err
 }
