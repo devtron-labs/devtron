@@ -120,8 +120,7 @@ This installation will use Minio for storing build logs and cache. Please make s
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
---set secrets.POSTGRESQL_PASSWORD=change-me
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd 
 ```
 
 For detailed instructions and other options, check out  <a href="https://docs.devtron.ai/setup/install" target="_blank">devtron installation documentation</a>
