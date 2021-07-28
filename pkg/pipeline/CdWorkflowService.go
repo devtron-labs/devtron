@@ -96,7 +96,7 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository cluster.E
 }
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *cluster.Environment) (*v1alpha1.Workflow, error) {
-	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.cdConfig.ImageScannerEndpoint}}
+	containerEnvVariables := []v12.EnvVar{{}}
 	if impl.cdConfig.CloudProvider == BLOB_STORAGE_MINIO {
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.cdConfig.MinioAccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.cdConfig.MinioSecretKey}}
 		containerEnvVariables = append(containerEnvVariables, miniCred...)

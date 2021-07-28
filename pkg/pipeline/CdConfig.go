@@ -51,7 +51,6 @@ type CdConfig struct {
 	OrchestratorToken         string   `env:"ORCH_TOKEN" envDefault:""`
 	ClusterConfig             *rest.Config
 	NodeLabel                 map[string]string
-	ImageScannerEndpoint      string   `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
 	CloudProvider             string `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
 	AzureAccountName          string `env:"AZURE_ACCOUNT_NAME"`
 	AzureBlobContainerCiLog   string `env:"AZURE_BLOB_CONTAINER_CI_LOG"`

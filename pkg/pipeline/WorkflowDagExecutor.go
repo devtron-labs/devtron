@@ -420,6 +420,17 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 	return err
 }
+func (impl *WorkflowDagExecutorImpl) buildArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string{
+	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
+	if cdArtifactLocationFormat == "" {
+		cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
+	}
+	if cdWorkflowConfig.LogsBucket == "" {
+		cdWorkflowConfig.LogsBucket = impl.cdConfig.DefaultBuildLogsBucket
+	}
+	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
+	return ArtifactLocation
+}
 
 func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*CdWorkflowRequest, error) {
 	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
@@ -533,14 +544,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	switch cdStageWorkflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
-		cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
-		if cdArtifactLocationFormat == "" {
-			cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
-		}
-		if cdWorkflowConfig.LogsBucket == "" {
-			cdWorkflowConfig.LogsBucket = impl.cdConfig.DefaultBuildLogsBucket
-		}
-		cdStageWorkflowRequest.ArtifactLocation = fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocation(cdWorkflowConfig,cdWf,runner)
 	case BLOB_STORAGE_AZURE:
 		cdStageWorkflowRequest.AzureBlobConfig = &AzureBlobConfig{
 			Enabled:              true,
@@ -550,14 +554,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	case BLOB_STORAGE_MINIO:
 		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
-		cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
-		if cdArtifactLocationFormat == "" {
-			cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
-		}
-		if cdWorkflowConfig.LogsBucket == "" {
-			cdWorkflowConfig.LogsBucket = impl.cdConfig.DefaultBuildLogsBucket
-		}
-		cdStageWorkflowRequest.ArtifactLocation = fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocation(cdWorkflowConfig,cdWf,runner)
 		cdStageWorkflowRequest.MinioEndpoint = impl.cdConfig.MinioEndpoint
 	default:
 		return nil, fmt.Errorf("cloudprovider %s not supported", cdStageWorkflowRequest.CloudProvider)
