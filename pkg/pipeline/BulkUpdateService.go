@@ -24,12 +24,21 @@ type Spec struct {
 type Tasks struct {
 	Spec Spec `json:"spec"`
 }
+type ConfigMapAndSecretSpec struct{
+	Names []string `json:"names"`
+	PatchData []string `json:"patchData"`
+}
+type ConfigMapAndSecretTask struct{
+
+}
 type BulkUpdatePayload struct {
 	Includes           NameIncludesExcludes `json:"includes"`
 	Excludes           NameIncludesExcludes `json:"excludes"`
 	EnvIds             []int                `json:"envIds"`
 	Global             bool                 `json:"global"`
 	DeploymentTemplate Tasks                `json:"deploymentTemplate"`
+	ConfigMap   	   ConfigMapAndSecretTask `json:"configMap"`
+	SecretsList		   ConfigMapAndSecretTask 'json:secret'
 }
 type BulkUpdateScript struct {
 	ApiVersion string            `json:"apiVersion" validate:"required"`
