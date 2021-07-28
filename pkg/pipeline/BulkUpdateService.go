@@ -18,27 +18,27 @@ import (
 type NameIncludesExcludes struct {
 	Names []string `json:"names"`
 }
-type Spec struct {
+type DeploymentTemplateSpec struct {
 	PatchJson string `json:"patchJson"`
 }
-type Tasks struct {
-	Spec Spec `json:"spec"`
+type DeploymentTemplateTask struct {
+	Spec DeploymentTemplateSpec `json:"spec"`
 }
-type ConfigMapAndSecretSpec struct{
-	Names []string `json:"names"`
+type ConfigMapAndSecretSpec struct {
+	Names     []string `json:"names"`
 	PatchData []string `json:"patchData"`
 }
-type ConfigMapAndSecretTask struct{
-
+type ConfigMapAndSecretTask struct {
+	Spec ConfigMapAndSecretSpec `json:"spec"`
 }
 type BulkUpdatePayload struct {
-	Includes           NameIncludesExcludes `json:"includes"`
-	Excludes           NameIncludesExcludes `json:"excludes"`
-	EnvIds             []int                `json:"envIds"`
-	Global             bool                 `json:"global"`
-	DeploymentTemplate Tasks                `json:"deploymentTemplate"`
-	ConfigMap   	   ConfigMapAndSecretTask `json:"configMap"`
-	SecretsList		   ConfigMapAndSecretTask 'json:secret'
+	Includes           NameIncludesExcludes   `json:"includes"`
+	Excludes           NameIncludesExcludes   `json:"excludes"`
+	EnvIds             []int                  `json:"envIds"`
+	Global             bool                   `json:"global"`
+	DeploymentTemplate DeploymentTemplateTask `json:"deploymentTemplate"`
+	ConfigMap          ConfigMapAndSecretTask `json:"configMap"`
+	SecretsList        ConfigMapAndSecretTask `json:"secret"`
 }
 type BulkUpdateScript struct {
 	ApiVersion string            `json:"apiVersion" validate:"required"`
@@ -50,7 +50,11 @@ type BulkUpdateSeeExampleResponse struct {
 	Script    BulkUpdateScript `json:"script" validate:"required"`
 	ReadMe    string           `json:"readme"`
 }
-type ImpactedObjectsResponse struct {
+type ImpactedObjectsResponse struct{
+	DeploymentTemplate []*ImpactedObjectsResponseForOneApp `json:"deploymentTemplate"`
+	ConfigMap []*ImpactedObjectsResponseForOneApp ``
+}
+type ImpactedObjectsResponseForOneApp struct {
 	AppId   int    `json:"appId"`
 	AppName string `json:"appName"`
 	EnvId   int    `json:"envId"`
@@ -195,7 +199,7 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePay
 func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error) {
 	modified, err := patch.Apply([]byte(target))
 	if err != nil {
-		impl.logger.Errorw("error in applying JSON patch","err",err)
+		impl.logger.Errorw("error in applying JSON patch", "err", err)
 		return "Patch Failed", err
 	}
 	return string(modified), err
@@ -227,7 +231,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload BulkUpdatePayload
 					appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartId(chart.Id)
 					modified, err := impl.ApplyJsonPatch(patch, chart.Values)
 					if err != nil {
-						impl.logger.Errorw("error in applying JSON patch","err",err)
+						impl.logger.Errorw("error in applying JSON patch", "err", err)
 						bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
 							AppId:   appDetailsByChart.Id,
 							AppName: appDetailsByChart.AppName,
@@ -237,7 +241,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload BulkUpdatePayload
 					} else {
 						err = impl.bulkUpdateRepository.BulkUpdateChartsValuesYamlAndGlobalOverrideById(chart.Id, modified)
 						if err != nil {
-							impl.logger.Errorw("error in bulk updating charts","err",err)
+							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
 								AppId:   appDetailsByChart.Id,
 								AppName: appDetailsByChart.AppName,
@@ -282,7 +286,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload BulkUpdatePayload
 					} else {
 						err = impl.bulkUpdateRepository.BulkUpdateChartsEnvYamlOverrideById(chartEnv.Id, modified)
 						if err != nil {
-							impl.logger.Errorw("error in bulk updating charts","err",err)
+							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
 								AppId:   appDetailsByChart.Id,
 								AppName: appDetailsByChart.AppName,
