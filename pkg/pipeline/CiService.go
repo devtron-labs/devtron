@@ -366,6 +366,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	switch workflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
+		workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion
+		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
 		workflowRequest.CiArtifactLocation = impl.buildArtifactLocation(ciWorkflowConfig, savedWf)
 	case BLOB_STORAGE_AZURE:
 		workflowRequest.AzureBlobConfig = &AzureBlobConfig{
@@ -376,6 +378,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 	case BLOB_STORAGE_MINIO:
 		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
+		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
 		workflowRequest.CiArtifactLocation = impl.buildArtifactLocation(ciWorkflowConfig, savedWf)
 		workflowRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
 	default:

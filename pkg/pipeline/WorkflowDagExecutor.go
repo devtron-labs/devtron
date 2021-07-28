@@ -555,6 +555,8 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	switch cdStageWorkflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
+		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
+		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
 		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocation(cdWorkflowConfig,cdWf,runner)
 	case BLOB_STORAGE_AZURE:
 		cdStageWorkflowRequest.AzureBlobConfig = &AzureBlobConfig{
@@ -565,6 +567,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	case BLOB_STORAGE_MINIO:
 		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
+		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
 		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocation(cdWorkflowConfig,cdWf,runner)
 		cdStageWorkflowRequest.MinioEndpoint = impl.cdConfig.MinioEndpoint
 	default:
