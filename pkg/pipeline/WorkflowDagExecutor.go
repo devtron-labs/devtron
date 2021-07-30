@@ -38,6 +38,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
+	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
@@ -171,6 +172,31 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 }
 
 func (impl *WorkflowDagExecutorImpl) Subscribe() error {
+	_, err := impl.pubsubClient.Conn.QueueSubscribe(CD_STAGE_COMPLETE_TOPIC, CD_COMPLETE_GROUP, func(msg *stan.Msg) {
+		impl.logger.Debug("cd stage event received")
+		defer msg.Ack()
+		cdStageCompleteEvent := CdStageCompleteEvent{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &cdStageCompleteEvent)
+		if err != nil {
+			impl.logger.Errorw("error on cd stage complete", "err", err, "msg", string(msg.Data))
+			return
+		}
+		impl.logger.Debugw("cd stage event:", "workflowRunnerId", cdStageCompleteEvent.WorkflowRunnerId)
+		wf, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdStageCompleteEvent.WorkflowRunnerId)
+		if err != nil {
+			impl.logger.Errorw("could not get wf runner", "err", err)
+			return
+		}
+		if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+			_ = impl.HandlePreStageSuccessEvent(cdStageCompleteEvent)
+		} else if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+			impl.logger.Debugw("received post success event for workflow runner ", "wfId", strconv.Itoa(wf.Id))
+		}
+	}, stan.DurableName(CD_COMPLETE_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	if err != nil {
+		impl.logger.Error("error", "err", err)
+		return err
+	}
 	return nil
 }
 
@@ -394,13 +420,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 	return err
 }
-
-func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*CdWorkflowRequest, error) {
-	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
-	if err != nil && !util.IsErrNoRows(err) {
-		return nil, err
-	}
-
+func (impl *WorkflowDagExecutorImpl) buildArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string{
 	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
 	if cdArtifactLocationFormat == "" {
 		cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
@@ -408,7 +428,15 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	if cdWorkflowConfig.LogsBucket == "" {
 		cdWorkflowConfig.LogsBucket = impl.cdConfig.DefaultBuildLogsBucket
 	}
-	cdArtifactLocation := fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
+	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
+	return ArtifactLocation
+}
+
+func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*CdWorkflowRequest, error) {
+	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}
 
 	artifact, err := impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
 	if err != nil {
@@ -489,7 +517,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		CdPipelineId:          cdWf.PipelineId,
 		TriggeredBy:           triggeredBy,
 		StageYaml:             stageYaml,
-		ArtifactLocation:      cdArtifactLocation,
 		CiProjectDetails:      ciProjectDetails,
 		Namespace:             runner.Namespace,
 		ActiveDeadlineSeconds: impl.cdConfig.DefaultTimeout,
@@ -512,6 +539,28 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		OrchestratorHost:          impl.cdConfig.OrchestratorHost,
 		OrchestratorToken:         impl.cdConfig.OrchestratorToken,
 		ExtraEnvironmentVariables: extraEnvVariables,
+		CloudProvider:             impl.cdConfig.CloudProvider,
+	}
+	switch cdStageWorkflowRequest.CloudProvider {
+	case BLOB_STORAGE_S3:
+		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
+		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
+		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocation(cdWorkflowConfig,cdWf,runner)
+	case BLOB_STORAGE_AZURE:
+		cdStageWorkflowRequest.AzureBlobConfig = &AzureBlobConfig{
+			Enabled:              true,
+			AccountName:          impl.cdConfig.AzureAccountName,
+			BlobContainerCiCache: impl.cdConfig.AzureBlobContainerCiCache,
+			AccountKey:           impl.cdConfig.AzureAccountKey,
+		}
+	case BLOB_STORAGE_MINIO:
+		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
+		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocation(cdWorkflowConfig,cdWf,runner)
+		cdStageWorkflowRequest.MinioEndpoint = impl.cdConfig.MinioEndpoint
+	default:
+		return nil, fmt.Errorf("cloudprovider %s not supported", cdStageWorkflowRequest.CloudProvider)
 	}
 	return cdStageWorkflowRequest, nil
 }
@@ -944,11 +993,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 			RequestType:       request.RequestType,
 		}
 
-		_, err := json.Marshal(deploymentGroupAppWithEnv)
+		data, err := json.Marshal(deploymentGroupAppWithEnv)
 		if err != nil {
 			impl.logger.Errorw("error while writing app stop event to nats ", "app", app.AppId, "deploymentGroup", app.DeploymentGroupId, "err", err)
 		} else {
-
+			impl.pubsubClient.Conn.PublishAsync(BULK_HIBERNATE_TOPIC, data, func(s string, err error) {
+				if err != nil {
+					impl.logger.Errorw("error while writing app stop event to nats ", "app", app.AppId, "deploymentGroup", app.DeploymentGroupId, "err", err)
+				}
+			})
 		}
 	}
 	return nil, nil
@@ -956,11 +1009,17 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 
 func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows []*pipelineConfig.CdWorkflow) {
 	for _, wf := range cdWorkflows {
-		_, err := json.Marshal(wf)
+		data, err := json.Marshal(wf)
 		if err != nil {
 			wf.WorkflowStatus = pipelineConfig.QUE_ERROR
 		} else {
-
+			impl.pubsubClient.Conn.PublishAsync(BULK_DEPLOY_TOPIC, data, func(s string, err error) {
+		if err != nil {
+			wf.WorkflowStatus = pipelineConfig.QUE_ERROR
+		} else {
+					wf.WorkflowStatus = pipelineConfig.ENQUEUED
+				}
+			})
 		}
 		err = impl.cdWorkflowRepository.UpdateWorkFlow(wf)
 		if err != nil {
@@ -970,11 +1029,88 @@ func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows [
 }
 
 func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
-	return nil
+	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_DEPLOY_TOPIC, BULK_DEPLOY_GROUP, func(msg *stan.Msg) {
+		impl.logger.Debug("subscribeTriggerBulkAction event received")
+		defer msg.Ack()
+		cdWorkflow := new(pipelineConfig.CdWorkflow)
+		err := json.Unmarshal([]byte(string(msg.Data)), cdWorkflow)
+		if err != nil {
+			impl.logger.Error("err", err)
+			return
+		}
+		impl.logger.Debugw("subscribeTriggerBulkAction event:", "cdWorkflow", cdWorkflow)
+		wf := &pipelineConfig.CdWorkflow{
+			Id:           cdWorkflow.Id,
+			CiArtifactId: cdWorkflow.CiArtifactId,
+			PipelineId:   cdWorkflow.PipelineId,
+			AuditLog: models.AuditLog{
+				UpdatedOn: time.Now(),
+			},
+		}
+		latest, err := impl.cdWorkflowRepository.IsLatestWf(cdWorkflow.PipelineId, cdWorkflow.Id)
+		if err != nil {
+			impl.logger.Errorw("error in determining latest", "wf", cdWorkflow, "err", err)
+			wf.WorkflowStatus = pipelineConfig.DEQUE_ERROR
+			impl.cdWorkflowRepository.UpdateWorkFlow(wf)
+			return
+		}
+		if !latest {
+			wf.WorkflowStatus = pipelineConfig.DROPPED_STALE
+			impl.cdWorkflowRepository.UpdateWorkFlow(wf)
+			return
+		}
+		pipeline, err := impl.pipelineRepository.FindById(cdWorkflow.PipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching pipeline", "err", err)
+			wf.WorkflowStatus = pipelineConfig.TRIGGER_ERROR
+			impl.cdWorkflowRepository.UpdateWorkFlow(wf)
+			return
+		}
+		artefact, err := impl.ciArtifactRepository.Get(cdWorkflow.CiArtifactId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching artefact", "err", err)
+			wf.WorkflowStatus = pipelineConfig.TRIGGER_ERROR
+			impl.cdWorkflowRepository.UpdateWorkFlow(wf)
+			return
+		}
+		err = impl.triggerStageForBulk(wf, pipeline, artefact, false, false, cdWorkflow.CreatedBy)
+		if err != nil {
+			impl.logger.Errorw("error in cd trigger ", "err", err)
+			wf.WorkflowStatus = pipelineConfig.TRIGGER_ERROR
+		} else {
+			wf.WorkflowStatus = pipelineConfig.WF_STARTED
+		}
+		impl.cdWorkflowRepository.UpdateWorkFlow(wf)
+	}, stan.DurableName(BULK_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(180)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	return err
 }
 
 func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
-	return nil
+	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_HIBERNATE_TOPIC, BULK_HIBERNATE_GROUP, func(msg *stan.Msg) {
+		impl.logger.Debug("subscribeHibernateBulkAction event received")
+		defer msg.Ack()
+		deploymentGroupAppWithEnv := new(DeploymentGroupAppWithEnv)
+		err := json.Unmarshal([]byte(string(msg.Data)), deploymentGroupAppWithEnv)
+		if err != nil {
+			impl.logger.Error("err", err)
+			return
+		}
+		impl.logger.Debugw("subscribeHibernateBulkAction event:", "DeploymentGroupAppWithEnv", deploymentGroupAppWithEnv)
+
+		stopAppRequest := &StopAppRequest{
+			AppId:         deploymentGroupAppWithEnv.AppId,
+			EnvironmentId: deploymentGroupAppWithEnv.EnvironmentId,
+			UserId:        deploymentGroupAppWithEnv.UserId,
+			RequestType:   deploymentGroupAppWithEnv.RequestType,
+		}
+		ctx, err := impl.buildACDSynchContext()
+		if err != nil {
+			impl.logger.Errorw("error in creating acd synch context", "err", err)
+			return
+		}
+		_, err = impl.StopStartApp(stopAppRequest, ctx)
+	}, stan.DurableName(BULK_HIBERNATE_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(180)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	return err
 }
 
 func (impl *WorkflowDagExecutorImpl) buildACDSynchContext() (acdContext context.Context, err error) {

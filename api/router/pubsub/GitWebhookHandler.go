@@ -18,9 +18,13 @@
 package pubsub
 
 import (
+	"encoding/json"
+	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/git"
+	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
+	"time"
 )
 
 type GitWebhookHandler interface {
@@ -52,6 +56,25 @@ func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSub
 }
 
 func (impl *GitWebhookHandlerImpl) Subscribe() error {
+	_, err := impl.pubsubClient.Conn.QueueSubscribe(newCiMaterialTopic, newCiMaterialTopicGroup, func(msg *stan.Msg) {
+		defer msg.Ack()
+		ciPipelineMaterial := gitSensor.CiPipelineMaterial{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &ciPipelineMaterial)
+		if err != nil {
+			impl.logger.Error("err", err)
+			return
+		}
+		resp, err := impl.gitWebhookService.HandleGitWebhook(ciPipelineMaterial)
+		impl.logger.Debug(resp)
+		if err != nil {
+			impl.logger.Error("err", err)
+			return
+		}
+	}, stan.DurableName(newCiMaterialTopicDurable), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
 
+	if err != nil {
+		impl.logger.Error("err", err)
+		return err
+	}
 	return nil
 }

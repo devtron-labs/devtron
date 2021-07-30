@@ -18,9 +18,13 @@
 package pubsub
 
 import (
+	"encoding/json"
+	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/event"
+	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
+	"time"
 )
 
 type CronBasedEventReceiver interface {
@@ -52,5 +56,25 @@ func NewCronBasedEventReceiverImpl(logger *zap.SugaredLogger, pubsubClient *pubs
 }
 
 func (impl *CronBasedEventReceiverImpl) Subscribe() error {
+	_, err := impl.pubsubClient.Conn.QueueSubscribe(cronEvents, cronEventsGroup, func(msg *stan.Msg) {
+		impl.logger.Debug("received cron event")
+		defer msg.Ack()
+		event := client.Event{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &event)
+		if err != nil {
+			impl.logger.Errorw("err", "err", err)
+			return
+		}
+		err = impl.eventService.HandleEvent(event)
+		if err != nil {
+			impl.logger.Errorw("err while handle event on subscribe", "err", err)
+			return
+		}
+	}, stan.DurableName(cronEventsDurable), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+
+	if err != nil {
+		impl.logger.Errorw("err", "err", err)
+		return err
+	}
 	return nil
 }

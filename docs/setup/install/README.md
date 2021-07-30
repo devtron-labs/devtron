@@ -60,7 +60,7 @@ Following properties should be configured
 
 | Parameter | Description | Default |
 | ---: | :--- | :--- |
-| **POSTGRESQL\_PASSWORD** | password for postgres database, should be base64 encoded \(required\) | change-me |
+| **POSTGRESQL\_PASSWORD** | password for postgres database, should be base64 encoded | |
 | **WEBHOOK\_TOKEN** | If you want to continue using jenkins for CI then please provide this for authentication of requests, should be base64 encoded |  |
 
 **Configure ConfigMaps**

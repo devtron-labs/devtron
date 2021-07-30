@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
+	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -104,7 +105,14 @@ func (handler UserAuthHandlerImpl) RefreshTokenHandler(w http.ResponseWriter, r 
 }
 
 func (handler UserAuthHandlerImpl) Subscribe() error {
-
+	_, err := handler.natsClient.Conn.Subscribe(POLICY_UPDATE_TOPIC, func(msg *stan.Msg) {
+		handler.logger.Debugw("msg received by subscriber for - Policy Load", "msg", msg)
+		casbin.LoadPolicy()
+	})
+	if err != nil {
+		handler.logger.Errorw("subscribe err, POLICY_UPDATE_TOPIC", "err", err)
+		return err
+	}
 	return nil
 }
 

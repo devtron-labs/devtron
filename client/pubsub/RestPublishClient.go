@@ -44,6 +44,13 @@ type PublishRequest struct {
 }
 
 func (impl *NatsPublishClientImpl) Publish(req *PublishRequest) (string, error) {
-
-	return "",nil
+	id, err := impl.pubSubClient.Conn.PublishAsync(req.Topic, req.Payload, func(s string, err error) {
+		if err != nil {
+			impl.logger.Errorw("error in publishing msg ", "topic", req.Topic, "body", string(req.Payload), "err", err)
+		}
+	})
+	if err != nil {
+		impl.logger.Errorw("error in publishing msg submit", "topic", req.Topic, "body", string(req.Payload), "err", err)
+	}
+	return id, err
 }
