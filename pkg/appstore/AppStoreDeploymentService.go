@@ -1342,10 +1342,10 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 			status = appstore.QUE_ERROR
 		} else {
 			err := impl.pubsubClient.Conn.Publish(BULK_APPSTORE_DEPLOY_TOPIC, data)
-		if err != nil {
+			if err != nil {
 				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
-			status = appstore.QUE_ERROR
-		} else {
+				status = appstore.QUE_ERROR
+			} else {
 				status = appstore.ENQUEUED
 			}
 

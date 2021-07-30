@@ -1014,9 +1014,9 @@ func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows [
 			wf.WorkflowStatus = pipelineConfig.QUE_ERROR
 		} else {
 			impl.pubsubClient.Conn.PublishAsync(BULK_DEPLOY_TOPIC, data, func(s string, err error) {
-		if err != nil {
-			wf.WorkflowStatus = pipelineConfig.QUE_ERROR
-		} else {
+				if err != nil {
+					wf.WorkflowStatus = pipelineConfig.QUE_ERROR
+				} else {
 					wf.WorkflowStatus = pipelineConfig.ENQUEUED
 				}
 			})
