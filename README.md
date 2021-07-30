@@ -39,10 +39,11 @@
 It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on kubernetes in a developer friendly way. 
 <br>
 <br>
-<img src="./assets/preview.gif">
+<img src="https://i.postimg.cc/25W3HbjD/readme-comic.png">
 <br>
 <br>
 ## :tada: Features
+<img src="./assets/preview.gif">
 <details>
 <summary> 
  <b> Zero code software delivery workflow </b>
