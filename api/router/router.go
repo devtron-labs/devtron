@@ -47,6 +47,7 @@ type MuxRouter struct {
 	CDRouter                         CDRouter
 	ProjectManagementRouter          ProjectManagementRouter
 	GitProviderRouter                GitProviderRouter
+	GitHostRouter                    GitHostRouter
 	DockerRegRouter                  DockerRegRouter
 	NotificationRouter               NotificationRouter
 	TeamRouter                       TeamRouter
@@ -76,6 +77,9 @@ type MuxRouter struct {
 	telemetryRouter                  TelemetryRouter
 	telemetryWatcher                 telemetry.TelemetryEventClient
 	bulkUpdateRouter                 BulkUpdateRouter
+	appLabelsRouter    AppLabelRouter
+	WebhookListenerRouter		     WebhookListenerRouter
+
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -83,7 +87,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	EnvironmentClusterMappingsRouter EnvironmentRouter, ClusterRouter ClusterRouter, ClusterHelmConfigRouter ClusterHelmConfigRouter,
 	WebHookRouter WebhookRouter, UserAuthRouter UserAuthRouter, ApplicationRouter ApplicationRouter,
 	CDRouter CDRouter, ProjectManagementRouter ProjectManagementRouter,
-	GitProviderRouter GitProviderRouter, DockerRegRouter DockerRegRouter,
+	GitProviderRouter GitProviderRouter, GitHostRouter GitHostRouter,
+	DockerRegRouter DockerRegRouter,
 	NotificationRouter NotificationRouter,
 	TeamRouter TeamRouter,
 	gitWebhookHandler pubsub.GitWebhookHandler,
@@ -94,7 +99,10 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter,
-	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter) *MuxRouter {
+
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter,
+	appLabelsRouter AppLabelRouter, webhookListenerRouter WebhookListenerRouter) *MuxRouter {
+
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -112,6 +120,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		ProjectManagementRouter:          ProjectManagementRouter,
 		DockerRegRouter:                  DockerRegRouter,
 		GitProviderRouter:                GitProviderRouter,
+		GitHostRouter:                	  GitHostRouter,
 		NotificationRouter:               NotificationRouter,
 		TeamRouter:                       TeamRouter,
 		logger:                           logger,
@@ -141,6 +150,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		telemetryRouter:                  telemetryRouter,
 		telemetryWatcher:                 telemetryWatcher,
 		bulkUpdateRouter:                 bulkUpdateRouter,
+		appLabelsRouter:                  appLabelsRouter,
+		WebhookListenerRouter:            webhookListenerRouter,
 	}
 	return r
 }
@@ -171,6 +182,7 @@ func (r MuxRouter) Init() {
 	r.PipelineConfigRouter.initPipelineConfigRouter(pipelineConfigRouter)
 	r.AppListingRouter.initAppListingRouter(pipelineConfigRouter)
 	r.HelmRouter.initHelmRouter(pipelineConfigRouter)
+	r.appLabelsRouter.initLabelRouter(pipelineConfigRouter)
 
 	migrateRouter := r.Router.PathPrefix("/orchestrator/migrate").Subrouter()
 	r.MigrateDbRouter.InitMigrateDbRouter(migrateRouter)
@@ -201,6 +213,7 @@ func (r MuxRouter) Init() {
 
 	gitRouter := r.Router.PathPrefix("/orchestrator/git").Subrouter()
 	r.GitProviderRouter.InitGitProviderRouter(gitRouter)
+	r.GitHostRouter.InitGitHostRouter(gitRouter)
 
 	dockerRouter := r.Router.PathPrefix("/orchestrator/docker").Subrouter()
 	r.DockerRegRouter.InitDockerRegRouter(dockerRouter)
@@ -264,9 +277,14 @@ func (r MuxRouter) Init() {
 	ssoLoginRouter := r.Router.PathPrefix("/orchestrator/sso").Subrouter()
 	r.ssoLoginRouter.initSsoLoginRouter(ssoLoginRouter)
 
+
 	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
 	r.telemetryRouter.initTelemetryRouter(telemetryRouter)
 
 	bulkUpdateRouter := r.Router.PathPrefix("/orchestrator/batch").Subrouter()
 	r.bulkUpdateRouter.initBulkUpdateRouter(bulkUpdateRouter)
+
+	webhookListenerRouter := r.Router.PathPrefix("/orchestrator/webhook/git").Subrouter()
+	r.WebhookListenerRouter.InitWebhookListenerRouter(webhookListenerRouter)
+
 }

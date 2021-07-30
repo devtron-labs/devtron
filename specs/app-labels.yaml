@@ -1,0 +1,207 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/app/labels/list:
+    get:
+      description: this api will return all the labels available in database.
+      parameters: [ ]
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    allOf:
+                      - type: object
+                        properties:
+                          appId:
+                            type: integer
+                            description: unique application id
+                        required:
+                          - appId
+                      - $ref: '#/components/schemas/AppLabel'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/app/meta/info/{appId}:
+    get:
+      description: application basic info, projects and labels
+      parameters:
+        - name: appId
+          in: path
+          description: application id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: application basic info, projects and labels
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: object
+                    description: meta info project name and labels
+                    $ref: '#/components/schemas/AppMetaInfo'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
+  /orchestrator/app/labels:
+    post:
+      description: edit labels to the apps, add or remove from this api.
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppLabels'
+      responses:
+        '200':
+          description: app labels edit response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: string
+                    $ref: '#/components/schemas/AppLabels'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
+# components mentioned below
+components:
+  schemas:
+    AppLabel:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          description: label key
+        value:
+          type: string
+          description: label value
+
+    AppLabels:
+      type: object
+      required:
+        - appId
+        - labels
+      properties:
+        appId:
+          type: integer
+          description: application id
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppLabel'
+
+    AppMetaInfo:
+      type: object
+      required:
+        - appId
+        - projectId
+        - appName
+        - projectName
+        - createdOn
+        - createdBy
+        - labels
+      properties:
+        appId:
+          type: integer
+          description: app id
+        projectId:
+          type: integer
+          description: team/project id
+        appName:
+          type: string
+          description: app name
+        projectName:
+          type: string
+          description: team/project name
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppLabel'
+        createdOn:
+          type: string
+          description: app creation date
+        createdBy:
+          type: string
+          description: app created by
+
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message
