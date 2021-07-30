@@ -19,11 +19,19 @@ package pubsub
 
 import (
 	"github.com/caarlos0/env"
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
+	"log"
+	"math/rand"
+	"os"
+	"strconv"
+	"time"
 )
 
 type PubSubClient struct {
 	logger      *zap.SugaredLogger
+	Conn        stan.Conn
 	AckDuration int
 }
 
@@ -46,5 +54,30 @@ func NewPubSubClient(logger *zap.SugaredLogger) (*PubSubClient, error) {
 		return &PubSubClient{}, err
 	}
 
-	return nil, nil
+	nc, err := nats.Connect(cfg.NatsServerHost, nats.ReconnectWait(10*time.Second), nats.MaxReconnects(100))
+	if err != nil {
+		logger.Error("err", err)
+		return &PubSubClient{}, err
+	}
+
+	s := rand.NewSource(time.Now().UnixNano())
+	uuid := rand.New(s)
+	uniqueClienId := "orchestrator-" + strconv.Itoa(uuid.Int())
+
+	sc, err := stan.Connect(cfg.ClusterId, uniqueClienId, stan.NatsConn(nc))
+	if err != nil {
+		log.Println("err", err)
+		os.Exit(1)
+	}
+	ack, err := strconv.Atoi(cfg.AckDuration)
+	if err != nil {
+		log.Println("err", err)
+		os.Exit(1)
+	}
+	natsClient := &PubSubClient{
+		logger:      logger,
+		Conn:        sc,
+		AckDuration: ack,
+	}
+	return natsClient, nil
 }

@@ -8,6 +8,7 @@ require (
 	github.com/Azure/go-autorest/autorest/adal v0.9.13
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Pallinder/go-randomdata v1.2.0
+	github.com/ThreeDotsLabs/watermill v1.0.2 // indirect
 	github.com/argoproj/argo v2.4.1+incompatible
 	github.com/argoproj/argo-cd v1.2.3
 	github.com/argoproj/pkg v0.0.0-20190830164810-036726ef3c78 // indirect
@@ -65,6 +66,9 @@ require (
 	github.com/lib/pq v1.2.0
 	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
+	github.com/nats-io/nats-streaming-server v0.15.1 // indirect
+	github.com/nats-io/nats.go v1.8.1
+	github.com/nats-io/stan.go v0.5.0
 	github.com/otiai10/copy v1.0.2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
