@@ -4,13 +4,12 @@ To install Helm2, please check [Installing Helm2](https://v2.helm.sh/docs/instal
 
 {% tabs %}
 {% tab title="Install with default configurations" %}
-This installation will use Minio for storing build logs and cache. Please make sure to edit the POSTGRESQL_PASSWORD value.
+This installation will use Minio for storing build logs and cache. 
 ```bash
 kubectl create namespace devtroncd
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
 helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --namespace devtroncd \
---set secrets.POSTGRESQL_PASSWORD=change-me
+helm install devtron devtron/devtron-operator --namespace devtroncd 
 ```
 {% endtab %}
 
@@ -22,7 +21,6 @@ kubectl create namespace devtroncd
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
 helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --namespace devtroncd \
---set secrets.POSTGRESQL_PASSWORD=change-me \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
@@ -39,7 +37,6 @@ kubectl create namespace devtroncd
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
 helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --namespace devtroncd \
---set secrets.POSTGRESQL_PASSWORD=change-me \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
 --set configs.AZURE_ACCOUNT_NAME=test-account \
 --set configs.AZURE_BLOB_CONTAINER_CI_LOG=ci-log-container \
