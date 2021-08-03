@@ -11,8 +11,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 	"net/http"
+	"strings"
 )
 
 type NameIncludesExcludes struct {
@@ -24,12 +26,12 @@ type DeploymentTemplateSpec struct {
 type DeploymentTemplateTask struct {
 	Spec DeploymentTemplateSpec `json:"spec"`
 }
-type ConfigMapAndSecretSpec struct {
+type CmAndSecretSpec struct {
 	Names     []string `json:"names"`
-	PatchData []string `json:"patchData"`
+	PatchJson string   `json:"patchJson"`
 }
-type ConfigMapAndSecretTask struct {
-	Spec ConfigMapAndSecretSpec `json:"spec"`
+type CmAndSecretTask struct {
+	Spec CmAndSecretSpec `json:"spec"`
 }
 type BulkUpdatePayload struct {
 	Includes           NameIncludesExcludes   `json:"includes"`
@@ -37,8 +39,8 @@ type BulkUpdatePayload struct {
 	EnvIds             []int                  `json:"envIds"`
 	Global             bool                   `json:"global"`
 	DeploymentTemplate DeploymentTemplateTask `json:"deploymentTemplate"`
-	ConfigMap          ConfigMapAndSecretTask `json:"configMap"`
-	SecretsList        ConfigMapAndSecretTask `json:"secret"`
+	ConfigMap          CmAndSecretTask        `json:"configMap"`
+	Secret             CmAndSecretTask        `json:"secret"`
 }
 type BulkUpdateScript struct {
 	ApiVersion string            `json:"apiVersion" validate:"required"`
@@ -50,29 +52,54 @@ type BulkUpdateSeeExampleResponse struct {
 	Script    BulkUpdateScript `json:"script" validate:"required"`
 	ReadMe    string           `json:"readme"`
 }
-type ImpactedObjectsResponse struct{
-	DeploymentTemplate []*ImpactedObjectsResponseForOneApp `json:"deploymentTemplate"`
-	ConfigMap []*ImpactedObjectsResponseForOneApp ``
+type ImpactedObjectsResponse struct {
+	DeploymentTemplate []*DeploymentTemplateImpactedObjectsResponseForOneApp `json:"deploymentTemplate"`
+	ConfigMap          []*CmAndSecretImpactedObjectsResponseForOneApp        `json:"configMap"`
+	Secret             []*CmAndSecretImpactedObjectsResponseForOneApp        `json:"secret"`
 }
-type ImpactedObjectsResponseForOneApp struct {
+type DeploymentTemplateImpactedObjectsResponseForOneApp struct {
 	AppId   int    `json:"appId"`
 	AppName string `json:"appName"`
 	EnvId   int    `json:"envId"`
 }
-type BulkUpdateResponseStatusForOneApp struct {
+type CmAndSecretImpactedObjectsResponseForOneApp struct {
+	AppId   int      `json:"appId"`
+	AppName string   `json:"appName"`
+	EnvId   int      `json:"envId"`
+	Names   []string `json:"names"`
+}
+type DeploymentTemplateBulkUpdateResponseForOneApp struct {
 	AppId   int    `json:"appId"`
 	AppName string `json:"appName"`
 	EnvId   int    `json:"envId"`
 	Message string `json:"message"`
 }
+type CmAndSecretBulkUpdateResponseForOneApp struct {
+	AppId   int      `json:"appId"`
+	AppName string   `json:"appName"`
+	EnvId   int      `json:"envId"`
+	Names   []string `json:"names"`
+	Message string   `json:"message"`
+}
 type BulkUpdateResponse struct {
-	Message    []string                             `json:"message"`
-	Failure    []*BulkUpdateResponseStatusForOneApp `json:"failure"`
-	Successful []*BulkUpdateResponseStatusForOneApp `json:"successful"`
+	DeploymentTemplate DeploymentTemplateBulkUpdateResponse `json:"deploymentTemplate"`
+	ConfigMap          CmAndSecretBulkUpdateResponse        `json:"configMap"`
+	Secret             CmAndSecretBulkUpdateResponse        `json:"secret"`
+}
+type DeploymentTemplateBulkUpdateResponse struct {
+	Message    []string                                         `json:"message"`
+	Failure    []*DeploymentTemplateBulkUpdateResponseForOneApp `json:"failure"`
+	Successful []*DeploymentTemplateBulkUpdateResponseForOneApp `json:"successful"`
+}
+type CmAndSecretBulkUpdateResponse struct {
+	Message    []string                                  `json:"message"`
+	Failure    []*CmAndSecretBulkUpdateResponseForOneApp `json:"failure"`
+	Successful []*CmAndSecretBulkUpdateResponseForOneApp `json:"successful"`
 }
 type BulkUpdateService interface {
 	FindBulkUpdateReadme(operation string) (response BulkUpdateSeeExampleResponse, err error)
-	GetBulkAppName(bulkUpdateRequest BulkUpdatePayload) ([]*ImpactedObjectsResponse, error)
+	CheckIfSliceContainsString(slice []string, string string) bool
+	GetBulkAppName(bulkUpdateRequest BulkUpdatePayload) (*ImpactedObjectsResponse, error)
 	ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error)
 	BulkUpdate(bulkUpdateRequest BulkUpdatePayload) (bulkUpdateResponse BulkUpdateResponse)
 }
@@ -95,6 +122,7 @@ type BulkUpdateServiceImpl struct {
 	environmentRepository     cluster.EnvironmentRepository
 	pipelineRepository        pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
+	appRepository             pipelineConfig.AppRepository
 	client                    *http.Client
 }
 
@@ -115,6 +143,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	environmentRepository cluster.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
+	appRepository pipelineConfig.AppRepository,
 	client *http.Client,
 ) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
@@ -136,6 +165,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		pipelineRepository:        pipelineRepository,
 		appLevelMetricsRepository: appLevelMetricsRepository,
 		client:                    client,
+		appRepository:             appRepository,
 	}
 }
 func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (BulkUpdateSeeExampleResponse, error) {
@@ -158,42 +188,161 @@ func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (BulkUp
 	}
 	return response, nil
 }
-func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePayload) ([]*ImpactedObjectsResponse, error) {
-	impactedObjectsResponse := []*ImpactedObjectsResponse{}
+
+func (impl BulkUpdateServiceImpl) CheckIfSliceContainsString(slice []string, string string) bool {
+	for _, n := range slice {
+		if string == n {
+			return true
+		}
+	}
+	return false
+}
+func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePayload) (*ImpactedObjectsResponse, error) {
+	impactedObjectsResponse := &ImpactedObjectsResponse{}
+	deploymentTemplateImpactedObjects := []*DeploymentTemplateImpactedObjectsResponseForOneApp{}
+	configMapImpactedObjects := []*CmAndSecretImpactedObjectsResponseForOneApp{}
+	secretImpactedObjects := []*CmAndSecretImpactedObjectsResponseForOneApp{}
+
 	if len(bulkUpdatePayload.Includes.Names) == 0 {
 		return impactedObjectsResponse, nil
 	}
 	if bulkUpdatePayload.Global {
-		appsGlobal, err := impl.bulkUpdateRepository.
-			FindBulkAppNameForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
-		if err != nil {
-			impl.logger.Errorw("error in fetching bulk app names for global", "err", err)
-			return nil, err
-		}
-		for _, app := range appsGlobal {
-			impactedObject := &ImpactedObjectsResponse{
-				AppId:   app.Id,
-				AppName: app.AppName,
+		//For Deployment Template
+		if len(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson) != 0 {
+			appsGlobalDT, err := impl.bulkUpdateRepository.
+				FindDeploymentTemplateBulkAppNameForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
+			if err != nil {
+				impl.logger.Errorw("error in fetching bulk app names for global", "err", err)
+				return nil, err
 			}
-			impactedObjectsResponse = append(impactedObjectsResponse, impactedObject)
+			for _, app := range appsGlobalDT {
+				deploymentTemplateImpactedObject := &DeploymentTemplateImpactedObjectsResponseForOneApp{
+					AppId:   app.Id,
+					AppName: app.AppName,
+				}
+				deploymentTemplateImpactedObjects = append(deploymentTemplateImpactedObjects, deploymentTemplateImpactedObject)
+			}
+		}
+
+		//For ConfigMap & Secret
+		if (len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 && len(bulkUpdatePayload.ConfigMap.Spec.PatchJson) != 0) || (len(bulkUpdatePayload.Secret.Spec.Names) != 0 && len(bulkUpdatePayload.Secret.Spec.PatchJson) != 0) {
+			configMapAppModels, err := impl.bulkUpdateRepository.FindCMAndSecretBulkAppModelForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
+			if err != nil {
+				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
+				return nil, err
+			}
+			for _, configMapAppModel := range configMapAppModels {
+				var finalConfigMapNames []string
+				var finalSecretNames []string
+				if len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 {
+					configMapNames := gjson.Get(configMapAppModel.ConfigMapData, "maps.#.name")
+					for _, configMapName := range configMapNames.Array() {
+						contains := impl.CheckIfSliceContainsString(bulkUpdatePayload.ConfigMap.Spec.Names, configMapName.String())
+						if contains == true {
+							finalConfigMapNames = append(finalConfigMapNames, configMapName.String())
+						}
+					}
+				}
+				if len(bulkUpdatePayload.Secret.Spec.Names) != 0 {
+					secretNames := gjson.Get(configMapAppModel.ConfigMapData, "secrets.#.name")
+					for _, secretName := range secretNames.Array() {
+						contains := impl.CheckIfSliceContainsString(bulkUpdatePayload.ConfigMap.Spec.Names, secretName.String())
+						if contains == true {
+							finalSecretNames = append(finalSecretNames, secretName.String())
+						}
+					}
+				}
+				appDetailsById, _ := impl.appRepository.FindById(configMapAppModel.AppId)
+				if len(finalConfigMapNames) != 0 {
+					configMapImpactedObject := &CmAndSecretImpactedObjectsResponseForOneApp{
+						AppId:   configMapAppModel.AppId,
+						AppName: appDetailsById.AppName,
+						Names:   finalConfigMapNames,
+					}
+					configMapImpactedObjects = append(configMapImpactedObjects, configMapImpactedObject)
+				}
+				if len(finalSecretNames) != 0 {
+					secretImpactedObject := &CmAndSecretImpactedObjectsResponseForOneApp{
+						AppId:   configMapAppModel.AppId,
+						AppName: appDetailsById.AppName,
+						Names:   finalConfigMapNames,
+					}
+					secretImpactedObjects = append(secretImpactedObjects, secretImpactedObject)
+				}
+			}
 		}
 	}
 	for _, envId := range bulkUpdatePayload.EnvIds {
-		appsNotGlobal, err := impl.bulkUpdateRepository.
-			FindBulkAppNameForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching bulk app names for env", "err", err)
-			return nil, err
-		}
-		for _, app := range appsNotGlobal {
-			impactedObject := &ImpactedObjectsResponse{
-				AppId:   app.Id,
-				AppName: app.AppName,
-				EnvId:   envId,
+		//For Deployment Template
+		if len(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson) != 0 {
+			appsNotGlobalDT, err := impl.bulkUpdateRepository.
+				FindDeploymentTemplateBulkAppNameForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching bulk app names for env", "err", err)
+				return nil, err
 			}
-			impactedObjectsResponse = append(impactedObjectsResponse, impactedObject)
+			for _, app := range appsNotGlobalDT {
+				deploymentTemplateImpactedObject := &DeploymentTemplateImpactedObjectsResponseForOneApp{
+					AppId:   app.Id,
+					AppName: app.AppName,
+					EnvId:   envId,
+				}
+				deploymentTemplateImpactedObjects = append(deploymentTemplateImpactedObjects, deploymentTemplateImpactedObject)
+			}
+		}
+		//For ConfigMap & Secret
+		if (len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 && len(bulkUpdatePayload.ConfigMap.Spec.PatchJson) != 0) || (len(bulkUpdatePayload.Secret.Spec.Names) != 0 && len(bulkUpdatePayload.Secret.Spec.PatchJson) != 0) {
+			configMapEnvModels, err := impl.bulkUpdateRepository.FindCMAndSecretBulkAppModelForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
+				return nil, err
+			}
+			for _, configMapEnvModel := range configMapEnvModels {
+				var finalConfigMapNames []string
+				var finalSecretNames []string
+				if len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 && len(bulkUpdatePayload.ConfigMap.Spec.PatchJson) != 0 {
+					configMapNames := gjson.Get(configMapEnvModel.ConfigMapData, "maps.#.name")
+					for _, configMapName := range configMapNames.Array() {
+						contains := impl.CheckIfSliceContainsString(bulkUpdatePayload.ConfigMap.Spec.Names, configMapName.String())
+						if contains == true {
+							finalConfigMapNames = append(finalConfigMapNames, configMapName.String())
+						}
+					}
+				}
+				if len(bulkUpdatePayload.Secret.Spec.Names) != 0 && len(bulkUpdatePayload.Secret.Spec.PatchJson) != 0 {
+					secretNames := gjson.Get(configMapEnvModel.ConfigMapData, "secrets.#.name")
+					for _, secretName := range secretNames.Array() {
+						contains := impl.CheckIfSliceContainsString(bulkUpdatePayload.ConfigMap.Spec.Names, secretName.String())
+						if contains == true {
+							finalSecretNames = append(finalSecretNames, secretName.String())
+						}
+					}
+				}
+				appDetailsById, _ := impl.appRepository.FindById(configMapEnvModel.AppId)
+				if len(finalConfigMapNames) != 0 {
+					configMapImpactedObject := &CmAndSecretImpactedObjectsResponseForOneApp{
+						AppId:   configMapEnvModel.AppId,
+						AppName: appDetailsById.AppName,
+						EnvId:   envId,
+						Names:   finalConfigMapNames,
+					}
+					configMapImpactedObjects = append(configMapImpactedObjects, configMapImpactedObject)
+				}
+				if len(finalSecretNames) != 0 {
+					secretImpactedObject := &CmAndSecretImpactedObjectsResponseForOneApp{
+						AppId:   configMapEnvModel.AppId,
+						AppName: appDetailsById.AppName,
+						EnvId:   envId,
+						Names:   finalConfigMapNames,
+					}
+					secretImpactedObjects = append(secretImpactedObjects, secretImpactedObject)
+				}
+			}
 		}
 	}
+	impactedObjectsResponse.DeploymentTemplate = deploymentTemplateImpactedObjects
+	impactedObjectsResponse.ConfigMap = configMapImpactedObjects
+	impactedObjectsResponse.Secret = secretImpactedObjects
 	return impactedObjectsResponse, nil
 }
 func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error) {
@@ -206,110 +355,455 @@ func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target s
 }
 func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload BulkUpdatePayload) BulkUpdateResponse {
 	var bulkUpdateResponse BulkUpdateResponse
+	var deploymentTemplateBulkUpdateResponse DeploymentTemplateBulkUpdateResponse
+	var configMapBulkUpdateResponse CmAndSecretBulkUpdateResponse
+	var secretBulkUpdateResponse CmAndSecretBulkUpdateResponse
+
 	if len(bulkUpdatePayload.Includes.Names) == 0 {
-		bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, "Please don't leave includes.names array empty")
+		deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, "Please don't leave includes.names array empty")
+		configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, "Please don't leave includes.names array empty")
+		secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, "Please don't leave includes.names array empty")
 		return bulkUpdateResponse
 	}
-	patchJson := []byte(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson)
-	patch, err := jsonpatch.DecodePatch(patchJson)
+	deploymentTemplatePatchJson := []byte(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson)
+	deploymentTemplatePatch, err := jsonpatch.DecodePatch(deploymentTemplatePatchJson)
 	if err != nil {
 		impl.logger.Errorw("error in decoding JSON patch", "err", err)
-		bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, "The patch string you entered seems wrong, please check and try again")
-		return bulkUpdateResponse
+		deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, "The patch string you entered seems wrong, please check and try again")
 	}
 	var charts []*chartConfig.Chart
 	if bulkUpdatePayload.Global {
-		charts, err = impl.bulkUpdateRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
-		if err != nil {
-			impl.logger.Error("error in fetching charts by app name substring")
-			bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
-		} else {
-			if len(charts) == 0 {
-				bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, "No matching apps to update globally")
+		//For Deployment Template
+		if len(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson) != 0 {
+			charts, err = impl.bulkUpdateRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
+			if err != nil {
+				impl.logger.Error("error in fetching charts by app name substring")
+				deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
 			} else {
-				for _, chart := range charts {
-					appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartId(chart.Id)
-					modified, err := impl.ApplyJsonPatch(patch, chart.Values)
-					if err != nil {
-						impl.logger.Errorw("error in applying JSON patch", "err", err)
-						bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
-							AppId:   appDetailsByChart.Id,
-							AppName: appDetailsByChart.AppName,
-							Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
-						}
-						bulkUpdateResponse.Failure = append(bulkUpdateResponse.Failure, bulkUpdateFailedResponse)
-					} else {
-						err = impl.bulkUpdateRepository.BulkUpdateChartsValuesYamlAndGlobalOverrideById(chart.Id, modified)
+				if len(charts) == 0 {
+					deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, "No matching apps to update globally")
+				} else {
+					for _, chart := range charts {
+						appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartId(chart.Id)
+						modified, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chart.Values)
 						if err != nil {
-							impl.logger.Errorw("error in bulk updating charts", "err", err)
-							bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
+							impl.logger.Errorw("error in applying JSON patch", "err", err)
+							bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
 								AppId:   appDetailsByChart.Id,
 								AppName: appDetailsByChart.AppName,
-								Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
+								Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
 							}
-							bulkUpdateResponse.Failure = append(bulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+							deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 						} else {
-							bulkUpdateSuccessResponse := &BulkUpdateResponseStatusForOneApp{
-								AppId:   appDetailsByChart.Id,
-								AppName: appDetailsByChart.AppName,
-								Message: "Updated Successfully",
+							err = impl.bulkUpdateRepository.BulkUpdateChartsValuesYamlAndGlobalOverrideById(chart.Id, modified)
+							if err != nil {
+								impl.logger.Errorw("error in bulk updating charts", "err", err)
+								bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
+									AppId:   appDetailsByChart.Id,
+									AppName: appDetailsByChart.AppName,
+									Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
+								}
+								deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+							} else {
+								bulkUpdateSuccessResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
+									AppId:   appDetailsByChart.Id,
+									AppName: appDetailsByChart.AppName,
+									Message: "Updated Successfully",
+								}
+								deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
 							}
-							bulkUpdateResponse.Successful = append(bulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
 						}
 					}
 				}
 			}
 		}
+		//For ConfigMap
+		if len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 && len(bulkUpdatePayload.ConfigMap.Spec.PatchJson) != 0 {
+			configMapAppModels, err := impl.bulkUpdateRepository.FindCMAndSecretBulkAppModelForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
+			if err != nil {
+				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
+				configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
+			} else {
+				if len(configMapAppModels) == 0 {
+					configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, "No matching apps to update globally")
+				} else {
+					for _, configMapAppModel := range configMapAppModels {
+						configMapNames := gjson.Get(configMapAppModel.ConfigMapData, "maps.#.name")
+						messageCmNamesMap := make(map[string][]string)
+						for i, configMapName := range configMapNames.Array() {
+							contains := impl.CheckIfSliceContainsString(bulkUpdatePayload.ConfigMap.Spec.Names, configMapName.String())
+							if contains == true {
+								configMapPatchJson := []byte(strings.Replace(bulkUpdatePayload.ConfigMap.Spec.PatchJson, "\"path\": \"", fmt.Sprintf("\"path\": \"/maps/%d/data", i), -1))
+								configMapPatch, err := jsonpatch.DecodePatch(configMapPatchJson)
+								if err != nil {
+									impl.logger.Errorw("error in decoding JSON patch", "err", err)
+									if _, ok := messageCmNamesMap["The patch string you entered seems wrong, please check and try again"]; !ok {
+										messageCmNamesMap["The patch string you entered seems wrong, please check and try again"] = []string{configMapName.String()}
+									} else {
+										messageCmNamesMap["The patch string you entered seems wrong, please check and try again"] = append(messageCmNamesMap["The patch string you entered seems wrong, please check and try again"], configMapName.String())
+									}
+								} else {
+									modified, err := impl.ApplyJsonPatch(configMapPatch, configMapAppModel.ConfigMapData)
+									if err != nil {
+										impl.logger.Errorw("error in applying JSON patch", "err", err)
+										if _, ok := messageCmNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())]; !ok {
+											messageCmNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())] = []string{configMapName.String()}
+										} else {
+											messageCmNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())] = append(messageCmNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())], configMapName.String())
+										}
+									} else {
+										configMapAppModel.ConfigMapData = modified
+										if _, ok := messageCmNamesMap["Updated Successfully"]; !ok {
+											messageCmNamesMap["Updated Successfully"] = []string{configMapName.String()}
+										} else {
+											messageCmNamesMap["Updated Successfully"] = append(messageCmNamesMap["Updated Successfully"], configMapName.String())
+										}
+									}
+								}
+							}
+						}
+						if _, ok := messageCmNamesMap["Updated Successfully"]; ok {
+							err := impl.bulkUpdateRepository.BulkUpdateConfigMapDataForGlobalById(configMapAppModel.Id, configMapAppModel.ConfigMapData)
+							if err != nil {
+								impl.logger.Errorw("error in bulk updating charts", "err", err)
+								messageCmNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageCmNamesMap["Updated Successfully"]
+								delete(messageCmNamesMap, "Updated Successfully")
+							}
+						}
+						if len(messageCmNamesMap) != 0 {
+							appDetailsById, _ := impl.appRepository.FindById(configMapAppModel.AppId)
+							for key, value := range messageCmNamesMap {
+								if key == "Updated Successfully" {
+									bulkUpdateSuccessResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+										AppId:   appDetailsById.Id,
+										AppName: appDetailsById.AppName,
+										Names:   value,
+										Message: key,
+									}
+									configMapBulkUpdateResponse.Successful = append(configMapBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
+								} else {
+									bulkUpdateFailedResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+										AppId:   appDetailsById.Id,
+										AppName: appDetailsById.AppName,
+										Names:   value,
+										Message: key,
+									}
+									configMapBulkUpdateResponse.Failure = append(configMapBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		//For Secret
+		if len(bulkUpdatePayload.Secret.Spec.Names) != 0 && len(bulkUpdatePayload.Secret.Spec.PatchJson) != 0 {
+			secretAppModels, err := impl.bulkUpdateRepository.FindCMAndSecretBulkAppModelForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
+			if err != nil {
+				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
+				secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
+			} else {
+				if len(secretAppModels) == 0 {
+					secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, "No matching apps to update globally")
+				} else {
+					for _, secretAppModel := range secretAppModels {
+						secretNames := gjson.Get(secretAppModel.SecretData, "secrets.#.name")
+						messageSecretNamesMap := make(map[string][]string)
+						for i, secretName := range secretNames.Array() {
+							contains := impl.CheckIfSliceContainsString(bulkUpdatePayload.Secret.Spec.Names, secretName.String())
+							if contains == true {
+								secretPatchJson := []byte(strings.Replace(bulkUpdatePayload.Secret.Spec.PatchJson, "\"path\": \"", fmt.Sprintf("\"path\": \"/secrets/%d/data", i), -1))
+								secretPatch, err := jsonpatch.DecodePatch(secretPatchJson)
+								if err != nil {
+									impl.logger.Errorw("error in decoding JSON patch", "err", err)
+									if _, ok := messageSecretNamesMap["The patch string you entered seems wrong, please check and try again"]; !ok {
+										messageSecretNamesMap["The patch string you entered seems wrong, please check and try again"] = []string{secretName.String()}
+									} else {
+										messageSecretNamesMap["The patch string you entered seems wrong, please check and try again"] = append(messageSecretNamesMap["The patch string you entered seems wrong, please check and try again"], secretName.String())
+									}
+								} else {
+									modified, err := impl.ApplyJsonPatch(secretPatch, secretAppModel.SecretData)
+									if err != nil {
+										impl.logger.Errorw("error in applying JSON patch", "err", err)
+										if _, ok := messageSecretNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())]; !ok {
+											messageSecretNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())] = []string{secretName.String()}
+										} else {
+											messageSecretNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())] = append(messageSecretNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())], secretName.String())
+										}
+									} else {
+										secretAppModel.SecretData = modified
+										if _, ok := messageSecretNamesMap["Updated Successfully"]; !ok {
+											messageSecretNamesMap["Updated Successfully"] = []string{secretName.String()}
+										} else {
+											messageSecretNamesMap["Updated Successfully"] = append(messageSecretNamesMap["Updated Successfully"], secretName.String())
+										}
+									}
+								}
+							}
+						}
+						if _, ok := messageSecretNamesMap["Updated Successfully"]; ok {
+							err := impl.bulkUpdateRepository.BulkUpdateSecretDataForGlobalById(secretAppModel.Id, secretAppModel.SecretData)
+							if err != nil {
+								impl.logger.Errorw("error in bulk updating charts", "err", err)
+								messageSecretNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageSecretNamesMap["Updated Successfully"]
+								delete(messageSecretNamesMap, "Updated Successfully")
+							}
+						}
+						appDetailsById, _ := impl.appRepository.FindById(secretAppModel.AppId)
+						if len(messageSecretNamesMap) != 0 {
+							for key, value := range messageSecretNamesMap {
+								if key == "Updated Successfully" {
+									bulkUpdateSuccessResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+										AppId:   appDetailsById.Id,
+										AppName: appDetailsById.AppName,
+										Names:   value,
+										Message: key,
+									}
+									secretBulkUpdateResponse.Successful = append(secretBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
+								} else {
+									bulkUpdateFailedResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+										AppId:   appDetailsById.Id,
+										AppName: appDetailsById.AppName,
+										Names:   value,
+										Message: key,
+									}
+									secretBulkUpdateResponse.Failure = append(secretBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
 	}
 	var chartsEnv []*chartConfig.EnvConfigOverride
 	for _, envId := range bulkUpdatePayload.EnvIds {
-		chartsEnv, err = impl.bulkUpdateRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching charts(for env) by app name substring", "err", err)
-			bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for envId = %d , %s", envId, err.Error()))
-		} else {
-			if len(chartsEnv) == 0 {
-				bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId = %d", envId))
+		//For Deployment Template
+		if len(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson) != 0 {
+			chartsEnv, err = impl.bulkUpdateRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching charts(for env) by app name substring", "err", err)
+				deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for envId = %d , %s", envId, err.Error()))
 			} else {
-				for _, chartEnv := range chartsEnv {
-					appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartEnvId(chartEnv.Id)
-					modified, err := impl.ApplyJsonPatch(patch, chartEnv.EnvOverrideValues)
-					if err != nil {
-						impl.logger.Errorw("error in applying JSON patch", "err", err)
-						bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
-							AppId:   appDetailsByChart.Id,
-							AppName: appDetailsByChart.AppName,
-							EnvId:   envId,
-							Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
-						}
-						bulkUpdateResponse.Failure = append(bulkUpdateResponse.Failure, bulkUpdateFailedResponse)
-					} else {
-						err = impl.bulkUpdateRepository.BulkUpdateChartsEnvYamlOverrideById(chartEnv.Id, modified)
+				if len(chartsEnv) == 0 {
+					deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId = %d", envId))
+				} else {
+					for _, chartEnv := range chartsEnv {
+						appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartEnvId(chartEnv.Id)
+						modified, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chartEnv.EnvOverrideValues)
 						if err != nil {
-							impl.logger.Errorw("error in bulk updating charts", "err", err)
-							bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
+							impl.logger.Errorw("error in applying JSON patch", "err", err)
+							bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
 								AppId:   appDetailsByChart.Id,
 								AppName: appDetailsByChart.AppName,
 								EnvId:   envId,
-								Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
+								Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
 							}
-							bulkUpdateResponse.Failure = append(bulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+							deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 						} else {
-							bulkUpdateSuccessResponse := &BulkUpdateResponseStatusForOneApp{
-								AppId:   appDetailsByChart.Id,
-								AppName: appDetailsByChart.AppName,
-								EnvId:   envId,
-								Message: "Updated Successfully",
+							err = impl.bulkUpdateRepository.BulkUpdateChartsEnvYamlOverrideById(chartEnv.Id, modified)
+							if err != nil {
+								impl.logger.Errorw("error in bulk updating charts", "err", err)
+								bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
+									AppId:   appDetailsByChart.Id,
+									AppName: appDetailsByChart.AppName,
+									EnvId:   envId,
+									Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
+								}
+								deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+							} else {
+								bulkUpdateSuccessResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
+									AppId:   appDetailsByChart.Id,
+									AppName: appDetailsByChart.AppName,
+									EnvId:   envId,
+									Message: "Updated Successfully",
+								}
+								deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
 							}
-							bulkUpdateResponse.Successful = append(bulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
 						}
 					}
 				}
 			}
 		}
+		//For ConfigMap
+		if len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 && len(bulkUpdatePayload.ConfigMap.Spec.PatchJson) != 0 {
+			configMapEnvModels, err := impl.bulkUpdateRepository.FindCMAndSecretBulkAppModelForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching bulk app model for env", "err", err)
+				configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for env: %d , %s", envId, err.Error()))
+			} else {
+				if len(configMapEnvModels) == 0 {
+					configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId : %d", envId))
+				} else {
+					for _, configMapEnvModel := range configMapEnvModels {
+						configMapNames := gjson.Get(configMapEnvModel.ConfigMapData, "maps.#.name")
+						messageCmNamesMap := make(map[string][]string)
+						for i, configMapName := range configMapNames.Array() {
+							contains := impl.CheckIfSliceContainsString(bulkUpdatePayload.ConfigMap.Spec.Names, configMapName.String())
+							if contains == true {
+								configMapPatchJson := []byte(strings.Replace(bulkUpdatePayload.ConfigMap.Spec.PatchJson, "\"path\": \"", fmt.Sprintf("\"path\": \"/maps/%d/data", i), -1))
+								configMapPatch, err := jsonpatch.DecodePatch(configMapPatchJson)
+								if err != nil {
+									impl.logger.Errorw("error in decoding JSON patch", "err", err)
+									if _, ok := messageCmNamesMap["The patch string you entered seems wrong, please check and try again"]; !ok {
+										messageCmNamesMap["The patch string you entered seems wrong, please check and try again"] = []string{configMapName.String()}
+									} else {
+										messageCmNamesMap["The patch string you entered seems wrong, please check and try again"] = append(messageCmNamesMap["The patch string you entered seems wrong, please check and try again"], configMapName.String())
+									}
+								} else {
+									modified, err := impl.ApplyJsonPatch(configMapPatch, configMapEnvModel.ConfigMapData)
+									if err != nil {
+										impl.logger.Errorw("error in applying JSON patch", "err", err)
+										if _, ok := messageCmNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())]; !ok {
+											messageCmNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())] = []string{configMapName.String()}
+										} else {
+											messageCmNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())] = append(messageCmNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())], configMapName.String())
+										}
+									} else {
+										configMapEnvModel.ConfigMapData = modified
+										if _, ok := messageCmNamesMap["Updated Successfully"]; !ok {
+											messageCmNamesMap["Updated Successfully"] = []string{configMapName.String()}
+										} else {
+											messageCmNamesMap["Updated Successfully"] = append(messageCmNamesMap["Updated Successfully"], configMapName.String())
+										}
+									}
+								}
+							}
+						}
+						if _, ok := messageCmNamesMap["Updated Successfully"]; ok {
+							err := impl.bulkUpdateRepository.BulkUpdateConfigMapDataForEnvById(configMapEnvModel.Id, configMapEnvModel.ConfigMapData)
+							if err != nil {
+								impl.logger.Errorw("error in bulk updating charts", "err", err)
+								messageCmNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageCmNamesMap["Updated Successfully"]
+								delete(messageCmNamesMap, "Updated Successfully")
+							}
+						}
+						if len(messageCmNamesMap) != 0 {
+							appDetailsById, _ := impl.appRepository.FindById(configMapEnvModel.AppId)
+							for key, value := range messageCmNamesMap {
+								if key == "Updated Successfully" {
+									bulkUpdateSuccessResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+										AppId:   appDetailsById.Id,
+										AppName: appDetailsById.AppName,
+										Names:   value,
+										Message: key,
+										EnvId:   envId,
+									}
+									configMapBulkUpdateResponse.Successful = append(configMapBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
+								} else {
+									bulkUpdateFailedResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+										AppId:   appDetailsById.Id,
+										AppName: appDetailsById.AppName,
+										Names:   value,
+										Message: key,
+										EnvId:   envId,
+									}
+									configMapBulkUpdateResponse.Failure = append(configMapBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		//For Secret
+		if len(bulkUpdatePayload.Secret.Spec.Names) != 0 && len(bulkUpdatePayload.Secret.Spec.PatchJson) != 0 {
+			secretEnvModels, err := impl.bulkUpdateRepository.FindCMAndSecretBulkAppModelForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching bulk app model for env", "err", err)
+				secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for env: %d , %s", envId, err.Error()))
+			} else {
+				if len(secretEnvModels) == 0 {
+					secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("No matching apps to update for envId : %d", envId))
+				} else {
+					for _, secretEnvModel := range secretEnvModels {
+						secretNames := gjson.Get(secretEnvModel.SecretData, "secrets.#.name")
+						messageSecretNamesMap := make(map[string][]string)
+						for i, secretName := range secretNames.Array() {
+							contains := impl.CheckIfSliceContainsString(bulkUpdatePayload.Secret.Spec.Names, secretName.String())
+							if contains == true {
+								secretPatchJson := []byte(strings.Replace(bulkUpdatePayload.Secret.Spec.PatchJson, "\"path\": \"", fmt.Sprintf("\"path\": \"/secrets/%d/data", i), -1))
+								secretPatch, err := jsonpatch.DecodePatch(secretPatchJson)
+								if err != nil {
+									impl.logger.Errorw("error in decoding JSON patch", "err", err)
+									if _, ok := messageSecretNamesMap["The patch string you entered seems wrong, please check and try again"]; !ok {
+										messageSecretNamesMap["The patch string you entered seems wrong, please check and try again"] = []string{secretName.String()}
+									} else {
+										messageSecretNamesMap["The patch string you entered seems wrong, please check and try again"] = append(messageSecretNamesMap["The patch string you entered seems wrong, please check and try again"], secretName.String())
+									}
+								} else {
+									modified, err := impl.ApplyJsonPatch(secretPatch, secretEnvModel.SecretData)
+									if err != nil {
+										impl.logger.Errorw("error in applying JSON patch", "err", err)
+										if _, ok := messageSecretNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())]; !ok {
+											messageSecretNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())] = []string{secretName.String()}
+										} else {
+											messageSecretNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())] = append(messageSecretNamesMap[fmt.Sprintf("Error in applying JSON patch : %s", err.Error())], secretName.String())
+										}
+									} else {
+										secretEnvModel.SecretData = modified
+										if _, ok := messageSecretNamesMap["Updated Successfully"]; !ok {
+											messageSecretNamesMap["Updated Successfully"] = []string{secretName.String()}
+										} else {
+											messageSecretNamesMap["Updated Successfully"] = append(messageSecretNamesMap["Updated Successfully"], secretName.String())
+										}
+									}
+								}
+							}
+						}
+						if _, ok := messageSecretNamesMap["Updated Successfully"]; ok {
+							err := impl.bulkUpdateRepository.BulkUpdateSecretDataForEnvById(secretEnvModel.Id, secretEnvModel.SecretData)
+							if err != nil {
+								impl.logger.Errorw("error in bulk updating charts", "err", err)
+								messageSecretNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageSecretNamesMap["Updated Successfully"]
+								delete(messageSecretNamesMap, "Updated Successfully")
+							}
+						}
+						appDetailsById, _ := impl.appRepository.FindById(secretEnvModel.AppId)
+						if len(messageSecretNamesMap) != 0 {
+							for key, value := range messageSecretNamesMap {
+								if key == "Updated Successfully" {
+									bulkUpdateSuccessResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+										AppId:   appDetailsById.Id,
+										AppName: appDetailsById.AppName,
+										Names:   value,
+										Message: key,
+										EnvId:   envId,
+									}
+									secretBulkUpdateResponse.Successful = append(secretBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
+								} else {
+									bulkUpdateFailedResponse := &CmAndSecretBulkUpdateResponseForOneApp{
+										AppId:   appDetailsById.Id,
+										AppName: appDetailsById.AppName,
+										Names:   value,
+										Message: key,
+										EnvId:   envId,
+									}
+									secretBulkUpdateResponse.Failure = append(secretBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
 	}
-	if len(bulkUpdateResponse.Failure) == 0 {
-		bulkUpdateResponse.Message = append(bulkUpdateResponse.Message, "All matching apps are updated successfully")
+	if len(deploymentTemplateBulkUpdateResponse.Failure) == 0 {
+		deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, "All matching apps are updated successfully")
 	}
+	if len(configMapBulkUpdateResponse.Failure) == 0 {
+		configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, "All matching apps are updated successfully")
+	}
+	if len(secretBulkUpdateResponse.Failure) == 0 {
+		secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, "All matching apps are updated successfully")
+	}
+
+	bulkUpdateResponse.DeploymentTemplate = deploymentTemplateBulkUpdateResponse
+	bulkUpdateResponse.ConfigMap = configMapBulkUpdateResponse
+	bulkUpdateResponse.Secret = secretBulkUpdateResponse
 	return bulkUpdateResponse
 }
