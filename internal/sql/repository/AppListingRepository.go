@@ -209,14 +209,24 @@ func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMes
 		}
 
 		if material.Modifications != nil && len(material.Modifications) > 0 {
-			revision := material.Modifications[0].Revision
+			_modification := material.Modifications[0]
+
+			revision := _modification.Revision
 			url = strings.TrimSpace(url)
+
+			_webhookDataStr := ""
+			_webhookDataByteArr, err := json.Marshal(_modification.WebhookData)
+			if err == nil {
+				_webhookDataStr = string(_webhookDataByteArr)
+			}
+
 			materialMap["url"] = url
 			materialMap["revision"] = revision
-			materialMap["modifiedTime"] = material.Modifications[0].ModifiedTime
-			materialMap["author"] = material.Modifications[0].Author
-			materialMap["message"] = material.Modifications[0].Message
-			materialMap["branch"] = material.Modifications[0].Branch
+			materialMap["modifiedTime"] = _modification.ModifiedTime
+			materialMap["author"] = _modification.Author
+			materialMap["message"] = _modification.Message
+			materialMap["branch"] = _modification.Branch
+			materialMap["webhookData"] = _webhookDataStr
 		}
 		scmMaps = append(scmMaps, materialMap)
 	}
