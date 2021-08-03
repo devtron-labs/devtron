@@ -7,6 +7,7 @@ metadata:
     app: nats-streaming
     chart: "nats-streaming-0.3.0"
     release: "devtron"
+    component: nats-streaming
 spec:
   type: ClusterIP
   ports:
@@ -26,6 +27,7 @@ metadata:
     app: "nats-streaming"
     chart: "nats-streaming-0.3.0"
     release: "devtron"
+    component: nats-streaming
 spec:
   serviceName: devtron-nats
   replicas: 3
@@ -41,6 +43,7 @@ spec:
         app: "nats-streaming"
         chart: "nats-streaming-0.3.0"
         release: devtron
+        component: nats-streaming
       annotations:
     spec:
       affinity:

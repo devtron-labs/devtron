@@ -115,6 +115,7 @@ metadata:
     app: devtron
     chart: devtron-3.9.1
     release: devtron
+    component: devtron
 spec:
   type: ClusterIP
   ports:
@@ -134,6 +135,7 @@ metadata:
     app: devtron
     chart: devtron-3.9.1
     release: devtron
+    component: devtron
 spec:
   selector:
     matchLabels:
@@ -146,6 +148,7 @@ spec:
       labels:
         app: devtron
         release: devtron
+        component: devtron
     spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
@@ -193,6 +196,7 @@ metadata:
     app: devtron
     chart: devtron-3.9.1
     release: devtron
+    component: devtron
 spec:
   endpoints:
     - port: devtron

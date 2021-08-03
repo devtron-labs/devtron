@@ -141,6 +141,7 @@ metadata:
     app: kubewatch
     chart: kubewatch-0.6.1
     release: "devtron"
+    component: kubewatch
   name: kubewatch
   namespace: devtroncd
 spec:
@@ -157,6 +158,7 @@ spec:
         app: kubewatch
         release: "devtron"
         chart: kubewatch-0.6.1
+        component: kubewatch
     spec:
       containers:
       - name: kubewatch
