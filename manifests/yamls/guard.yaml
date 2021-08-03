@@ -65,7 +65,6 @@ metadata:
     release: devtron
     releaseVersion: "1"
     pipelineName: guard-dt-prod
-    component: guard
 spec:
   selector:
     matchLabels:
@@ -80,7 +79,6 @@ spec:
         appId: "181"
         envId: "4"
         release: devtron
-        component: guard
     spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
