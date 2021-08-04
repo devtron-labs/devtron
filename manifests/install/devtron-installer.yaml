@@ -3,9 +3,4 @@ kind: Installer
 metadata:
   name: installer-devtron
   namespace: devtroncd
-spec:
-<<<<<<< HEAD
-  url: https://raw.githubusercontent.com/devtron-labs/devtron/v0.2.19/manifests/installation-script
-=======
   url: https://raw.githubusercontent.com/devtron-labs/devtron/update-labels/manifests/installation-script
->>>>>>> c5f32a1ae69a6e7740f9ebd048e953e099cd47df
