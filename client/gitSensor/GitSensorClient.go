@@ -96,7 +96,7 @@ type GitCommit struct {
 	Date    time.Time
 	Message string
 	Changes []string
-	WebhookData   *WebhookData  `json:"webhookData"`
+	WebhookData   *WebhookData
 }
 
 type WebhookData struct {
