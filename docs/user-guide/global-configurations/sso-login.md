@@ -26,6 +26,8 @@ For examples see
 
 Login as a user with super-admin privileges and go to `Global Configurations` -&gt; `SSO Login Services` and click on any `Identity Provider` and fill the configuration. 
 
+Add valid devtron application `URL` where it hosted.
+
 Fill correct `redirect URL` or `callback URL` with which you have registered with the identity provider in the previous step along with the `client id` and `client secret` shared by the identity provider.
 
 Only single SSO login configuration can be active at one time. Whenever you create or update any sso config that config will be activated and used by the system and previous configuration will be deleted.
