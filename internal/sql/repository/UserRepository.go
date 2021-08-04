@@ -88,9 +88,10 @@ func (impl UserRepositoryImpl) UpdateUser(userModel *UserModel, tx *pg.Tx) (*Use
 }
 func (impl UserRepositoryImpl) GetById(id int32) (*UserModel, error) {
 	var model UserModel
-	err := impl.dbConnection.Model(&model).Where("id = ?", id).Where("active = ?", true).Select()
+	err := impl.dbConnection.Model(&model).Where("id = ?", id).Select()
 	return &model, err
 }
+
 func (impl UserRepositoryImpl) GetAll() ([]UserModel, error) {
 	var userModel []UserModel
 	err := impl.dbConnection.Model(&userModel).Where("active = ?", true).Order("updated_on desc").Select()
@@ -154,6 +155,6 @@ func (impl UserRepositoryImpl) FetchUserMatchesByEmailId(email string) ([]UserMo
 
 func (impl UserRepositoryImpl) FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error) {
 	var model UserModel
-	err := impl.dbConnection.Model(&model).Where("email_id like (?)", email).Limit(1).Select()
+	err := impl.dbConnection.Model(&model).Where("email_id ILIKE (?)", email).Limit(1).Select()
 	return &model, err
 }

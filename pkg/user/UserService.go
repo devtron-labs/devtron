@@ -109,8 +109,8 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 			return nil, err
 		}
 
-		//if found update it with new roles
-		if dbUser != nil && dbUser.Id > 0 && dbUser.Active {
+		//if found, update it with new roles
+		if dbUser != nil && dbUser.Id > 0 {
 			updateUserInfo, err := impl.GetById(dbUser.Id)
 			if err != nil && err != pg.ErrNoRows {
 				impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -151,33 +151,18 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 			model.UpdatedBy = userInfo.UserId
 			model.CreatedOn = time.Now()
 			model.UpdatedOn = time.Now()
-
-			if dbUser != nil && dbUser.Id > 0 && dbUser.Active == false {
-				model.Id = dbUser.Id
-				model, err = impl.userRepository.UpdateUser(model, tx)
-				if err != nil {
-					impl.logger.Errorw("error in creating new user", "error", err)
-					err = &util.ApiError{
-						Code:            constants.UserCreateDBFailed,
-						InternalMessage: "failed to create new user in db",
-						UserMessage:     fmt.Sprintf("requested by %d", userInfo.UserId),
-					}
-					return userResponse, err
+			model, err = impl.userRepository.CreateUser(model, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating new user", "error", err)
+				err = &util.ApiError{
+					Code:            constants.UserCreateDBFailed,
+					InternalMessage: "failed to create new user in db",
+					UserMessage:     fmt.Sprintf("requested by %d", userInfo.UserId),
 				}
-				userInfo.Id = dbUser.Id
-			} else {
-				model, err = impl.userRepository.CreateUser(model, tx)
-				if err != nil {
-					impl.logger.Errorw("error in creating new user", "error", err)
-					err = &util.ApiError{
-						Code:            constants.UserCreateDBFailed,
-						InternalMessage: "failed to create new user in db",
-						UserMessage:     fmt.Sprintf("requested by %d", userInfo.UserId),
-					}
-					return userResponse, err
-				}
-				userInfo.Id = model.Id
+				return userResponse, err
 			}
+			userInfo.Id = model.Id
+
 			//Starts Role and Mapping
 			var policies []casbin2.Policy
 			if userInfo.SuperAdmin == false {
@@ -622,6 +607,14 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 	}
 	//Ends
 
+	model.UpdatedOn = time.Now()
+	model.UpdatedBy = userInfo.UserId
+	model.Active = true
+	model, err = impl.userRepository.UpdateUser(model, tx)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
