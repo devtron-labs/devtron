@@ -14,26 +14,26 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 
 |Parameter | Description| Default| Necessity|
 |-|-|-|-|
-|ACD_PASSWORD | ArgoCD Password| Auto-Generated| Optional|
-|AZURE_ACCOUNT_KEY | Account Key to access Azure objects| ""| Mandatory (If using Azure)|
-|GRAFANA_PASSWORD | Password for Graphana| Auto-Generated| Optional|
-|POSTGRESQL_PASSWORD | Password for Postgresql| Auto-Generated| Optional|
+|ACD_PASSWORD | ArgoCD Password for CD Workflow| Auto-Generated| Optional|
+|AZURE_ACCOUNT_KEY | Account key to access Azure objects such as BLOB_CONTAINER_CI_LOG or CI_CACHE| ""| Mandatory (If using Azure)|
+|GRAFANA_PASSWORD | Password for Graphana to disply graphs| Auto-Generated| Optional|
+|POSTGRESQL_PASSWORD | Password for your Postgresql database which will be used to access database| Auto-Generated| Optional|
 
 ### ConfigMaps
 
 |Parameter | Description| Default| Necessity|
 |-|-|-|-|
-|AZURE_ACCOUNT_NAME | Azure Account Name using| ""| Mandatory (If using Azure)|
-|AZURE_BLOB_CONTAINER_CI_LOG | Name for CI Log| ci-log-container| Optional|
-|AZURE_BLOB_CONTAINER_CI_CACHE | Name for CI Cache| ci-cache-container| Optional|
-|BLOB_STORAGE_PROVIDER | Cloud provider name| MINIO| Mandatory (If using any cloud), MINIO/AZURE/S3|
-|DEFAULT_BUILD_LOGS_BUCKET | S3 Bucket name for Build Logs| devtron-ci-log| Mandoatory (If using AWS)|
-|DEFAULT_CD_LOGS_BUCKET_REGION | Amazon S3 Bucket CD Logs region| us-east-1| Mandatory (If using AWS)|
-|DEFAULT_CACHE_BUCKET | S3 Bucket name used for Cache (Do not include s3://)| devtron-ci-cache| Mandatory (If using AWS)|
-|DEFAULT_CACHE_BUCKET_REGION | S3 Bucket region for Cache| us-east-1| Mandoatory (If using AWS)|
-|EXTERNAL_SECRET_AMAZON_REGION | Region where Devtron is installed| ""| Mandatory (If using AWS)|
+|AZURE_ACCOUNT_NAME | Azure Account Name which you will use| ""| Mandatory (If using Azure)|
+|AZURE_BLOB_CONTAINER_CI_LOG | Name of container created for storing CI_LOG| ci-log-container| Optional|
+|AZURE_BLOB_CONTAINER_CI_CACHE | Name of container created for storing CI_CACHE| ci-cache-container| Optional|
+|BLOB_STORAGE_PROVIDER | Cloud provider name which you will use| MINIO| Mandatory (If using any cloud other than MINIO), MINIO/AZURE/S3|
+|DEFAULT_BUILD_LOGS_BUCKET | S3 Bucket name used for storing Build Logs| devtron-ci-log| Mandoatory (If using AWS)|
+|DEFAULT_CD_LOGS_BUCKET_REGION | Region of S3 Bucket where CD Logs are being stored| us-east-1| Mandatory (If using AWS)|
+|DEFAULT_CACHE_BUCKET | S3 Bucket name used for storing CACHE (Do not include s3://)| devtron-ci-cache| Mandatory (If using AWS)|
+|DEFAULT_CACHE_BUCKET_REGION | S3 Bucket region where Cache is being stored| us-east-1| Mandoatory (If using AWS)|
+|EXTERNAL_SECRET_AMAZON_REGION | Region where the cluster is setup for Devtron installation| ""| Mandatory (If using AWS)|
 |ENABLE_INGRESS | To enable Ingress (True/False)| False| Optional|
 |INGRESS_ANNOTATIONS | Annotations for ingress| ""| Optional|
-|PROMETHEUS_URL | Exisitng Prometheous URL| ""| Optional|
+|PROMETHEUS_URL | Exisitng Prometheous URL if it is installed| ""| Optional|
 
 
