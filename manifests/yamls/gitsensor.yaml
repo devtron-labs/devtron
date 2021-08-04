@@ -24,6 +24,7 @@ metadata:
   labels:
     app: git-sensor
     release: devtron
+    component: git-sensor
 spec:
   ports:
     - port: 80
@@ -40,6 +41,7 @@ metadata:
   labels:
     release: devtron
     app: git-sensor
+    component: git-sensor
 spec:
   selector:
     matchLabels:
@@ -50,6 +52,7 @@ spec:
     metadata:
       labels:
         app: git-sensor
+        component: git-sensor
     spec:
       terminationGracePeriodSeconds: 10
       containers:
@@ -85,6 +88,7 @@ metadata:
     app: git-sensor
     kind: Prometheus
     release: devtron
+    component: git-sensor
 spec:
   endpoints:
     - port: app

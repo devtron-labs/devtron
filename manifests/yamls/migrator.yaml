@@ -16,6 +16,9 @@ metadata:
 spec:
   ttlSecondsAfterFinished: 1000
   template:
+    metadata:
+      labels:
+        component: postgresql-migrate-devtron
     spec:
       containers:
       - name: postgresql-migrate-devtron
@@ -54,6 +57,9 @@ metadata:
   name: postgresql-migrate-casbin
 spec:
   template:
+    metadata:
+      labels:
+        component: postgresql-migrate-casbin
     spec:
       containers:
       - name: postgresql-migrate-casbin
@@ -92,6 +98,9 @@ metadata:
   name: postgresql-migrate-gitsensor
 spec:
   template:
+    metadata:
+      labels:
+        component: postgresql-migrate-gitsensor
     spec:
       containers:
       - name: postgresql-migrate-gitsensor
@@ -130,6 +139,9 @@ metadata:
   name: postgresql-migrate-lens
 spec:
   template:
+    metadata:
+      labels:
+        component: postgresql-migrate-lens
     spec:
       containers:
       - name: postgresql-migrate-lens

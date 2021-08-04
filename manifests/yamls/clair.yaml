@@ -21,6 +21,7 @@ metadata:
     release: "devtron"
     chart: "clair-0.1.2"
     app: clair
+    component: clair
 spec:
   type: ClusterIP
   ports:
@@ -44,6 +45,7 @@ metadata:
     release: "devtron"
     chart: "clair-0.1.2"
     app: clair
+    component: clair
 spec:
   replicas: 1
   selector:

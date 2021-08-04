@@ -169,6 +169,7 @@ metadata:
     app: lens
     chart: lens-3.7.1
     release: devtron
+    component: lens
 spec:
   type: ClusterIP
   ports:
@@ -212,6 +213,7 @@ metadata:
     app: lens
     chart: lens-3.7.1
     release: devtron
+    component: lens
 spec:
   selector:
     matchLabels:
@@ -224,6 +226,7 @@ spec:
       labels:
         app: lens
         release: devtron
+        component: lens
     spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
@@ -278,6 +281,7 @@ metadata:
   labels:
     app: lens
     release: devtron
+    component: lens
 spec:
   jobLabel: lens
   endpoints:

@@ -198,6 +198,8 @@ metadata:
   # Change to the name of the namespace where to install NATS Operator.
   # Alternatively, change to "nats-io" to perform a cluster-scoped deployment in supported versions.
   namespace: devtroncd
+  labels:
+    component: nats-operator
 spec:
   replicas: 1
   selector:
@@ -207,6 +209,7 @@ spec:
     metadata:
       labels:
         name: nats-operator
+        component: nats-operator
     spec:
       serviceAccountName: nats-operator
       containers:

@@ -30,6 +30,7 @@ metadata:
     app: notifier
     chart: notifier-3.7.1
     release: devtron
+    component: notifier
 spec:
   type: ClusterIP
   ports:
@@ -49,6 +50,7 @@ metadata:
     app: notifier
     chart: notifier-3.7.1
     release: devtron
+    component: notifier
 spec:
   selector:
     matchLabels:
@@ -61,6 +63,7 @@ spec:
       labels:
         app: notifier
         release: devtron
+        component: notifier
     spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always

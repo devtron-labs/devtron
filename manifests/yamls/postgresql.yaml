@@ -77,6 +77,7 @@ metadata:
     app: postgresql
     chart: postgresql-8.6.4
     release: "devtron"
+    component: postgresql
 spec:
   type: ClusterIP
   ports:
@@ -97,6 +98,7 @@ metadata:
     app: postgresql
     chart: postgresql-8.6.4
     release: "devtron"
+    component: postgresql
 spec:
   serviceName: postgresql-postgresql-headless
   replicas: 1
@@ -115,6 +117,7 @@ spec:
         chart: postgresql-8.6.4
         release: "devtron"
         role: master
+        component: postgresql
     spec:      
       securityContext:
         fsGroup: 1001

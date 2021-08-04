@@ -33,6 +33,7 @@ metadata:
     app: image-scanner
     chart: image-scanner-3.9.1
     release: devtron
+    component: image-scanner
 spec:
   type: ClusterIP
   ports:
@@ -52,6 +53,7 @@ metadata:
     app: image-scanner
     chart: image-scanner-3.9.1
     release: devtron
+    component: image-scanner
 spec:
   selector:
     matchLabels:
@@ -64,6 +66,7 @@ spec:
       labels:
         app: image-scanner
         release: devtron
+        component: image-scanner
     spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always

@@ -178,6 +178,7 @@ metadata:
     app: dashboard
     chart: dashboard-3.9.1
     release: devtron
+    component: dashboard
 spec:
   type: ClusterIP
   ports:
@@ -199,6 +200,7 @@ metadata:
     app: dashboard
     chart: dashboard-3.9.1
     release: devtron
+    component: dashboard
 spec:
   selector:
     matchLabels:
@@ -211,6 +213,7 @@ spec:
       labels:
         app: dashboard
         release: devtron
+        component: dashboard
     spec:
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
@@ -268,6 +271,7 @@ metadata:
     app: dashboard
     chart: dashboard-3.9.1
     release: devtron
+    component: dashboard
 spec:
   jobLabel: dashboard
   endpoints:
