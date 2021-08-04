@@ -19,9 +19,6 @@ metadata:
   name: devtron-operator-cm
   namespace: devtroncd
 data:
-  BASE_URL_SCHEME: "http"
-  #url without scheme and without trailing '/'
-
   BLOB_STORAGE_PROVIDER: "MINIO" # AZURE| GCP| S3 | MINIO
 
 # Amazon AWS S3 bucket and region for storing Build-cache for faster build process. Mandatory if BLOB_STORAGE_PROVIDER is AWS.

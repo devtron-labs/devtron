@@ -18,7 +18,6 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 |AZURE_ACCOUNT_KEY | Account Key to access Azure objects| ""| Mandatory (If using Azure)|
 |GRAFANA_PASSWORD | Password for Graphana| Auto-Generated| Optional|
 |POSTGRESQL_PASSWORD | Password for Postgresql| Auto-Generated| Optional|
-|WEBHOOK_TOKEN | Webhook Token for GitOps Operations| Auto-Generated| Optional|
 
 ### ConfigMaps
 
@@ -27,12 +26,10 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 |AZURE_ACCOUNT_NAME | Azure Account Name using| ""| Mandatory (If using Azure)|
 |AZURE_BLOB_CONTAINER_CI_LOG | Name for CI Log| ci-log-container| Optional|
 |AZURE_BLOB_CONTAINER_CI_CACHE | Name for CI Cache| ci-cache-container| Optional|
-|BASE_URL_SCHEME | Base URL Scheme - http or https| http| Optional|
-|BASE_URL | Base URL for Devtron| Auto-Generated| Optional|
-|BLOB_STORAGE_PROVIDER | Cloud provider name| ""| Mandatory (If using any cloud)|
-|DEFAULT_BUILD_LOGS_BUCKET | S3 Bucket name for Build Logs| ""| Mandoatory (If using AWS)|
+|BLOB_STORAGE_PROVIDER | Cloud provider name| MINIO| Mandatory (If using any cloud), MINIO/AZURE/S3|
+|DEFAULT_BUILD_LOGS_BUCKET | S3 Bucket name for Build Logs| devtron-ci-log| Mandoatory (If using AWS)|
 |DEFAULT_CD_LOGS_BUCKET_REGION | Amazon S3 Bucket CD Logs region| us-east-1| Mandatory (If using AWS)|
-|DEFAULT_CACHE_BUCKET | S3 Bucket name used for Cache (Do not include s3://)| ""| Mandatory (If using AWS)|
+|DEFAULT_CACHE_BUCKET | S3 Bucket name used for Cache (Do not include s3://)| devtron-ci-cache| Mandatory (If using AWS)|
 |DEFAULT_CACHE_BUCKET_REGION | S3 Bucket region for Cache| us-east-1| Mandoatory (If using AWS)|
 |EXTERNAL_SECRET_AMAZON_REGION | Region where Devtron is installed| ""| Mandatory (If using AWS)|
 |ENABLE_INGRESS | To enable Ingress (True/False)| False| Optional|
