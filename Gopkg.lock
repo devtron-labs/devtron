@@ -1161,6 +1161,14 @@
   version = "v1.2.0"
 
 [[projects]]
+  digest = "1:b3af79700a1bf5e7385282f11bbc72b96f689c3ba79ff699cc70f66b2594f9bc"
+  name = "github.com/tidwall/sjson"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7fd8b8e83c42b0406032c362689a21540b66cc8d"
+  version = "v1.1.7"
+
+[[projects]]
   digest = "1:c468422f334a6b46a19448ad59aaffdfc0a36b08fdcc1c749a0b29b6453d7e59"
   name = "github.com/valyala/bytebufferpool"
   packages = ["."]
@@ -2048,6 +2056,7 @@
     "github.com/satori/go.uuid",
     "github.com/stretchr/testify/assert",
     "github.com/tidwall/gjson",
+    "github.com/tidwall/sjson",
     "github.com/xanzy/go-gitlab",
     "go.uber.org/zap",
     "go.uber.org/zap/zapcore",

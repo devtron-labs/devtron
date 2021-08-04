@@ -12,9 +12,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
 	"net/http"
-	"strings"
 )
 
 type NameIncludesExcludes struct {
@@ -433,7 +433,12 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload BulkUpdatePayload
 						for i, configMapName := range configMapNames.Array() {
 							contains := impl.CheckIfSliceContainsString(bulkUpdatePayload.ConfigMap.Spec.Names, configMapName.String())
 							if contains == true {
-								configMapPatchJson := []byte(strings.Replace(bulkUpdatePayload.ConfigMap.Spec.PatchJson, "\"path\": \"", fmt.Sprintf("\"path\": \"/maps/%d/data", i), -1))
+								configMapPatchJsonString := bulkUpdatePayload.ConfigMap.Spec.PatchJson
+								keyNames := gjson.Get(configMapPatchJsonString,"#.path")
+								for j, keyName := range keyNames.Array(){
+									configMapPatchJsonString,_ = sjson.Set(configMapPatchJsonString,fmt.Sprintf("%d.path",j),fmt.Sprintf("maps/%d/data%s",i,keyName.String()))
+								}
+								configMapPatchJson := []byte(configMapPatchJsonString)
 								configMapPatch, err := jsonpatch.DecodePatch(configMapPatchJson)
 								if err != nil {
 									impl.logger.Errorw("error in decoding JSON patch", "err", err)
@@ -513,7 +518,12 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload BulkUpdatePayload
 						for i, secretName := range secretNames.Array() {
 							contains := impl.CheckIfSliceContainsString(bulkUpdatePayload.Secret.Spec.Names, secretName.String())
 							if contains == true {
-								secretPatchJson := []byte(strings.Replace(bulkUpdatePayload.Secret.Spec.PatchJson, "\"path\": \"", fmt.Sprintf("\"path\": \"/secrets/%d/data", i), -1))
+								secretPatchJsonString := bulkUpdatePayload.Secret.Spec.PatchJson
+								keyNames := gjson.Get(secretPatchJsonString,"#.path")
+								for j, keyName := range keyNames.Array(){
+									secretPatchJsonString,_ = sjson.Set(secretPatchJsonString,fmt.Sprintf("%d.path",j),fmt.Sprintf("secrets/%d/data%s",i,keyName.String()))
+								}
+								secretPatchJson := []byte(secretPatchJsonString)
 								secretPatch, err := jsonpatch.DecodePatch(secretPatchJson)
 								if err != nil {
 									impl.logger.Errorw("error in decoding JSON patch", "err", err)
@@ -643,7 +653,12 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload BulkUpdatePayload
 						for i, configMapName := range configMapNames.Array() {
 							contains := impl.CheckIfSliceContainsString(bulkUpdatePayload.ConfigMap.Spec.Names, configMapName.String())
 							if contains == true {
-								configMapPatchJson := []byte(strings.Replace(bulkUpdatePayload.ConfigMap.Spec.PatchJson, "\"path\": \"", fmt.Sprintf("\"path\": \"/maps/%d/data", i), -1))
+								configMapPatchJsonString := bulkUpdatePayload.ConfigMap.Spec.PatchJson
+								keyNames := gjson.Get(configMapPatchJsonString,"#.path")
+								for j, keyName := range keyNames.Array(){
+									configMapPatchJsonString,_ = sjson.Set(configMapPatchJsonString,fmt.Sprintf("%d.path",j),fmt.Sprintf("maps/%d/data%s",i,keyName.String()))
+								}
+								configMapPatchJson := []byte(configMapPatchJsonString)
 								configMapPatch, err := jsonpatch.DecodePatch(configMapPatchJson)
 								if err != nil {
 									impl.logger.Errorw("error in decoding JSON patch", "err", err)
@@ -725,7 +740,12 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload BulkUpdatePayload
 						for i, secretName := range secretNames.Array() {
 							contains := impl.CheckIfSliceContainsString(bulkUpdatePayload.Secret.Spec.Names, secretName.String())
 							if contains == true {
-								secretPatchJson := []byte(strings.Replace(bulkUpdatePayload.Secret.Spec.PatchJson, "\"path\": \"", fmt.Sprintf("\"path\": \"/secrets/%d/data", i), -1))
+								secretPatchJsonString := bulkUpdatePayload.Secret.Spec.PatchJson
+								keyNames := gjson.Get(secretPatchJsonString,"#.path")
+								for j, keyName := range keyNames.Array(){
+									secretPatchJsonString,_ = sjson.Set(secretPatchJsonString,fmt.Sprintf("%d.path",j),fmt.Sprintf("secrets/%d/data%s",i,keyName.String()))
+								}
+								secretPatchJson := []byte(secretPatchJsonString)
 								secretPatch, err := jsonpatch.DecodePatch(secretPatchJson)
 								if err != nil {
 									impl.logger.Errorw("error in decoding JSON patch", "err", err)
