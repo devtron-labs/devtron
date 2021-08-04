@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 LTAG="v0.2.19";
+=======
+LTAG="update-labels";
+>>>>>>> c5f32a1ae69a6e7740f9ebd048e953e099cd47df
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;

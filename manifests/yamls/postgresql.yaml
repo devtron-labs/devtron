@@ -34,6 +34,7 @@ metadata:
     app: postgresql
     chart: postgresql-8.6.4
     release: "devtron"
+    component: postgresql
   annotations:
     prometheus.io/port: "9187"
     prometheus.io/scrape: "true"

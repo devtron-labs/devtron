@@ -7,6 +7,6 @@ metadata:
   namespace: devtroncd
   labels:
     release: "devtron"
-    component: nats-server
+    component: "nats-server"
 spec:
   size: 3
