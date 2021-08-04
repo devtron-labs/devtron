@@ -9,7 +9,7 @@ Use a preferred editor to edit the values in install/devtron-operator-configs.ya
 ```bash
 vim devtron-operator-configs.yaml
 ```
-Edit the `devtron-operator-configs.yaml` to configure your Devtron installation. For more details about it, see [configuration](#configuration)
+Edit the `devtron-operator-configs.yaml` to configure your Devtron installation. For more details about it, see [configuration](installation-configuration.md)
 Once your configurations are ready, continue with following steps
 ```bash
 kubectl create ns devtroncd
