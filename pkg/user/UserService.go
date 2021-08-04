@@ -119,8 +119,10 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 			updateUserInfo.RoleFilters = impl.mergeRoleFilter(updateUserInfo.RoleFilters, userInfo.RoleFilters)
 			updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
 			updateUserInfo.UserId = userInfo.UserId
+			updateUserInfo.EmailId = emailId // override case sensitivity
 			updateUserInfo, err = impl.UpdateUser(updateUserInfo)
 			if err != nil {
+				impl.logger.Errorw("error while update user", "error", err)
 				return nil, err
 			}
 		}
@@ -607,6 +609,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 	}
 	//Ends
 
+	model.EmailId = userInfo.EmailId // override case sensitivity
 	model.UpdatedOn = time.Now()
 	model.UpdatedBy = userInfo.UserId
 	model.Active = true
