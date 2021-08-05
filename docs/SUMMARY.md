@@ -8,6 +8,7 @@
   * [Install using Helm3](setup/install/install-devtron-helm-3.md)
   * [Install using Helm2](setup/install/install-devtron-helm-2.md)
   * [Install using Kubectl](setup/install/install-devtron-using-kubectl.md)
+  * [Installation Configurations](setup/install/installation-configuration.md)
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
 * [Start Using devtron](setup/start-using.md)
 
