@@ -364,8 +364,8 @@ It gives the realtime metrics of the deployed applications
 | :--- | :--- |
 | `Deployment Frequency` | It shows how often this app is deployed to production |
 | `Change Failure Rate` | It shows how often the respective pipeline fails. |
-| `Mean Lead Time` | It shows the maximum time taken to deliver a change to production. |
-| `Mean Time to Recovery` | It shows the maximum time taken to fix a failed pipeline. |
+| `Mean Lead Time` | It shows the average time taken to deliver a change to production. |
+| `Mean Time to Recovery` | It shows the average time taken to fix a failed pipeline. |
 
 
 ## Add on features in Deployment Chart version 3.9.0
