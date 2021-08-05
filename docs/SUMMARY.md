@@ -43,6 +43,7 @@
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
   * [Cluster And Environments](user-guide/global-configurations/cluster-and-environments.md)
   * [Projects](user-guide/global-configurations/projects.md)
+  * [SSO Login Service](user-guide/global-configurations/sso-login.md)
   * [User Access](user-guide/global-configurations/user-access.md)
   * [Manage Notification](user-guide/global-configurations/manage-notification.md)
 * [Bulk Update](user-guide/bulk-update.md)
