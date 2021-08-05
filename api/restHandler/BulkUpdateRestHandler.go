@@ -115,7 +115,7 @@ func (handler BulkUpdateRestHandlerImpl) FindBulkUpdateReadme(w http.ResponseWri
 		return
 	}
 	//auth free, only login required
-	var responseArr []pipeline.BulkUpdateSeeExampleResponse
+	var responseArr []*pipeline.BulkUpdateSeeExampleResponse
 	responseArr = append(responseArr, response)
 	writeJsonResp(w, nil, responseArr, http.StatusOK)
 }
