@@ -4,6 +4,8 @@ This documentation consists of the Global Configurations available in Devtron.
 
 **Parts of the Documentation**
 
+[GitOps](gitops.md)
+
 [Git Accounts](git-accounts.md)
 
 [Docker Registries](docker-registries.md)

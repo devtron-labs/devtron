@@ -358,7 +358,15 @@ Application metrics can be enabled to see your application's metrics-CPUService 
 
 ### Deployment Metrics
 
-A deployment strategy is a way to make changes to your application, without downtime in a way that your application user barely notices the changes. There are different types of deployment strategies. To know about Deployment Strategies, Click on: [Types of Deployment Strategies](https://github.com/devtron-labs/devtron-documentation/tree/2d98194d2b2de6434b0df3525f2b47f2e98f5d18/docs/reference/creating_application/workflows/cd_pipelines/README.md#deployment-strategies)
+It gives the realtime metrics of the deployed applications
+
+| Key | Description |
+| :--- | :--- |
+| `Deployment Frequency` | It shows how often this app is deployed to production |
+| `Change Failure Rate` | It shows how often the respective pipeline fails. |
+| `Mean Lead Time` | It shows the average time taken to deliver a change to production. |
+| `Mean Time to Recovery` | It shows the average time taken to fix a failed pipeline. |
+
 
 ## Add on features in Deployment Chart version 3.9.0
 
