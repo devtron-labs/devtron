@@ -387,13 +387,30 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id int, wfId int) string {
 	dockerImageTag := ""
 	for _, v := range commitHashes {
-		if v.Commit == "" {
-			continue
+		_truncatedCommit := ""
+		if v.WebhookData == nil {
+			if len(v.Commit) == 0 {
+				continue
+			}
+			_truncatedCommit = v.Commit[:8]
+		}else{
+			_sourceCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_SOURCE_CHECKOUT_NAME]
+			if len(_sourceCheckout) == 0 {
+				continue
+			}
+			_truncatedCommit = _sourceCheckout[:8]
+			if v.WebhookData.EventActionType == bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE {
+				_targetCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME]
+				if len(_targetCheckout) > 0 {
+					_truncatedCommit = _truncatedCommit + "-" + _targetCheckout[:8]
+				}
+			}
 		}
+
 		if dockerImageTag == "" {
-			dockerImageTag = v.Commit[:8]
+			dockerImageTag = _truncatedCommit
 		} else {
-			dockerImageTag = dockerImageTag + "-" + v.Commit[:8]
+			dockerImageTag = dockerImageTag + "-" + _truncatedCommit
 		}
 	}
 	if dockerImageTag != "" {
