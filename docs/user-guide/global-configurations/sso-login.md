@@ -33,6 +33,9 @@ Fill correct `redirect URL` or `callback URL` with which you have registered wit
 Only single SSO login configuration can be active at one time. Whenever you create or update any sso config that config will be activated and used by the system and previous configuration will be deleted.
 
 ![](../../.gitbook/assets/sso-login-3.png)
+
+URL and redirectURI should be same as provided in screenshots except domain substring.
+
 ![](../../.gitbook/assets/sso-login-4.png)
 
 Click on `Save` bottom for creating and activating sso login on bottom right of the configuration.
