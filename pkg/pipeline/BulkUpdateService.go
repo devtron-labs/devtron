@@ -518,7 +518,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpd
 							configMapPatchJsonString := bulkUpdatePayload.ConfigMap.Spec.PatchJson
 							keyNames := gjson.Get(configMapPatchJsonString, "#.path")
 							for j, keyName := range keyNames.Array() {
-								configMapPatchJsonString, _ = sjson.Set(configMapPatchJsonString, fmt.Sprintf("%d.path", j), fmt.Sprintf("maps/%d/data%s", i, keyName.String()))
+								configMapPatchJsonString, _ = sjson.Set(configMapPatchJsonString, fmt.Sprintf("%d.path", j), fmt.Sprintf("/maps/%d/data%s", i, keyName.String()))
 							}
 							configMapPatchJson := []byte(configMapPatchJsonString)
 							configMapPatch, err := jsonpatch.DecodePatch(configMapPatchJson)
@@ -605,7 +605,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpd
 							configMapPatchJsonString := bulkUpdatePayload.ConfigMap.Spec.PatchJson
 							keyNames := gjson.Get(configMapPatchJsonString, "#.path")
 							for j, keyName := range keyNames.Array() {
-								configMapPatchJsonString, _ = sjson.Set(configMapPatchJsonString, fmt.Sprintf("%d.path", j), fmt.Sprintf("maps/%d/data%s", i, keyName.String()))
+								configMapPatchJsonString, _ = sjson.Set(configMapPatchJsonString, fmt.Sprintf("%d.path", j), fmt.Sprintf("/maps/%d/data%s", i, keyName.String()))
 							}
 							configMapPatchJson := []byte(configMapPatchJsonString)
 							configMapPatch, err := jsonpatch.DecodePatch(configMapPatchJson)
@@ -705,7 +705,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 							secretPatchJsonString := bulkUpdatePayload.Secret.Spec.PatchJson
 							keyNames := gjson.Get(secretPatchJsonString, "#.path")
 							for j, keyName := range keyNames.Array() {
-								secretPatchJsonString, _ = sjson.Set(secretPatchJsonString, fmt.Sprintf("%d.path", j), fmt.Sprintf("secrets/%d/data%s", i, keyName.String()))
+								secretPatchJsonString, _ = sjson.Set(secretPatchJsonString, fmt.Sprintf("%d.path", j), fmt.Sprintf("/secrets/%d/data%s", i, keyName.String()))
 							}
 							secretPatchJson := []byte(secretPatchJsonString)
 							secretPatch, err := jsonpatch.DecodePatch(secretPatchJson)
@@ -792,7 +792,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 							secretPatchJsonString := bulkUpdatePayload.Secret.Spec.PatchJson
 							keyNames := gjson.Get(secretPatchJsonString, "#.path")
 							for j, keyName := range keyNames.Array() {
-								secretPatchJsonString, _ = sjson.Set(secretPatchJsonString, fmt.Sprintf("%d.path", j), fmt.Sprintf("secrets/%d/data%s", i, keyName.String()))
+								secretPatchJsonString, _ = sjson.Set(secretPatchJsonString, fmt.Sprintf("%d.path", j), fmt.Sprintf("/secrets/%d/data%s", i, keyName.String()))
 							}
 							secretPatchJson := []byte(secretPatchJsonString)
 							secretPatch, err := jsonpatch.DecodePatch(secretPatchJson)
