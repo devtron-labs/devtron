@@ -420,13 +420,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 	return err
 }
-
-func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*CdWorkflowRequest, error) {
-	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
-	if err != nil && !util.IsErrNoRows(err) {
-		return nil, err
-	}
-
+func (impl *WorkflowDagExecutorImpl) buildArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string{
 	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
 	if cdArtifactLocationFormat == "" {
 		cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
@@ -434,7 +428,15 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	if cdWorkflowConfig.LogsBucket == "" {
 		cdWorkflowConfig.LogsBucket = impl.cdConfig.DefaultBuildLogsBucket
 	}
-	cdArtifactLocation := fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
+	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
+	return ArtifactLocation
+}
+
+func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*CdWorkflowRequest, error) {
+	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}
 
 	artifact, err := impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
 	if err != nil {
@@ -515,7 +517,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		CdPipelineId:          cdWf.PipelineId,
 		TriggeredBy:           triggeredBy,
 		StageYaml:             stageYaml,
-		ArtifactLocation:      cdArtifactLocation,
 		CiProjectDetails:      ciProjectDetails,
 		Namespace:             runner.Namespace,
 		ActiveDeadlineSeconds: impl.cdConfig.DefaultTimeout,
@@ -538,6 +539,28 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		OrchestratorHost:          impl.cdConfig.OrchestratorHost,
 		OrchestratorToken:         impl.cdConfig.OrchestratorToken,
 		ExtraEnvironmentVariables: extraEnvVariables,
+		CloudProvider:             impl.cdConfig.CloudProvider,
+	}
+	switch cdStageWorkflowRequest.CloudProvider {
+	case BLOB_STORAGE_S3:
+		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
+		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
+		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocation(cdWorkflowConfig,cdWf,runner)
+	case BLOB_STORAGE_AZURE:
+		cdStageWorkflowRequest.AzureBlobConfig = &AzureBlobConfig{
+			Enabled:              true,
+			AccountName:          impl.cdConfig.AzureAccountName,
+			BlobContainerCiCache: impl.cdConfig.AzureBlobContainerCiCache,
+			AccountKey:           impl.cdConfig.AzureAccountKey,
+		}
+	case BLOB_STORAGE_MINIO:
+		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
+		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocation(cdWorkflowConfig,cdWf,runner)
+		cdStageWorkflowRequest.MinioEndpoint = impl.cdConfig.MinioEndpoint
+	default:
+		return nil, fmt.Errorf("cloudprovider %s not supported", cdStageWorkflowRequest.CloudProvider)
 	}
 	return cdStageWorkflowRequest, nil
 }
