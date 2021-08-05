@@ -394,15 +394,23 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id
 			}
 			_truncatedCommit = v.Commit[:8]
 		}else{
-			_sourceCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_SOURCE_CHECKOUT_NAME]
-			if len(_sourceCheckout) == 0 {
+			_targetCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME]
+			if len(_targetCheckout) == 0 {
 				continue
 			}
-			_truncatedCommit = _sourceCheckout[:8]
+			_targetLengthToPick := 8
+			if len(_targetCheckout) < 8 {
+				_targetLengthToPick = len(_targetCheckout)
+			}
+			_truncatedCommit = _targetCheckout[:_targetLengthToPick]
 			if v.WebhookData.EventActionType == bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE {
-				_targetCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME]
-				if len(_targetCheckout) > 0 {
-					_truncatedCommit = _truncatedCommit + "-" + _targetCheckout[:8]
+				_sourceCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_SOURCE_CHECKOUT_NAME]
+				if len(_sourceCheckout) > 0 {
+					_sourceLengthToPick := 8
+					if len(_sourceCheckout) < 8 {
+						_sourceLengthToPick = len(_sourceCheckout)
+					}
+					_truncatedCommit = _truncatedCommit + "-" + _sourceCheckout[:_sourceLengthToPick]
 				}
 			}
 		}

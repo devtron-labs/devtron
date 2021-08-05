@@ -743,7 +743,7 @@ func (impl *CiHandlerImpl) buildAutomaticTriggerCommitHashes(ciMaterials []*pipe
 		if ciMaterial.Id == request.CiPipelineMaterial.Id {
 			commitHashes[ciMaterial.Id] = request.CiPipelineMaterial.GitCommit
 		} else {
-			// this is possible in case of non PR, as there would be only one pipeline material per git material in case of PR
+			// this is possible in case of non Webhook, as there would be only one pipeline material per git material in case of PR
 			lastCommit, err := impl.getLastSeenCommit(ciMaterial.Id)
 			if err != nil {
 				return map[int]bean.GitCommit{}, err
