@@ -49,4 +49,4 @@ In case of configuration change all users will be logged out of the system and w
 * `name` : identity provider platform name 
 * `id` : identity provider platform unique id in string. (refer to dexidp.io)
 * `config` : user can put connector details into this key. platforms may not have same structure but commons are clientID, clientSecret, redirectURI.
-* `hostedDomains` : domain where your application is deployed.
+* `hostedDomains` : domains authorized for SSO login.
