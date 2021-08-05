@@ -157,13 +157,14 @@ func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int,
 	var deploymentDetail bean.DeploymentDetailContainer
 	query := "SELECT env.environment_name, a.app_name, ceco.namespace, u.email_id as last_deployed_by" +
 		" , cia.material_info, pco.created_on AS last_deployed_time, pco.pipeline_release_counter as release_version" +
-		" , env.default, cia.data_source, p.pipeline_name as last_deployed_pipeline" +
+		" , env.default, cia.data_source, p.pipeline_name as last_deployed_pipeline, t.name as project_name" +
 		" FROM chart_env_config_override ceco" +
 		" INNER JOIN environment env ON env.id=ceco.target_environment" +
 		" INNER JOIN pipeline_config_override pco ON pco.env_config_override_id = ceco.id" +
 		" INNER JOIN pipeline p on p.id = pco.pipeline_id" +
 		" INNER JOIN ci_artifact cia on cia.id = pco.ci_artifact_id" +
 		" INNER JOIN app a ON a.id=p.app_id" +
+		" INNER JOIN team t ON t.id=a.team_id" +
 		" LEFT JOIN users u on u.id=pco.created_by" +
 		" WHERE a.app_store is false AND a.id=? AND env.id=? AND p.deleted = FALSE AND env.active = TRUE" +
 		" ORDER BY pco.created_on desc limit 1;"

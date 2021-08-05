@@ -79,29 +79,29 @@ type AppEnvironmentContainer struct {
 }
 
 type DeploymentDetailContainer struct {
-	InstalledAppId                int    `json:"installedAppId,omitempty"`
-	AppId                         int    `json:"appId,omitempty"`
-	AppStoreInstalledAppVersionId int    `json:"appStoreInstalledAppVersionId,omitempty"`
-	AppStoreChartName             string `json:"appStoreChartName,omitempty"`
-	AppStoreChartId               int    `json:"appStoreChartId,omitempty"`
-	AppStoreAppName               string `json:"appStoreAppName,omitempty"`
-	AppStoreAppVersion            string `json:"appStoreAppVersion,omitempty"`
-	AppName                       string `json:"appName"`
-	EnvironmentId                 int    `json:"environmentId"`
-	EnvironmentName               string `json:"environmentName"`
-	Namespace                     string `json:"namespace,omitempty"`
-	//PrometheusEndpoint            string          `json:"prometheusEndpoint,omitempty"`
-	Status               string          `json:"status,omitempty"`
-	StatusMessage        string          `json:"statusMessage,omitempty"`
-	LastDeployedTime     string          `json:"lastDeployedTime,omitempty"`
-	LastDeployedBy       string          `json:"lastDeployedBy,omitempty"`
-	MaterialInfo         json.RawMessage `json:"materialInfo,omitempty"`
-	ReleaseVersion       string          `json:"releaseVersion,omitempty"`
-	Default              bool            `json:"default,omitempty"`
-	DataSource           string          `json:"dataSource,omitempty"`
-	LastDeployedPipeline string          `json:"lastDeployedPipeline,omitempty"`
-	Deprecated           bool            `json:"deprecated"`
-	K8sVersion           string          `json:"k8sVersion"`
+	InstalledAppId                int             `json:"installedAppId,omitempty"`
+	AppId                         int             `json:"appId,omitempty"`
+	AppStoreInstalledAppVersionId int             `json:"appStoreInstalledAppVersionId,omitempty"`
+	AppStoreChartName             string          `json:"appStoreChartName,omitempty"`
+	AppStoreChartId               int             `json:"appStoreChartId,omitempty"`
+	AppStoreAppName               string          `json:"appStoreAppName,omitempty"`
+	AppStoreAppVersion            string          `json:"appStoreAppVersion,omitempty"`
+	AppName                       string          `json:"appName"`
+	EnvironmentId                 int             `json:"environmentId"`
+	EnvironmentName               string          `json:"environmentName"`
+	Namespace                     string          `json:"namespace,omitempty"`
+	Status                        string          `json:"status,omitempty"`
+	StatusMessage                 string          `json:"statusMessage,omitempty"`
+	LastDeployedTime              string          `json:"lastDeployedTime,omitempty"`
+	LastDeployedBy                string          `json:"lastDeployedBy,omitempty"`
+	MaterialInfo                  json.RawMessage `json:"materialInfo,omitempty"`
+	ReleaseVersion                string          `json:"releaseVersion,omitempty"`
+	Default                       bool            `json:"default,omitempty"`
+	DataSource                    string          `json:"dataSource,omitempty"`
+	LastDeployedPipeline          string          `json:"lastDeployedPipeline,omitempty"`
+	Deprecated                    bool            `json:"deprecated"`
+	K8sVersion                    string          `json:"k8sVersion"`
+	ProjectName                   string          `json:"projectName"`
 }
 
 type AppDetailContainer struct {
