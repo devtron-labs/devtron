@@ -16,7 +16,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 |-|-|-|-|
 |ACD_PASSWORD | ArgoCD Password for CD Workflow| Auto-Generated| Optional|
 |AZURE_ACCOUNT_KEY | Account key to access Azure objects such as BLOB_CONTAINER_CI_LOG or CI_CACHE| ""| Mandatory (If using Azure)|
-|GRAFANA_PASSWORD | Password for Graphana to disply graphs| Auto-Generated| Optional|
+|GRAFANA_PASSWORD | Password for Graphana to display graphs| Auto-Generated| Optional|
 |POSTGRESQL_PASSWORD | Password for your Postgresql database which will be used to access database| Auto-Generated| Optional|
 
 ### ConfigMaps
