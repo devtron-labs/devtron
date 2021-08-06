@@ -31,6 +31,7 @@ type UserRepository interface {
 	CreateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error)
 	UpdateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error)
 	GetById(id int32) (*UserModel, error)
+	GetByIdIncludeDeleted(id int32) (*UserModel, error)
 	GetAll() ([]UserModel, error)
 	FetchActiveUserByEmail(email string) (bean.UserInfo, error)
 	FetchUserDetailByEmail(email string) (bean.UserInfo, error)
@@ -87,6 +88,12 @@ func (impl UserRepositoryImpl) UpdateUser(userModel *UserModel, tx *pg.Tx) (*Use
 	return userModel, nil
 }
 func (impl UserRepositoryImpl) GetById(id int32) (*UserModel, error) {
+	var model UserModel
+	err := impl.dbConnection.Model(&model).Where("id = ?", id).Where("active = ?", true).Select()
+	return &model, err
+}
+
+func (impl UserRepositoryImpl) GetByIdIncludeDeleted(id int32) (*UserModel, error) {
 	var model UserModel
 	err := impl.dbConnection.Model(&model).Where("id = ?", id).Select()
 	return &model, err

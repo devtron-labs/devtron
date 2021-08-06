@@ -141,8 +141,14 @@ func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	updateUserInfo.RoleFilters = impl.mergeRoleFilter(updateUserInfo.RoleFilters, userInfo.RoleFilters)
-	updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
+	// merge if existing user has active and has roles.
+	if dbUser.Active == true {
+		updateUserInfo.RoleFilters = impl.mergeRoleFilter(updateUserInfo.RoleFilters, userInfo.RoleFilters)
+		updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
+	} else {
+		updateUserInfo = &bean.UserInfo{Id: dbUser.Id}
+	}
+
 	updateUserInfo.UserId = userInfo.UserId
 	updateUserInfo.EmailId = emailId // override case sensitivity
 	updateUserInfo, err = impl.UpdateUser(updateUserInfo)
@@ -400,7 +406,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	model, err := impl.userRepository.GetById(userInfo.Id)
+	model, err := impl.userRepository.GetByIdIncludeDeleted(userInfo.Id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
