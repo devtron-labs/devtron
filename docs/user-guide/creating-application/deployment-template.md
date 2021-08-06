@@ -26,7 +26,7 @@ Application Metrics is not supported for Chart version older than 3.7 version.
 
 ### 2. Yaml file
 
-### Container
+### Container Ports
 
 This defines ports on which application services will be exposed to other services
 
@@ -276,6 +276,20 @@ It contains the commands for the server.
 | :--- | :--- |
 | `enabled` | To enable or disable the command. |
 | `value` | It contains the commands. |
+
+
+### Containers
+Containers section can be used to run side-car containers along with your main container within same pod. Containers running within same pod can share volumes and IP Address and can address each other @localhost.
+
+```yaml
+    containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+        command: ["/usr/local/bin/nginx"]
+        args: ["-g", "daemon off;"]
+```
 
 ### Prometheus
 
