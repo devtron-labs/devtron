@@ -282,6 +282,7 @@ It contains the commands for the server.
 Containers section can be used to run side-car containers along with your main container within same pod. Containers running within same pod can share volumes and IP Address and can address each other @localhost.
 
 ```yaml
+    containers:
       - name: nginx
         image: nginx:1.14.2
         ports:
