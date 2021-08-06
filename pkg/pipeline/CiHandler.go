@@ -962,13 +962,28 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int) (*Git
 	var ciMaterialsArr []CiPipelineMaterialResponse
 	for _, m := range ciMaterials {
 		var history []*gitSensor.GitCommit
-		history = append(history, &gitSensor.GitCommit{
-			Message: workflow.GitTriggers[m.Id].Message,
-			Author:  workflow.GitTriggers[m.Id].Author,
-			Date:    workflow.GitTriggers[m.Id].Date,
-			Changes: workflow.GitTriggers[m.Id].Changes,
-			Commit:  workflow.GitTriggers[m.Id].Commit,
-		})
+		_gitTrigger := workflow.GitTriggers[m.Id]
+
+		_gitCommit := &gitSensor.GitCommit{
+			Message: _gitTrigger.Message,
+			Author:  _gitTrigger.Author,
+			Date:    _gitTrigger.Date,
+			Changes: _gitTrigger.Changes,
+			Commit:  _gitTrigger.Commit,
+		}
+
+		// set webhook data
+		_webhookData := _gitTrigger.WebhookData
+		if _webhookData.Id > 0 {
+			_gitCommit.WebhookData = &gitSensor.WebhookData{
+				Id : _webhookData.Id,
+				EventActionType: _webhookData.EventActionType,
+				Data: _webhookData.Data,
+			}
+		}
+
+		history = append(history, _gitCommit)
+
 		res := CiPipelineMaterialResponse{
 			Id:              m.Id,
 			GitMaterialId:   m.GitMaterialId,
