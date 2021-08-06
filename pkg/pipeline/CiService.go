@@ -392,25 +392,17 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id
 			if len(v.Commit) == 0 {
 				continue
 			}
-			_truncatedCommit = v.Commit[:8]
+			_truncatedCommit = _getTruncatedImageTag(v.Commit)
 		}else{
 			_targetCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME]
 			if len(_targetCheckout) == 0 {
 				continue
 			}
-			_targetLengthToPick := 8
-			if len(_targetCheckout) < 8 {
-				_targetLengthToPick = len(_targetCheckout)
-			}
-			_truncatedCommit = _targetCheckout[:_targetLengthToPick]
+			_truncatedCommit = _getTruncatedImageTag(_targetCheckout)
 			if v.WebhookData.EventActionType == bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE {
 				_sourceCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_SOURCE_CHECKOUT_NAME]
 				if len(_sourceCheckout) > 0 {
-					_sourceLengthToPick := 8
-					if len(_sourceCheckout) < 8 {
-						_sourceLengthToPick = len(_sourceCheckout)
-					}
-					_truncatedCommit = _truncatedCommit + "-" + _sourceCheckout[:_sourceLengthToPick]
+					_truncatedCommit = _truncatedCommit + "-" + _getTruncatedImageTag(_sourceCheckout)
 				}
 			}
 		}
@@ -425,4 +417,21 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id
 		dockerImageTag = dockerImageTag + "-" + strconv.Itoa(id) + "-" + strconv.Itoa(wfId)
 	}
 	return dockerImageTag
+}
+
+
+func _getTruncatedImageTag (imageTag string) string {
+	_length := len(imageTag)
+	if _length == 0 {
+		return imageTag
+	}
+
+	_truncatedLength := 8
+
+	if _length < _truncatedLength {
+		return imageTag
+	}else{
+		return imageTag[:_truncatedLength]
+	}
+
 }
