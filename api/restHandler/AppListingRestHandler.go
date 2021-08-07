@@ -50,6 +50,7 @@ type AppListingRestHandler interface {
 
 	FetchOtherEnvironment(w http.ResponseWriter, r *http.Request)
 	RedirectToLinkouts(w http.ResponseWriter, r *http.Request)
+	GetAppMetaInfo(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
@@ -561,4 +562,26 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 		return
 	}
 	http.Redirect(w, r, link, http.StatusOK)
+}
+
+func (handler AppListingRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.logger.Errorw("request err, GetAppMetaInfo", "err", err, "appId", appId)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	res, err := handler.appListingService.GetAppMetaInfo(appId)
+	if err != nil {
+		handler.logger.Errorw("service err, GetAppMetaInfo", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, nil, res, http.StatusOK)
 }

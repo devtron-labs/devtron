@@ -525,3 +525,14 @@ type CiArtifactResponse struct {
 	CdPipelineId int              `json:"cd_pipeline_id,notnull"`
 	CiArtifacts  []CiArtifactBean `json:"ci_artifacts,notnull"`
 }
+
+type AppMetaInfoDto struct {
+	AppId       int            `json:"appId"`
+	AppName     string         `json:"appName"`
+	ProjectId   int            `json:"projectId"`
+	ProjectName string         `json:"projectName"`
+	CreatedBy   string         `json:"createdBy"`
+	CreatedOn   time.Time      `json:"createdOn"`
+	Active      bool           `json:"active,notnull"`
+	UserId      int32          `json:"-"`
+}
