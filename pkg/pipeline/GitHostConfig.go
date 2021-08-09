@@ -29,7 +29,7 @@ import (
 )
 
 type GitHostConfig interface {
-	GetAll() ([]*GitHostRequest, error)
+	GetAll() ([]GitHostRequest, error)
 	GetById(id int) (*GitHostRequest, error)
 	Create(request *GitHostRequest) (int, error)
 }
@@ -61,16 +61,16 @@ type GitHostRequest struct {
 }
 
 //get all git hosts
-func (impl GitHostConfigImpl) GetAll() ([]*GitHostRequest, error) {
+func (impl GitHostConfigImpl) GetAll() ([]GitHostRequest, error) {
 	impl.logger.Debug("get all hosts request")
 	hosts, err := impl.gitHostRepo.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error in fetching all git hosts", "err", err)
 		return nil, err
 	}
-	var gitHosts []*GitHostRequest
+	var gitHosts []GitHostRequest
 	for _, host := range hosts {
-		hostRes := &GitHostRequest{
+		hostRes := GitHostRequest{
 			Id:     host.Id,
 			Name:   host.Name,
 			Active: host.Active,

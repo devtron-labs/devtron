@@ -36,9 +36,9 @@ type GitHost struct {
 }
 
 type GitHostRepository interface {
-	FindAll() ([]*GitHost, error)
-	FindOneById(Id int) (*GitHost, error)
-	FindOneByName(name string) (*GitHost, error)
+	FindAll() ([]GitHost, error)
+	FindOneById(Id int) (GitHost, error)
+	FindOneByName(name string) (GitHost, error)
 	Exists(name string) (bool, error)
 	Save(gitHost *GitHost) error
 }
@@ -51,21 +51,21 @@ func NewGitHostRepositoryImpl(dbConnection *pg.DB) *GitHostRepositoryImpl {
 	return &GitHostRepositoryImpl{dbConnection: dbConnection}
 }
 
-func (impl GitHostRepositoryImpl) FindAll() ([]*GitHost, error) {
-	var hosts []*GitHost
+func (impl GitHostRepositoryImpl) FindAll() ([]GitHost, error) {
+	var hosts []GitHost
 	err := impl.dbConnection.Model(&hosts).Select()
 	return hosts, err
 }
 
-func (impl GitHostRepositoryImpl) FindOneById(id int) (*GitHost, error) {
-	var host *GitHost
+func (impl GitHostRepositoryImpl) FindOneById(id int) (GitHost, error) {
+	var host GitHost
 	err := impl.dbConnection.Model(&host).
 		Where("id = ?", id).Select()
 	return host, err
 }
 
-func (impl GitHostRepositoryImpl) FindOneByName(name string) (*GitHost, error) {
-	var host *GitHost
+func (impl GitHostRepositoryImpl) FindOneByName(name string) (GitHost, error) {
+	var host GitHost
 	err := impl.dbConnection.Model(&host).
 		Where("name = ?", name).Select()
 	return host, err
