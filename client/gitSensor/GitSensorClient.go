@@ -333,19 +333,19 @@ func (session GitSensorClientImpl) RefreshGitMaterial(req *RefreshGitMaterialReq
 
 func (session GitSensorClientImpl) GetWebhookData(req *WebhookDataRequest) (*WebhookData, error) {
 	webhookData := new(WebhookData)
-	request := &ClientRequest{ResponseBody: webhookData, Method: "POST", RequestBody: req, Path: "webhook/data"}
+	request := &ClientRequest{ResponseBody: webhookData, Method: "GET", RequestBody: req, Path: "webhook/data"}
 	_, _, err := session.doRequest(request)
 	return webhookData, err
 }
 
 func (session GitSensorClientImpl) GetAllWebhookEventConfigForHost(req *WebhookEventConfigRequest) (webhookEvents []*WebhookEventConfig, err error) {
-	request := &ClientRequest{ResponseBody: &webhookEvents, Method: "POST", RequestBody: req, Path: "/webhook/host/events"}
+	request := &ClientRequest{ResponseBody: &webhookEvents, Method: "GET", RequestBody: req, Path: "/webhook/host/events"}
 	_, _, err = session.doRequest(request)
 	return webhookEvents, err
 }
 
 func (session GitSensorClientImpl) GetWebhookEventConfig(req *WebhookEventConfigRequest) (webhookEvent *WebhookEventConfig, err error) {
-	request := &ClientRequest{ResponseBody: &webhookEvent, Method: "POST", RequestBody: req, Path: "/webhook/host/event"}
+	request := &ClientRequest{ResponseBody: &webhookEvent, Method: "GET", RequestBody: req, Path: "/webhook/host/event"}
 	_, _, err = session.doRequest(request)
 	return webhookEvent, err
 }

@@ -29,52 +29,51 @@ import (
 )
 
 type GitHostConfig interface {
-	GetAll() ([]GitHostRequest, error)
+	GetAll() ([]*GitHostRequest, error)
 	GetById(id int) (*GitHostRequest, error)
 	Create(request *GitHostRequest) (int, error)
 }
 
 type GitHostConfigImpl struct {
-	logger          *zap.SugaredLogger
-	gitHostRepo repository.GitHostRepository
+	logger           *zap.SugaredLogger
+	gitHostRepo      repository.GitHostRepository
 	attributeService attributes.AttributesService
 }
 
 func NewGitHostConfigImpl(gitHostRepo repository.GitHostRepository, logger *zap.SugaredLogger, attributeService attributes.AttributesService) *GitHostConfigImpl {
 	return &GitHostConfigImpl{
-		logger: logger,
-		gitHostRepo: gitHostRepo,
+		logger:           logger,
+		gitHostRepo:      gitHostRepo,
 		attributeService: attributeService,
 	}
 }
 
-
 type GitHostRequest struct {
-	Id          	int                 `json:"id,omitempty" validate:"number"`
-	Name        	string              `json:"name,omitempty" validate:"required"`
-	Active      	bool                `json:"active"`
-	WebhookUrl  	string 				`json:"webhookUrl"`
-	WebhookSecret 	string 				`json:"webhookSecret"`
-	EventTypeHeader string 				`json:"eventTypeHeader"`
-	SecretHeader 	string 				`json:"secretHeader"`
-	SecretValidator string 				`json:"secretValidator"`
-	UserId      	int32               `json:"-"`
+	Id              int    `json:"id,omitempty" validate:"number"`
+	Name            string `json:"name,omitempty" validate:"required"`
+	Active          bool   `json:"active"`
+	WebhookUrl      string `json:"webhookUrl"`
+	WebhookSecret   string `json:"webhookSecret"`
+	EventTypeHeader string `json:"eventTypeHeader"`
+	SecretHeader    string `json:"secretHeader"`
+	SecretValidator string `json:"secretValidator"`
+	UserId          int32  `json:"-"`
 }
 
 //get all git hosts
-func (impl GitHostConfigImpl) GetAll() ([]GitHostRequest, error) {
+func (impl GitHostConfigImpl) GetAll() ([]*GitHostRequest, error) {
 	impl.logger.Debug("get all hosts request")
 	hosts, err := impl.gitHostRepo.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error in fetching all git hosts", "err", err)
 		return nil, err
 	}
-	var gitHosts []GitHostRequest
+	var gitHosts []*GitHostRequest
 	for _, host := range hosts {
-		hostRes := GitHostRequest{
-			Id:   host.Id,
-			Name: host.Name,
-			Active:  host.Active,
+		hostRes := &GitHostRequest{
+			Id:     host.Id,
+			Name:   host.Name,
+			Active: host.Active,
 		}
 		gitHosts = append(gitHosts, hostRes)
 	}
@@ -97,16 +96,15 @@ func (impl GitHostConfigImpl) GetById(id int) (*GitHostRequest, error) {
 		return nil, err
 	}
 
-
 	gitHost := &GitHostRequest{
-		Id:   host.Id,
-		Name: host.Name,
-		Active:  host.Active,
-		WebhookUrl : orchestratorHost.Value + host.WebhookUrl,
-		WebhookSecret  : host.WebhookSecret,
-		EventTypeHeader : host.EventTypeHeader,
-		SecretHeader : host.SecretHeader,
-		SecretValidator : host.SecretValidator,
+		Id:              host.Id,
+		Name:            host.Name,
+		Active:          host.Active,
+		WebhookUrl:      orchestratorHost.Value + host.WebhookUrl,
+		WebhookSecret:   host.WebhookSecret,
+		EventTypeHeader: host.EventTypeHeader,
+		SecretHeader:    host.SecretHeader,
+		SecretValidator: host.SecretValidator,
 	}
 
 	return gitHost, err
@@ -134,9 +132,9 @@ func (impl GitHostConfigImpl) Create(request *GitHostRequest) (int, error) {
 		return 0, errors.NewAlreadyExists(err, request.Name)
 	}
 	gitHost := &repository.GitHost{
-		Name:        request.Name,
-		Active:      request.Active,
-		AuditLog:    models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		Name:     request.Name,
+		Active:   request.Active,
+		AuditLog: models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	err = impl.gitHostRepo.Save(gitHost)
 	if err != nil {
@@ -150,5 +148,3 @@ func (impl GitHostConfigImpl) Create(request *GitHostRequest) (int, error) {
 	}
 	return gitHost.Id, nil
 }
-
-

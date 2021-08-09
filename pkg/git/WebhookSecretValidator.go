@@ -32,25 +32,31 @@ type WebhookSecretValidator interface {
 }
 
 type WebhookSecretValidatorImpl struct {
-	logger               *zap.SugaredLogger
+	logger *zap.SugaredLogger
 }
 
 func NewWebhookSecretValidatorImpl(Logger *zap.SugaredLogger) *WebhookSecretValidatorImpl {
 	return &WebhookSecretValidatorImpl{
-		logger:               Logger,
+		logger: Logger,
 	}
 }
 
 const (
-	SECRET_VALIDATOR_SHA1 string = "SHA-1"
+	SECRET_VALIDATOR_SHA1       string = "SHA-1"
 	SECRET_VALIDATOR_URL_APPEND string = "URL_APPEND"
 	SECRET_VALIDATOR_PLAIN_TEXT string = "PLAIN_TEXT"
 )
 
-
+// Validate secret for some predefined algorithms : SHA1, URL_APPEND, PLAIN_TEXT
+// URL_APPEND : Secret will come in URL (last path param of URL)
+// PLAIN_TEXT : Plain text value in request header
+// SHA1 : SHA1 encrypted text in request header
 func (impl *WebhookSecretValidatorImpl) ValidateSecret(r *http.Request, secretInUrl string, requestBodyBytes []byte, gitHost *pipeline.GitHostRequest) bool {
 
-	switch gitHost.SecretValidator {
+	secretValidator := gitHost.SecretValidator
+	impl.logger.Debug("Validating signature for secret validator : ", secretValidator)
+
+	switch secretValidator {
 
 	case SECRET_VALIDATOR_SHA1:
 

@@ -34,21 +34,20 @@ type WebhookEventHandler interface {
 }
 
 type WebhookEventHandlerImpl struct {
-	logger *zap.SugaredLogger
-	gitHostConfig    	 pipeline.GitHostConfig
-	eventClient          client.EventClient
+	logger                 *zap.SugaredLogger
+	gitHostConfig          pipeline.GitHostConfig
+	eventClient            client.EventClient
 	webhookSecretValidator git.WebhookSecretValidator
 }
 
 func NewWebhookEventHandlerImpl(logger *zap.SugaredLogger, gitHostConfig pipeline.GitHostConfig, eventClient client.EventClient, webhookSecretValidator git.WebhookSecretValidator) *WebhookEventHandlerImpl {
 	return &WebhookEventHandlerImpl{
-		logger: logger,
-		gitHostConfig: gitHostConfig,
-		eventClient: eventClient,
-		webhookSecretValidator : webhookSecretValidator,
+		logger:                 logger,
+		gitHostConfig:          gitHostConfig,
+		eventClient:            eventClient,
+		webhookSecretValidator: webhookSecretValidator,
 	}
 }
-
 
 func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *http.Request) {
 	impl.logger.Debug("webhook event came")
@@ -62,6 +61,9 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	impl.logger.Debug("gitHostId", gitHostId)
+	impl.logger.Debug("secretFromRequest", secretFromRequest)
 
 	// get git host from DB
 	gitHost, err := impl.gitHostConfig.GetById(gitHostId)
@@ -78,18 +80,19 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
 	isValidSig := impl.webhookSecretValidator.ValidateSecret(r, secretFromRequest, requestBodyBytes, gitHost)
+	impl.logger.Debug("Secret validation result ", isValidSig)
 	if !isValidSig {
 		impl.logger.Error("Signature mismatch")
 		writeJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 
-
 	// validate event type
 	eventType := r.Header.Get(gitHost.EventTypeHeader)
 	impl.logger.Debugw("eventType : ", eventType)
-	if len(eventType) == 0{
+	if len(eventType) == 0 {
 		impl.logger.Errorw("Event type not known ", eventType)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -97,9 +100,9 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 
 	// make request to nats to handle this webhook
 	webhookEvent := WebhookEvent{
-		RequestPayloadJson:         string(requestBodyBytes),
-		GitHostId:      			gitHostId,
-		EventType:        			eventType,
+		RequestPayloadJson: string(requestBodyBytes),
+		GitHostId:          gitHostId,
+		EventType:          eventType,
 	}
 
 	// write event
@@ -110,11 +113,10 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	}
 }
 
-
 type WebhookEvent struct {
 	RequestPayloadJson string `json:"requestPayloadJson"`
-	GitHostId int `json:"gitHostId"`
-	EventType string `json:"eventType"`
+	GitHostId          int    `json:"gitHostId"`
+	EventType          string `json:"eventType"`
 }
 
 type WebhookEventResponse struct {
