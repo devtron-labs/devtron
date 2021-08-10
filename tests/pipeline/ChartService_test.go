@@ -91,7 +91,7 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 	for _, tt := range tests {
 		testname := fmt.Sprintf("%s,%s", tt.Payload.Includes, tt.Payload.Excludes)
 		t.Run(testname, func(t *testing.T) {
-			got, _ := bulkUpdateService.BulkUpdateDeploymentTemplate(tt.Payload)
+			got := bulkUpdateService.BulkUpdateDeploymentTemplate(tt.Payload)
 			if got != tt.want {
 				t.Errorf("got %s, want %s", got, tt.want)
 			}
