@@ -76,7 +76,7 @@ Get updates on Devtron's development and chat with the project maintainers, cont
 
 ## Contribute
 
-Check out our [contributing guidelines](https://github.com/devtron-labs/devtron-documentation/tree/1c2b95254995286ac0c3e8379117eb82a7ed8407/CONTRIBUTING.md). Included are directions for opening issues, coding standards, and notes on our development processes.
+Check out our [contributing guidelines](https://github.com/devtron-labs/devtron/blob/main/CONTRIBUTING.md). Included are directions for opening issues, coding standards, and notes on our development processes.
 
 ## Vulnerability Reporting
 
@@ -84,5 +84,5 @@ We at Devtron take security and our users' trust very seriously. If you believe 
 
 ## License
 
-Devtron is available under the [Apache License, Version 2.0](https://github.com/devtron-labs/devtron-documentation/tree/1c2b95254995286ac0c3e8379117eb82a7ed8407/LICENSE/README.md)
+Devtron is available under the [Apache License, Version 2.0](https://github.com/devtron-labs/devtron/blob/main/LICENSE)
 

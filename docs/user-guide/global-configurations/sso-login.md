@@ -26,17 +26,15 @@ For examples see
 
 Login as a user with super-admin privileges and go to `Global Configurations` -&gt; `SSO Login Services` and click on any `Identity Provider` and fill the configuration. 
 
-Add valid devtron application `URL` where it hosted.
+Add valid devtron application `URL` where it is hosted.
 
-Fill correct `redirect URL` or `callback URL` with which you have registered with the identity provider in the previous step along with the `client id` and `client secret` shared by the identity provider.
+Fill correct `redirect URL` or `callback URL` from which you have registered with the identity provider in the previous step along with the `client id` and `client secret` shared by the identity provider.
 
-Only single SSO login configuration can be active at one time. Whenever you create or update any sso config that config will be activated and used by the system and previous configuration will be deleted.
-
-![](../../.gitbook/assets/sso-login-3.png)
+Only single SSO login configuration can be active at one time. Whenever you create or update any SSO config, it will be activated and used by the system and previous configurations will be deleted.
 
 URL and redirectURI should be same as provided in screenshots except domain substring.
 
-![](../../.gitbook/assets/sso-login-4.png)
+![](../../.gitbook/assets/sso-config.jpg)
 
 Click on `Save` bottom for creating and activating sso login on bottom right of the configuration.
 
@@ -51,4 +49,4 @@ In case of configuration change all users will be logged out of the system and w
 * `name` : identity provider platform name 
 * `id` : identity provider platform unique id in string. (refer to dexidp.io)
 * `config` : user can put connector details into this key. platforms may not have same structure but commons are clientID, clientSecret, redirectURI.
-* `hostedDomains` : domain where your application is deployed.
+* `hostedDomains` : domains authorized for SSO login.
