@@ -82,7 +82,7 @@ func (impl GitHostRestHandlerImpl) GetGitHosts(w http.ResponseWriter, r *http.Re
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	var result []pipeline.GitHostRequest
+	result := make([]pipeline.GitHostRequest, 0)
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, rbac.ResourceGit, rbac.ActionGet, strings.ToLower(item.Name)); ok {
 			result = append(result, item)
