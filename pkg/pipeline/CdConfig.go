@@ -51,6 +51,14 @@ type CdConfig struct {
 	OrchestratorToken         string   `env:"ORCH_TOKEN" envDefault:""`
 	ClusterConfig             *rest.Config
 	NodeLabel                 map[string]string
+	CloudProvider             string `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
+	AzureAccountName          string `env:"AZURE_ACCOUNT_NAME"`
+	AzureBlobContainerCiLog   string `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
+	AzureBlobContainerCiCache string `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
+	MinioEndpoint             string `env:"MINIO_ENDPOINT"`
+	MinioAccessKey            string   `env:"MINIO_ACCESS_KEY"`
+	MinioSecretKey            string   `env:"MINIO_SECRET_KEY"`
+	AzureAccountKey string `env:"AZURE_ACCOUNT_KEY"`
 }
 
 func GetCdConfig() (*CdConfig, error) {

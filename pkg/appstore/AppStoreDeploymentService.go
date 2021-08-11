@@ -69,7 +69,7 @@ type InstalledAppService interface {
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO) (*InstallAppVersionDTO, error)
 	GetInstalledApp(id int) (*InstallAppVersionDTO, error)
 	GetInstalledAppVersion(id int) (*InstallAppVersionDTO, error)
-	GetAll(environments []int) ([]InstalledAppsResponse, error)
+	GetAll(filter *appstore.AppStoreFilter) ([]InstalledAppsResponse, error)
 	GetAllInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request, token string, appStoreId int) ([]InstalledAppsResponse, error)
 	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO) (*InstallAppVersionDTO, error)
 
@@ -460,8 +460,8 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int) (*InstallAppV
 	return installAppVersion, err
 }
 
-func (impl InstalledAppServiceImpl) GetAll(environments []int) ([]InstalledAppsResponse, error) {
-	installedApps, err := impl.installedAppRepository.GetAllInstalledApps(environments)
+func (impl InstalledAppServiceImpl) GetAll(filter *appstore.AppStoreFilter) ([]InstalledAppsResponse, error) {
+	installedApps, err := impl.installedAppRepository.GetAllInstalledApps(filter)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Error(err)
 		return nil, err

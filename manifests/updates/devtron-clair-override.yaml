@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clair-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: clair
+      namespace: devtroncd
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                requests:
+                  cpu: 40m
+                  memory: 50Mi
+    ---
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: clair
+#    update:
+#      data:
+#        config.yaml: |-
+#          replace-me with key/secret 

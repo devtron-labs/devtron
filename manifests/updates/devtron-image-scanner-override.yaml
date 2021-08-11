@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: image-scanner-override-cm
+  namespace: devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: image-scanner-cm
+#    update:
+#      data:
+#        CLAIR_ADDR: clair.devtroncd:6060
+#        NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+#        PG_USER: postgres
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: image-scanner
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 10m
+                  memory: 15Mi
+                requests:
+                  cpu: 5m
+                  memory: 10Mi
+#              env:
+#              - name: CONFIG_HASH
+#                value: 66ea130a3a759ac13165931cc6c106f5a9d40a01171b38982715b5570351134a
+#              - name: SECRET_HASH
+#                value: dab9f1b9549ed81db8bca66052d574b870a25e69d1845100d5c0d0368fbf3ee0
+#              - name: DEVTRON_APP_NAME
+#                value: image-scanner
+#              - name: POD_NAME
+#                valueFrom:
+#                  fieldRef:
+#                    fieldPath: metadata.name
+                        

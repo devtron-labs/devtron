@@ -569,13 +569,6 @@ spec:
             httpGet:
               path: /api/health
               port: 3000
-          resources:
-            limits:
-              cpu: 300m
-              memory: 400Mi
-            requests:
-              cpu: 300m
-              memory: 400Mi
       volumes:
         - name: config
           configMap:

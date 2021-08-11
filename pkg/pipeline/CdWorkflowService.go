@@ -76,12 +76,17 @@ type CdWorkflowRequest struct {
 	AwsRegion                 string             `json:"awsRegion"`
 	SecretKey                 string             `json:"secretKey"`
 	AccessKey                 string             `json:"accessKey"`
+	CdCacheLocation           string             `json:"cdCacheLocation"`
+	CdCacheRegion             string             `json:"cdCacheRegion"`
 	DockerRegistryType        string             `json:"dockerRegistryType"`
 	DockerRegistryURL         string             `json:"dockerRegistryURL"`
 	OrchestratorHost          string             `json:"orchestratorHost"`
 	OrchestratorToken         string             `json:"orchestratorToken"`
 	IsExtRun                  bool               `json:"isExtRun"`
 	ExtraEnvironmentVariables map[string]string  `json:"extraEnvironmentVariables"`
+	CloudProvider             string             `json:"cloudProvider"`
+	AzureBlobConfig           *AzureBlobConfig   `json:"azureBlobConfig"`
+	MinioEndpoint             string             `json:"minioEndpoint"`
 }
 
 const PRE = "PRE"
@@ -93,6 +98,11 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository cluster.E
 }
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *cluster.Environment) (*v1alpha1.Workflow, error) {
+	containerEnvVariables := []v12.EnvVar{}
+	if impl.cdConfig.CloudProvider == BLOB_STORAGE_MINIO {
+		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.cdConfig.MinioAccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.cdConfig.MinioSecretKey}}
+		containerEnvVariables = append(containerEnvVariables, miniCred...)
+	}
 	if (workflowRequest.StageType == PRE && pipeline.RunPreStageInEnv) || (workflowRequest.StageType == POST && pipeline.RunPostStageInEnv) {
 		workflowRequest.IsExtRun = true
 	}
@@ -342,6 +352,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	templates = append(templates, v1alpha1.Template{
 		Name: "cd",
 		Container: &v12.Container{
+			Env:   containerEnvVariables,
 			Image: workflowRequest.CdImage,
 			Args:  []string{string(workflowJson)},
 			SecurityContext: &v12.SecurityContext{

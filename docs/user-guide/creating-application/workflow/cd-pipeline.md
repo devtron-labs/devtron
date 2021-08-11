@@ -93,7 +93,7 @@ Select the environment where you want to deploy your application. Once you selec
 
 If you have defined pre-deployment stages, then the CD Pipeline will be triggered automatically after the successful execution of your CI pipeline followed by the successful execution of your pre-deployment stages. But if you choose the manual option, then you have to trigger your deployment manually via console.
 
-**\(a\) Deployment Strategy**
+**\(c\) Deployment Strategy**
 
 Devtron's tool has 4 types of deployment strategies. Click on `Add Deployment strategy` and select from the available options:
 

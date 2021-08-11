@@ -4,12 +4,11 @@ To install Helm3, please check [Installing Helm3](https://helm.sh/docs/intro/ins
 
 {% tabs %}
 {% tab title="Install with default configurations" %}
-This installation will use Minio for storing build logs and cache. Please make sure to edit the POSTGRESQL_PASSWORD value.
+This installation will use Minio for storing build logs and cache. 
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
---set secrets.POSTGRESQL_PASSWORD=change-me
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd 
 ```
 {% endtab %}
 
@@ -19,7 +18,6 @@ This installation will use AWS s3 buckets for storing build logs and cache
 ```bash
 helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
---set secrets.POSTGRESQL_PASSWORD=change-me \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
@@ -34,7 +32,6 @@ This installation will use Azure Blob Storage for storing build logs and cache
 ```bash
 helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
---set secrets.POSTGRESQL_PASSWORD=change-me \
 --set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
 --set configs.AZURE_ACCOUNT_NAME=test-account \
@@ -52,7 +49,7 @@ Run following command
 kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.status}'
 ```
 
-The install commands initiates Devtron-operator which spins up all the Devtron micro-services one by one in about 30 mins. You can use the above command to check the status of the installation if the installation is still in progress, it will print `Downloaded`. When the installation is complete, it prints `Applied`.
+The install commands initiates Devtron-operator which spins up all the Devtron micro-services one by one in about 20 mins. You can use the above command to check the status of the installation if the installation is still in progress, it will print `Downloaded`. When the installation is complete, it prints `Applied`.
 
 ## Access Devtron dashboard
 

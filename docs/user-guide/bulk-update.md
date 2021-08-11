@@ -15,17 +15,17 @@ _Ability to edit more Devtron components will be added in the future._
 
 ## Steps:
 
-1. Click on the `Bulk Edit` option in the main navigation. This is where you can write and execute scripts to perform bulk updates in Devtron objects.
+1.  Click on the `Bulk Edit` option in the main navigation. This is where you can write and execute scripts to perform bulk updates in Devtron objects.
  
 ![](../.gitbook/assets/bulk-update-empty.png)
 <br>
 
-2. To help you get started, a script template is provided under the `See Samples` section.
+2.  To help you get started, a script template is provided under the `See Samples` section.
 
 ![](../.gitbook/assets/bulk-update-readme.png)
 <br>
 
-3. Copy and Paste the `Sample Script` in the code editor and make desired changes. Refer `Payload Configuration` in the Readme to understand the parameters.
+3.  Copy and Paste the `Sample Script` in the code editor and make desired changes. Refer `Payload Configuration` in the Readme to understand the parameters.
 
 
 ![](../.gitbook/assets/bulk-update-script.png)
@@ -77,14 +77,14 @@ The following tables list the configurable parameters of the Payload component i
 <br>
 
 
-4. Once you have modified the script, you can click on the `Show Impacted Objects` button to see the names of all applications that will be modified when the script is `Run`.
+4.  Once you have modified the script, you can click on the `Show Impacted Objects` button to see the names of all applications that will be modified when the script is `Run`.
 
 
 ![](../.gitbook/assets/bulk-update-impactobj.png)
 
 <br>
 
-5. Click on the `Run` button to execute the script. Status/Output of the script execution will be shown in the `Output` section of the bottom drawer.
+5.  Click on the `Run` button to execute the script. Status/Output of the script execution will be shown in the `Output` section of the bottom drawer.
 
 
 ![](../.gitbook/assets/bulk-update-run.png)

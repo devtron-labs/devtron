@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: guard-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: guard
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                requests:
+                  cpu: 100m
+                  memory: 50Mi
+#             env:
+#              - name: CONFIG_HASH
+#                value: give-value
+#              - name: SECRET_HASH
+#                value: give-value
+#              - name: DEVTRON_APP_NAME
+#                value: guard
+

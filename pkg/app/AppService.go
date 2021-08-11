@@ -203,6 +203,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 		}
 		pipelineOverride, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
 		if err != nil {
+			impl.logger.Errorw("error on update application status", "pipelineOverride", pipelineOverride, "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
 			return isHealthy, err
 		}
 
@@ -213,6 +214,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 
 		releaseCounter, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineOverride.PipelineId)
 		if err != nil {
+			impl.logger.Errorw("error on update application status", "releaseCounter", releaseCounter, "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
 			return isHealthy, err
 		}
 		if pipelineOverride.PipelineReleaseCounter == releaseCounter {
@@ -228,6 +230,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 			dbConnection := impl.pipelineRepository.GetConnection()
 			tx, err := dbConnection.Begin()
 			if err != nil {
+				impl.logger.Errorw("error on update status, db get txn failed", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
 				return isHealthy, err
 			}
 			// Rollback tx on error.
@@ -235,16 +238,17 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 
 			err = impl.appListingRepository.SaveNewDeployment(newDeploymentStatus, tx)
 			if err != nil {
-				impl.logger.Errorw("err", err)
+				impl.logger.Errorw("error on saving new deployment status for wf", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
 				return isHealthy, err
 			}
 			err = impl.UpdateCdWorkflowRunnerByACDObject(app, pipelineOverride.CdWorkflowId)
 			if err != nil {
-				impl.logger.Errorw("err", err)
+				impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
 				return isHealthy, err
 			}
 			err = tx.Commit()
 			if err != nil {
+				impl.logger.Errorw("error on db transaction commit for", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
 				return isHealthy, err
 			}
 			if string(application.Healthy) == newDeploymentStatus.Status {
@@ -1215,16 +1219,19 @@ func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, en
 func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application, cdWorkflowId int) error {
 	cdWorkflow, err := impl.cdWorkflowRepository.FindById(cdWorkflowId)
 	if err != nil {
+		impl.logger.Errorw("error on update cd workflow runner, fetch failed for cdwf", "cdWorkflow", cdWorkflow, "app", app, "err", err)
 		return err
 	}
 	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(cdWorkflow.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
+		impl.logger.Errorw("error on update cd workflow runner, fetch failed for runner type", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
 	wfr.Status = app.Status.Health.Status
 	wfr.FinishedOn = time.Now()
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&wfr)
 	if err != nil {
+		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
 	return nil

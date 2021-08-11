@@ -35,7 +35,7 @@ type InstalledAppRepository interface {
 	GetInstalledApp(id int) (*InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
-	GetAllInstalledApps(envIds []int) ([]InstalledAppsWithChartDetails, error)
+	GetAllInstalledApps(filter *AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
 	GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
 	GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error)
@@ -217,17 +217,42 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*Insta
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(envIds []int) ([]InstalledAppsWithChartDetails, error) {
+func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *AppStoreFilter) ([]InstalledAppsWithChartDetails, error) {
 	var installedAppsWithChartDetails []InstalledAppsWithChartDetails
-	var queryTemp string
-	if len(envIds) > 0 {
-		queryTemp = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name, env.environment_name, env.id as environment_id, a.app_name, asav.icon, asav.name as app_store_application_name, asav.id as app_store_application_version_id, ia.id " +
-			", asav.deprecated from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id inner join app a on a.id = ia.app_id inner join environment env on ia.environment_id = env.id inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id inner join app_store aps on aps.id = asav.app_store_id inner join chart_repo ch on ch.id = aps.chart_repo_id where ia.active=true and env.id in (" + sqlIntSeq(envIds) + ") and iav.active=true"
-	} else {
-		queryTemp = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name, env.environment_name, env.id as environment_id, a.app_name, asav.icon, asav.name as app_store_application_name, asav.id as app_store_application_version_id, ia.id " +
-			", asav.deprecated from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id inner join app a on a.id = ia.app_id inner join environment env on ia.environment_id = env.id inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id inner join app_store aps on aps.id = asav.app_store_id inner join chart_repo ch on ch.id = aps.chart_repo_id where ia.active=true and iav.active=true"
+	var query string
+	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name,"
+	query = query + " env.environment_name, env.id as environment_id, a.app_name, asav.icon, asav.name as app_store_application_name,"
+	query = query + " asav.id as app_store_application_version_id, ia.id , asav.deprecated"
+	query = query + " from installed_app_versions iav"
+	query = query + " inner join installed_apps ia on iav.installed_app_id = ia.id"
+	query = query + " inner join app a on a.id = ia.app_id"
+	query = query + " inner join environment env on ia.environment_id = env.id"
+	query = query + " inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id"
+	query = query + " inner join app_store aps on aps.id = asav.app_store_id"
+	query = query + " inner join chart_repo ch on ch.id = aps.chart_repo_id"
+	query = query + " where ia.active = true and iav.active = true"
+	if filter.OnlyDeprecated {
+		query = query + " AND asav.deprecated = TRUE"
 	}
-	_, err := impl.dbConnection.Query(&installedAppsWithChartDetails, queryTemp)
+	if len(filter.AppStoreName) > 0 {
+		query = query + " AND aps.name LIKE '%" + filter.AppStoreName + "%'"
+	}
+	if len(filter.AppName) > 0 {
+		query = query + " AND a.app_name LIKE '%" + filter.AppName + "%'"
+	}
+	if len(filter.ChartRepoId) > 0 {
+		query = query + " AND ch.id IN (" + sqlIntSeq(filter.ChartRepoId) + ")"
+	}
+	if len(filter.EnvIds) > 0 {
+		query = query + " AND env.id IN (" + sqlIntSeq(filter.EnvIds) + ")"
+	}
+	query = query + " ORDER BY aps.name ASC"
+	if filter.Size > 0 {
+		query = query + " OFFSET " + strconv.Itoa(filter.Offset) + " LIMIT " + strconv.Itoa(filter.Size) + ""
+	}
+	query = query + ";"
+	var err error
+	_, err = impl.dbConnection.Query(&installedAppsWithChartDetails, query)
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,175 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/app-store/installed-app:
+    get:
+      description: deployed chart listing, with search filters
+      parameters:
+        - name: envs
+          in: query
+          description: environment ids
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: chartRepoId
+          in: query
+          description: chart repo ids
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: appStoreName
+          in: query
+          description: chart name
+          required: false
+          schema:
+            type: string
+        - name: appName
+          in: query
+          description: chart name as app name for devtron
+          required: false
+          schema:
+            type: string
+        - name: onlyDeprecated
+          in: query
+          description: show only deprecated or all
+          required: false
+          schema:
+            type: boolean
+        - name: offset
+          in: query
+          description: offset for result set
+          required: false
+          schema:
+            type: integer
+        - name: size
+          in: query
+          description: total request size.
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: deployed chart listing, with search filters
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: deployed chart listing, with search filters
+                    items:
+                      $ref: '#/components/schemas/ChartInfo'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# components mentioned below
+components:
+  schemas:
+    ChartInfo:
+      type: object
+      required:
+        - installedAppId
+        - environmentId
+        - installedAppVersionId
+        - appStoreApplicationVersionId
+        - appStoreApplicationName
+        - status
+        - appName
+        - environmentName
+        - deployedAt
+        - deployedBy
+        - readme
+        - deprecated
+      properties:
+        installedAppId:
+          type: integer
+          description: installed chart id
+        environmentId:
+          type: integer
+          description: environment id
+        installedAppVersionId:
+          type: integer
+          description: installed chart version id
+        appStoreApplicationVersionId:
+          type: integer
+          description: team/project id
+        appStoreApplicationName:
+          type: string
+          description: chart name externally
+        chartName:
+          type: string
+          description: chart repo name
+        icon:
+          type: string
+          description: image
+        status:
+          type: string
+          description: status of deployed chart
+        appName:
+          type: string
+          description: chart name is app name for devtron
+        environmentName:
+          type: string
+          description: env name
+        deployedAt:
+          type: string
+          description: deployement time
+        deployedBy:
+          type: string
+          description: user
+        readme:
+          type: string
+          description: readme
+        deprecated:
+          type: boolean
+          description: is deprecated or not
+
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message

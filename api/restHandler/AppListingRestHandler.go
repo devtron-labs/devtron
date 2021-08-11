@@ -50,6 +50,7 @@ type AppListingRestHandler interface {
 
 	FetchOtherEnvironment(w http.ResponseWriter, r *http.Request)
 	RedirectToLinkouts(w http.ResponseWriter, r *http.Request)
+	GetAppMetaInfo(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
@@ -144,23 +145,55 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	t2 := time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "2")
 	t1 = t2
-	appEnvs := make([]*bean.AppEnvironmentContainer, 0)
-	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
-	for _, env := range envContainers {
-		if fetchAppListingRequest.DeploymentGroupId > 0 {
-			if env.EnvironmentId != 0 && env.EnvironmentId != dg.EnvironmentId {
-				continue
+
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
+		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+	appEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
+	if isActionUserSuperAdmin {
+		for _, envContainer := range envContainers {
+			appEnvContainers = append(appEnvContainers, envContainer)
+		}
+	} else {
+		uniqueTeams := make(map[int]string)
+		authorizedTeams := make(map[int]bool)
+		for _, envContainer := range envContainers {
+			if _, ok := uniqueTeams[envContainer.TeamId]; !ok {
+				uniqueTeams[envContainer.TeamId] = envContainer.TeamName
 			}
 		}
-		object := rbacObjects[env.AppId]
-		if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
-			appEnvs = append(appEnvs, env)
+		for teamId, teamName := range uniqueTeams {
+			object := strings.ToLower(teamName)
+			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceTeam, rbac.ActionGet, object); ok {
+				authorizedTeams[teamId] = true
+			}
+		}
+		filteredAppEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
+		for _, envContainer := range envContainers {
+			if _, ok := authorizedTeams[envContainer.TeamId]; ok {
+				filteredAppEnvContainers = append(filteredAppEnvContainers, envContainer)
+			}
+		}
+		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
+			if fetchAppListingRequest.DeploymentGroupId > 0 {
+				if filteredAppEnvContainer.EnvironmentId != 0 && filteredAppEnvContainer.EnvironmentId != dg.EnvironmentId {
+					continue
+				}
+			}
+			object := fmt.Sprintf("%s/%s", filteredAppEnvContainer.TeamName, filteredAppEnvContainer.AppName)
+			object = strings.ToLower(object)
+			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+				appEnvContainers = append(appEnvContainers, filteredAppEnvContainer)
+			}
 		}
 	}
 	t2 = time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3")
 	t1 = t2
-	apps, err := handler.appListingService.BuildAppListingResponse(fetchAppListingRequest, appEnvs)
+	apps, err := handler.appListingService.BuildAppListingResponse(fetchAppListingRequest, appEnvContainers)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		writeJsonResp(w, err, "", http.StatusInternalServerError)
@@ -529,4 +562,36 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 		return
 	}
 	http.Redirect(w, r, link, http.StatusOK)
+}
+
+func (handler AppListingRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.logger.Errorw("request err, GetAppMetaInfo", "err", err, "appId", appId)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+		writeJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	res, err := handler.appListingService.GetAppMetaInfo(appId)
+	if err != nil {
+		handler.logger.Errorw("service err, GetAppMetaInfo", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, nil, res, http.StatusOK)
 }
