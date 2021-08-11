@@ -138,27 +138,25 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipeli
 	gitTriggers := make(map[int]pipelineConfig.GitCommit)
 
 	for k, v := range trigger.CommitHashes {
-		gitTriggers[k] = pipelineConfig.GitCommit{
+		gitCommit := pipelineConfig.GitCommit{
 			Commit:  v.Commit,
 			Author:  v.Author,
 			Changes: v.Changes,
 			Message: v.Message,
 			Date:    v.Date,
 		}
-	}
 
-	// set webhook data in gitTriggers
-	for _, ciMaterial := range trigger.CiMaterials {
-		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
-			pipelineMaterialId := ciMaterial.Id
-			webhookData := trigger.CommitHashes[pipelineMaterialId].WebhookData
-			gitTrigger := gitTriggers[pipelineMaterialId]
-			gitTrigger.WebhookData = pipelineConfig.WebhookData {
-				Id: webhookData.Id,
-				EventActionType: webhookData.EventActionType,
-				Data : webhookData.Data,
+		// set webhook data in gitTriggers
+		_webhookData := v.WebhookData
+		if _webhookData != nil {
+			gitCommit.WebhookData = pipelineConfig.WebhookData {
+				Id: _webhookData.Id,
+				EventActionType: _webhookData.EventActionType,
+				Data : _webhookData.Data,
 			}
 		}
+
+		gitTriggers[k] = gitCommit
 	}
 
 	material.GitTriggers = gitTriggers
