@@ -237,12 +237,8 @@ func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r 
 		return
 	}
 
-	team, err := handler.teamService.FindTeamByAppId(appId)
-	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionDelete, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionDelete, resourceObject); !ok {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -285,7 +281,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -339,13 +335,8 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	team, err := handler.teamService.FindTeamByAppId(createMaterialDto.AppId)
-	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(createMaterialDto.AppId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceObject); !ok {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -382,13 +373,8 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	team, err := handler.teamService.FindTeamByAppId(updateMaterialDto.AppId)
-	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(updateMaterialDto.AppId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceObject); !ok {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}

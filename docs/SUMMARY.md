@@ -8,6 +8,7 @@
   * [Install using Helm3](setup/install/install-devtron-helm-3.md)
   * [Install using Helm2](setup/install/install-devtron-helm-2.md)
   * [Install using Kubectl](setup/install/install-devtron-using-kubectl.md)
+  * [Installation Configurations](setup/install/installation-configuration.md)
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
 * [Start Using devtron](setup/start-using.md)
 
@@ -43,6 +44,7 @@
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
   * [Cluster And Environments](user-guide/global-configurations/cluster-and-environments.md)
   * [Projects](user-guide/global-configurations/projects.md)
+  * [SSO Login Service](user-guide/global-configurations/sso-login.md)
   * [User Access](user-guide/global-configurations/user-access.md)
   * [Manage Notification](user-guide/global-configurations/manage-notification.md)
 * [Bulk Update](user-guide/bulk-update.md)

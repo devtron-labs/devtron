@@ -65,4 +65,8 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.RedirectToLinkouts).
 		Methods("GET")
 
+	appListingRouter.Path("/meta/info/{appId}").
+		HandlerFunc(router.appListingRestHandler.GetAppMetaInfo).Methods("GET")
+
+
 }
