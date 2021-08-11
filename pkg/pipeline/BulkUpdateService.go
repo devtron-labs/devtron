@@ -167,6 +167,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		appRepository:             appRepository,
 	}
 }
+
 func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (*BulkUpdateSeeExampleResponse, error) {
 	bulkUpdateReadme, err := impl.bulkUpdateRepository.FindBulkUpdateReadme(operation)
 	response := &BulkUpdateSeeExampleResponse{}
