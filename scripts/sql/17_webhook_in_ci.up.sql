@@ -72,7 +72,7 @@ set template_payload = '{
             },
             "accessory": {
                 "type": "image",
-                "image_url": "https://github.com/devtron-labs/wp-content/uploads/2020/06/img-build-notification@2x.png",
+                "image_url": "https://github.com/devtron-labs/notifier/assets/image/img_build_notification.png",
                 "alt_text": "calendar thumbnail"
             }
         },
@@ -203,7 +203,7 @@ set template_payload = '{
       },
       "accessory": {
         "type": "image",
-        "image_url": "https://github.com/devtron-labs/wp-content/uploads/2020/06/img-build-notification@2x.png",
+        "image_url": "https://github.com/devtron-labs/notifier/assets/image/img_build_notification.png",
         "alt_text": "calendar thumbnail"
       }
     },
@@ -337,7 +337,7 @@ set template_payload = '{
             },
             "accessory": {
                 "type": "image",
-                "image_url": "https://github.com/devtron-labs/wp-content/uploads/2020/06/img-build-notification@2x.png",
+                "image_url": "https://github.com/devtron-labs/notifier/assets/image/img_build_notification.png",
                 "alt_text": "calendar thumbnail"
             }
         },
@@ -467,7 +467,7 @@ set template_payload = '{
             },
             "accessory": {
                 "type": "image",
-                "image_url":"https://github.com/devtron-labs/wp-content/uploads/2020/06/img-deployment-notification@2x.png",
+                "image_url":"https://github.com/devtron-labs/notifier/assets/image/img_deployment_notification.png",
                 "alt_text": "Deploy Pipeline Triggered"
             }
         },
@@ -622,7 +622,7 @@ set template_payload = '{
             },
             "accessory": {
                 "type": "image",
-                "image_url":"https://github.com/devtron-labs/wp-content/uploads/2020/06/img-deployment-notification@2x.png",
+                "image_url":"https://github.com/devtron-labs/notifier/assets/image/img_deployment_notification.png",
                 "alt_text": "calendar thumbnail"
             }
         },
@@ -776,7 +776,7 @@ set template_payload = '{
             },
             "accessory": {
                 "type": "image",
-                "image_url":"https://github.com/devtron-labs/wp-content/uploads/2020/06/img-deployment-notification@2x.png",
+                "image_url":"https://github.com/devtron-labs/notifier/assets/image/img_deployment_notification.png",
                 "alt_text": "calendar thumbnail"
             }
         },
