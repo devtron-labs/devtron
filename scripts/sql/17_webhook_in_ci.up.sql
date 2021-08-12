@@ -111,7 +111,7 @@ set template_payload = '{
         "fields": [
             {
             "type": "mrkdwn",
-            "text": "*Header*\n{{webhookData.data.header}}"
+            "text": "*Title*\n{{webhookData.data.title}}"
             },
             {
             "type": "mrkdwn",
@@ -243,7 +243,7 @@ set template_payload = '{
     "fields": [
         {
         "type": "mrkdwn",
-        "text": "*Header*\n{{webhookData.data.header}}"
+        "text": "*Title*\n{{webhookData.data.title}}"
         },
         {
         "type": "mrkdwn",
@@ -376,7 +376,7 @@ set template_payload = '{
         "fields": [
             {
             "type": "mrkdwn",
-            "text": "*Header*\n{{webhookData.data.header}}"
+            "text": "*Title*\n{{webhookData.data.title}}"
             },
             {
             "type": "mrkdwn",
@@ -509,7 +509,7 @@ set template_payload = '{
         "fields": [
             {
             "type": "mrkdwn",
-            "text": "*Header*\n{{webhookData.data.header}}"
+            "text": "*Title*\n{{webhookData.data.title}}"
             },
             {
             "type": "mrkdwn",
@@ -664,7 +664,7 @@ set template_payload = '{
         "fields": [
             {
             "type": "mrkdwn",
-            "text": "*Header*\n{{webhookData.data.header}}"
+            "text": "*Title*\n{{webhookData.data.title}}"
             },
             {
             "type": "mrkdwn",
@@ -818,7 +818,7 @@ set template_payload = '{
         "fields": [
             {
             "type": "mrkdwn",
-            "text": "*Header*\n{{webhookData.data.header}}"
+            "text": "*Title*\n{{webhookData.data.title}}"
             },
             {
             "type": "mrkdwn",
