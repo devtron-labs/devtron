@@ -91,20 +91,19 @@ type GitProvider struct {
 }
 
 type GitCommit struct {
-	Commit  string //git hash
-	Author  string
-	Date    time.Time
-	Message string
-	Changes []string
-	WebhookData   *WebhookData
+	Commit      string //git hash
+	Author      string
+	Date        time.Time
+	Message     string
+	Changes     []string
+	WebhookData *WebhookData
 }
 
 type WebhookData struct {
-	Id					int 				`json:"id"`
-	EventActionType     string				`json:"eventActionType"`
-	Data    			map[string]string	`json:"data"`
+	Id              int               `json:"id"`
+	EventActionType string            `json:"eventActionType"`
+	Data            map[string]string `json:"data"`
 }
-
 
 type MaterialChangeResp struct {
 	Commits        []*GitCommit `json:"commits"`
@@ -119,7 +118,7 @@ type CommitMetadataRequest struct {
 	PipelineMaterialId int    `json:"pipelineMaterialId"`
 	GitHash            string `json:"gitHash"`
 	GitTag             string `json:"gitTag"`
-	BranchName		   string `json:"branchName"`
+	BranchName         string `json:"branchName"`
 }
 
 type RefreshGitMaterialRequest struct {
@@ -132,7 +131,6 @@ type RefreshGitMaterialResponse struct {
 	LastFetchTime time.Time `json:"lastFetchTime"`
 }
 
-
 type WebhookDataRequest struct {
 	Id int `json:"id"`
 }
@@ -142,32 +140,31 @@ type WebhookEventConfigRequest struct {
 	EventId   int `json:"eventId"`
 }
 
-
 type WebhookEventConfig struct {
-	Id          int      `json:"id"`
-	GitHostId   int      `json:"gitHostId"`
-	Name        string   `json:"name"`
-	EventTypesCsv string `json:"eventTypesCsv"`
-	ActionType  string 	 `json:"actionType"`
-	IsActive	bool	 `json:"isActive"`
-	CreatedOn   time.Time `json:"createdOn"`
-	UpdatedOn   time.Time `json:"updatedOn"`
+	Id            int       `json:"id"`
+	GitHostId     int       `json:"gitHostId"`
+	Name          string    `json:"name"`
+	EventTypesCsv string    `json:"eventTypesCsv"`
+	ActionType    string    `json:"actionType"`
+	IsActive      bool      `json:"isActive"`
+	CreatedOn     time.Time `json:"createdOn"`
+	UpdatedOn     time.Time `json:"updatedOn"`
 
-	Selectors   []*WebhookEventSelectors  `json:"selectors"`
+	Selectors []*WebhookEventSelectors `json:"selectors"`
 }
 
 type WebhookEventSelectors struct {
-	Id          int      `json:"id"`
-	EventId     int 	 `json:"eventId"`
-	Name        string   `json:"name"`
-	Selector    string   `json:"selector"`
-	ToShow		bool	 `json:"toShow"`
-	PossibleValues string `json:"possibleValues"`
-	IsActive	bool	 `json:"isActive"`
-	CreatedOn   time.Time `json:"createdOn"`
-	UpdatedOn   time.Time `json:"updatedOn"`
+	Id               int       `json:"id"`
+	EventId          int       `json:"eventId"`
+	Name             string    `json:"name"`
+	Selector         string    `json:"selector"`
+	ToShow           bool      `json:"toShow"`
+	ToShowInCiFilter bool      `json:"toShowInCiFilter"`
+	PossibleValues   string    `json:"possibleValues"`
+	IsActive         bool      `json:"isActive"`
+	CreatedOn        time.Time `json:"createdOn"`
+	UpdatedOn        time.Time `json:"updatedOn"`
 }
-
 
 type GitSensorClient interface {
 	GetHeadForPipelineMaterials(req *HeadRequest) (material []*CiPipelineMaterial, err error)
@@ -184,7 +181,6 @@ type GitSensorClient interface {
 
 	GetAllWebhookEventConfigForHost(req *WebhookEventConfigRequest) (webhookEvents []*WebhookEventConfig, err error)
 	GetWebhookEventConfig(req *WebhookEventConfigRequest) (webhookEvent *WebhookEventConfig, err error)
-
 }
 
 //----------------------impl
