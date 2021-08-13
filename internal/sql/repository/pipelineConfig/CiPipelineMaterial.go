@@ -49,7 +49,6 @@ type CiPipelineMaterialRepository interface {
 	FindByCiPipelineIdsIn(ids []int) ([]*CiPipelineMaterial, error)
 	GetById(id int) (*CiPipelineMaterial, error)
 	GetByPipelineId(id int) ([]*CiPipelineMaterial, error)
-	GetByGitMaterialUrlAndType(url string, ciPipelineMaterialType string) ([]*CiPipelineMaterial, error)
 }
 
 type CiPipelineMaterialRepositoryImpl struct {
@@ -119,22 +118,4 @@ func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiP
 	}
 
 	return nil
-}
-
-func (impl CiPipelineMaterialRepositoryImpl) GetByGitMaterialUrlAndType(url string, ciPipelineMaterialType string) ([]*CiPipelineMaterial, error) {
-	var ciPipelineMaterials []*CiPipelineMaterial
-	err := impl.dbConnection.Model(&ciPipelineMaterials).
-		/*Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial.GitProvider").
-		Where("ci_pipeline_material.GitMaterial.Url = ?", url).
-		Where("ci_pipeline_material.Type = ?", ciPipelineMaterialType).
-		Where("ci_pipeline_material.active = ?", true).*/
-
-		Column("ci_pipeline_material.*", "GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
-		Join("inner join git_material gm on gm.id = ci_pipeline_material.git_material_id").
-		Where("gm.url = ?", url).
-		Where("ci_pipeline_material.Type = ?", ciPipelineMaterialType).
-		Where("ci_pipeline_material.active = ?", true).
-		Select()
-
-	return ciPipelineMaterials, err
 }

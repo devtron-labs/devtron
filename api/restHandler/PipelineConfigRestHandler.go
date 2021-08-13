@@ -85,7 +85,6 @@ type PipelineConfigRestHandler interface {
 	FindAppsByTeamName(w http.ResponseWriter, r *http.Request)
 
 	TriggerCiPipeline(w http.ResponseWriter, r *http.Request)
-	TriggerCiPipelineFromGitWebhook(w http.ResponseWriter, r *http.Request)
 	FetchMaterials(w http.ResponseWriter, r *http.Request)
 	FetchWorkflowDetails(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineMin(w http.ResponseWriter, r *http.Request)
@@ -1445,23 +1444,6 @@ func (handler PipelineConfigRestHandlerImpl) FindAppsByTeamName(w http.ResponseW
 	writeJsonResp(w, err, team, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) TriggerCiPipelineFromGitWebhook(w http.ResponseWriter, r *http.Request) {
-	var ciGitTriggerRequest bean.CiGitWebhookTriggerRequest
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&ciGitTriggerRequest)
-	if err != nil {
-		handler.Logger.Errorw("request err, TriggerCiPipelineFromGitWebhook", "err", err, "payload", ciGitTriggerRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.Logger.Infow("request payload, TriggerCiPipelineFromGitWebhook", "payload", ciGitTriggerRequest)
-	err = handler.ciHandler.HandleGitCiTrigger(ciGitTriggerRequest)
-	if err != nil {
-		handler.Logger.Errorw("service err, TriggerCiPipelineFromGitWebhook", "err", err, "payload", ciGitTriggerRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	}
-	writeJsonResp(w, err, nil, http.StatusOK)
-}
 
 func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)

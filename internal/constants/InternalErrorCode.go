@@ -75,6 +75,9 @@ const (
 	AppDetailResourceTreeNotFound string = "7000"
 
 	CasbinPolicyNotCreated string = "8000"
+
+	GitHostCreateFailedAlreadyExists string = "9001"
+	GitHostCreateFailedInDb          string = "9002"
 )
 
 var AppAlreadyExists = &ErrorCode{"4001", "application %s already exists"}
