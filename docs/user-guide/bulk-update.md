@@ -33,8 +33,8 @@ Bulk edit is currently supported for:
 ### Example
 Example below will select all applications having `abc and xyz` present in their name and out of those will exclude applications having `abcd and xyza` in their name. Since global flag is false and envId 23 is provided, it will make changes in envId 23 and not in global deployment template for this application.
 
-If you want to update globally then please set `global: true`. If you have provided envId by deployment template, configMap or secret is not overridden for that particular environment then it will not apply the changes.
-Also, of all the provided names of configMaps/secrets, for every app & environment override only the name that are present in them will be considered.
+If you want to update globally then please set `global: true`. If you have provided an envId but deployment template, configMap or secret is not overridden for that particular environment then it will not apply the changes.
+Also, of all the provided names of configMaps/secrets, for every app & environment override only the names that are present in them will be considered.
 
 
 ### Sample Script
@@ -61,17 +61,17 @@ spec:
     spec:
       patchJson: '[{ "op": "add", "path": "/MaxSurge", "value": 1 },{"op": "replace","path":"/GracePeriod","value": "30"}]'
   configMap:
-    names:
-    - "configmap1"
-    - "configmap2"
-    - "configmap3"
     spec:
+      names:
+      - "configmap1"
+      - "configmap2"
+      - "configmap3"
       patchJson: '[{ "op": "add", "path": "/{key}", "value": "{value}" },{"op": "replace","path":"/{key}","value": "{value}"}]'
   secret:
-    names:
-    - "secret1"
-    - "secret2"
     spec:
+      names:
+      - "secret1"
+      - "secret2"
       patchJson: '[{ "op": "add", "path": "/{key}", "value": "{value}" },{"op": "replace","path":"/{key}","value": "{value}"}]'
 ```      
 
