@@ -41,17 +41,17 @@ spec:
     spec:
       patchJson: ''[{ "op": "add", "path": "/MaxSurge", "value": 1 },{"op": "replace","path":"/GracePeriod","value": "30"}]''
   configMap:
-    names:
-    - "configmap1"
-    - "configmap2"
-    - "configmap3"
     spec:
+      names:
+      - "configmap1"
+      - "configmap2"
+      - "configmap3"
       patchJson: ''[{ "op": "add", "path": "/{key}", "value": "{value}" },{"op": "replace","path":"/{key}","value": "{value}"}]''
   secret:
-    names:
-    - "secret1"
-    - "secret2"
     spec:
+      names:
+      - "secret1"
+      - "secret2"
       patchJson: ''[{ "op": "add", "path": "/{key}", "value": "{value}" },{"op": "replace","path":"/{key}","value": "{value}"}]''
 ```
 
@@ -69,7 +69,7 @@ The following tables list the configurable parameters of the Payload component i
 | `deploymentTemplate.spec.patchJson`       | String having the update operation(you can apply more than one changes at a time). It supports [JSON patch ](http://jsonpatch.com/) specifications for update. | `''[ { "op": "add", "path": "/MaxSurge", "value": 1 }, { "op": "replace", "path": "/GracePeriod", "value": "30" }]''` |
 | `configMap.spec.names`      | Names of all ConfigMaps to be updated. | `configmap1`,`configmap2`,`configmap3` |
 | `secret.spec.names`      | Names of all Secrets to be updated. | `secret1`,`secret2`|
-| `configMap.spec.patchJson` / `secret.spec.patchJson`       | String having the update operation for ConfigMaps/Secrets(you can apply more than one changes at a time). It supports [JSON patch ](http://jsonpatch.com/) specifications for update. | `''[{ "op": "add", "path": "/{key}", "value": "{value}" },{"op": "replace","path":"/{key}","value": "{value}"}]''`(Replace the `{key}` part to the key you want to perform operation on & the `{value}`is the key''s corresponding value |
+| `configMap.spec.patchJson` / `secret.spec.patchJson`       | String having the update operation for ConfigMaps/Secrets(you can apply more than one changes at a time). It supports [JSON patch ](http://jsonpatch.com/) specifications for update. | `''[{ "op": "add", "path": "/{key}", "value": "{value}" },{"op": "replace","path":"/{key}","value": "{value}"}]''`(Replace the `{key}` part to the key you want to perform operation on & `{value}`is the key''s corresponding value |
 ', '{"kind": "Application", "spec": {"envIds": [1, 2, 3], "global": false, "excludes": {"names": ["%xyz%"]}, "includes": {"names": ["%abc%"]}, "deploymentTemplate": {"spec": {"patchJson": "Enter Patch String"}}, "configMap": {"spec": { "names": ["abc"],"patchJson": "Enter Patch String"}},"secret": {"spec": { "names": ["abc"],"patchJson": "Enter Patch String"}}}, "apiVersion": "core/v1beta1"}');
 
 CREATE INDEX ON bulk_update_readme (resource);
