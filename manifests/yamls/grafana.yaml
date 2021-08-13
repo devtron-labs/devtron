@@ -1,3 +1,198 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations: {}
+  creationTimestamp: null
+  generation: 1
+  labels:
+    app: grafana
+    chart: grafana-2.0.2
+    heritage: Tiller
+    release: monitoring
+  name: monitoring-grafana
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: grafana
+      release: monitoring
+  serviceName: ""
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: grafana
+        release: monitoring
+    spec:
+      containers:
+      - env:
+        - name: LABEL
+          value: grafana_dashboard
+        - name: FOLDER
+          value: /tmp/dashboards
+        image: kiwigrid/k8s-sidecar:0.0.16
+        imagePullPolicy: IfNotPresent
+        name: grafana-sc-dashboard
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /tmp/dashboards
+          name: sc-dashboard-volume
+      - env:
+        - name: GF_SECURITY_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              key: admin-user
+              name: devtron-grafana
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: admin-password
+              name: devtron-grafana
+        - name: GF_INSTALL_PLUGINS
+          valueFrom:
+            configMapKeyRef:
+              key: plugins
+              name: devtron-grafana
+        image: grafana/grafana:5.4.3
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /api/health
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 30
+        name: grafana
+        ports:
+        - containerPort: 80
+          name: service
+          protocol: TCP
+        - containerPort: 3000
+          name: grafana
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /api/health
+            port: 3000
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/grafana/grafana.ini
+          name: config
+          subPath: grafana.ini
+        - mountPath: /etc/grafana/ldap.toml
+          name: ldap
+          subPath: ldap.toml
+        - mountPath: /var/lib/grafana/
+          name: grafana-vol
+        - mountPath: /tmp/dashboards
+          name: sc-dashboard-volume
+        - mountPath: /etc/grafana/provisioning/dashboards/sc-dashboardproviders.yaml
+          name: sc-dashboard-provider
+          subPath: provider.yaml
+        - mountPath: /etc/grafana/provisioning/datasources
+          name: sc-datasources-volume
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - command:
+        - chown
+        - -R
+        - 472:472
+        - /var/lib/grafana
+        image: busybox:1.30.0
+        imagePullPolicy: IfNotPresent
+        name: init-chown-data
+        resources: {}
+        securityContext:
+          procMount: Default
+          runAsUser: 0
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/grafana
+          name: grafana-vol
+      - env:
+        - name: METHOD
+          value: LIST
+        - name: LABEL
+          value: grafana_datasource
+        - name: FOLDER
+          value: /etc/grafana/provisioning/datasources
+        image: kiwigrid/k8s-sidecar:0.0.16
+        imagePullPolicy: IfNotPresent
+        name: grafana-sc-datasources
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/grafana/provisioning/datasources
+          name: sc-datasources-volume
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 472
+        runAsUser: 472
+      serviceAccount: devtron-grafana
+      serviceAccountName: devtron-grafana
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: devtron-grafana
+        name: config
+      - name: ldap
+        secret:
+          defaultMode: 420
+          items:
+          - key: ldap-toml
+            path: ldap.toml
+          secretName: devtron-grafana
+      - emptyDir: {}
+        name: sc-dashboard-volume
+      - configMap:
+          defaultMode: 420
+          name: devtron-grafana-config-dashboards
+        name: sc-dashboard-provider
+      - emptyDir: {}
+        name: sc-datasources-volume
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      creationTimestamp: null
+      name: grafana-vol
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 2Gi
+      storageClassName: gp2
+      volumeMode: Filesystem
+    status:
+      phase: Pending
+status:
+  replicas: 0
+
+---
+
 apiVersion: v1
 kind: Secret
 metadata:
@@ -5,6 +200,7 @@ metadata:
 type: Opaque
 data:
   admin-user: YWRtaW4=
+  ldap-toml: ""
 ---
 # Source: grafana/templates/podsecuritypolicy.yaml
 apiVersion: policy/v1beta1
@@ -173,7 +369,9 @@ data:
     plugins = /var/lib/grafana/plugins
     provisioning = /etc/grafana/provisioning
     [server]
-    rool_url = ""
+    root_url = ""
+    serve_from_sub_path = true
+  plugins: grafana-kubernetes-app
   dashboardproviders.yaml: |
     apiVersion: 1
     providers: []
@@ -420,173 +618,7 @@ spec:
     app.kubernetes.io/name: grafana
     app.kubernetes.io/instance: devtron
 ---
-# Source: grafana/templates/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: devtron-grafana
-  namespace: devtroncd
-  labels:
-    helm.sh/chart: grafana-6.1.0
-    app.kubernetes.io/name: grafana
-    app.kubernetes.io/instance: devtron
-    app.kubernetes.io/version: "7.3.1"
-    app.kubernetes.io/managed-by: Helm
-spec:
-  replicas: 1
-  revisionHistoryLimit: 10
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: grafana
-      app.kubernetes.io/instance: devtron
-  strategy:
-    type: RollingUpdate
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: grafana
-        app.kubernetes.io/instance: devtron
-      annotations:
-        checksum/config: 89350704a21d833a1e123c16bc249c737f3b3aa48b3ef07cf0a32f1d05c44ef3
-        checksum/dashboards-json-config: d14aa82dad8b17b12eead46c8a1f781fbe16244a909f25a3f24ac666e641e121
-        checksum/sc-dashboard-provider-config: 140064eb60c97bcede797691712d8cf2c835d295c285d1c830fd5a7609c86d4f
-    spec:
 
-      serviceAccountName: devtron-grafana
-      securityContext:
-        fsGroup: 472
-        runAsGroup: 472
-        runAsUser: 472
-      initContainers:
-        - name: init-chown-data
-          image: "quay.io/devtron/busybox:1.31.1"
-          imagePullPolicy: IfNotPresent
-          securityContext:
-            runAsNonRoot: false
-            runAsUser: 0
-          command: ["chown", "-R", "472:472", "/var/lib/grafana"]
-          resources:
-            {}
-          volumeMounts:
-            - name: storage
-              mountPath: "/var/lib/grafana"
-        - name: download-dashboards
-          image: "quay.io/devtron/curl:7.73.0"
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh"]
-          args: [ "-c", "mkdir -p /var/lib/grafana/dashboards/default && /bin/sh /etc/grafana/download_dashboards.sh" ]
-          resources:
-            {}
-          env:
-          volumeMounts:
-            - name: config
-              mountPath: "/etc/grafana/download_dashboards.sh"
-              subPath: download_dashboards.sh
-            - name: storage
-              mountPath: "/var/lib/grafana"
-        - name: grafana-sc-datasources
-          image: "quay.io/kiwigrid/k8s-sidecar:1.1.0"
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: METHOD
-              value: LIST
-            - name: LABEL
-              value: "grafana_datasource"
-            - name: FOLDER
-              value: "/etc/grafana/provisioning/datasources"
-            - name: RESOURCE
-              value: "both"
-          resources:
-            {}
-          volumeMounts:
-            - name: sc-datasources-volume
-              mountPath: "/etc/grafana/provisioning/datasources"
-      containers:
-        - name: grafana-sc-dashboard
-          image: "quay.io/kiwigrid/k8s-sidecar:1.1.0"
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: METHOD
-              value:
-            - name: LABEL
-              value: "grafana_dashboard"
-            - name: FOLDER
-              value: "/tmp/dashboards"
-            - name: RESOURCE
-              value: "both"
-          resources:
-            {}
-          volumeMounts:
-            - name: sc-dashboard-volume
-              mountPath: "/tmp/dashboards"
-        - name: grafana
-          image: "quay.io/devtron/grafana:7.3.1"
-          imagePullPolicy: IfNotPresent
-          volumeMounts:
-            - name: config
-              mountPath: "/etc/grafana/grafana.ini"
-              subPath: grafana.ini
-            - name: storage
-              mountPath: "/var/lib/grafana"
-            - name: config
-              mountPath: "/etc/grafana/provisioning/dashboards/dashboardproviders.yaml"
-              subPath: dashboardproviders.yaml
-            - name: sc-dashboard-volume
-              mountPath: "/tmp/dashboards"
-
-            - name: sc-dashboard-provider
-              mountPath: "/etc/grafana/provisioning/dashboards/sc-dashboardproviders.yaml"
-              subPath: provider.yaml
-            - name: sc-datasources-volume
-              mountPath: "/etc/grafana/provisioning/datasources"
-          ports:
-            - name: service
-              containerPort: 80
-              protocol: TCP
-            - name: grafana
-              containerPort: 3000
-              protocol: TCP
-          env:
-            - name: GF_SECURITY_ADMIN_USER
-              valueFrom:
-                secretKeyRef:
-                  name: devtron-grafana-cred-secret
-                  key: admin-user
-            - name: GF_SECURITY_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: devtron-grafana-cred-secret
-                  key: admin-password
-
-          livenessProbe:
-            failureThreshold: 10
-            httpGet:
-              path: /api/health
-              port: 3000
-            initialDelaySeconds: 60
-            timeoutSeconds: 30
-          readinessProbe:
-            httpGet:
-              path: /api/health
-              port: 3000
-      volumes:
-        - name: config
-          configMap:
-            name: devtron-grafana
-        - name: dashboards-devtron-provider
-          configMap:
-            name: devtron-grafana-dashboards-devtron-provider
-        - name: storage
-          persistentVolumeClaim:
-            claimName: devtron-grafana
-        - name: sc-dashboard-volume
-          emptyDir: {}
-        - name: sc-dashboard-provider
-          configMap:
-            name: devtron-grafana-config-dashboards
-        - name: sc-datasources-volume
-          emptyDir: {}
----
 # Source: grafana/templates/ingress.yaml
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
@@ -601,12 +633,13 @@ metadata:
     app.kubernetes.io/managed-by: Helm
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   rules:
     - host:
       http:
         paths:
-          - path: /grafana
+          - path: /grafana(/|$)(.*)
             backend:
               serviceName: devtron-grafana
               servicePort: 80
