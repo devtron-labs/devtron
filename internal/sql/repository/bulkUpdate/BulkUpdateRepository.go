@@ -282,7 +282,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateConfigMapDataForEnvById
 	return nil
 }
 func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateSecretDataForEnvById(id int, patch string) error {
-	SecretEnvModel := []*chartConfig.ConfigMapEnvModel{}
+	SecretEnvModel := &chartConfig.ConfigMapEnvModel{}
 	_, err := repositoryImpl.dbConnection.
 		Model(SecretEnvModel).
 		Set("secret_data = ?", patch).
