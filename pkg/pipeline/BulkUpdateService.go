@@ -880,7 +880,6 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload *BulkUpdatePayloa
 	if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 && len(bulkUpdatePayload.ConfigMap.Spec.PatchJson) != 0 {
 		configMapBulkUpdateResponse = impl.BulkUpdateConfigMap(bulkUpdatePayload)
 	}
-
 	if bulkUpdatePayload.Secret != nil && bulkUpdatePayload.Secret.Spec != nil && len(bulkUpdatePayload.Secret.Spec.Names) != 0 && len(bulkUpdatePayload.Secret.Spec.PatchJson) != 0 {
 		secretBulkUpdateResponse = impl.BulkUpdateSecret(bulkUpdatePayload)
 	}
