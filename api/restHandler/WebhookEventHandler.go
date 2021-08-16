@@ -103,9 +103,9 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 
 	// make request to handle this webhook
 	webhookEvent := &pipeline.WebhookEventDataRequest{
-		GitHostId:   gitHostId,
-		EventType:   eventType,
-		PayloadJson: string(requestBodyBytes),
+		GitHostId:          gitHostId,
+		EventType:          eventType,
+		RequestPayloadJson: string(requestBodyBytes),
 	}
 
 	// save in DB

@@ -40,19 +40,19 @@ func NewWebhookEventDataConfigImpl(logger *zap.SugaredLogger, webhookEventDataRe
 }
 
 type WebhookEventDataRequest struct {
-	GitHostId   int       `json:"gitHostId"`
-	EventType   string    `json:"eventType"`
-	PayloadJson string    `json:"payloadJson"`
-	CreatedOn   time.Time `json:"createdOn"`
+	GitHostId          int       `json:"gitHostId"`
+	EventType          string    `json:"eventType"`
+	RequestPayloadJson string    `json:"requestPayloadJson"`
+	CreatedOn          time.Time `json:"createdOn"`
 }
 
 func (impl WebhookEventDataConfigImpl) Save(webhookEventDataRequest *WebhookEventDataRequest) error {
 	impl.logger.Debug("save event data request")
 
 	webhookEventDataRequestSql := &repository.WebhookEventData{
-		GitHostId: webhookEventDataRequest.GitHostId,
+		GitHostId:   webhookEventDataRequest.GitHostId,
 		EventType:   webhookEventDataRequest.EventType,
-		PayloadJson: webhookEventDataRequest.PayloadJson,
+		PayloadJson: webhookEventDataRequest.RequestPayloadJson,
 		CreatedOn:   time.Now(),
 	}
 
