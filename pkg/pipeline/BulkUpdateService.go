@@ -200,18 +200,20 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 	}
 	if bulkUpdatePayload.Global {
 		//For Deployment Template
-		appsGlobalDT, err := impl.bulkUpdateRepository.
-			FindDeploymentTemplateBulkAppNameForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
-		if err != nil {
-			impl.logger.Errorw("error in fetching bulk app names for global", "err", err)
-			return nil, err
-		}
-		for _, app := range appsGlobalDT {
-			deploymentTemplateImpactedObject := &DeploymentTemplateImpactedObjectsResponseForOneApp{
-				AppId:   app.Id,
-				AppName: app.AppName,
+		if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil{
+			appsGlobalDT, err := impl.bulkUpdateRepository.
+				FindDeploymentTemplateBulkAppNameForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
+			if err != nil {
+				impl.logger.Errorw("error in fetching bulk app names for global", "err", err)
+				return nil, err
 			}
-			deploymentTemplateImpactedObjects = append(deploymentTemplateImpactedObjects, deploymentTemplateImpactedObject)
+			for _, app := range appsGlobalDT {
+				deploymentTemplateImpactedObject := &DeploymentTemplateImpactedObjectsResponseForOneApp{
+					AppId:   app.Id,
+					AppName: app.AppName,
+				}
+				deploymentTemplateImpactedObjects = append(deploymentTemplateImpactedObjects, deploymentTemplateImpactedObject)
+			}
 		}
 
 		//For ConfigMap
@@ -284,19 +286,21 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 
 	for _, envId := range bulkUpdatePayload.EnvIds {
 		//For Deployment Template
-		appsNotGlobalDT, err := impl.bulkUpdateRepository.
-			FindDeploymentTemplateBulkAppNameForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching bulk app names for env", "err", err)
-			return nil, err
-		}
-		for _, app := range appsNotGlobalDT {
-			deploymentTemplateImpactedObject := &DeploymentTemplateImpactedObjectsResponseForOneApp{
-				AppId:   app.Id,
-				AppName: app.AppName,
-				EnvId:   envId,
+		if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil{
+			appsNotGlobalDT, err := impl.bulkUpdateRepository.
+				FindDeploymentTemplateBulkAppNameForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching bulk app names for env", "err", err)
+				return nil, err
 			}
-			deploymentTemplateImpactedObjects = append(deploymentTemplateImpactedObjects, deploymentTemplateImpactedObject)
+			for _, app := range appsNotGlobalDT {
+				deploymentTemplateImpactedObject := &DeploymentTemplateImpactedObjectsResponseForOneApp{
+					AppId:   app.Id,
+					AppName: app.AppName,
+					EnvId:   envId,
+				}
+				deploymentTemplateImpactedObjects = append(deploymentTemplateImpactedObjects, deploymentTemplateImpactedObject)
+			}
 		}
 		//For ConfigMap
 		if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 {
