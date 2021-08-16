@@ -160,6 +160,7 @@ type WebhookEventSelectors struct {
 	Selector         string    `json:"selector"`
 	ToShow           bool      `json:"toShow"`
 	ToShowInCiFilter bool      `json:"toShowInCiFilter"`
+	FixValue         string    `json:"fixValue"`
 	PossibleValues   string    `json:"possibleValues"`
 	IsActive         bool      `json:"isActive"`
 	CreatedOn        time.Time `json:"createdOn"`

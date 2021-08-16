@@ -38,14 +38,17 @@ type WebhookEventHandlerImpl struct {
 	gitHostConfig          pipeline.GitHostConfig
 	eventClient            client.EventClient
 	webhookSecretValidator git.WebhookSecretValidator
+	webhookEventDataConfig pipeline.WebhookEventDataConfig
 }
 
-func NewWebhookEventHandlerImpl(logger *zap.SugaredLogger, gitHostConfig pipeline.GitHostConfig, eventClient client.EventClient, webhookSecretValidator git.WebhookSecretValidator) *WebhookEventHandlerImpl {
+func NewWebhookEventHandlerImpl(logger *zap.SugaredLogger, gitHostConfig pipeline.GitHostConfig, eventClient client.EventClient,
+	webhookSecretValidator git.WebhookSecretValidator, webhookEventDataConfig pipeline.WebhookEventDataConfig) *WebhookEventHandlerImpl {
 	return &WebhookEventHandlerImpl{
 		logger:                 logger,
 		gitHostConfig:          gitHostConfig,
 		eventClient:            eventClient,
 		webhookSecretValidator: webhookSecretValidator,
+		webhookEventDataConfig: webhookEventDataConfig,
 	}
 }
 
@@ -98,11 +101,19 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// make request to nats to handle this webhook
-	webhookEvent := WebhookEvent{
-		RequestPayloadJson: string(requestBodyBytes),
-		GitHostId:          gitHostId,
-		EventType:          eventType,
+	// make request to handle this webhook
+	webhookEvent := &pipeline.WebhookEventDataRequest{
+		GitHostId:   gitHostId,
+		EventType:   eventType,
+		PayloadJson: string(requestBodyBytes),
+	}
+
+	// save in DB
+	err = impl.webhookEventDataConfig.Save(webhookEvent)
+	if err != nil {
+		impl.logger.Errorw("Error while saving webhook data", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 
 	// write event
@@ -111,14 +122,4 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 		impl.logger.Errorw("Error while handling webhook in git-sensor", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
-}
-
-type WebhookEvent struct {
-	RequestPayloadJson string `json:"requestPayloadJson"`
-	GitHostId          int    `json:"gitHostId"`
-	EventType          string `json:"eventType"`
-}
-
-type WebhookEventResponse struct {
-	success bool
 }

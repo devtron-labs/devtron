@@ -686,6 +686,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(git.WebhookSecretValidator), new(*git.WebhookSecretValidatorImpl)),
 		pipeline.NewGitHostConfigImpl,
 		wire.Bind(new(pipeline.GitHostConfig), new(*pipeline.GitHostConfigImpl)),
+		repository.NewWebhookEventDataRepositoryImpl,
+		wire.Bind(new(repository.WebhookEventDataRepository), new(*repository.WebhookEventDataRepositoryImpl)),
+		pipeline.NewWebhookEventDataConfigImpl,
+		wire.Bind(new(pipeline.WebhookEventDataConfig), new(*pipeline.WebhookEventDataConfigImpl)),
 
 	)
 	return &App{}, nil
