@@ -1,6 +1,6 @@
 UPDATE "public"."bulk_update_readme"
 SET "script" = '{"kind": "Application", "spec": {"envIds": [1, 2, 3], "global": false, "excludes": {"names": ["%xyz%"]}, "includes": {"names": ["%abc%"]}, "deploymentTemplate": {"spec": {"patchJson": "Enter Patch String"}}, "configMap": {"spec": { "names": ["abc"],"patchJson": "Enter Patch String"}},"secret": {"spec": { "names": ["abc"],"patchJson": "Enter Patch String"}}}, "apiVersion": "core/v1beta1"}',
-SET "readme" = '# Bulk Update - Application
+    "readme" = '# Bulk Update - Application
 
 This feature helps you to update Deployment Template, ConfigMaps & Secrets for multiple apps in one go! You can filter the apps on the basis of environments, global flag, and app names(we provide support for both substrings included and excluded in the app name).
 
@@ -47,7 +47,7 @@ spec:
 ## Payload Configuration
 
 
-The following tables list the configurable parameters of the Payload component in the Script and their description along with example. Also, if you do not need to apply updates on all the tasks, i.e. Deployment Template, ConfigMaps & Secrets, leave the Spec object empty for that respective task.
+The following tables list the configurable parameters of the Payload component in the Script and their description along with example.
 
 | Parameter                      | Description                        | Example                                                    |
 | -------------------------- | ---------------------------------- | ---------------------------------------------------------- |
@@ -58,6 +58,5 @@ The following tables list the configurable parameters of the Payload component i
 | `deploymentTemplate.spec.patchJson`       | String having the update operation(you can apply more than one changes at a time). It supports [JSON patch ](http://jsonpatch.com/) specifications for update. | `''[ { "op": "add", "path": "/MaxSurge", "value": 1 }, { "op": "replace", "path": "/GracePeriod", "value": "30" }]''` |
 | `configMap.spec.names`      | Names of all ConfigMaps to be updated. | `configmap1`,`configmap2`,`configmap3` |
 | `secret.spec.names`      | Names of all Secrets to be updated. | `secret1`,`secret2`|
-| `configMap.spec.patchJson` / `secret.spec.patchJson`       | String having the update operation for ConfigMaps/Secrets(you can apply more than one changes at a time). It supports [JSON patch ](http://jsonpatch.com/) specifications for update. | `''[{ "op": "add", "path": "/{key}", "value": "{value}" },{"op": "replace","path":"/{key}","value": "{value}"}]''`(Replace the `{key}` part to the key you want to perform operation on & the `{value}`is the key''s corresponding value |
-',
-WHERE "id" = 1;
+| `configMap.spec.patchJson` / `secret.spec.patchJson`       | String having the update operation for ConfigMaps/Secrets(you can apply more than one changes at a time). It supports [JSON patch ](http://jsonpatch.com/) specifications for update. | `''[{ "op": "add", "path": "/{key}", "value": "{value}" },{"op": "replace","path":"/{key}","value": "{value}"}]''`(Replace the `{key}` part to the key you want to perform operation on & `{value}`is the key''s corresponding value |
+' WHERE "id" = 1;
