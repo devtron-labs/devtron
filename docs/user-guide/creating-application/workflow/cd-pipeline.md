@@ -21,7 +21,7 @@ This section further including two inputs:
 
 Select the environment where you want to deploy your application.
 
-**\(b\) Namespace***
+**\(b\) Namespace**
 
 This field will be automatically populated with the `Namespace` corresponding to the `Environment` selected in the previous step.
 
