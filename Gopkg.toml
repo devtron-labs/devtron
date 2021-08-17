@@ -28,80 +28,80 @@
 # generate-proto.sh). Normal use of golang packages should be added via `dep ensure`, and pinned
 # with a [[constraint]] or [[override]] when version is important.
 required = [
-  "github.com/golang/protobuf/protoc-gen-go",
-  "github.com/gogo/protobuf/protoc-gen-gofast",
-  "github.com/gogo/protobuf/protoc-gen-gogofast",
-  "k8s.io/code-generator/cmd/go-to-protobuf",
-  "k8s.io/kube-openapi/cmd/openapi-gen",
-  "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway",
-  "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
-  "golang.org/x/sync/errgroup",
+    "github.com/golang/protobuf/protoc-gen-go",
+    "github.com/gogo/protobuf/protoc-gen-gofast",
+    "github.com/gogo/protobuf/protoc-gen-gogofast",
+    "k8s.io/code-generator/cmd/go-to-protobuf",
+    "k8s.io/kube-openapi/cmd/openapi-gen",
+    "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway",
+    "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
+    "golang.org/x/sync/errgroup",
 ]
 
 [prune]
-  go-tests = true
-  unused-packages = true
-  [[prune.project]]
-      name = "github.com/aws/aws-sdk-go"
-      non-go = false
-      unused-packages = false
-  [[prune.project]]
-      name = "github.com/argoproj/argo-cd"
-      non-go = false
-      unused-packages = false
+go-tests = true
+unused-packages = true
+[[prune.project]]
+name = "github.com/aws/aws-sdk-go"
+non-go = false
+unused-packages = false
+[[prune.project]]
+name = "github.com/argoproj/argo-cd"
+non-go = false
+unused-packages = false
 
 
 [[constraint]]
-  name = "go.uber.org/zap"
-  version = "1.9.1"
+name = "go.uber.org/zap"
+version = "1.9.1"
 
 [[constraint]]
-  name = "github.com/stretchr/testify"
-  version = "1.2.2"
+name = "github.com/stretchr/testify"
+version = "1.2.2"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/juju/errors"
+branch = "master"
+name = "github.com/juju/errors"
 
 
 [[constraint]]
-  name = "github.com/go-pg/pg"
-  version = "6.15.1"
+name = "github.com/go-pg/pg"
+version = "6.15.1"
 
 [[constraint]]
-  name = "github.com/caarlos0/env"
-  version = "3.5.0"
+name = "github.com/caarlos0/env"
+version = "3.5.0"
 
 [[constraint]]
-  name = "github.com/gorilla/mux"
-  version = "1.6.2"
+name = "github.com/gorilla/mux"
+version = "1.6.2"
 
 [[constraint]]
-  name = "github.com/aws/aws-sdk-go"
-  version = "1.16.34"
+name = "github.com/aws/aws-sdk-go"
+version = "1.16.34"
 
 [[constraint]]
-  name = "k8s.io/helm"
-  revision = "eecf22f77df5f65c823aacd2dbd30ae6c65f186e"
-  #v2.12.3
+name = "k8s.io/helm"
+revision = "eecf22f77df5f65c823aacd2dbd30ae6c65f186e"
+#v2.12.3
 [[constraint]]
-  branch = "master"
-  name = "github.com/otiai10/copy"
+branch = "master"
+name = "github.com/otiai10/copy"
 
 [[constraint]]
-  name = "github.com/google/go-cmp"
-  version = "0.2.0"
+name = "github.com/google/go-cmp"
+version = "0.2.0"
 [[override]]
-  name = "k8s.io/client-go"
-  version = "kubernetes-1.14.6"
-
-[[override]]
-  name = "k8s.io/apimachinery"
-  version= "kubernetes-1.14.6"
+name = "k8s.io/client-go"
+version = "kubernetes-1.14.6"
 
 [[override]]
-  branch = "release-1.14"
-  name = "k8s.io/api"
+name = "k8s.io/apimachinery"
+version = "kubernetes-1.14.6"
+
+[[override]]
+branch = "release-1.14"
+name = "k8s.io/api"
 
 
 #[[constraint]]
@@ -109,8 +109,8 @@ required = [
 #  version = "0.3.7"
 
 [[constraint]]
-  name = "github.com/evanphx/json-patch"
-  version = "4.1.0"
+name = "github.com/evanphx/json-patch"
+version = "4.1.0"
 
 #[[constraint]]
 #  name = "github.com/src-d/go-git"
@@ -121,81 +121,89 @@ required = [
 #  name = "gopkg.in/src-d/go-git.v4"
 #  version = "v4.10.0"
 [[constraint]]
-  name = "gopkg.in/src-d/go-git.v4"
-  version = "4.10.0"
+name = "gopkg.in/src-d/go-git.v4"
+version = "4.10.0"
 
 [[constraint]]
-  name = "github.com/xanzy/go-gitlab"
-  version = "0.16.1"
+name = "github.com/xanzy/go-gitlab"
+version = "0.16.1"
 
 [[constraint]]
-  #branch = "master"
-  name = "github.com/casbin/xorm-adapter"
-  revision = "a317737a1007f1b445874e23f6487527df0c12a8"
+#branch = "master"
+name = "github.com/casbin/xorm-adapter"
+revision = "a317737a1007f1b445874e23f6487527df0c12a8"
 
 [[constraint]]
-  name = "gopkg.in/go-playground/validator.v9"
-  version = "9.28.0"
+name = "gopkg.in/go-playground/validator.v9"
+version = "9.28.0"
 
 [[constraint]]
-  name = "github.com/coreos/go-oidc"
-  version = "2.0.0"
-  
+name = "github.com/coreos/go-oidc"
+version = "2.0.0"
+
 [[constraint]]
-  name = "github.com/argoproj/argo-cd"
+name = "github.com/argoproj/argo-cd"
 #  branch = "master"
 #  revision = "e0bd546a07818ec06a27c2b3033454e3eb1c4152"
-  version ="v1.2.1"
+version = "v1.2.1"
 
 [[constraint]]
-  name = "google.golang.org/grpc"
-  version = "1.15.0"
+name = "google.golang.org/grpc"
+version = "1.15.0"
 [[constraint]]
-  name = "github.com/prometheus/client_golang"
-  version = "1.1.0"
+name = "github.com/prometheus/client_golang"
+version = "1.1.0"
 
 [[constraint]]
-  name = "github.com/argoproj/argo"
-  version = "2.3.0"
+name = "github.com/argoproj/argo"
+version = "2.3.0"
 
 [[override]]
-  name = "github.com/argoproj/pkg"
-  revision = "036726ef3c7809929246eda91ffa520269c94021"
+name = "github.com/argoproj/pkg"
+revision = "036726ef3c7809929246eda91ffa520269c94021"
 
 [[constraint]]
-  name = "github.com/nats-io/stan"
-  version = "0.5.0"
+name = "github.com/nats-io/stan"
+version = "0.5.0"
 
 [[override]]
-  name = "k8s.io/kubernetes"
-  #version = "v1.14.6"
-  revision=  "96fac5cd13a5dc064f7d9f4f23030a6aeface6cc"
+name = "k8s.io/kubernetes"
+#version = "v1.14.6"
+revision = "96fac5cd13a5dc064f7d9f4f23030a6aeface6cc"
 
 
 [[constraint]]
-  name = "github.com/Pallinder/go-randomdata"
-  version = "1.2.0"
+name = "github.com/Pallinder/go-randomdata"
+version = "1.2.0"
 
 [[constraint]]
-  name = "github.com/grpc-ecosystem/go-grpc-prometheus"
-  version = "1.2.0"
+name = "github.com/grpc-ecosystem/go-grpc-prometheus"
+version = "1.2.0"
 
 [[constraint]]
-  name = "github.com/google/go-github"
-  version = "32.1.0"
+name = "github.com/google/go-github"
+version = "32.1.0"
 
 [[constraint]]
-  name = "github.com/igm/sockjs-go"
-  version = "3.0.0"
+name = "github.com/igm/sockjs-go"
+version = "3.0.0"
 
 [[constraint]]
-  branch = "dev"
-  name = "github.com/microsoft/azure-devops-go-api"
+branch = "dev"
+name = "github.com/microsoft/azure-devops-go-api"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/posthog/posthog-go"
+branch = "master"
+name = "github.com/posthog/posthog-go"
 
 [[constraint]]
-  name = "gopkg.in/robfig/cron.v3"
-  version = "3.0.1"
+name = "gopkg.in/robfig/cron.v3"
+version = "3.0.1"
+
+[[constraint]]
+name = "github.com/tidwall/gjson"
+version = "1.8.1"
+
+[[constraint]]
+name = "github.com/tidwall/sjson"
+version = "1.1.7"

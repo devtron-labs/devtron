@@ -1137,6 +1137,38 @@
   version = "v1.4.0"
 
 [[projects]]
+  digest = "1:3445b0e3690a6a54504b6159140e3e6856ee563eced56aebf981cf5d02463f0b"
+  name = "github.com/tidwall/gjson"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2feb4037b471139e7449b6e4e97e232ff1c39d4a"
+  version = "v1.8.1"
+
+[[projects]]
+  digest = "1:5413669d0fb5cdfd63e693dbd1c41152b1450c31e8aecfecd842686513fbd20e"
+  name = "github.com/tidwall/match"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c2f534168b739a7ec1821a33839fb2f029f26bbc"
+  version = "v1.0.3"
+
+[[projects]]
+  digest = "1:241b505b43626e45d2b6d0a2f63ce20576e472221f72e51c0c1306f1c09da855"
+  name = "github.com/tidwall/pretty"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "aaa765e7476acb0028a854b85675801362cbdaa2"
+  version = "v1.2.0"
+
+[[projects]]
+  digest = "1:b3af79700a1bf5e7385282f11bbc72b96f689c3ba79ff699cc70f66b2594f9bc"
+  name = "github.com/tidwall/sjson"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7fd8b8e83c42b0406032c362689a21540b66cc8d"
+  version = "v1.1.7"
+
+[[projects]]
   digest = "1:c468422f334a6b46a19448ad59aaffdfc0a36b08fdcc1c749a0b29b6453d7e59"
   name = "github.com/valyala/bytebufferpool"
   packages = ["."]
@@ -2023,6 +2055,8 @@
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/satori/go.uuid",
     "github.com/stretchr/testify/assert",
+    "github.com/tidwall/gjson",
+    "github.com/tidwall/sjson",
     "github.com/xanzy/go-gitlab",
     "go.uber.org/zap",
     "go.uber.org/zap/zapcore",
