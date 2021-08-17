@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Bulk Update - Deployment Template
+  title: Bulk Update - Deployment Template, ConfigMaps, Secrets
 servers:
   - url: http://localhost:3000/orchestrator/batch
 paths:
@@ -36,7 +36,7 @@ paths:
   /v1beta1/application/dryrun:
     post:
       description: Returns details(id, name, envId) of all apps to be impacted with bulk update
-      operationId: GetAppNameDeploymentTemplate
+      operationId: GetBulkAppName
       requestBody:
         description: A JSON object containing information by which apps will be filtered
         required: true
@@ -50,7 +50,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImpactedObjectsResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/ImpactedObjectsResponse'
         '400':
           description: Bad Request. Validation error/wrong request body.
           content:
@@ -72,7 +74,7 @@ paths:
   /v1beta1/application:
     post:
       description: Bulk Updates all impacted apps
-      operationId: BulkUpdateDeploymentTemplate
+      operationId: BulkUpdate
       requestBody:
         description: A JSON object containing information about update changes and by which apps will be filtered
         required: true
@@ -82,7 +84,7 @@ paths:
               $ref: '#/components/schemas/BulkUpdateScript'
       responses:
         '200':
-          description: Successfully updated deployment template of all impacted apps.
+          description: Successfully updated all impacted apps.
           content:
             application/json:
               schema:
@@ -113,15 +115,13 @@ components:
       required:
         - Script
       properties:
-        Operation:
+        resource:
           type: string
           description: Resource from url path, i.e. {apiVersion} & {kind}
-        Script:
-          type: object
-          items:
-            $ref: '#/components/schemas/BulkUpdateScript'
+        script:
+          $ref: '#/components/schemas/BulkUpdateScript'
           description: Input Script for bulk update
-        ReadMe:
+        readMe:
           type: string
           description: Readme for bulk update
     BulkUpdateScript:
@@ -131,113 +131,201 @@ components:
         - Kind
         - Spec
       properties:
-        ApiVersion:
+        apiVersion:
           type: string
           description: Api version from url
           example:
             - v1beta1
-        Kind:
+        kind:
           type: string
           description: Kind
           example:
             - application
-        Spec:
-          type: object
-          items:
-            $ref: '#/components/schemas/BulkUpdatePayload'
-          description: Payload for Bulk Update
+        spec:
+          $ref: '#/components/schemas/BulkUpdatePayload'
     BulkUpdatePayload:
       type: object
       properties:
-        Includes:
-          type: object
+        includes:
+          $ref: '#/components/schemas/NameIncludesExcludes'
+        excludes:
+          $ref: '#/components/schemas/NameIncludesExcludes'
+        envIds:
+          type: array
           items:
-            $ref: '#/components/schemas/NameIncludesExcludes'
-          description: Object containing all the app names to be included
-        Excludes:
-          type: object
-          items:
-            $ref: '#/components/schemas/NameIncludesExcludes'
-          description: Object containing all the app names to be excluded
-        EnvIds:
-          type: integer
-          format: slice
+            type: integer
           description: All Env Id's for updating dependent apps
-        Global:
+        global:
           type: boolean
           description: Global flag for updating dependent apps
         DeploymentTemplate:
+          $ref: '#/components/schemas/Tasks'
+        ConfigMaps:
           type: object
-          items:
-            $ref: '#/components/schemas/Tasks'
-          description: object to define task type
+          properties:
+            names:
+              type: array
+              items:
+                type: string
+                description : Name of All ConfigMaps to be updated
+            tasks:
+              $ref: '#/components/schemas/Spec'
+        Secrets:
+          type: object
+          properties:
+            names:
+              type: array
+              items:
+                type: string
+                description : Name of All Secrets to be updated
+            tasks:
+              $ref: '#/components/schemas/Spec'
     Tasks:
       type: object
       properties:
-        Spec:
-          type: object
-          items:
-            $ref: '#/components/schemas/Spec'
+        spec:
+          $ref: '#/components/schemas/Spec'
           description: Spec of the Task
     Spec:
       type: object
       properties:
-        PatchJson:
+        patchData:
           type: string
           description: string with details of the patch to be used for updating
+
     NameIncludesExcludes:
       type: object
       properties:
-        Names:
-          type: string
-          format: slice
+        names:
+          type: array
+          items:
+            type: string
           description: All strings of app names to be included/excluded
     ImpactedObjectsResponse:
       type: object
       properties:
-        AppId:
+        deploymentTemplate:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeploymentTemplateImpactedObjectsResponseForOneApp'
+        configMap:
+          type: array
+          items:
+            $ref: '#/components/schemas/CmAndSecretImpactedObjectsResponseForOneApp'
+        secret:
+          type: array
+          items:
+            $ref: '#/components/schemas/CmAndSecretImpactedObjectsResponseForOneApp'
+    DeploymentTemplateImpactedObjectsResponseForOneApp:
+      type: object
+      properties:
+        appId:
           type: integer
           description: Id of the impacted app
-        AppName:
+        appName:
           type: string
           description: Name of the impacted app
-        EnvId:
+        envId:
           type: string
           description: Env Id of the impacted app
+    CmAndSecretImpactedObjectsResponseForOneApp:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: Id of the impacted app
+        appName:
+          type: string
+          description: Name of the impacted app
+        envId:
+          type: string
+          description: Env Id of the impacted app
+        names:
+          type: array
+          items:
+            type: string
+            description: Names of all configmaps/secrets impacted
     BulkUpdateResponse:
       type: object
       properties:
-        Message:
-          type: string
-          format: slice
-          description: All top-level messages in response of bulk update action
-        Failure:
-          type: object
-          format: slice
-          items:
-            $ref: '#/components/schemas/BulkUpdateResponseStatusForOneApp'
-          description: Details of all apps on which bulk update failed
-        Successful:
-          type: object
-          format: slice
-          items:
-            $ref: '#/components/schemas/BulkUpdateResponseStatusForOneApp'
-          description: Details of all apps on which bulk update applied successfully
-    BulkUpdateResponseStatusForOneApp:
+        deploymentTemplate:
+          $ref: '#/components/schemas/DeploymentTemplateBulkUpdateResponse'
+        configMap:
+          $ref: '#/components/schemas/CmAndSecretBulkUpdateResponse'
+        secret:
+          $ref: '#/components/schemas/CmAndSecretBulkUpdateResponse'
+    DeploymentTemplateBulkUpdateResponse:
       type: object
       properties:
-        AppId:
+        message:
+          type: array
+          items:
+            type: string
+          description: All top-level messages in response of bulk update action
+        failure:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeploymentTemplateBulkUpdateResponseForOneApp'
+          description: Details of all apps on which bulk update failed
+        successful:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeploymentTemplateBulkUpdateResponseForOneApp'
+          description: Details of all apps on which bulk update applied successfully
+    CmAndSecretBulkUpdateResponse:
+      type: object
+      properties:
+        message:
+          type: array
+          items:
+            type: string
+          description: All top-level messages in response of bulk update action
+        failure:
+          type: array
+          items:
+            $ref: '#/components/schemas/CmAndSecretBulkUpdateResponseForOneApp'
+          description: Details of all apps on which bulk update failed
+        successful:
+          type: array
+          items:
+            $ref: '#/components/schemas/CmAndSecretBulkUpdateResponseForOneApp'
+          description: Details of all apps on which bulk update applied successfully
+    DeploymentTemplateBulkUpdateResponseForOneApp:
+      type: object
+      properties:
+        appId:
           type: integer
           description: Id of the concerned app
-        AppName:
+        appName:
           type: string
           description: Name of the concerned app
-        EnvId:
+        envId:
           type: integer
           description: Env ID of the concerned app
-        Message:
+        message:
           type: string
           description: App-level message for the concerned app
+    CmAndSecretBulkUpdateResponseForOneApp:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: Id of the concerned app
+        appName:
+          type: string
+          description: Name of the concerned app
+        envId:
+          type: integer
+          description: Env ID of the concerned app
+        names:
+          type: array
+          items:
+            type: string
+          description: Names of all configmaps/secrets
+        message:
+          type: string
+          description: App-level message for the concerned app
+
     Error:
       required:
         - code
