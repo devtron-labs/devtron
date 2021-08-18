@@ -49,10 +49,10 @@ type NotificationListOptions struct {
 
 // ListNotifications lists all notifications for the authenticated user.
 //
-// GitHub API docs: https://developer.github.com/v3/activity/notifications/#list-notifications-for-the-authenticated-user
-func (s *ActivityService) ListNotifications(ctx context.Context, opts *NotificationListOptions) ([]*Notification, *Response, error) {
+// GitHub API docs: https://developer.github.com/v3/activity/notifications/#list-your-notifications
+func (s *ActivityService) ListNotifications(ctx context.Context, opt *NotificationListOptions) ([]*Notification, *Response, error) {
 	u := fmt.Sprintf("notifications")
-	u, err := addOptions(u, opts)
+	u, err := addOptions(u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -74,10 +74,10 @@ func (s *ActivityService) ListNotifications(ctx context.Context, opts *Notificat
 // ListRepositoryNotifications lists all notifications in a given repository
 // for the authenticated user.
 //
-// GitHub API docs: https://developer.github.com/v3/activity/notifications/#list-repository-notifications-for-the-authenticated-user
-func (s *ActivityService) ListRepositoryNotifications(ctx context.Context, owner, repo string, opts *NotificationListOptions) ([]*Notification, *Response, error) {
+// GitHub API docs: https://developer.github.com/v3/activity/notifications/#list-your-notifications-in-a-repository
+func (s *ActivityService) ListRepositoryNotifications(ctx context.Context, owner, repo string, opt *NotificationListOptions) ([]*Notification, *Response, error) {
 	u := fmt.Sprintf("repos/%v/%v/notifications", owner, repo)
-	u, err := addOptions(u, opts)
+	u, err := addOptions(u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -118,7 +118,7 @@ func (s *ActivityService) MarkNotificationsRead(ctx context.Context, lastRead ti
 // MarkRepositoryNotificationsRead marks all notifications up to lastRead in
 // the specified repository as read.
 //
-// GitHub API docs: https://developer.github.com/v3/activity/notifications/#mark-repository-notifications-as-read
+// GitHub API docs: https://developer.github.com/v3/activity/notifications/#mark-notifications-as-read-in-a-repository
 func (s *ActivityService) MarkRepositoryNotificationsRead(ctx context.Context, owner, repo string, lastRead time.Time) (*Response, error) {
 	opts := &markReadOptions{
 		LastReadAt: lastRead,
@@ -134,7 +134,7 @@ func (s *ActivityService) MarkRepositoryNotificationsRead(ctx context.Context, o
 
 // GetThread gets the specified notification thread.
 //
-// GitHub API docs: https://developer.github.com/v3/activity/notifications/#get-a-thread
+// GitHub API docs: https://developer.github.com/v3/activity/notifications/#view-a-single-thread
 func (s *ActivityService) GetThread(ctx context.Context, id string) (*Notification, *Response, error) {
 	u := fmt.Sprintf("notifications/threads/%v", id)
 
@@ -169,7 +169,7 @@ func (s *ActivityService) MarkThreadRead(ctx context.Context, id string) (*Respo
 // GetThreadSubscription checks to see if the authenticated user is subscribed
 // to a thread.
 //
-// GitHub API docs: https://developer.github.com/v3/activity/notifications/#get-a-thread-subscription-for-the-authenticated-user
+// GitHub API docs: https://developer.github.com/v3/activity/notifications/#get-a-thread-subscription
 func (s *ActivityService) GetThreadSubscription(ctx context.Context, id string) (*Subscription, *Response, error) {
 	u := fmt.Sprintf("notifications/threads/%v/subscription", id)
 

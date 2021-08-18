@@ -7,7 +7,6 @@ import (
 
 var valueEncoders []encoderFunc
 
-//nolint:gochecknoinits
 func init() {
 	valueEncoders = []encoderFunc{
 		reflect.Bool:          encodeBoolValue,
@@ -39,15 +38,10 @@ func init() {
 }
 
 func getEncoder(typ reflect.Type) encoderFunc {
-	if v, ok := typeEncMap.Load(typ); ok {
-		return v.(encoderFunc)
+	if encoder, ok := typEncMap[typ]; ok {
+		return encoder
 	}
-	fn := _getEncoder(typ)
-	typeEncMap.Store(typ, fn)
-	return fn
-}
 
-func _getEncoder(typ reflect.Type) encoderFunc {
 	if typ.Implements(customEncoderType) {
 		return encodeCustomValue
 	}
@@ -76,12 +70,8 @@ func _getEncoder(typ reflect.Type) encoderFunc {
 	case reflect.Ptr:
 		return ptrEncoderFunc(typ)
 	case reflect.Slice:
-		elem := typ.Elem()
-		if elem.Kind() == reflect.Uint8 {
+		if typ.Elem().Kind() == reflect.Uint8 {
 			return encodeByteSliceValue
-		}
-		if elem == stringType {
-			return encodeStringSliceValue
 		}
 	case reflect.Array:
 		if typ.Elem().Kind() == reflect.Uint8 {

@@ -183,7 +183,8 @@ func (c *copier) write(chunk copierChunk) error {
 	if err := c.ctx.Err(); err != nil {
 		return err
 	}
-	_, err := c.to.StageBlock(c.ctx, chunk.id, bytes.NewReader(chunk.buffer), c.o.AccessConditions.LeaseAccessConditions, nil, c.o.ClientProvidedKeyOptions)
+
+	_, err := c.to.StageBlock(c.ctx, chunk.id, bytes.NewReader(chunk.buffer), LeaseAccessConditions{}, nil, c.o.ClientProvidedKeyOptions)
 	if err != nil {
 		return fmt.Errorf("write error: %w", err)
 	}

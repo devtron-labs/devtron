@@ -47,7 +47,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/stan"
+	"github.com/nats-io/stan.go"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"io/ioutil"

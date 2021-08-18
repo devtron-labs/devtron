@@ -38,7 +38,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/stan"
+	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"

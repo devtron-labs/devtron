@@ -74,14 +74,14 @@ type startMigration struct {
 // StartMigration starts the generation of a migration archive.
 // repos is a slice of repository names to migrate.
 //
-// GitHub API docs: https://developer.github.com/v3/migrations/orgs/#start-an-organization-migration
-func (s *MigrationService) StartMigration(ctx context.Context, org string, repos []string, opts *MigrationOptions) (*Migration, *Response, error) {
+// GitHub API docs: https://developer.github.com/v3/migration/migrations/#start-a-migration
+func (s *MigrationService) StartMigration(ctx context.Context, org string, repos []string, opt *MigrationOptions) (*Migration, *Response, error) {
 	u := fmt.Sprintf("orgs/%v/migrations", org)
 
 	body := &startMigration{Repositories: repos}
-	if opts != nil {
-		body.LockRepositories = Bool(opts.LockRepositories)
-		body.ExcludeAttachments = Bool(opts.ExcludeAttachments)
+	if opt != nil {
+		body.LockRepositories = Bool(opt.LockRepositories)
+		body.ExcludeAttachments = Bool(opt.ExcludeAttachments)
 	}
 
 	req, err := s.client.NewRequest("POST", u, body)
@@ -103,13 +103,9 @@ func (s *MigrationService) StartMigration(ctx context.Context, org string, repos
 
 // ListMigrations lists the most recent migrations.
 //
-// GitHub API docs: https://developer.github.com/v3/migrations/orgs/#list-organization-migrations
-func (s *MigrationService) ListMigrations(ctx context.Context, org string, opts *ListOptions) ([]*Migration, *Response, error) {
+// GitHub API docs: https://developer.github.com/v3/migration/migrations/#get-a-list-of-migrations
+func (s *MigrationService) ListMigrations(ctx context.Context, org string) ([]*Migration, *Response, error) {
 	u := fmt.Sprintf("orgs/%v/migrations", org)
-	u, err := addOptions(u, opts)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	req, err := s.client.NewRequest("GET", u, nil)
 	if err != nil {
@@ -131,7 +127,7 @@ func (s *MigrationService) ListMigrations(ctx context.Context, org string, opts 
 // MigrationStatus gets the status of a specific migration archive.
 // id is the migration ID.
 //
-// GitHub API docs: https://developer.github.com/v3/migrations/orgs/#get-an-organization-migration-status
+// GitHub API docs: https://developer.github.com/v3/migration/migrations/#get-the-status-of-a-migration
 func (s *MigrationService) MigrationStatus(ctx context.Context, org string, id int64) (*Migration, *Response, error) {
 	u := fmt.Sprintf("orgs/%v/migrations/%v", org, id)
 
@@ -155,7 +151,7 @@ func (s *MigrationService) MigrationStatus(ctx context.Context, org string, id i
 // MigrationArchiveURL fetches a migration archive URL.
 // id is the migration ID.
 //
-// GitHub API docs: https://developer.github.com/v3/migrations/orgs/#download-an-organization-migration-archive
+// GitHub API docs: https://developer.github.com/v3/migration/migrations/#download-a-migration-archive
 func (s *MigrationService) MigrationArchiveURL(ctx context.Context, org string, id int64) (url string, err error) {
 	u := fmt.Sprintf("orgs/%v/migrations/%v/archive", org, id)
 
@@ -192,7 +188,7 @@ func (s *MigrationService) MigrationArchiveURL(ctx context.Context, org string, 
 // DeleteMigration deletes a previous migration archive.
 // id is the migration ID.
 //
-// GitHub API docs: https://developer.github.com/v3/migrations/orgs/#delete-an-organization-migration-archive
+// GitHub API docs: https://developer.github.com/v3/migration/migrations/#delete-a-migration-archive
 func (s *MigrationService) DeleteMigration(ctx context.Context, org string, id int64) (*Response, error) {
 	u := fmt.Sprintf("orgs/%v/migrations/%v/archive", org, id)
 
@@ -212,7 +208,7 @@ func (s *MigrationService) DeleteMigration(ctx context.Context, org string, id i
 // You should unlock each migrated repository and delete them when the migration
 // is complete and you no longer need the source data.
 //
-// GitHub API docs: https://developer.github.com/v3/migrations/orgs/#unlock-an-organization-repository
+// GitHub API docs: https://developer.github.com/v3/migration/migrations/#unlock-a-repository
 func (s *MigrationService) UnlockRepo(ctx context.Context, org string, id int64, repo string) (*Response, error) {
 	u := fmt.Sprintf("orgs/%v/migrations/%v/repos/%v/lock", org, id, repo)
 

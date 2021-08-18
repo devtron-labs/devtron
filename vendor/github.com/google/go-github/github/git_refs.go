@@ -7,8 +7,9 @@ package github
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 )
 
@@ -47,12 +48,16 @@ type updateRefRequest struct {
 	Force *bool   `json:"force"`
 }
 
-// GetRef fetches a single reference in a repository.
+// GetRef fetches a single Reference object for a given Git ref.
+// If there is no exact match, GetRef will return an error.
+//
+// Note: The GitHub API can return multiple matches.
+// If you wish to use this functionality please use the GetRefs() method.
 //
 // GitHub API docs: https://developer.github.com/v3/git/refs/#get-a-reference
 func (s *GitService) GetRef(ctx context.Context, owner string, repo string, ref string) (*Reference, *Response, error) {
 	ref = strings.TrimPrefix(ref, "refs/")
-	u := fmt.Sprintf("repos/%v/%v/git/ref/%v", owner, repo, refURLEscape(ref))
+	u := fmt.Sprintf("repos/%v/%v/git/refs/%v", owner, repo, ref)
 	req, err := s.client.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, nil, err
@@ -60,42 +65,80 @@ func (s *GitService) GetRef(ctx context.Context, owner string, repo string, ref 
 
 	r := new(Reference)
 	resp, err := s.client.Do(ctx, req, r)
-	if err != nil {
+	if _, ok := err.(*json.UnmarshalTypeError); ok {
+		// Multiple refs, means there wasn't an exact match.
+		return nil, resp, errors.New("no exact match found for this ref")
+	} else if err != nil {
 		return nil, resp, err
 	}
 
 	return r, resp, nil
 }
 
-// refURLEscape escapes every path segment of the given ref. Those must
-// not contain escaped "/" - as "%2F" - or github will not recognize it.
-func refURLEscape(ref string) string {
-	parts := strings.Split(ref, "/")
-	for i, s := range parts {
-		parts[i] = url.PathEscape(s)
+// GetRefs fetches a slice of Reference objects for a given Git ref.
+// If there is an exact match, only that ref is returned.
+// If there is no exact match, GitHub returns all refs that start with ref.
+// If returned error is nil, there will be at least 1 ref returned.
+// For example:
+//
+// 	"heads/featureA" -> ["refs/heads/featureA"]                         // Exact match, single ref is returned.
+// 	"heads/feature"  -> ["refs/heads/featureA", "refs/heads/featureB"]  // All refs that start with ref.
+// 	"heads/notexist" -> []                                              // Returns an error.
+//
+// GitHub API docs: https://developer.github.com/v3/git/refs/#get-a-reference
+func (s *GitService) GetRefs(ctx context.Context, owner string, repo string, ref string) ([]*Reference, *Response, error) {
+	ref = strings.TrimPrefix(ref, "refs/")
+	u := fmt.Sprintf("repos/%v/%v/git/refs/%v", owner, repo, ref)
+	req, err := s.client.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, nil, err
 	}
-	return strings.Join(parts, "/")
+
+	var rawJSON json.RawMessage
+	resp, err := s.client.Do(ctx, req, &rawJSON)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	// Prioritize the most common case: a single returned ref.
+	r := new(Reference)
+	singleUnmarshalError := json.Unmarshal(rawJSON, r)
+	if singleUnmarshalError == nil {
+		return []*Reference{r}, resp, nil
+	}
+
+	// Attempt to unmarshal multiple refs.
+	var rs []*Reference
+	multipleUnmarshalError := json.Unmarshal(rawJSON, &rs)
+	if multipleUnmarshalError == nil {
+		if len(rs) == 0 {
+			return nil, resp, fmt.Errorf("unexpected response from GitHub API: an array of refs with length 0")
+		}
+		return rs, resp, nil
+	}
+
+	return nil, resp, fmt.Errorf("unmarshalling failed for both single and multiple refs: %s and %s", singleUnmarshalError, multipleUnmarshalError)
 }
 
 // ReferenceListOptions specifies optional parameters to the
-// GitService.ListMatchingRefs method.
+// GitService.ListRefs method.
 type ReferenceListOptions struct {
-	Ref string `url:"-"`
+	Type string `url:"-"`
 
 	ListOptions
 }
 
-// ListMatchingRefs lists references in a repository that match a supplied ref.
-// Use an empty ref to list all references.
+// ListRefs lists all refs in a repository.
 //
-// GitHub API docs: https://developer.github.com/v3/git/refs/#list-matching-references
-func (s *GitService) ListMatchingRefs(ctx context.Context, owner, repo string, opts *ReferenceListOptions) ([]*Reference, *Response, error) {
-	var ref string
-	if opts != nil {
-		ref = strings.TrimPrefix(opts.Ref, "refs/")
+// GitHub API docs: https://developer.github.com/v3/git/refs/#get-all-references
+func (s *GitService) ListRefs(ctx context.Context, owner, repo string, opt *ReferenceListOptions) ([]*Reference, *Response, error) {
+	var u string
+	if opt != nil && opt.Type != "" {
+		u = fmt.Sprintf("repos/%v/%v/git/refs/%v", owner, repo, opt.Type)
+	} else {
+		u = fmt.Sprintf("repos/%v/%v/git/refs", owner, repo)
 	}
-	u := fmt.Sprintf("repos/%v/%v/git/matching-refs/%v", owner, repo, refURLEscape(ref))
-	u, err := addOptions(u, opts)
+	u, err := addOptions(u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -165,7 +208,7 @@ func (s *GitService) UpdateRef(ctx context.Context, owner string, repo string, r
 // GitHub API docs: https://developer.github.com/v3/git/refs/#delete-a-reference
 func (s *GitService) DeleteRef(ctx context.Context, owner string, repo string, ref string) (*Response, error) {
 	ref = strings.TrimPrefix(ref, "refs/")
-	u := fmt.Sprintf("repos/%v/%v/git/refs/%v", owner, repo, refURLEscape(ref))
+	u := fmt.Sprintf("repos/%v/%v/git/refs/%v", owner, repo, ref)
 	req, err := s.client.NewRequest("DELETE", u, nil)
 	if err != nil {
 		return nil, err

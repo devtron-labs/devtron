@@ -118,7 +118,7 @@ func (e *Encoder) EncodeUint(n uint64) error {
 	if n <= math.MaxUint32 {
 		return e.EncodeUint32(uint32(n))
 	}
-	return e.EncodeUint64(n)
+	return e.EncodeUint64(uint64(n))
 }
 
 // EncodeNumber encodes an int64 in 1, 2, 3, 5, or 9 bytes.
@@ -139,7 +139,7 @@ func (e *Encoder) EncodeInt(n int64) error {
 	if n >= math.MinInt32 {
 		return e.EncodeInt32(int32(n))
 	}
-	return e.EncodeInt64(n)
+	return e.EncodeInt64(int64(n))
 }
 
 func (e *Encoder) EncodeFloat32(n float32) error {
@@ -153,7 +153,7 @@ func (e *Encoder) EncodeFloat64(n float64) error {
 func (e *Encoder) write1(code codes.Code, n uint8) error {
 	e.buf = e.buf[:2]
 	e.buf[0] = byte(code)
-	e.buf[1] = n
+	e.buf[1] = byte(n)
 	return e.write(e.buf)
 }
 

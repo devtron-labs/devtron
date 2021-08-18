@@ -331,3 +331,27 @@ func IsForbidden(err error) bool {
 	_, ok := err.(*forbidden)
 	return ok
 }
+
+// quotaLimitExceeded is emitted when an action failed due to a quota limit check.
+type quotaLimitExceeded struct {
+	Err
+}
+
+// QuotaLimitExceededf returns an error which satisfies IsQuotaLimitExceeded.
+func QuotaLimitExceededf(format string, args ...interface{}) error {
+	return &quotaLimitExceeded{wrap(nil, format, "", args...)}
+}
+
+// NewQuotaLimitExceeded returns an error which wraps err and satisfies
+// IsQuotaLimitExceeded.
+func NewQuotaLimitExceeded(err error, msg string) error {
+	return &quotaLimitExceeded{wrap(err, msg, "")}
+}
+
+// IsQuotaLimitExceeded returns true if the given error represents a
+// QuotaLimitExceeded error.
+func IsQuotaLimitExceeded(err error) bool {
+	err = Cause(err)
+	_, ok := err.(*quotaLimitExceeded)
+	return ok
+}

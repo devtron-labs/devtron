@@ -66,4 +66,4 @@ Please go through [examples](https://godoc.org/github.com/vmihailenco/msgpack#pk
 ## See also
 
 - [Golang PostgreSQL ORM](https://github.com/go-pg/pg)
-- [Golang message task queue](https://github.com/vmihailenco/taskq)
+- [Golang message task queue](https://github.com/go-msgqueue/msgqueue)
