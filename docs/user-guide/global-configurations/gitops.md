@@ -39,25 +39,28 @@ Similarly in the case of Azure provide `Azure DevOps Project Name*`. Learn more 
 ### 3. Git access credential
 
 Provide Git `Username` and `Personal Access Token` of your git account. 
-Permissions required for the gitops are:
 
-#### For GithHub Username* [Creating a Github Personal Access Token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token):
-* repo
-* admin access
+**\(a\) Username** 
+Username for your git account.
 
-#### For GitLab Username* [Creating a Gitlab Personal Access Token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html):
+**\(b\) Personal Access Token**  
+A personal access token (PAT) is used as an alternate password to authenticate into your git accounts. 
 
-* api 
-* read_user 
-* read_api 
-* read_repository 
-* write_repository 
-* read_registry 
-* write_registry
+#### For GithHub [Creating a Github Personal Access Token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token):
 
-#### For Azure DevOps Username* [Creating a Azure DevOps Access Token](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page): 
-* repo
-* admin access
+* repo - Full control of private repositories.
+* workflow - Update github actions workflows.
+* admin:repo_hook - Full control of repository hooks(If using webhook feature for Pull request or Tags).
+
+#### For GitLab [Creating a Gitlab Personal Access Token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html):
+
+* api - Grants complete read/write access to the scoped project API.
+* write_repository - Allows read-write access (pull, push) to the repository. 
+
+#### For Azure DevOps Username [Creating a Azure DevOps Access Token](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page): 
+
+* code - Grants the ability to read source code and metadata about commits, changesets, branches, and other version control artifacts.
+[More Information](https://docs.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/oauth?view=azure-devops#scopes):
 
 Click on Save to save your gitops configuration details.
  
