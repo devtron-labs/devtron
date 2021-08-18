@@ -57,7 +57,7 @@ A personal access token (PAT) is used as an alternate password to authenticate i
 * api - Grants complete read/write access to the scoped project API.
 * write_repository - Allows read-write access (pull, push) to the repository. 
 
-#### For Azure DevOps Username [Creating a Azure DevOps Access Token](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page): 
+#### For Azure DevOps [Creating a Azure DevOps Access Token](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page): 
 
 * code - Grants the ability to read source code and metadata about commits, changesets, branches, and other version control artifacts.
 [More Information](https://docs.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/oauth?view=azure-devops#scopes):
