@@ -157,7 +157,7 @@ func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int,
 	var deploymentDetail bean.DeploymentDetailContainer
 	query := "SELECT env.environment_name, a.app_name, ceco.namespace, u.email_id as last_deployed_by" +
 		" , cia.material_info, pco.created_on AS last_deployed_time, pco.pipeline_release_counter as release_version" +
-		" , env.default, cia.data_source, p.pipeline_name as last_deployed_pipeline" +
+		" , env.default, cia.data_source, p.pipeline_name as last_deployed_pipeline, cia.id as ci_artifact_id" +
 		" FROM chart_env_config_override ceco" +
 		" INNER JOIN environment env ON env.id=ceco.target_environment" +
 		" INNER JOIN pipeline_config_override pco ON pco.env_config_override_id = ceco.id" +
@@ -209,14 +209,24 @@ func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMes
 		}
 
 		if material.Modifications != nil && len(material.Modifications) > 0 {
-			revision := material.Modifications[0].Revision
+			_modification := material.Modifications[0]
+
+			revision := _modification.Revision
 			url = strings.TrimSpace(url)
+
+			_webhookDataStr := ""
+			_webhookDataByteArr, err := json.Marshal(_modification.WebhookData)
+			if err == nil {
+				_webhookDataStr = string(_webhookDataByteArr)
+			}
+
 			materialMap["url"] = url
 			materialMap["revision"] = revision
-			materialMap["modifiedTime"] = material.Modifications[0].ModifiedTime
-			materialMap["author"] = material.Modifications[0].Author
-			materialMap["message"] = material.Modifications[0].Message
-			materialMap["branch"] = material.Modifications[0].Branch
+			materialMap["modifiedTime"] = _modification.ModifiedTime
+			materialMap["author"] = _modification.Author
+			materialMap["message"] = _modification.Message
+			materialMap["branch"] = _modification.Branch
+			materialMap["webhookData"] = _webhookDataStr
 		}
 		scmMaps = append(scmMaps, materialMap)
 	}

@@ -56,7 +56,9 @@ type FetchScmChangesRequest struct {
 type HeadRequest struct {
 	MaterialIds []int `json:"materialIds"`
 }
+
 type SourceType string
+
 type CiPipelineMaterial struct {
 	Id            int
 	GitMaterialId int
@@ -87,13 +89,22 @@ type GitProvider struct {
 	Active      bool
 	AuthMode    repository.AuthMode
 }
+
 type GitCommit struct {
-	Commit  string //git hash
-	Author  string
-	Date    time.Time
-	Message string
-	Changes []string
+	Commit      string //git hash
+	Author      string
+	Date        time.Time
+	Message     string
+	Changes     []string
+	WebhookData *WebhookData
 }
+
+type WebhookData struct {
+	Id              int               `json:"id"`
+	EventActionType string            `json:"eventActionType"`
+	Data            map[string]string `json:"data"`
+}
+
 type MaterialChangeResp struct {
 	Commits        []*GitCommit `json:"commits"`
 	LastFetchTime  time.Time    `json:"lastFetchTime"`
@@ -107,15 +118,53 @@ type CommitMetadataRequest struct {
 	PipelineMaterialId int    `json:"pipelineMaterialId"`
 	GitHash            string `json:"gitHash"`
 	GitTag             string `json:"gitTag"`
+	BranchName         string `json:"branchName"`
 }
 
 type RefreshGitMaterialRequest struct {
 	GitMaterialId int `json:"gitMaterialId"`
 }
+
 type RefreshGitMaterialResponse struct {
 	Message       string    `json:"message"`
 	ErrorMsg      string    `json:"errorMsg"`
 	LastFetchTime time.Time `json:"lastFetchTime"`
+}
+
+type WebhookDataRequest struct {
+	Id int `json:"id"`
+}
+
+type WebhookEventConfigRequest struct {
+	GitHostId int `json:"gitHostId"`
+	EventId   int `json:"eventId"`
+}
+
+type WebhookEventConfig struct {
+	Id            int       `json:"id"`
+	GitHostId     int       `json:"gitHostId"`
+	Name          string    `json:"name"`
+	EventTypesCsv string    `json:"eventTypesCsv"`
+	ActionType    string    `json:"actionType"`
+	IsActive      bool      `json:"isActive"`
+	CreatedOn     time.Time `json:"createdOn"`
+	UpdatedOn     time.Time `json:"updatedOn"`
+
+	Selectors []*WebhookEventSelectors `json:"selectors"`
+}
+
+type WebhookEventSelectors struct {
+	Id               int       `json:"id"`
+	EventId          int       `json:"eventId"`
+	Name             string    `json:"name"`
+	Selector         string    `json:"selector"`
+	ToShow           bool      `json:"toShow"`
+	ToShowInCiFilter bool      `json:"toShowInCiFilter"`
+	FixValue         string    `json:"fixValue"`
+	PossibleValues   string    `json:"possibleValues"`
+	IsActive         bool      `json:"isActive"`
+	CreatedOn        time.Time `json:"createdOn"`
+	UpdatedOn        time.Time `json:"updatedOn"`
 }
 
 type GitSensorClient interface {
@@ -128,6 +177,11 @@ type GitSensorClient interface {
 	UpdateRepo(material *GitMaterial) (materialRes *GitMaterial, err error)
 	SavePipelineMaterial(material []*CiPipelineMaterial) (materialRes []*CiPipelineMaterial, err error)
 	RefreshGitMaterial(req *RefreshGitMaterialRequest) (refreshRes *RefreshGitMaterialResponse, err error)
+
+	GetWebhookData(req *WebhookDataRequest) (*WebhookData, error)
+
+	GetAllWebhookEventConfigForHost(req *WebhookEventConfigRequest) (webhookEvents []*WebhookEventConfig, err error)
+	GetWebhookEventConfig(req *WebhookEventConfigRequest) (webhookEvent *WebhookEventConfig, err error)
 }
 
 //----------------------impl
@@ -272,4 +326,23 @@ func (session GitSensorClientImpl) RefreshGitMaterial(req *RefreshGitMaterialReq
 	request := &ClientRequest{ResponseBody: refreshRes, Method: "POST", RequestBody: req, Path: "git-repo/refresh"}
 	_, _, err = session.doRequest(request)
 	return refreshRes, err
+}
+
+func (session GitSensorClientImpl) GetWebhookData(req *WebhookDataRequest) (*WebhookData, error) {
+	webhookData := new(WebhookData)
+	request := &ClientRequest{ResponseBody: webhookData, Method: "GET", RequestBody: req, Path: "webhook/data"}
+	_, _, err := session.doRequest(request)
+	return webhookData, err
+}
+
+func (session GitSensorClientImpl) GetAllWebhookEventConfigForHost(req *WebhookEventConfigRequest) (webhookEvents []*WebhookEventConfig, err error) {
+	request := &ClientRequest{ResponseBody: &webhookEvents, Method: "GET", RequestBody: req, Path: "/webhook/host/events"}
+	_, _, err = session.doRequest(request)
+	return webhookEvents, err
+}
+
+func (session GitSensorClientImpl) GetWebhookEventConfig(req *WebhookEventConfigRequest) (webhookEvent *WebhookEventConfig, err error) {
+	request := &ClientRequest{ResponseBody: &webhookEvent, Method: "GET", RequestBody: req, Path: "/webhook/host/event"}
+	_, _, err = session.doRequest(request)
+	return webhookEvent, err
 }
