@@ -32,20 +32,34 @@ This defines ports on which application services will be exposed to other servic
 
 ```yaml
 ContainerPort:
+    envoyPort: 8799
+    idleTimeout: 
     name: app
     port: 8080
     servicePort: 80
+    supportStreaming: true
+    useHTTP2: true
 ```
 
 | Key | Description |
 | :--- | :--- |
-| `name` | name of the container |
-| `port` | port for the container |
-| `servicePort` | service port for the container |
+| `envoyPort` | envoy port for the container. |
+| `idleTimeout` | the duration of time that a connection is idle before the connection is terminated. |
+| `name` | name of the container. |
+| `port` | port for the container. |
+| `servicePort` | service port for the container. |
+| `supportStreaming` | Used for high performance protocols like grpc where timeout needs to be disabled. |
+| `useHTTP2` | container can accept HTTP2 requests. |
+
+### EnvVariables
+```yaml
+EnvVariables: []
+```
+To set environment variables for the containers that run in the Pod.
 
 ### Liveness Probe
 
-If this check fails, kubernetes restarts the pod. This should return error code in case of non-recoverable error
+If this check fails, kubernetes restarts the pod. This should return error code in case of non-recoverable error.
 
 ```yaml
 LivenessProbe:
@@ -57,7 +71,7 @@ LivenessProbe:
   timeoutSeconds: 5
   failureThreshold: 3
 ```
-
+ 
 | Key | Description |
 | :--- | :--- |
 | `Path` | It define the path where the liveness needs to be checked. |
@@ -66,6 +80,28 @@ LivenessProbe:
 | `periodSeconds` | It defines the time to check a given container for liveness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
+
+### MaxUnavailable
+ 
+ ```yaml
+  MaxUnavailable: 0
+```
+The maximum number of pods that can be unavailable during the update process. The value of "MaxUnavailable: " can be an absolute number or percentage of the replicas count. The default value of "MaxUnavailable: " is 25%.
+
+### MaxSurge
+
+```yaml
+MaxSurge: 1
+```
+The maximum number of pods that can be created over the desired number of pods. For "MaxSurge: " also, the value can be an absolute number or percentage of the replicas count.
+The default value of "MaxSurge: " is 25%.
+
+### Min Ready Seconds
+
+```yaml
+MinReadySeconds: 60
+```
+This specifies the minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available. This defaults to 0 (the Pod will be considered available as soon as it is ready).
 
 ### Readiness Probe
 
@@ -102,6 +138,7 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
+  extraMetrics: []
 ```
 
 | Key | Description |
@@ -110,7 +147,8 @@ autoscaling:
 | `MinReplicas` | Minimum number of replicas allowed for scaling. |
 | `TargetCPUUtilizationPercentage` | The target CPU utilization that is expected for a container. |
 | `TargetMemoryUtilizationPercentage` | The target memory utilization that is expected for a container. |
-| `enabled` | to enable autoscaling or don't enable it. |
+| `enabled` | To enable autoscaling or don't enable it. |
+| `extraMetrics` | Used to give external metrics for autoscaling. |
 
 ### Image
 
@@ -162,6 +200,18 @@ ingressInternal:
 | `path` | Path name |
 | `host` | Host name |
 | `tls` | It contains security details |
+
+### Init Containers
+```yaml
+initContainers: []
+```
+Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image.
+
+### Pause For Seconds Before Switch Active
+```yaml
+pauseForSecondsBeforeSwitchActive: 30
+```
+To wait for given period of time before swith active the container.
 
 ### Resources
 
@@ -300,6 +350,13 @@ Containers section can be used to run side-car containers along with your main c
 
 It is a kubernetes monitoring tool and the name of the file to be monitored as monitoring in the given case.It describes the state of the prometheus.
 
+### rawYaml
+
+```yaml
+rawYaml: []
+```
+Accepts an array of Kubernetes objects. You can specify any kubernetes yaml here and it will be applied when your app gets deployed.
+
 ### Grace Period
 
 ```yaml
@@ -323,7 +380,7 @@ Minimum time for which a newly created pod should be ready without any of its co
 
 ```yaml
 server:
-  deployment:
+  deployment:0
     image_tag: 1-95a53
     image: ""
 ```
@@ -478,6 +535,12 @@ autoscaling:
 ```
 
 HPA, by default is configured to work with CPU and Memory metrics. These metrics are useful for internal cluster sizing, but you might want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.
+
+### Wait For Seconds Before Scaling Down
+```yaml
+waitForSecondsBeforeScalingDown: 30
+```
+Wait for given period of time before scaling down the container.
 
 ### 3. Show application metrics
 
