@@ -25,7 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/nats-io/stan"
+	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
 	"time"
 )
@@ -107,11 +107,15 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 
 		var branch string
 		var tag string
+		var webhookData repository.WebhookData
 		if p.SourceType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
 			branch = p.SourceValue
-		}
-		if p.SourceType == pipelineConfig.SOURCE_TYPE_TAG_REGEX {
-			tag = p.SourceValue
+		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+			webhookData = repository.WebhookData {
+				Id : p.WebhookData.Id,
+				EventActionType: p.WebhookData.EventActionType,
+				Data: p.WebhookData.Data,
+			}
 		}
 
 		modification := repository.Modification{
@@ -120,8 +124,10 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 			Author:       p.Author,
 			Branch:       branch,
 			Tag:          tag,
+			WebhookData:  webhookData,
 			Message:      p.Message,
 		}
+
 		modifications = append(modifications, modification)
 		ciMaterialInfo := repository.CiMaterialInfo{
 			Material: repository.Material{

@@ -127,7 +127,7 @@ func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWrite
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	var result []pipeline.GitRegistryRequest
+	result := make([]pipeline.GitRegistryRequest, 0)
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, rbac.ResourceGit, rbac.ActionGet, strings.ToLower(item.Name)); ok {
 			result = append(result, item)

@@ -19,18 +19,18 @@ import (
 //
 // GitHub API docs: https://help.github.com/articles/post-receive-hooks
 type WebHookPayload struct {
-	After      *string          `json:"after,omitempty"`
-	Before     *string          `json:"before,omitempty"`
-	Commits    []*WebHookCommit `json:"commits,omitempty"`
-	Compare    *string          `json:"compare,omitempty"`
-	Created    *bool            `json:"created,omitempty"`
-	Deleted    *bool            `json:"deleted,omitempty"`
-	Forced     *bool            `json:"forced,omitempty"`
-	HeadCommit *WebHookCommit   `json:"head_commit,omitempty"`
-	Pusher     *User            `json:"pusher,omitempty"`
-	Ref        *string          `json:"ref,omitempty"`
-	Repo       *Repository      `json:"repository,omitempty"`
-	Sender     *User            `json:"sender,omitempty"`
+	After      *string         `json:"after,omitempty"`
+	Before     *string         `json:"before,omitempty"`
+	Commits    []WebHookCommit `json:"commits,omitempty"`
+	Compare    *string         `json:"compare,omitempty"`
+	Created    *bool           `json:"created,omitempty"`
+	Deleted    *bool           `json:"deleted,omitempty"`
+	Forced     *bool           `json:"forced,omitempty"`
+	HeadCommit *WebHookCommit  `json:"head_commit,omitempty"`
+	Pusher     *User           `json:"pusher,omitempty"`
+	Ref        *string         `json:"ref,omitempty"`
+	Repo       *Repository     `json:"repository,omitempty"`
+	Sender     *User           `json:"sender,omitempty"`
 }
 
 func (w WebHookPayload) String() string {
@@ -69,53 +69,27 @@ func (w WebHookAuthor) String() string {
 
 // Hook represents a GitHub (web and service) hook for a repository.
 type Hook struct {
-	CreatedAt *time.Time `json:"created_at,omitempty"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
-	URL       *string    `json:"url,omitempty"`
-	ID        *int64     `json:"id,omitempty"`
-
-	// Only the following fields are used when creating a hook.
-	// Config is required.
-	Config map[string]interface{} `json:"config,omitempty"`
-	Events []string               `json:"events,omitempty"`
-	Active *bool                  `json:"active,omitempty"`
+	CreatedAt *time.Time             `json:"created_at,omitempty"`
+	UpdatedAt *time.Time             `json:"updated_at,omitempty"`
+	Name      *string                `json:"name,omitempty"`
+	URL       *string                `json:"url,omitempty"`
+	Events    []string               `json:"events,omitempty"`
+	Active    *bool                  `json:"active,omitempty"`
+	Config    map[string]interface{} `json:"config,omitempty"`
+	ID        *int64                 `json:"id,omitempty"`
 }
 
 func (h Hook) String() string {
 	return Stringify(h)
 }
 
-// createHookRequest is a subset of Hook and is used internally
-// by CreateHook to pass only the known fields for the endpoint.
-//
-// See https://github.com/google/go-github/issues/1015 for more
-// information.
-type createHookRequest struct {
-	// Config is required.
-	Name   string                 `json:"name"`
-	Config map[string]interface{} `json:"config,omitempty"`
-	Events []string               `json:"events,omitempty"`
-	Active *bool                  `json:"active,omitempty"`
-}
-
 // CreateHook creates a Hook for the specified repository.
-// Config is a required field.
+// Name and Config are required fields.
 //
-// Note that only a subset of the hook fields are used and hook must
-// not be nil.
-//
-// GitHub API docs: https://developer.github.com/v3/repos/hooks/#create-a-repository-webhook
+// GitHub API docs: https://developer.github.com/v3/repos/hooks/#create-a-hook
 func (s *RepositoriesService) CreateHook(ctx context.Context, owner, repo string, hook *Hook) (*Hook, *Response, error) {
 	u := fmt.Sprintf("repos/%v/%v/hooks", owner, repo)
-
-	hookReq := &createHookRequest{
-		Name:   "web",
-		Events: hook.Events,
-		Active: hook.Active,
-		Config: hook.Config,
-	}
-
-	req, err := s.client.NewRequest("POST", u, hookReq)
+	req, err := s.client.NewRequest("POST", u, hook)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -131,10 +105,10 @@ func (s *RepositoriesService) CreateHook(ctx context.Context, owner, repo string
 
 // ListHooks lists all Hooks for the specified repository.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/hooks/#list-repository-webhooks
-func (s *RepositoriesService) ListHooks(ctx context.Context, owner, repo string, opts *ListOptions) ([]*Hook, *Response, error) {
+// GitHub API docs: https://developer.github.com/v3/repos/hooks/#list
+func (s *RepositoriesService) ListHooks(ctx context.Context, owner, repo string, opt *ListOptions) ([]*Hook, *Response, error) {
 	u := fmt.Sprintf("repos/%v/%v/hooks", owner, repo)
-	u, err := addOptions(u, opts)
+	u, err := addOptions(u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -155,7 +129,7 @@ func (s *RepositoriesService) ListHooks(ctx context.Context, owner, repo string,
 
 // GetHook returns a single specified Hook.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/hooks/#get-a-repository-webhook
+// GitHub API docs: https://developer.github.com/v3/repos/hooks/#get-single-hook
 func (s *RepositoriesService) GetHook(ctx context.Context, owner, repo string, id int64) (*Hook, *Response, error) {
 	u := fmt.Sprintf("repos/%v/%v/hooks/%d", owner, repo, id)
 	req, err := s.client.NewRequest("GET", u, nil)
@@ -173,7 +147,7 @@ func (s *RepositoriesService) GetHook(ctx context.Context, owner, repo string, i
 
 // EditHook updates a specified Hook.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/hooks/#update-a-repository-webhook
+// GitHub API docs: https://developer.github.com/v3/repos/hooks/#edit-a-hook
 func (s *RepositoriesService) EditHook(ctx context.Context, owner, repo string, id int64, hook *Hook) (*Hook, *Response, error) {
 	u := fmt.Sprintf("repos/%v/%v/hooks/%d", owner, repo, id)
 	req, err := s.client.NewRequest("PATCH", u, hook)
@@ -191,7 +165,7 @@ func (s *RepositoriesService) EditHook(ctx context.Context, owner, repo string, 
 
 // DeleteHook deletes a specified Hook.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/hooks/#delete-a-repository-webhook
+// GitHub API docs: https://developer.github.com/v3/repos/hooks/#delete-a-hook
 func (s *RepositoriesService) DeleteHook(ctx context.Context, owner, repo string, id int64) (*Response, error) {
 	u := fmt.Sprintf("repos/%v/%v/hooks/%d", owner, repo, id)
 	req, err := s.client.NewRequest("DELETE", u, nil)
@@ -203,7 +177,7 @@ func (s *RepositoriesService) DeleteHook(ctx context.Context, owner, repo string
 
 // PingHook triggers a 'ping' event to be sent to the Hook.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/hooks/#ping-a-repository-webhook
+// GitHub API docs: https://developer.github.com/v3/repos/hooks/#ping-a-hook
 func (s *RepositoriesService) PingHook(ctx context.Context, owner, repo string, id int64) (*Response, error) {
 	u := fmt.Sprintf("repos/%v/%v/hooks/%d/pings", owner, repo, id)
 	req, err := s.client.NewRequest("POST", u, nil)
@@ -215,7 +189,7 @@ func (s *RepositoriesService) PingHook(ctx context.Context, owner, repo string, 
 
 // TestHook triggers a test Hook by github.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/hooks/#test-the-push-repository-webhook
+// GitHub API docs: https://developer.github.com/v3/repos/hooks/#test-a-push-hook
 func (s *RepositoriesService) TestHook(ctx context.Context, owner, repo string, id int64) (*Response, error) {
 	u := fmt.Sprintf("repos/%v/%v/hooks/%d/tests", owner, repo, id)
 	req, err := s.client.NewRequest("POST", u, nil)

@@ -26,7 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util/event"
-	"github.com/nats-io/stan"
+	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
 	"time"
 )

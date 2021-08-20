@@ -19,6 +19,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
@@ -37,14 +38,16 @@ type AppLabelServiceImpl struct {
 	logger             *zap.SugaredLogger
 	appLabelRepository pipelineConfig.AppLabelRepository
 	appRepository      pipelineConfig.AppRepository
+	userRepository     repository.UserRepository
 }
 
 func NewAppLabelServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository pipelineConfig.AppRepository) *AppLabelServiceImpl {
+	logger *zap.SugaredLogger, appRepository pipelineConfig.AppRepository, userRepository repository.UserRepository) *AppLabelServiceImpl {
 	return &AppLabelServiceImpl{
 		appLabelRepository: appLabelRepository,
 		logger:             logger,
 		appRepository:      appRepository,
+		userRepository:     userRepository,
 	}
 }
 
@@ -175,33 +178,42 @@ func (impl AppLabelServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 
 func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error) {
 	app, err := impl.appRepository.FindAppAndProjectByAppId(appId)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("error in fetching GetAppMetaInfo", "error", err)
 		return nil, err
 	}
 
+	labels := make([]*bean.AppLabelDto, 0)
 	models, err := impl.appLabelRepository.FindAllByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching GetAppMetaInfo", "error", err)
 		return nil, err
 	}
 	if err == pg.ErrNoRows {
-		return nil, nil
-	}
-	labels := make([]*bean.AppLabelDto, 0)
-	for _, model := range models {
-		dto := &bean.AppLabelDto{
-			AppId: model.AppId,
-			Key:   model.Key,
-			Value: model.Value,
+		impl.logger.Infow("no labels found for app", "app", app)
+	} else {
+		for _, model := range models {
+			dto := &bean.AppLabelDto{
+				AppId: model.AppId,
+				Key:   model.Key,
+				Value: model.Value,
+			}
+			labels = append(labels, dto)
 		}
-		labels = append(labels, dto)
+	}
+
+	user, err := impl.userRepository.GetById(app.CreatedBy)
+	if err != nil {
+		impl.logger.Errorw("error in fetching user for app meta info", "error", err)
+		return nil, err
 	}
 	info := &bean.AppMetaInfoDto{
 		AppId:       app.Id,
 		AppName:     app.AppName,
 		ProjectId:   app.TeamId,
 		ProjectName: app.Team.Name,
+		CreatedBy:   user.EmailId,
+		CreatedOn:   app.CreatedOn,
 		Labels:      labels,
 		Active:      app.Active,
 	}
