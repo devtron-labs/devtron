@@ -1,5 +1,119 @@
 # This is an auto-generated file. DO NOT EDIT
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clusterworkflowtemplates.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: ClusterWorkflowTemplate
+    listKind: ClusterWorkflowTemplateList
+    plural: clusterworkflowtemplates
+    shortNames:
+    - clusterwftmpl
+    - cwft
+    singular: clusterworkflowtemplate
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            x-kubernetes-map-type: atomic
+            x-kubernetes-preserve-unknown-fields: true
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: cronworkflows.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: CronWorkflow
+    listKind: CronWorkflowList
+    plural: cronworkflows
+    shortNames:
+    - cwf
+    - cronwf
+    singular: cronworkflow
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            x-kubernetes-map-type: atomic
+            x-kubernetes-preserve-unknown-fields: true
+          status:
+            type: object
+            x-kubernetes-map-type: atomic
+            x-kubernetes-preserve-unknown-fields: true
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: workfloweventbindings.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: WorkflowEventBinding
+    listKind: WorkflowEventBindingList
+    plural: workfloweventbindings
+    shortNames:
+    - wfeb
+    singular: workfloweventbinding
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            x-kubernetes-map-type: atomic
+            x-kubernetes-preserve-unknown-fields: true
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: workflows.argoproj.io
@@ -7,21 +121,114 @@ spec:
   group: argoproj.io
   names:
     kind: Workflow
+    listKind: WorkflowList
     plural: workflows
     shortNames:
     - wf
+    singular: workflow
   scope: Namespaced
-  version: v1alpha1
+  versions:
+  - additionalPrinterColumns:
+    - description: Status of the workflow
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    - description: When the workflow was started
+      format: date-time
+      jsonPath: .status.startedAt
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            x-kubernetes-map-type: atomic
+            x-kubernetes-preserve-unknown-fields: true
+          status:
+            type: object
+            x-kubernetes-map-type: atomic
+            x-kubernetes-preserve-unknown-fields: true
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: workflowtemplates.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: WorkflowTemplate
+    listKind: WorkflowTemplateList
+    plural: workflowtemplates
+    shortNames:
+    - wftmpl
+    singular: workflowtemplate
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            x-kubernetes-map-type: atomic
+            x-kubernetes-preserve-unknown-fields: true
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argo
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: argo-ui
 ---
-apiVersion: v1
-kind: ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
 metadata:
-  name: argo
+  name: argo-role
+rules:
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - get
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -35,6 +242,14 @@ rules:
   resources:
   - workflows
   - workflows/finalizers
+  - workfloweventbindings
+  - workfloweventbindings/finalizers
+  - workflowtemplates
+  - workflowtemplates/finalizers
+  - cronworkflows
+  - cronworkflows/finalizers
+  - clusterworkflowtemplates
+  - clusterworkflowtemplates/finalizers
   verbs:
   - create
   - delete
@@ -57,6 +272,14 @@ rules:
   resources:
   - workflows
   - workflows/finalizers
+  - workfloweventbindings
+  - workfloweventbindings/finalizers
+  - workflowtemplates
+  - workflowtemplates/finalizers
+  - cronworkflows
+  - cronworkflows/finalizers
+  - clusterworkflowtemplates
+  - clusterworkflowtemplates/finalizers
   verbs:
   - create
   - delete
@@ -79,6 +302,14 @@ rules:
   resources:
   - workflows
   - workflows/finalizers
+  - workfloweventbindings
+  - workfloweventbindings/finalizers
+  - workflowtemplates
+  - workflowtemplates/finalizers
+  - cronworkflows
+  - cronworkflows/finalizers
+  - clusterworkflowtemplates
+  - clusterworkflowtemplates/finalizers
   verbs:
   - get
   - list
@@ -117,6 +348,7 @@ rules:
   verbs:
   - create
   - delete
+  - get
 - apiGroups:
   - argoproj.io
   resources:
@@ -128,6 +360,52 @@ rules:
   - watch
   - update
   - patch
+  - delete
+  - create
+- apiGroups:
+  - argoproj.io
+  resources:
+  - workflowtemplates
+  - workflowtemplates/finalizers
+  - clusterworkflowtemplates
+  - clusterworkflowtemplates/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - argoproj.io
+  resources:
+  - cronworkflows
+  - cronworkflows/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - get
   - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -159,6 +437,18 @@ rules:
   - get
   - list
   - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argo-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argo-role
+subjects:
+- kind: ServiceAccount
+  name: argo
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -228,7 +518,7 @@ spec:
           value: "false"
         - name: BASE_HREF
           value: /
-        image: "quay.io/devtron/argoui:v2.3.0"
+        image: "quay.io/devtron/argoui:v3.1.7"
         name: argo-ui
       serviceAccountName: argo-ui
 ---
@@ -250,9 +540,10 @@ spec:
         - --configmap
         - workflow-controller-configmap
         - --executor-image
-        - quay.io/argoproj/argoexec:v2.3.0
+        - quay.io/argoproj/argoexec:v3.1.7
         command:
         - workflow-controller
-        image: "quay.io/argoproj/workflow-controller:v2.3.0"
+        image: "quay.io/argoproj/workflow-controller:v3.1.7"
         name: workflow-controller
       serviceAccountName: argo
+
