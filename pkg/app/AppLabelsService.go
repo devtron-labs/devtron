@@ -182,8 +182,7 @@ func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto,
 		impl.logger.Errorw("error in fetching GetAppMetaInfo", "error", err)
 		return nil, err
 	}
-
-	labels := make([]*bean.AppLabelDto, 0)
+	labels := make([]*bean.Label, 0)
 	models, err := impl.appLabelRepository.FindAllByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching GetAppMetaInfo", "error", err)
@@ -193,7 +192,7 @@ func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto,
 		impl.logger.Infow("no labels found for app", "app", app)
 	} else {
 		for _, model := range models {
-			dto := &bean.AppLabelDto{
+			dto := &bean.Label{
 				Key:   model.Key,
 				Value: model.Value,
 			}
