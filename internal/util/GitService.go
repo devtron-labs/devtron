@@ -37,18 +37,24 @@ import (
 )
 
 type GitClient interface {
-	CreateRepository(name, description string) (url string, isNew bool, err error)
+	CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError)
 	CommitValues(config *ChartConfig) (commitHash string, err error)
 	GetRepoUrl(projectName string) (repoUrl string, err error)
 }
 
 type GitFactory struct {
 	Client           GitClient
-	gitService       GitService
+	GitService       GitService
 	GitWorkingDir    string
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
 	gitCliUtil       *GitCliUtil
+}
+
+type DetailedError struct {
+	successfulStages []string
+	errorOnStage     string
+	err              error
 }
 
 func (factory *GitFactory) Reload() error {
@@ -58,7 +64,7 @@ func (factory *GitFactory) Reload() error {
 		return err
 	}
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
-	factory.gitService = gitService
+	factory.GitService = gitService
 	client, err := NewGitLabClient(cfg, logger, gitService)
 	if err != nil {
 		return err
@@ -81,7 +87,7 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 	return &GitFactory{
 		Client:           client,
 		logger:           logger,
-		gitService:       gitService,
+		GitService:       gitService,
 		gitOpsRepository: gitOpsRepository,
 		GitWorkingDir:    cfg.GitWorkingDir,
 		gitCliUtil:       gitCliUtil,
@@ -207,44 +213,62 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 	}
 }
 
-func (impl GitLabClient) CreateRepository(name, description string) (url string, isNew bool, err error) {
+func (impl GitLabClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
 	impl.logger.Debugw("gitlab app create request ", "name", name, "description", description)
 	repoUrl, err := impl.GetRepoUrl(name)
 	if err != nil {
 		impl.logger.Errorw("error in getting repo url ", "project", name, "err", err)
-		return "", false, err
+		detailedError.errorOnStage = "GetRepoUrl"
+		detailedError.err = err
+		return "", false, detailedError
 	}
 	if len(repoUrl) > 0 {
-		return repoUrl, false, nil
+		detailedError.successfulStages = append(detailedError.successfulStages, "GetRepoUrl")
+		return repoUrl, false, detailedError
 	} else {
 		url, err = impl.createProject(name, description)
 		if err != nil {
-			return "", true, err
+			detailedError.errorOnStage = "createRepo"
+			detailedError.err = err
+			return "", true, detailedError
 		}
+		detailedError.successfulStages = append(detailedError.successfulStages, "createRepo")
 	}
 	repoUrl = url
 	validated, err := impl.ensureProjectAvailability(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		return "", true, err
+		detailedError.errorOnStage = "ensureProjectAvailability"
+		return "", true, detailedError
 	}
 	if !validated {
-		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.errorOnStage = "ensureProjectAvailability"
+		detailedError.err = fmt.Errorf("unable to validate project:%s  in given time", name)
+		return "", true, detailedError
 	}
+	detailedError.successfulStages = append(detailedError.successfulStages, "ensureProjectAvailability")
 	_, err = impl.createReadme(impl.config.GitlabGroupPath, name)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme ", "project", name, "err", err)
-		return "", true, err
+		detailedError.errorOnStage = "createReadme"
+		detailedError.err = err
+		return "", true, detailedError
 	}
+	detailedError.successfulStages = append(detailedError.successfulStages, "createReadme")
 	validated, err = impl.ensureProjectAvailabilityOnSsh(name, repoUrl)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		return "", true, err
+		detailedError.errorOnStage = "ensureProjectAvailabilityOnSsh"
+		detailedError.err = err
+		return "", true, detailedError
 	}
 	if !validated {
-		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.errorOnStage = "ensureProjectAvailabilityOnSsh"
+		detailedError.err = fmt.Errorf("unable to validate project:%s  in given time", name)
+		return "", true, detailedError
 	}
-	return url, true, nil
+	detailedError.successfulStages = append(detailedError.successfulStages, "ensureProjectAvailabilityOnSsh")
+	return url, true, detailedError
 }
 
 func (impl GitLabClient) DeleteProject(projectName string) (err error) {
@@ -525,21 +549,24 @@ func NewGithubClient(token string, org string, logger *zap.SugaredLogger, gitSer
 	return GitHubClient{client: client, org: org, logger: logger, gitService: gitService}
 }
 
-func (impl GitHubClient) CreateRepository(name, description string) (url string, isNew bool, err error) {
+func (impl GitHubClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
 	ctx := context.Background()
 	repoExists := true
-	url, err = impl.GetRepoUrl(name)
+	url, err := impl.GetRepoUrl(name)
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
 			impl.logger.Errorw("error in creating repo", "err", err)
-			return "", false, err
+			detailedError.errorOnStage = "GetRepoUrl"
+			detailedError.err = err
+			return "", false, detailedError
 		} else {
 			repoExists = false
 		}
 	}
 	if repoExists {
-		return url, false, nil
+		detailedError.successfulStages = append(detailedError.successfulStages, "GetRepoUrl")
+		return url, false, detailedError
 	}
 	private := true
 	visibility := "private"
@@ -551,33 +578,51 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 		})
 	if err != nil {
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
-		return "", true, err
+		detailedError.errorOnStage = "createRepo"
+		detailedError.err = err
+		return "", true, detailedError
 	}
 	logger.Infow("repo created ", "r", r.CloneURL)
+	detailedError.successfulStages = append(detailedError.successfulStages, "createRepo")
 
 	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		return *r.CloneURL, true, err
+		detailedError.errorOnStage = "ensureProjectAvailabilityOnHttp"
+		detailedError.err = err
+		return *r.CloneURL, true, detailedError
 	}
 	if !validated {
-		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.errorOnStage = "ensureProjectAvailabilityOnHttp"
+		detailedError.err = fmt.Errorf("unable to validate project:%s  in given time", name)
+		return "", true, detailedError
 	}
+	detailedError.successfulStages = append(detailedError.successfulStages, "ensureProjectAvailabilityOnHttp")
+
 	_, err = impl.createReadme(name)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme", "err", err)
-		return *r.CloneURL, true, err
+		detailedError.errorOnStage = "createReadme"
+		detailedError.err = err
+		return *r.CloneURL, true, detailedError
 	}
+	detailedError.successfulStages = append(detailedError.successfulStages, "createReadme")
+
 	validated, err = impl.ensureProjectAvailabilityOnSsh(name, *r.CloneURL)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		return *r.CloneURL, true, err
+		detailedError.errorOnStage = "ensureProjectAvailabilityOnSsh"
+		detailedError.err = err
+		return *r.CloneURL, true, detailedError
 	}
 	if !validated {
-		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.errorOnStage = "ensureProjectAvailabilityOnSsh"
+		detailedError.err = fmt.Errorf("unable to validate project:%s  in given time", name)
+		return "", true, detailedError
 	}
+	detailedError.successfulStages = append(detailedError.successfulStages, "ensureProjectAvailabilityOnSsh")
 	//_, err = impl.createReadme(name)
-	return *r.CloneURL, true, err
+	return *r.CloneURL, true, detailedError
 }
 
 func (impl GitHubClient) createReadme(repoName string) (string, error) {

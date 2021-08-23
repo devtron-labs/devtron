@@ -131,8 +131,8 @@ type PipelineType string
 
 const (
 	CREATE        PatchAction = iota
-	UPDATE_SOURCE  //update value of SourceTypeConfig
-	DELETE         //delete this pipeline
+	UPDATE_SOURCE             //update value of SourceTypeConfig
+	DELETE                    //delete this pipeline
 	//DEACTIVATE     //pause/deactivate this pipeline
 )
 
@@ -475,7 +475,7 @@ type CdPatchAction int
 
 const (
 	CD_CREATE CdPatchAction = iota
-	CD_DELETE  //delete this pipeline
+	CD_DELETE               //delete this pipeline
 	CD_UPDATE
 )
 

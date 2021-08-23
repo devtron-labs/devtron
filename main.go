@@ -25,7 +25,6 @@ import (
 	"syscall"
 )
 
-
 func main() {
 
 	app, err := InitializeApp()

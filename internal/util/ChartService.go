@@ -61,7 +61,7 @@ type ChartValues struct {
 
 func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	chartWorkingDir ChartWorkingDir,
-	 client *http.Client,
+	client *http.Client,
 	gitFactory *GitFactory) *ChartTemplateServiceImpl {
 	return &ChartTemplateServiceImpl{
 		randSource:      rand.NewSource(time.Now().UnixNano()),
@@ -153,9 +153,9 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 	}
 
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
-	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
+	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
+		clonedDir, err = impl.gitFactory.GitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return nil, err
@@ -178,7 +178,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 		impl.logger.Errorw("error copying dir", "err", err)
 		return nil, nil
 	}
-	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit")
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
@@ -191,7 +191,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 			impl.logger.Errorw("error copying dir", "err", err)
 			return nil, err
 		}
-		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+		commit, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit")
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, err
@@ -350,9 +350,9 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	}
 
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
-	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
+	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
+		clonedDir, err = impl.gitFactory.GitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return nil, err
@@ -376,7 +376,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 		impl.logger.Errorw("error copying dir", "err", err)
 		return nil, err
 	}
-	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit")
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
@@ -389,7 +389,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			impl.logger.Errorw("error copying dir", "err", err)
 			return nil, err
 		}
-		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+		commit, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit")
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, err
@@ -401,10 +401,10 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 }
 
 func (impl ChartTemplateServiceImpl) GitPull(clonedDir string, repoUrl string, appStoreName string) error {
-	err := impl.gitFactory.gitService.Pull(clonedDir) //TODO check for local repo exists before clone
+	err := impl.gitFactory.GitService.Pull(clonedDir) //TODO check for local repo exists before clone
 	if err != nil {
 		impl.logger.Errorw("error in pulling git", "clonedDir", clonedDir, "err", err)
-		_, err := impl.gitFactory.gitService.Clone(repoUrl, appStoreName)
+		_, err := impl.gitFactory.GitService.Clone(repoUrl, appStoreName)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return err

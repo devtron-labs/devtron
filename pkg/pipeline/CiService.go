@@ -203,7 +203,7 @@ func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest) (
 	}
 	return createdWorkFlow, nil
 }
-func (impl *CiServiceImpl) buildArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string{
+func (impl *CiServiceImpl) buildArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string {
 	if ciWorkflowConfig.LogsBucket == "" {
 		ciWorkflowConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
 	}

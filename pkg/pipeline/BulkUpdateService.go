@@ -186,7 +186,7 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload BulkUpdatePay
 func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target string) (string, error) {
 	modified, err := patch.Apply([]byte(target))
 	if err != nil {
-		impl.logger.Errorw("error in applying JSON patch","err",err)
+		impl.logger.Errorw("error in applying JSON patch", "err", err)
 		return "Patch Failed", err
 	}
 	return string(modified), err
@@ -218,7 +218,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 					appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartId(chart.Id)
 					modified, err := impl.ApplyJsonPatch(patch, chart.Values)
 					if err != nil {
-						impl.logger.Errorw("error in applying JSON patch","err",err)
+						impl.logger.Errorw("error in applying JSON patch", "err", err)
 						bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
 							AppId:   appDetailsByChart.Id,
 							AppName: appDetailsByChart.AppName,
@@ -228,7 +228,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 					} else {
 						err = impl.bulkUpdateRepository.BulkUpdateChartsValuesYamlAndGlobalOverrideById(chart.Id, modified)
 						if err != nil {
-							impl.logger.Errorw("error in bulk updating charts","err",err)
+							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
 								AppId:   appDetailsByChart.Id,
 								AppName: appDetailsByChart.AppName,
@@ -273,7 +273,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 					} else {
 						err = impl.bulkUpdateRepository.BulkUpdateChartsEnvYamlOverrideById(chartEnv.Id, modified)
 						if err != nil {
-							impl.logger.Errorw("error in bulk updating charts","err",err)
+							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							bulkUpdateFailedResponse := &BulkUpdateResponseStatusForOneApp{
 								AppId:   appDetailsByChart.Id,
 								AppName: appDetailsByChart.AppName,

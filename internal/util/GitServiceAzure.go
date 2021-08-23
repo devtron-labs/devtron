@@ -40,15 +40,18 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 	return GitAzureClient{client: coreClient, project: project, logger: logger, gitService: gitService}
 }
 
-func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, err error) {
+func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
 	ctx := context.Background()
 	url, repoExists, err := impl.repoExists(name, impl.project)
 	if err != nil {
 		impl.logger.Errorw("error in communication with azure", "err", err)
-		return "", false, err
+		detailedError.errorOnStage = "GetRepoUrl"
+		detailedError.err = err
+		return "", false, detailedError
 	}
 	if repoExists {
-		return url, false, nil
+		detailedError.successfulStages = append(detailedError.successfulStages, "GetRepoUrl")
+		return url, false, detailedError
 	}
 	gitRepositoryCreateOptions := git.GitRepositoryCreateOptions{
 		Name: &name,
@@ -59,32 +62,49 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 	})
 	if err != nil {
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
-		return "", true, err
+		detailedError.errorOnStage = "createRepo"
+		detailedError.err = err
+		return "", true, detailedError
 	}
 	logger.Infow("repo created ", "r", operationReference.WebUrl)
-
+	detailedError.successfulStages = append(detailedError.successfulStages, "createRepo")
 	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		return *operationReference.WebUrl, true, err
+		detailedError.errorOnStage = "ensureProjectAvailabilityOnHttp"
+		detailedError.err = err
+		return *operationReference.WebUrl, true, detailedError
 	}
 	if !validated {
-		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.errorOnStage = "ensureProjectAvailabilityOnHttp"
+		detailedError.err = fmt.Errorf("unable to validate project:%s  in given time", name)
+		return "", true, detailedError
 	}
+	detailedError.successfulStages = append(detailedError.successfulStages, "ensureProjectAvailabilityOnHttp")
+
 	_, err = impl.createReadme(name)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme", "err", err)
-		return *operationReference.WebUrl, true, err
+		detailedError.errorOnStage = "createReadme"
+		detailedError.err = err
+		return *operationReference.WebUrl, true, detailedError
 	}
+	detailedError.successfulStages = append(detailedError.successfulStages, "createReadme")
+
 	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, name, *operationReference.WebUrl)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		return *operationReference.WebUrl, true, err
+		detailedError.errorOnStage = "ensureProjectAvailabilityOnSsh"
+		detailedError.err = err
+		return *operationReference.WebUrl, true, detailedError
 	}
 	if !validated {
-		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.errorOnStage = "ensureProjectAvailabilityOnSsh"
+		detailedError.err = fmt.Errorf("unable to validate project:%s  in given time", name)
+		return "", true, detailedError
 	}
-	return *operationReference.WebUrl, true, err
+	detailedError.successfulStages = append(detailedError.successfulStages, "ensureProjectAvailabilityOnSsh")
+	return *operationReference.WebUrl, true, detailedError
 }
 
 func (impl GitAzureClient) createReadme(repoName string) (string, error) {

@@ -38,6 +38,7 @@ type GitOpsConfigRestHandler interface {
 	UpdateGitOpsConfig(w http.ResponseWriter, r *http.Request)
 	GetGitOpsConfigByProvider(w http.ResponseWriter, r *http.Request)
 	GitOpsConfigured(w http.ResponseWriter, r *http.Request)
+	GitOpsValidator(w http.ResponseWriter, r *http.Request)
 }
 
 type GitOpsConfigRestHandlerImpl struct {
@@ -248,4 +249,13 @@ func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigByProvider(w http.Respons
 	// RBAC enforcer Ends
 
 	writeJsonResp(w, err, res, http.StatusOK)
+}
+func (impl GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r *http.Request) {
+	validationStatus, err := impl.gitOpsConfigService.GitOpsValidateDryRun()
+	if err != nil {
+		impl.logger.Errorw("service err, GitOpsValidateDryRun", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, err, validationStatus, http.StatusOK)
 }

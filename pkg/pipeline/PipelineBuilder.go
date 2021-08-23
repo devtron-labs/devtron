@@ -581,7 +581,7 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 			if errors.IsAlreadyExists(err) {
 				impl.logger.Warnw("this repo already exists!!, skipping repo creation", "repo", repo)
 			} else {
-				impl.logger.Errorw("ecr repo creation failed, it might be due to authorization or any other external " +
+				impl.logger.Errorw("ecr repo creation failed, it might be due to authorization or any other external "+
 					"dependency. please create repo manually before triggering ci", "repo", repo, "err", err)
 				return nil, err
 			}
