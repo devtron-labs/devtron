@@ -80,6 +80,7 @@ Following properties should be configured
 #### Storage for Logs and Cache
 
 AWS SPECIFIC
+
 While installing devtron and using AWS-S3 bucket for storing the logs and caches, below parameters are to be used in the ConfigMap.
 
 | Parameter | Description | Default |
@@ -91,7 +92,8 @@ While installing devtron and using AWS-S3 bucket for storing the logs and caches
 | **DEFAULT\_CD\_LOGS\_BUCKET\_REGION** | AWS region of S3 bucket to store CD logs \(required\) |  |
 
 
-AZURE SPECIFIC
+AZURE SPECIFIC 
+
 While installing devtron using Azure Blob Storage for storing logs and caches, below parameters will be used in the ConfigMap.
 
 
@@ -108,7 +110,8 @@ echo -n "string" | base64 -d
 ```
 
 **Please Note:** 
-1\) Ensure that the **cluster has read and write access** to the S3 buckets/Azure Blob storage container mentioned in DEFAULT\_CACHE\_BUCKET, DEFAULT\_BUILD\_LOGS\_BUCKET or AZURE\_BLOB\_CONTAINER\_CI\_LOG, AZURE\_BLOB\_CONTAINER\_CI\_CACHE 
+1\) Ensure that the **cluster has read and write access** to the S3 buckets/Azure Blob storage container mentioned in DEFAULT\_CACHE\_BUCKET, DEFAULT\_BUILD\_LOGS\_BUCKET or AZURE\_BLOB\_CONTAINER\_CI\_LOG, AZURE\_BLOB\_CONTAINER\_CI\_CACHE
+
 2\) Ensure that cluster has **read access** to AWS secrets backends \(SSM & secrets manager\)
 
 #### Cleanup
