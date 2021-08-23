@@ -194,7 +194,6 @@ func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto,
 	} else {
 		for _, model := range models {
 			dto := &bean.AppLabelDto{
-				AppId: model.AppId,
 				Key:   model.Key,
 				Value: model.Value,
 			}
