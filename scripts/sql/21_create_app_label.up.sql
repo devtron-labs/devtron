@@ -14,5 +14,3 @@ CREATE TABLE "public"."app_label"
     CONSTRAINT "app_label_app_id_fkey" FOREIGN KEY ("app_id") REFERENCES "public"."app" ("id"),
     PRIMARY KEY ("id")
 );
-
-CREATE UNIQUE INDEX "app_label_unique" ON "public"."app_label" USING BTREE ("app_id","key");
