@@ -621,14 +621,24 @@ func (impl *DeploymentGroupServiceImpl) parseMaterialInfo(materialInfo json.RawM
 			return nil, fmt.Errorf("unknown material type:%s ", material.Material.Type)
 		}
 		if material.Modifications != nil && len(material.Modifications) > 0 {
-			revision := material.Modifications[0].Revision
+			_modification := material.Modifications[0]
+
+			revision := _modification.Revision
 			url = strings.TrimSpace(url)
+
+			_webhookDataStr := ""
+			_webhookDataByteArr, err := json.Marshal(_modification.WebhookData)
+			if err == nil {
+				_webhookDataStr = string(_webhookDataByteArr)
+			}
+
 			scmMap["url"] = url
 			scmMap["revision"] = revision
-			scmMap["modifiedTime"] = material.Modifications[0].ModifiedTime
-			scmMap["author"] = material.Modifications[0].Author
-			scmMap["message"] = material.Modifications[0].Message
-			scmMap["tag"] = material.Modifications[0].Tag
+			scmMap["modifiedTime"] = _modification.ModifiedTime
+			scmMap["author"] = _modification.Author
+			scmMap["message"] = _modification.Message
+			scmMap["tag"] = _modification.Tag
+			scmMap["webhookData"] = _webhookDataStr
 		}
 		scmMapList = append(scmMapList, scmMap)
 	}

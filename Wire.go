@@ -670,6 +670,27 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.BulkUpdateRouter), new(*router.BulkUpdateRouterImpl)),
 		restHandler.NewBulkUpdateRestHandlerImpl,
 		wire.Bind(new(restHandler.BulkUpdateRestHandler), new(*restHandler.BulkUpdateRestHandlerImpl)),
+
+		// Webhook
+		repository.NewGitHostRepositoryImpl,
+		wire.Bind(new(repository.GitHostRepository), new(*repository.GitHostRepositoryImpl)),
+		restHandler.NewGitHostRestHandlerImpl,
+		wire.Bind(new(restHandler.GitHostRestHandler), new(*restHandler.GitHostRestHandlerImpl)),
+		restHandler.NewWebhookEventHandlerImpl,
+		wire.Bind(new(restHandler.WebhookEventHandler), new(*restHandler.WebhookEventHandlerImpl)),
+		router.NewGitHostRouterImpl,
+		wire.Bind(new(router.GitHostRouter), new(*router.GitHostRouterImpl)),
+		router.NewWebhookListenerRouterImpl,
+		wire.Bind(new(router.WebhookListenerRouter), new(*router.WebhookListenerRouterImpl)),
+		git.NewWebhookSecretValidatorImpl,
+		wire.Bind(new(git.WebhookSecretValidator), new(*git.WebhookSecretValidatorImpl)),
+		pipeline.NewGitHostConfigImpl,
+		wire.Bind(new(pipeline.GitHostConfig), new(*pipeline.GitHostConfigImpl)),
+		repository.NewWebhookEventDataRepositoryImpl,
+		wire.Bind(new(repository.WebhookEventDataRepository), new(*repository.WebhookEventDataRepositoryImpl)),
+		pipeline.NewWebhookEventDataConfigImpl,
+		wire.Bind(new(pipeline.WebhookEventDataConfig), new(*pipeline.WebhookEventDataConfigImpl)),
+
 	)
 	return &App{}, nil
 }

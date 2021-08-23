@@ -42,6 +42,7 @@ type GitProvider struct {
 	AccessToken string   `sql:"access_token"`
 	AuthMode    AuthMode `sql:"auth_mode,notnull"`
 	Active      bool     `sql:"active,notnull"`
+	GitHostId   int      `sql:"git_host_id"` //id stored in db git_host( foreign key)
 	models.AuditLog
 }
 
@@ -53,6 +54,7 @@ type GitProviderRepository interface {
 	FindOne(providerId string) (GitProvider, error)
 	Update(gitProvider *GitProvider) error
 }
+
 type GitProviderRepositoryImpl struct {
 	dbConnection *pg.DB
 }
