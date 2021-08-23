@@ -41,6 +41,7 @@ type ChartTemplateService interface {
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
+	getDir() string
 }
 type ChartTemplateServiceImpl struct {
 	randSource      rand.Source
@@ -146,10 +147,10 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appName = space.ReplaceAllString(appName, "-")
-	repoUrl, _, err := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
-	if err != nil {
-		impl.logger.Errorw("error in creating git project", "name", appName, "err", err)
-		return nil, err
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
+	if detailedError.Err != nil {
+		impl.logger.Errorw("error in creating git project", "name", appName, "err", detailedError.Err)
+		return nil, detailedError.Err
 	}
 
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
@@ -343,10 +344,10 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
-	repoUrl, _, err := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName)
-	if err != nil {
-		impl.logger.Errorw("error in creating git project", "name", appStoreName, "err", err)
-		return nil, err
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName)
+	if detailedError.Err != nil {
+		impl.logger.Errorw("error in creating git project", "name", appStoreName, "err", detailedError)
+		return nil, detailedError.Err
 	}
 
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())

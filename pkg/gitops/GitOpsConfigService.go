@@ -18,7 +18,6 @@
 package gitops
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -30,8 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
-	"github.com/google/go-github/github"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -39,8 +36,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -54,8 +49,7 @@ type GitOpsConfigService interface {
 	GetAllGitOpsConfig() ([]*GitOpsConfigDto, error)
 	GetGitOpsConfigByProvider(provider string) (*GitOpsConfigDto, error)
 	GetGitOpsConfigActive() (*GitOpsConfigDto, error)
-	GitOpsValidateCreateRepoAndReadme(gitProvider string, appName string) (createRepoSuccessful bool,createReadmeSuccessful bool, message string)
-	GitOpsValidateDryRun() *GitopsValidationResponse
+	GitOpsValidateDryRun() *util.DetailedError
 }
 
 type GitOpsConfigDto struct {
@@ -73,19 +67,19 @@ type GitOpsConfigDto struct {
 
 const GitOpsSecretName = "devtron-gitops-secret"
 
-type ValidationResponseForOneTask struct {
-	Successful bool
-	//message = fmt.Sprintf("task name - err string")
-	Message string
-}
-
-type GitopsValidationResponse struct {
-	CreateRepo    ValidationResponseForOneTask
-	Readme        ValidationResponseForOneTask
-	Clone         ValidationResponseForOneTask
-	CommitAndPush ValidationResponseForOneTask
-	CommitOnRest  ValidationResponseForOneTask
-}
+//type ValidationResponseForOneTask struct {
+//	Successful bool
+//	//message = fmt.Sprintf("task name - err string")
+//	Message string
+//}
+//
+//type GitopsValidationResponse struct {
+//	CreateRepo    ValidationResponseForOneTask
+//	Readme        ValidationResponseForOneTask
+//	Clone         ValidationResponseForOneTask
+//	CommitAndPush ValidationResponseForOneTask
+//	CommitOnRest  ValidationResponseForOneTask
+//}
 type GitOpsConfigServiceImpl struct {
 	randSource       rand.Source
 	logger           *zap.SugaredLogger
@@ -99,12 +93,13 @@ type GitOpsConfigServiceImpl struct {
 	gitHubClient     *util.GitHubClient
 	gitLabClient     *util.GitLabClient
 	gitAzureClient   *util.GitAzureClient
+	chartTemplateService     *util.ChartTemplateService
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory, gitHubClient *util.GitHubClient, gitLabClient *util.GitLabClient, gitAzureClient *util.GitAzureClient) *GitOpsConfigServiceImpl {
+	gitFactory *util.GitFactory, gitHubClient *util.GitHubClient, gitLabClient *util.GitLabClient, gitAzureClient *util.GitAzureClient,chartTemplateService     *util.ChartTemplateService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		logger:           Logger,
 		gitOpsRepository: gitOpsRepository,
@@ -117,6 +112,7 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 		gitHubClient:     gitHubClient,
 		gitLabClient:     gitLabClient,
 		gitAzureClient:   gitAzureClient,
+		chartTemplateService: chartTemplateService,
 	}
 }
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto) (*GitOpsConfigDto, error) {
@@ -554,139 +550,85 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*GitOpsConfigDto, 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) GitOpsValidateCreateRepoAndReadme(gitProvider string, appName string) (createRepoSuccessful bool,createReadmeSuccessful bool, message string) {
-	createRepoSuccessful = false
-	createReadmeSuccessful = false
-	if gitProvider == "GITHUB" {
-		ctx := context.Background()
-		repoExists := true
-		_, err := impl.gitHubClient.GetRepoUrl(appName)
+func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun() *util.DetailedError {
+
+	var detailedError *util.DetailedError
+
+	//TO ASK
+	appName := "random-name"
+	baseTemplateName := " "
+	version := " "
+	tmpChartLocation := " "
+
+
+	repoUrl, _, detailedErrorCreateRepo := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
+
+	detailedError.ErrorOnStage = detailedErrorCreateRepo.ErrorOnStage
+	detailedError.Err = detailedErrorCreateRepo.Err
+	detailedError.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
+
+	if detailedError.Err != nil {
+		impl.logger.Errorw("error in creating git project", "name", appName, "err", detailedErrorCreateRepo.Err)
+		return detailedError
+	}
+
+	chartDir := fmt.Sprintf("%s-%s", appName, impl.chartTemplateService.getDir())
+	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
+	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
+		clonedDir, err = impl.gitFactory.GitService.Clone(repoUrl, chartDir)
 		if err != nil {
-			responseErr, ok := err.(*github.ErrorResponse)
-			if !ok || responseErr.Response.StatusCode != 404 {
-				impl.logger.Errorw("error in creating repo", "err", err)
-				return createRepoSuccessful,createReadmeSuccessful, fmt.Sprintf("error in creating repo : %s", err)
-			} else {
-				repoExists = false
-			}
+			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
+			detailedError.ErrorOnStage = "clone"
+			detailedError.Err = err
+			return detailedError
 		}
-		if repoExists {
-			createRepoSuccessful = true
-		} else {
-			private := true
-			visibility := "private"
-			description := "sample respository for dryrun " + appName
-			r, _, err := impl.gitHubClient.client.Repositories.Create(ctx, impl.gitHubClient.org,
-				&github.Repository{Name: &appName,
-					Description: &description,
-					Private:     &private,
-					Visibility:  &visibility,
-				})
-			if err != nil {
-				impl.logger.Errorw("error in creating repo, ", "repo", appName, "err", err)
-				return createRepoSuccessful,createReadmeSuccessful, fmt.Sprintf("error in creating repo : %s", err)
-			}
-			createRepoSuccessful = true
-			impl.logger.Infow("repo created ", "r", r.CloneURL)
-		}
-
-		validated, err := impl.gitHubClient.ensureProjectAvailabilityOnHttp(appName)
-		if err != nil {
-			impl.logger.Errorw("error in ensuring project availability ", "project", appName, "err", err)
-			return false, fmt.Sprintf("error in creating repo : %s", err)
-		}
-		if !validated {
-			return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
-		}
-		_, err = impl.createReadme(name)
-		if err != nil {
-			impl.logger.Errorw("error in creating readme", "err", err)
-			return *r.CloneURL, true, err
-		}
-		validated, err = impl.ensureProjectAvailabilityOnSsh(name, *r.CloneURL)
-		if err != nil {
-			impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-			return *r.CloneURL, true, err
-		}
-		if !validated {
-			return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
-		}
-		//_, err = impl.createReadme(name)
-		return *r.CloneURL, true, err
-
-
-
-
-
-
-
-	} else if gitProvider == "GITLAB" {
-		repoUrl, err := impl.gitLabClient.GetRepoUrl(appName)
-		if err != nil {
-			impl.logger.Errorw("error in getting repo url ", "project", appName, "err", err)
-			return false, fmt.Sprintf("error in creating repo : %s", err)
-		}
-		if len(repoUrl) > 0 {
-			return true, "repo already exists"
-		} else {
-			description := "sample respository for dryrun " + appName
-			_, err = impl.gitLabClient.createProject(appName, description)
-			if err != nil {
-				return false, fmt.Sprintf("error in creating repo : %s", err)
-			}
-		}
-		return true, "successfully created repo"
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages,"clone")
 	} else {
-		ctx := context.Background()
-		_, repoExists, err := impl.gitAzureClient.repoExists(appName, impl.gitAzureClient.project)
+		err = impl.chartTemplateService.GitPull(clonedDir, repoUrl, appName)
 		if err != nil {
-			impl.logger.Errorw("error in communication with azure", "err", err)
-			return false, fmt.Sprintf("error in creating repo : %s", err)
+			detailedError.ErrorOnStage = "pull"
+			detailedError.Err = err
+			return detailedError
 		}
-		if repoExists {
-			return true, "repo already exists"
-		}
-		gitRepositoryCreateOptions := git.GitRepositoryCreateOptions{
-			Name: &appName,
-		}
-		operationReference, err := impl.gitAzureClient.client.CreateRepository(ctx, git.CreateRepositoryArgs{
-			GitRepositoryToCreate: &gitRepositoryCreateOptions,
-			Project:               &impl.gitAzureClient.project,
-		})
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages,"pull")
+	}
+	dir := filepath.Join(clonedDir, baseTemplateName, version)
+	err := os.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		impl.logger.Errorw("error in making dir", "err", err)
+		// TO ASK
+		return nil
+	}
+	err = dirCopy.Copy(tmpChartLocation, dir)
+	if err != nil {
+		impl.logger.Errorw("error copying dir", "err", err)
+		// TO ASK
+		return nil
+	}
+	commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	if err != nil {
+		impl.logger.Errorw("error in pushing git", "err", err)
+		impl.logger.Warn("re-trying, taking pull and then push again")
+		err = impl.chartTemplateService.GitPull(clonedDir, repoUrl, appName)
 		if err != nil {
-			impl.logger.Errorw("error in creating repo, ", "repo", appName, "err", err)
-			return false, fmt.Sprintf("error in creating repo : %s", err)
+			detailedError.ErrorOnStage = "pull"
+			detailedError.Err = err
+			return detailedError
 		}
-		impl.logger.Infow("repo created ", "r", operationReference.WebUrl)
+		err = dirCopy.Copy(tmpChartLocation, dir)
+		if err != nil {
+			impl.logger.Errorw("error copying dir", "err", err)
+			return nil
+		}
+		commit, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit")
+		if err != nil {
+			impl.logger.Errorw("error in pushing git", "err", err)
+			detailedError.ErrorOnStage = "commitOnRest"
+			detailedError.Err = err
+			return detailedError
+		}
 	}
-}
-func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun() *GitopsValidationResponse {
-	gitopsValidationResponse := &GitopsValidationResponse{
-		CreateRepo: ValidationResponseForOneTask{
-			Successful: false,
-		},
-		Readme: ValidationResponseForOneTask{
-			Successful: false,
-		},
-		Clone: ValidationResponseForOneTask{
-			Successful: false,
-		},
-		CommitAndPush: ValidationResponseForOneTask{
-			Successful: false,
-		},
-		CommitOnRest: ValidationResponseForOneTask{
-			Successful: false,
-		},
-	}
-	gitProvider := "GITHUB"
-	sampleRepoName := "sample_dryrun_repo11"
-	createRepoSuccessful, createRepoMessage := impl.GitOpsValidateCreateRepoAndReadme(gitProvider, sampleRepoName)
-	if !createRepoSuccessful {
-		gitopsValidationResponse.CreateRepo.Message = createRepoMessage
-		return gitopsValidationResponse
-	} else {
-		gitopsValidationResponse.CreateRepo.Successful = true
-		gitopsValidationResponse.CreateRepo.Message = createRepoMessage
-	}
+	impl.logger.Debugw("template committed", "url", repoUrl, "commit", commit)
 
+	defer impl.chartTemplateService.CleanDir(clonedDir)
 }
