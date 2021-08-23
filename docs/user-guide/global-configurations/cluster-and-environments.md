@@ -33,9 +33,11 @@ Provide your kubernetes cluster’s credentials.
 
 * **Server URL**
 
-Provide the endpoint/URL of your kubernetes cluster.It is recommended to use a self-hosted URL instead of cloud hosted. Using a self-hosted URL will result in  following benefits i.e ,
+Provide the endpoint/URL of your kubernetes cluster.It is recommended to use a self-hosted URL instead of cloud hosted. Using a self-hosted URL will result in  following benefits i.e 
+
 **\(a\) Disaster Recovery -** Disaster recovery will be easy as it will not require the cluster to build from scratch.
-**(\b\) Easy cluster migrations -** Easy cluster migrations can be done on switching from one cloud-provider to another.
+
+**\(b\) Easy cluster migrations -** Easy cluster migrations can be done on switching from one cloud-provider to another.
 
 * **Bearer token**
 
