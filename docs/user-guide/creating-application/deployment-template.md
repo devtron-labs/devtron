@@ -33,7 +33,7 @@ This defines ports on which application services will be exposed to other servic
 ```yaml
 ContainerPort:
     envoyPort: 8799
-    idleTimeout: 
+    idleTimeout: 1800s
     name: app
     port: 8080
     servicePort: 80
@@ -48,7 +48,7 @@ ContainerPort:
 | `name` | name of the container. |
 | `port` | port for the container. |
 | `servicePort` | service port for the container. |
-| `supportStreaming` | Used for high performance protocols like grpc where timeout needs to be disabled. |
+| `supportStreaming` | Used for high performance protocols where timeout needs to be disabled. |
 | `useHTTP2` | container can accept HTTP2 requests. |
 
 ### EnvVariables
@@ -274,7 +274,7 @@ Spec:
 
 Spec is used to define the desire state of the given container.
 
-Node Affimity allows you to constrain which nodes your pod is eligible to schedule on, based on labels of the node.
+Node Affinity allows you to constrain which nodes your pod is eligible to schedule on, based on labels of the node.
 
 Inter-pod affinity allow you to constrain which nodes your pod is eligible to be scheduled based on labels on pods.
 
@@ -366,15 +366,8 @@ Kubernetes waits for the specified time called the termination grace period befo
 
 A Graceful termination in practice means that your application needs to handle the SIGTERM message and begin shutting down when it receives it. This means saving all data that needs to be saved, closing down network connections, finishing any work that is left, and other similar tasks.
 
-There are many reasons why Kubernetes might terminate a perfectly healthy container. If you update your deployment with a rolling update, Kubernetes slowly terminates old pods while spinning up new ones. If you drain a node, Kubernetes terminates all pods on that node. If a node runs out of resources, Kubernetes terminates pods to free those resources. It’s important that your application handle termination gracefully so that there is minimal impact on the end user and the time-to-recovery is as fast as possible!
+There are many reasons why Kubernetes might terminate a perfectly healthy container. If you update your deployment with a rolling update, Kubernetes slowly terminates old pods while spinning up new ones. If you drain a node, Kubernetes terminates all pods on that node. If a node runs out of resources, Kubernetes terminates pods to free those resources. It’s important that your application handle termination gracefully so that there is minimal impact on the end user and the time-to-recovery is as fast as possible.
 
-### Min Ready Seconds
-
-```yaml
-MinReadySeconds: 60
-```
-
-Minimum time for which a newly created pod should be ready without any of its container crashing, for it to be considered available
 
 ### Server
 
@@ -549,4 +542,3 @@ If you want to see application metrics like different HTTP status codes metrics,
 ![](../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
-

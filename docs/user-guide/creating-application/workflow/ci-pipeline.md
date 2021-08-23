@@ -23,8 +23,7 @@ After Clicking on `Continuous Integration` to configure CI Pipeline, a new windo
 This is the basic modal to configure the CI pipeline, You need to provide 2 inputs as given below:
 
 ### 1. Source Type
-In source type, select the type of mechanism you want to use for triggering the CI pipeline. As of now, branch-fixed is ready to work with.In future, more mechanisms will be added such as Pull Request and Tags Creations.
-
+In source type, select the type of mechanism you want to use for triggering the CI pipeline. As of now, three mechanisms are available to work with, which are branch-fixed, Pull Requests and Tag Creation.
 ### 2. Branch Name
 In this column, you have to provide the branch or tag name for which you would want the CI pipeline to be executed. It supports both exact names as well as regex for both branch and tag.
 
