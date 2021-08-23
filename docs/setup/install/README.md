@@ -85,7 +85,6 @@ While installing devtron and using AWS-S3 bucket for storing the logs and caches
 
 | Parameter | Description | Default |
 | ---: | :--- | :--- |
-
 | **DEFAULT\_CACHE\_BUCKET** | AWS bucket to store docker cache, this should be created before hand \(required\) |  |
 | **DEFAULT\_BUILD\_LOGS\_BUCKET** | AWS bucket to store build logs, this should be created before hand \(required\) |  |
 | **DEFAULT\_CACHE\_BUCKET\_REGION** | AWS region of S3 bucket to store cache \(required\) |  |
