@@ -40,6 +40,7 @@ func NewWebhookEventDataConfigImpl(logger *zap.SugaredLogger, webhookEventDataRe
 }
 
 type WebhookEventDataRequest struct {
+	PayloadId          int       `json:"payloadId"`
 	GitHostId          int       `json:"gitHostId"`
 	EventType          string    `json:"eventType"`
 	RequestPayloadJson string    `json:"requestPayloadJson"`
@@ -61,5 +62,9 @@ func (impl WebhookEventDataConfigImpl) Save(webhookEventDataRequest *WebhookEven
 		impl.logger.Errorw("error in saving webhook event data in db", "err", err)
 		return err
 	}
+
+	// update Id
+	webhookEventDataRequest.PayloadId = webhookEventDataRequestSql.Id
+
 	return nil
 }
