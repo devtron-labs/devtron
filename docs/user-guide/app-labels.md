@@ -16,7 +16,7 @@ values.
 
 Labels are optionals and can be entered `key:values` format. multiple labels can be added without repeating `key` name.
 
-`TODO` : visual
+![](../.gitbook/assets/app-labels-1.png)
 
 ### 2. Application meta info
 
@@ -25,13 +25,13 @@ left button next to application name `?`.
 
 This will open show you the applications meta details like project, labels associated with it.
 
-`TODO` : visual
+![](../.gitbook/assets/app-labels-2.png)
 
 ### 3. Edit Labels to existing apps
 
 We also add or remove labels for app from here.
 
-`TODO` : visual
+![](../.gitbook/assets/app-labels-2.png)
 
 ### 3. Label Payload
 

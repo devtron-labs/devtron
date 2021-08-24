@@ -26,7 +26,7 @@ import (
 type AppLabel struct {
 	tableName struct{} `sql:"app_label" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id,pk"`
-	AppId     int      `sql:"app_id"`
+	AppId     int      `sql:"app_id,notnull"`
 	Key       string   `sql:"key,notnull"`
 	Value     string   `sql:"value,notnull"`
 	App       App
