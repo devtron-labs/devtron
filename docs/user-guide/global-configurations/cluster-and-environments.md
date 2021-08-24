@@ -33,11 +33,11 @@ Provide your kubernetes cluster’s credentials.
 
 * **Server URL**
 
-Provide the endpoint/URL of your kubernetes cluster.It is recommended to use a self-hosted URL instead of cloud hosted. Using a self-hosted URL will result in  following benefits i.e 
+Provide the endpoint/URL of your kubernetes cluster.It is recommended to use a self-hosted URL instead of cloud hosted. Self-hosted URL will provide the following benefits.
 
-**\(a\) Disaster Recovery -** Disaster recovery will be easy as it will not require the cluster to build from scratch.
+**\(a\) Disaster Recovery -** It is not possible to edit the server-url of a cluster. So if you're using an eks url it will be a tedious task to add a new cluster and migrate all the services one by one. While using a self-hosted url you can just point to the new cluster's server url in DNS manager and update the new cluster token and sync all the deployments.
 
-**\(b\) Easy cluster migrations -** Easy cluster migrations can be done on switching from one cloud-provider to another.
+**\(b\) Easy cluster migrations -** Cluster url is given in the name of the cloud provider used, so migrating your cluster from one provider to another will result in wasting of time and effort. On the other hand, if using a self-hosted url migrations will be easy as the url is of single hosted domain independent of the cloud provider.
 
 * **Bearer token**
 
