@@ -48,9 +48,7 @@ A personal access token (PAT) is used as an alternate password to authenticate i
 
 #### For GithHub [Creating a Github Personal Access Token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token):
 
-* repo - Full control of private repositories.
-* workflow - Update github actions workflows.
-* admin:repo_hook - Full control of repository hooks(If using webhook feature for Pull request or Tags).
+* repo - Full control of private repositories(Access commit status , Access deployment status and Access public repositories)
 
 #### For GitLab [Creating a Gitlab Personal Access Token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html):
 
@@ -59,7 +57,7 @@ A personal access token (PAT) is used as an alternate password to authenticate i
 
 #### For Azure DevOps [Creating a Azure DevOps Access Token](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page): 
 
-* code - Grants the ability to read source code and metadata about commits, changesets, branches, and other version control artifacts.
+* code - Grants the ability to read source code and metadata about commits, change sets, branches, and other version control artifacts.
 [More Information](https://docs.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/oauth?view=azure-devops#scopes):
 
 Click on Save to save your gitops configuration details.
