@@ -82,7 +82,7 @@ Following properties should be configured
 AWS SPECIFIC
 
 While installing devtron and using AWS-S3 bucket for storing the logs and caches, below parameters are to be used in the ConfigMap.
-```NOTE : For using s3 bucket it is important to add s3 permission policy to the IAM role attached to the cluster.```
+```NOTE : For using s3 bucket it is important to add s3 permission policy to the IAM role attached to the nodes of the cluster.```
 
 | Parameter | Description | Default |
 | ---: | :--- | :--- |
