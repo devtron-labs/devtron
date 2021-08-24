@@ -275,6 +275,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
 	team, err := handler.teamService.FetchOne(createRequest.TeamId)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusBadRequest)

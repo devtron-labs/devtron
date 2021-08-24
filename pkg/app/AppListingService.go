@@ -33,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/prometheus"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
@@ -81,7 +80,6 @@ type AppListingService interface {
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
-	GetAppMetaInfo(appId int) (*bean2.AppMetaInfoDto, error)
 }
 
 const (
@@ -1369,22 +1367,4 @@ func (impl AppListingServiceImpl) RedirectToLinkouts(Id int, appId int, envId in
 	}
 
 	return link, nil
-}
-
-
-func (impl AppListingServiceImpl) GetAppMetaInfo(appId int) (*bean2.AppMetaInfoDto, error) {
-	app, err := impl.appRepository.FindAppAndProjectByAppId(appId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error in fetching GetAppMetaInfo", "error", err)
-		return nil, err
-	}
-
-	info := &bean2.AppMetaInfoDto{
-		AppId:       app.Id,
-		AppName:     app.AppName,
-		ProjectId:   app.TeamId,
-		ProjectName: app.Team.Name,
-		Active:      app.Active,
-	}
-	return info, nil
 }

@@ -37,6 +37,22 @@ func ValidateCheckoutPath(fl validator.FieldLevel) bool {
 	return true
 }
 
+func validateAppLabel(fl validator.FieldLevel) bool {
+	label := fl.Field().String()
+	if len(label) == 0 {
+		return false
+	}
+	index := strings.Index(label, ":")
+	if index == -1 || index == 0 || index == len(label)-1 {
+		return false
+	}
+	/*kv := strings.Split(label, ":")
+	if len(kv) != 2 {
+		return false
+	}*/
+	return true
+}
+
 func IntValidator() (*validator.Validate, error) {
 	v := validator.New()
 	err := v.RegisterValidation("name-component", ValidateName)
@@ -44,5 +60,12 @@ func IntValidator() (*validator.Validate, error) {
 		return v, err
 	}
 	err = v.RegisterValidation("checkout-path-component", ValidateCheckoutPath)
+	if err != nil {
+		return v, err
+	}
+	err = v.RegisterValidation("app-label-component", validateAppLabel)
+	if err != nil {
+		return v, err
+	}
 	return v, err
 }
