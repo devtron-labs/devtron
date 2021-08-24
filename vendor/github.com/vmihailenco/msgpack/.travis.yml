@@ -2,6 +2,10 @@ sudo: false
 language: go
 
 go:
+  - 1.7.x
+  - 1.8.x
+  - 1.9.x
+  - 1.10.x
   - 1.11.x
   - 1.12.x
   - tip
@@ -10,10 +14,5 @@ matrix:
   allow_failures:
     - go: tip
 
-env:
-  - GO111MODULE=on
-
-go_import_path: github.com/vmihailenco/msgpack
-
-before_install:
-  - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.17.1
+install:
+  - go get gopkg.in/check.v1

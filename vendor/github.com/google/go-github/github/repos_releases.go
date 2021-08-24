@@ -19,26 +19,24 @@ import (
 
 // RepositoryRelease represents a GitHub release in a repository.
 type RepositoryRelease struct {
-	TagName         *string `json:"tag_name,omitempty"`
-	TargetCommitish *string `json:"target_commitish,omitempty"`
-	Name            *string `json:"name,omitempty"`
-	Body            *string `json:"body,omitempty"`
-	Draft           *bool   `json:"draft,omitempty"`
-	Prerelease      *bool   `json:"prerelease,omitempty"`
-
-	// The following fields are not used in CreateRelease or EditRelease:
-	ID          *int64          `json:"id,omitempty"`
-	CreatedAt   *Timestamp      `json:"created_at,omitempty"`
-	PublishedAt *Timestamp      `json:"published_at,omitempty"`
-	URL         *string         `json:"url,omitempty"`
-	HTMLURL     *string         `json:"html_url,omitempty"`
-	AssetsURL   *string         `json:"assets_url,omitempty"`
-	Assets      []*ReleaseAsset `json:"assets,omitempty"`
-	UploadURL   *string         `json:"upload_url,omitempty"`
-	ZipballURL  *string         `json:"zipball_url,omitempty"`
-	TarballURL  *string         `json:"tarball_url,omitempty"`
-	Author      *User           `json:"author,omitempty"`
-	NodeID      *string         `json:"node_id,omitempty"`
+	ID              *int64         `json:"id,omitempty"`
+	TagName         *string        `json:"tag_name,omitempty"`
+	TargetCommitish *string        `json:"target_commitish,omitempty"`
+	Name            *string        `json:"name,omitempty"`
+	Body            *string        `json:"body,omitempty"`
+	Draft           *bool          `json:"draft,omitempty"`
+	Prerelease      *bool          `json:"prerelease,omitempty"`
+	CreatedAt       *Timestamp     `json:"created_at,omitempty"`
+	PublishedAt     *Timestamp     `json:"published_at,omitempty"`
+	URL             *string        `json:"url,omitempty"`
+	HTMLURL         *string        `json:"html_url,omitempty"`
+	AssetsURL       *string        `json:"assets_url,omitempty"`
+	Assets          []ReleaseAsset `json:"assets,omitempty"`
+	UploadURL       *string        `json:"upload_url,omitempty"`
+	ZipballURL      *string        `json:"zipball_url,omitempty"`
+	TarballURL      *string        `json:"tarball_url,omitempty"`
+	Author          *User          `json:"author,omitempty"`
+	NodeID          *string        `json:"node_id,omitempty"`
 }
 
 func (r RepositoryRelease) String() string {
@@ -68,10 +66,10 @@ func (r ReleaseAsset) String() string {
 
 // ListReleases lists the releases for a repository.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/releases/#list-releases
-func (s *RepositoriesService) ListReleases(ctx context.Context, owner, repo string, opts *ListOptions) ([]*RepositoryRelease, *Response, error) {
+// GitHub API docs: https://developer.github.com/v3/repos/releases/#list-releases-for-a-repository
+func (s *RepositoriesService) ListReleases(ctx context.Context, owner, repo string, opt *ListOptions) ([]*RepositoryRelease, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/releases", owner, repo)
-	u, err := addOptions(u, opts)
+	u, err := addOptions(u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -91,7 +89,7 @@ func (s *RepositoriesService) ListReleases(ctx context.Context, owner, repo stri
 
 // GetRelease fetches a single release.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/releases/#get-a-release
+// GitHub API docs: https://developer.github.com/v3/repos/releases/#get-a-single-release
 func (s *RepositoriesService) GetRelease(ctx context.Context, owner, repo string, id int64) (*RepositoryRelease, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/releases/%d", owner, repo, id)
 	return s.getSingleRelease(ctx, u)
@@ -127,40 +125,13 @@ func (s *RepositoriesService) getSingleRelease(ctx context.Context, url string) 
 	return release, resp, nil
 }
 
-// repositoryReleaseRequest is a subset of RepositoryRelease and
-// is used internally by CreateRelease and EditRelease to pass
-// only the known fields for these endpoints.
-//
-// See https://github.com/google/go-github/issues/992 for more
-// information.
-type repositoryReleaseRequest struct {
-	TagName         *string `json:"tag_name,omitempty"`
-	TargetCommitish *string `json:"target_commitish,omitempty"`
-	Name            *string `json:"name,omitempty"`
-	Body            *string `json:"body,omitempty"`
-	Draft           *bool   `json:"draft,omitempty"`
-	Prerelease      *bool   `json:"prerelease,omitempty"`
-}
-
 // CreateRelease adds a new release for a repository.
-//
-// Note that only a subset of the release fields are used.
-// See RepositoryRelease for more information.
 //
 // GitHub API docs: https://developer.github.com/v3/repos/releases/#create-a-release
 func (s *RepositoriesService) CreateRelease(ctx context.Context, owner, repo string, release *RepositoryRelease) (*RepositoryRelease, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/releases", owner, repo)
 
-	releaseReq := &repositoryReleaseRequest{
-		TagName:         release.TagName,
-		TargetCommitish: release.TargetCommitish,
-		Name:            release.Name,
-		Body:            release.Body,
-		Draft:           release.Draft,
-		Prerelease:      release.Prerelease,
-	}
-
-	req, err := s.client.NewRequest("POST", u, releaseReq)
+	req, err := s.client.NewRequest("POST", u, release)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -175,23 +146,11 @@ func (s *RepositoriesService) CreateRelease(ctx context.Context, owner, repo str
 
 // EditRelease edits a repository release.
 //
-// Note that only a subset of the release fields are used.
-// See RepositoryRelease for more information.
-//
-// GitHub API docs: https://developer.github.com/v3/repos/releases/#update-a-release
+// GitHub API docs: https://developer.github.com/v3/repos/releases/#edit-a-release
 func (s *RepositoriesService) EditRelease(ctx context.Context, owner, repo string, id int64, release *RepositoryRelease) (*RepositoryRelease, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/releases/%d", owner, repo, id)
 
-	releaseReq := &repositoryReleaseRequest{
-		TagName:         release.TagName,
-		TargetCommitish: release.TargetCommitish,
-		Name:            release.Name,
-		Body:            release.Body,
-		Draft:           release.Draft,
-		Prerelease:      release.Prerelease,
-	}
-
-	req, err := s.client.NewRequest("PATCH", u, releaseReq)
+	req, err := s.client.NewRequest("PATCH", u, release)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -219,10 +178,10 @@ func (s *RepositoriesService) DeleteRelease(ctx context.Context, owner, repo str
 
 // ListReleaseAssets lists the release's assets.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/releases/#list-release-assets
-func (s *RepositoriesService) ListReleaseAssets(ctx context.Context, owner, repo string, id int64, opts *ListOptions) ([]*ReleaseAsset, *Response, error) {
+// GitHub API docs: https://developer.github.com/v3/repos/releases/#list-assets-for-a-release
+func (s *RepositoriesService) ListReleaseAssets(ctx context.Context, owner, repo string, id int64, opt *ListOptions) ([]*ReleaseAsset, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/releases/%d/assets", owner, repo, id)
-	u, err := addOptions(u, opts)
+	u, err := addOptions(u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -242,7 +201,7 @@ func (s *RepositoriesService) ListReleaseAssets(ctx context.Context, owner, repo
 
 // GetReleaseAsset fetches a single release asset.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/releases/#get-a-release-asset
+// GitHub API docs: https://developer.github.com/v3/repos/releases/#get-a-single-release-asset
 func (s *RepositoriesService) GetReleaseAsset(ctx context.Context, owner, repo string, id int64) (*ReleaseAsset, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/releases/assets/%d", owner, repo, id)
 
@@ -266,13 +225,8 @@ func (s *RepositoriesService) GetReleaseAsset(ctx context.Context, owner, repo s
 // If a redirect is returned, the redirect URL will be returned as a string instead
 // of the io.ReadCloser. Exactly one of rc and redirectURL will be zero.
 //
-// followRedirectsClient can be passed to download the asset from a redirected
-// location. Passing http.DefaultClient is recommended unless special circumstances
-// exist, but it's possible to pass any http.Client. If nil is passed the
-// redirectURL will be returned instead.
-//
-// GitHub API docs: https://developer.github.com/v3/repos/releases/#get-a-release-asset
-func (s *RepositoriesService) DownloadReleaseAsset(ctx context.Context, owner, repo string, id int64, followRedirectsClient *http.Client) (rc io.ReadCloser, redirectURL string, err error) {
+// GitHub API docs: https://developer.github.com/v3/repos/releases/#get-a-single-release-asset
+func (s *RepositoriesService) DownloadReleaseAsset(ctx context.Context, owner, repo string, id int64) (rc io.ReadCloser, redirectURL string, err error) {
 	u := fmt.Sprintf("repos/%s/%s/releases/assets/%d", owner, repo, id)
 
 	req, err := s.client.NewRequest("GET", u, nil)
@@ -298,10 +252,6 @@ func (s *RepositoriesService) DownloadReleaseAsset(ctx context.Context, owner, r
 		if !strings.Contains(err.Error(), "disable redirect") {
 			return nil, "", err
 		}
-		if followRedirectsClient != nil {
-			rc, err := s.downloadReleaseAssetFromURL(ctx, followRedirectsClient, loc)
-			return rc, "", err
-		}
 		return nil, loc, nil // Intentionally return no error with valid redirect URL.
 	}
 
@@ -313,27 +263,9 @@ func (s *RepositoriesService) DownloadReleaseAsset(ctx context.Context, owner, r
 	return resp.Body, "", nil
 }
 
-func (s *RepositoriesService) downloadReleaseAssetFromURL(ctx context.Context, followRedirectsClient *http.Client, url string) (rc io.ReadCloser, err error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req = withContext(ctx, req)
-	req.Header.Set("Accept", "*/*")
-	resp, err := followRedirectsClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if err := CheckResponse(resp); err != nil {
-		resp.Body.Close()
-		return nil, err
-	}
-	return resp.Body, nil
-}
-
 // EditReleaseAsset edits a repository release asset.
 //
-// GitHub API docs: https://developer.github.com/v3/repos/releases/#update-a-release-asset
+// GitHub API docs: https://developer.github.com/v3/repos/releases/#edit-a-release-asset
 func (s *RepositoriesService) EditReleaseAsset(ctx context.Context, owner, repo string, id int64, release *ReleaseAsset) (*ReleaseAsset, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/releases/assets/%d", owner, repo, id)
 
@@ -367,9 +299,9 @@ func (s *RepositoriesService) DeleteReleaseAsset(ctx context.Context, owner, rep
 // To upload assets that cannot be represented by an os.File, call NewUploadRequest directly.
 //
 // GitHub API docs: https://developer.github.com/v3/repos/releases/#upload-a-release-asset
-func (s *RepositoriesService) UploadReleaseAsset(ctx context.Context, owner, repo string, id int64, opts *UploadOptions, file *os.File) (*ReleaseAsset, *Response, error) {
+func (s *RepositoriesService) UploadReleaseAsset(ctx context.Context, owner, repo string, id int64, opt *UploadOptions, file *os.File) (*ReleaseAsset, *Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/releases/%d/assets", owner, repo, id)
-	u, err := addOptions(u, opts)
+	u, err := addOptions(u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -383,10 +315,6 @@ func (s *RepositoriesService) UploadReleaseAsset(ctx context.Context, owner, rep
 	}
 
 	mediaType := mime.TypeByExtension(filepath.Ext(file.Name()))
-	if opts.MediaType != "" {
-		mediaType = opts.MediaType
-	}
-
 	req, err := s.client.NewUploadRequest(u, file, stat.Size(), mediaType)
 	if err != nil {
 		return nil, nil, err

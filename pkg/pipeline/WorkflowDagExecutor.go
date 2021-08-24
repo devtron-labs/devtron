@@ -38,7 +38,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/stan"
+	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
@@ -494,6 +494,17 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				AuthMode:    gitMaterial.GitProvider.AuthMode,
 			},
 		}
+
+		// set webhook data
+		if m.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+			webhookData := ciMaterialCurrent.Modifications[0].WebhookData
+			ciProjectDetail.WebhookData = pipelineConfig.WebhookData {
+				Id : webhookData.Id,
+				EventActionType: webhookData.EventActionType,
+				Data : webhookData.Data,
+			}
+		}
+
 		ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
 	}
 
