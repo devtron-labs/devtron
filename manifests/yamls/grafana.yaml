@@ -186,43 +186,37 @@ data:
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13322/revisions/2/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
-    > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage.json"
+      "https://grafana.com/api/dashboards/13322/revisions/2/download" > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13320/revisions/2/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
-    > "/var/lib/grafana/dashboards/devtron-provider/latency-status.json"
+      "https://grafana.com/api/dashboards/13320/revisions/2/download" > "/var/lib/grafana/dashboards/devtron-provider/latency-status.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13325/revisions/3/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
-    > "/var/lib/grafana/dashboards/devtron-provider/memory-usage.json"
+      "https://grafana.com/api/dashboards/13325/revisions/3/download" > "/var/lib/grafana/dashboards/devtron-provider/memory-usage.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13321/revisions/2/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
-    > "/var/lib/grafana/dashboards/devtron-provider/response-status.json"
+      "https://grafana.com/api/dashboards/13321/revisions/2/download" > "/var/lib/grafana/dashboards/devtron-provider/response-status.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13323/revisions/6/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
-    > "/var/lib/grafana/dashboards/devtron-provider/memory-usage-below-k8s1-15.json"
+      "https://grafana.com/api/dashboards/13323/revisions/6/download" > "/var/lib/grafana/dashboards/devtron-provider/memory-usage-below-k8s1-15.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13324/revisions/3/download" | sed '/-- .* --/! s/"datasource":.*,/"datasource": "Prometheus",/g'\
-    > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage-below-k8s1-15.json"
+      "https://grafana.com/api/dashboards/13324/revisions/3/download" > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage-below-k8s1-15.json"
 ---
 # Source: grafana/templates/dashboards-json-configmap.yaml
 apiVersion: v1

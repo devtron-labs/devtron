@@ -286,7 +286,7 @@ if !hasgrafana {
 	curl '` + grafanaUrlWithPwd + `/api/datasources' \
 	-H 'content-type: application/json' \
 	-H 'x-grafana-org-id: ` + orgId + `' \
-	--data-raw '{"name":"Prometheus-devtron","type":"prometheus","access":"proxy","isDefault":true}'
+	--data-raw '{"name":"Prometheus-devtron-demo","type":"prometheus","access":"proxy","isDefault":true}'
 	`;
 	prometheusDatasource = shellScript prometheusDatasourceScript;
 	log("data source setup step 1");
@@ -300,7 +300,7 @@ if !hasgrafana {
 	-H 'x-grafana-org-id: ` + orgId + `' \
 	--data-raw '{"id":` + datasourceId +` ,
 	"orgId":` + orgId + `,
-	"name":"Prometheus-devtron","type":"prometheus","access":"proxy",
+	"name":"Prometheus-devtron-demo","type":"prometheus","access":"proxy",
 	"url":"` + prometheusUrl + `",
 	"basicAuth":true,"jsonData":{},"version":1}'
 	`;
