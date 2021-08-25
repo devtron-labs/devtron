@@ -549,11 +549,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun() *util.DetailedError 
 	var detailedError *util.DetailedError
 
 	//TO ASK
-	appName := "random-name"
-	baseTemplateName := " "
-	version := " "
-	tmpChartLocation := " "
-
+	appName := "sample-repo-dryrun"
 	repoUrl, _, detailedErrorCreateRepo := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
 
 	detailedError.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
@@ -574,19 +570,6 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun() *util.DetailedError 
 			return detailedError
 		}
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "clone")
-	}
-	dir := filepath.Join(clonedDir, baseTemplateName, version)
-	err := os.MkdirAll(dir, os.ModePerm)
-	if err != nil {
-		impl.logger.Errorw("error in making dir", "err", err)
-		// TO ASK
-		return nil
-	}
-	err = dirCopy.Copy(tmpChartLocation, dir)
-	if err != nil {
-		impl.logger.Errorw("error copying dir", "err", err)
-		// TO ASK
-		return nil
 	}
 	commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit")
 	if err != nil {
