@@ -607,6 +607,7 @@ metadata:
   name: workflow-minio-cred
   namespace: devtron-ci
 type: Opaque
+---
 apiVersion: v1
 data:
   accessKey: `;
@@ -642,6 +643,7 @@ metadata:
   name: workflow-minio-cred
   namespace: devtron-ci
 type: Opaque
+---
 apiVersion: v1
 data:
   accessKey: `;
