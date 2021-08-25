@@ -81,38 +81,32 @@ const GitOpsSecretName = "devtron-gitops-secret"
 //	CommitOnRest  ValidationResponseForOneTask
 //}
 type GitOpsConfigServiceImpl struct {
-	randSource       rand.Source
-	logger           *zap.SugaredLogger
-	gitOpsRepository repository.GitOpsConfigRepository
-	K8sUtil          *util.K8sUtil
-	aCDAuthConfig    *user.ACDAuthConfig
-	clusterService   cluster.ClusterService
-	envService       cluster.EnvironmentService
-	versionService   argocdServer.VersionService
-	gitFactory       *util.GitFactory
-	gitHubClient     *util.GitHubClient
-	gitLabClient     *util.GitLabClient
-	gitAzureClient   *util.GitAzureClient
-	chartTemplateService     *util.ChartTemplateService
+	randSource           rand.Source
+	logger               *zap.SugaredLogger
+	gitOpsRepository     repository.GitOpsConfigRepository
+	K8sUtil              *util.K8sUtil
+	aCDAuthConfig        *user.ACDAuthConfig
+	clusterService       cluster.ClusterService
+	envService           cluster.EnvironmentService
+	versionService       argocdServer.VersionService
+	gitFactory           *util.GitFactory
+	chartTemplateService *util.ChartTemplateServiceImpl
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory, gitHubClient *util.GitHubClient, gitLabClient *util.GitLabClient, gitAzureClient *util.GitAzureClient,chartTemplateService     *util.ChartTemplateService) *GitOpsConfigServiceImpl {
+	gitFactory *util.GitFactory, chartTemplateServiceImpl *util.ChartTemplateServiceImpl) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
-		logger:           Logger,
-		gitOpsRepository: gitOpsRepository,
-		K8sUtil:          K8sUtil,
-		aCDAuthConfig:    aCDAuthConfig,
-		clusterService:   clusterService,
-		envService:       envService,
-		versionService:   versionService,
-		gitFactory:       gitFactory,
-		gitHubClient:     gitHubClient,
-		gitLabClient:     gitLabClient,
-		gitAzureClient:   gitAzureClient,
-		chartTemplateService: chartTemplateService,
+		logger:               Logger,
+		gitOpsRepository:     gitOpsRepository,
+		K8sUtil:              K8sUtil,
+		aCDAuthConfig:        aCDAuthConfig,
+		clusterService:       clusterService,
+		envService:           envService,
+		versionService:       versionService,
+		gitFactory:           gitFactory,
+		chartTemplateService: chartTemplateServiceImpl,
 	}
 }
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto) (*GitOpsConfigDto, error) {
@@ -560,14 +554,12 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun() *util.DetailedError 
 	version := " "
 	tmpChartLocation := " "
 
-
 	repoUrl, _, detailedErrorCreateRepo := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
 
-	detailedError.ErrorOnStage = detailedErrorCreateRepo.ErrorOnStage
-	detailedError.Err = detailedErrorCreateRepo.Err
+	detailedError.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedError.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
 
-	if detailedError.Err != nil {
+	if detailedError.StageErrorMap != nil {
 		impl.logger.Errorw("error in creating git project", "name", appName, "err", detailedErrorCreateRepo.Err)
 		return detailedError
 	}
@@ -578,19 +570,10 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun() *util.DetailedError 
 		clonedDir, err = impl.gitFactory.GitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
-			detailedError.ErrorOnStage = "clone"
-			detailedError.Err = err
+			detailedError.StageErrorMap["clone"] = err
 			return detailedError
 		}
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages,"clone")
-	} else {
-		err = impl.chartTemplateService.GitPull(clonedDir, repoUrl, appName)
-		if err != nil {
-			detailedError.ErrorOnStage = "pull"
-			detailedError.Err = err
-			return detailedError
-		}
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages,"pull")
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "clone")
 	}
 	dir := filepath.Join(clonedDir, baseTemplateName, version)
 	err := os.MkdirAll(dir, os.ModePerm)
@@ -607,28 +590,18 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun() *util.DetailedError 
 	}
 	commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit")
 	if err != nil {
-		impl.logger.Errorw("error in pushing git", "err", err)
-		impl.logger.Warn("re-trying, taking pull and then push again")
-		err = impl.chartTemplateService.GitPull(clonedDir, repoUrl, appName)
-		if err != nil {
-			detailedError.ErrorOnStage = "pull"
-			detailedError.Err = err
-			return detailedError
+			impl.logger.Errorw("error in commit and pushing git", "err", err)
+			if commit == ""{
+				detailedError.StageErrorMap["commitOnRest"] = err
+			} else{
+				detailedError.StageErrorMap["push"] = err
+			}
 		}
-		err = dirCopy.Copy(tmpChartLocation, dir)
-		if err != nil {
-			impl.logger.Errorw("error copying dir", "err", err)
-			return nil
-		}
-		commit, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit")
-		if err != nil {
-			impl.logger.Errorw("error in pushing git", "err", err)
-			detailedError.ErrorOnStage = "commitOnRest"
-			detailedError.Err = err
-			return detailedError
-		}
-	}
+	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages,"commitOnRest")
+	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages,"push")
 	impl.logger.Debugw("template committed", "url", repoUrl, "commit", commit)
 
 	defer impl.chartTemplateService.CleanDir(clonedDir)
+	detailedError.ValidatedOn = time.Now()
+	return detailedError
 }

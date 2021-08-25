@@ -52,9 +52,9 @@ type GitFactory struct {
 }
 
 type DetailedError struct {
-	SuccessfulStages []string
-	ErrorOnStage     string
-	Err              error
+	SuccessfulStages []string         `json:"successfulStages"`
+	StageErrorMap    map[string]error `json:"stageErrorMap"`
+	ValidatedOn      time.Time        `json:"validatedOn"`
 }
 
 func (factory *GitFactory) Reload() error {
@@ -218,8 +218,7 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 	repoUrl, err := impl.GetRepoUrl(name)
 	if err != nil {
 		impl.logger.Errorw("error in getting repo url ", "project", name, "err", err)
-		detailedError.ErrorOnStage = "GetRepoUrl"
-		detailedError.Err = err
+		detailedError.StageErrorMap["GetRepoUrl"] = err
 		return "", false, detailedError
 	}
 	if len(repoUrl) > 0 {
@@ -228,8 +227,7 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 	} else {
 		url, err = impl.createProject(name, description)
 		if err != nil {
-			detailedError.ErrorOnStage = "createRepo"
-			detailedError.Err = err
+			detailedError.StageErrorMap["createRepo"] = err
 			return "", true, detailedError
 		}
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "createRepo")
@@ -238,33 +236,29 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 	validated, err := impl.ensureProjectAvailability(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		detailedError.ErrorOnStage = "ensureProjectAvailability"
+		detailedError.StageErrorMap["ensureProjectAvailability"] = err
 		return "", true, detailedError
 	}
 	if !validated {
-		detailedError.ErrorOnStage = "ensureProjectAvailability"
-		detailedError.Err = fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.StageErrorMap["ensureProjectAvailability"] = fmt.Errorf("unable to validate project:%s  in given time", name)
 		return "", true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "ensureProjectAvailability")
 	_, err = impl.createReadme(impl.config.GitlabGroupPath, name)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme ", "project", name, "err", err)
-		detailedError.ErrorOnStage = "createReadme"
-		detailedError.Err = err
+		detailedError.StageErrorMap["createReadme"] = err
 		return "", true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "createReadme")
 	validated, err = impl.ensureProjectAvailabilityOnSsh(name, repoUrl)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		detailedError.ErrorOnStage = "ensureProjectAvailabilityOnSsh"
-		detailedError.Err = err
+		detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = err
 		return "", true, detailedError
 	}
 	if !validated {
-		detailedError.ErrorOnStage = "ensureProjectAvailabilityOnSsh"
-		detailedError.Err = fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = fmt.Errorf("unable to validate project:%s  in given time", name)
 		return "", true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "ensureProjectAvailabilityOnSsh")
@@ -557,8 +551,7 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
 			impl.logger.Errorw("error in creating repo", "err", err)
-			detailedError.ErrorOnStage = "GetRepoUrl"
-			detailedError.Err = err
+			detailedError.StageErrorMap["GetRepoUrl"] = err
 			return "", false, detailedError
 		} else {
 			repoExists = false
@@ -578,8 +571,7 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 		})
 	if err != nil {
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
-		detailedError.ErrorOnStage = "createRepo"
-		detailedError.Err = err
+		detailedError.StageErrorMap["createRepo"] = err
 		return "", true, detailedError
 	}
 	logger.Infow("repo created ", "r", r.CloneURL)
@@ -588,13 +580,11 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		detailedError.ErrorOnStage = "ensureProjectAvailabilityOnHttp"
-		detailedError.Err = err
+		detailedError.StageErrorMap["ensureProjectAvailabilityOnHttp"] = err
 		return *r.CloneURL, true, detailedError
 	}
 	if !validated {
-		detailedError.ErrorOnStage = "ensureProjectAvailabilityOnHttp"
-		detailedError.Err = fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.StageErrorMap["ensureProjectAvailabilityOnHttp"] = fmt.Errorf("unable to validate project:%s  in given time", name)
 		return "", true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "ensureProjectAvailabilityOnHttp")
@@ -602,8 +592,7 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 	_, err = impl.createReadme(name)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme", "err", err)
-		detailedError.ErrorOnStage = "createReadme"
-		detailedError.Err = err
+		detailedError.StageErrorMap["createReadme"] = err
 		return *r.CloneURL, true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "createReadme")
@@ -611,13 +600,11 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 	validated, err = impl.ensureProjectAvailabilityOnSsh(name, *r.CloneURL)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		detailedError.ErrorOnStage = "ensureProjectAvailabilityOnSsh"
-		detailedError.Err = err
+		detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = err
 		return *r.CloneURL, true, detailedError
 	}
 	if !validated {
-		detailedError.ErrorOnStage = "ensureProjectAvailabilityOnSsh"
-		detailedError.Err = fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = fmt.Errorf("unable to validate project:%s  in given time", name)
 		return "", true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "ensureProjectAvailabilityOnSsh")
