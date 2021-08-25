@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type GitOpsConfigRepository interface {
@@ -39,16 +40,18 @@ type GitOpsConfigRepositoryImpl struct {
 }
 
 type GitOpsConfig struct {
-	tableName     struct{} `sql:"gitops_config" pg:",discard_unknown_columns"`
-	Id            int      `sql:"id,pk"`
-	Provider      string   `sql:"provider"`
-	Username      string   `sql:"username"`
-	Token         string   `sql:"token"`
-	GitLabGroupId string   `sql:"gitlab_group_id"`
-	GitHubOrgId   string   `sql:"github_org_id"`
-	AzureProject  string   `sql:"azure_project"`
-	Host          string   `sql:"host"`
-	Active        bool     `sql:"active,notnull"`
+	tableName        struct{}  `sql:"gitops_config" pg:",discard_unknown_columns"`
+	Id               int       `sql:"id,pk"`
+	Provider         string    `sql:"provider"`
+	Username         string    `sql:"username"`
+	Token            string    `sql:"token"`
+	GitLabGroupId    string    `sql:"gitlab_group_id"`
+	GitHubOrgId      string    `sql:"github_org_id"`
+	AzureProject     string    `sql:"azure_project"`
+	Host             string    `sql:"host"`
+	Active           bool      `sql:"active,notnull"`
+	ValidationErrors string    `sql:"validation_errors"`
+	ValidatedOn      time.Time `sql:"validated_on"`
 	models.AuditLog
 }
 
