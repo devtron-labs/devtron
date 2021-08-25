@@ -20,7 +20,7 @@ Provide a `Name` to your Git provider. This name will be displayed in the the Gi
 
 ### 2. Git Host
 
-It is the git provider on which corresponding application git repository is hosted. By default you will get Bitbuckt and GitHub but you can add many as you want clicking on **[+ Add Git Host]**.
+It is the git provider on which corresponding application git repository is hosted. By default you will get Bitbucket and GitHub but you can add many as you want clicking on **[+ Add Git Host]**.
 
 ### 3. URL
 
