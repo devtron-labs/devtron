@@ -25,9 +25,9 @@ func setup() {
 	logger := util.NewSugardLogger()
 	dbConnection, _ := models.NewDbConnection(config, logger)
 	bulkUpdateRepository := bulkUpdate.NewBulkUpdateRepository(dbConnection, logger)
-	bulkUpdateService = pipeline.NewBulkUpdateServiceImpl(bulkUpdateRepository, nil, nil, nil, nil, nil, "",
+	bulkUpdateService = pipeline.NewBulkUpdateServiceImpl(bulkUpdateRepository, nil, nil, nil, nil, "",
 		pipeline.DefaultChart(""), util.MergeUtil{}, nil, nil, nil, nil, nil,
-		nil, nil, nil, nil)
+		nil, nil, nil, nil,nil)
 }
 
 func TestBulkUpdateDeploymentTemplate(t *testing.T) {
@@ -35,7 +35,7 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 	type test struct {
 		ApiVersion string
 		Kind       string
-		Payload    pipeline.BulkUpdatePayload
+		Payload    *pipeline.BulkUpdatePayload
 		want       string
 	}
 	TestsCsvFile, err := os.Open("ChartService_test.csv")
@@ -64,14 +64,14 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 		}
 		namesIncludes := strings.Fields(record[2])
 		namesExcludes := strings.Fields(record[3])
-		includes := pipeline.NameIncludesExcludes{Names: namesIncludes}
-		excludes := pipeline.NameIncludesExcludes{Names: namesExcludes}
-		spec := pipeline.Spec{
+		includes := &pipeline.NameIncludesExcludes{Names: namesIncludes}
+		excludes := &pipeline.NameIncludesExcludes{Names: namesExcludes}
+		spec := &pipeline.DeploymentTemplateSpec{
 			PatchJson: record[6]}
-		task := pipeline.Tasks{
+		task := &pipeline.DeploymentTemplateTask{
 			Spec: spec,
 		}
-		payload := pipeline.BulkUpdatePayload{
+		payload := &pipeline.BulkUpdatePayload{
 			Includes:           includes,
 			Excludes:           excludes,
 			EnvIds:             envId,
@@ -91,7 +91,7 @@ func TestBulkUpdateDeploymentTemplate(t *testing.T) {
 	for _, tt := range tests {
 		testname := fmt.Sprintf("%s,%s", tt.Payload.Includes, tt.Payload.Excludes)
 		t.Run(testname, func(t *testing.T) {
-			got, _ := bulkUpdateService.BulkUpdateDeploymentTemplate(tt.Payload)
+			got := bulkUpdateService.BulkUpdateDeploymentTemplate(tt.Payload)
 			if got != tt.want {
 				t.Errorf("got %s, want %s", got, tt.want)
 			}

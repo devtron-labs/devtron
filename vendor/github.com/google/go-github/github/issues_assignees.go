@@ -14,9 +14,9 @@ import (
 // which issues may be assigned.
 //
 // GitHub API docs: https://developer.github.com/v3/issues/assignees/#list-assignees
-func (s *IssuesService) ListAssignees(ctx context.Context, owner, repo string, opts *ListOptions) ([]*User, *Response, error) {
+func (s *IssuesService) ListAssignees(ctx context.Context, owner, repo string, opt *ListOptions) ([]*User, *Response, error) {
 	u := fmt.Sprintf("repos/%v/%v/assignees", owner, repo)
-	u, err := addOptions(u, opts)
+	u, err := addOptions(u, opt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -36,7 +36,7 @@ func (s *IssuesService) ListAssignees(ctx context.Context, owner, repo string, o
 
 // IsAssignee checks if a user is an assignee for the specified repository.
 //
-// GitHub API docs: https://developer.github.com/v3/issues/assignees/#check-if-a-user-can-be-assigned
+// GitHub API docs: https://developer.github.com/v3/issues/assignees/#check-assignee
 func (s *IssuesService) IsAssignee(ctx context.Context, owner, repo, user string) (bool, *Response, error) {
 	u := fmt.Sprintf("repos/%v/%v/assignees/%v", owner, repo, user)
 	req, err := s.client.NewRequest("GET", u, nil)

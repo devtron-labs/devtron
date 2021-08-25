@@ -75,6 +75,6 @@ func (router ConfigMapRouterImpl) initConfigMapRouter(configRouter *mux.Router) 
 		Queries("name", "{name}").
 		HandlerFunc(router.restHandler.CSEnvironmentFetchForEdit).Methods("GET")
 
-	configRouter.Path("/bulk/patch").
-		HandlerFunc(router.restHandler.ConfigSecretBulkPatch).Methods("POST")
+	configRouter.Path("/bulk/patch").		HandlerFunc(router.restHandler.ConfigSecretBulkPatch).Methods("POST")
+
 }

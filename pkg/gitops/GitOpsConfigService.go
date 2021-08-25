@@ -70,19 +70,6 @@ type GitOpsConfigDto struct {
 
 const GitOpsSecretName = "devtron-gitops-secret"
 
-//type ValidationResponseForOneTask struct {
-//	Successful bool
-//	//message = fmt.Sprintf("task name - err string")
-//	Message string
-//}
-//
-//type GitopsValidationResponse struct {
-//	CreateRepo    ValidationResponseForOneTask
-//	Readme        ValidationResponseForOneTask
-//	Clone         ValidationResponseForOneTask
-//	CommitAndPush ValidationResponseForOneTask
-//	CommitOnRest  ValidationResponseForOneTask
-//}
 type GitOpsConfigServiceImpl struct {
 	randSource           rand.Source
 	logger               *zap.SugaredLogger

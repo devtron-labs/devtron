@@ -85,7 +85,6 @@ type PipelineConfigRestHandler interface {
 	FindAppsByTeamName(w http.ResponseWriter, r *http.Request)
 
 	TriggerCiPipeline(w http.ResponseWriter, r *http.Request)
-	TriggerCiPipelineFromGitWebhook(w http.ResponseWriter, r *http.Request)
 	FetchMaterials(w http.ResponseWriter, r *http.Request)
 	FetchWorkflowDetails(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineMin(w http.ResponseWriter, r *http.Request)
@@ -237,12 +236,8 @@ func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r 
 		return
 	}
 
-	team, err := handler.teamService.FindTeamByAppId(appId)
-	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionDelete, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionDelete, resourceObject); !ok {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -280,12 +275,13 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
 	team, err := handler.teamService.FetchOne(createRequest.TeamId)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -339,13 +335,8 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	team, err := handler.teamService.FindTeamByAppId(createMaterialDto.AppId)
-	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(createMaterialDto.AppId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceObject); !ok {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -382,13 +373,8 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	team, err := handler.teamService.FindTeamByAppId(updateMaterialDto.AppId)
-	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(updateMaterialDto.AppId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceObject); !ok {
 		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -1459,23 +1445,6 @@ func (handler PipelineConfigRestHandlerImpl) FindAppsByTeamName(w http.ResponseW
 	writeJsonResp(w, err, team, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) TriggerCiPipelineFromGitWebhook(w http.ResponseWriter, r *http.Request) {
-	var ciGitTriggerRequest bean.CiGitWebhookTriggerRequest
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&ciGitTriggerRequest)
-	if err != nil {
-		handler.Logger.Errorw("request err, TriggerCiPipelineFromGitWebhook", "err", err, "payload", ciGitTriggerRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.Logger.Infow("request payload, TriggerCiPipelineFromGitWebhook", "payload", ciGitTriggerRequest)
-	err = handler.ciHandler.HandleGitCiTrigger(ciGitTriggerRequest)
-	if err != nil {
-		handler.Logger.Errorw("service err, TriggerCiPipelineFromGitWebhook", "err", err, "payload", ciGitTriggerRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	}
-	writeJsonResp(w, err, nil, http.StatusOK)
-}
 
 func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)

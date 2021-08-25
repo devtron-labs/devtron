@@ -562,12 +562,12 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 		return url, false, detailedError
 	}
 	private := true
-	visibility := "private"
+//	visibility := "private"
 	r, _, err := impl.Client.Repositories.Create(ctx, impl.org,
 		&github.Repository{Name: &name,
 			Description: &description,
 			Private:     &private,
-			Visibility:  &visibility,
+//			Visibility:  &visibility,
 		})
 	if err != nil {
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
