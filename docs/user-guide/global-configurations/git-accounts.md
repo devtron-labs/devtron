@@ -1,6 +1,6 @@
 # Git Accounts
 
-Global configurations are used to configure your Git Providers, Docker Registry, Kubernetes clusters, different environments, User Management, and different Notifications for your application. We have segregated all the configurations and we will discuss how to configure all these one by one.
+Git Accounts are nothing but the corresponding Git Providers where your applications are begin hosted. It is furthur used for the adding Git Material while building your CI Pipeline.
 
 ## Git Account Configuration
 
@@ -20,7 +20,7 @@ Provide a `Name` to your Git provider. This name will be displayed in the the Gi
 
 ### 2. Git Host
 
-It is the git provider on which corresponding application git repository is hosted.
+It is the git provider on which corresponding application git repository is hosted. By default you will get Bitbuckt and GitHub but you can add many as you want clicking on **[+ Add Git Host]**.
 
 ### 3. URL
 
