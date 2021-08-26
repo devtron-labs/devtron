@@ -364,6 +364,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 			pass := false
 			config := auth.GetConfig()
 			authEnabled = config.AuthEnabled
+
 			if len(token) != 0 && authEnabled && !contains(r.URL.Path) {
 				_, err := sessionManager.VerifyToken(token)
 				if err != nil {
@@ -401,6 +402,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 	}
 }
 
+
 func contains(url string) bool {
 	urls := []string{
 		"/health",
@@ -429,6 +431,7 @@ func contains(url string) bool {
 		"/orchestrator/auth/callback",
 		"/orchestrator/auth/login",
 		"/dashboard",
+		"/orchestrator/webhook/git",
 	}
 	for _, a := range prefixUrls {
 		if strings.Contains(url, a) {

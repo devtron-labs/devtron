@@ -61,6 +61,7 @@ type PolicyServiceImpl struct {
 	ciConfig                      *pipeline.CiConfig
 	scanHistoryRepository         security.ImageScanHistoryRepository
 	cveStoreRepository            security.CveStoreRepository
+	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 }
 
 func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
@@ -74,7 +75,8 @@ func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
 	imageScanObjectMetaRepository security.ImageScanObjectMetaRepository, client *http.Client,
 	ciArtifactRepository repository.CiArtifactRepository, ciConfig *pipeline.CiConfig,
-	scanHistoryRepository security.ImageScanHistoryRepository, cveStoreRepository security.CveStoreRepository) *PolicyServiceImpl {
+	scanHistoryRepository security.ImageScanHistoryRepository, cveStoreRepository security.CveStoreRepository,
+	ciTemplateRepository pipelineConfig.CiTemplateRepository) *PolicyServiceImpl {
 	return &PolicyServiceImpl{
 		environmentService:            environmentService,
 		logger:                        logger,
@@ -91,6 +93,7 @@ func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 		ciConfig:                      ciConfig,
 		scanHistoryRepository:         scanHistoryRepository,
 		cveStoreRepository:            cveStoreRepository,
+		ciTemplateRepository:          ciTemplateRepository,
 	}
 }
 
@@ -133,6 +136,7 @@ type ScanEvent struct {
 	AccessKey    string `json:"accessKey"`
 	SecretKey    string `json:"secretKey"`
 	Token        string `json:"token"`
+	AwsRegion    string `json:"awsRegion"`
 }
 
 func (impl *PolicyServiceImpl) SendEventToClairUtility(event *ScanEvent) error {
@@ -215,8 +219,15 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		}
 		if scanHistory != nil && scanHistory.Id == 0 && objectType != security.ScanObjectType_APP {
 			scanEvent := &ScanEvent{Image: image, ImageDigest: "", PipelineId: 0, UserId: 1}
+			dockerReg, err := impl.ciTemplateRepository.FindByAppId(app.Id)
+			if err != nil {
+				impl.logger.Errorw("error in fetching docker reg ", "err", err)
+				return nil, err
+			}
+			scanEvent.AwsRegion = dockerReg.DockerRegistry.AWSRegion
 			err = impl.SendEventToClairUtility(scanEvent)
 			if err != nil {
+				impl.logger.Errorw("error in send event to image scanner ", "err", err)
 				return nil, err
 			}
 		}

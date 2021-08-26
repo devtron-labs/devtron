@@ -38,7 +38,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/stan"
+	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
@@ -420,13 +420,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 	return err
 }
-
-func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*CdWorkflowRequest, error) {
-	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
-	if err != nil && !util.IsErrNoRows(err) {
-		return nil, err
-	}
-
+func (impl *WorkflowDagExecutorImpl) buildArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string{
 	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
 	if cdArtifactLocationFormat == "" {
 		cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
@@ -434,7 +428,15 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	if cdWorkflowConfig.LogsBucket == "" {
 		cdWorkflowConfig.LogsBucket = impl.cdConfig.DefaultBuildLogsBucket
 	}
-	cdArtifactLocation := fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
+	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.cdConfig.DefaultArtifactKeyPrefix+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
+	return ArtifactLocation
+}
+
+func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*CdWorkflowRequest, error) {
+	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
+	if err != nil && !util.IsErrNoRows(err) {
+		return nil, err
+	}
 
 	artifact, err := impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
 	if err != nil {
@@ -492,6 +494,17 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				AuthMode:    gitMaterial.GitProvider.AuthMode,
 			},
 		}
+
+		// set webhook data
+		if m.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+			webhookData := ciMaterialCurrent.Modifications[0].WebhookData
+			ciProjectDetail.WebhookData = pipelineConfig.WebhookData {
+				Id : webhookData.Id,
+				EventActionType: webhookData.EventActionType,
+				Data : webhookData.Data,
+			}
+		}
+
 		ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
 	}
 
@@ -515,7 +528,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		CdPipelineId:          cdWf.PipelineId,
 		TriggeredBy:           triggeredBy,
 		StageYaml:             stageYaml,
-		ArtifactLocation:      cdArtifactLocation,
 		CiProjectDetails:      ciProjectDetails,
 		Namespace:             runner.Namespace,
 		ActiveDeadlineSeconds: impl.cdConfig.DefaultTimeout,
@@ -538,6 +550,28 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		OrchestratorHost:          impl.cdConfig.OrchestratorHost,
 		OrchestratorToken:         impl.cdConfig.OrchestratorToken,
 		ExtraEnvironmentVariables: extraEnvVariables,
+		CloudProvider:             impl.cdConfig.CloudProvider,
+	}
+	switch cdStageWorkflowRequest.CloudProvider {
+	case BLOB_STORAGE_S3:
+		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
+		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
+		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocation(cdWorkflowConfig,cdWf,runner)
+	case BLOB_STORAGE_AZURE:
+		cdStageWorkflowRequest.AzureBlobConfig = &AzureBlobConfig{
+			Enabled:              true,
+			AccountName:          impl.cdConfig.AzureAccountName,
+			BlobContainerCiCache: impl.cdConfig.AzureBlobContainerCiCache,
+			AccountKey:           impl.cdConfig.AzureAccountKey,
+		}
+	case BLOB_STORAGE_MINIO:
+		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
+		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocation(cdWorkflowConfig,cdWf,runner)
+		cdStageWorkflowRequest.MinioEndpoint = impl.cdConfig.MinioEndpoint
+	default:
+		return nil, fmt.Errorf("cloudprovider %s not supported", cdStageWorkflowRequest.CloudProvider)
 	}
 	return cdStageWorkflowRequest, nil
 }
@@ -654,6 +688,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	err = impl.appService.TriggerCD(artifact, cdWf.Id, pipeline, async)
 	err1 := impl.updatePreviousDeploymentStatus(runner, pipeline.Id, err)
 	if err1 != nil || err != nil {
+		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
 		return err
 	}
 	return nil
@@ -667,7 +702,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 		currentRunner.FinishedOn = time.Now()
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(currentRunner)
 		if err != nil {
-			impl.logger.Errorw("error in updating status", "err", err)
+			impl.logger.Errorw("error updating cd wf runner status", "err", err, "currentRunner", currentRunner)
 			return err
 		}
 		return nil
@@ -675,30 +710,32 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 	} else {
 		//update n-1th  deploy status as aborted if not termainal(Healthy, Degraded)
 		terminalStatus := []string{v1alpha1.HealthStatusHealthy, v1alpha1.HealthStatusDegraded, WorkflowAborted, WorkflowFailed}
-		previousNonTermanalRunners, err := impl.cdWorkflowRepository.FindPreviousCdWfRunnerByStatus(pipelineId, currentRunner.Id, terminalStatus)
+		previousNonTerminalRunners, err := impl.cdWorkflowRepository.FindPreviousCdWfRunnerByStatus(pipelineId, currentRunner.Id, terminalStatus)
 		if err != nil {
-			impl.logger.Errorw("error in updating runner", "err", err)
+			impl.logger.Errorw("error fetching previous wf runner, updating cd wf runner status,", "err", err, "currentRunner", currentRunner)
 			return err
-		} else if len(previousNonTermanalRunners) == 0 {
-			impl.logger.Errorw("no previous runner")
+		} else if len(previousNonTerminalRunners) == 0 {
+			impl.logger.Errorw("no previous runner found in updating cd wf runner status,", "err", err, "currentRunner", currentRunner)
 			return nil
 		}
-		for _, previousRunner := range previousNonTermanalRunners {
+		for _, previousRunner := range previousNonTerminalRunners {
 			if previousRunner.Status == v1alpha1.HealthStatusHealthy ||
 				previousRunner.Status == v1alpha1.HealthStatusDegraded ||
 				previousRunner.Status == WorkflowAborted ||
 				previousRunner.Status == WorkflowFailed {
-				//terminal ststus return
+				//terminal status return
+				impl.logger.Infow("skip updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 				return nil
 			}
+			impl.logger.Infow("updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 			previousRunner.FinishedOn = time.Now()
 			previousRunner.Message = "triggered new deployment"
 			previousRunner.Status = WorkflowAborted
 		}
 
-		err = impl.cdWorkflowRepository.UpdateWorkFlowRunners(previousNonTermanalRunners)
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunners(previousNonTerminalRunners)
 		if err != nil {
-			impl.logger.Errorw("error in updating status", "err", err)
+			impl.logger.Errorw("error updating cd wf runner status", "err", err, "previousNonTerminalRunners", previousNonTerminalRunners)
 			return err
 		}
 		return nil
@@ -879,6 +916,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		}*/
 		err1 := impl.updatePreviousDeploymentStatus(runner, cdPipeline.Id, err)
 		if err1 != nil || err != nil {
+			impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
 			return 0, err
 		}
 	} else if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST {

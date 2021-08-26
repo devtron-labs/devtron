@@ -12,7 +12,7 @@ Devtron also supports multiple git repositories in a single deployment. We will 
 
 ## 1. Git Provider
 
-In this section, you have to select the git provider of your code repository like- Github, Gitlab, and Bitbucket, etc. If you are using a private git repository, you can configure your git provider via [git provider config](../git-provider-config/).
+In this section, you have to select the git provider of your code repository like- Github, Gitlab, and Bitbucket, etc. If you are using a private git repository, you can configure your git provider via [git accounts](../global-configurations/git-accounts.md).
 
 ## 2. Git Repo URL
 

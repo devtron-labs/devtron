@@ -74,6 +74,8 @@ type AppEnvironmentContainer struct {
 	PipelineReleaseCounter      int                       `json:"-"`
 	CiArtifactId                int                       `json:"ciArtifactId"`
 	Active                      bool                      `json:"-"`
+	TeamId                      int                       `json:"teamId"`
+	TeamName                    string                    `json:"teamName"`
 }
 
 type DeploymentDetailContainer struct {
@@ -100,6 +102,7 @@ type DeploymentDetailContainer struct {
 	LastDeployedPipeline string          `json:"lastDeployedPipeline,omitempty"`
 	Deprecated           bool            `json:"deprecated"`
 	K8sVersion           string          `json:"k8sVersion"`
+	CiArtifactId         int             `json:"ciArtifactId"`
 }
 
 type AppDetailContainer struct {

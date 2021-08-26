@@ -134,17 +134,33 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *WorkflowRequest) {
 	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, nil, util2.CI)
 	material := &client.MaterialTriggerInfo{}
-	gitT := make(map[int]pipelineConfig.GitCommit)
+
+	gitTriggers := make(map[int]pipelineConfig.GitCommit)
+
 	for k, v := range trigger.CommitHashes {
-		gitT[k] = pipelineConfig.GitCommit{
+		gitCommit := pipelineConfig.GitCommit{
 			Commit:  v.Commit,
 			Author:  v.Author,
 			Changes: v.Changes,
 			Message: v.Message,
 			Date:    v.Date,
 		}
+
+		// set webhook data in gitTriggers
+		_webhookData := v.WebhookData
+		if _webhookData != nil {
+			gitCommit.WebhookData = pipelineConfig.WebhookData {
+				Id: _webhookData.Id,
+				EventActionType: _webhookData.EventActionType,
+				Data : _webhookData.Data,
+			}
+		}
+
+		gitTriggers[k] = gitCommit
 	}
-	material.GitTriggers = gitT
+
+	material.GitTriggers = gitTriggers
+
 	event.UserId = int(trigger.TriggeredBy)
 	event.CiWorkflowRunnerId = workflowRequest.WorkflowId
 	event = impl.eventFactory.BuildExtraCIData(event, material, workflowRequest.CiImage)
@@ -166,13 +182,23 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 	commitHashes map[int]bean.GitCommit, userId int32) (wf *pipelineConfig.CiWorkflow, error error) {
 	gitTriggers := make(map[int]pipelineConfig.GitCommit)
 	for k, v := range commitHashes {
-		gitTriggers[k] = pipelineConfig.GitCommit{
+		gitCommit := pipelineConfig.GitCommit{
 			Commit:  v.Commit,
 			Author:  v.Author,
 			Date:    v.Date,
 			Message: v.Message,
 			Changes: v.Changes,
 		}
+		webhookData := v.WebhookData
+		if webhookData != nil {
+			gitCommit.WebhookData = pipelineConfig.WebhookData{
+				Id: webhookData.Id,
+				EventActionType: webhookData.EventActionType,
+				Data : webhookData.Data,
+			}
+		}
+
+		gitTriggers[k] = gitCommit
 	}
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
@@ -203,25 +229,36 @@ func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest) (
 	}
 	return createdWorkFlow, nil
 }
-
+func (impl *CiServiceImpl) buildArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string{
+	if ciWorkflowConfig.LogsBucket == "" {
+		ciWorkflowConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
+	}
+	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
+	if ciArtifactLocationFormat == "" {
+		ciArtifactLocationFormat = impl.ciConfig.CiArtifactLocationFormat
+	}
+	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.ciConfig.DefaultArtifactKeyPrefix+"/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, savedWf.Id, savedWf.Id)
+	return ArtifactLocation
+}
 func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger Trigger,
 	ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow,
 	ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript) (*WorkflowRequest, error) {
 	var ciProjectDetails []CiProjectDetails
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
+		commitHashForPipelineId := commitHashes[ciMaterial.Id]
 		ciProjectDetail := CiProjectDetails{
 			GitRepository: ciMaterial.GitMaterial.Url,
 			MaterialName:  ciMaterial.GitMaterial.Name,
 			CheckoutPath:  ciMaterial.GitMaterial.CheckoutPath,
-			CommitHash:    commitHashes[ciMaterial.Id].Commit,
-			Author:        commitHashes[ciMaterial.Id].Author,
+			CommitHash:    commitHashForPipelineId.Commit,
+			Author:        commitHashForPipelineId.Author,
 			SourceType:    ciMaterial.Type,
 			SourceValue:   ciMaterial.Value,
 			GitTag:        ciMaterial.GitTag,
-			Message:       commitHashes[ciMaterial.Id].Message,
+			Message:       commitHashForPipelineId.Message,
 			Type:          string(ciMaterial.Type),
-			CommitTime:    commitHashes[ciMaterial.Id].Date,
+			CommitTime:    commitHashForPipelineId.Date,
 			GitOptions: GitOptions{
 				UserName:    ciMaterial.GitMaterial.GitProvider.UserName,
 				Password:    ciMaterial.GitMaterial.GitProvider.Password,
@@ -230,6 +267,16 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 				AuthMode:    ciMaterial.GitMaterial.GitProvider.AuthMode,
 			},
 		}
+
+		if ciMaterial.Type ==  pipelineConfig.SOURCE_TYPE_WEBHOOK {
+			webhookData := commitHashForPipelineId.WebhookData
+			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
+				Id : webhookData.Id,
+				EventActionType: webhookData.EventActionType,
+				Data : webhookData.Data,
+			}
+		}
+
 		ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
 	}
 
@@ -255,16 +302,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.ciConfig.DefaultCacheBucket
 	}
-
-	if ciWorkflowConfig.LogsBucket == "" {
-		ciWorkflowConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
-	}
-
-	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
-	if ciArtifactLocationFormat == "" {
-		ciArtifactLocationFormat = impl.ciConfig.CiArtifactLocationFormat
-	}
-	ciArtifactLocation := fmt.Sprintf("s3://%s/"+impl.ciConfig.DefaultArtifactKeyPrefix+"/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, savedWf.Id, savedWf.Id)
 
 	if ciWorkflowConfig.CiCacheRegion == "" {
 		ciWorkflowConfig.CiCacheRegion = impl.ciConfig.DefaultCacheBucketRegion
@@ -319,7 +356,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		CacheLimit:               impl.ciConfig.CacheLimit,
 		BeforeDockerBuildScripts: beforeDockerBuildScripts,
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
-		CiArtifactLocation:       ciArtifactLocation,
 		InvalidateCache:          trigger.InvalidateCache,
 		ScanEnabled:              pipeline.ScanEnabled,
 		CloudProvider:            impl.ciConfig.CloudProvider,
@@ -327,8 +363,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 	switch workflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
+		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
 		workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion
 		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
+		workflowRequest.CiArtifactLocation = impl.buildArtifactLocation(ciWorkflowConfig, savedWf)
 	case BLOB_STORAGE_AZURE:
 		workflowRequest.AzureBlobConfig = &AzureBlobConfig{
 			Enabled:              impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
@@ -337,7 +375,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			AccountKey:           impl.ciConfig.AzureAccountKey,
 		}
 	case BLOB_STORAGE_MINIO:
+		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
 		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
+		workflowRequest.CiArtifactLocation = impl.buildArtifactLocation(ciWorkflowConfig, savedWf)
 		workflowRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
 	default:
 		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)
@@ -348,17 +388,51 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id int, wfId int) string {
 	dockerImageTag := ""
 	for _, v := range commitHashes {
-		if v.Commit == "" {
-			continue
+		_truncatedCommit := ""
+		if v.WebhookData == nil {
+			if len(v.Commit) == 0 {
+				continue
+			}
+			_truncatedCommit = _getTruncatedImageTag(v.Commit)
+		}else{
+			_targetCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME]
+			if len(_targetCheckout) == 0 {
+				continue
+			}
+			_truncatedCommit = _getTruncatedImageTag(_targetCheckout)
+			if v.WebhookData.EventActionType == bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE {
+				_sourceCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_SOURCE_CHECKOUT_NAME]
+				if len(_sourceCheckout) > 0 {
+					_truncatedCommit = _truncatedCommit + "-" + _getTruncatedImageTag(_sourceCheckout)
+				}
+			}
 		}
+
 		if dockerImageTag == "" {
-			dockerImageTag = v.Commit[:8]
+			dockerImageTag = _truncatedCommit
 		} else {
-			dockerImageTag = dockerImageTag + "-" + v.Commit[:8]
+			dockerImageTag = dockerImageTag + "-" + _truncatedCommit
 		}
 	}
 	if dockerImageTag != "" {
 		dockerImageTag = dockerImageTag + "-" + strconv.Itoa(id) + "-" + strconv.Itoa(wfId)
 	}
 	return dockerImageTag
+}
+
+
+func _getTruncatedImageTag (imageTag string) string {
+	_length := len(imageTag)
+	if _length == 0 {
+		return imageTag
+	}
+
+	_truncatedLength := 8
+
+	if _length < _truncatedLength {
+		return imageTag
+	}else{
+		return imageTag[:_truncatedLength]
+	}
+
 }

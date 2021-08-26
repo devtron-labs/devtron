@@ -35,5 +35,7 @@ Devtron has following components
 - [dashboard](https://github.com/devtron-labs/dashboard.git) UI for devtron written in react js
 
 
+### Contribute Helm Charts
 
+[Contribute your helm charts](https://github.com/devtron-labs/devtron/tree/main/contrib-chart) for the devtron community for upcoming `community charts` feature
 
