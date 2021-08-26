@@ -18,7 +18,6 @@
 package gitops
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -30,8 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
-	"github.com/xtgo/uuid"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"math/rand"
@@ -64,8 +61,6 @@ type GitOpsConfigDto struct {
 	Active           bool   `json:"active"`
 	AzureProjectName string `json:"azureProjectName"`
 	UserId           int32  `json:"-"`
-	ValidationErrors string
-	ValidatedOn      time.Time
 }
 
 const GitOpsSecretName = "devtron-gitops-secret"
@@ -81,15 +76,12 @@ type GitOpsConfigServiceImpl struct {
 	versionService       argocdServer.VersionService
 	gitFactory           *util.GitFactory
 	chartTemplateService *util.ChartTemplateServiceImpl
-	gitAzureClient       *util.GitAzureClient
-	gitHubClient         *util.GitHubClient
-	gitLabClient         *util.GitLabClient
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory, chartTemplateServiceImpl *util.ChartTemplateServiceImpl, gitAzureClient *util.GitAzureClient, gitHubClient *util.GitHubClient, gitLabClient *util.GitLabClient) *GitOpsConfigServiceImpl {
+	gitFactory *util.GitFactory, chartTemplateServiceImpl *util.ChartTemplateServiceImpl) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		logger:               Logger,
 		gitOpsRepository:     gitOpsRepository,
@@ -100,9 +92,6 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 		versionService:       versionService,
 		gitFactory:           gitFactory,
 		chartTemplateService: chartTemplateServiceImpl,
-		gitAzureClient:       gitAzureClient,
-		gitHubClient:         gitHubClient,
-		gitLabClient:         gitLabClient,
 	}
 }
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto) (*GitOpsConfigDto, error) {
@@ -139,8 +128,6 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 		Host:          request.Host,
 		Active:        true,
 		AzureProject:  request.AzureProjectName,
-		ValidationErrors: request.ValidationErrors,
-		ValidatedOn: request.ValidatedOn,
 		AuditLog:      models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model, tx)
@@ -294,8 +281,6 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 	model.Host = request.Host
 	model.Active = request.Active
 	model.AzureProject = request.AzureProjectName
-	model.ValidationErrors = request.ValidationErrors
-	model.ValidatedOn = request.ValidatedOn
 	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating team", "data", model, "err", err)
@@ -545,14 +530,23 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*GitOpsConfigDto, 
 }
 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDto) *util.DetailedError {
-	err := impl.GitOpsValidateNewClient(config)
 	var detailedError *util.DetailedError
+	err := impl.gitFactory.NewClientForValidation(config)
+	if err != nil {
+		detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = fmt.Errorf("error in connecting : %s", err.Error())
+		detailedError.ValidatedOn = time.Now()
+		err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
+		if err != nil {
+			impl.logger.Errorw("error in updating vaildation status in db", "err", err)
+		}
+		return detailedError
+	}
 	var letterSet = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 	randomRune := make([]rune, 4)
 	for i := range randomRune {
 		randomRune[i] = letterSet[rand.Intn(len(letterSet))]
 	}
-	appName := "devtron-sample-repo-dryrun" + string(randomRune)
+	appName := "devtron-sample-repo-dryrun-" + string(randomRune)
 	repoUrl, _, detailedErrorCreateRepo := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
 
 	detailedError.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
@@ -560,21 +554,26 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 
 	for stage, _ := range detailedError.StageErrorMap {
 		if stage == "createRepo" {
+			impl.gitFactory.Reload() // changing the client back
+			detailedError.ValidatedOn = time.Now()
+			err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
+			if err != nil {
+				impl.logger.Errorw("error in updating vaildation status in db", "err", err)
+			}
 			return detailedError
 		}
 	}
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.chartTemplateService.GetDir())
-	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
+	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitFactory.GitService.Clone(repoUrl, chartDir)
+		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			detailedError.StageErrorMap["clone"] = err
-			return detailedError
 		}
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "clone")
 	}
-	commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
 	if err != nil {
 		impl.logger.Errorw("error in commit and pushing git", "err", err)
 		if commit == "" {
@@ -587,39 +586,47 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "push")
 
 	defer impl.chartTemplateService.CleanDir(clonedDir)
-	if config.Provider == "GITLAB" {
-		pid := fmt.Sprintf("%s/%s", impl.gitLabClient.Config.GitlabGroupPath, appName)
-		_, err = impl.gitLabClient.Client.Projects.DeleteProject(pid)
-	} else if config.Provider == "GITHUB" {
-		_, err = impl.gitHubClient.Client.Repositories.Delete(context.Background(), config.Username, repoUrl)
-	} else if config.Provider == "Azure" {
-		uuidStringAppName, _ := uuid.Parse(appName)
-		err = impl.gitAzureClient.Client.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: uuidStringAppName, Project: &impl.gitAzureClient.Project})
-	}
+	err = impl.gitFactory.Client.DeleteRepository(appName, config.Username)
 	if err != nil {
-		// TO ASK
+		detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository : %s", err.Error())
 	}
+	impl.gitFactory.Reload() // changing the client back
 	detailedError.ValidatedOn = time.Now()
+	err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
+	if err != nil {
+		impl.logger.Errorw("error in updating vaildation status in db", "err", err)
+	}
 	return detailedError
 }
-func (impl *GitOpsConfigServiceImpl) GitOpsValidateNewClient(gitOpsConfig *GitOpsConfigDto) error {
-	cfg := &util.GitConfig{
-		GitlabGroupId:      gitOpsConfig.GitLabGroupId,
-		GitToken:           gitOpsConfig.Token,
-		GitUserName:        gitOpsConfig.Username,
-		GitWorkingDir:      "/tmp/gitops/",
-		GithubOrganization: gitOpsConfig.GitHubOrgId,
-		GitProvider:        gitOpsConfig.Provider,
-		GitHost:            gitOpsConfig.Host,
-		AzureToken:         gitOpsConfig.Token,
-		AzureProject:       gitOpsConfig.AzureProjectName,
-	}
-	gitService := util.NewGitServiceImpl(cfg, impl.logger, impl.gitFactory.GitCliUtil)
-	impl.gitFactory.GitService = gitService
-	client, err := util.NewGitLabClient(cfg, impl.logger, gitService)
+func (impl *GitOpsConfigServiceImpl) GitOpsValidationStatusSaveOrUpdateInDb(detailedError *util.DetailedError, provider string) error {
+	dbConnection := impl.gitOpsRepository.GetConnection()
+	tx, err := dbConnection.Begin()
 	if err != nil {
 		return err
 	}
-	impl.gitFactory.Client = client
-	return nil
+	// Rollback tx on error.
+	defer tx.Rollback()
+	var ValidationErrorString string
+	if len(detailedError.StageErrorMap) == 0 {
+		ValidationErrorsMap := make(map[string]string)
+		for stage, err := range detailedError.StageErrorMap {
+			ValidationErrorsMap[stage] = err.Error()
+		}
+		ValidationErrorsByte, _ := json.Marshal(ValidationErrorsMap)
+		ValidationErrorString = string(ValidationErrorsByte)
+	}
+
+	model := &repository.GitOpsConfigValidationStatus{
+		ValidatedOn:      detailedError.ValidatedOn,
+		ValidationErrors: ValidationErrorString,
+		Provider:         provider,
+	}
+
+	_, err = impl.gitOpsRepository.GetGitOpsValidationStatusByProvider(provider)
+	if err != pg.ErrNoRows {
+		err = impl.gitOpsRepository.CreateGitOpsValidationStatus(model, tx)
+		return err
+	}
+	err = impl.gitOpsRepository.UpdateGitOpsValidationStatus(model, tx)
+	return err
 }

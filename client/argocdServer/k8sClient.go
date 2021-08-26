@@ -24,7 +24,7 @@ type AppTemplate struct {
 	RepoUrl         string
 }
 type ArgoK8sClient interface {
-	CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster) (string, error)
+	CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster, ) (string, error)
 }
 type ArgoK8sClientImpl struct {
 	logger *zap.SugaredLogger
@@ -50,7 +50,7 @@ func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, er
 	return buf.String(), nil
 }
 
-func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster) (string, error) {
+func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster, ) (string, error) {
 	chartYamlContent, err := ioutil.ReadFile(filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"))
 	if err != nil {
 		impl.logger.Errorw("err in reading template", "err", err)
@@ -67,7 +67,7 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *clu
 		impl.logger.Errorw("error in config", "err", err)
 		return "", err
 	}
-	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
+	config.GroupVersion= &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
 	config.APIPath = "/apis"
 	err = impl.CreateArgoApplication(appRequest.Namespace, applicationRequestString, config)

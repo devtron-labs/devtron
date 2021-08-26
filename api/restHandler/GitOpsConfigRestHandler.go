@@ -30,7 +30,6 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -101,8 +100,6 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 	//RBAC enforcer Ends
 	detailedError := impl.gitOpsConfigService.GitOpsValidateDryRun(&bean)
 	if len(detailedError.StageErrorMap) == 0 {
-		bean.ValidationErrors = ""
-		bean.ValidatedOn = detailedError.ValidatedOn
 		res, err := impl.gitOpsConfigService.CreateGitOpsConfig(&bean)
 		if err != nil {
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", bean)
@@ -145,10 +142,9 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 	}
 	//RBAC enforcer Ends
 
-	gitOpsConfig,err := impl.gitOpsRepository.GetGitOpsConfigByProvider(strings.ToUpper(bean.Provider))
+	gitOpsConfigValidationStatus,err := impl.gitOpsRepository.GetGitOpsValidationStatusByProvider(bean.Provider)
 
-	if time.Since(gitOpsConfig.ValidatedOn) < 30*time.Second{
-		bean.ValidatedOn = gitOpsConfig.ValidatedOn
+	if time.Since(gitOpsConfigValidationStatus.ValidatedOn) < 30*time.Second && len(gitOpsConfigValidationStatus.ValidationErrors)==0{
 		err = impl.gitOpsConfigService.UpdateGitOpsConfig(&bean)
 		if err != nil {
 			impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)
@@ -159,14 +155,6 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 	}else {
 		detailedError := impl.gitOpsConfigService.GitOpsValidateDryRun(&bean)
 		if len(detailedError.StageErrorMap) == 0 {
-			ValidationErrorsMap := make(map[string]string)
-			for stage, err := range detailedError.StageErrorMap {
-				ValidationErrorsMap[stage] = err.Error()
-			}
-			ValidationErrorsByte, _ := json.Marshal(ValidationErrorsMap)
-			bean.ValidationErrors = string(ValidationErrorsByte)
-			bean.ValidatedOn = detailedError.ValidatedOn
-
 			err = impl.gitOpsConfigService.UpdateGitOpsConfig(&bean)
 			if err != nil {
 				impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)

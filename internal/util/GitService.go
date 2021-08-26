@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/go-pg/pg"
 	"github.com/google/go-github/github"
 	"github.com/xanzy/go-gitlab"
@@ -40,6 +41,7 @@ type GitClient interface {
 	CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError)
 	CommitValues(config *ChartConfig) (commitHash string, err error)
 	GetRepoUrl(projectName string) (repoUrl string, err error)
+	DeleteRepository(name, userName string) error
 }
 
 type GitFactory struct {
@@ -71,6 +73,30 @@ func (factory *GitFactory) Reload() error {
 	}
 	factory.Client = client
 	logger.Infow(" gitops details reload success")
+	return nil
+}
+
+
+func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitops.GitOpsConfigDto)error{
+	cfg := &GitConfig{
+		GitlabGroupId:      gitOpsConfig.GitLabGroupId,
+		GitToken:           gitOpsConfig.Token,
+		GitUserName:        gitOpsConfig.Username,
+		GitWorkingDir:      "/tmp/gitops/",
+		GithubOrganization: gitOpsConfig.GitHubOrgId,
+		GitProvider:        gitOpsConfig.Provider,
+		GitHost:            gitOpsConfig.Host,
+		AzureToken:         gitOpsConfig.Token,
+		AzureProject:       gitOpsConfig.AzureProjectName,
+	}
+	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
+	factory.gitService = gitService
+	client, err := NewGitLabClient(cfg, logger, gitService)
+	if err != nil {
+		return err
+	}
+	factory.Client = client
+	logger.Infow("client changed successfully")
 	return nil
 }
 
@@ -212,7 +238,10 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		return nil, nil
 	}
 }
-
+func(impl GitLabClient) DeleteRepository(name, userName string) error{
+	err := impl.DeleteProject(name)
+	return err
+}
 func (impl GitLabClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
 	impl.logger.Debugw("gitlab app create request ", "name", name, "description", description)
 	repoUrl, err := impl.GetRepoUrl(name)
@@ -542,7 +571,17 @@ func NewGithubClient(token string, org string, logger *zap.SugaredLogger, gitSer
 	client := github.NewClient(tc)
 	return GitHubClient{client: client, org: org, logger: logger, gitService: gitService}
 }
-
+func(impl GitHubClient) DeleteRepository(name, userName string) error{
+	url,err:= impl.GetRepoUrl(name)
+	if err != nil{
+		return err
+	}
+	_, err = impl.client.Repositories.Delete(context.Background(),userName, url)
+	if err!=nil{
+		return err
+	}
+	return nil
+}
 func (impl GitHubClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
 	ctx := context.Background()
 	repoExists := true
