@@ -62,7 +62,7 @@ Give the username of the docker hub account you used for creating your registry 
 
 * **Password**
 
-Give the password corresponding to your docker hub account.
+Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) corresponding to your docker hub account.
 
 ![](../../.gitbook/assets/gc-docker-configure-docker-hub.png)
 

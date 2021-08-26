@@ -22,7 +22,7 @@ You can find this URL by clicking on the '⤓ code' button on your git repositor
 
 Note: 
 * Copy the HTTPS url of the repository
-* Please make sure that you've added your dockerfile in the repo. 
+* Please make sure that you've added your [dockerfile](https://docs.docker.com/engine/reference/builder/) in the repo. 
 
 
 ![](../../.gitbook/assets/create-app-git-url.png)
