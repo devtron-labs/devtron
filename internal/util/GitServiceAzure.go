@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	"github.com/xtgo/uuid"
 	"go.uber.org/zap"
 	"path/filepath"
 	"time"

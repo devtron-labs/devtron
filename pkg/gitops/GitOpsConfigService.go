@@ -38,8 +38,6 @@ import (
 	"time"
 )
 
-type ChartWorkingDirs string
-
 type GitOpsConfigService interface {
 	CreateGitOpsConfig(config *GitOpsConfigDto) (*GitOpsConfigDto, error)
 	UpdateGitOpsConfig(config *GitOpsConfigDto) error
@@ -66,7 +64,6 @@ type GitOpsConfigDto struct {
 const GitOpsSecretName = "devtron-gitops-secret"
 
 type GitOpsConfigServiceImpl struct {
-	randSource           rand.Source
 	logger               *zap.SugaredLogger
 	gitOpsRepository     repository.GitOpsConfigRepository
 	K8sUtil              *util.K8sUtil
