@@ -28,10 +28,11 @@ type PipelineConfigRouter interface {
 type PipelineConfigRouterImpl struct {
 	restHandler            restHandler.PipelineConfigRestHandler
 	appWorkflowRestHandler restHandler.AppWorkflowRestHandler
+	webhookDataRestHandler restHandler.WebhookDataRestHandler
 }
 
-func NewPipelineRouterImpl(restHandler restHandler.PipelineConfigRestHandler, appWorkflowRestHandler restHandler.AppWorkflowRestHandler) *PipelineConfigRouterImpl {
-	return &PipelineConfigRouterImpl{restHandler: restHandler, appWorkflowRestHandler: appWorkflowRestHandler}
+func NewPipelineRouterImpl(restHandler restHandler.PipelineConfigRestHandler, appWorkflowRestHandler restHandler.AppWorkflowRestHandler, webhookDataRestHandler restHandler.WebhookDataRestHandler) *PipelineConfigRouterImpl {
+	return &PipelineConfigRouterImpl{restHandler: restHandler, appWorkflowRestHandler: appWorkflowRestHandler, webhookDataRestHandler : webhookDataRestHandler}
 
 }
 
@@ -133,4 +134,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/pipeline/suggest/{type}/{appId}").
 		HandlerFunc(router.restHandler.PipelineNameSuggestion).Methods("GET")
+
+	configRouter.Path("/ci-pipeline/{pipelineMaterialId}/webhook-payload").HandlerFunc(router.webhookDataRestHandler.GetWebhookPayloadDataForPipelineMaterialId).Methods("GET")
+	configRouter.Path("/ci-pipeline/{pipelineMaterialId}/{parsedDataId}/webhook-payload").HandlerFunc(router.webhookDataRestHandler.GetWebhookPayloadFilterDataForPipelineMaterialId).Methods("GET")
 }

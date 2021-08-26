@@ -25,6 +25,7 @@ import (
 
 type WebhookEventDataConfig interface {
 	Save(webhookEventDataRequest *WebhookEventDataRequest) error
+	GetById(payloadId int) (*WebhookEventDataRequest, error)
 }
 
 type WebhookEventDataConfigImpl struct {
@@ -67,4 +68,21 @@ func (impl WebhookEventDataConfigImpl) Save(webhookEventDataRequest *WebhookEven
 	webhookEventDataRequest.PayloadId = webhookEventDataRequestSql.Id
 
 	return nil
+}
+
+
+func (impl WebhookEventDataConfigImpl) GetById(payloadId int) (*WebhookEventDataRequest, error) {
+	impl.logger.Debug("get webhook payload request")
+
+	webhookEventData, err := impl.webhookEventDataRepository.GetById(payloadId)
+	if err != nil {
+		impl.logger.Errorw("error in getting webhook event data from db", "err", err)
+		return nil, err
+	}
+
+	webhookEventDataRequest := &WebhookEventDataRequest{
+		RequestPayloadJson : webhookEventData.PayloadJson,
+	}
+
+	return webhookEventDataRequest, nil
 }
