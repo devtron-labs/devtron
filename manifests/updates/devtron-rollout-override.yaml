@@ -16,8 +16,8 @@ data:
             containers:
             - resources:
                 requests:                  
-                  cpu: 10m
-                  memory: 40Mi
+                  cpu: 0.02
+                  memory: 50Mi
                 limits:                 
-                  cpu: 5m
-                  memory: 10Mi
+                  cpu: 0.02
+                  memory: 50Mi

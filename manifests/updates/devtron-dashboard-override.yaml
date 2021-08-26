@@ -19,10 +19,10 @@ data:
             - 
             - resources:
                 limits:
-                  cpu: 20m
-                  memory: 40Mi
+                  cpu: 0.02
+                  memory: 50Mi
                 requests:
-                  cpu: 10m
-                  memory: 10Mi
+                  cpu: 0.02
+                  memory: 50Mi
 
 

@@ -26,11 +26,11 @@ data:
             containers:
             - resources:
                 limits:
-                  cpu: 10m
-                  memory: 60Mi
+                  cpu: 0.02
+                  memory: 100Mi
                 requests:
-                  cpu: 2m
-                  memory: 50Mi
+                  cpu: 0.02
+                  memory: 100Mi
 #              env:
 #              - name: CONFIG_HASH
 #                value: f64a7abec5f850c3393a5f3a1efb3a3c62fbcb6530cc3c6807028c41677fc3ec

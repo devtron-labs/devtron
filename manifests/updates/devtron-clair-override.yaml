@@ -16,9 +16,12 @@ data:
           spec:
             containers:
             - resources:
+                limits:
+                  cpu: 0.3
+                  memory: 3Gi
                 requests:
-                  cpu: 40m
-                  memory: 50Mi
+                  cpu: 0.3
+                  memory: 3Gi
     ---
     apiVersion: v1
     kind: Secret

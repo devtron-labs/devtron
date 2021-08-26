@@ -25,11 +25,11 @@ data:
             containers:
             - resources:
                 limits:
-                  cpu: 1m
-                  memory: 25Mi
+                  cpu: 0.02
+                  memory: 50Mi
                 requests:
-                  cpu: 1m
-                  memory: 20Mi
+                  cpu: 0.02
+                  memory: 50Mi
     ---
     apiVersion: apps/v1
     kind: Deployment
@@ -42,11 +42,11 @@ data:
             containers:
             - resources:
                 limits:
-                  cpu: 5m
-                  memory: 10Mi
+                  cpu: 0.02
+                  memory: 100Mi
                 requests:
-                  cpu: 4m
-                  memory: 9Mi
+                  cpu: 0.02
+                  memory: 100Mi
     ---
     apiVersion: apps/v1
     kind: Deployment
@@ -58,9 +58,12 @@ data:
           spec:
             containers:
             - resources:
+                limits:
+                  cpu: 0.5
+                  memory: 1Gi
                 requests:
-                  cpu: 100m
-                  memory: 50Mi
+                  cpu: 0.5
+                  memory: 1Gi
     ---
     apiVersion: apps/v1
     kind: Deployment
@@ -73,11 +76,11 @@ data:
             containers:
             - resources:
                 limits:
-                  cpu: 10m
-                  memory: 60Mi
+                  cpu: 0.3
+                  memory: 400Mi
                 requests:
-                  cpu: 9m
-                  memory: 50Mi
+                  cpu: 0.3
+                  memory: 400Mi
     ---
     apiVersion: apps/v1
     kind: StatefulSet
@@ -89,9 +92,12 @@ data:
           spec:
             containers:
             - resources:
+                limits:
+                  cpu: 1
+                  memory: 2Gi
                 requests:
-                  cpu: 100m
-                  memory: 50Mi
+                  cpu: 1
+                  memory: 2Gi
 
 
 

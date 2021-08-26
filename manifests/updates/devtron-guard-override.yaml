@@ -15,9 +15,12 @@ data:
           spec:
             containers:
             - resources:
+                limits:
+                  cpu: 0.01
+                  memory: 30Mi
                 requests:
-                  cpu: 100m
-                  memory: 50Mi
+                  cpu: 0.01
+                  memory: 30Mi
 #             env:
 #              - name: CONFIG_HASH
 #                value: give-value

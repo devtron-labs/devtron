@@ -24,9 +24,12 @@ data:
           spec:
             containers:
             - resources:
+                limits:
+                  cpu: 0.1
+                  memory: 2.5Gi
                 requests:
-                  cpu: 15m
-                  memory: 100Mi
+                  cpu: 0.1
+                  memory: 2.5Gi
         volumeClaimTemplates:
         - spec:
             resources:

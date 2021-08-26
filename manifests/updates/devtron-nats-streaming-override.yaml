@@ -16,9 +16,12 @@ data:
         spec:
           containers:
           - resources:
+              limits:
+                cpu: 0.01
+                memory: 600Mi
               requests:
-                cpu: 10m
-                memory: 50Mi
+                cpu: 0.01
+                memory: 600Mi
 #            env:
 #            - name: POD_NAME
 #              valueFrom:
