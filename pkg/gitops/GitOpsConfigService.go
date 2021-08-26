@@ -599,8 +599,6 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 	if err != nil {
 		// TO ASK
 	}
-
-	err = impl.GitOpsValidateNewClient(config)
 	detailedError.ValidatedOn = time.Now()
 	return detailedError
 }

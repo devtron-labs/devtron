@@ -44,17 +44,17 @@ type GitClient interface {
 
 type GitFactory struct {
 	Client           GitClient
-	GitService       GitService
+	gitService       GitService
 	GitWorkingDir    string
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
-	GitCliUtil       *GitCliUtil
+	gitCliUtil       *GitCliUtil
 }
 
 type DetailedError struct {
-	SuccessfulStages []string     `json:"successfulStages"`
-	StageErrorMap map[string]error `json:"stageErrorMap"`
-	ValidatedOn   time.Time  `json:"validatedOn"`
+	SuccessfulStages []string         `json:"successfulStages"`
+	StageErrorMap    map[string]error `json:"stageErrorMap"`
+	ValidatedOn      time.Time        `json:"validatedOn"`
 }
 
 func (factory *GitFactory) Reload() error {
@@ -63,8 +63,8 @@ func (factory *GitFactory) Reload() error {
 	if err != nil {
 		return err
 	}
-	gitService := NewGitServiceImpl(cfg, logger, factory.GitCliUtil)
-	factory.GitService = gitService
+	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
+	factory.gitService = gitService
 	client, err := NewGitLabClient(cfg, logger, gitService)
 	if err != nil {
 		return err
@@ -87,10 +87,10 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 	return &GitFactory{
 		Client:           client,
 		logger:           logger,
-		GitService:       gitService,
+		gitService:       gitService,
 		gitOpsRepository: gitOpsRepository,
 		GitWorkingDir:    cfg.GitWorkingDir,
-		GitCliUtil:       gitCliUtil,
+		gitCliUtil:       gitCliUtil,
 	}, nil
 }
 
@@ -137,9 +137,9 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 }
 
 type GitLabClient struct {
-	Client *gitlab.Client
-	Config *GitConfig
-	logger *zap.SugaredLogger
+	client     *gitlab.Client
+	config     *GitConfig
+	logger     *zap.SugaredLogger
 	gitService GitService
 }
 
@@ -196,8 +196,8 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		}
 		logger.Debugw("gitlab config", "config", config)
 		return &GitLabClient{
-			Client:     git,
-			Config:     config,
+			client:     git,
+			config:     config,
 			logger:     logger,
 			gitService: gitService,
 		}, nil
@@ -244,7 +244,7 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 		return "", true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "ensureProjectAvailability")
-	_, err = impl.createReadme(impl.Config.GitlabGroupPath, name)
+	_, err = impl.createReadme(impl.config.GitlabGroupPath, name)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme ", "project", name, "err", err)
 		detailedError.StageErrorMap["createReadme"] = err
@@ -267,11 +267,11 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 
 func (impl GitLabClient) DeleteProject(projectName string) (err error) {
 	impl.logger.Infow("deleting project ", "name", projectName)
-	_, err = impl.Client.Projects.DeleteProject(fmt.Sprintf("%s/%s", impl.Config.GitlabGroupPath, projectName))
+	_, err = impl.client.Projects.DeleteProject(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName))
 	return err
 }
 func (impl GitLabClient) createProject(name, description string) (url string, err error) {
-	var namespace = impl.Config.GitlabGroupId
+	var namespace = impl.config.GitlabGroupId
 	namespaceId, err := strconv.Atoi(namespace)
 	if err != nil {
 		return "", err
@@ -286,7 +286,7 @@ func (impl GitLabClient) createProject(name, description string) (url string, er
 		Visibility:           gitlab.Visibility(gitlab.PrivateVisibility),
 		NamespaceID:          &namespaceId,
 	}
-	project, _, err := impl.Client.Projects.CreateProject(p)
+	project, _, err := impl.client.Projects.CreateProject(p)
 	if err != nil {
 		impl.logger.Errorw("err in creating gitlab app", "req", p, "name", name, "err", err)
 		return "", err
@@ -296,12 +296,12 @@ func (impl GitLabClient) createProject(name, description string) (url string, er
 }
 
 func (impl GitLabClient) ensureProjectAvailability(projectName string) (bool, error) {
-	pid := fmt.Sprintf("%s/%s", impl.Config.GitlabGroupPath, projectName)
+	pid := fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName)
 	count := 0
 	verified := false
 	for count < 3 && !verified {
 		count = count + 1
-		_, res, err := impl.Client.Projects.GetProject(pid, &gitlab.GetProjectOptions{})
+		_, res, err := impl.client.Projects.GetProject(pid, &gitlab.GetProjectOptions{})
 		if err != nil {
 			return verified, err
 		}
@@ -332,8 +332,8 @@ func (impl GitLabClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 }
 
 func (impl GitLabClient) GetRepoUrl(projectName string) (repoUrl string, err error) {
-	pid := fmt.Sprintf("%s/%s", impl.Config.GitlabGroupPath, projectName)
-	prop, res, err := impl.Client.Projects.GetProject(pid, &gitlab.GetProjectOptions{})
+	pid := fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName)
+	prop, res, err := impl.client.Projects.GetProject(pid, &gitlab.GetProjectOptions{})
 	if err != nil {
 		impl.logger.Debugw("get project err", "pod", pid, "err", err)
 		if res != nil && res.StatusCode == 404 {
@@ -353,11 +353,11 @@ func (impl GitLabClient) createReadme(namespace, projectName string) (res interf
 		CommitMessage: gitlab.String("test commit"),
 		Actions:       []*gitlab.CommitAction{{Action: gitlab.FileCreate, FilePath: "README.md", Content: "devtron licence"}},
 	}
-	c, _, err := impl.Client.Commits.CreateCommit(fmt.Sprintf("%s/%s", namespace, projectName), actions)
+	c, _, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", namespace, projectName), actions)
 	return c, err
 }
 func (impl GitLabClient) checkIfFileExists(projectName, ref, file string) (exists bool, err error) {
-	_, _, err = impl.Client.RepositoryFiles.GetFileMetaData(fmt.Sprintf("%s/%s", impl.Config.GitlabGroupPath, projectName), file, &gitlab.GetFileMetaDataOptions{Ref: &ref})
+	_, _, err = impl.client.RepositoryFiles.GetFileMetaData(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName), file, &gitlab.GetFileMetaDataOptions{Ref: &ref})
 	return err == nil, err
 }
 
@@ -376,7 +376,7 @@ func (impl GitLabClient) CommitValues(config *ChartConfig) (commitHash string, e
 		CommitMessage: gitlab.String(config.ReleaseMessage),
 		Actions:       []*gitlab.CommitAction{{Action: fileAction, FilePath: path, Content: config.FileContent}},
 	}
-	c, _, err := impl.Client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.Config.GitlabGroupPath, config.ChartName), actions)
+	c, _, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.ChartName), actions)
 	if err != nil {
 		return "", err
 	}
@@ -525,7 +525,7 @@ func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
 //github
 
 type GitHubClient struct {
-	Client *github.Client
+	client *github.Client
 
 	//config *GitConfig
 	logger     *zap.SugaredLogger
@@ -540,7 +540,7 @@ func NewGithubClient(token string, org string, logger *zap.SugaredLogger, gitSer
 	)
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
-	return GitHubClient{Client: client, org: org, logger: logger, gitService: gitService}
+	return GitHubClient{client: client, org: org, logger: logger, gitService: gitService}
 }
 
 func (impl GitHubClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
@@ -562,12 +562,12 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 		return url, false, detailedError
 	}
 	private := true
-//	visibility := "private"
-	r, _, err := impl.Client.Repositories.Create(ctx, impl.org,
+	//	visibility := "private"
+	r, _, err := impl.client.Repositories.Create(ctx, impl.org,
 		&github.Repository{Name: &name,
 			Description: &description,
 			Private:     &private,
-//			Visibility:  &visibility,
+			//			Visibility:  &visibility,
 		})
 	if err != nil {
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
@@ -632,7 +632,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, e
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	ctx := context.Background()
 	newFile := false
-	fc, _, _, err := impl.Client.Repositories.GetContents(ctx, impl.org, config.ChartName, path, &github.RepositoryContentGetOptions{Ref: branch})
+	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartName, path, &github.RepositoryContentGetOptions{Ref: branch})
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
@@ -652,7 +652,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, e
 		SHA:     &currentSHA,
 		Branch:  &branch,
 	}
-	c, _, err := impl.Client.Repositories.CreateFile(ctx, impl.org, config.ChartName, path, options)
+	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartName, path, options)
 	if err != nil {
 		impl.logger.Errorw("error in commit", "err", err)
 		return "", err
@@ -662,7 +662,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, e
 
 func (impl GitHubClient) GetRepoUrl(projectName string) (repoUrl string, err error) {
 	ctx := context.Background()
-	repo, _, err := impl.Client.Repositories.Get(ctx, impl.org, projectName)
+	repo, _, err := impl.client.Repositories.Get(ctx, impl.org, projectName)
 	if err != nil {
 		return "", err
 	}

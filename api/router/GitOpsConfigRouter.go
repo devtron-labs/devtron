@@ -53,5 +53,5 @@ func (impl GitOpsConfigRouterImpl) InitGitOpsConfigRouter(configRouter *mux.Rout
 		Methods("GET")
 	configRouter.Path("/validate").
 		HandlerFunc(impl.gitOpsConfigRestHandler.GitOpsValidator).
-		Methods("GET")R
+		Methods("GET")
 }
