@@ -1,3 +1,4 @@
+
 # Deployment Template
 
 Deployment configuration is the Manifest for the application, it defines the runtime behavior of the application. You can define application behavior by providing information in three sections:
@@ -147,7 +148,7 @@ autoscaling:
 | `MinReplicas` | Minimum number of replicas allowed for scaling. |
 | `TargetCPUUtilizationPercentage` | The target CPU utilization that is expected for a container. |
 | `TargetMemoryUtilizationPercentage` | The target memory utilization that is expected for a container. |
-| `enabled` | To enable autoscaling or don't enable it. |
+| `enabled` | Set true to enable autoscaling else set false.|
 | `extraMetrics` | Used to give external metrics for autoscaling. |
 
 ### Image
@@ -354,6 +355,17 @@ It is a kubernetes monitoring tool and the name of the file to be monitored as m
 
 ```yaml
 rawYaml: []
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: my-service
+  spec:
+    selector:
+      app: MyApp
+    ports:
+      - protocol: TCP
+        port: 80
+        targetPort: 9376
 ```
 Accepts an array of Kubernetes objects. You can specify any kubernetes yaml here and it will be applied when your app gets deployed.
 
