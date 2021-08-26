@@ -76,9 +76,10 @@ Adding a post-build stage is similar to adding a pre-build stage. Click on `Add 
 
 **NOTE:**
 
-You can provide pre-build and post-build stages via the Devtron tool’s console or can also provide these details by creating a file `devtron.ci.yaml` inside your repository. There is a pre-defined format to write this file. And we will run these stages using this YAML file.
+**(a)** You can provide pre-build and post-build stages via the Devtron tool’s console or can also provide these details by creating a file `devtron-ci.yaml` inside your repository. There is a pre-defined format to write this file. And we will run these stages using this YAML file.
+You can also provide some stages on the Devtron tool’s console and some stages in the devtron-ci.yaml file. But stages defined through the `Devtron` dashboard are first executed then the stages defined in the `devtron-ci.yaml` file.
 
-You can provide some stages on the Devtron tool’s console and some stages in the devtron.ci.yaml file. But stages defined through the `Devtron` dashboard are first executed then the stages defined in the `devtron.ci.yaml` file.
+**(b)** The total timeout for the execution of the CI pipeline is by default set as 3600 seconds. This default timeout is configurable according to the use-case. The timeout can be edited in the configmap of the orchestrator service in the env variable `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
 
 ###  Scan for vulnerabilities
 
