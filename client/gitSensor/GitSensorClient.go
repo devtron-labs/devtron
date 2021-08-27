@@ -175,6 +175,12 @@ type WebhookPayloadDataRequest struct {
 }
 
 type WebhookPayloadDataResponse struct {
+	Filters       map[string]string                     `json:"filters"`
+	RepositoryUrl string                                `json:"repositoryUrl"`
+	Payloads      []*WebhookPayloadDataPayloadsResponse `json:"payloads"`
+}
+
+type WebhookPayloadDataPayloadsResponse struct {
 	ParsedDataId        int       `json:"parsedDataId"`
 	EventTime           time.Time `json:"eventTime"`
 	MatchedFiltersCount int       `json:"matchedFiltersCount"`
@@ -214,7 +220,7 @@ type GitSensorClient interface {
 
 	GetAllWebhookEventConfigForHost(req *WebhookEventConfigRequest) (webhookEvents []*WebhookEventConfig, err error)
 	GetWebhookEventConfig(req *WebhookEventConfigRequest) (webhookEvent *WebhookEventConfig, err error)
-	GetWebhookPayloadDataForPipelineMaterialId(req *WebhookPayloadDataRequest) (response []*WebhookPayloadDataResponse, err error)
+	GetWebhookPayloadDataForPipelineMaterialId(req *WebhookPayloadDataRequest) (response *WebhookPayloadDataResponse, err error)
 	GetWebhookPayloadFilterDataForPipelineMaterialId(req *WebhookPayloadFilterDataRequest) (response *WebhookPayloadFilterDataResponse, err error)
 }
 
@@ -381,7 +387,7 @@ func (session GitSensorClientImpl) GetWebhookEventConfig(req *WebhookEventConfig
 	return webhookEvent, err
 }
 
-func (session GitSensorClientImpl) GetWebhookPayloadDataForPipelineMaterialId(req *WebhookPayloadDataRequest) (response []*WebhookPayloadDataResponse, err error) {
+func (session GitSensorClientImpl) GetWebhookPayloadDataForPipelineMaterialId(req *WebhookPayloadDataRequest) (response *WebhookPayloadDataResponse, err error) {
 	request := &ClientRequest{ResponseBody: &response, Method: "GET", RequestBody: req, Path: "/webhook/ci-pipeline-material/payload-data"}
 	_, _, err = session.doRequest(request)
 	return response, err
