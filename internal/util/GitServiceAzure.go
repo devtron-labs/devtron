@@ -3,9 +3,9 @@ package util
 import (
 	"context"
 	"fmt"
+	uuid2 "github.com/google/uuid"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
-	"github.com/xtgo/uuid"
 	"go.uber.org/zap"
 	"path/filepath"
 	"time"
@@ -41,7 +41,8 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 	return GitAzureClient{client: coreClient, project: project, logger: logger, gitService: gitService}
 }
 func(impl GitAzureClient) DeleteRepository(name, userName string) error{
-	err := impl.client.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: name, Project: &impl.project})
+	nameUUID := uuid2.MustParse(name)
+	err := impl.client.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: &nameUUID, Project: &impl.project})
 	return err
 }
 func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
