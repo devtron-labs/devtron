@@ -33,6 +33,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"math/rand"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -63,31 +65,31 @@ type GitOpsConfigDto struct {
 const GitOpsSecretName = "devtron-gitops-secret"
 
 type GitOpsConfigServiceImpl struct {
-	logger               *zap.SugaredLogger
-	gitOpsRepository     repository.GitOpsConfigRepository
-	K8sUtil              *util.K8sUtil
-	aCDAuthConfig        *user.ACDAuthConfig
-	clusterService       cluster.ClusterService
-	envService           cluster.EnvironmentService
-	versionService       argocdServer.VersionService
-	gitFactory           *util.GitFactory
-	chartTemplateService util.ChartTemplateService
+	randSource       rand.Source
+	logger           *zap.SugaredLogger
+	gitOpsRepository repository.GitOpsConfigRepository
+	K8sUtil          *util.K8sUtil
+	aCDAuthConfig    *user.ACDAuthConfig
+	clusterService   cluster.ClusterService
+	envService       cluster.EnvironmentService
+	versionService   argocdServer.VersionService
+	gitFactory       *util.GitFactory
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService) *GitOpsConfigServiceImpl {
+	gitFactory *util.GitFactory) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
-		logger:               Logger,
-		gitOpsRepository:     gitOpsRepository,
-		K8sUtil:              K8sUtil,
-		aCDAuthConfig:        aCDAuthConfig,
-		clusterService:       clusterService,
-		envService:           envService,
-		versionService:       versionService,
-		gitFactory:           gitFactory,
-		chartTemplateService: chartTemplateService,
+		randSource:       rand.NewSource(time.Now().UnixNano()),
+		logger:           Logger,
+		gitOpsRepository: gitOpsRepository,
+		K8sUtil:          K8sUtil,
+		aCDAuthConfig:    aCDAuthConfig,
+		clusterService:   clusterService,
+		envService:       envService,
+		versionService:   versionService,
+		gitFactory:       gitFactory,
 	}
 }
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto) (*GitOpsConfigDto, error) {
@@ -527,7 +529,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*GitOpsConfigDto, 
 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDto) *util.DetailedError {
 	var detailedError *util.DetailedError
-	err := impl.gitFactory.NewClientForValidation(config)
+	client, gitService, err := impl.gitFactory.NewClientForValidation(config)
 	if err != nil {
 		detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = fmt.Errorf("error in connecting : %s", err.Error())
 		detailedError.ValidatedOn = time.Now()
@@ -543,14 +545,13 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		randomRune[i] = letterSet[rand.Intn(len(letterSet))]
 	}
 	appName := "devtron-sample-repo-dryrun-" + string(randomRune)
-	repoUrl, _, detailedErrorCreateRepo := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
+	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "helm chart for "+appName)
 
 	detailedError.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedError.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
 
 	for stage, _ := range detailedError.StageErrorMap {
 		if stage == "createRepo" {
-			impl.gitFactory.Reload() // changing the client back
 			detailedError.ValidatedOn = time.Now()
 			err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
 			if err != nil {
@@ -560,15 +561,21 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		}
 	}
 
-	clonedDir, err := impl.chartTemplateService.GitOpsValidateCloneDirectory(appName, repoUrl)
-	if err != nil {
-		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
-		detailedError.StageErrorMap["clone"] = err
-	} else {
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "clone")
+	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
+	clonedDir := gitService.GetCloneDirectory(chartDir)
+	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
+		clonedDir, err = gitService.Clone(repoUrl, chartDir)
+		if err != nil {
+			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
+			detailedError.StageErrorMap["clone"] = err
+		} else {
+			detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "clone")
+		}
 	}
-	commit, err := impl.chartTemplateService.GitOpsValidateCommitAndPush(clonedDir)
+
+	commit, err := gitService.CommitAndPushAllChanges(clonedDir, "first commit")
 	if err != nil {
+		impl.logger.Errorw("error in commit and pushing git", "err", err)
 		if commit == "" {
 			detailedError.StageErrorMap["commitOnRest"] = err
 		} else {
@@ -578,11 +585,11 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "commitOnRest")
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "push")
 	}
-	err = impl.gitFactory.Client.DeleteRepository(appName, config.Username)
+	defer impl.cleanDir(clonedDir)
+	err = client.DeleteRepository(appName, config.Username)
 	if err != nil {
 		detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository : %s", err.Error())
 	}
-	impl.gitFactory.Reload() // changing the client back
 	detailedError.ValidatedOn = time.Now()
 	err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
 	if err != nil {
@@ -621,4 +628,15 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidationStatusSaveOrUpdateInDb(deta
 	}
 	err = impl.gitOpsRepository.UpdateGitOpsValidationStatus(model, tx)
 	return err
+}
+func (impl *GitOpsConfigServiceImpl) cleanDir(dir string) {
+	err := os.RemoveAll(dir)
+	if err != nil {
+		impl.logger.Warnw("error in deleting dir ", "dir", dir)
+	}
+}
+func (impl *GitOpsConfigServiceImpl) getDir() string {
+	/* #nosec */
+	r1 := rand.New(impl.randSource).Int63()
+	return strconv.FormatInt(r1, 10)
 }

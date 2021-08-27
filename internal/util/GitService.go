@@ -77,7 +77,7 @@ func (factory *GitFactory) Reload() error {
 }
 
 
-func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitops.GitOpsConfigDto)error{
+func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitops.GitOpsConfigDto)(GitClient,*GitServiceImpl,error){
 	cfg := &GitConfig{
 		GitlabGroupId:      gitOpsConfig.GitLabGroupId,
 		GitToken:           gitOpsConfig.Token,
@@ -90,14 +90,14 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitops.GitOpsCon
 		AzureProject:       gitOpsConfig.AzureProjectName,
 	}
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
-	factory.gitService = gitService
+	//factory.gitService = gitService
 	client, err := NewGitLabClient(cfg, logger, gitService)
 	if err != nil {
-		return err
+		return client,gitService,err
 	}
-	factory.Client = client
+	//factory.Client = client
 	logger.Infow("client changed successfully")
-	return nil
+	return client,gitService,nil
 }
 
 func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitCliUtil *GitCliUtil) (*GitFactory, error) {

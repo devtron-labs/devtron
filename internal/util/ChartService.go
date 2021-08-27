@@ -41,7 +41,6 @@ type ChartTemplateService interface {
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
-	GitOpsValidateCloneDirectory(appName, repoUrl string) (string, error)
 	GitOpsValidateCommitAndPush(clonedDir string) (commit string, err error)
 }
 type ChartTemplateServiceImpl struct {
@@ -420,18 +419,6 @@ func (impl ChartTemplateServiceImpl) GitPull(clonedDir string, repoUrl string, a
 	return nil
 }
 
-func (impl ChartTemplateServiceImpl) GitOpsValidateCloneDirectory(appName, repoUrl string) (string, error) {
-	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
-	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
-	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
-		if err != nil {
-			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
-			return clonedDir, err
-		}
-	}
-	return clonedDir, nil
-}
 
 func (impl ChartTemplateServiceImpl) GitOpsValidateCommitAndPush(clonedDir string) (commit string, err error) {
 	commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
