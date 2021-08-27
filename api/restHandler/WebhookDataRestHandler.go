@@ -180,15 +180,18 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMat
 		return
 	}
 
-	webhookEventData, err := impl.webhookEventDataConfig.GetById(response.PayloadId)
-	if err != nil {
-		impl.logger.Errorw("error in getting webhook payload data", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
+	// set payload json
+	if response != nil && response.PayloadId != 0 {
+		webhookEventData, err := impl.webhookEventDataConfig.GetById(response.PayloadId)
+		if err != nil {
+			impl.logger.Errorw("error in getting webhook payload data", "err", err)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 
-	if webhookEventData != nil {
-		response.PayloadJson = webhookEventData.RequestPayloadJson
+		if webhookEventData != nil {
+			response.PayloadJson = webhookEventData.RequestPayloadJson
+		}
 	}
 
 	writeJsonResp(w, nil, response, http.StatusOK)

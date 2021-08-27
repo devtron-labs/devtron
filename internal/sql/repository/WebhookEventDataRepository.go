@@ -49,8 +49,8 @@ func (impl WebhookEventDataRepositoryImpl) Save(webhookEventData *WebhookEventDa
 }
 
 func (impl WebhookEventDataRepositoryImpl) GetById(id int) (*WebhookEventData, error) {
-	var webhookEventData *WebhookEventData
+	var webhookEventData WebhookEventData
 	err := impl.dbConnection.Model(&webhookEventData).
 		Where("id = ?", id).Select()
-	return webhookEventData, err
+	return &webhookEventData, err
 }

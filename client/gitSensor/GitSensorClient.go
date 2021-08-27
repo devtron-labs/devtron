@@ -200,9 +200,10 @@ type WebhookPayloadFilterDataResponse struct {
 }
 
 type WebhookPayloadFilterDataSelectorResponse struct {
-	SelectorName  string `json:"selectorName"`
-	SelectorValue string `json:"selectorValue"`
-	Match         bool   `json:"match"`
+	SelectorName      string `json:"selectorName"`
+	SelectorCondition string `json:"selectorCondition"`
+	SelectorValue     string `json:"selectorValue"`
+	Match             bool   `json:"match"`
 }
 
 type GitSensorClient interface {
