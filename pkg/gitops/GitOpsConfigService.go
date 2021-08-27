@@ -33,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"math/rand"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -560,29 +559,25 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 			return detailedError
 		}
 	}
-	chartDir := fmt.Sprintf("%s-%s", appName, impl.chartTemplateService.GetDir())
-	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
-	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
-		if err != nil {
-			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
-			detailedError.StageErrorMap["clone"] = err
-		}
+
+	clonedDir, err := impl.chartTemplateService.GitOpsValidateCloneDirectory(appName, repoUrl)
+	if err != nil {
+		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
+		detailedError.StageErrorMap["clone"] = err
+	} else {
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "clone")
 	}
-	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	commit, err := impl.chartTemplateService.GitOpsValidateCommitAndPush(clonedDir)
 	if err != nil {
-		impl.logger.Errorw("error in commit and pushing git", "err", err)
 		if commit == "" {
 			detailedError.StageErrorMap["commitOnRest"] = err
 		} else {
 			detailedError.StageErrorMap["push"] = err
 		}
+	} else {
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "commitOnRest")
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "push")
 	}
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "commitOnRest")
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "push")
-
-	defer impl.chartTemplateService.CleanDir(clonedDir)
 	err = impl.gitFactory.Client.DeleteRepository(appName, config.Username)
 	if err != nil {
 		detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository : %s", err.Error())

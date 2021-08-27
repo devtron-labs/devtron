@@ -98,7 +98,7 @@ func (ChartTemplateServiceImpl) GetChartVersion(location string) (string, error)
 
 func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
-	dir := impl.GetDir()
+	dir := impl.getDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
@@ -148,15 +148,14 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 	appName = space.ReplaceAllString(appName, "-")
 	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
 
-
-	for _, err := range detailedError.StageErrorMap{
-		if err!= nil{
+	for _, err := range detailedError.StageErrorMap {
+		if err != nil {
 			impl.logger.Errorw("error in creating git project", "name", appName, "err", err)
 			return nil, err
 		}
 	}
 
-	chartDir := fmt.Sprintf("%s-%s", appName, impl.GetDir())
+	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
@@ -297,7 +296,7 @@ func (impl ChartTemplateServiceImpl) CleanDir(dir string) {
 	}
 }
 
-func (impl ChartTemplateServiceImpl) GetDir() string {
+func (impl ChartTemplateServiceImpl) getDir() string {
 	/* #nosec */
 	r1 := rand.New(impl.randSource).Int63()
 	return strconv.FormatInt(r1, 10)
@@ -305,7 +304,7 @@ func (impl ChartTemplateServiceImpl) GetDir() string {
 
 func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v2" // ensure always v2
-	dir := impl.GetDir()
+	dir := impl.getDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
@@ -348,13 +347,13 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
 	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName)
-	for _, err := range detailedError.StageErrorMap{
-		if err!= nil{
+	for _, err := range detailedError.StageErrorMap {
+		if err != nil {
 			impl.logger.Errorw("error in creating git project", "name", appStoreName, "err", err)
 			return nil, err
 		}
 	}
-	chartDir := fmt.Sprintf("%s-%s", appName, impl.GetDir())
+	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
@@ -417,4 +416,27 @@ func (impl ChartTemplateServiceImpl) GitPull(clonedDir string, repoUrl string, a
 		return nil
 	}
 	return nil
+}
+
+func (impl ChartTemplateServiceImpl) GitOpsValidateCloneDirectory(appName, repoUrl string) (string, error) {
+	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
+	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
+	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
+		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
+		if err != nil {
+			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
+			return clonedDir, err
+		}
+	}
+	return clonedDir, nil
+}
+
+func (impl ChartTemplateServiceImpl) GitOpsValidateCommitAndPush(clonedDir string) (commit string, err error) {
+	commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	if err != nil {
+		impl.logger.Errorw("error in commit and pushing git", "err", err)
+		return commit, err
+	}
+	defer impl.CleanDir(clonedDir)
+	return commit, nil
 }
