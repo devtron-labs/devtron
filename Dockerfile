@@ -1,4 +1,4 @@
-FROM golang:1.14.13-alpine3.12  AS build-env
+FROM golang:1.15.10-alpine3.13  AS build-env
 
 RUN echo $GOPATH
 
@@ -9,7 +9,7 @@ WORKDIR /go/src/github.com/devtron-labs/devtron
 ADD . /go/src/github.com/devtron-labs/devtron/
 RUN GOOS=linux make
 
-FROM alpine:3.9
+FROM alpine:3.13
 RUN apk add --no-cache ca-certificates
 RUN apk update
 RUN apk add git
