@@ -41,7 +41,6 @@ type ChartTemplateService interface {
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
-	GitOpsValidateCommitAndPush(clonedDir string) (commit string, err error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource      rand.Source
@@ -417,15 +416,4 @@ func (impl ChartTemplateServiceImpl) GitPull(clonedDir string, repoUrl string, a
 		return nil
 	}
 	return nil
-}
-
-
-func (impl ChartTemplateServiceImpl) GitOpsValidateCommitAndPush(clonedDir string) (commit string, err error) {
-	commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
-	if err != nil {
-		impl.logger.Errorw("error in commit and pushing git", "err", err)
-		return commit, err
-	}
-	defer impl.CleanDir(clonedDir)
-	return commit, nil
 }
