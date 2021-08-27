@@ -46,11 +46,11 @@ ContainerPort:
 | :--- | :--- |
 | `envoyPort` | envoy port for the container. |
 | `idleTimeout` | the duration of time that a connection is idle before the connection is terminated. |
-| `name` | name of the container. |
+| `name` | name of the port. |
 | `port` | port for the container. |
-| `servicePort` | service port for the container. |
+| `servicePort` | port of the corresponding kubernetes service. |
 | `supportStreaming` | Used for high performance protocols like grpc where timeout needs to be disabled. |
-| `useHTTP2` | container can accept HTTP2 requests. |
+| `useHTTP2` | Envoy container can accept HTTP2 requests. |
 
 ### EnvVariables
 ```yaml
@@ -204,7 +204,13 @@ ingressInternal:
 
 ### Init Containers
 ```yaml
-initContainers: []
+initContainers: 
+  - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+        command: ["/usr/local/bin/nginx"]
+        args: ["-g", "daemon off;"]
 ```
 Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image.
 
@@ -392,7 +398,7 @@ Minimum time for which a newly created pod should be ready without any of its co
 
 ```yaml
 server:
-  deployment:0
+  deployment:
     image_tag: 1-95a53
     image: ""
 ```
