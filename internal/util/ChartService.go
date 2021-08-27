@@ -41,6 +41,8 @@ type ChartTemplateService interface {
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
+	GitOpsValidateCloneDirectory(appName, repoUrl string) (string, error)
+	GitOpsValidateCommitAndPush(clonedDir string) (commit string, err error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource      rand.Source

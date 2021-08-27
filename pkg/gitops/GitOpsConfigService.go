@@ -71,13 +71,13 @@ type GitOpsConfigServiceImpl struct {
 	envService           cluster.EnvironmentService
 	versionService       argocdServer.VersionService
 	gitFactory           *util.GitFactory
-	chartTemplateService *util.ChartTemplateServiceImpl
+	chartTemplateService util.ChartTemplateService
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory, chartTemplateServiceImpl *util.ChartTemplateServiceImpl) *GitOpsConfigServiceImpl {
+	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		logger:               Logger,
 		gitOpsRepository:     gitOpsRepository,
@@ -87,7 +87,7 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 		envService:           envService,
 		versionService:       versionService,
 		gitFactory:           gitFactory,
-		chartTemplateService: chartTemplateServiceImpl,
+		chartTemplateService: chartTemplateService,
 	}
 }
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto) (*GitOpsConfigDto, error) {
