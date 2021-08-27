@@ -71,6 +71,9 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  httpHeader:
+  scheme: ""
+  tcp: true
 ```
  
 | Key | Description |
@@ -81,6 +84,10 @@ LivenessProbe:
 | `periodSeconds` | It defines the time to check a given container for liveness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
+| `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
+| `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
+
 
 ### MaxUnavailable
  
@@ -117,6 +124,9 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  httpHeader:
+  scheme: ""
+  tcp: true
 ```
 
 | Key | Description |
@@ -127,6 +137,9 @@ ReadinessProbe:
 | `periodSeconds` | It defines the time to check a given container for readiness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the rediness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
+| `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
+| `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
 ### Autoscaling
 
