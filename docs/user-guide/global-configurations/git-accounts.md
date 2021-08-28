@@ -1,6 +1,6 @@
 # Git Accounts
 
-Git Accounts are nothing but the corresponding Git Providers where your applications are begin hosted. It is furthur used for the adding Git Material while building your CI Pipeline.
+Git Accounts allow you to connect your code source with Devtron. You’ll be able to use these git accounts to build code using the CI pipeline.
 
 ## Git Account Configuration
 
