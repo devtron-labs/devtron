@@ -9,11 +9,18 @@ data:
     kind: Deployment
     metadata:
       name: argo-ui
-#    update:
-#      spec:
-#        template:
-#          spec:
-#            containers:
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.01
+                  memory: 30Mi
+                requests:
+                  cpu: 0.01
+                  memory: 30Mi
 #            - env:
 #              - name: ARGO_NAMESPACE
 #                valueFrom:

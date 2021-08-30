@@ -56,11 +56,11 @@ data:
             containers:
             - resources:
                 limits:
-                  cpu: 20m
-                  memory: 60Mi
+                  cpu: 1
+                  memory: 600Mi
                 requests:
-                  cpu: 5m
-                  memory: 10Mi
+                  cpu: 1
+                  memory: 600Mi
 
 
 
