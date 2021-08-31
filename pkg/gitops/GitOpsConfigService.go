@@ -46,7 +46,7 @@ type GitOpsConfigService interface {
 	GetAllGitOpsConfig() ([]*GitOpsConfigDto, error)
 	GetGitOpsConfigByProvider(provider string) (*GitOpsConfigDto, error)
 	GetGitOpsConfigActive() (*GitOpsConfigDto, error)
-	GitOpsValidateDryRun(config *GitOpsConfigDto) *util.DetailedError
+	GitOpsValidateDryRun(config *GitOpsConfigDto) util.DetailedError
 }
 
 type GitOpsConfigDto struct {
@@ -527,9 +527,22 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*GitOpsConfigDto, 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDto) *util.DetailedError {
-	var detailedError *util.DetailedError
-	client, gitService, err := impl.gitFactory.NewClientForValidation(config)
+func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDto) util.DetailedError {
+	var detailedError util.DetailedError
+
+	client, gitService, err := impl.gitFactory.NewClientForValidation(&util.GitOpsConfigDtoTemp{
+
+		Id:               config.Id,
+		Provider:         config.Provider,
+		Username:         config.Username,
+		Token:            config.Token,
+		GitLabGroupId:    config.GitLabGroupId,
+		GitHubOrgId:      config.GitHubOrgId,
+		Host:             config.Host,
+		Active:           config.Active,
+		AzureProjectName: config.AzureProjectName,
+		UserId:           config.UserId,
+	})
 	if err != nil {
 		detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = fmt.Errorf("error in connecting : %s", err.Error())
 		detailedError.ValidatedOn = time.Now()
@@ -539,6 +552,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		}
 		return detailedError
 	}
+
 	var letterSet = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 	randomRune := make([]rune, 4)
 	for i := range randomRune {
@@ -553,7 +567,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 	for stage, _ := range detailedError.StageErrorMap {
 		if stage == "createRepo" {
 			detailedError.ValidatedOn = time.Now()
-			err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
+			err := impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
 			if err != nil {
 				impl.logger.Errorw("error in updating vaildation status in db", "err", err)
 			}
@@ -597,7 +611,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 	}
 	return detailedError
 }
-func (impl *GitOpsConfigServiceImpl) GitOpsValidationStatusSaveOrUpdateInDb(detailedError *util.DetailedError, provider string) error {
+func (impl *GitOpsConfigServiceImpl) GitOpsValidationStatusSaveOrUpdateInDb(detailedError util.DetailedError, provider string) error {
 	dbConnection := impl.gitOpsRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {

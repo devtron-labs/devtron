@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/go-pg/pg"
 	"github.com/google/go-github/github"
 	"github.com/xanzy/go-gitlab"
@@ -76,8 +75,20 @@ func (factory *GitFactory) Reload() error {
 	return nil
 }
 
+type GitOpsConfigDtoTemp struct {
+	Id               int    `json:"id,omitempty"`
+	Provider         string `json:"provider"`
+	Username         string `json:"username"`
+	Token            string `json:"token"`
+	GitLabGroupId    string `json:"gitLabGroupId"`
+	GitHubOrgId      string `json:"gitHubOrgId"`
+	Host             string `json:"host"`
+	Active           bool   `json:"active"`
+	AzureProjectName string `json:"azureProjectName"`
+	UserId           int32  `json:"-"`
+}
 
-func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitops.GitOpsConfigDto)(GitClient,*GitServiceImpl,error){
+func (factory *GitFactory) NewClientForValidation(gitOpsConfig *GitOpsConfigDtoTemp)(GitClient,*GitServiceImpl,error){
 	cfg := &GitConfig{
 		GitlabGroupId:      gitOpsConfig.GitLabGroupId,
 		GitToken:           gitOpsConfig.Token,
@@ -636,16 +647,16 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "createReadme")
 
-	validated, err = impl.ensureProjectAvailabilityOnSsh(name, *r.CloneURL)
-	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = err
-		return *r.CloneURL, true, detailedError
-	}
-	if !validated {
-		detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = fmt.Errorf("unable to validate project:%s  in given time", name)
-		return "", true, detailedError
-	}
+	//validated, err = impl.ensureProjectAvailabilityOnSsh(name, *r.CloneURL)
+	//if err != nil {
+	//	impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
+	//	detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = err
+	//	return *r.CloneURL, true, detailedError
+	//}
+	//if !validated {
+	//	detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = fmt.Errorf("unable to validate project:%s  in given time", name)
+	//	return "", true, detailedError
+	//}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "ensureProjectAvailabilityOnSsh")
 	//_, err = impl.createReadme(name)
 	return *r.CloneURL, true, detailedError
