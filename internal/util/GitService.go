@@ -647,16 +647,16 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "createReadme")
 
-	//validated, err = impl.ensureProjectAvailabilityOnSsh(name, *r.CloneURL)
-	//if err != nil {
-	//	impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-	//	detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = err
-	//	return *r.CloneURL, true, detailedError
-	//}
-	//if !validated {
-	//	detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = fmt.Errorf("unable to validate project:%s  in given time", name)
-	//	return "", true, detailedError
-	//}
+	validated, err = impl.ensureProjectAvailabilityOnSsh(name, *r.CloneURL)
+	if err != nil {
+		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
+		detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = err
+		return *r.CloneURL, true, detailedError
+	}
+	if !validated {
+		detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = fmt.Errorf("unable to validate project:%s  in given time", name)
+		return "", true, detailedError
+	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "ensureProjectAvailabilityOnSsh")
 	//_, err = impl.createReadme(name)
 	return *r.CloneURL, true, detailedError
