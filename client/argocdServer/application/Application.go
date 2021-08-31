@@ -403,7 +403,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 	return &ResourceTreeResponse{resp, newReplicaSet, status, podMetadata, conditions}, err
 }
 
-func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*Result) (podMetadata []*PodMetadata, newReplicaSet string) {
+func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*Result) (podMetaData []*PodMetadata, newReplicaSet string) {
 	rolloutManifest := make(map[string]interface{})
 	statefulSetManifest := make(map[string]interface{})
 	deploymentManifest := make(map[string]interface{})
@@ -473,10 +473,18 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 		newPodNames = c.getDaemonSetNewPods(daemonSetManifest, podManifests, controllerRevisionManifests)
 	}
 
+	//podMetaData := make([]*PodMetadata, 0)
 	if newReplicaSet != "" {
-		podMetadata = buildPodMetadataFromReplicaSet(resp, newReplicaSet, replicaSetManifests)
-	} else {
-		podMetadata = buildPodMetadataFromPod(resp, podManifests, newPodNames)
+		results := buildPodMetadataFromReplicaSet(resp, newReplicaSet, replicaSetManifests)
+		for _, meta := range results {
+			podMetaData = append(podMetaData, meta)
+		}
+	}
+	if newPodNames != nil {
+		results := buildPodMetadataFromPod(resp, podManifests, newPodNames)
+		for _, meta := range results {
+			podMetaData = append(podMetaData, meta)
+		}
 	}
 	return
 }
@@ -770,7 +778,7 @@ func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[
 	for _, node := range resp.Nodes {
 		if node.Kind == "Pod" {
 			isNew := newPodNames[node.Name]
-			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name],InitContainers: initContainerMapping[node.Name], IsNew: isNew}
+			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name], InitContainers: initContainerMapping[node.Name], IsNew: isNew}
 			podMetadata = append(podMetadata, &metadata)
 		}
 	}
@@ -833,11 +841,13 @@ func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSe
 					parentName = p.Name
 				}
 			}
-			isNew := parentName == newReplicaSet
-			replicaSet := replicaSets[parentName]
-			containers, intContainers := getReplicaSetContainers(replicaSet)
-			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containers, InitContainers: intContainers, IsNew: isNew}
-			podMetadata = append(podMetadata, &metadata)
+			if parentName != "" {
+				isNew := parentName == newReplicaSet
+				replicaSet := replicaSets[parentName]
+				containers, intContainers := getReplicaSetContainers(replicaSet)
+				metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containers, InitContainers: intContainers, IsNew: isNew}
+				podMetadata = append(podMetadata, &metadata)
+			}
 		}
 	}
 	return
