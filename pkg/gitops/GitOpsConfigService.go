@@ -600,10 +600,10 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "push")
 	}
 
-	err = client.DeleteRepository(appName, config.Username)
-	if err != nil {
-		detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository : %s", err.Error())
-	}
+	//err = client.DeleteRepository(appName, config.Username)
+	//if err != nil {
+	//	detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository : %s", err.Error())
+	//}
 	detailedError.ValidatedOn = time.Now()
 	err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
 	if err != nil {
