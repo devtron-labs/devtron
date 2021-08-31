@@ -16,7 +16,6 @@ data:
         template:
           spec:
             containers:
-            - 
             - resources:
                 limits:
                   cpu: 0.02
