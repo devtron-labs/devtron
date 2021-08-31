@@ -47,12 +47,13 @@ func(impl GitAzureClient) DeleteRepository(name, userName string) error{
 }
 func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
 	ctx := context.Background()
-	url, repoExists, err := impl.repoExists(name, impl.project)
-	if err != nil {
-		impl.logger.Errorw("error in communication with azure", "err", err)
-		detailedError.StageErrorMap["GetRepoUrl"] = err
-		return "", false, detailedError
-	}
+	//url, repoExists, err := impl.repoExists(name, impl.project)
+	//if err != nil {
+	//	impl.logger.Errorw("error in communication with azure", "err", err)
+	//	detailedError.StageErrorMap["GetRepoUrl"] = err
+	//	return "", false, detailedError
+	//}
+	repoExists := false
 	if repoExists {
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "GetRepoUrl")
 		return url, false, detailedError

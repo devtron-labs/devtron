@@ -599,7 +599,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "commitOnRest")
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "push")
 	}
-	defer impl.cleanDir(clonedDir)
+
 	err = client.DeleteRepository(appName, config.Username)
 	if err != nil {
 		detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository : %s", err.Error())
@@ -609,6 +609,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 	if err != nil {
 		impl.logger.Errorw("error in updating vaildation status in db", "err", err)
 	}
+	defer impl.cleanDir(clonedDir)
 	return detailedError
 }
 func (impl *GitOpsConfigServiceImpl) GitOpsValidationStatusSaveOrUpdateInDb(detailedError util.DetailedError, provider string) error {
