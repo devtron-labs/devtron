@@ -52,6 +52,20 @@ Provide your AWS secret access key ID.
 
 ![](../../.gitbook/assets/gc-docker-configure-aws%20%281%29.png)
 
+### Registry Type- Docker Hub 
+
+You have to provide the below information if you select the registry type as Docker Hub.
+
+* **Username**
+
+Give the username of the docker hub account you used for creating your registry in.
+
+* **Password**
+
+Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) corresponding to your docker hub account.
+
+![](../../.gitbook/assets/gc-docker-configure-docker-hub.png)
+
 ### Registry Type Others:
 
 You have to provide the below information if you select the registry type as others.

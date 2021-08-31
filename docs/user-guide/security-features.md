@@ -4,7 +4,7 @@ Devtron’s tool is also providing you `Security Features` to identify the vulne
 
 The system will scan your code and inform you if there are any Vulnerabilities present in your code. Also to make this feature more flexible to use, we have added a capability using which you can whitelist or block any vulnerability, and your code will be scanned considering the defined whitelist or blocked vulnerabilities.
 
-Remember, we discussed the `Scan for vulnerabilities` option in the CI pipeline. You can enable this feature from the CI Pipeline page. The system will scan your code and will show you all vulnerabilities present in your code.
+Remember, we discussed the [Scan for vulnerabilities](creating-application/workflow/ci-pipeline.md#5-scan-for-vulnerabilities) option in the CI pipeline. You can enable this feature from the CI Pipeline page. The system will scan your code and will show you all vulnerabilities present in your code.
 
 We have created `Security features` to identify the vulnerabilities inside your code and to protect you from external attacks.
 

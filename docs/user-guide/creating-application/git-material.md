@@ -20,7 +20,10 @@ Inside the git repo URL, you have to provide your code repository’s https URL.
 
 You can find this URL by clicking on the '⤓ code' button on your git repository page.
 
-Note: Copy the HTTPS url of the repository
+Note: 
+* Copy the HTTPS url of the repository
+* Please make sure that you've added your [dockerfile](https://docs.docker.com/engine/reference/builder/) in the repo. 
+
 
 ![](../../.gitbook/assets/create-app-git-url.png)
 

@@ -25,6 +25,13 @@ Select the docker registry that you wish to use. This registry will be used to [
 ### 2. Docker Repository
 In this field, add the name of your docker repository. The repository that you specify here will store a collection of related docker images. Whenever an image is added here, it will be stored with a new tag version.
 
+**If you are using docker hub account, you need to enter the repository name along with your username. For example - If my username is *kartik579* and repo name is *devtron-trial*, then enter kartik579/devtron-trial instead of only devtron-trial.**
+
+![](../../.gitbook/assets/docker-configuration-docker-hub.png)
+
+![](../../.gitbook/assets/docker-configure-docker-hub-1.png)
+
+
 ## Checkout path 
 Checkout path including inputs:
 1. Git checkout path
