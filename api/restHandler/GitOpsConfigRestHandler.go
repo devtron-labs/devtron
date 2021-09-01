@@ -52,7 +52,11 @@ type GitOpsConfigRestHandlerImpl struct {
 	teamService         team.TeamService
 	gitOpsRepository    repository.GitOpsConfigRepository
 }
-
+type DetailedErrorResponse struct{
+	SuccessfulStages []string         `json:"successfulStages"`
+	StageErrorMap    map[string]string `json:"stageErrorMap"`
+	ValidatedOn      time.Time        `json:"validatedOn"`
+}
 func NewGitOpsConfigRestHandlerImpl(
 	logger *zap.SugaredLogger,
 	gitOpsConfigService gitops.GitOpsConfigService, userAuthService user.UserService,
@@ -108,7 +112,13 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 		}
 		writeJsonResp(w, err, res, http.StatusOK)
 	} else {
-		writeJsonResp(w, nil, detailedError, http.StatusOK)
+		var detailedErrorResponse DetailedErrorResponse
+		detailedErrorResponse.StageErrorMap = make(map[string]string)
+		detailedErrorResponse.SuccessfulStages = detailedError.SuccessfulStages
+		for stage,err := range detailedError.StageErrorMap{
+			detailedErrorResponse.StageErrorMap[stage] = err.Error()
+		}
+		writeJsonResp(w, nil, detailedErrorResponse, http.StatusOK)
 	}
 }
 
@@ -163,7 +173,13 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 			}
 			writeJsonResp(w, err, bean, http.StatusOK)
 		} else {
-			writeJsonResp(w, nil, detailedError, http.StatusOK)
+			var detailedErrorResponse DetailedErrorResponse
+			detailedErrorResponse.StageErrorMap = make(map[string]string)
+			detailedErrorResponse.SuccessfulStages = detailedError.SuccessfulStages
+			for stage,err := range detailedError.StageErrorMap{
+				detailedErrorResponse.StageErrorMap[stage] = err.Error()
+			}
+			writeJsonResp(w, nil, detailedErrorResponse, http.StatusOK)
 		}
 	}
 }
@@ -306,5 +322,11 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r
 	}
 	//RBAC enforcer Ends
 	detailedError := impl.gitOpsConfigService.GitOpsValidateDryRun(&bean)
-	writeJsonResp(w, nil, detailedError, http.StatusOK)
+	var detailedErrorResponse DetailedErrorResponse
+	detailedErrorResponse.StageErrorMap = make(map[string]string)
+	detailedErrorResponse.SuccessfulStages = detailedError.SuccessfulStages
+	for stage,err := range detailedError.StageErrorMap{
+		detailedErrorResponse.StageErrorMap[stage] = err.Error()
+	}
+	writeJsonResp(w, nil, detailedErrorResponse, http.StatusOK)
 }

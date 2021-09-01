@@ -36,13 +36,12 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 	// Create a client to interact with the Core area
 	coreClient, err := git.NewClient(ctx, connection)
 	if err != nil {
-		logger.Errorw("error in creating azure  gitops client, gitops related operation might fail", "err", err)
+		logger.Errorw("error in creating azure gitops client, gitops related operation might fail", "err", err)
 	}
 	return GitAzureClient{client: coreClient, project: project, logger: logger, gitService: gitService}
 }
 func (impl GitAzureClient) DeleteRepository(name, userName string,gitHubOrgName string) error {
 	nameUUID := uuid2.MustParse(name)
-
 	err := impl.client.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: &nameUUID, Project: &impl.project})
 	return err
 }
