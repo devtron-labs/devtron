@@ -585,10 +585,12 @@ func NewGithubClient(token string, org string, logger *zap.SugaredLogger, gitSer
 func(impl GitHubClient) DeleteRepository(name, userName string) error{
 	url,err:= impl.GetRepoUrl(name)
 	if err != nil{
+		impl.logger.Errorw("get repo url failed for deleting repo")
 		return err
 	}
 	_, err = impl.client.Repositories.Delete(context.Background(),userName, url)
 	if err!=nil{
+		impl.logger.Errorw("deleting repo failed for github")
 		return err
 	}
 	return nil

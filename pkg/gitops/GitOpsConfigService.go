@@ -528,7 +528,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*GitOpsConfigDto, 
 }
 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDto) util.DetailedError {
-	var detailedError util.DetailedError
+	detailedError := util.DetailedError{}
 
 	client, gitService, err := impl.gitFactory.NewClientForValidation(&util.GitOpsConfigDtoTemp{
 
@@ -574,7 +574,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 			return detailedError
 		}
 	}
-
+	fmt.Println(detailedError.SuccessfulStages)
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
 	clonedDir := gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
@@ -599,9 +599,10 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "commitOnRest")
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "push")
 	}
-
+	impl.logger.Infow("commit on rest done",detailedError.SuccessfulStages)
 	err = client.DeleteRepository(appName, config.Username)
 	if err != nil {
+		impl.logger.Errorw("error in deleting repo", err)
 		detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository : %s", err.Error())
 	} else{
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages,"delete")
