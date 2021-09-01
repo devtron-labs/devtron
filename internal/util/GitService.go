@@ -590,7 +590,7 @@ func (impl GitHubClient) DeleteRepository(name, userName string) error {
 		impl.logger.Errorw("get repo url failed for deleting repo","err",err)
 		return err
 	}
-	_, err = impl.client.Repositories.Delete(context.Background(), userName, name)
+	_, err = impl.client.Repositories.Delete(context.Background(), "kartik-trial", name)
 	if err != nil {
 		impl.logger.Errorw("repo deletion failed for github","err",err)
 		return err
