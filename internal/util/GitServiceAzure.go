@@ -12,7 +12,7 @@ import (
 )
 
 type GitAzureClient struct {
-	client 	   git.Client
+	client     git.Client
 	logger     *zap.SugaredLogger
 	project    string
 	gitService GitService
@@ -40,8 +40,9 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 	}
 	return GitAzureClient{client: coreClient, project: project, logger: logger, gitService: gitService}
 }
-func(impl GitAzureClient) DeleteRepository(name, userName string) error{
+func (impl GitAzureClient) DeleteRepository(name, userName string) error {
 	nameUUID := uuid2.MustParse(name)
+
 	err := impl.client.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: &nameUUID, Project: &impl.project})
 	return err
 }
@@ -61,6 +62,8 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 	gitRepositoryCreateOptions := git.GitRepositoryCreateOptions{
 		Name: &name,
 	}
+	fmt.Println(impl.client)
+	fmt.Println(impl.client==nil)
 	operationReference, err := impl.client.CreateRepository(ctx, git.CreateRepositoryArgs{
 		GitRepositoryToCreate: &gitRepositoryCreateOptions,
 		Project:               &impl.project,
@@ -208,6 +211,8 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl string, exists bool, err error) {
 	ctx := context.Background()
 	// Get first page of the list of team projects for your organization
+	fmt.Println(impl.client)
+	fmt.Println(impl.client==nil)
 	gitRepository, err := impl.client.GetRepository(ctx, git.GetRepositoryArgs{
 		RepositoryId: &repoName,
 		Project:      &projectName,

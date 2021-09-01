@@ -498,10 +498,10 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		// set webhook data
 		if m.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
 			webhookData := ciMaterialCurrent.Modifications[0].WebhookData
-			ciProjectDetail.WebhookData = pipelineConfig.WebhookData {
-				Id : webhookData.Id,
+			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
+				Id:              webhookData.Id,
 				EventActionType: webhookData.EventActionType,
-				Data : webhookData.Data,
+				Data:            webhookData.Data,
 			}
 		}
 

@@ -34,9 +34,9 @@ type GitOpsConfigRepository interface {
 	GetConnection() *pg.DB
 
 	//For Validation Status
-	CreateGitOpsValidationStatus(model *GitOpsConfigValidationStatus, tx *pg.Tx)error
-	UpdateGitOpsValidationStatus(model *GitOpsConfigValidationStatus, tx *pg.Tx)error
-	GetGitOpsValidationStatusByProvider(provider string)(*GitOpsConfigValidationStatus,error)
+	CreateGitOpsValidationStatus(model *GitOpsConfigValidationStatus, tx *pg.Tx) error
+	UpdateGitOpsValidationStatus(model *GitOpsConfigValidationStatus, tx *pg.Tx) error
+	GetGitOpsValidationStatusByProvider(provider string) (*GitOpsConfigValidationStatus, error)
 }
 
 type GitOpsConfigRepositoryImpl struct {
@@ -45,16 +45,16 @@ type GitOpsConfigRepositoryImpl struct {
 }
 
 type GitOpsConfig struct {
-	tableName        struct{}  `sql:"gitops_config" pg:",discard_unknown_columns"`
-	Id               int       `sql:"id,pk"`
-	Provider         string    `sql:"provider"`
-	Username         string    `sql:"username"`
-	Token            string    `sql:"token"`
-	GitLabGroupId    string    `sql:"gitlab_group_id"`
-	GitHubOrgId      string    `sql:"github_org_id"`
-	AzureProject     string    `sql:"azure_project"`
-	Host             string    `sql:"host"`
-	Active           bool      `sql:"active,notnull"`
+	tableName     struct{} `sql:"gitops_config" pg:",discard_unknown_columns"`
+	Id            int      `sql:"id,pk"`
+	Provider      string   `sql:"provider"`
+	Username      string   `sql:"username"`
+	Token         string   `sql:"token"`
+	GitLabGroupId string   `sql:"gitlab_group_id"`
+	GitHubOrgId   string   `sql:"github_org_id"`
+	AzureProject  string   `sql:"azure_project"`
+	Host          string   `sql:"host"`
+	Active        bool     `sql:"active,notnull"`
 	models.AuditLog
 }
 
@@ -104,8 +104,6 @@ func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigActive() (*GitOpsConfig, 
 	return &model, err
 }
 
-
-
 //--------------gitOps-validation-status--------------------
 
 type GitOpsConfigValidationStatus struct {
@@ -114,20 +112,19 @@ type GitOpsConfigValidationStatus struct {
 	Provider         string    `sql:"provider"`
 	ValidationErrors string    `sql:"validation_errors"`
 	ValidatedOn      time.Time `sql:"validated_on"`
- }
+}
 
-
-func (impl *GitOpsConfigRepositoryImpl)CreateGitOpsValidationStatus(model *GitOpsConfigValidationStatus, tx *pg.Tx)error{
+func (impl *GitOpsConfigRepositoryImpl) CreateGitOpsValidationStatus(model *GitOpsConfigValidationStatus, tx *pg.Tx) error {
 	err := tx.Insert(model)
 	return err
 }
-func (impl *GitOpsConfigRepositoryImpl)UpdateGitOpsValidationStatus(model *GitOpsConfigValidationStatus, tx *pg.Tx)error{
+func (impl *GitOpsConfigRepositoryImpl) UpdateGitOpsValidationStatus(model *GitOpsConfigValidationStatus, tx *pg.Tx) error {
 	err := tx.Update(model)
 	return err
 }
 
-func (impl *GitOpsConfigRepositoryImpl)GetGitOpsValidationStatusByProvider(provider string)(*GitOpsConfigValidationStatus,error){
+func (impl *GitOpsConfigRepositoryImpl) GetGitOpsValidationStatusByProvider(provider string) (*GitOpsConfigValidationStatus, error) {
 	var model GitOpsConfigValidationStatus
-	err:= impl.dbConnection.Model(&model).Where("provider = ?",provider).Select()
-	return &model,err
+	err := impl.dbConnection.Model(&model).Where("provider = ?", provider).Select()
+	return &model, err
 }

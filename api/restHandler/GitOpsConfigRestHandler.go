@@ -56,7 +56,7 @@ type GitOpsConfigRestHandlerImpl struct {
 func NewGitOpsConfigRestHandlerImpl(
 	logger *zap.SugaredLogger,
 	gitOpsConfigService gitops.GitOpsConfigService, userAuthService user.UserService,
-	validator *validator.Validate, enforcer rbac.Enforcer, teamService team.TeamService,gitOpsRepository    repository.GitOpsConfigRepository) *GitOpsConfigRestHandlerImpl {
+	validator *validator.Validate, enforcer rbac.Enforcer, teamService team.TeamService, gitOpsRepository repository.GitOpsConfigRepository) *GitOpsConfigRestHandlerImpl {
 	return &GitOpsConfigRestHandlerImpl{
 		logger:              logger,
 		gitOpsConfigService: gitOpsConfigService,
@@ -64,7 +64,7 @@ func NewGitOpsConfigRestHandlerImpl(
 		validator:           validator,
 		enforcer:            enforcer,
 		teamService:         teamService,
-		gitOpsRepository: gitOpsRepository,
+		gitOpsRepository:    gitOpsRepository,
 	}
 }
 
@@ -142,9 +142,9 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 	}
 	//RBAC enforcer Ends
 
-	gitOpsConfigValidationStatus,err := impl.gitOpsRepository.GetGitOpsValidationStatusByProvider(bean.Provider)
+	gitOpsConfigValidationStatus, err := impl.gitOpsRepository.GetGitOpsValidationStatusByProvider(bean.Provider)
 
-	if time.Since(gitOpsConfigValidationStatus.ValidatedOn) < 30*time.Second && len(gitOpsConfigValidationStatus.ValidationErrors)==0{
+	if err == nil && time.Since(gitOpsConfigValidationStatus.ValidatedOn) < 30*time.Second && len(gitOpsConfigValidationStatus.ValidationErrors) == 0 {
 		err = impl.gitOpsConfigService.UpdateGitOpsConfig(&bean)
 		if err != nil {
 			impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)
@@ -152,7 +152,7 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 			return
 		}
 		writeJsonResp(w, err, bean, http.StatusOK)
-	}else {
+	} else {
 		detailedError := impl.gitOpsConfigService.GitOpsValidateDryRun(&bean)
 		if len(detailedError.StageErrorMap) == 0 {
 			err = impl.gitOpsConfigService.UpdateGitOpsConfig(&bean)

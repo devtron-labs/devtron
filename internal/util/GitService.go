@@ -88,7 +88,7 @@ type GitOpsConfigDtoTemp struct {
 	UserId           int32  `json:"-"`
 }
 
-func (factory *GitFactory) NewClientForValidation(gitOpsConfig *GitOpsConfigDtoTemp)(GitClient,*GitServiceImpl,error){
+func (factory *GitFactory) NewClientForValidation(gitOpsConfig *GitOpsConfigDtoTemp) (GitClient, *GitServiceImpl, error) {
 	cfg := &GitConfig{
 		GitlabGroupId:      gitOpsConfig.GitLabGroupId,
 		GitToken:           gitOpsConfig.Token,
@@ -104,11 +104,12 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *GitOpsConfigDtoT
 	//factory.gitService = gitService
 	client, err := NewGitLabClient(cfg, logger, gitService)
 	if err != nil {
-		return client,gitService,err
+		return client, gitService, err
 	}
+
 	//factory.Client = client
 	logger.Infow("client changed successfully")
-	return client,gitService,nil
+	return client, gitService, nil
 }
 
 func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitCliUtil *GitCliUtil) (*GitFactory, error) {
@@ -249,7 +250,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		return nil, nil
 	}
 }
-func(impl GitLabClient) DeleteRepository(name, userName string) error{
+func (impl GitLabClient) DeleteRepository(name, userName string) error {
 	err := impl.DeleteProject(name)
 	return err
 }
@@ -583,15 +584,15 @@ func NewGithubClient(token string, org string, logger *zap.SugaredLogger, gitSer
 	client := github.NewClient(tc)
 	return GitHubClient{client: client, org: org, logger: logger, gitService: gitService}
 }
-func(impl GitHubClient) DeleteRepository(name, userName string) error{
-	url,err:= impl.GetRepoUrl(name)
-	if err != nil{
-		impl.logger.Errorw("get repo url failed for deleting repo")
+func (impl GitHubClient) DeleteRepository(name, userName string) error {
+	_, err := impl.GetRepoUrl(name)
+	if err != nil {
+		impl.logger.Errorw("get repo url failed for deleting repo","err",err)
 		return err
 	}
-	_, err = impl.client.Repositories.Delete(context.Background(),userName, url)
-	if err!=nil{
-		impl.logger.Errorw("deleting repo failed for github")
+	_, err = impl.client.Repositories.Delete(context.Background(), userName, name)
+	if err != nil {
+		impl.logger.Errorw("repo deletion failed for github","err",err)
 		return err
 	}
 	return nil

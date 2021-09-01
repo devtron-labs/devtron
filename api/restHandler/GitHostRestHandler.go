@@ -41,25 +41,25 @@ type GitHostRestHandler interface {
 }
 
 type GitHostRestHandlerImpl struct {
-	logger               *zap.SugaredLogger
-	gitHostConfig    	 pipeline.GitHostConfig
-	userAuthService      user.UserService
-	validator            *validator.Validate
-	enforcer             rbac.Enforcer
-	gitSensorClient      gitSensor.GitSensorClient
-	gitProviderConfig    pipeline.GitRegistryConfig
+	logger            *zap.SugaredLogger
+	gitHostConfig     pipeline.GitHostConfig
+	userAuthService   user.UserService
+	validator         *validator.Validate
+	enforcer          rbac.Enforcer
+	gitSensorClient   gitSensor.GitSensorClient
+	gitProviderConfig pipeline.GitRegistryConfig
 }
 
 func NewGitHostRestHandlerImpl(logger *zap.SugaredLogger,
 	gitHostConfig pipeline.GitHostConfig, userAuthService user.UserService,
 	validator *validator.Validate, enforcer rbac.Enforcer, gitSensorClient gitSensor.GitSensorClient, gitProviderConfig pipeline.GitRegistryConfig) *GitHostRestHandlerImpl {
 	return &GitHostRestHandlerImpl{
-		logger:               logger,
-		gitHostConfig:    gitHostConfig,
-		userAuthService: userAuthService,
-		validator: validator,
-		enforcer: enforcer,
-		gitSensorClient: gitSensorClient,
+		logger:            logger,
+		gitHostConfig:     gitHostConfig,
+		userAuthService:   userAuthService,
+		validator:         validator,
+		enforcer:          enforcer,
+		gitSensorClient:   gitSensorClient,
 		gitProviderConfig: gitProviderConfig,
 	}
 }
@@ -93,8 +93,6 @@ func (impl GitHostRestHandlerImpl) GetGitHosts(w http.ResponseWriter, r *http.Re
 	writeJsonResp(w, err, res, http.StatusOK)
 }
 
-
-
 // Need to make this call RBAC free as this API is called from the create app flow (configuring ci)
 func (impl GitHostRestHandlerImpl) GetGitHostById(w http.ResponseWriter, r *http.Request) {
 
@@ -106,7 +104,7 @@ func (impl GitHostRestHandlerImpl) GetGitHostById(w http.ResponseWriter, r *http
 	}
 
 	params := mux.Vars(r)
-	id, err :=  strconv.Atoi(params["id"])
+	id, err := strconv.Atoi(params["id"])
 
 	if err != nil {
 		impl.logger.Errorw("service err in parsing Id , GetGitHostById", "err", err)
@@ -181,7 +179,7 @@ func (impl GitHostRestHandlerImpl) GetAllWebhookEventConfig(w http.ResponseWrite
 	}
 
 	params := mux.Vars(r)
-	id, err :=  strconv.Atoi(params["id"])
+	id, err := strconv.Atoi(params["id"])
 
 	if err != nil {
 		impl.logger.Errorw("service err in parsing Id , GetAllWebhookEventConfig", "err", err)
@@ -215,7 +213,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookEventConfig(w http.ResponseWriter, 
 	}
 
 	params := mux.Vars(r)
-	eventId, err :=  strconv.Atoi(params["eventId"])
+	eventId, err := strconv.Atoi(params["eventId"])
 
 	if err != nil {
 		impl.logger.Errorw("service err in parsing eventId , GetWebhookEventConfig", "err", err)
@@ -249,7 +247,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 	}
 
 	params := mux.Vars(r)
-	gitProviderId :=  params["gitProviderId"]
+	gitProviderId := params["gitProviderId"]
 
 	gitProvider, err := impl.gitProviderConfig.FetchOneGitProvider(gitProviderId)
 
@@ -289,9 +287,8 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 	writeJsonResp(w, err, webhookDataMetaConfigResponse, http.StatusOK)
 }
 
-
 type WebhookDataMetaConfigResponse struct {
-	GitHostId	 int              							`json:"gitHostId"`
-	GitHost		 *pipeline.GitHostRequest 					`json:"gitHost"`
-	WebhookEvents []*gitSensor.WebhookEventConfig		  	`json:"webhookEvents"`
+	GitHostId     int                             `json:"gitHostId"`
+	GitHost       *pipeline.GitHostRequest        `json:"gitHost"`
+	WebhookEvents []*gitSensor.WebhookEventConfig `json:"webhookEvents"`
 }
