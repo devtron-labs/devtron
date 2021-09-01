@@ -530,6 +530,8 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*GitOpsConfigDto, 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDto) util.DetailedError {
 	detailedError := util.DetailedError{}
 	detailedError.StageErrorMap = make(map[string]error)
+	impl.logger.Infow("testing error assign failed ")
+	detailedError.StageErrorMap["test"] = fmt.Errorf("test error")
 	client, gitService, err := impl.gitFactory.NewClientForValidation(&util.GitOpsConfigDtoTemp{
 
 		Id:               config.Id,
@@ -603,7 +605,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 	err = client.DeleteRepository(appName, config.Username)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo", err)
-	//	detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository : %s", err.Error())
+		detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository : %s", err.Error())
 	} else{
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages,"delete")
 	}
