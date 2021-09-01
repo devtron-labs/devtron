@@ -599,7 +599,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "commitOnRest")
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "push")
 	}
-	err = client.DeleteRepository(appName, config.Username)
+	err = client.DeleteRepository(appName, config.Username,config.GitHubOrgId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo","err", err)
 		detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository : %s ", err.Error())
