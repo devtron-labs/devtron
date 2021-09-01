@@ -411,6 +411,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	replicaSetManifests := make([]map[string]interface{}, 0)
 	podManifests := make([]map[string]interface{}, 0)
 	controllerRevisionManifests := make([]map[string]interface{}, 0)
+	jobsManifest := make(map[string]interface{})
 	for _, response := range responses {
 		if response != nil && response.Response != nil && response.Request.Kind == "Rollout" {
 			err := json.Unmarshal([]byte(response.Response.Manifest), &rolloutManifest)
@@ -453,6 +454,11 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 				c.logger.Error(err)
 			}
 			controllerRevisionManifests = append(controllerRevisionManifests, manifest)
+		} else if response != nil && response.Response != nil && response.Request.Kind == "Job" {
+			err := json.Unmarshal([]byte(response.Response.Manifest), &jobsManifest)
+			if err != nil {
+				c.logger.Error(err)
+			}
 		}
 	}
 	newPodNames := make(map[string]bool, 0)
@@ -471,6 +477,10 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 
 	if _, ok := daemonSetManifest["kind"]; ok {
 		newPodNames = c.getDaemonSetNewPods(daemonSetManifest, podManifests, controllerRevisionManifests)
+	}
+
+	if _, ok := jobsManifest["kind"]; ok {
+		newPodNames = c.getJobsNewPods(jobsManifest, podManifests)
 	}
 
 	//podMetaData := make([]*PodMetadata, 0)
@@ -519,6 +529,11 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 			}
 		}
 		if node.Kind == "StatefulSet" || node.Kind == "DaemonSet" {
+			needPods = true
+		}
+
+		if node.Kind == "CronJob" || node.Kind == "Job" {
+			queryNodes = append(queryNodes, node)
 			needPods = true
 		}
 	}
@@ -920,4 +935,14 @@ func transform(resource v1alpha1.ResourceNode, name *string) *application.Applic
 	}
 
 	return request
+}
+
+func (c ServiceClientImpl) getJobsNewPods(jobManifest map[string]interface{}, podManifests []map[string]interface{}) (newPodNames map[string]bool) {
+	newPodNames = make(map[string]bool, 0)
+	for _, pod := range podManifests {
+		newPodNames[getResourceName(pod)] = true
+	}
+
+	//TODO - new or old logic
+	return
 }
