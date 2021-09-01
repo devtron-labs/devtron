@@ -1,5 +1,5 @@
-LTAG="v0.2.22";
-REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
+LTAG="v0.2.23";
+REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron1/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
 operatorConfigMap = kubectl get cm -n devtroncd devtron-operator-cm;
