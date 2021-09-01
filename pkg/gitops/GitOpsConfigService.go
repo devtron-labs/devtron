@@ -530,8 +530,6 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*GitOpsConfigDto, 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDto) util.DetailedError {
 	detailedError := util.DetailedError{}
 	detailedError.StageErrorMap = make(map[string]error)
-	impl.logger.Infow("testing error assign failed ")
-	detailedError.StageErrorMap["test"] = fmt.Errorf("test error")
 	client, gitService, err := impl.gitFactory.NewClientForValidation(&util.GitOpsConfigDtoTemp{
 
 		Id:               config.Id,
@@ -546,6 +544,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		UserId:           config.UserId,
 	})
 	if err != nil {
+		impl.logger.Errorw("error in creating new client for validation")
 		detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = fmt.Errorf("error in connecting : %s", err.Error())
 		detailedError.ValidatedOn = time.Now()
 		err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
@@ -601,13 +600,12 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "commitOnRest")
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "push")
 	}
-	impl.logger.Infow("commit on rest done",detailedError.SuccessfulStages)
 	err = client.DeleteRepository(appName, config.Username)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo", err)
-		detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository ")
-	} else{
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages,"delete")
+		detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository : %s ", err.Error())
+	} else {
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "delete")
 	}
 	detailedError.ValidatedOn = time.Now()
 	err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)

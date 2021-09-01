@@ -46,6 +46,7 @@ func(impl GitAzureClient) DeleteRepository(name, userName string) error{
 	return err
 }
 func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
+	detailedError.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	url, repoExists, err := impl.repoExists(name, impl.project)
 	if err != nil {

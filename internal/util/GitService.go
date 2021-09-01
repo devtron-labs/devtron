@@ -254,6 +254,7 @@ func(impl GitLabClient) DeleteRepository(name, userName string) error{
 	return err
 }
 func (impl GitLabClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
+	detailedError.StageErrorMap = make(map[string]error)
 	impl.logger.Debugw("gitlab app create request ", "name", name, "description", description)
 	repoUrl, err := impl.GetRepoUrl(name)
 	if err != nil {
@@ -596,6 +597,7 @@ func(impl GitHubClient) DeleteRepository(name, userName string) error{
 	return nil
 }
 func (impl GitHubClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
+	detailedError.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	repoExists := true
 	url, err := impl.GetRepoUrl(name)
