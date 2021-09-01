@@ -12,7 +12,7 @@ import (
 )
 
 type GitAzureClient struct {
-	client     git.Client
+	client     *git.Client
 	logger     *zap.SugaredLogger
 	project    string
 	gitService GitService
@@ -38,14 +38,15 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 	if err != nil {
 		logger.Errorw("error in creating azure gitops client, gitops related operation might fail", "err", err)
 	}
-	return GitAzureClient{client: coreClient, project: project, logger: logger, gitService: gitService}
+	return GitAzureClient{client: &coreClient, project: project, logger: logger, gitService: gitService}
 }
 func (impl GitAzureClient) DeleteRepository(name, userName string,gitHubOrgName string) error {
 	nameUUID := uuid2.MustParse(name)
-	err := impl.client.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: &nameUUID, Project: &impl.project})
+	clientAzure := *impl.client
+	err := clientAzure.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: &nameUUID, Project: &impl.project})
 	return err
 }
-func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
+func (impl GitAzureClient)  CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
 	detailedError.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	url, repoExists, err := impl.repoExists(name, impl.project)
@@ -61,7 +62,8 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 	gitRepositoryCreateOptions := git.GitRepositoryCreateOptions{
 		Name: &name,
 	}
-	operationReference, err := impl.client.CreateRepository(ctx, git.CreateRepositoryArgs{
+	clientAzure := *impl.client
+	operationReference, err := clientAzure.CreateRepository(ctx, git.CreateRepositoryArgs{
 		GitRepositoryToCreate: &gitRepositoryCreateOptions,
 		Project:               &impl.project,
 	})
@@ -131,7 +133,8 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 	// check if file exists and current hash
 	// if file does not exists get hash from branch
 	// if branch doesn't exists use default hash
-	fc, err := impl.client.GetItem(ctx, git.GetItemArgs{
+	clientAzure := *impl.client
+	fc, err := clientAzure.GetItem(ctx, git.GetItemArgs{
 		RepositoryId: &config.ChartName,
 		Path:         &path,
 		Project:      &impl.project,
@@ -139,7 +142,8 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 	if err != nil {
 		notFoundStatus := 404
 		if e, ok := err.(azuredevops.WrappedError); ok && *e.StatusCode == notFoundStatus {
-			branchStat, err := impl.client.GetBranch(ctx, git.GetBranchArgs{Project: &impl.project, Name: &branch, RepositoryId: &config.ChartName})
+			clientAzure := *impl.client
+			branchStat, err := clientAzure.GetBranch(ctx, git.GetBranchArgs{Project: &impl.project, Name: &branch, RepositoryId: &config.ChartName})
 			if err != nil {
 				if e, ok := err.(azuredevops.WrappedError); !ok || *e.StatusCode >= 500 {
 					impl.logger.Errorw("error in fetching branch from azure devops", "err", err)
@@ -182,8 +186,7 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 		Changes: &contents,
 		Comment: &config.ReleaseMessage,
 	})
-
-	push, err := impl.client.CreatePush(ctx, git.CreatePushArgs{
+	push, err := clientAzure.CreatePush(ctx, git.CreatePushArgs{
 		Push: &git.GitPush{
 			Commits:    &commits,
 			RefUpdates: &refUpdates,
@@ -208,7 +211,8 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl string, exists bool, err error) {
 	ctx := context.Background()
 	// Get first page of the list of team projects for your organization
-	gitRepository, err := impl.client.GetRepository(ctx, git.GetRepositoryArgs{
+	clientAzure := *impl.client
+	gitRepository, err := clientAzure.GetRepository(ctx, git.GetRepositoryArgs{
 		RepositoryId: &repoName,
 		Project:      &projectName,
 	})

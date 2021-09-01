@@ -531,7 +531,6 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 	detailedError := util.DetailedError{}
 	detailedError.StageErrorMap = make(map[string]error)
 	client, gitService, err := impl.gitFactory.NewClientForValidation(&util.GitOpsConfigDtoTemp{
-
 		Id:               config.Id,
 		Provider:         config.Provider,
 		Username:         config.Username,
@@ -543,6 +542,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		AzureProjectName: config.AzureProjectName,
 		UserId:           config.UserId,
 	})
+
 	if err != nil {
 		impl.logger.Errorw("error in creating new client for validation")
 		detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = fmt.Errorf("error in connecting : %s", err.Error())
