@@ -529,7 +529,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*GitOpsConfigDto, 
 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDto) util.DetailedError {
 	detailedError := util.DetailedError{}
-
+	detailedError.StageErrorMap = make(map[string]error)
 	client, gitService, err := impl.gitFactory.NewClientForValidation(&util.GitOpsConfigDtoTemp{
 
 		Id:               config.Id,
