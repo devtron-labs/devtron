@@ -1,0 +1,25 @@
+name: test18
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    name: Git Repo Sync
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - uses: pawan-59/git-repo-sync@v0.1.11
+      with:
+        target-url: 'https://gitee.com/pawan_06d2/devtr.git'
+        target-username: 'pawan_06d2'
+        target-token: ${{ secrets.GITEE_ACCESS_TOKEN }}
