@@ -545,7 +545,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 
 	if err != nil {
 		impl.logger.Errorw("error in creating new client for validation")
-		detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = fmt.Errorf("error in connecting : %s", err.Error())
+		detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = fmt.Errorf("%s", err.Error())
 		detailedError.ValidatedOn = time.Now()
 		err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
 		if err != nil {
