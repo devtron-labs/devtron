@@ -86,7 +86,7 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 		return *operationReference.WebUrl, true, detailedError
 	}
 	if !validated {
-		detailedError.StageErrorMap["CloneHttp"] = fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.StageErrorMap["CloneHttp"] = fmt.Errorf("unable to validate project:%s in given time", name)
 		return "", true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CloneHttp")
@@ -106,7 +106,7 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 		return *operationReference.WebUrl, true, detailedError
 	}
 	if !validated {
-		detailedError.StageErrorMap["CloneSsh"] = fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.StageErrorMap["CloneSsh"] = fmt.Errorf("unable to validate project:%s in given time", name)
 		return "", true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CloneSsh")

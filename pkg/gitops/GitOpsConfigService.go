@@ -549,7 +549,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		detailedError.ValidatedOn = time.Now()
 		err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
 		if err != nil {
-			impl.logger.Errorw("error in updating vaildation status in db", "err", err)
+			impl.logger.Errorw("error in updating validation status in db", "err", err)
 		}
 		return detailedError
 	}
@@ -570,7 +570,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 			detailedError.ValidatedOn = time.Now()
 			err := impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
 			if err != nil {
-				impl.logger.Errorw("error in updating vaildation status in db", "err", err)
+				impl.logger.Errorw("error in updating validation status in db", "err", err)
 			}
 			return detailedError
 		}
@@ -602,14 +602,14 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 	err = client.DeleteRepository(appName, config.Username,config.GitHubOrgId,config.AzureProjectName)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo","err", err)
-		detailedError.StageErrorMap["DeleteRepo"] = fmt.Errorf("error in deleting repository : %s ", err.Error())
+		detailedError.StageErrorMap["DeleteRepo"] = fmt.Errorf("%s", err.Error())
 	} else {
 		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "DeleteRepo")
 	}
 	detailedError.ValidatedOn = time.Now()
 	err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
 	if err != nil {
-		impl.logger.Errorw("error in updating vaildation status in db", "err", err)
+		impl.logger.Errorw("error in updating validation status in db", "err", err)
 	}
 	defer impl.cleanDir(clonedDir)
 	return detailedError

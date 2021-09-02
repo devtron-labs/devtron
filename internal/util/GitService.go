@@ -282,7 +282,7 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 		return "", true, detailedError
 	}
 	if !validated {
-		detailedError.StageErrorMap["CloneHttp"] = fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.StageErrorMap["CloneHttp"] = fmt.Errorf("unable to validate project:%s in given time", name)
 		return "", true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CloneHttp")
@@ -300,7 +300,7 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 		return "", true, detailedError
 	}
 	if !validated {
-		detailedError.StageErrorMap["CloneSsh"] = fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.StageErrorMap["CloneSsh"] = fmt.Errorf("unable to validate project:%s in given time", name)
 		return "", true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CloneSsh")
@@ -629,12 +629,12 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 
 	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability", "project", name, "err", err)
 		detailedError.StageErrorMap["CloneHttp"] = err
 		return *r.CloneURL, true, detailedError
 	}
 	if !validated {
-		detailedError.StageErrorMap["CloneHttp"] = fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.StageErrorMap["CloneHttp"] = fmt.Errorf("unable to validate project:%s in given time", name)
 		return "", true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CloneHttp")
@@ -654,7 +654,7 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 		return *r.CloneURL, true, detailedError
 	}
 	if !validated {
-		detailedError.StageErrorMap["CloneSsh"] = fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.StageErrorMap["CloneSsh"] = fmt.Errorf("unable to validate project:%s in given time", name)
 		return "", true, detailedError
 	}
 	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CloneSsh")
