@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -79,7 +80,7 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean gitops.GitOpsConfigDto
+	var bean util.GitOpsConfigDto
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, CreateGitOpsConfig", "err", err, "payload", bean)
@@ -129,7 +130,7 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean gitops.GitOpsConfigDto
+	var bean util.GitOpsConfigDto
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateGitOpsConfig", "err", err, "payload", bean)
@@ -298,7 +299,7 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean gitops.GitOpsConfigDto
+	var bean util.GitOpsConfigDto
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, CreateGitOpsConfig", "err", err, "payload", bean)

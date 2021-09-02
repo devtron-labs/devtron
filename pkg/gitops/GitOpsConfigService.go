@@ -44,27 +44,15 @@ import (
 )
 
 type GitOpsConfigService interface {
-	CreateGitOpsConfig(config *GitOpsConfigDto) (*GitOpsConfigDto, error)
-	UpdateGitOpsConfig(config *GitOpsConfigDto) error
-	GetGitOpsConfigById(id int) (*GitOpsConfigDto, error)
-	GetAllGitOpsConfig() ([]*GitOpsConfigDto, error)
-	GetGitOpsConfigByProvider(provider string) (*GitOpsConfigDto, error)
-	GetGitOpsConfigActive() (*GitOpsConfigDto, error)
-	GitOpsValidateDryRun(config *GitOpsConfigDto) util.DetailedError
+	CreateGitOpsConfig(config *util.GitOpsConfigDto) (*util.GitOpsConfigDto, error)
+	UpdateGitOpsConfig(config *util.GitOpsConfigDto) error
+	GetGitOpsConfigById(id int) (*util.GitOpsConfigDto, error)
+	GetAllGitOpsConfig() ([]*util.GitOpsConfigDto, error)
+	GetGitOpsConfigByProvider(provider string) (*util.GitOpsConfigDto, error)
+	GetGitOpsConfigActive() (*util.GitOpsConfigDto, error)
+	GitOpsValidateDryRun(config *util.GitOpsConfigDto) util.DetailedError
 }
 
-type GitOpsConfigDto struct {
-	Id               int    `json:"id,omitempty"`
-	Provider         string `json:"provider"`
-	Username         string `json:"username"`
-	Token            string `json:"token"`
-	GitLabGroupId    string `json:"gitLabGroupId"`
-	GitHubOrgId      string `json:"gitHubOrgId"`
-	Host             string `json:"host"`
-	Active           bool   `json:"active"`
-	AzureProjectName string `json:"azureProjectName"`
-	UserId           int32  `json:"-"`
-}
 
 const GitOpsSecretName = "devtron-gitops-secret"
 const DryrunRepoName = "devtron-sample-repo-dryrun-"
@@ -105,7 +93,7 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 		gitFactory:       gitFactory,
 	}
 }
-func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto) (*GitOpsConfigDto, error) {
+func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *util.GitOpsConfigDto) (*util.GitOpsConfigDto, error) {
 	impl.logger.Debugw("gitops create request", "req", request)
 	dbConnection := impl.gitOpsRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -242,7 +230,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *GitOpsConfigDto
 	request.Id = model.Id
 	return request, nil
 }
-func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto) error {
+func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *util.GitOpsConfigDto) error {
 	impl.logger.Debugw("gitops config update request", "req", request)
 	dbConnection := impl.gitOpsRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -394,13 +382,13 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *GitOpsConfigDto
 	return nil
 }
 
-func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*GitOpsConfigDto, error) {
+func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*util.GitOpsConfigDto, error) {
 	model, err := impl.gitOpsRepository.GetGitOpsConfigById(id)
 	if err != nil {
 		impl.logger.Errorw("GetGitOpsConfigById, error while get by id", "err", err, "id", id)
 		return nil, err
 	}
-	config := &GitOpsConfigDto{
+	config := &util.GitOpsConfigDto{
 		Id:               model.Id,
 		Provider:         model.Provider,
 		GitHubOrgId:      model.GitHubOrgId,
@@ -416,15 +404,15 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*GitOpsConfigD
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*GitOpsConfigDto, error) {
+func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*util.GitOpsConfigDto, error) {
 	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
 	if err != nil {
 		impl.logger.Errorw("GetAllGitOpsConfig, error while fetch all", "err", err)
 		return nil, err
 	}
-	configs := make([]*GitOpsConfigDto, 0)
+	configs := make([]*util.GitOpsConfigDto, 0)
 	for _, model := range models {
-		config := &GitOpsConfigDto{
+		config := &util.GitOpsConfigDto{
 			Id:               model.Id,
 			Provider:         model.Provider,
 			GitHubOrgId:      model.GitHubOrgId,
@@ -441,13 +429,13 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*GitOpsConfigDto, e
 	return configs, err
 }
 
-func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) (*GitOpsConfigDto, error) {
+func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) (*util.GitOpsConfigDto, error) {
 	model, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(provider)
 	if err != nil {
 		impl.logger.Errorw("GetGitOpsConfigByProvider, error while get by name", "err", err, "provider", provider)
 		return nil, err
 	}
-	config := &GitOpsConfigDto{
+	config := &util.GitOpsConfigDto{
 		Id:               model.Id,
 		Provider:         model.Provider,
 		GitHubOrgId:      model.GitHubOrgId,
@@ -463,7 +451,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *GitOpsConfigDto, secretName string, existingHost string) map[string]string {
+func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *util.GitOpsConfigDto, secretName string, existingHost string) map[string]string {
 	var newRepositories []*RepositoryCredentialsDto
 	var existingRepositories []*RepositoryCredentialsDto
 	repoStr := data["repository.credentials"]
@@ -501,7 +489,7 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 	return repositoryCredentials
 }
 
-func (impl *GitOpsConfigServiceImpl) createRepoElement(secretName string, request *GitOpsConfigDto) *RepositoryCredentialsDto {
+func (impl *GitOpsConfigServiceImpl) createRepoElement(secretName string, request *util.GitOpsConfigDto) *RepositoryCredentialsDto {
 	repoData := &RepositoryCredentialsDto{}
 	usernameSecret := &KeyDto{Name: secretName, Key: "username"}
 	passwordSecret := &KeyDto{Name: secretName, Key: "password"}
@@ -522,13 +510,13 @@ type KeyDto struct {
 	Key  string `json:"key,omitempty"`
 }
 
-func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*GitOpsConfigDto, error) {
+func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*util.GitOpsConfigDto, error) {
 	model, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
 		return nil, err
 	}
-	config := &GitOpsConfigDto{
+	config := &util.GitOpsConfigDto{
 		Id:               model.Id,
 		Provider:         model.Provider,
 		GitHubOrgId:      model.GitHubOrgId,
@@ -540,21 +528,10 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*GitOpsConfigDto, 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDto) util.DetailedError {
+func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *util.GitOpsConfigDto) util.DetailedError {
 	detailedError := util.DetailedError{}
 	detailedError.StageErrorMap = make(map[string]error)
-	client, gitService, err := impl.gitFactory.NewClientForValidation(&util.GitOpsConfigDtoTemp{
-		Id:               config.Id,
-		Provider:         config.Provider,
-		Username:         config.Username,
-		Token:            config.Token,
-		GitLabGroupId:    config.GitLabGroupId,
-		GitHubOrgId:      config.GitHubOrgId,
-		Host:             config.Host,
-		Active:           config.Active,
-		AzureProjectName: config.AzureProjectName,
-		UserId:           config.UserId,
-	})
+	client, gitService, err := impl.gitFactory.NewClientForValidation(config)
 	if err != nil {
 		impl.logger.Errorw("error in creating new client for validation")
 		detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = impl.extractErrorMessageByProvider(err, config.Provider)

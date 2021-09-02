@@ -64,6 +64,19 @@ type DetailedError struct {
 	ValidatedOn      time.Time        `json:"validatedOn"`
 }
 
+type GitOpsConfigDto struct {
+	Id               int    `json:"id,omitempty"`
+	Provider         string `json:"provider"`
+	Username         string `json:"username"`
+	Token            string `json:"token"`
+	GitLabGroupId    string `json:"gitLabGroupId"`
+	GitHubOrgId      string `json:"gitHubOrgId"`
+	Host             string `json:"host"`
+	Active           bool   `json:"active"`
+	AzureProjectName string `json:"azureProjectName"`
+	UserId           int32  `json:"-"`
+}
+
 func (factory *GitFactory) Reload() error {
 	logger.Infow("reloading gitops details")
 	cfg, err := GetGitConfig(factory.gitOpsRepository)
@@ -81,20 +94,7 @@ func (factory *GitFactory) Reload() error {
 	return nil
 }
 
-type GitOpsConfigDtoTemp struct {
-	Id               int    `json:"id,omitempty"`
-	Provider         string `json:"provider"`
-	Username         string `json:"username"`
-	Token            string `json:"token"`
-	GitLabGroupId    string `json:"gitLabGroupId"`
-	GitHubOrgId      string `json:"gitHubOrgId"`
-	Host             string `json:"host"`
-	Active           bool   `json:"active"`
-	AzureProjectName string `json:"azureProjectName"`
-	UserId           int32  `json:"-"`
-}
-
-func (factory *GitFactory) NewClientForValidation(gitOpsConfig *GitOpsConfigDtoTemp) (GitClient, *GitServiceImpl, error) {
+func (factory *GitFactory) NewClientForValidation(gitOpsConfig *GitOpsConfigDto) (GitClient, *GitServiceImpl, error) {
 	cfg := &GitConfig{
 		GitlabGroupId:      gitOpsConfig.GitLabGroupId,
 		GitToken:           gitOpsConfig.Token,
