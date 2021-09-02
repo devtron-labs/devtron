@@ -27,8 +27,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
+	"github.com/google/go-github/github"
+	"github.com/microsoft/azure-devops-go-api/azuredevops"
+	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"math/rand"
@@ -63,6 +67,15 @@ type GitOpsConfigDto struct {
 }
 
 const GitOpsSecretName = "devtron-gitops-secret"
+const DryrunRepoName = "devtron-sample-repo-dryrun-"
+const DeleteRepoStage = "DeleteRepo"
+const CommitOnRestStage = "CommitOnRest"
+const PushStage = "Push"
+const CloneStage = "Clone"
+const GetRepoUrlStage = "GetRepoUrl"
+const CreateRepoStage = "CreateRepo"
+const CloneHttp = "CloneHttp"
+const CreateReadmeStage = "CreateReadme"
 
 type GitOpsConfigServiceImpl struct {
 	randSource       rand.Source
@@ -542,10 +555,9 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		AzureProjectName: config.AzureProjectName,
 		UserId:           config.UserId,
 	})
-
 	if err != nil {
 		impl.logger.Errorw("error in creating new client for validation")
-		detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = fmt.Errorf("%s", err.Error())
+		detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = impl.extractErrorMessageByProvider(err, config.Provider)
 		detailedError.ValidatedOn = time.Now()
 		err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
 		if err != nil {
@@ -554,26 +566,31 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		return detailedError
 	}
 
-	var letterSet = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-	randomRune := make([]rune, 4)
-	for i := range randomRune {
-		randomRune[i] = letterSet[rand.Intn(len(letterSet))]
-	}
-	appName := "devtron-sample-repo-dryrun-" + string(randomRune)
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dryrun repo")
+	appName := DryrunRepoName + util2.Generate(6)
+	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo")
 
 	detailedError.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedError.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
 
-	for stage, _ := range detailedError.StageErrorMap {
-		if stage == "CreateRepo" {
+	for stage, stageErr := range detailedError.StageErrorMap {
+		if stage == CreateRepoStage || stage == GetRepoUrlStage {
+			_, ok := detailedError.StageErrorMap[GetRepoUrlStage]
+			if ok {
+				detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = impl.extractErrorMessageByProvider(stageErr, config.Provider)
+				delete(detailedError.StageErrorMap, GetRepoUrlStage)
+			} else {
+				detailedError.StageErrorMap[CreateRepoStage] = impl.extractErrorMessageByProvider(stageErr, config.Provider)
+			}
 			detailedError.ValidatedOn = time.Now()
-			err := impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
+			err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
 			if err != nil {
 				impl.logger.Errorw("error in updating validation status in db", "err", err)
 			}
 			return detailedError
+		} else if stage == CloneHttp || stage == CreateReadmeStage {
+			detailedError.StageErrorMap[stage] = impl.extractErrorMessageByProvider(stageErr, config.Provider)
 		}
+
 	}
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
 	clonedDir := gitService.GetCloneDirectory(chartDir)
@@ -581,9 +598,9 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		clonedDir, err = gitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
-			detailedError.StageErrorMap["Clone"] = err
+			detailedError.StageErrorMap[CloneStage] = err
 		} else {
-			detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "Clone")
+			detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, CloneStage)
 		}
 	}
 
@@ -591,20 +608,20 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 	if err != nil {
 		impl.logger.Errorw("error in commit and pushing git", "err", err)
 		if commit == "" {
-			detailedError.StageErrorMap["CommitOnRest"] = err
+			detailedError.StageErrorMap[CommitOnRestStage] = err
 		} else {
-			detailedError.StageErrorMap["Push"] = err
+			detailedError.StageErrorMap[PushStage] = err
 		}
 	} else {
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CommitOnRest")
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "Push")
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, CommitOnRestStage)
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, PushStage)
 	}
-	err = client.DeleteRepository(appName, config.Username,config.GitHubOrgId,config.AzureProjectName)
+	err = client.DeleteRepository(appName, config.Username, config.GitHubOrgId, config.AzureProjectName)
 	if err != nil {
-		impl.logger.Errorw("error in deleting repo","err", err)
-		detailedError.StageErrorMap["DeleteRepo"] = fmt.Errorf("%s", err.Error())
+		impl.logger.Errorw("error in deleting repo", "err", err)
+		detailedError.StageErrorMap[DeleteRepoStage] = impl.extractErrorMessageByProvider(err, config.Provider)
 	} else {
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "DeleteRepo")
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, DeleteRepoStage)
 	}
 	detailedError.ValidatedOn = time.Now()
 	err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
@@ -656,4 +673,18 @@ func (impl *GitOpsConfigServiceImpl) getDir() string {
 	/* #nosec */
 	r1 := rand.New(impl.randSource).Int63()
 	return strconv.FormatInt(r1, 10)
+}
+func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, provider string) error {
+	var errorMessage error
+	if provider == "GITLAB" {
+		errorResponse := err.(*gitlab.ErrorResponse)
+		errorMessage = fmt.Errorf("%s", errorResponse.Message)
+	} else if provider == "AZURE_DEVOPS" {
+		errorResponse := err.(azuredevops.WrappedError)
+		errorMessage = fmt.Errorf("%s", *errorResponse.Message)
+	} else if provider == "GITHUB" {
+		errorResponse := err.(*github.ErrorResponse)
+		errorMessage = fmt.Errorf("%s", errorResponse.Message)
+	}
+	return errorMessage
 }

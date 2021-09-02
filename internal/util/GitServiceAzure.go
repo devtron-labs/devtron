@@ -46,9 +46,13 @@ func (impl GitAzureClient) DeleteRepository(name, userName, gitHubOrgName, azure
 		Project:      &azureProjectName,
 	})
 	if err != nil || gitRepository == nil {
+		impl.logger.Errorw("error in fetching repo", "err", err)
 		return err
 	}
 	err = clientAzure.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: gitRepository.Id, Project: &impl.project})
+	if err != nil {
+		impl.logger.Errorw("error in deleting repo", "err", err)
+	}
 	return err
 }
 func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
@@ -57,11 +61,11 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 	url, repoExists, err := impl.repoExists(name, impl.project)
 	if err != nil {
 		impl.logger.Errorw("error in communication with azure", "err", err)
-		detailedError.StageErrorMap["GetRepoUrl"] = err
+		detailedError.StageErrorMap[GetRepoUrlStage] = err
 		return "", false, detailedError
 	}
 	if repoExists {
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "GetRepoUrl")
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, GetRepoUrlStage)
 		return url, false, detailedError
 	}
 	gitRepositoryCreateOptions := git.GitRepositoryCreateOptions{
@@ -74,42 +78,42 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 	})
 	if err != nil {
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
-		detailedError.StageErrorMap["CreateRepo"] = err
+		detailedError.StageErrorMap[CreateRepoStage] = err
 		return "", true, detailedError
 	}
 	logger.Infow("repo created ", "r", operationReference.WebUrl)
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CreateRepo")
+	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, CreateRepoStage)
 	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		detailedError.StageErrorMap["CloneHttp"] = err
+		detailedError.StageErrorMap[CloneHttpStage] = err
 		return *operationReference.WebUrl, true, detailedError
 	}
 	if !validated {
-		detailedError.StageErrorMap["CloneHttp"] = fmt.Errorf("unable to validate project:%s in given time", name)
+		detailedError.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", name)
 		return "", true, detailedError
 	}
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CloneHttp")
+	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, CloneHttpStage)
 
 	_, err = impl.createReadme(name)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme", "err", err)
-		detailedError.StageErrorMap["CreateReadme"] = err
+		detailedError.StageErrorMap[CreateReadmeStage] = err
 		return *operationReference.WebUrl, true, detailedError
 	}
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CreateReadme")
+	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, CreateReadmeStage)
 
 	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, name, *operationReference.WebUrl)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		detailedError.StageErrorMap["CloneSsh"] = err
+		detailedError.StageErrorMap[CloneSshStage] = err
 		return *operationReference.WebUrl, true, detailedError
 	}
 	if !validated {
-		detailedError.StageErrorMap["CloneSsh"] = fmt.Errorf("unable to validate project:%s in given time", name)
+		detailedError.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", name)
 		return "", true, detailedError
 	}
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CloneSsh")
+	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, CloneSshStage)
 	return *operationReference.WebUrl, true, detailedError
 }
 
