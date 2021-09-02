@@ -657,8 +657,13 @@ func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, pr
 		errorResponse := err.(*gitlab.ErrorResponse)
 		errorMessage = fmt.Errorf("%s", errorResponse.Message)
 	} else if provider == "AZURE_DEVOPS" {
-		errorResponse := err.(azuredevops.WrappedError)
-		errorMessage = fmt.Errorf("%s", *errorResponse.Message)
+		if fmt.Sprintf("%T",err) == "azuredevops.WrappedError"{
+			errorResponse := err.(azuredevops.WrappedError)
+			errorMessage = fmt.Errorf("%s", *errorResponse.Message)
+		} else if fmt.Sprintf("%T",err) == "*azuredevops.WrappedError"{
+			errorResponse := err.(*azuredevops.WrappedError)
+			errorMessage = fmt.Errorf("%s", *errorResponse.Message)
+		}
 	} else if provider == "GITHUB" {
 		errorResponse := err.(*github.ErrorResponse)
 		errorMessage = fmt.Errorf("%s", errorResponse.Message)
