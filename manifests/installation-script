@@ -478,35 +478,36 @@ acdPassword = base64EncoderPrefix + `echo "` + acdPassword + `" | tr -d ':\n' ` 
 acdPassword = shellScript acdPassword;
 
 if hasDevtron {
-	devtronSecret = kubectl get secret -n devtroncd devtron-secret;
-	texternalCIAPISecret = jsonSelect(devtronSecret, "data.EXTERNAL_CI_API_SECRET");
-	if texternalCIAPISecret {
-		externalCIAPISecret = texternalCIAPISecret;
-	}
-	twebHookToken = jsonSelect(devtronSecret, "data.WEBHOOK_TOKEN");
-	if twebHookToken {
-		webHookToken = twebHookToken;
-	}
-	torchToken = jsonSelect(devtronSecret, "data.ORCH_TOKEN");
-	if torchToken {
-		orchToken = torchToken;
-	}
-	tdexSecret = jsonSelect(devtronSecret, "data.DEX_SECRET");
-	if tdexSecret {
-		dexSecret = tdexSecret;
-	}
-	tdexJwtKey = jsonSelect(devtronSecret, "data.DEX_JWTKEY");
-	if tdexJwtKey {
-		dexJwtKey = tdexJwtKey;
-	}
-	tdexCStoreKey = jsonSelect(devtronSecret, "data.DEX_CSTOREKEY");
-	if tdexCStoreKey {
-		dexCStoreKey = tdexCStoreKey;
-	}
-	tacdPassword = jsonSelect(devtronSecret, "data.ACD_PASSWORD");
-	if tacdPassword {
-		acdPassword = tacdPassword;
-	}
+    devtronSecret = kubectl get secret -n devtroncd devtron-secret;
+    texternalCIAPISecret = jsonSelect(devtronSecret, "data.EXTERNAL_CI_API_SECRET");
+    twebHookToken = jsonSelect(devtronSecret, "data.WEBHOOK_TOKEN");
+    torchToken = jsonSelect(devtronSecret, "data.ORCH_TOKEN");
+    tdexSecret = jsonSelect(devtronSecret, "data.DEX_SECRET");
+    tdexJwtKey = jsonSelect(devtronSecret, "data.DEX_JWTKEY");
+    tdexCStoreKey = jsonSelect(devtronSecret, "data.DEX_CSTOREKEY");
+    tacdPassword = jsonSelect(devtronSecret, "data.ACD_PASSWORD");
+}
+
+if texternalCIAPISecret {
+    externalCIAPISecret = texternalCIAPISecret;
+}
+if twebHookToken {
+    webHookToken = twebHookToken;
+}
+if torchToken {
+    orchToken = torchToken;
+}
+if tdexSecret {
+    dexSecret = tdexSecret;
+}
+if tdexJwtKey {
+    dexJwtKey = tdexJwtKey;
+}
+if tdexCStoreKey {
+    dexCStoreKey = tdexCStoreKey;
+}
+if tacdPassword {
+    acdPassword = tacdPassword;
 }
 
 
