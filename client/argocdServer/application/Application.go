@@ -484,16 +484,20 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	}
 
 	//podMetaData := make([]*PodMetadata, 0)
-	/*if newReplicaSet != "" {
+	duplicateCheck := make(map[string]bool)
+	if newReplicaSet != "" {
 		results := buildPodMetadataFromReplicaSet(resp, newReplicaSet, replicaSetManifests)
 		for _, meta := range results {
+			duplicateCheck[meta.Name] = true
 			podMetaData = append(podMetaData, meta)
 		}
-	}*/
+	}
 	if newPodNames != nil {
 		results := buildPodMetadataFromPod(resp, podManifests, newPodNames)
 		for _, meta := range results {
-			podMetaData = append(podMetaData, meta)
+			if _, ok := duplicateCheck[meta.Name]; !ok {
+				podMetaData = append(podMetaData, meta)
+			}
 		}
 	}
 	return
