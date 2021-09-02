@@ -560,13 +560,13 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		randomRune[i] = letterSet[rand.Intn(len(letterSet))]
 	}
 	appName := "devtron-sample-repo-dryrun-" + string(randomRune)
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "helm chart for "+appName)
+	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dryrun repo")
 
 	detailedError.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedError.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
 
 	for stage, _ := range detailedError.StageErrorMap {
-		if stage == "createRepo" {
+		if stage == "CreateRepo" {
 			detailedError.ValidatedOn = time.Now()
 			err := impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
 			if err != nil {
@@ -581,9 +581,9 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 		clonedDir, err = gitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
-			detailedError.StageErrorMap["clone"] = err
+			detailedError.StageErrorMap["Clone"] = err
 		} else {
-			detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "clone")
+			detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "Clone")
 		}
 	}
 
@@ -591,20 +591,20 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *GitOpsConfigDt
 	if err != nil {
 		impl.logger.Errorw("error in commit and pushing git", "err", err)
 		if commit == "" {
-			detailedError.StageErrorMap["commitOnRest"] = err
+			detailedError.StageErrorMap["CommitOnRest"] = err
 		} else {
-			detailedError.StageErrorMap["push"] = err
+			detailedError.StageErrorMap["Push"] = err
 		}
 	} else {
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "commitOnRest")
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "push")
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CommitOnRest")
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "Push")
 	}
 	err = client.DeleteRepository(appName, config.Username,config.GitHubOrgId,config.AzureProjectName)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo","err", err)
-		detailedError.StageErrorMap["Delete"] = fmt.Errorf("error in deleting repository : %s ", err.Error())
+		detailedError.StageErrorMap["DeleteRepo"] = fmt.Errorf("error in deleting repository : %s ", err.Error())
 	} else {
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "delete")
+		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "DeleteRepo")
 	}
 	detailedError.ValidatedOn = time.Now()
 	err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
@@ -623,7 +623,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidationStatusSaveOrUpdateInDb(deta
 	// Rollback tx on error.
 	defer tx.Rollback()
 	var ValidationErrorString string
-	if len(detailedError.StageErrorMap) == 0 {
+	if len(detailedError.StageErrorMap) != 0 {
 		ValidationErrorsMap := make(map[string]string)
 		for stage, err := range detailedError.StageErrorMap {
 			ValidationErrorsMap[stage] = err.Error()

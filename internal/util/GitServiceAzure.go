@@ -74,42 +74,42 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 	})
 	if err != nil {
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
-		detailedError.StageErrorMap["createRepo"] = err
+		detailedError.StageErrorMap["CreateRepo"] = err
 		return "", true, detailedError
 	}
 	logger.Infow("repo created ", "r", operationReference.WebUrl)
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "createRepo")
+	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CreateRepo")
 	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		detailedError.StageErrorMap["ensureProjectAvailabilityOnHttp"] = err
+		detailedError.StageErrorMap["CloneHttp"] = err
 		return *operationReference.WebUrl, true, detailedError
 	}
 	if !validated {
-		detailedError.StageErrorMap["ensureProjectAvailabilityOnHttp"] = fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.StageErrorMap["CloneHttp"] = fmt.Errorf("unable to validate project:%s  in given time", name)
 		return "", true, detailedError
 	}
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "ensureProjectAvailabilityOnHttp")
+	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CloneHttp")
 
 	_, err = impl.createReadme(name)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme", "err", err)
-		detailedError.StageErrorMap["createReadme"] = err
+		detailedError.StageErrorMap["CreateReadme"] = err
 		return *operationReference.WebUrl, true, detailedError
 	}
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "createReadme")
+	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CreateReadme")
 
 	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, name, *operationReference.WebUrl)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = err
+		detailedError.StageErrorMap["CloneSsh"] = err
 		return *operationReference.WebUrl, true, detailedError
 	}
 	if !validated {
-		detailedError.StageErrorMap["ensureProjectAvailabilityOnSsh"] = fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedError.StageErrorMap["CloneSsh"] = fmt.Errorf("unable to validate project:%s  in given time", name)
 		return "", true, detailedError
 	}
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "ensureProjectAvailabilityOnSsh")
+	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, "CloneSsh")
 	return *operationReference.WebUrl, true, detailedError
 }
 
