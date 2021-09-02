@@ -40,7 +40,7 @@ type GitClient interface {
 	CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError)
 	CommitValues(config *ChartConfig) (commitHash string, err error)
 	GetRepoUrl(projectName string) (repoUrl string, err error)
-	DeleteRepository(name, userName string, gitHubOrgName string) error
+	DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error
 }
 
 type GitFactory struct {
@@ -250,7 +250,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		return nil, nil
 	}
 }
-func (impl GitLabClient) DeleteRepository(name, userName string, gitHubOrgName string) error {
+func (impl GitLabClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error {
 	err := impl.DeleteProject(name)
 	return err
 }
@@ -584,7 +584,7 @@ func NewGithubClient(token string, org string, logger *zap.SugaredLogger, gitSer
 	client := github.NewClient(tc)
 	return GitHubClient{client: client, org: org, logger: logger, gitService: gitService}
 }
-func (impl GitHubClient) DeleteRepository(name, userName string, gitHubOrgName string) error {
+func (impl GitHubClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error {
 	_, err := impl.client.Repositories.Delete(context.Background(), gitHubOrgName, name)
 	if err != nil {
 		impl.logger.Errorw("repo deletion failed for github", "err", err)

@@ -3,7 +3,6 @@ package util
 import (
 	"context"
 	"fmt"
-	uuid2 "github.com/google/uuid"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"go.uber.org/zap"
@@ -40,13 +39,19 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 	}
 	return GitAzureClient{client: &coreClient, project: project, logger: logger, gitService: gitService}
 }
-func (impl GitAzureClient) DeleteRepository(name, userName string,gitHubOrgName string) error {
-	nameUUID := uuid2.MustParse(name)
+func (impl GitAzureClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error {
 	clientAzure := *impl.client
-	err := clientAzure.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: &nameUUID, Project: &impl.project})
+	gitRepository, err := clientAzure.GetRepository(context.Background(), git.GetRepositoryArgs{
+		RepositoryId: &name,
+		Project:      &azureProjectName,
+	})
+	if err != nil || gitRepository == nil {
+		return err
+	}
+	err = clientAzure.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: gitRepository.Id, Project: &impl.project})
 	return err
 }
-func (impl GitAzureClient)  CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
+func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
 	detailedError.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	url, repoExists, err := impl.repoExists(name, impl.project)
