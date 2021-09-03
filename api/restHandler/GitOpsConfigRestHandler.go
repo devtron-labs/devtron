@@ -20,8 +20,8 @@ package restHandler
 import (
 	"encoding/json"
 	"errors"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -31,7 +31,6 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 type GitOpsConfigRestHandler interface {
@@ -53,11 +52,7 @@ type GitOpsConfigRestHandlerImpl struct {
 	teamService         team.TeamService
 	gitOpsRepository    repository.GitOpsConfigRepository
 }
-type DetailedErrorResponse struct{
-	SuccessfulStages []string         `json:"successfulStages"`
-	StageErrorMap    map[string]string `json:"stageErrorMap"`
-	ValidatedOn      time.Time        `json:"validatedOn"`
-}
+
 func NewGitOpsConfigRestHandlerImpl(
 	logger *zap.SugaredLogger,
 	gitOpsConfigService gitops.GitOpsConfigService, userAuthService user.UserService,
@@ -80,7 +75,7 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean util.GitOpsConfigDto
+	var bean bean2.GitOpsConfigDto
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, CreateGitOpsConfig", "err", err, "payload", bean)
@@ -95,7 +90,6 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
@@ -103,23 +97,15 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 		return
 	}
 	//RBAC enforcer Ends
-	detailedError := impl.gitOpsConfigService.GitOpsValidateDryRun(&bean)
-	if len(detailedError.StageErrorMap) == 0 {
-		res, err := impl.gitOpsConfigService.CreateGitOpsConfig(&bean)
-		if err != nil {
-			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", bean)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		writeJsonResp(w, err, res, http.StatusOK)
+	gitOpsConfig, detailedErrorGitOpsConfigResponse,err := impl.gitOpsConfigService.ValidateAndCreateGitOpsConfig(&bean)
+	if err != nil{
+		impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", bean)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+	}
+	if gitOpsConfig != nil{
+		writeJsonResp(w, nil, gitOpsConfig, http.StatusOK)
 	} else {
-		var detailedErrorResponse DetailedErrorResponse
-		detailedErrorResponse.StageErrorMap = make(map[string]string)
-		detailedErrorResponse.SuccessfulStages = detailedError.SuccessfulStages
-		for stage,err := range detailedError.StageErrorMap{
-			detailedErrorResponse.StageErrorMap[stage] = err.Error()
-		}
-		writeJsonResp(w, nil, detailedErrorResponse, http.StatusOK)
+		writeJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 	}
 }
 
@@ -130,7 +116,7 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean util.GitOpsConfigDto
+	var bean bean2.GitOpsConfigDto
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateGitOpsConfig", "err", err, "payload", bean)
@@ -153,35 +139,15 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 	}
 	//RBAC enforcer Ends
 
-	gitOpsConfigValidationStatus, err := impl.gitOpsRepository.GetGitOpsValidationStatusByProvider(bean.Provider)
-
-	if err == nil && time.Since(gitOpsConfigValidationStatus.ValidatedOn) < 30*time.Second && len(gitOpsConfigValidationStatus.ValidationErrors) == 0 {
-		err = impl.gitOpsConfigService.UpdateGitOpsConfig(&bean)
-		if err != nil {
-			impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		writeJsonResp(w, err, bean, http.StatusOK)
-	} else {
-		detailedError := impl.gitOpsConfigService.GitOpsValidateDryRun(&bean)
-		if len(detailedError.StageErrorMap) == 0 {
-			err = impl.gitOpsConfigService.UpdateGitOpsConfig(&bean)
-			if err != nil {
-				impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-			writeJsonResp(w, err, bean, http.StatusOK)
-		} else {
-			var detailedErrorResponse DetailedErrorResponse
-			detailedErrorResponse.StageErrorMap = make(map[string]string)
-			detailedErrorResponse.SuccessfulStages = detailedError.SuccessfulStages
-			for stage,err := range detailedError.StageErrorMap{
-				detailedErrorResponse.StageErrorMap[stage] = err.Error()
-			}
-			writeJsonResp(w, nil, detailedErrorResponse, http.StatusOK)
-		}
+	gitOpsConfig,detailedErrorGitOpsConfigResponse, err := impl.gitOpsConfigService.ValidateAndUpdateGitOpsConfig(&bean)
+	if err != nil {
+		impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+	}
+	if gitOpsConfig!=nil{
+		writeJsonResp(w, nil, gitOpsConfig, http.StatusOK)
+	} else{
+		writeJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 	}
 }
 
@@ -239,7 +205,6 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsConfigured(w http.ResponseWriter, 
 	res := make(map[string]bool)
 	res["exists"] = gitopsConfigured
 	writeJsonResp(w, err, res, http.StatusOK)
-
 }
 
 func (impl GitOpsConfigRestHandlerImpl) GetAllGitOpsConfig(w http.ResponseWriter, r *http.Request) {
@@ -299,7 +264,7 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean util.GitOpsConfigDto
+	var bean bean2.GitOpsConfigDto
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, CreateGitOpsConfig", "err", err, "payload", bean)
@@ -322,12 +287,6 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r
 		return
 	}
 	//RBAC enforcer Ends
-	detailedError := impl.gitOpsConfigService.GitOpsValidateDryRun(&bean)
-	var detailedErrorResponse DetailedErrorResponse
-	detailedErrorResponse.StageErrorMap = make(map[string]string)
-	detailedErrorResponse.SuccessfulStages = detailedError.SuccessfulStages
-	for stage,err := range detailedError.StageErrorMap{
-		detailedErrorResponse.StageErrorMap[stage] = err.Error()
-	}
-	writeJsonResp(w, nil, detailedErrorResponse, http.StatusOK)
+	detailedErrorGitOpsConfigResponse := impl.gitOpsConfigService.GitOpsValidateDryRun(&bean)
+	writeJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 }

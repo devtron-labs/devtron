@@ -55,18 +55,18 @@ func (impl GitAzureClient) DeleteRepository(name, userName, gitHubOrgName, azure
 	}
 	return err
 }
-func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, detailedError DetailedError) {
-	detailedError.StageErrorMap = make(map[string]error)
+func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	url, repoExists, err := impl.repoExists(name, impl.project)
 	if err != nil {
 		impl.logger.Errorw("error in communication with azure", "err", err)
-		detailedError.StageErrorMap[GetRepoUrlStage] = err
-		return "", false, detailedError
+		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
+		return "", false, detailedErrorGitOpsConfigActions
 	}
 	if repoExists {
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, GetRepoUrlStage)
-		return url, false, detailedError
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
+		return url, false, detailedErrorGitOpsConfigActions
 	}
 	gitRepositoryCreateOptions := git.GitRepositoryCreateOptions{
 		Name: &name,
@@ -78,43 +78,43 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 	})
 	if err != nil {
 		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
-		detailedError.StageErrorMap[CreateRepoStage] = err
-		return "", true, detailedError
+		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
+		return "", true, detailedErrorGitOpsConfigActions
 	}
 	logger.Infow("repo created ", "r", operationReference.WebUrl)
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, CreateRepoStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		detailedError.StageErrorMap[CloneHttpStage] = err
-		return *operationReference.WebUrl, true, detailedError
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedError.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", name)
-		return "", true, detailedError
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", name)
+		return "", true, detailedErrorGitOpsConfigActions
 	}
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, CloneHttpStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
 	_, err = impl.createReadme(name)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme", "err", err)
-		detailedError.StageErrorMap[CreateReadmeStage] = err
-		return *operationReference.WebUrl, true, detailedError
+		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
+		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 	}
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, CreateReadmeStage)
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
 
 	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, name, *operationReference.WebUrl)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		detailedError.StageErrorMap[CloneSshStage] = err
-		return *operationReference.WebUrl, true, detailedError
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedError.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", name)
-		return "", true, detailedError
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", name)
+		return "", true, detailedErrorGitOpsConfigActions
 	}
-	detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, CloneSshStage)
-	return *operationReference.WebUrl, true, detailedError
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
+	return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 }
 
 func (impl GitAzureClient) createReadme(repoName string) (string, error) {

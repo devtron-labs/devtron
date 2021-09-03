@@ -21,7 +21,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type GitOpsConfigRepository interface {
@@ -32,11 +31,6 @@ type GitOpsConfigRepository interface {
 	GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error)
 	GetGitOpsConfigActive() (*GitOpsConfig, error)
 	GetConnection() *pg.DB
-
-	//For Validation Status
-	CreateGitOpsValidationStatus(model *GitOpsConfigValidationStatus, tx *pg.Tx) error
-	UpdateGitOpsValidationStatus(model *GitOpsConfigValidationStatus, tx *pg.Tx) error
-	GetGitOpsValidationStatusByProvider(provider string) (*GitOpsConfigValidationStatus, error)
 }
 
 type GitOpsConfigRepositoryImpl struct {
@@ -101,30 +95,5 @@ func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigByProvider(provider strin
 func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigActive() (*GitOpsConfig, error) {
 	var model GitOpsConfig
 	err := impl.dbConnection.Model(&model).Where("active = ?", true).Limit(1).Select()
-	return &model, err
-}
-
-//--------------gitOps-validation-status--------------------
-
-type GitOpsConfigValidationStatus struct {
-	tableName        struct{}  `sql:"gitops_config_validation_status" pg:",discard_unknown_columns"`
-	Id               int       `sql:"id,pk"`
-	Provider         string    `sql:"provider"`
-	ValidationErrors string    `sql:"validation_errors"`
-	ValidatedOn      time.Time `sql:"validated_on"`
-}
-
-func (impl *GitOpsConfigRepositoryImpl) CreateGitOpsValidationStatus(model *GitOpsConfigValidationStatus, tx *pg.Tx) error {
-	err := tx.Insert(model)
-	return err
-}
-func (impl *GitOpsConfigRepositoryImpl) UpdateGitOpsValidationStatus(model *GitOpsConfigValidationStatus, tx *pg.Tx) error {
-	err := tx.Update(model)
-	return err
-}
-
-func (impl *GitOpsConfigRepositoryImpl) GetGitOpsValidationStatusByProvider(provider string) (*GitOpsConfigValidationStatus, error) {
-	var model GitOpsConfigValidationStatus
-	err := impl.dbConnection.Model(&model).Where("provider = ?", provider).Select()
 	return &model, err
 }

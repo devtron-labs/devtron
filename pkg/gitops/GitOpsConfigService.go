@@ -20,6 +20,7 @@ package gitops
 import (
 	"encoding/json"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -43,27 +44,35 @@ import (
 )
 
 type GitOpsConfigService interface {
-	CreateGitOpsConfig(config *util.GitOpsConfigDto) (*util.GitOpsConfigDto, error)
-	UpdateGitOpsConfig(config *util.GitOpsConfigDto) error
-	GetGitOpsConfigById(id int) (*util.GitOpsConfigDto, error)
-	GetAllGitOpsConfig() ([]*util.GitOpsConfigDto, error)
-	GetGitOpsConfigByProvider(provider string) (*util.GitOpsConfigDto, error)
-	GetGitOpsConfigActive() (*util.GitOpsConfigDto, error)
-	GitOpsValidateDryRun(config *util.GitOpsConfigDto) util.DetailedError
+	ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error)
+	ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error)
+	GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse
+	CreateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error)
+	UpdateGitOpsConfig(config *bean2.GitOpsConfigDto) error
+	GetGitOpsConfigById(id int) (*bean2.GitOpsConfigDto, error)
+	GetAllGitOpsConfig() ([]*bean2.GitOpsConfigDto, error)
+	GetGitOpsConfigByProvider(provider string) (*bean2.GitOpsConfigDto, error)
+	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
 }
 
+const (
+	GitOpsSecretName  = "devtron-gitops-secret"
+	DryrunRepoName    = "devtron-sample-repo-dryrun-"
+	DeleteRepoStage   = "DeleteRepo"
+	CommitOnRestStage = "CommitOnRest"
+	PushStage         = "Push"
+	CloneStage        = "Clone"
+	GetRepoUrlStage   = "GetRepoUrl"
+	CreateRepoStage   = "CreateRepo"
+	CloneHttp         = "CloneHttp"
+	CreateReadmeStage = "CreateReadme"
+)
 
-const GitOpsSecretName = "devtron-gitops-secret"
-const DryrunRepoName = "devtron-sample-repo-dryrun-"
-const DeleteRepoStage = "DeleteRepo"
-const CommitOnRestStage = "CommitOnRest"
-const PushStage = "Push"
-const CloneStage = "Clone"
-const GetRepoUrlStage = "GetRepoUrl"
-const CreateRepoStage = "CreateRepo"
-const CloneHttp = "CloneHttp"
-const CreateReadmeStage = "CreateReadme"
-
+type DetailedErrorGitOpsConfigResponse struct {
+	SuccessfulStages []string          `json:"successfulStages"`
+	StageErrorMap    map[string]string `json:"stageErrorMap"`
+	ValidatedOn      time.Time         `json:"validatedOn"`
+}
 type GitOpsConfigServiceImpl struct {
 	randSource       rand.Source
 	logger           *zap.SugaredLogger
@@ -92,7 +101,33 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 		gitFactory:       gitFactory,
 	}
 }
-func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *util.GitOpsConfigDto) (*util.GitOpsConfigDto, error) {
+
+func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error) {
+	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
+	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
+		gitOpsConfig, err := impl.CreateGitOpsConfig(config)
+		if err != nil {
+			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
+			return gitOpsConfig, detailedErrorGitOpsConfigResponse, err
+		}
+		return gitOpsConfig, detailedErrorGitOpsConfigResponse, nil
+	}
+	return nil, detailedErrorGitOpsConfigResponse, nil
+}
+func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error) {
+	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
+	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
+		err := impl.UpdateGitOpsConfig(config)
+		if err != nil {
+			impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", config)
+			return config, detailedErrorGitOpsConfigResponse, err
+		}
+		return config, detailedErrorGitOpsConfigResponse, nil
+	}
+	return nil, detailedErrorGitOpsConfigResponse, nil
+}
+
+func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error) {
 	impl.logger.Debugw("gitops create request", "req", request)
 	dbConnection := impl.gitOpsRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -229,7 +264,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *util.GitOpsConf
 	request.Id = model.Id
 	return request, nil
 }
-func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *util.GitOpsConfigDto) error {
+func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsConfigDto) error {
 	impl.logger.Debugw("gitops config update request", "req", request)
 	dbConnection := impl.gitOpsRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -381,13 +416,13 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *util.GitOpsConf
 	return nil
 }
 
-func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*util.GitOpsConfigDto, error) {
+func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*bean2.GitOpsConfigDto, error) {
 	model, err := impl.gitOpsRepository.GetGitOpsConfigById(id)
 	if err != nil {
 		impl.logger.Errorw("GetGitOpsConfigById, error while get by id", "err", err, "id", id)
 		return nil, err
 	}
-	config := &util.GitOpsConfigDto{
+	config := &bean2.GitOpsConfigDto{
 		Id:               model.Id,
 		Provider:         model.Provider,
 		GitHubOrgId:      model.GitHubOrgId,
@@ -403,15 +438,15 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*util.GitOpsCo
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*util.GitOpsConfigDto, error) {
+func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*bean2.GitOpsConfigDto, error) {
 	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
 	if err != nil {
 		impl.logger.Errorw("GetAllGitOpsConfig, error while fetch all", "err", err)
 		return nil, err
 	}
-	configs := make([]*util.GitOpsConfigDto, 0)
+	configs := make([]*bean2.GitOpsConfigDto, 0)
 	for _, model := range models {
-		config := &util.GitOpsConfigDto{
+		config := &bean2.GitOpsConfigDto{
 			Id:               model.Id,
 			Provider:         model.Provider,
 			GitHubOrgId:      model.GitHubOrgId,
@@ -428,13 +463,13 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*util.GitOpsConfigD
 	return configs, err
 }
 
-func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) (*util.GitOpsConfigDto, error) {
+func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) (*bean2.GitOpsConfigDto, error) {
 	model, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(provider)
 	if err != nil {
 		impl.logger.Errorw("GetGitOpsConfigByProvider, error while get by name", "err", err, "provider", provider)
 		return nil, err
 	}
-	config := &util.GitOpsConfigDto{
+	config := &bean2.GitOpsConfigDto{
 		Id:               model.Id,
 		Provider:         model.Provider,
 		GitHubOrgId:      model.GitHubOrgId,
@@ -450,7 +485,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *util.GitOpsConfigDto, secretName string, existingHost string) map[string]string {
+func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *bean2.GitOpsConfigDto, secretName string, existingHost string) map[string]string {
 	var newRepositories []*RepositoryCredentialsDto
 	var existingRepositories []*RepositoryCredentialsDto
 	repoStr := data["repository.credentials"]
@@ -488,7 +523,7 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 	return repositoryCredentials
 }
 
-func (impl *GitOpsConfigServiceImpl) createRepoElement(secretName string, request *util.GitOpsConfigDto) *RepositoryCredentialsDto {
+func (impl *GitOpsConfigServiceImpl) createRepoElement(secretName string, request *bean2.GitOpsConfigDto) *RepositoryCredentialsDto {
 	repoData := &RepositoryCredentialsDto{}
 	usernameSecret := &KeyDto{Name: secretName, Key: "username"}
 	passwordSecret := &KeyDto{Name: secretName, Key: "password"}
@@ -509,13 +544,13 @@ type KeyDto struct {
 	Key  string `json:"key,omitempty"`
 }
 
-func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*util.GitOpsConfigDto, error) {
+func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error) {
 	model, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
 		return nil, err
 	}
-	config := &util.GitOpsConfigDto{
+	config := &bean2.GitOpsConfigDto{
 		Id:               model.Id,
 		Provider:         model.Provider,
 		GitHubOrgId:      model.GitHubOrgId,
@@ -527,46 +562,39 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*util.GitOpsConfig
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *util.GitOpsConfigDto) util.DetailedError {
-	detailedError := util.DetailedError{}
-	detailedError.StageErrorMap = make(map[string]error)
+func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
+	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
+	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	client, gitService, err := impl.gitFactory.NewClientForValidation(config)
 	if err != nil {
 		impl.logger.Errorw("error in creating new client for validation")
-		detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = impl.extractErrorMessageByProvider(err, config.Provider)
-		detailedError.ValidatedOn = time.Now()
-		err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
-		if err != nil {
-			impl.logger.Errorw("error in updating validation status in db", "err", err)
-		}
-		return detailedError
+		detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = impl.extractErrorMessageByProvider(err, config.Provider)
+		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
+		detailedErrorGitOpsConfigResponse := impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+		return detailedErrorGitOpsConfigResponse
 	}
 
 	appName := DryrunRepoName + util2.Generate(6)
 	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo")
 
-	detailedError.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
-	detailedError.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
+	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
+	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
 
-	for stage, stageErr := range detailedError.StageErrorMap {
+	for stage, stageErr := range detailedErrorGitOpsConfigActions.StageErrorMap {
 		if stage == CreateRepoStage || stage == GetRepoUrlStage {
-			_, ok := detailedError.StageErrorMap[GetRepoUrlStage]
+			_, ok := detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage]
 			if ok {
-				detailedError.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = impl.extractErrorMessageByProvider(stageErr, config.Provider)
-				delete(detailedError.StageErrorMap, GetRepoUrlStage)
+				detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("error in connecting with %s", strings.ToUpper(config.Provider))] = impl.extractErrorMessageByProvider(stageErr, config.Provider)
+				delete(detailedErrorGitOpsConfigActions.StageErrorMap, GetRepoUrlStage)
 			} else {
-				detailedError.StageErrorMap[CreateRepoStage] = impl.extractErrorMessageByProvider(stageErr, config.Provider)
+				detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = impl.extractErrorMessageByProvider(stageErr, config.Provider)
 			}
-			detailedError.ValidatedOn = time.Now()
-			err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
-			if err != nil {
-				impl.logger.Errorw("error in updating validation status in db", "err", err)
-			}
-			return detailedError
+			detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
+			detailedErrorGitOpsConfigResponse := impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+			return detailedErrorGitOpsConfigResponse
 		} else if stage == CloneHttp || stage == CreateReadmeStage {
-			detailedError.StageErrorMap[stage] = impl.extractErrorMessageByProvider(stageErr, config.Provider)
+			detailedErrorGitOpsConfigActions.StageErrorMap[stage] = impl.extractErrorMessageByProvider(stageErr, config.Provider)
 		}
-
 	}
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
 	clonedDir := gitService.GetCloneDirectory(chartDir)
@@ -574,9 +602,9 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *util.GitOpsCon
 		clonedDir, err = gitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
-			detailedError.StageErrorMap[CloneStage] = err
+			detailedErrorGitOpsConfigActions.StageErrorMap[CloneStage] = err
 		} else {
-			detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, CloneStage)
+			detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneStage)
 		}
 	}
 
@@ -584,60 +612,25 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *util.GitOpsCon
 	if err != nil {
 		impl.logger.Errorw("error in commit and pushing git", "err", err)
 		if commit == "" {
-			detailedError.StageErrorMap[CommitOnRestStage] = err
+			detailedErrorGitOpsConfigActions.StageErrorMap[CommitOnRestStage] = err
 		} else {
-			detailedError.StageErrorMap[PushStage] = err
+			detailedErrorGitOpsConfigActions.StageErrorMap[PushStage] = err
 		}
 	} else {
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, CommitOnRestStage)
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, PushStage)
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CommitOnRestStage)
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, PushStage)
 	}
 	err = client.DeleteRepository(appName, config.Username, config.GitHubOrgId, config.AzureProjectName)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo", "err", err)
-		detailedError.StageErrorMap[DeleteRepoStage] = impl.extractErrorMessageByProvider(err, config.Provider)
+		detailedErrorGitOpsConfigActions.StageErrorMap[DeleteRepoStage] = impl.extractErrorMessageByProvider(err, config.Provider)
 	} else {
-		detailedError.SuccessfulStages = append(detailedError.SuccessfulStages, DeleteRepoStage)
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, DeleteRepoStage)
 	}
-	detailedError.ValidatedOn = time.Now()
-	err = impl.GitOpsValidationStatusSaveOrUpdateInDb(detailedError, config.Provider)
-	if err != nil {
-		impl.logger.Errorw("error in updating validation status in db", "err", err)
-	}
+	detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
 	defer impl.cleanDir(clonedDir)
-	return detailedError
-}
-func (impl *GitOpsConfigServiceImpl) GitOpsValidationStatusSaveOrUpdateInDb(detailedError util.DetailedError, provider string) error {
-	dbConnection := impl.gitOpsRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	var ValidationErrorString string
-	if len(detailedError.StageErrorMap) != 0 {
-		ValidationErrorsMap := make(map[string]string)
-		for stage, err := range detailedError.StageErrorMap {
-			ValidationErrorsMap[stage] = err.Error()
-		}
-		ValidationErrorsByte, _ := json.Marshal(ValidationErrorsMap)
-		ValidationErrorString = string(ValidationErrorsByte)
-	}
-
-	model := &repository.GitOpsConfigValidationStatus{
-		ValidatedOn:      detailedError.ValidatedOn,
-		ValidationErrors: ValidationErrorString,
-		Provider:         provider,
-	}
-
-	_, err = impl.gitOpsRepository.GetGitOpsValidationStatusByProvider(provider)
-	if err != pg.ErrNoRows {
-		err = impl.gitOpsRepository.CreateGitOpsValidationStatus(model, tx)
-		return err
-	}
-	err = impl.gitOpsRepository.UpdateGitOpsValidationStatus(model, tx)
-	return err
+	detailedErrorGitOpsConfigResponse := impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+	return detailedErrorGitOpsConfigResponse
 }
 func (impl *GitOpsConfigServiceImpl) cleanDir(dir string) {
 	err := os.RemoveAll(dir)
@@ -656,10 +649,10 @@ func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, pr
 		errorResponse := err.(*gitlab.ErrorResponse)
 		errorMessage = fmt.Errorf("%s", errorResponse.Message)
 	} else if provider == "AZURE_DEVOPS" {
-		if fmt.Sprintf("%T",err) == "azuredevops.WrappedError"{
+		if fmt.Sprintf("%T", err) == "azuredevops.WrappedError" {
 			errorResponse := err.(azuredevops.WrappedError)
 			errorMessage = fmt.Errorf("%s", *errorResponse.Message)
-		} else if fmt.Sprintf("%T",err) == "*azuredevops.WrappedError"{
+		} else if fmt.Sprintf("%T", err) == "*azuredevops.WrappedError" {
 			errorResponse := err.(*azuredevops.WrappedError)
 			errorMessage = fmt.Errorf("%s", *errorResponse.Message)
 		}
@@ -669,4 +662,12 @@ func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, pr
 		//errorMessage = fmt.Errorf("%s", errorResponse.Message)
 	}
 	return errorMessage
+}
+func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions util.DetailedErrorGitOpsConfigActions) (detailedErrorResponse DetailedErrorGitOpsConfigResponse) {
+	detailedErrorResponse.StageErrorMap = make(map[string]string)
+	detailedErrorResponse.SuccessfulStages = detailedErrorGitOpsConfigActions.SuccessfulStages
+	for stage, err := range detailedErrorGitOpsConfigActions.StageErrorMap {
+		detailedErrorResponse.StageErrorMap[stage] = err.Error()
+	}
+	return detailedErrorResponse
 }
