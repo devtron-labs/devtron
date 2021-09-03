@@ -50,7 +50,9 @@ A personal access token (PAT) is used as an alternate password to authenticate i
 
 * repo - Full control of private repositories(Access commit status , Access deployment status and Access public repositories).
 * admin:org - Full control of organizations and teams(Read and write access).
+
 **If creating webhooks for `Pull Requests` or `Tags Creations` add following permissions with the above ones**
+
 * admin:repo_repo - Full control of repository hooks(Read and write access).
 * admin:org_repo - Full control of organization hooks.
 
