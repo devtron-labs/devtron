@@ -113,7 +113,7 @@ This specifies the minimum number of seconds for which a newly created Pod shoul
 
 ### Readiness Probe
 
-If this check fails, kubernetes stops sending traffic to the application. This should return error code in case of errors which can be recovered from if traffic is stopped
+If this check fails, kubernetes stops sending traffic to the application. This should return error code in case of errors which can be recovered from if traffic is stopped.
 
 ```yaml
 ReadinessProbe:
@@ -143,7 +143,7 @@ ReadinessProbe:
 
 ### Autoscaling
 
-This is connected to HPA and controls scaling up and down in response to request load
+This is connected to HPA and controls scaling up and down in response to request load.
 
 ```yaml
 autoscaling:
@@ -235,7 +235,7 @@ To wait for given period of time before swith active the container.
 
 ### Resources
 
-These define minimum and maximum RAM and CPU available to the application
+These define minimum and maximum RAM and CPU available to the application.
 
 ```yaml
 resources:
@@ -259,7 +259,7 @@ Requests are what the container is guaranteed to get.
 
 ### Service
 
-This defines annotations and the type of service, optionally can define name also
+This defines annotations and the type of service, optionally can define name also.
 
 ```yaml
   service:
@@ -281,7 +281,7 @@ It is required when some values need to be read from or written to an external d
 volumeMounts: []
 ```
 
-It is used to provide mounts to the volume
+It is used to provide mounts to the volume.
 
 ### Affinity and anti-affinity
 
@@ -294,17 +294,17 @@ Spec:
 
 Spec is used to define the desire state of the given container.
 
-Node Affimity allows you to constrain which nodes your pod is eligible to schedule on, based on labels of the node.
+Node Affinity allows you to constrain which nodes your pod is eligible to schedule on, based on labels of the node.
 
 Inter-pod affinity allow you to constrain which nodes your pod is eligible to be scheduled based on labels on pods.
 
 #### Key
 
-Key part of the label for node selection, this should be same as that on node. Please confirm with devops team
+Key part of the label for node selection, this should be same as that on node. Please confirm with devops team.
 
 #### Values
 
-Value part of the label for node selection, this should be same as that on node. Please confirm with devops team
+Value part of the label for node selection, this should be same as that on node. Please confirm with devops team.
 
 ### Tolerations
 
@@ -330,7 +330,7 @@ args:
   value: []
 ```
 
-This is used to give arguments to command
+This is used to give arguments to command.
 
 ### Command
 
@@ -373,18 +373,18 @@ It is a kubernetes monitoring tool and the name of the file to be monitored as m
 ### rawYaml
 
 ```yaml
-rawYaml: []
-  apiVersion: v1
-  kind: Service
-  metadata:
-    name: my-service
-  spec:
-    selector:
-      app: MyApp
-    ports:
-      - protocol: TCP
-        port: 80
-        targetPort: 9376
+rawYaml: 
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: my-service
+    spec:
+      selector:
+        app: MyApp
+      ports:
+        - protocol: TCP
+          port: 80
+          targetPort: 9376
 ```
 Accepts an array of Kubernetes objects. You can specify any kubernetes yaml here and it will be applied when your app gets deployed.
 
@@ -397,15 +397,8 @@ Kubernetes waits for the specified time called the termination grace period befo
 
 A Graceful termination in practice means that your application needs to handle the SIGTERM message and begin shutting down when it receives it. This means saving all data that needs to be saved, closing down network connections, finishing any work that is left, and other similar tasks.
 
-There are many reasons why Kubernetes might terminate a perfectly healthy container. If you update your deployment with a rolling update, Kubernetes slowly terminates old pods while spinning up new ones. If you drain a node, Kubernetes terminates all pods on that node. If a node runs out of resources, Kubernetes terminates pods to free those resources. It’s important that your application handle termination gracefully so that there is minimal impact on the end user and the time-to-recovery is as fast as possible!
+There are many reasons why Kubernetes might terminate a perfectly healthy container. If you update your deployment with a rolling update, Kubernetes slowly terminates old pods while spinning up new ones. If you drain a node, Kubernetes terminates all pods on that node. If a node runs out of resources, Kubernetes terminates pods to free those resources. It’s important that your application handle termination gracefully so that there is minimal impact on the end user and the time-to-recovery is as fast as possible.
 
-### Min Ready Seconds
-
-```yaml
-MinReadySeconds: 60
-```
-
-Minimum time for which a newly created pod should be ready without any of its container crashing, for it to be considered available
 
 ### Server
 
@@ -420,7 +413,7 @@ It is used for providing server configurations.
 
 #### Deployment
 
-It gives the details for deployment
+It gives the details for deployment.
 
 | Key | Description |
 | :--- | :--- |
