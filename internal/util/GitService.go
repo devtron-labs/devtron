@@ -67,7 +67,6 @@ type DetailedErrorGitOpsConfigActions struct {
 	ValidatedOn      time.Time        `json:"validatedOn"`
 }
 
-
 func (factory *GitFactory) Reload() error {
 	logger.Infow("reloading gitops details")
 	cfg, err := GetGitConfig(factory.gitOpsRepository)
@@ -250,7 +249,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 func (impl GitLabClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error {
 	err := impl.DeleteProject(name)
 	if err != nil {
-		impl.logger.Errorw("error in deleting repo", "err", err)
+		impl.logger.Errorw("error in deleting repo gitlab", "project", name, "err", err)
 	}
 	return err
 }
@@ -259,7 +258,7 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 	impl.logger.Debugw("gitlab app create request ", "name", name, "description", description)
 	repoUrl, err := impl.GetRepoUrl(name)
 	if err != nil {
-		impl.logger.Errorw("error in getting repo url ", "project", name, "err", err)
+		impl.logger.Errorw("error in getting repo url ", "gitlab project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
 		return "", false, detailedErrorGitOpsConfigActions
 	}
@@ -277,7 +276,7 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 	repoUrl = url
 	validated, err := impl.ensureProjectAvailability(name)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability ", "gitlab project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
@@ -288,14 +287,14 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 	_, err = impl.createReadme(impl.config.GitlabGroupPath, name)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme ", "project", name, "err", err)
+		impl.logger.Errorw("error in creating readme ", "gitlab project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
 	validated, err = impl.ensureProjectAvailabilityOnSsh(name, repoUrl)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability ", "gitlab project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
@@ -308,7 +307,7 @@ func (impl GitLabClient) CreateRepository(name, description string) (url string,
 }
 
 func (impl GitLabClient) DeleteProject(projectName string) (err error) {
-	impl.logger.Infow("deleting project ", "name", projectName)
+	impl.logger.Infow("deleting project ", "gitlab project name", projectName)
 	_, err = impl.client.Projects.DeleteProject(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName))
 	return err
 }
@@ -362,11 +361,11 @@ func (impl GitLabClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 		count = count + 1
 		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
+			impl.logger.Infow("gitlab ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
 			return true, nil
 		}
 		if err != nil {
-			impl.logger.Errorw("ensureProjectAvailability clone failed", "try count", count, "err", err)
+			impl.logger.Errorw("gitlab ensureProjectAvailability clone failed", "try count", count, "err", err)
 		}
 		time.Sleep(10 * time.Second)
 	}
@@ -377,7 +376,7 @@ func (impl GitLabClient) GetRepoUrl(projectName string) (repoUrl string, err err
 	pid := fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName)
 	prop, res, err := impl.client.Projects.GetProject(pid, &gitlab.GetProjectOptions{})
 	if err != nil {
-		impl.logger.Debugw("get project err", "pod", pid, "err", err)
+		impl.logger.Debugw("gitlab get project err", "pod", pid, "err", err)
 		if res != nil && res.StatusCode == 404 {
 			return "", nil
 		}
@@ -587,7 +586,7 @@ func NewGithubClient(token string, org string, logger *zap.SugaredLogger, gitSer
 func (impl GitHubClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error {
 	_, err := impl.client.Repositories.Delete(context.Background(), gitHubOrgName, name)
 	if err != nil {
-		impl.logger.Errorw("repo deletion failed for github", "err", err)
+		impl.logger.Errorw("repo deletion failed for github", "repo", name, "err", err)
 		return err
 	}
 	return nil
@@ -600,7 +599,7 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
-			impl.logger.Errorw("error in creating repo", "err", err)
+			impl.logger.Errorw("error in creating github repo", "err", err)
 			detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
 			return "", false, detailedErrorGitOpsConfigActions
 		} else {
@@ -620,16 +619,16 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 			//			Visibility:  &visibility,
 		})
 	if err != nil {
-		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
+		impl.logger.Errorw("error in creating github repo, ", "repo", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
-	logger.Infow("repo created ", "r", r.CloneURL)
+	logger.Infow("github repo created ", "r", r.CloneURL)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 
 	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability", "project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability github", "project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
 		return *r.CloneURL, true, detailedErrorGitOpsConfigActions
 	}
@@ -641,7 +640,7 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 
 	_, err = impl.createReadme(name)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme", "err", err)
+		impl.logger.Errorw("error in creating readme github", "project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
 		return *r.CloneURL, true, detailedErrorGitOpsConfigActions
 	}
@@ -649,7 +648,7 @@ func (impl GitHubClient) CreateRepository(name, description string) (url string,
 
 	validated, err = impl.ensureProjectAvailabilityOnSsh(name, *r.CloneURL)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability github", "project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
 		return *r.CloneURL, true, detailedErrorGitOpsConfigActions
 	}
@@ -672,7 +671,7 @@ func (impl GitHubClient) createReadme(repoName string) (string, error) {
 	}
 	hash, err := impl.CommitValues(cfg)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme", "repo", repoName, "err", err)
+		impl.logger.Errorw("error in creating readme github", "repo", repoName, "err", err)
 	}
 	return hash, err
 }
@@ -686,7 +685,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, e
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
-			impl.logger.Errorw("error in creating repo", "err", err)
+			impl.logger.Errorw("error in creating repo github", "err", err, "config", config)
 			return "", err
 		} else {
 			newFile = true
@@ -704,7 +703,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, e
 	}
 	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartName, path, options)
 	if err != nil {
-		impl.logger.Errorw("error in commit", "err", err)
+		impl.logger.Errorw("error in commit github", "err", err, "config", config)
 		return "", err
 	}
 	return *c.SHA, nil
@@ -729,10 +728,10 @@ func (impl GitHubClient) ensureProjectAvailabilityOnHttp(projectName string) (bo
 		}
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
-			impl.logger.Errorw("error in validating repo", "err", err)
+			impl.logger.Errorw("error in validating repo github", "project", projectName, "err", err)
 			return false, err
 		} else {
-			impl.logger.Errorw("error in validating repo", "err", err)
+			impl.logger.Errorw("error in validating repo github", "project", projectName, "err", err)
 		}
 		time.Sleep(10 * time.Second)
 	}
@@ -745,11 +744,11 @@ func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 		count = count + 1
 		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
+			impl.logger.Infow("github ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
 			return true, nil
 		}
 		if err != nil {
-			impl.logger.Errorw("ensureProjectAvailability clone failed", "try count", count, "err", err)
+			impl.logger.Errorw("github ensureProjectAvailability clone failed", "try count", count, "err", err)
 		}
 		time.Sleep(10 * time.Second)
 	}

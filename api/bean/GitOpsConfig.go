@@ -12,4 +12,3 @@ type GitOpsConfigDto struct {
 	AzureProjectName string `json:"azureProjectName"`
 	UserId           int32  `json:"-"`
 }
-

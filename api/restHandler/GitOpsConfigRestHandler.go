@@ -97,12 +97,12 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 		return
 	}
 	//RBAC enforcer Ends
-	gitOpsConfig, detailedErrorGitOpsConfigResponse,err := impl.gitOpsConfigService.ValidateAndCreateGitOpsConfig(&bean)
-	if err != nil{
+	gitOpsConfig, detailedErrorGitOpsConfigResponse, err := impl.gitOpsConfigService.ValidateAndCreateGitOpsConfig(&bean)
+	if err != nil {
 		impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", bean)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
-	if gitOpsConfig != nil{
+	if gitOpsConfig != nil {
 		writeJsonResp(w, nil, gitOpsConfig, http.StatusOK)
 	} else {
 		writeJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
@@ -139,14 +139,14 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 	}
 	//RBAC enforcer Ends
 
-	gitOpsConfig,detailedErrorGitOpsConfigResponse, err := impl.gitOpsConfigService.ValidateAndUpdateGitOpsConfig(&bean)
+	gitOpsConfig, detailedErrorGitOpsConfigResponse, err := impl.gitOpsConfigService.ValidateAndUpdateGitOpsConfig(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
-	if gitOpsConfig!=nil{
+	if gitOpsConfig != nil {
 		writeJsonResp(w, nil, gitOpsConfig, http.StatusOK)
-	} else{
+	} else {
 		writeJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 	}
 }

@@ -46,12 +46,12 @@ func (impl GitAzureClient) DeleteRepository(name, userName, gitHubOrgName, azure
 		Project:      &azureProjectName,
 	})
 	if err != nil || gitRepository == nil {
-		impl.logger.Errorw("error in fetching repo", "err", err)
+		impl.logger.Errorw("error in fetching repo azure", "project", name, "err", err)
 		return err
 	}
 	err = clientAzure.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: gitRepository.Id, Project: &impl.project})
 	if err != nil {
-		impl.logger.Errorw("error in deleting repo", "err", err)
+		impl.logger.Errorw("error in deleting repo azure", "project", name, "err", err)
 	}
 	return err
 }
@@ -77,7 +77,7 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 		Project:               &impl.project,
 	})
 	if err != nil {
-		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
+		impl.logger.Errorw("error in creating repo azure", "project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
@@ -85,7 +85,7 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability azure", "project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
 		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 	}
@@ -97,7 +97,7 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 
 	_, err = impl.createReadme(name)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme", "err", err)
+		impl.logger.Errorw("error in creating readme azure", "project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
 		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 	}
@@ -105,7 +105,7 @@ func (impl GitAzureClient) CreateRepository(name, description string) (url strin
 
 	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, name, *operationReference.WebUrl)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability azure", "project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
 		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 	}
@@ -127,7 +127,7 @@ func (impl GitAzureClient) createReadme(repoName string) (string, error) {
 	}
 	hash, err := impl.CommitValues(cfg)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme", "repo", repoName, "err", err)
+		impl.logger.Errorw("error in creating readme azure", "repo", repoName, "err", err)
 	}
 	return hash, err
 }
@@ -205,7 +205,7 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 	})
 
 	if err != nil {
-		impl.logger.Errorw("error in commit", "err", err)
+		impl.logger.Errorw("error in commit azure", "err", err)
 		return "", err
 	}
 	//gitPush.Commits
@@ -247,7 +247,7 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(repoName string) (boo
 			impl.logger.Infow("repo validated successfully on https")
 			return true, nil
 		} else if err != nil {
-			impl.logger.Errorw("error in validating repo", "err", err)
+			impl.logger.Errorw("error in validating repo azure", "repo", repoName, "err", err)
 			return false, err
 		} else {
 			impl.logger.Errorw("repo not available on http", "repo")
@@ -261,10 +261,10 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, re
 	for count := 0; count < 8; count++ {
 		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
+			impl.logger.Infow("ensureProjectAvailability clone passed azure", "try count", count, "repoUrl", repoUrl)
 			return true, nil
 		}
-		impl.logger.Errorw("ensureProjectAvailability clone failed ssh ", "try count", count, "err", err)
+		impl.logger.Errorw("ensureProjectAvailability clone failed ssh azure", "try count", count, "err", err)
 		time.Sleep(10 * time.Second)
 	}
 	return false, nil
