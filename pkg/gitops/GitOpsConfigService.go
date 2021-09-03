@@ -30,7 +30,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
-	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
@@ -665,8 +664,9 @@ func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, pr
 			errorMessage = fmt.Errorf("%s", *errorResponse.Message)
 		}
 	} else if provider == "GITHUB" {
-		errorResponse := err.(*github.ErrorResponse)
-		errorMessage = fmt.Errorf("%s", errorResponse.Message)
+		return err
+		//errorResponse := err.(*github.ErrorResponse)
+		//errorMessage = fmt.Errorf("%s", errorResponse.Message)
 	}
 	return errorMessage
 }
