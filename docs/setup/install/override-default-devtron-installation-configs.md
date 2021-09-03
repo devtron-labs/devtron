@@ -50,3 +50,13 @@ kubectl patch -n devtroncd installer installer-devtron --type='json' -p='[{"op":
 ```
 
 After 20-30 mins our changes would have been propogated to devtron installation.
+
+## Recommended Prod Resources
+If you are running a production cluster, then we have made sample override files specific to resourses which we recommend to use in production. Samples can be found in directory named `production` where [sample override](https://github.com/devtron-labs/devtron/tree/main/manifests/updates)files are present. 
+
+The overall resources required for running all micro-services are as follows -
+
+|Name| Value|
+|-|-|
+|cpu| 6|
+|memory|13GB|
