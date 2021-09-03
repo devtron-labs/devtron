@@ -48,7 +48,8 @@ A personal access token (PAT) is used as an alternate password to authenticate i
 
 #### For GithHub [Creating a Github Personal Access Token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token):
 
-* repo - Full control of private repositories(Access commit status , Access deployment status and Access public repositories)
+* repo - Full control of private repositories(Access commit status , Access deployment status and Access public repositories).
+* admin:org - Full control of organizations and teams(Read and write access).
 
 #### For GitLab [Creating a Gitlab Personal Access Token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html):
 
