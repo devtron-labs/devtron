@@ -38,6 +38,7 @@ import (
 )
 
 const (
+	GIT_WORKING_DIR     = "/tmp/gitops/"
 	GetRepoUrlStage   = "GetRepoUrl"
 	CreateRepoStage   = "CreateRepo"
 	CloneHttpStage    = "CloneHttp"
@@ -89,7 +90,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 		GitlabGroupId:      gitOpsConfig.GitLabGroupId,
 		GitToken:           gitOpsConfig.Token,
 		GitUserName:        gitOpsConfig.Username,
-		GitWorkingDir:      "/tmp/gitops/",
+		GitWorkingDir:      GIT_WORKING_DIR,
 		GithubOrganization: gitOpsConfig.GitHubOrgId,
 		GitProvider:        gitOpsConfig.Provider,
 		GitHost:            gitOpsConfig.Host,
@@ -160,7 +161,7 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		GitlabGroupId:      gitOpsConfig.GitLabGroupId,
 		GitToken:           gitOpsConfig.Token,
 		GitUserName:        gitOpsConfig.Username,
-		GitWorkingDir:      "/tmp/gitops/",
+		GitWorkingDir:      GIT_WORKING_DIR,
 		GithubOrganization: gitOpsConfig.GitHubOrgId,
 		GitProvider:        gitOpsConfig.Provider,
 		GitHost:            gitOpsConfig.Host,
