@@ -81,7 +81,7 @@ In the `Email address` box, you have to provide the mail ID of the user to whom 
 
 If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear.  Please check [above](#access-levels) to see permission levels.
 
-![](../../.gitbook/assets/user_gc1-(3)-(4).png)
+![](../../.gitbook/assets/user_gc1-3-4.png)
 
 Click on `Save` and your user will be saved with super admin permissions.
 
