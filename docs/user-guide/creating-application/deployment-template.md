@@ -380,7 +380,7 @@ rawYaml:
       name: my-service
     spec:
       selector:
-      app: MyApp
+        app: MyApp
       ports:
         - protocol: TCP
           port: 80
