@@ -37,7 +37,7 @@ type ChartGroupDeployment struct {
 type ChartGroupDeploymentRepository interface {
 	Save(tx *pg.Tx, chartGroupDeployment *ChartGroupDeployment) error
 	FindByChartGroupId(chartGroupId int) ([]*ChartGroupDeployment, error)
-	Update(model *ChartGroupDeployment) (*ChartGroupDeployment, error)
+	Update(model *ChartGroupDeployment, tx *pg.Tx) (*ChartGroupDeployment, error)
 	FindByInstalledAppId(installedAppId int) (*ChartGroupDeployment, error)
 }
 
@@ -71,8 +71,8 @@ func (impl *ChartGroupDeploymentRepositoryImpl) FindByChartGroupId(chartGroupId 
 	return chartGroupDeployments, err
 }
 
-func (impl *ChartGroupDeploymentRepositoryImpl) Update(model *ChartGroupDeployment) (*ChartGroupDeployment, error) {
-	err := impl.dbConnection.Update(model)
+func (impl *ChartGroupDeploymentRepositoryImpl) Update(model *ChartGroupDeployment, tx *pg.Tx) (*ChartGroupDeployment, error) {
+	err := tx.Update(model)
 	if err != nil {
 		impl.Logger.Error(err)
 		return model, err
