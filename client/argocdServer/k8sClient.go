@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/rest"
 	"path/filepath"
 	"text/template"
+	"time"
 )
 
 type AppTemplate struct {
@@ -25,6 +26,9 @@ type AppTemplate struct {
 	RepoPath        string
 	RepoUrl         string
 }
+
+const TimeoutSlow = 30 * time.Second
+
 type ArgoK8sClient interface {
 	CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster) (string, error)
 	GetArgoApplication(namespace string, application string, cluster *cluster.Cluster) (string, error)
@@ -73,6 +77,7 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *clu
 	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
 	config.APIPath = "/apis"
+	config.Timeout = TimeoutSlow
 	err = impl.CreateArgoApplication(appRequest.Namespace, applicationRequestString, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating acd application", "err", err)
@@ -85,7 +90,7 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *clu
 func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, application string, config *rest.Config) error {
 	client, err := rest.RESTClientFor(config)
 	if err != nil {
-		return fmt.Errorf("Error creating argo cd app")
+		return fmt.Errorf("error creating argo cd app")
 	}
 	impl.logger.Infow("creating application", "req", application)
 	res, err := client.
@@ -100,9 +105,13 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 		err := json.Unmarshal(res, &response)
 		if err != nil {
 			impl.logger.Errorw("unmarshal error on app update status", "err", err)
-			return fmt.Errorf("Error creating argo cd app")
+			return fmt.Errorf("error creating argo cd app")
 		}
-		return fmt.Errorf(response["message"].(string))
+		message := "error creating argo cd app"
+		if response != nil && response["message"] != nil {
+			message = response["message"].(string)
+		}
+		return fmt.Errorf(message)
 	}
 
 	impl.logger.Infow("argo app create res", "res", string(res), "err", err)
@@ -118,6 +127,7 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, application s
 	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
 	config.APIPath = "/apis"
+	config.Timeout = TimeoutSlow
 	client, err := rest.RESTClientFor(config)
 	if err != nil {
 		return "", err
