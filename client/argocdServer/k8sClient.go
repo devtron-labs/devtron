@@ -2,6 +2,8 @@ package argocdServer
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -11,6 +13,7 @@ import (
 	"k8s.io/client-go/rest"
 	"path/filepath"
 	"text/template"
+	"time"
 )
 
 type AppTemplate struct {
@@ -23,8 +26,12 @@ type AppTemplate struct {
 	RepoPath        string
 	RepoUrl         string
 }
+
+const TimeoutSlow = 30 * time.Second
+
 type ArgoK8sClient interface {
-	CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster, ) (string, error)
+	CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster) (string, error)
+	GetArgoApplication(namespace string, application string, cluster *cluster.Cluster) (string, error)
 }
 type ArgoK8sClientImpl struct {
 	logger *zap.SugaredLogger
@@ -50,7 +57,7 @@ func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, er
 	return buf.String(), nil
 }
 
-func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster, ) (string, error) {
+func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster) (string, error) {
 	chartYamlContent, err := ioutil.ReadFile(filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"))
 	if err != nil {
 		impl.logger.Errorw("err in reading template", "err", err)
@@ -67,9 +74,10 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *clu
 		impl.logger.Errorw("error in config", "err", err)
 		return "", err
 	}
-	config.GroupVersion= &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
+	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
 	config.APIPath = "/apis"
+	config.Timeout = TimeoutSlow
 	err = impl.CreateArgoApplication(appRequest.Namespace, applicationRequestString, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating acd application", "err", err)
@@ -82,7 +90,7 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *clu
 func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, application string, config *rest.Config) error {
 	client, err := rest.RESTClientFor(config)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating argo cd app")
 	}
 	impl.logger.Infow("creating application", "req", application)
 	res, err := client.
@@ -91,6 +99,46 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 		Namespace(namespace).
 		Body([]byte(application)).
 		Do().Raw()
+
+	if err != nil {
+		response := make(map[string]interface{})
+		err := json.Unmarshal(res, &response)
+		if err != nil {
+			impl.logger.Errorw("unmarshal error on app update status", "err", err)
+			return fmt.Errorf("error creating argo cd app")
+		}
+		message := "error creating argo cd app"
+		if response != nil && response["message"] != nil {
+			message = response["message"].(string)
+		}
+		return fmt.Errorf(message)
+	}
+
 	impl.logger.Infow("argo app create res", "res", string(res), "err", err)
 	return err
+}
+
+func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, application string, cluster *cluster.Cluster) (string, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in config", "err", err)
+		return "", err
+	}
+	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
+	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
+	config.APIPath = "/apis"
+	config.Timeout = TimeoutSlow
+	client, err := rest.RESTClientFor(config)
+	if err != nil {
+		return "", err
+	}
+	impl.logger.Infow("get argo cd application", "req", application)
+	res, err := client.
+		Get().
+		Resource("applications").
+		Namespace(namespace).
+		Name(application).
+		Do().Raw()
+	impl.logger.Infow("get argo cd application", "res", string(res), "err", err)
+	return "", err
 }
