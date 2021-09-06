@@ -42,7 +42,7 @@ func (impl *GitCliUtil) Checkout(rootDir string, branch string) (response, errMs
 	cmd := exec.Command("git", "-C", rootDir, "checkout", branch, "--force")
 	output, errMsg, err := impl.runCommand(cmd)
 	impl.logger.Debugw("checkout output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
-	return output, errMsg,  err
+	return output, errMsg, err
 }
 
 func (impl *GitCliUtil) runCommandWithCred(cmd *exec.Cmd, userName, password string) (response, errMsg string, err error) {
@@ -93,6 +93,7 @@ func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) erro
 }
 
 func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string, password string) (response, errMsg string, err error) {
+	impl.logger.Infow("input", rootDir, remoteUrl, username, password)
 	err = impl.Init(rootDir, remoteUrl, false)
 	if err != nil {
 		return "", "", err

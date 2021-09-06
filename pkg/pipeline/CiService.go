@@ -149,10 +149,10 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipeli
 		// set webhook data in gitTriggers
 		_webhookData := v.WebhookData
 		if _webhookData != nil {
-			gitCommit.WebhookData = pipelineConfig.WebhookData {
-				Id: _webhookData.Id,
+			gitCommit.WebhookData = pipelineConfig.WebhookData{
+				Id:              _webhookData.Id,
 				EventActionType: _webhookData.EventActionType,
-				Data : _webhookData.Data,
+				Data:            _webhookData.Data,
 			}
 		}
 
@@ -192,9 +192,9 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 		webhookData := v.WebhookData
 		if webhookData != nil {
 			gitCommit.WebhookData = pipelineConfig.WebhookData{
-				Id: webhookData.Id,
+				Id:              webhookData.Id,
 				EventActionType: webhookData.EventActionType,
-				Data : webhookData.Data,
+				Data:            webhookData.Data,
 			}
 		}
 
@@ -229,7 +229,7 @@ func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest) (
 	}
 	return createdWorkFlow, nil
 }
-func (impl *CiServiceImpl) buildArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string{
+func (impl *CiServiceImpl) buildArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string {
 	if ciWorkflowConfig.LogsBucket == "" {
 		ciWorkflowConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
 	}
@@ -268,12 +268,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			},
 		}
 
-		if ciMaterial.Type ==  pipelineConfig.SOURCE_TYPE_WEBHOOK {
+		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
 			webhookData := commitHashForPipelineId.WebhookData
 			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
-				Id : webhookData.Id,
+				Id:              webhookData.Id,
 				EventActionType: webhookData.EventActionType,
-				Data : webhookData.Data,
+				Data:            webhookData.Data,
 			}
 		}
 
@@ -394,7 +394,7 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id
 				continue
 			}
 			_truncatedCommit = _getTruncatedImageTag(v.Commit)
-		}else{
+		} else {
 			_targetCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME]
 			if len(_targetCheckout) == 0 {
 				continue
@@ -420,8 +420,7 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id
 	return dockerImageTag
 }
 
-
-func _getTruncatedImageTag (imageTag string) string {
+func _getTruncatedImageTag(imageTag string) string {
 	_length := len(imageTag)
 	if _length == 0 {
 		return imageTag
@@ -431,7 +430,7 @@ func _getTruncatedImageTag (imageTag string) string {
 
 	if _length < _truncatedLength {
 		return imageTag
-	}else{
+	} else {
 		return imageTag[:_truncatedLength]
 	}
 

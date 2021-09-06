@@ -43,10 +43,9 @@ type PubSubConfig struct {
 }
 
 const (
-	CD_SUCCESS = "ORCHESTRATOR.CD.TRIGGER"
+	CD_SUCCESS          = "ORCHESTRATOR.CD.TRIGGER"
 	WEBHOOK_EVENT_TOPIC = "ORCHESTRATOR.WEBHOOK_EVENT"
 )
-
 
 /* #nosec */
 func NewPubSubClient(logger *zap.SugaredLogger) (*PubSubClient, error) {

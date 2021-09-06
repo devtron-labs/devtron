@@ -13,16 +13,15 @@ import (
 	"testing"
 )
 
-
 func TestBulkUpdate(t *testing.T) {
 	setup()
 	type test struct {
-		ApiVersion string
-		Kind       string
-		Payload    *pipeline.BulkUpdatePayload
-		deploymentTemplateWant       string
-		configMapWant string
-		secretWant string
+		ApiVersion             string
+		Kind                   string
+		Payload                *pipeline.BulkUpdatePayload
+		deploymentTemplateWant string
+		configMapWant          string
+		secretWant             string
 	}
 	TestsCsvFile, err := os.Open("ChartService_test.csv")
 	if err != nil {
@@ -58,14 +57,14 @@ func TestBulkUpdate(t *testing.T) {
 			Spec: deploymentTemplateSpec,
 		}
 		configMapSpec := &pipeline.CmAndSecretSpec{
-			Names: strings.Fields(record[7]),
+			Names:     strings.Fields(record[7]),
 			PatchJson: record[8],
 		}
 		configMapTask := &pipeline.CmAndSecretTask{
 			Spec: configMapSpec,
 		}
 		secretSpec := &pipeline.CmAndSecretSpec{
-			Names: strings.Fields(record[9]),
+			Names:     strings.Fields(record[9]),
 			PatchJson: record[10],
 		}
 		secretTask := &pipeline.CmAndSecretTask{
@@ -77,16 +76,16 @@ func TestBulkUpdate(t *testing.T) {
 			EnvIds:             envId,
 			Global:             global,
 			DeploymentTemplate: deploymentTemplateTask,
-			ConfigMap: configMapTask,
-			Secret: secretTask,
+			ConfigMap:          configMapTask,
+			Secret:             secretTask,
 		}
 		Input := test{
-			ApiVersion: record[0],
-			Kind:       record[1],
-			Payload:    payload,
-			deploymentTemplateWant:       record[11],
-			configMapWant: record[12],
-			secretWant: record[13],
+			ApiVersion:             record[0],
+			Kind:                   record[1],
+			Payload:                payload,
+			deploymentTemplateWant: record[11],
+			configMapWant:          record[12],
+			secretWant:             record[13],
 		}
 		tests = append(tests, Input)
 		fmt.Println(Input)

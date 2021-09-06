@@ -53,7 +53,7 @@ type GitRegistryRequest struct {
 	AuthMode    repository.AuthMode `json:"authMode,omitempty" validate:"required"`
 	Active      bool                `json:"active"`
 	UserId      int32               `json:"-"`
-	GitHostId   int 				`json:"gitHostId"`
+	GitHostId   int                 `json:"gitHostId"`
 }
 
 func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo repository.GitProviderRepository, GitSensorClient gitSensor.GitSensorClient) *GitRegistryConfigImpl {
@@ -96,7 +96,7 @@ func (impl GitRegistryConfigImpl) Create(request *GitRegistryRequest) (*GitRegis
 		SshKey:      request.SshKey,
 		UserName:    request.UserName,
 		AuditLog:    models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
-		GitHostId: 	 request.GitHostId,
+		GitHostId:   request.GitHostId,
 	}
 	err = impl.gitProviderRepo.Save(provider)
 	if err != nil {
@@ -133,9 +133,9 @@ func (impl GitRegistryConfigImpl) GetAll() ([]GitRegistryRequest, error) {
 	var gitProviders []GitRegistryRequest
 	for _, provider := range providers {
 		providerRes := GitRegistryRequest{
-			Id:   provider.Id,
-			Name: provider.Name,
-			Url:  provider.Url,
+			Id:        provider.Id,
+			Name:      provider.Name,
+			Url:       provider.Url,
 			GitHostId: provider.GitHostId,
 		}
 		gitProviders = append(gitProviders, providerRes)
@@ -163,7 +163,7 @@ func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]GitRegistryRequest, 
 			SshKey:      provider.SshKey,
 			Active:      provider.Active,
 			UserId:      provider.CreatedBy,
-			GitHostId: 	 provider.GitHostId,
+			GitHostId:   provider.GitHostId,
 		}
 		gitProviders = append(gitProviders, providerRes)
 	}

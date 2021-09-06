@@ -11,7 +11,7 @@ import (
 )
 
 type GitAzureClient struct {
-	client     git.Client
+	client     *git.Client
 	logger     *zap.SugaredLogger
 	project    string
 	gitService GitService
@@ -35,56 +35,86 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 	// Create a client to interact with the Core area
 	coreClient, err := git.NewClient(ctx, connection)
 	if err != nil {
-		logger.Errorw("error in creating azure  gitops client, gitops related operation might fail", "err", err)
+		logger.Errorw("error in creating azure gitops client, gitops related operation might fail", "err", err)
 	}
-	return GitAzureClient{client: coreClient, project: project, logger: logger, gitService: gitService}
+	return GitAzureClient{client: &coreClient, project: project, logger: logger, gitService: gitService}
 }
-
-func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, err error) {
+func (impl GitAzureClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error {
+	clientAzure := *impl.client
+	gitRepository, err := clientAzure.GetRepository(context.Background(), git.GetRepositoryArgs{
+		RepositoryId: &name,
+		Project:      &azureProjectName,
+	})
+	if err != nil || gitRepository == nil {
+		impl.logger.Errorw("error in fetching repo azure", "project", name, "err", err)
+		return err
+	}
+	err = clientAzure.DeleteRepository(context.Background(), git.DeleteRepositoryArgs{RepositoryId: gitRepository.Id, Project: &impl.project})
+	if err != nil {
+		impl.logger.Errorw("error in deleting repo azure", "project", name, "err", err)
+	}
+	return err
+}
+func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	url, repoExists, err := impl.repoExists(name, impl.project)
 	if err != nil {
 		impl.logger.Errorw("error in communication with azure", "err", err)
-		return "", false, err
+		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
+		return "", false, detailedErrorGitOpsConfigActions
 	}
 	if repoExists {
-		return url, false, nil
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
+		return url, false, detailedErrorGitOpsConfigActions
 	}
 	gitRepositoryCreateOptions := git.GitRepositoryCreateOptions{
 		Name: &name,
 	}
-	operationReference, err := impl.client.CreateRepository(ctx, git.CreateRepositoryArgs{
+	clientAzure := *impl.client
+	operationReference, err := clientAzure.CreateRepository(ctx, git.CreateRepositoryArgs{
 		GitRepositoryToCreate: &gitRepositoryCreateOptions,
 		Project:               &impl.project,
 	})
 	if err != nil {
-		impl.logger.Errorw("error in creating repo, ", "repo", name, "err", err)
-		return "", true, err
+		impl.logger.Errorw("error in creating repo azure", "project", name, "err", err)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
+		return "", true, detailedErrorGitOpsConfigActions
 	}
 	logger.Infow("repo created ", "r", operationReference.WebUrl)
-
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		return *operationReference.WebUrl, true, err
+		impl.logger.Errorw("error in ensuring project availability azure", "project", name, "err", err)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
+		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", name)
+		return "", true, detailedErrorGitOpsConfigActions
 	}
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
+
 	_, err = impl.createReadme(name)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme", "err", err)
-		return *operationReference.WebUrl, true, err
+		impl.logger.Errorw("error in creating readme azure", "project", name, "err", err)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
+		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 	}
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
+
 	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, name, *operationReference.WebUrl)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability ", "project", name, "err", err)
-		return *operationReference.WebUrl, true, err
+		impl.logger.Errorw("error in ensuring project availability azure", "project", name, "err", err)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
+		return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		return "", true, fmt.Errorf("unable to validate project:%s  in given time", name)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", name)
+		return "", true, detailedErrorGitOpsConfigActions
 	}
-	return *operationReference.WebUrl, true, err
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
+	return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 }
 
 func (impl GitAzureClient) createReadme(repoName string) (string, error) {
@@ -97,7 +127,7 @@ func (impl GitAzureClient) createReadme(repoName string) (string, error) {
 	}
 	hash, err := impl.CommitValues(cfg)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme", "repo", repoName, "err", err)
+		impl.logger.Errorw("error in creating readme azure", "repo", repoName, "err", err)
 	}
 	return hash, err
 }
@@ -112,7 +142,8 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 	// check if file exists and current hash
 	// if file does not exists get hash from branch
 	// if branch doesn't exists use default hash
-	fc, err := impl.client.GetItem(ctx, git.GetItemArgs{
+	clientAzure := *impl.client
+	fc, err := clientAzure.GetItem(ctx, git.GetItemArgs{
 		RepositoryId: &config.ChartName,
 		Path:         &path,
 		Project:      &impl.project,
@@ -120,7 +151,8 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 	if err != nil {
 		notFoundStatus := 404
 		if e, ok := err.(azuredevops.WrappedError); ok && *e.StatusCode == notFoundStatus {
-			branchStat, err := impl.client.GetBranch(ctx, git.GetBranchArgs{Project: &impl.project, Name: &branch, RepositoryId: &config.ChartName})
+			clientAzure := *impl.client
+			branchStat, err := clientAzure.GetBranch(ctx, git.GetBranchArgs{Project: &impl.project, Name: &branch, RepositoryId: &config.ChartName})
 			if err != nil {
 				if e, ok := err.(azuredevops.WrappedError); !ok || *e.StatusCode >= 500 {
 					impl.logger.Errorw("error in fetching branch from azure devops", "err", err)
@@ -163,8 +195,7 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 		Changes: &contents,
 		Comment: &config.ReleaseMessage,
 	})
-
-	push, err := impl.client.CreatePush(ctx, git.CreatePushArgs{
+	push, err := clientAzure.CreatePush(ctx, git.CreatePushArgs{
 		Push: &git.GitPush{
 			Commits:    &commits,
 			RefUpdates: &refUpdates,
@@ -174,7 +205,7 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 	})
 
 	if err != nil {
-		impl.logger.Errorw("error in commit", "err", err)
+		impl.logger.Errorw("error in commit azure", "err", err)
 		return "", err
 	}
 	//gitPush.Commits
@@ -189,7 +220,8 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl string, exists bool, err error) {
 	ctx := context.Background()
 	// Get first page of the list of team projects for your organization
-	gitRepository, err := impl.client.GetRepository(ctx, git.GetRepositoryArgs{
+	clientAzure := *impl.client
+	gitRepository, err := clientAzure.GetRepository(ctx, git.GetRepositoryArgs{
 		RepositoryId: &repoName,
 		Project:      &projectName,
 	})
@@ -215,7 +247,7 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(repoName string) (boo
 			impl.logger.Infow("repo validated successfully on https")
 			return true, nil
 		} else if err != nil {
-			impl.logger.Errorw("error in validating repo", "err", err)
+			impl.logger.Errorw("error in validating repo azure", "repo", repoName, "err", err)
 			return false, err
 		} else {
 			impl.logger.Errorw("repo not available on http", "repo")
@@ -229,10 +261,10 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, re
 	for count := 0; count < 8; count++ {
 		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
+			impl.logger.Infow("ensureProjectAvailability clone passed azure", "try count", count, "repoUrl", repoUrl)
 			return true, nil
 		}
-		impl.logger.Errorw("ensureProjectAvailability clone failed ssh ", "try count", count, "err", err)
+		impl.logger.Errorw("ensureProjectAvailability clone failed ssh azure", "try count", count, "err", err)
 		time.Sleep(10 * time.Second)
 	}
 	return false, nil

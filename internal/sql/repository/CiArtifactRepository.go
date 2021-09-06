@@ -336,13 +336,13 @@ type Modification struct {
 	Message      string            `json:"message"`
 	Branch       string            `json:"branch"`
 	Tag          string            `json:"tag,omitempty"`
-	WebhookData  WebhookData	   `json:"webhookData,omitempty"`
+	WebhookData  WebhookData       `json:"webhookData,omitempty"`
 }
 
 type WebhookData struct {
-	Id					int
-	EventActionType     string
-	Data    			map[string]string
+	Id              int
+	EventActionType string
+	Data            map[string]string
 }
 
 type CiMaterialInfo struct {
