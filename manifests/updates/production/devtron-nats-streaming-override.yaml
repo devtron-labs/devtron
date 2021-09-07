@@ -18,10 +18,10 @@ data:
             - resources:
                 limits:
                   cpu: 0.01
-                  memory: 600Mi
+                  memory: 60Mi
                 requests:
                   cpu: 0.01
-                  memory: 600Mi
+                  memory: 60Mi
 #             env:
 #             - name: POD_NAME
 #                valueFrom:
