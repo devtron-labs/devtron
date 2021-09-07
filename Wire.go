@@ -690,6 +690,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository.WebhookEventDataRepository), new(*repository.WebhookEventDataRepositoryImpl)),
 		pipeline.NewWebhookEventDataConfigImpl,
 		wire.Bind(new(pipeline.WebhookEventDataConfig), new(*pipeline.WebhookEventDataConfigImpl)),
+		restHandler.NewWebhookDataRestHandlerImpl,
+		wire.Bind(new(restHandler.WebhookDataRestHandler), new(*restHandler.WebhookDataRestHandlerImpl)),
 
 		router.NewAppLabelRouterImpl,
 		wire.Bind(new(router.AppLabelRouter), new(*router.AppLabelRouterImpl)),

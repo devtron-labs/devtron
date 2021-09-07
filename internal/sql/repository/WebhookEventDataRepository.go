@@ -32,6 +32,7 @@ type WebhookEventData struct {
 
 type WebhookEventDataRepository interface {
 	Save(webhookEventData *WebhookEventData) error
+	GetById(id int) (*WebhookEventData, error)
 }
 
 type WebhookEventDataRepositoryImpl struct {
@@ -45,4 +46,11 @@ func NewWebhookEventDataRepositoryImpl(dbConnection *pg.DB) *WebhookEventDataRep
 func (impl WebhookEventDataRepositoryImpl) Save(webhookEventData *WebhookEventData) error {
 	_, err := impl.dbConnection.Model(webhookEventData).Insert()
 	return err
+}
+
+func (impl WebhookEventDataRepositoryImpl) GetById(id int) (*WebhookEventData, error) {
+	var webhookEventData WebhookEventData
+	err := impl.dbConnection.Model(&webhookEventData).
+		Where("id = ?", id).Select()
+	return &webhookEventData, err
 }

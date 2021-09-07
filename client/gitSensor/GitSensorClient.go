@@ -167,6 +167,45 @@ type WebhookEventSelectors struct {
 	UpdatedOn        time.Time `json:"updatedOn"`
 }
 
+type WebhookPayloadDataRequest struct {
+	CiPipelineMaterialId int    `json:"ciPipelineMaterialId"`
+	Limit                int    `json:"limit"`
+	Offset               int    `json:"offset"`
+	EventTimeSortOrder   string `json:"eventTimeSortOrder"`
+}
+
+type WebhookPayloadDataResponse struct {
+	Filters       map[string]string                     `json:"filters"`
+	RepositoryUrl string                                `json:"repositoryUrl"`
+	Payloads      []*WebhookPayloadDataPayloadsResponse `json:"payloads"`
+}
+
+type WebhookPayloadDataPayloadsResponse struct {
+	ParsedDataId        int       `json:"parsedDataId"`
+	EventTime           time.Time `json:"eventTime"`
+	MatchedFiltersCount int       `json:"matchedFiltersCount"`
+	FailedFiltersCount  int       `json:"failedFiltersCount"`
+	MatchedFilters      bool      `json:"matchedFilters"`
+}
+
+type WebhookPayloadFilterDataRequest struct {
+	CiPipelineMaterialId int `json:"ciPipelineMaterialId"`
+	ParsedDataId         int `json:"parsedDataId"`
+}
+
+type WebhookPayloadFilterDataResponse struct {
+	PayloadId     int                                         `json:"payloadId"`
+	PayloadJson   string                                      `json:"payloadJson"`
+	SelectorsData []*WebhookPayloadFilterDataSelectorResponse `json:"selectorsData"`
+}
+
+type WebhookPayloadFilterDataSelectorResponse struct {
+	SelectorName      string `json:"selectorName"`
+	SelectorCondition string `json:"selectorCondition"`
+	SelectorValue     string `json:"selectorValue"`
+	Match             bool   `json:"match"`
+}
+
 type GitSensorClient interface {
 	GetHeadForPipelineMaterials(req *HeadRequest) (material []*CiPipelineMaterial, err error)
 	FetchChanges(changeRequest *FetchScmChangesRequest) (materialChangeResp *MaterialChangeResp, err error)
@@ -182,6 +221,8 @@ type GitSensorClient interface {
 
 	GetAllWebhookEventConfigForHost(req *WebhookEventConfigRequest) (webhookEvents []*WebhookEventConfig, err error)
 	GetWebhookEventConfig(req *WebhookEventConfigRequest) (webhookEvent *WebhookEventConfig, err error)
+	GetWebhookPayloadDataForPipelineMaterialId(req *WebhookPayloadDataRequest) (response *WebhookPayloadDataResponse, err error)
+	GetWebhookPayloadFilterDataForPipelineMaterialId(req *WebhookPayloadFilterDataRequest) (response *WebhookPayloadFilterDataResponse, err error)
 }
 
 //----------------------impl
@@ -345,4 +386,16 @@ func (session GitSensorClientImpl) GetWebhookEventConfig(req *WebhookEventConfig
 	request := &ClientRequest{ResponseBody: &webhookEvent, Method: "GET", RequestBody: req, Path: "/webhook/host/event"}
 	_, _, err = session.doRequest(request)
 	return webhookEvent, err
+}
+
+func (session GitSensorClientImpl) GetWebhookPayloadDataForPipelineMaterialId(req *WebhookPayloadDataRequest) (response *WebhookPayloadDataResponse, err error) {
+	request := &ClientRequest{ResponseBody: &response, Method: "GET", RequestBody: req, Path: "/webhook/ci-pipeline-material/payload-data"}
+	_, _, err = session.doRequest(request)
+	return response, err
+}
+
+func (session GitSensorClientImpl) GetWebhookPayloadFilterDataForPipelineMaterialId(req *WebhookPayloadFilterDataRequest) (response *WebhookPayloadFilterDataResponse, err error) {
+	request := &ClientRequest{ResponseBody: &response, Method: "GET", RequestBody: req, Path: "/webhook/ci-pipeline-material/payload-filter-data"}
+	_, _, err = session.doRequest(request)
+	return response, err
 }
