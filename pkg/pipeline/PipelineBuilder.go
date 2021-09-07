@@ -45,6 +45,7 @@ import (
 	"google.golang.org/grpc/status"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -1382,7 +1383,11 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 	appResponse, err := impl.ArgoK8sClient.GetArgoApplication(envConfigOverride.Namespace, argoAppName, envModel.Cluster)
 	appStatus := 0
 	if err != nil && appResponse != nil {
-		appStatus = appResponse["status"].(int)
+		appStatusStr := appResponse["status"].(string)
+		appStatus, err = strconv.Atoi(appStatusStr)
+		if err != nil {
+			return "", err
+		}
 	}
 	impl.logger.Infow("testing cd pipeline acd check", "appStatus", appStatus)
 
