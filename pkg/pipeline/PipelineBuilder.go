@@ -1008,34 +1008,20 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 		}
 	}
 
-	pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(pipeline.AppId, pipeline.EnvironmentId)
-	if err != nil && !util.IsErrNoRows(err) {
-		if err1 := impl.pipelineRepository.UndoDelete(pipelineId); err1 != nil {
-			impl.logger.Errorw("unable to revert pipeline delete, this might lead inconsistency ", "pipeline", pipelineId, "err", err1)
-		}
+	//delete app from argo cd
+	envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+	if err != nil {
 		return err
-	} else if len(pipelines) == 0 {
-		envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
-		if err != nil {
-			return err
-		}
-		argoAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envModel.Name)
-		req := &application2.ApplicationDeleteRequest{
-			Name: &argoAppName,
-		}
-		if _, err := impl.application.Delete(ctx, req); err != nil {
-			impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
-			if err1 := impl.pipelineRepository.UndoDelete(pipelineId); err1 != nil {
-				impl.logger.Errorw("unable to revert pipeline delete, this might lead inconsistency ", "pipeline", pipelineId, "err", err1)
-			}
-			return err
-		}
-		impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", argoAppName)
-		//return nil
-	} else {
-		impl.logger.Infow("pipeline for this environment still exists, skip deleting argo app", "pipelines", pipelines)
-		//return nil
 	}
+	argoAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envModel.Name)
+	req := &application2.ApplicationDeleteRequest{
+		Name: &argoAppName,
+	}
+	if _, err := impl.application.Delete(ctx, req); err != nil {
+		impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
+		return err
+	}
+	impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", argoAppName)
 
 	err = tx.Commit()
 	if err != nil {
@@ -1382,7 +1368,7 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 	appResponse, err := impl.ArgoK8sClient.GetArgoApplication(envConfigOverride.Namespace, argoAppName, envModel.Cluster)
 	appStatus := 0
 	if err != nil && appResponse != nil {
-		appStatus = appResponse["code"].(int)
+		appStatus = int(appResponse["code"].(float64))
 	}
 	impl.logger.Infow("testing cd pipeline acd check", "appStatus", appStatus)
 
