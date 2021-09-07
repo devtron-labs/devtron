@@ -58,6 +58,8 @@ type EnvConfigOverrideRepository interface {
 	FindChartByAppIdAndEnvIdAndChartRefId(appId, targetEnvironmentId int, chartRefId int) (*EnvConfigOverride, error)
 	Update(envConfigOverride *EnvConfigOverride) (*EnvConfigOverride, error)
 	FindChartForAppByAppIdAndEnvId(appId, targetEnvironmentId int) (*EnvConfigOverride, error)
+	SaveWithTxn(model *EnvConfigOverride, tx *pg.Tx) error
+	UpdateWithTxn(envConfigOverride *EnvConfigOverride, tx *pg.Tx) (*EnvConfigOverride, error)
 }
 
 type EnvConfigOverrideRepositoryImpl struct {
@@ -286,4 +288,14 @@ func (r EnvConfigOverrideRepositoryImpl) FindChartForAppByAppIdAndEnvId(appId, t
 		return nil, errors.NotFoundf(err.Error())
 	}
 	return eco, err
+}
+
+func (r EnvConfigOverrideRepositoryImpl) SaveWithTxn(override *EnvConfigOverride, tx *pg.Tx) error {
+	err := tx.Insert(override)
+	return err
+}
+
+func (r EnvConfigOverrideRepositoryImpl) UpdateWithTxn(envConfigOverride *EnvConfigOverride, tx *pg.Tx) (*EnvConfigOverride, error) {
+	err := tx.Update(envConfigOverride)
+	return envConfigOverride, err
 }

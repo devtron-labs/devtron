@@ -1007,10 +1007,6 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 			return err
 		}
 	}
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
 
 	pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -1035,11 +1031,18 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 			return err
 		}
 		impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", argoAppName)
-		return nil
+		//return nil
 	} else {
-		impl.logger.Infow("pipelins for environment exists not deleting argo app", "pipelines", pipelines)
-		return nil
+		impl.logger.Infow("pipeline for this environment still exists, skip deleting argo app", "pipelines", pipelines)
+		//return nil
 	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing db transaction", "err", err)
+		return err
+	}
+	return nil
 }
 
 type DeploymentType struct {
@@ -1093,11 +1096,19 @@ type Rolling struct {
 }
 
 func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipelineConfig.App, pipeline *bean.CDPipelineConfigObject, userID int32) (pipelineRes int, err error) {
+	dbConnection := impl.pipelineRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return 0, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 	if err != nil {
 		return 0, err
 	}
-	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userID, false, models.CHARTSTATUS_NEW, false, pipeline.Namespace)
+	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userID, false, models.CHARTSTATUS_NEW, false, pipeline.Namespace, tx)
 	if err != nil {
 		return 0, err
 	}
@@ -1114,14 +1125,6 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 		impl.logger.Errorw("error in git commit", "err", err)
 		return 0, err
 	}
-
-	dbConnection := impl.pipelineRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return 0, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
 
 	//new pipeline
 	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
@@ -1375,14 +1378,19 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 		return "", err
 	}
 	argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
-	_, err = impl.application.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName})
-	//if status, ok:=status.FromError(err);ok{
-	appStatus, _ := status.FromError(err)
 
-	if appStatus.Code() == codes.OK {
+	appResponse, err := impl.ArgoK8sClient.GetArgoApplication(envConfigOverride.Namespace, argoAppName, envModel.Cluster)
+	appStatus := 0
+	if err != nil && appResponse != nil {
+		appStatus = appResponse["status"].(int)
+	}
+	impl.logger.Infow("testing cd pipeline acd check", "appStatus", appStatus)
+
+	// if no error found it means argo app already exists
+	if err == nil && appResponse != nil {
 		impl.logger.Infow("argo app already exists", "app", argoAppName, "pipeline", pipeline.Name)
 		return argoAppName, nil
-	} else if appStatus.Code() == codes.NotFound {
+	} else if appStatus == http.StatusNotFound {
 		//create
 		appNamespace := envConfigOverride.Namespace
 		if len(appNamespace) == 0 {
@@ -1401,9 +1409,10 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 		}
 		return impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
 	} else {
-		impl.logger.Errorw("err in checking application on gocd", "err", err, "pipeline", pipeline.Name)
+		impl.logger.Errorw("err in checking application on argo cd", "err", err, "pipeline", pipeline.Name)
 		return "", err
 	}
+
 }
 
 func getValuesFileForEnv(environmentId int) string {
@@ -1728,7 +1737,6 @@ func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMes
 			return nil, fmt.Errorf("unknown material type:%s ", material.Material.Type)
 		}
 		if material.Modifications != nil && len(material.Modifications) > 0 {
-
 			_modification := material.Modifications[0]
 
 			revision := _modification.Revision

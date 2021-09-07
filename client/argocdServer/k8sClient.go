@@ -31,7 +31,7 @@ const TimeoutSlow = 30 * time.Second
 
 type ArgoK8sClient interface {
 	CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster) (string, error)
-	GetArgoApplication(namespace string, application string, cluster *cluster.Cluster) (string, error)
+	GetArgoApplication(namespace string, appName string, cluster *cluster.Cluster) (map[string]interface{}, error)
 }
 type ArgoK8sClientImpl struct {
 	logger *zap.SugaredLogger
@@ -65,7 +65,7 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *clu
 	}
 	applicationRequestString, err := impl.tprintf(string(chartYamlContent), appRequest)
 	if err != nil {
-		impl.logger.Errorw("error in rendring application template", "req", appRequest, "err", err)
+		impl.logger.Errorw("error in rendering application template", "req", appRequest, "err", err)
 		return "", err
 	}
 
@@ -118,11 +118,12 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 	return err
 }
 
-func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, application string, cluster *cluster.Cluster) (string, error) {
+func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, appName string, cluster *cluster.Cluster) (map[string]interface{}, error) {
+
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		impl.logger.Errorw("error in config", "err", err)
-		return "", err
+		return nil, err
 	}
 	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
@@ -130,15 +131,26 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, application s
 	config.Timeout = TimeoutSlow
 	client, err := rest.RESTClientFor(config)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	impl.logger.Infow("get argo cd application", "req", application)
+	impl.logger.Infow("get argo cd application", "req", appName)
+	//acdApplication := &v1alpha12.Application{}
+	//opts := metav1.GetOptions{}
 	res, err := client.
 		Get().
+		Namespace("devtroncd").
 		Resource("applications").
-		Namespace(namespace).
-		Name(application).
+		Name(appName).
+		//VersionedParams(&opts, metav1.ParameterCodec).
 		Do().Raw()
-	impl.logger.Infow("get argo cd application", "res", string(res), "err", err)
-	return "", err
+	response := make(map[string]interface{})
+	if err != nil {
+		err := json.Unmarshal(res, &response)
+		if err != nil {
+			impl.logger.Errorw("unmarshal error on app update status", "err", err)
+			return nil, fmt.Errorf("error get argo cd app")
+		}
+	}
+	impl.logger.Infow("get argo cd application", "res", response, "err", err)
+	return response, err
 }
