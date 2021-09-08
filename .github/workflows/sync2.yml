@@ -18,7 +18,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - uses: devtron-labs/devtron-git-repo-sync@v0.1.2
+    - uses: devtron-labs/git-repo-sync@v0.1.1
       with:
         target-url: ${{ secrets.TARGET_URL }}
         target-username: ${{ secrets.USER_NAME }}
