@@ -381,7 +381,7 @@ func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r
 	request.UserId = userId
 	handler.Logger.Infow("request payload, CreateChartRepo", "payload", request)
 	res, err, validationResult := handler.appStoreService.ValidateAndCreateChartRepo(request)
-	if len(validationResult) == 0 {
+	if validationResult.CustomErrMsg != appstore.ValidationSuccessMsg {
 		writeJsonResp(w, nil, validationResult, http.StatusOK)
 	}
 	if err != nil {
@@ -424,7 +424,7 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 	request.UserId = userId
 	handler.Logger.Infow("request payload, UpdateChartRepo", "payload", request)
 	res, err, validationResult := handler.appStoreService.ValidateAndUpdateChartRepo(request)
-	if validationResult != appstore.ValidationSuccessMsg {
+	if validationResult.CustomErrMsg != appstore.ValidationSuccessMsg {
 		writeJsonResp(w, nil, validationResult, http.StatusOK)
 	}
 	if err != nil {
