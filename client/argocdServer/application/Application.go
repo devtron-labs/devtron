@@ -152,8 +152,8 @@ func (c ServiceClientImpl) Rollback(ctxt context.Context, query *application.App
 }
 
 func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
-	defer cancel()
+	/*ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
+	defer cancel()*/
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
 		return nil, errors.New("Unauthorized")
@@ -161,7 +161,7 @@ func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.Applic
 	conn := argocdServer.GetConnection(token, c.settings)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
-	resp, err := asc.Patch(ctx, query)
+	resp, err := asc.Patch(ctxt, query)
 	return resp, err
 }
 
