@@ -644,7 +644,7 @@ func (impl *AppStoreServiceImpl) ValidateChartRepo(request *ChartRepoDto) *Detai
 	}
 	resp, err, statusCode := impl.get(indexURL, helmRepo)
 	if statusCode == 401 || statusCode == 403 {
-		impl.logger.Errorw("error in getting index file : unauthorized", "url", request.Url, "err", err,)
+		impl.logger.Errorw("authentication or authorization error in request for getting index file", "url", request.Url, "err", err)
 		detailedErrorHelmRepoValidation.ActualErrMsg = err.Error()
 		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("Invalid authentication credentials. Please verify.")
 		return &detailedErrorHelmRepoValidation
@@ -658,13 +658,14 @@ func (impl *AppStoreServiceImpl) ValidateChartRepo(request *ChartRepoDto) *Detai
 		detailedErrorHelmRepoValidation.ActualErrMsg = err.Error()
 		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("Could not validate the repo. Please try again.")
 		return &detailedErrorHelmRepoValidation
-	}
-	_, err = ioutil.ReadAll(resp)
-	if err != nil {
-		impl.logger.Errorw("error in reading index file")
-		detailedErrorHelmRepoValidation.ActualErrMsg = err.Error()
-		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("Devtron was unable to read the index.yaml file in the repo directory. Please try another chart repo.")
-		return &detailedErrorHelmRepoValidation
+	} else {
+		_, err = ioutil.ReadAll(resp)
+		if err != nil {
+			impl.logger.Errorw("error in reading index file")
+			detailedErrorHelmRepoValidation.ActualErrMsg = err.Error()
+			detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("Devtron was unable to read the index.yaml file in the repo directory. Please try another chart repo.")
+			return &detailedErrorHelmRepoValidation
+		}
 	}
 	detailedErrorHelmRepoValidation.CustomErrMsg = ValidationSuccessMsg
 	return &detailedErrorHelmRepoValidation
