@@ -103,4 +103,6 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 		HandlerFunc(router.appStoreRestHandler.CreateChartRepo).Methods("POST")
 	configRouter.Path("/repo/update").
 		HandlerFunc(router.appStoreRestHandler.UpdateChartRepo).Methods("POST")
+	configRouter.Path("/repo/validate").
+		HandlerFunc(router.appStoreRestHandler.ValidateChartRepo).Methods("POST")
 }

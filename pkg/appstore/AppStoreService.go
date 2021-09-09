@@ -18,6 +18,7 @@
 package appstore
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -32,9 +33,18 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
+	"io/ioutil"
+	"k8s.io/helm/pkg/getter"
+	"k8s.io/helm/pkg/helm/environment"
+	"k8s.io/helm/pkg/repo"
+	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
+
+const ValidationSuccessMsg = "Configurations are validated successfully"
 
 type AppStoreApplication struct {
 	Id                          int                                   `json:"id"`
@@ -111,6 +121,9 @@ type AppStoreService interface {
 	UpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error)
 	GetChartRepoById(id int) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoDto, error)
+	ValidateChartRepo(request *ChartRepoDto) string
+	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, string)
+	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, string)
 }
 
 type AppStoreVersionsResponse struct {
@@ -134,13 +147,14 @@ type AppStoreServiceImpl struct {
 	envService                    cluster.EnvironmentService
 	versionService                argocdServer.VersionService
 	aCDAuthConfig                 *user.ACDAuthConfig
+	client                        *http.Client
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -153,6 +167,7 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		envService:                    envService,
 		versionService:                versionService,
 		aCDAuthConfig:                 aCDAuthConfig,
+		client:                        client,
 	}
 }
 
@@ -599,4 +614,91 @@ func (impl *AppStoreServiceImpl) createRepoElement(apiMinorVersion int, request 
 		repoData.Type = "helm"
 	}
 	return repoData
+}
+func (impl *AppStoreServiceImpl) ValidateChartRepo(request *ChartRepoDto) string {
+	validateByAuth := impl.ValidateRepoByAuth(request)
+	if !validateByAuth {
+		impl.logger.Errorw("invalid chart repo url or credentials", "url", request.Url)
+		if request.AuthMode == repository.AUTH_MODE_ANONYMOUS {
+			return fmt.Sprintf("Invalid repo url. Please Verify.")
+		} else if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+			return fmt.Sprintf("Invalid repo url or authentication credentials. Please Verify.")
+		}
+	}
+	helmRepoConfig := &repo.Entry{
+		Name:     request.Name,
+		URL:      request.Url,
+		Username: request.UserName,
+		Password: request.Password,
+	}
+	helmRepo, err := repo.NewChartRepository(helmRepoConfig, getter.All(environment.EnvSettings{}))
+	if err != nil {
+		impl.logger.Errorw("failed to create chart repo for validating", "url", request.Url, "err", err)
+		return fmt.Sprintf("Devtron was unable to connect with the chart repo : %s", err.Error())
+	}
+	parsedURL, err := url.Parse(helmRepo.Config.URL)
+	if err != nil {
+		impl.logger.Errorw("error in parsing chart repo url", "url", request.Url, "err", err)
+		return fmt.Sprintf("Devtron was unable to connect with the chart repo : %s", err.Error())
+	}
+	parsedURL.Path = strings.TrimSuffix(parsedURL.Path, "/") + "/index.yaml"
+	indexURL := parsedURL.String()
+	if t, ok := helmRepo.Client.(*getter.HttpGetter); ok {
+		t.SetCredentials(helmRepo.Config.Username, helmRepo.Config.Password)
+	}
+	resp, err := helmRepo.Client.Get(indexURL)
+	if err != nil {
+		impl.logger.Errorw("error in getting index file")
+		return fmt.Sprintf("Devtron was unable to find a index.yaml file in the repo directory. Please try another chart repo : %s", err.Error())
+	}
+	_, err = ioutil.ReadAll(resp)
+	if err != nil {
+		impl.logger.Errorw("error in reading index file")
+		return fmt.Sprintf("Devtron was unable to read the index.yaml file in the repo directory. Please try another chart repo : %s", err.Error())
+	}
+	return ValidationSuccessMsg
+}
+func (impl *AppStoreServiceImpl) ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, string) {
+	validationResult := impl.ValidateChartRepo(request)
+	if validationResult != ValidationSuccessMsg {
+		return nil, nil, validationResult
+	}
+	chartRepo, err := impl.CreateChartRepo(request)
+	return chartRepo, err, validationResult
+}
+func (impl *AppStoreServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, string) {
+	validationResult := impl.ValidateChartRepo(request)
+	if validationResult != ValidationSuccessMsg {
+		return nil, nil, validationResult
+	}
+	chartRepo, err := impl.UpdateChartRepo(request)
+	return chartRepo, err, validationResult
+}
+func (impl *AppStoreServiceImpl) ValidateRepoByAuth(request *ChartRepoDto) bool {
+	req, err := http.NewRequest(http.MethodGet, request.Url, nil)
+	if err != nil {
+		return false
+	}
+	if request.AuthMode == repository.AUTH_MODE_ANONYMOUS{
+		res, err := impl.client.Do(req)
+		if err != nil {
+			return false
+		}
+		if res.StatusCode >= 200 && res.StatusCode <= 299 {
+			return true
+		}
+	}
+	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+		auth := request.UserName + ":" + request.Password
+		basicAuth := base64.StdEncoding.EncodeToString([]byte(auth))
+		req.Header.Add("Authorization", "Basic "+basicAuth)
+		res, err := impl.client.Do(req)
+		if err != nil {
+			return false
+		}
+		if res.StatusCode >= 200 && res.StatusCode <= 299 {
+			return true
+		}
+	}
+	return false
 }
