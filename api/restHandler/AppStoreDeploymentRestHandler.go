@@ -405,6 +405,18 @@ func (handler InstalledAppRestHandlerImpl) DeleteInstalledApp(w http.ResponseWri
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	v := r.URL.Query()
+	forceDelete := false
+	force := v.Get("force")
+	if len(force) > 0 {
+		forceDelete, err = strconv.ParseBool(force)
+		if err != nil {
+			handler.Logger.Errorw("request err, DeleteInstalledApp", "err", err, "installAppId", installAppId)
+			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
 	handler.Logger.Infow("request payload, DeleteInstalledApp", "installAppId", installAppId)
 	token := r.Header.Get("token")
 	//rbac block starts from here
@@ -430,6 +442,7 @@ func (handler InstalledAppRestHandlerImpl) DeleteInstalledApp(w http.ResponseWri
 	request.AppId = installedApp.AppId
 	request.EnvironmentId = installedApp.EnvironmentId
 	request.UserId = userId
+	request.ForceDelete = forceDelete
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
 		go func(done <-chan struct{}, closed <-chan bool) {
