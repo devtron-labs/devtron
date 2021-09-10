@@ -21,8 +21,6 @@ import (
 	"bytes"
 	"context"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
-
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -800,19 +798,10 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(ctx context.Context, inst
 		if installAppVersionRequest.ForceDelete {
 			impl.logger.Warnw("error in deleting ACD, skip as found operation is force delete", "error", err)
 		} else {
-			statusError, _ := err.(*errors2.StatusError)
-			if statusError.Status().Code == http.StatusNotFound {
-				err = &util.ApiError{
-					UserMessage:     "chart deletion failed as app not found in acd, you may proceed with force delete",
-					InternalMessage: err.Error(),
-				}
-			} else {
-				err = &util.ApiError{
-					UserMessage:     fmt.Sprintf("%s ,  You may proceed with force delete", err.Error()),
-					InternalMessage: err.Error(),
-				}
+			err = &util.ApiError{
+				UserMessage:     err.Error(),
+				InternalMessage: err.Error(),
 			}
-
 			return nil, err
 		}
 	}
