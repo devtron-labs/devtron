@@ -414,6 +414,7 @@ func (handler InstalledAppRestHandlerImpl) DeleteInstalledApp(w http.ResponseWri
 		if err != nil {
 			handler.Logger.Errorw("request err, DeleteInstalledApp", "err", err, "installAppId", installAppId)
 			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 	}
 	handler.Logger.Infow("request payload, DeleteInstalledApp", "installAppId", installAppId)
