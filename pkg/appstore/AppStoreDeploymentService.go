@@ -111,6 +111,7 @@ type InstalledAppServiceImpl struct {
 	clusterInstalledAppsRepository       appstore.ClusterInstalledAppsRepository
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
+	aCDAuthConfig                        *user.ACDAuthConfig
 }
 
 func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -133,7 +134,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	envService cluster2.EnvironmentService,
 	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository,
 	argoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *util.GitFactory) (*InstalledAppServiceImpl, error) {
+	gitFactory *util.GitFactory, aCDAuthConfig *user.ACDAuthConfig) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		chartRepository:                      chartRepository,
 		logger:                               logger,
@@ -158,6 +159,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 		clusterInstalledAppsRepository:       clusterInstalledAppsRepository,
 		ArgoK8sClient:                        argoK8sClient,
 		gitFactory:                           gitFactory,
+		aCDAuthConfig:                        aCDAuthConfig,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -606,7 +608,7 @@ func (impl InstalledAppServiceImpl) createInArgo(chartGitAttribute *util.ChartGi
 
 	appreq := &argocdServer.AppTemplate{
 		ApplicationName: argocdAppName,
-		Namespace:       argocdServer.DevtronInstalationNs,
+		Namespace:       impl.aCDAuthConfig.ACDConfigMapNamespace,
 		TargetNamespace: appNamespace,
 		TargetServer:    envModel.Cluster.ServerUrl,
 		Project:         "default",
@@ -793,7 +795,16 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(ctx context.Context, inst
 	err = impl.deleteACD(acdAppName, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting ACD ", "name", acdAppName, "err", err)
-		return nil, err
+		if installAppVersionRequest.ForceDelete {
+			impl.logger.Warnw("error in deleting ACD, skip as found operation is force delete", "error", err)
+		} else {
+			err = &util.ApiError{
+				HttpStatusCode:  200,
+				UserMessage:     "chart deletion fails as acd throws error, you may proceed with force delete",
+				InternalMessage: err.Error(),
+			}
+			return nil, err
+		}
 	}
 	deployment, err := impl.chartGroupDeploymentRepository.FindByInstalledAppId(model.Id)
 	if err != nil && err != pg.ErrNoRows {

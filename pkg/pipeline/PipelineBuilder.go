@@ -37,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -119,6 +120,7 @@ type PipelineBuilderImpl struct {
 	GitFactory                    *util.GitFactory
 	ArgoK8sClient                 argocdServer.ArgoK8sClient
 	attributesService             attributes.AttributesService
+	aCDAuthConfig                 *user.ACDAuthConfig
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -145,7 +147,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	imageScanResultRepository security.ImageScanResultRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	GitFactory *util.GitFactory, attributesService attributes.AttributesService,
-) *PipelineBuilderImpl {
+	aCDAuthConfig *user.ACDAuthConfig) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		dbPipelineOrchestrator:        dbPipelineOrchestrator,
@@ -172,6 +174,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ArgoK8sClient:                 ArgoK8sClient,
 		GitFactory:                    GitFactory,
 		attributesService:             attributesService,
+		aCDAuthConfig:                 aCDAuthConfig,
 	}
 }
 
@@ -1365,7 +1368,7 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 	}
 	argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
 
-	appResponse, err := impl.ArgoK8sClient.GetArgoApplication(envConfigOverride.Namespace, argoAppName, envModel.Cluster)
+	appResponse, err := impl.ArgoK8sClient.GetArgoApplication(impl.aCDAuthConfig.ACDConfigMapNamespace, argoAppName, envModel.Cluster)
 	appStatus := 0
 	if err != nil && appResponse != nil {
 		appStatus = int(appResponse["code"].(float64))
