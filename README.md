@@ -179,7 +179,7 @@ Check out our [contributing guidelines](CONTRIBUTING.md). Included are direction
 
 ## :beetle: Vulnerability Reporting
 
-We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose us at security@devtron.ai.
+(We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose us at security@devtron.ai.)
 
 ## :bookmark: License
 
