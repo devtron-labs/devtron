@@ -973,14 +973,14 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 		err := impl.updateCdPipeline(ctx, cdPipelines.Pipeline, cdPipelines.UserId)
 		return pipelineRequest, err
 	case bean.CD_DELETE:
-		err := impl.deleteCdPipeline(cdPipelines.Pipeline.Id, cdPipelines.UserId, ctx)
+		err := impl.deleteCdPipeline(cdPipelines.Pipeline.Id, cdPipelines.UserId, ctx, cdPipelines.ForceDelete)
 		return pipelineRequest, err
 	default:
 		return nil, &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "operation not supported"}
 	}
 }
 
-func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, ctx context.Context) (err error) {
+func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, ctx context.Context, forceDelete bool) (err error) {
 	pipeline, err := impl.pipelineRepository.FindById(pipelineId)
 	if err != nil {
 		impl.logger.Errorw("err in fetching pipeline", "id", pipelineId, "err", err)
@@ -1019,6 +1019,25 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	}
 	if _, err := impl.application.Delete(ctx, req); err != nil {
 		impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
+
+		if forceDelete {
+			impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
+		} else {
+			//statusError, _ := err.(*errors2.StatusError)
+			if strings.Contains(err.Error(), "code = NotFound") {
+				err = &util.ApiError{
+					UserMessage:     "Could not delete as application not found in argocd",
+					InternalMessage: err.Error(),
+				}
+			} else {
+				err = &util.ApiError{
+					UserMessage:     "Could not delete application",
+					InternalMessage: err.Error(),
+				}
+			}
+			return err
+		}
+
 		return err
 	}
 	impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", argoAppName)
