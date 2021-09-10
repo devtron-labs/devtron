@@ -138,7 +138,7 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, appName strin
 	//opts := metav1.GetOptions{}
 	res, err := client.
 		Get().
-		Namespace("devtroncd").
+		Namespace(namespace).
 		Resource("applications").
 		Name(appName).
 		//VersionedParams(&opts, metav1.ParameterCodec).

@@ -42,6 +42,7 @@ const (
 	Suspended   = "Suspended"
 	TimeoutFast = 10 * time.Second
 	TimeoutSlow = 30 * time.Second
+	TimeoutLazy = 60 * time.Second
 	HIBERNATING = "HIBERNATING"
 )
 
@@ -152,7 +153,7 @@ func (c ServiceClientImpl) Rollback(ctxt context.Context, query *application.App
 }
 
 func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, TimeoutLazy)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
