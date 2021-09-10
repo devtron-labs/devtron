@@ -1445,7 +1445,6 @@ func (handler PipelineConfigRestHandlerImpl) FindAppsByTeamName(w http.ResponseW
 	writeJsonResp(w, err, team, http.StatusOK)
 }
 
-
 func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {

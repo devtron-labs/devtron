@@ -403,7 +403,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 	return &ResourceTreeResponse{resp, newReplicaSet, status, podMetadata, conditions}, err
 }
 
-func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*Result) (podMetadata []*PodMetadata, newReplicaSet string) {
+func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*Result) (podMetaData []*PodMetadata, newReplicaSet string) {
 	rolloutManifest := make(map[string]interface{})
 	statefulSetManifest := make(map[string]interface{})
 	deploymentManifest := make(map[string]interface{})
@@ -411,6 +411,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	replicaSetManifests := make([]map[string]interface{}, 0)
 	podManifests := make([]map[string]interface{}, 0)
 	controllerRevisionManifests := make([]map[string]interface{}, 0)
+	jobsManifest := make(map[string]interface{})
 	for _, response := range responses {
 		if response != nil && response.Response != nil && response.Request.Kind == "Rollout" {
 			err := json.Unmarshal([]byte(response.Response.Manifest), &rolloutManifest)
@@ -453,6 +454,11 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 				c.logger.Error(err)
 			}
 			controllerRevisionManifests = append(controllerRevisionManifests, manifest)
+		} else if response != nil && response.Response != nil && response.Request.Kind == "Job" {
+			err := json.Unmarshal([]byte(response.Response.Manifest), &jobsManifest)
+			if err != nil {
+				c.logger.Error(err)
+			}
 		}
 	}
 	newPodNames := make(map[string]bool, 0)
@@ -473,10 +479,26 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 		newPodNames = c.getDaemonSetNewPods(daemonSetManifest, podManifests, controllerRevisionManifests)
 	}
 
+	if _, ok := jobsManifest["kind"]; ok {
+		newPodNames = c.getJobsNewPods(jobsManifest, podManifests)
+	}
+
+	//podMetaData := make([]*PodMetadata, 0)
+	duplicateCheck := make(map[string]bool)
 	if newReplicaSet != "" {
-		podMetadata = buildPodMetadataFromReplicaSet(resp, newReplicaSet, replicaSetManifests)
-	} else {
-		podMetadata = buildPodMetadataFromPod(resp, podManifests, newPodNames)
+		results := buildPodMetadataFromReplicaSet(resp, newReplicaSet, replicaSetManifests)
+		for _, meta := range results {
+			duplicateCheck[meta.Name] = true
+			podMetaData = append(podMetaData, meta)
+		}
+	}
+	if newPodNames != nil {
+		results := buildPodMetadataFromPod(resp, podManifests, newPodNames)
+		for _, meta := range results {
+			if _, ok := duplicateCheck[meta.Name]; !ok {
+				podMetaData = append(podMetaData, meta)
+			}
+		}
 	}
 	return
 }
@@ -511,6 +533,11 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 			}
 		}
 		if node.Kind == "StatefulSet" || node.Kind == "DaemonSet" {
+			needPods = true
+		}
+
+		if node.Kind == "CronJob" || node.Kind == "Job" {
+			queryNodes = append(queryNodes, node)
 			needPods = true
 		}
 	}
@@ -770,7 +797,7 @@ func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[
 	for _, node := range resp.Nodes {
 		if node.Kind == "Pod" {
 			isNew := newPodNames[node.Name]
-			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name],InitContainers: initContainerMapping[node.Name], IsNew: isNew}
+			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name], InitContainers: initContainerMapping[node.Name], IsNew: isNew}
 			podMetadata = append(podMetadata, &metadata)
 		}
 	}
@@ -833,11 +860,13 @@ func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSe
 					parentName = p.Name
 				}
 			}
-			isNew := parentName == newReplicaSet
-			replicaSet := replicaSets[parentName]
-			containers, intContainers := getReplicaSetContainers(replicaSet)
-			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containers, InitContainers: intContainers, IsNew: isNew}
-			podMetadata = append(podMetadata, &metadata)
+			if parentName != "" {
+				isNew := parentName == newReplicaSet
+				replicaSet := replicaSets[parentName]
+				containers, intContainers := getReplicaSetContainers(replicaSet)
+				metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containers, InitContainers: intContainers, IsNew: isNew}
+				podMetadata = append(podMetadata, &metadata)
+			}
 		}
 	}
 	return
@@ -910,4 +939,14 @@ func transform(resource v1alpha1.ResourceNode, name *string) *application.Applic
 	}
 
 	return request
+}
+
+func (c ServiceClientImpl) getJobsNewPods(jobManifest map[string]interface{}, podManifests []map[string]interface{}) (newPodNames map[string]bool) {
+	newPodNames = make(map[string]bool, 0)
+	for _, pod := range podManifests {
+		newPodNames[getResourceName(pod)] = true
+	}
+
+	//TODO - new or old logic
+	return
 }

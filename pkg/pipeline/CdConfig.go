@@ -56,9 +56,9 @@ type CdConfig struct {
 	AzureBlobContainerCiLog   string `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
 	AzureBlobContainerCiCache string `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
 	MinioEndpoint             string `env:"MINIO_ENDPOINT"`
-	MinioAccessKey            string   `env:"MINIO_ACCESS_KEY"`
-	MinioSecretKey            string   `env:"MINIO_SECRET_KEY"`
-	AzureAccountKey string `env:"AZURE_ACCOUNT_KEY"`
+	MinioAccessKey            string `env:"MINIO_ACCESS_KEY"`
+	MinioSecretKey            string `env:"MINIO_SECRET_KEY"`
+	AzureAccountKey           string `env:"AZURE_ACCOUNT_KEY"`
 }
 
 func GetCdConfig() (*CdConfig, error) {

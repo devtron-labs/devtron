@@ -33,7 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -401,7 +401,6 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 		return http.HandlerFunc(fn)
 	}
 }
-
 
 func contains(url string) bool {
 	urls := []string{

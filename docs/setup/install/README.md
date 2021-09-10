@@ -60,12 +60,12 @@ Following properties should be configured
 
 | Parameter | Description | Default |
 | ---: | :--- | :--- |
-| **POSTGRESQL\_PASSWORD** | password for postgres database, should be base64 encoded | |
-| **WEBHOOK\_TOKEN** | If you want to continue using jenkins for CI then please provide this for authentication of requests, should be base64 encoded |  |
+| **POSTGRESQL\_PASSWORD** | Using this parameter the auto-generated password for postgres can be edited as per requirement(Used by devtron to store the app information) | |
+| **WEBHOOK\_TOKEN** | If you want to continue using jenkins for CI then provide this for authentication of requests, should be base64 encoded |  |
 
 **Configure ConfigMaps**
 
-For `helm` installation this section referes to _**configs**_ section of `values.yaml`. For `kubectl` based installation it refers to `kind: ConfigMap` in _**install/devtron-operator-configs.yaml**_.
+For `helm` installation this section refers to _**configs**_ section of `values.yaml`. For `kubectl` based installation it refers to `kind: ConfigMap` in _**install/devtron-operator-configs.yaml**_.
 
 Following properties should be configured
 
@@ -81,20 +81,27 @@ Following properties should be configured
 
 AWS SPECIFIC
 
+While installing devtron and using AWS-S3 bucket for storing the logs and caches, below parameters are to be used in the ConfigMap.
+```NOTE : For using s3 bucket it is important to add s3 permission policy to the IAM role attached to the nodes of the cluster.```
+
 | Parameter | Description | Default |
 | ---: | :--- | :--- |
-| **DEFAULT\_CD\_LOGS\_BUCKET\_REGION** | AWS region of bucket to store CD logs, this should be created before hand \(required\) |  |
 | **DEFAULT\_CACHE\_BUCKET** | AWS bucket to store docker cache, this should be created before hand \(required\) |  |
-| **DEFAULT\_CACHE\_BUCKET\_REGION** | AWS region of cache bucket defined in previous step \(required\) |  |
 | **DEFAULT\_BUILD\_LOGS\_BUCKET** | AWS bucket to store build logs, this should be created before hand \(required\) |  |
+| **DEFAULT\_CACHE\_BUCKET\_REGION** | AWS region of S3 bucket to store cache \(required\) |  |
+| **DEFAULT\_CD\_LOGS\_BUCKET\_REGION** | AWS region of S3 bucket to store CD logs \(required\) |  |
 
-AZURE SPECIFIC
+
+AZURE SPECIFIC 
+
+While installing devtron using Azure Blob Storage for storing logs and caches, below parameters will be used in the ConfigMap.
+
 
 | Parameter | Description | Default |
 | ---: | :--- | :--- |
-| **AZURE\_ACCOUNT\_NAME** | AZURE Blob storage account name |  |
-| **AZURE\_BLOB\_CONTAINER\_CI\_LOG** | AZURE Blob storage container for storing ci-logs |  |
-| **AZURE\_BLOB\_CONTAINER\_CI\_CACHE** | AZURE Blob storage container for storing ci cache |  |
+| **AZURE\_ACCOUNT\_NAME** | Account name for AZURE Blob Storage |  |
+| **AZURE\_BLOB\_CONTAINER\_CI\_LOG** | AZURE Blob storage container for storing ci-logs after running the CI pipeline |  |
+| **AZURE\_BLOB\_CONTAINER\_CI\_CACHE** | AZURE Blob storage container for storing ci cache after running the CI pipeline |  |
 
 To convert string to base64 use
 
@@ -102,7 +109,10 @@ To convert string to base64 use
 echo -n "string" | base64 -d
 ```
 
-**Please Note:** 1\) Ensure that the **cluster has read and write access** to the S3 buckets/Azure Blob storage container mentioned in DEFAULT\_CACHE\_BUCKET, DEFAULT\_BUILD\_LOGS\_BUCKET or AZURE\_BLOB\_CONTAINER\_CI\_LOG, AZURE\_BLOB\_CONTAINER\_CI\_CACHE 2\) Ensure that cluster has **read access** to AWS secrets backends \(SSM & secrets manager\)
+**Please Note:** 
+1\) Ensure that the **cluster has read and write access** to the S3 buckets/Azure Blob storage container mentioned in DEFAULT\_CACHE\_BUCKET, DEFAULT\_BUILD\_LOGS\_BUCKET or AZURE\_BLOB\_CONTAINER\_CI\_LOG, AZURE\_BLOB\_CONTAINER\_CI\_CACHE
+
+2\) Ensure that cluster has **read access** to AWS secrets backends \(SSM & secrets manager\)
 
 #### Cleanup
 

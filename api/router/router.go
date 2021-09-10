@@ -77,8 +77,8 @@ type MuxRouter struct {
 	telemetryRouter                  TelemetryRouter
 	telemetryWatcher                 telemetry.TelemetryEventClient
 	bulkUpdateRouter                 BulkUpdateRouter
-	WebhookListenerRouter		     WebhookListenerRouter
-	appLabelsRouter    AppLabelRouter
+	WebhookListenerRouter            WebhookListenerRouter
+	appLabelsRouter                  AppLabelRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -98,7 +98,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter,
-	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter,appLabelsRouter AppLabelRouter) *MuxRouter {
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -116,7 +116,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		ProjectManagementRouter:          ProjectManagementRouter,
 		DockerRegRouter:                  DockerRegRouter,
 		GitProviderRouter:                GitProviderRouter,
-		GitHostRouter:                	  GitHostRouter,
+		GitHostRouter:                    GitHostRouter,
 		NotificationRouter:               NotificationRouter,
 		TeamRouter:                       TeamRouter,
 		logger:                           logger,
@@ -272,7 +272,6 @@ func (r MuxRouter) Init() {
 
 	ssoLoginRouter := r.Router.PathPrefix("/orchestrator/sso").Subrouter()
 	r.ssoLoginRouter.initSsoLoginRouter(ssoLoginRouter)
-
 
 	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
 	r.telemetryRouter.initTelemetryRouter(telemetryRouter)

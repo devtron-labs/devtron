@@ -1,3 +1,4 @@
+
 # Deployment Template
 
 Deployment configuration is the Manifest for the application, it defines the runtime behavior of the application. You can define application behavior by providing information in three sections:
@@ -32,20 +33,34 @@ This defines ports on which application services will be exposed to other servic
 
 ```yaml
 ContainerPort:
+    envoyPort: 8799
+    idleTimeout: 
     name: app
     port: 8080
     servicePort: 80
+    supportStreaming: true
+    useHTTP2: true
 ```
 
 | Key | Description |
 | :--- | :--- |
-| `name` | name of the container |
-| `port` | port for the container |
-| `servicePort` | service port for the container |
+| `envoyPort` | envoy port for the container. |
+| `idleTimeout` | the duration of time that a connection is idle before the connection is terminated. |
+| `name` | name of the port. |
+| `port` | port for the container. |
+| `servicePort` | port of the corresponding kubernetes service. |
+| `supportStreaming` | Used for high performance protocols like grpc where timeout needs to be disabled. |
+| `useHTTP2` | Envoy container can accept HTTP2 requests. |
+
+### EnvVariables
+```yaml
+EnvVariables: []
+```
+To set environment variables for the containers that run in the Pod.
 
 ### Liveness Probe
 
-If this check fails, kubernetes restarts the pod. This should return error code in case of non-recoverable error
+If this check fails, kubernetes restarts the pod. This should return error code in case of non-recoverable error.
 
 ```yaml
 LivenessProbe:
@@ -56,8 +71,11 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  httpHeader:
+  scheme: ""
+  tcp: true
 ```
-
+ 
 | Key | Description |
 | :--- | :--- |
 | `Path` | It define the path where the liveness needs to be checked. |
@@ -66,10 +84,36 @@ LivenessProbe:
 | `periodSeconds` | It defines the time to check a given container for liveness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
+| `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
+| `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
+
+
+### MaxUnavailable
+ 
+ ```yaml
+  MaxUnavailable: 0
+```
+The maximum number of pods that can be unavailable during the update process. The value of "MaxUnavailable: " can be an absolute number or percentage of the replicas count. The default value of "MaxUnavailable: " is 25%.
+
+### MaxSurge
+
+```yaml
+MaxSurge: 1
+```
+The maximum number of pods that can be created over the desired number of pods. For "MaxSurge: " also, the value can be an absolute number or percentage of the replicas count.
+The default value of "MaxSurge: " is 25%.
+
+### Min Ready Seconds
+
+```yaml
+MinReadySeconds: 60
+```
+This specifies the minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available. This defaults to 0 (the Pod will be considered available as soon as it is ready).
 
 ### Readiness Probe
 
-If this check fails, kubernetes stops sending traffic to the application. This should return error code in case of errors which can be recovered from if traffic is stopped
+If this check fails, kubernetes stops sending traffic to the application. This should return error code in case of errors which can be recovered from if traffic is stopped.
 
 ```yaml
 ReadinessProbe:
@@ -80,6 +124,9 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  httpHeader:
+  scheme: ""
+  tcp: true
 ```
 
 | Key | Description |
@@ -90,10 +137,13 @@ ReadinessProbe:
 | `periodSeconds` | It defines the time to check a given container for readiness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the rediness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
+| `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
+| `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
 ### Autoscaling
 
-This is connected to HPA and controls scaling up and down in response to request load
+This is connected to HPA and controls scaling up and down in response to request load.
 
 ```yaml
 autoscaling:
@@ -102,6 +152,7 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
+  extraMetrics: []
 ```
 
 | Key | Description |
@@ -110,7 +161,8 @@ autoscaling:
 | `MinReplicas` | Minimum number of replicas allowed for scaling. |
 | `TargetCPUUtilizationPercentage` | The target CPU utilization that is expected for a container. |
 | `TargetMemoryUtilizationPercentage` | The target memory utilization that is expected for a container. |
-| `enabled` | to enable autoscaling or don't enable it. |
+| `enabled` | Set true to enable autoscaling else set false.|
+| `extraMetrics` | Used to give external metrics for autoscaling. |
 
 ### Image
 
@@ -163,9 +215,27 @@ ingressInternal:
 | `host` | Host name |
 | `tls` | It contains security details |
 
+### Init Containers
+```yaml
+initContainers: 
+  - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+        command: ["/usr/local/bin/nginx"]
+        args: ["-g", "daemon off;"]
+```
+Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image.
+
+### Pause For Seconds Before Switch Active
+```yaml
+pauseForSecondsBeforeSwitchActive: 30
+```
+To wait for given period of time before swith active the container.
+
 ### Resources
 
-These define minimum and maximum RAM and CPU available to the application
+These define minimum and maximum RAM and CPU available to the application.
 
 ```yaml
 resources:
@@ -189,7 +259,7 @@ Requests are what the container is guaranteed to get.
 
 ### Service
 
-This defines annotations and the type of service, optionally can define name also
+This defines annotations and the type of service, optionally can define name also.
 
 ```yaml
   service:
@@ -211,7 +281,7 @@ It is required when some values need to be read from or written to an external d
 volumeMounts: []
 ```
 
-It is used to provide mounts to the volume
+It is used to provide mounts to the volume.
 
 ### Affinity and anti-affinity
 
@@ -224,17 +294,17 @@ Spec:
 
 Spec is used to define the desire state of the given container.
 
-Node Affimity allows you to constrain which nodes your pod is eligible to schedule on, based on labels of the node.
+Node Affinity allows you to constrain which nodes your pod is eligible to schedule on, based on labels of the node.
 
 Inter-pod affinity allow you to constrain which nodes your pod is eligible to be scheduled based on labels on pods.
 
 #### Key
 
-Key part of the label for node selection, this should be same as that on node. Please confirm with devops team
+Key part of the label for node selection, this should be same as that on node. Please confirm with devops team.
 
 #### Values
 
-Value part of the label for node selection, this should be same as that on node. Please confirm with devops team
+Value part of the label for node selection, this should be same as that on node. Please confirm with devops team.
 
 ### Tolerations
 
@@ -260,7 +330,7 @@ args:
   value: []
 ```
 
-This is used to give arguments to command
+This is used to give arguments to command.
 
 ### Command
 
@@ -300,6 +370,24 @@ Containers section can be used to run side-car containers along with your main c
 
 It is a kubernetes monitoring tool and the name of the file to be monitored as monitoring in the given case.It describes the state of the prometheus.
 
+### rawYaml
+
+```yaml
+rawYaml: 
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: my-service
+    spec:
+      selector:
+        app: MyApp
+      ports:
+        - protocol: TCP
+          port: 80
+          targetPort: 9376
+```
+Accepts an array of Kubernetes objects. You can specify any kubernetes yaml here and it will be applied when your app gets deployed.
+
 ### Grace Period
 
 ```yaml
@@ -309,15 +397,8 @@ Kubernetes waits for the specified time called the termination grace period befo
 
 A Graceful termination in practice means that your application needs to handle the SIGTERM message and begin shutting down when it receives it. This means saving all data that needs to be saved, closing down network connections, finishing any work that is left, and other similar tasks.
 
-There are many reasons why Kubernetes might terminate a perfectly healthy container. If you update your deployment with a rolling update, Kubernetes slowly terminates old pods while spinning up new ones. If you drain a node, Kubernetes terminates all pods on that node. If a node runs out of resources, Kubernetes terminates pods to free those resources. It’s important that your application handle termination gracefully so that there is minimal impact on the end user and the time-to-recovery is as fast as possible!
+There are many reasons why Kubernetes might terminate a perfectly healthy container. If you update your deployment with a rolling update, Kubernetes slowly terminates old pods while spinning up new ones. If you drain a node, Kubernetes terminates all pods on that node. If a node runs out of resources, Kubernetes terminates pods to free those resources. It’s important that your application handle termination gracefully so that there is minimal impact on the end user and the time-to-recovery is as fast as possible.
 
-### Min Ready Seconds
-
-```yaml
-MinReadySeconds: 60
-```
-
-Minimum time for which a newly created pod should be ready without any of its container crashing, for it to be considered available
 
 ### Server
 
@@ -332,7 +413,7 @@ It is used for providing server configurations.
 
 #### Deployment
 
-It gives the details for deployment
+It gives the details for deployment.
 
 | Key | Description |
 | :--- | :--- |
@@ -478,6 +559,12 @@ autoscaling:
 ```
 
 HPA, by default is configured to work with CPU and Memory metrics. These metrics are useful for internal cluster sizing, but you might want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.
+
+### Wait For Seconds Before Scaling Down
+```yaml
+waitForSecondsBeforeScalingDown: 30
+```
+Wait for given period of time before scaling down the container.
 
 ### 3. Show application metrics
 
