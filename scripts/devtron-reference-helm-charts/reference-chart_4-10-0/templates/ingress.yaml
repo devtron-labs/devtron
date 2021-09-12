@@ -24,6 +24,7 @@ spec:
       http:
         paths:
           - path: {{ .Values.ingress.path }}
+            pathType: Prefix
             defaultBackend:
               service:
                 name: {{ $svcName }}
@@ -36,6 +37,7 @@ spec:
         paths:
         {{- range .paths }}
           - path: {{ . }}
+            pathType: Prefix
             defaultBackend:
               service:
                 name: {{ $svcName }}
@@ -72,6 +74,7 @@ spec:
       http:
         paths:
           - path: {{ .Values.ingressInternal.path }}
+            pathType: Prefix
             defaultBackend:
               service:
                 name: {{ $svcName }}
@@ -84,6 +87,7 @@ spec:
         paths:
         {{- range .paths }}
           - path: {{ . }}
+            pathType: Prefix
             defaultBackend:
               service:
                 name: {{ $svcName }}
