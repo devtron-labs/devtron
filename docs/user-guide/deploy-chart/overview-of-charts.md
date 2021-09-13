@@ -78,7 +78,7 @@ You can select a particular chart multiple number of times according to your req
 
 Select the `Version` and `Values` for your charts.
 
-You can use Default Values or the Custom Values, just make sure the Value that you select for your Chart is compatbile with the Version of the Chart that you are using.
+You can use Default Values or the Custom Values, just make sure the Value that you select for your Chart is compatible with the Version of the Chart that you are using.
 
 ![](../../.gitbook/assets/select_charts2.jpg)
 
