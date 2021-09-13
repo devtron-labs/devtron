@@ -423,6 +423,9 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 			key = fmt.Sprintf("%s_%s", role.Entity, role.Action)
 		}
 		if _, ok := roleFilterMap[key]; ok {
+			if len(role.Environment) == 0 {
+				roleFilterMap[key].Environment = ""
+			}
 			if !strings.Contains(roleFilterMap[key].Environment, role.Environment) {
 				roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
 			}

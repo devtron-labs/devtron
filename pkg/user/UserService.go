@@ -668,6 +668,9 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 			key = fmt.Sprintf("%s_%s", role.Entity, role.Action)
 		}
 		if _, ok := roleFilterMap[key]; ok {
+			if len(role.Environment) == 0 {
+				roleFilterMap[key].Environment = ""
+			}
 			envArr := strings.Split(roleFilterMap[key].Environment, ",")
 			if !containsArr(envArr, role.Environment) {
 				roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
