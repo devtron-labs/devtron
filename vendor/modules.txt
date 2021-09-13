@@ -549,6 +549,7 @@ golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/md4
 golang.org/x/crypto/openpgp
 golang.org/x/crypto/openpgp/armor
+golang.org/x/crypto/openpgp/clearsign
 golang.org/x/crypto/openpgp/elgamal
 golang.org/x/crypto/openpgp/errors
 golang.org/x/crypto/openpgp/packet
@@ -916,10 +917,18 @@ k8s.io/client-go/util/retry
 # k8s.io/helm v2.12.3+incompatible
 ## explicit
 k8s.io/helm/pkg/chartutil
+k8s.io/helm/pkg/getter
+k8s.io/helm/pkg/helm/environment
+k8s.io/helm/pkg/helm/helmpath
 k8s.io/helm/pkg/ignore
+k8s.io/helm/pkg/plugin
 k8s.io/helm/pkg/proto/hapi/chart
 k8s.io/helm/pkg/proto/hapi/version
+k8s.io/helm/pkg/provenance
+k8s.io/helm/pkg/repo
 k8s.io/helm/pkg/sympath
+k8s.io/helm/pkg/tlsutil
+k8s.io/helm/pkg/urlutil
 k8s.io/helm/pkg/version
 # k8s.io/klog v1.0.0
 ## explicit
