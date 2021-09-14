@@ -114,7 +114,7 @@ type CiPipelineMin struct {
 type CiScript struct {
 	Id             int    `json:"id"`
 	Index          int    `json:"index"`
-	Name           string `json:"name"`
+	Name           string `json:"name" validate:"required"`
 	Script         string `json:"script"`
 	OutputLocation string `json:"outputLocation"`
 }
