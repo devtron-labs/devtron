@@ -660,23 +660,18 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	isSuperAdmin := false
 	var roleFilters []bean.RoleFilter
 	roleFilterMap := make(map[string]*bean.RoleFilter)
-	allEnvRoleMap := make(map[string]string)
 	for _, role := range roles {
 		key := ""
 		if len(role.Team) > 0 {
 			key = fmt.Sprintf("%s_%s", role.Team, role.Action)
-			if len(role.Environment) == 0 {
-				allEnvRoleMap[key] = key
-			}
 		} else if len(role.Entity) > 0 {
 			key = fmt.Sprintf("%s_%s", role.Entity, role.Action)
 		}
 		if _, ok := roleFilterMap[key]; ok {
-			if len(role.Environment) == 0 {
-				roleFilterMap[key].Environment = ""
-			}
 			envArr := strings.Split(roleFilterMap[key].Environment, ",")
-			if !containsArr(envArr, role.Environment) {
+			if containsArr(envArr, "") {
+				roleFilterMap[key].Environment = ""
+			} else if !containsArr(envArr, role.Environment) {
 				roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
 			}
 			entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
@@ -697,16 +692,11 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 			isSuperAdmin = true
 		}
 	}
-	for key, value := range roleFilterMap {
-		if value.Action == "super-admin" {
+	for _, v := range roleFilterMap {
+		if v.Action == "super-admin" {
 			continue
 		}
-		for v := range allEnvRoleMap {
-			if strings.Contains(key, v) && key != v {
-				continue
-			}
-		}
-		roleFilters = append(roleFilters, *value)
+		roleFilters = append(roleFilters, *v)
 	}
 
 	groups, err := casbin2.GetRolesForUser(model.EmailId)
