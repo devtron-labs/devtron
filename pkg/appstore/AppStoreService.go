@@ -276,7 +276,7 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	chartRepo := &chartConfig.ChartRepo{AuditLog: models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},}
+	chartRepo := &chartConfig.ChartRepo{AuditLog: models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId}}
 	chartRepo.Name = request.Name
 	chartRepo.Url = request.Url
 	chartRepo.AuthMode = request.AuthMode

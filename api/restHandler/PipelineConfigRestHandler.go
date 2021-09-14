@@ -667,6 +667,19 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	v := r.URL.Query()
+	forceDelete := false
+	force := v.Get("force")
+	if len(force) > 0 {
+		forceDelete, err = strconv.ParseBool(force)
+		if err != nil {
+			handler.Logger.Errorw("request err, PatchCdPipeline", "err", err, "payload", cdPipeline)
+			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	cdPipeline.ForceDelete = forceDelete
 	handler.Logger.Infow("request payload, PatchCdPipeline", "payload", cdPipeline)
 	err = handler.validator.StructPartial(cdPipeline, "AppId", "Action")
 	if err == nil {
@@ -1444,7 +1457,6 @@ func (handler PipelineConfigRestHandlerImpl) FindAppsByTeamName(w http.ResponseW
 	}
 	writeJsonResp(w, err, team, http.StatusOK)
 }
-
 
 func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)

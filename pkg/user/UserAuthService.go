@@ -402,7 +402,6 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 	}
 }
 
-
 func contains(url string) bool {
 	urls := []string{
 		"/health",

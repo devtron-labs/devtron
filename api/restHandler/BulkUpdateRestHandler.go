@@ -120,7 +120,7 @@ func (handler BulkUpdateRestHandlerImpl) FindBulkUpdateReadme(w http.ResponseWri
 	writeJsonResp(w, nil, responseArr, http.StatusOK)
 }
 
-func (handler BulkUpdateRestHandlerImpl) CheckAuthForImpactedObjects(AppId int, EnvId int, appResourceObjects map[int]string, envResourceObjects map[string]string, token string) bool{
+func (handler BulkUpdateRestHandlerImpl) CheckAuthForImpactedObjects(AppId int, EnvId int, appResourceObjects map[int]string, envResourceObjects map[string]string, token string) bool {
 	resourceName := appResourceObjects[AppId]
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); !ok {
 		return ok
@@ -157,32 +157,32 @@ func (handler BulkUpdateRestHandlerImpl) GetImpactedAppsName(w http.ResponseWrit
 	}
 	appResourceObjects, envResourceObjects := handler.enforcerUtil.GetRbacObjectsForAllAppsAndEnvironments()
 	for _, deploymentTemplateImpactedApp := range impactedApps.DeploymentTemplate {
-		ok := handler.CheckAuthForImpactedObjects(deploymentTemplateImpactedApp.AppId,deploymentTemplateImpactedApp.EnvId,appResourceObjects,envResourceObjects,token)
+		ok := handler.CheckAuthForImpactedObjects(deploymentTemplateImpactedApp.AppId, deploymentTemplateImpactedApp.EnvId, appResourceObjects, envResourceObjects, token)
 		if !ok {
 			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
 	}
 	for _, configMapImpactedApp := range impactedApps.ConfigMap {
-		ok := handler.CheckAuthForImpactedObjects(configMapImpactedApp.AppId,configMapImpactedApp.EnvId,appResourceObjects,envResourceObjects,token)
+		ok := handler.CheckAuthForImpactedObjects(configMapImpactedApp.AppId, configMapImpactedApp.EnvId, appResourceObjects, envResourceObjects, token)
 		if !ok {
 			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
 	}
 	for _, secretImpactedApp := range impactedApps.Secret {
-		ok := handler.CheckAuthForImpactedObjects(secretImpactedApp.AppId,secretImpactedApp.EnvId,appResourceObjects,envResourceObjects,token)
+		ok := handler.CheckAuthForImpactedObjects(secretImpactedApp.AppId, secretImpactedApp.EnvId, appResourceObjects, envResourceObjects, token)
 		if !ok {
 			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
 	}
 	writeJsonResp(w, err, impactedApps, http.StatusOK)
 }
-func (handler BulkUpdateRestHandlerImpl) CheckAuthForBulkUpdate(AppId int, EnvId int, AppName string,rbacObjects map[int]string, token string) bool{
+func (handler BulkUpdateRestHandlerImpl) CheckAuthForBulkUpdate(AppId int, EnvId int, AppName string, rbacObjects map[int]string, token string) bool {
 	resourceName := rbacObjects[AppId]
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, resourceName); !ok {
 		return ok
 	}
 	if EnvId > 0 {
-		resourceName := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(AppName,EnvId)
+		resourceName := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(AppName, EnvId)
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, resourceName); !ok {
 			return ok
 		}
@@ -212,19 +212,19 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *ht
 	}
 	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, deploymentTemplateImpactedApp := range impactedApps.DeploymentTemplate {
-		ok := handler.CheckAuthForBulkUpdate(deploymentTemplateImpactedApp.AppId,deploymentTemplateImpactedApp.EnvId,deploymentTemplateImpactedApp.AppName,rbacObjects,token)
+		ok := handler.CheckAuthForBulkUpdate(deploymentTemplateImpactedApp.AppId, deploymentTemplateImpactedApp.EnvId, deploymentTemplateImpactedApp.AppName, rbacObjects, token)
 		if !ok {
 			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
 	}
 	for _, configMapImpactedApp := range impactedApps.ConfigMap {
-		ok := handler.CheckAuthForBulkUpdate(configMapImpactedApp.AppId,configMapImpactedApp.EnvId,configMapImpactedApp.AppName,rbacObjects,token)
+		ok := handler.CheckAuthForBulkUpdate(configMapImpactedApp.AppId, configMapImpactedApp.EnvId, configMapImpactedApp.AppName, rbacObjects, token)
 		if !ok {
 			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
 	}
 	for _, secretImpactedApp := range impactedApps.Secret {
-		ok := handler.CheckAuthForBulkUpdate(secretImpactedApp.AppId,secretImpactedApp.EnvId,secretImpactedApp.AppName,rbacObjects,token)
+		ok := handler.CheckAuthForBulkUpdate(secretImpactedApp.AppId, secretImpactedApp.EnvId, secretImpactedApp.AppName, rbacObjects, token)
 		if !ok {
 			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}

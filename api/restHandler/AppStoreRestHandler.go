@@ -340,7 +340,7 @@ func (handler *AppStoreRestHandlerImpl) GetChartRepoList(w http.ResponseWriter, 
 		writeJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
-	handler.Logger.Infow("request payload, GetChartRepoList, app store", )
+	handler.Logger.Infow("request payload, GetChartRepoList, app store")
 	res, err := handler.appStoreService.GetChartRepoList()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetChartRepoList, app store", "err", err, "userId", userId)

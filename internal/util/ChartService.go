@@ -61,7 +61,7 @@ type ChartValues struct {
 
 func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	chartWorkingDir ChartWorkingDir,
-	 client *http.Client,
+	client *http.Client,
 	gitFactory *GitFactory) *ChartTemplateServiceImpl {
 	return &ChartTemplateServiceImpl{
 		randSource:      rand.NewSource(time.Now().UnixNano()),
@@ -146,10 +146,13 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appName = space.ReplaceAllString(appName, "-")
-	repoUrl, _, err := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
-	if err != nil {
-		impl.logger.Errorw("error in creating git project", "name", appName, "err", err)
-		return nil, err
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
+
+	for _, err := range detailedError.StageErrorMap {
+		if err != nil {
+			impl.logger.Errorw("error in creating git project", "name", appName, "err", err)
+			return nil, err
+		}
 	}
 
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
@@ -343,12 +346,13 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
-	repoUrl, _, err := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName)
-	if err != nil {
-		impl.logger.Errorw("error in creating git project", "name", appStoreName, "err", err)
-		return nil, err
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName)
+	for _, err := range detailedError.StageErrorMap {
+		if err != nil {
+			impl.logger.Errorw("error in creating git project", "name", appStoreName, "err", err)
+			return nil, err
+		}
 	}
-
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {

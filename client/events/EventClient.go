@@ -126,7 +126,7 @@ func NewEventRESTClientImpl(logger *zap.SugaredLogger, client *http.Client, conf
 	attributesRepository repository.AttributesRepository) *EventRESTClientImpl {
 	return &EventRESTClientImpl{logger: logger, client: client, config: config, pubsubClient: pubsubClient,
 		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
-		attributesRepository: attributesRepository,}
+		attributesRepository: attributesRepository}
 }
 
 func (impl *EventRESTClientImpl) buildFinalPayload(event Event, cdPipeline *pipelineConfig.Pipeline, ciPipeline *pipelineConfig.CiPipeline) *Payload {
