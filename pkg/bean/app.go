@@ -92,8 +92,8 @@ type CiPipeline struct {
 	Deleted                  bool              `json:"deleted,omitempty"`
 	BeforeDockerBuild        []*Task           `json:"beforeDockerBuild,omitempty" validate:"dive"`
 	AfterDockerBuild         []*Task           `json:"afterDockerBuild,omitempty" validate:"dive"`
-	BeforeDockerBuildScripts []*CiScript       `json:"beforeDockerBuildScripts,omitempty"`
-	AfterDockerBuildScripts  []*CiScript       `json:"afterDockerBuildScripts,omitempty"`
+	BeforeDockerBuildScripts []*CiScript       `json:"beforeDockerBuildScripts,omitempty" validate:"dive"`
+	AfterDockerBuildScripts  []*CiScript       `json:"afterDockerBuildScripts,omitempty" validate:"dive"`
 	LinkedCount              int               `json:"linkedCount"`
 	PipelineType             PipelineType      `json:"pipelineType,omitempty"`
 	ScanEnabled              bool              `json:"scanEnabled,notnull"`
@@ -114,7 +114,7 @@ type CiPipelineMin struct {
 type CiScript struct {
 	Id             int    `json:"id"`
 	Index          int    `json:"index"`
-	Name           string `json:"name"`
+	Name           string `json:"name" validate:"required"`
 	Script         string `json:"script"`
 	OutputLocation string `json:"outputLocation"`
 }
