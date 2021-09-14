@@ -402,6 +402,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 	return request, nil
 }
 
+const AllEnvironment string = ""
 func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup, error) {
 	roleGroup, err := impl.roleGroupRepository.GetRoleGroupById(id)
 	if err != nil {
@@ -424,8 +425,8 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 		}
 		if _, ok := roleFilterMap[key]; ok {
 			envArr := strings.Split(roleFilterMap[key].Environment, ",")
-			if containsArr(envArr, "") {
-				roleFilterMap[key].Environment = ""
+			if containsArr(envArr, AllEnvironment) {
+				roleFilterMap[key].Environment = AllEnvironment
 			} else if !containsArr(envArr, role.Environment) {
 				roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
 			}
