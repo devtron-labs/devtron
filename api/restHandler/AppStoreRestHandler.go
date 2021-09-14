@@ -383,6 +383,7 @@ func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r
 	res, err, validationResult := handler.appStoreService.ValidateAndCreateChartRepo(request)
 	if validationResult.CustomErrMsg != appstore.ValidationSuccessMsg {
 		writeJsonResp(w, nil, validationResult, http.StatusOK)
+		return
 	}
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateChartRepo", "err", err, "payload", request)
@@ -426,6 +427,7 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 	res, err, validationResult := handler.appStoreService.ValidateAndUpdateChartRepo(request)
 	if validationResult.CustomErrMsg != appstore.ValidationSuccessMsg {
 		writeJsonResp(w, nil, validationResult, http.StatusOK)
+		return
 	}
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateChartRepo", "err", err, "payload", request)
