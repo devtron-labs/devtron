@@ -608,6 +608,20 @@ metadata:
   name: workflow-minio-cred
   namespace: devtron-ci
 type: Opaque
+---
+apiVersion: v1
+data:
+  accessKey: `;
+workflowSecret = workflowSecret + azureAccountNameEncoded;
+workflowSecret = workflowSecret + `
+  secretKey: `;
+workflowSecret = workflowSecret + azureAccountKey;
+workflowSecret = workflowSecret + `
+kind: Secret
+metadata:
+  name: workflow-minio-cred
+  namespace: devtron-cd
+type: Opaque
 `;
 #----------------- workflow secret end
 
@@ -629,6 +643,20 @@ kind: Secret
 metadata:
   name: workflow-minio-cred
   namespace: devtron-ci
+type: Opaque
+---
+apiVersion: v1
+data:
+  accessKey: `;
+workflowSecret = workflowSecret + minioAccesskey;
+workflowSecret = workflowSecret + `
+  secretKey: `;
+workflowSecret = workflowSecret + minioSecretkey;
+workflowSecret = workflowSecret + `
+kind: Secret
+metadata:
+  name: workflow-minio-cred
+  namespace: devtron-cd
 type: Opaque
 `;
 #----------------- workflow secret end
