@@ -162,6 +162,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+          {{- range $.Values.EnvVariablesFromFieldPath }}
+            - name: {{ .name }}
+              valueFrom:
+                fieldRef:
+                 fieldPath: {{ .fieldPath }}
+          {{- end}}
           {{- range $.Values.EnvVariables }}
             - name: {{ .name}}
               value: {{ .value | quote }}
