@@ -97,6 +97,10 @@ spec:
           command:
 {{ toYaml .command | indent 12 -}}
 {{- end}}
+{{- if .resources}}
+          resources:
+{{ toYaml .resources | indent 12 -}}
+{{- end}}
 {{- if .volumeMounts}}
           volumeMounts:
 {{ toYaml .volumeMounts | indent 12 -}}
