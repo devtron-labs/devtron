@@ -149,10 +149,6 @@ ingress:
     - host: chart-example1.local
       paths:
         - /example1
-    - host: chart-example2.local
-      paths:
-        - /example2
-        - /example2/healthz
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
@@ -170,10 +166,6 @@ ingressInternal:
     - host: chart-example1.internal
       paths:
         - /example1
-    - host: chart-example2.internal
-      paths:
-        - /example2
-        - /example2/healthz
   tls: []
  #  - secretName: chart-example-tls
  #    hosts:
