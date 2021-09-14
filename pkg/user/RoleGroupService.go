@@ -417,7 +417,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 	roleFilterMap := make(map[string]*bean.RoleFilter)
 	for _, role := range roles {
 		key := ""
-		if len(role.Team) > 0 && len(role.Environment) > 0 {
+		if len(role.Team) > 0 {
 			key = fmt.Sprintf("%s_%s", role.Team, role.Action)
 		} else if len(role.Entity) > 0 {
 			key = fmt.Sprintf("%s_%s", role.Entity, role.Action)
@@ -429,7 +429,8 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 			} else if !containsArr(envArr, role.Environment) {
 				roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
 			}
-			if !strings.Contains(roleFilterMap[key].EntityName, role.EntityName) {
+			entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
+			if !containsArr(entityArr, role.EntityName) {
 				roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
 			}
 		} else {
