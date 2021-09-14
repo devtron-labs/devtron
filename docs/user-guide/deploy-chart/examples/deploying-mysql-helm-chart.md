@@ -14,9 +14,9 @@ Select the `Charts` section from the left pane, you will be landed to the `Chart
 
 ## 2. Configure the Chart
 
-After selecting the stable/mySQL Helm chart, click on `Deploy`
+After selecting the stable/mysql Helm chart, click on `Deploy`.
 
-Enter the following details, to deploy mysql chart:
+Enter the following details, to deploy MySQL chart:
 
 | Key | Description |
 | :--- | :--- |
@@ -28,20 +28,20 @@ Enter the following details, to deploy mysql chart:
 
 ### Configure `values.yaml`
 
-Set the following parameters in the chart, to be later used to connect mysql with your Django Application.
+Set the following parameters in the chart, to be later used to connect MySQL with your Django Application.
 
 ![](../../../.gitbook/assets/chart3%20%281%29.jpg)
 
 | Parameters | Description |
 | :--- | :--- |
 | `mysqlRootPassword` | Password for the root user. Ignored if existing secret is provided |
-| `mysqlDatabase` | Name of your mysql database |
+| `mysqlDatabase` | Name of your MySQL database |
 | `mysqluser` | Username of new user to create |
 | `mysqlPassword` | Password for the new user. Ignored if existing secret is provided |
 
 ![](../../../.gitbook/assets/chart4o.jpg)
 
-Click on `Deploy` to deploy the Chart
+Click on `Deploy` to deploy the Chart.
 
 ## 3. Check the Status of Deployment
 
@@ -57,7 +57,7 @@ Click on the `Status` or check the logs of the pods to debug the issue.
 
 ## 4. Extract the Service Name
 
-Copy the service name, it will be used to connect your application to mySQL.
+Copy the service name, it will be used to connect your application to MySQL.
 
 ![](../../../.gitbook/assets/sql2.png)
 

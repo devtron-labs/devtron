@@ -385,6 +385,7 @@ rawYaml:
         - protocol: TCP
           port: 80
           targetPort: 9376
+      type: ClusterIP
 ```
 Accepts an array of Kubernetes objects. You can specify any kubernetes yaml here and it will be applied when your app gets deployed.
 
