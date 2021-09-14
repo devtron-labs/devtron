@@ -162,6 +162,10 @@ spec:
               value: {{ include (print $.Chart.Name "/templates/secret.yaml") . | sha256sum }}
             - name: DEVTRON_APP_NAME
               value: {{ template ".Chart.Name .name" $ }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           {{- range $.Values.EnvVariablesFromFieldPath }}
             - name: {{ .name }}
               valueFrom:
