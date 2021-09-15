@@ -28,7 +28,7 @@ func (impl GitAzureClient) GetRepoUrl(repoName string) (repoUrl string, err erro
 	}
 }
 
-func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitService GitService) GitAzureClient {
+func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitService GitService) (GitAzureClient,error) {
 	ctx := context.Background()
 	// Create a connection to your organization
 	connection := azuredevops.NewPatConnection(host, token)
@@ -37,7 +37,7 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 	if err != nil {
 		logger.Errorw("error in creating azure gitops client, gitops related operation might fail", "err", err)
 	}
-	return GitAzureClient{client: &coreClient, project: project, logger: logger, gitService: gitService}
+	return GitAzureClient{client: &coreClient, project: project, logger: logger, gitService: gitService}, err
 }
 func (impl GitAzureClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error {
 	clientAzure := *impl.client

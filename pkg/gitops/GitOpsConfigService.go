@@ -66,6 +66,8 @@ const (
 	CreateRepoStage   = "CreateRepo"
 	CloneHttp         = "CloneHttp"
 	CreateReadmeStage = "CreateReadme"
+	GITHUB_PROVIDER   = "GITHUB"
+	GITHUB_HOST       = "https://github.com"
 )
 
 type DetailedErrorGitOpsConfigResponse struct {
@@ -141,6 +143,9 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in creating new gitops config", "error", err)
 		return nil, err
+	}
+	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER{
+		request.Host = GITHUB_HOST
 	}
 	if existingModel != nil && existingModel.Id > 0 {
 		existingModel.Active = false
@@ -288,7 +293,9 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		impl.logger.Errorw("error in creating new gitops config", "error", err)
 		return err
 	}
-
+	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER{
+		request.Host = GITHUB_HOST
+	}
 	if request.Active {
 		if existingModel != nil && existingModel.Id > 0 && existingModel.Id != model.Id {
 			existingModel.Active = false
