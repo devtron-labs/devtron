@@ -18,6 +18,7 @@
 package appstore
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -32,10 +33,25 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
+	"io"
+	"io/ioutil"
+	"k8s.io/helm/pkg/getter"
+	"k8s.io/helm/pkg/helm/environment"
+	"k8s.io/helm/pkg/repo"
+	"k8s.io/helm/pkg/version"
+	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
+const ValidationSuccessMsg = "Configurations are validated successfully"
+
+type DetailedErrorHelmRepoValidation struct {
+	CustomErrMsg string `json:"customErrMsg"`
+	ActualErrMsg string `json:"actualErrMsg"`
+}
 type AppStoreApplication struct {
 	Id                          int                                   `json:"id"`
 	Name                        string                                `json:"name"`
@@ -111,6 +127,9 @@ type AppStoreService interface {
 	UpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error)
 	GetChartRepoById(id int) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoDto, error)
+	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
+	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
+	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 }
 
 type AppStoreVersionsResponse struct {
@@ -134,13 +153,14 @@ type AppStoreServiceImpl struct {
 	envService                    cluster.EnvironmentService
 	versionService                argocdServer.VersionService
 	aCDAuthConfig                 *user.ACDAuthConfig
+	client                        *http.Client
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -153,6 +173,7 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		envService:                    envService,
 		versionService:                versionService,
 		aCDAuthConfig:                 aCDAuthConfig,
+		client:                        client,
 	}
 }
 
@@ -599,4 +620,119 @@ func (impl *AppStoreServiceImpl) createRepoElement(apiMinorVersion int, request 
 		repoData.Type = "helm"
 	}
 	return repoData
+}
+func (impl *AppStoreServiceImpl) ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation {
+	var detailedErrorHelmRepoValidation DetailedErrorHelmRepoValidation
+	helmRepoConfig := &repo.Entry{
+		Name:     request.Name,
+		URL:      request.Url,
+		Username: request.UserName,
+		Password: request.Password,
+	}
+	helmRepo, err, customMsg := impl.NewChartRepository(helmRepoConfig, getter.All(environment.EnvSettings{}))
+	if err != nil {
+		impl.logger.Errorw("failed to create chart repo for validating", "url", request.Url, "err", err)
+		detailedErrorHelmRepoValidation.ActualErrMsg = err.Error()
+		detailedErrorHelmRepoValidation.CustomErrMsg = customMsg
+		return &detailedErrorHelmRepoValidation
+	}
+	parsedURL, _ := url.Parse(helmRepo.Config.URL)
+	parsedURL.Path = strings.TrimSuffix(parsedURL.Path, "/") + "/index.yaml"
+	indexURL := parsedURL.String()
+	if t, ok := helmRepo.Client.(*getter.HttpGetter); ok {
+		t.SetCredentials(helmRepo.Config.Username, helmRepo.Config.Password)
+	}
+	resp, err, statusCode := impl.get(indexURL, helmRepo)
+	if statusCode == 401 || statusCode == 403 {
+		impl.logger.Errorw("authentication or authorization error in request for getting index file","statusCode",statusCode, "url", request.Url, "err", err)
+		detailedErrorHelmRepoValidation.ActualErrMsg = err.Error()
+		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("Invalid authentication credentials. Please verify.")
+		return &detailedErrorHelmRepoValidation
+	} else if statusCode == 404 {
+		impl.logger.Errorw("error in getting index file : not found", "url", request.Url, "err", err)
+		detailedErrorHelmRepoValidation.ActualErrMsg = err.Error()
+		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("Could not find an index.yaml file in the repo directory. Please try another chart repo.")
+		return &detailedErrorHelmRepoValidation
+	} else if statusCode < 200  || statusCode > 299{
+		impl.logger.Errorw("error in getting index file", "url", request.Url, "err", err)
+		detailedErrorHelmRepoValidation.ActualErrMsg = err.Error()
+		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("Could not validate the repo. Please try again.")
+		return &detailedErrorHelmRepoValidation
+	} else {
+		_, err = ioutil.ReadAll(resp)
+		if err != nil {
+			impl.logger.Errorw("error in reading index file")
+			detailedErrorHelmRepoValidation.ActualErrMsg = err.Error()
+			detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("Devtron was unable to read the index.yaml file in the repo directory. Please try another chart repo.")
+			return &detailedErrorHelmRepoValidation
+		}
+	}
+	detailedErrorHelmRepoValidation.CustomErrMsg = ValidationSuccessMsg
+	return &detailedErrorHelmRepoValidation
+}
+func (impl *AppStoreServiceImpl) ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
+	validationResult := impl.ValidateChartRepo(request)
+	if validationResult.CustomErrMsg != ValidationSuccessMsg {
+		return nil, nil, validationResult
+	}
+	chartRepo, err := impl.CreateChartRepo(request)
+	return chartRepo, err, validationResult
+}
+func (impl *AppStoreServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
+	validationResult := impl.ValidateChartRepo(request)
+	if validationResult.CustomErrMsg != ValidationSuccessMsg {
+		return nil, nil, validationResult
+	}
+	chartRepo, err := impl.UpdateChartRepo(request)
+	return chartRepo, err, validationResult
+}
+
+// NewChartRepository constructs ChartRepository
+func (impl *AppStoreServiceImpl) NewChartRepository(cfg *repo.Entry, getters getter.Providers) (*repo.ChartRepository, error, string) {
+	u, err := url.Parse(cfg.URL)
+	if err != nil {
+		return nil, err, fmt.Sprintf("Invalid chart URL format: %s. Please provide a valid URL.", cfg.URL)
+	}
+
+	getterConstructor, err := getters.ByScheme(u.Scheme)
+	if err != nil {
+		return nil, err, fmt.Sprintf("Protocol \"%s\" is not supported. Supported protocols are http/https.", u.Scheme)
+	}
+	client, err := getterConstructor(cfg.URL, cfg.CertFile, cfg.KeyFile, cfg.CAFile)
+	if err != nil {
+		return nil, err, fmt.Sprintf("Unable to construct URL for the protocol \"%s\"", u.Scheme)
+	}
+
+	return &repo.ChartRepository{
+		Config:    cfg,
+		IndexFile: repo.NewIndexFile(),
+		Client:    client,
+	}, nil, fmt.Sprintf("")
+}
+
+func (impl *AppStoreServiceImpl) get(href string, chartRepository *repo.ChartRepository) (*bytes.Buffer, error, int) {
+	buf := bytes.NewBuffer(nil)
+
+	// Set a helm specific user agent so that a repo server and metrics can
+	// separate helm calls from other tools interacting with repos.
+	req, err := http.NewRequest("GET", href, nil)
+	if err != nil {
+		return buf, err, http.StatusBadRequest
+	}
+	req.Header.Set("User-Agent", "Helm/"+strings.TrimPrefix(version.GetVersion(), "v"))
+
+	if chartRepository.Config.Username != "" && chartRepository.Config.Password != "" {
+		req.SetBasicAuth(chartRepository.Config.Username, chartRepository.Config.Password)
+	}
+
+	resp, err := impl.client.Do(req)
+	if err != nil {
+		return buf, err, http.StatusInternalServerError
+	}
+	if resp.StatusCode != 200 {
+		return buf, fmt.Errorf("Failed to fetch %s : %s", href, resp.Status), resp.StatusCode
+	}
+	_, err = io.Copy(buf, resp.Body)
+	resp.Body.Close()
+	return buf, err, http.StatusOK
 }

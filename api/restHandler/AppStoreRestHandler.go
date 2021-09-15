@@ -19,14 +19,12 @@ package restHandler
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appstore"
@@ -53,6 +51,7 @@ type AppStoreRestHandler interface {
 	GetChartRepoList(w http.ResponseWriter, r *http.Request)
 	CreateChartRepo(w http.ResponseWriter, r *http.Request)
 	UpdateChartRepo(w http.ResponseWriter, r *http.Request)
+	ValidateChartRepo(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreRestHandlerImpl struct {
@@ -378,17 +377,14 @@ func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r
 		return
 	}
 
-	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
-		valid := handler.ValidateRepo(request)
-		if !valid {
-			writeJsonResp(w, fmt.Errorf("invalid chart repo"), nil, http.StatusBadRequest)
-			return
-		}
-	}
 	//rback block ends here
 	request.UserId = userId
 	handler.Logger.Infow("request payload, CreateChartRepo", "payload", request)
-	res, err := handler.appStoreService.CreateChartRepo(request)
+	res, err, validationResult := handler.appStoreService.ValidateAndCreateChartRepo(request)
+	if validationResult.CustomErrMsg != appstore.ValidationSuccessMsg {
+		writeJsonResp(w, nil, validationResult, http.StatusOK)
+		return
+	}
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateChartRepo", "err", err, "payload", request)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -425,18 +421,14 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 		return
 	}
 
-	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
-		valid := handler.ValidateRepo(request)
-		if !valid {
-			writeJsonResp(w, fmt.Errorf("invalid chart repo"), nil, http.StatusBadRequest)
-			return
-		}
-	}
-
 	//rback block ends here
 	request.UserId = userId
 	handler.Logger.Infow("request payload, UpdateChartRepo", "payload", request)
-	res, err := handler.appStoreService.UpdateChartRepo(request)
+	res, err, validationResult := handler.appStoreService.ValidateAndUpdateChartRepo(request)
+	if validationResult.CustomErrMsg != appstore.ValidationSuccessMsg {
+		writeJsonResp(w, nil, validationResult, http.StatusOK)
+		return
+	}
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateChartRepo", "err", err, "payload", request)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -445,23 +437,34 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 	writeJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *AppStoreRestHandlerImpl) ValidateRepo(request *appstore.ChartRepoDto) bool {
-	req, err := http.NewRequest(http.MethodGet, request.Url, nil)
+func (handler *AppStoreRestHandlerImpl) ValidateChartRepo(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var request *appstore.ChartRepoDto
+	err = decoder.Decode(&request)
 	if err != nil {
-		return false
+		handler.Logger.Errorw("request err, ValidateChartRepo", "err", err, "payload", request)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
-	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
-		auth := request.UserName + ":" + request.Password
-		basicAuth := base64.StdEncoding.EncodeToString([]byte(auth))
-		req.Header.Add("Authorization", "Basic "+basicAuth)
-		res, err := handler.client.Do(req)
-		if err != nil {
-			return false
-		}
-		if res.StatusCode >= 200 && res.StatusCode <= 299 {
-			return true
-		}
-
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, ValidateChartRepo", "err", err, "payload", request)
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
-	return false
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionUpdate, "*"); !ok {
+		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	request.UserId = userId
+	handler.Logger.Infow("request payload, ValidateChartRepo", "payload", request)
+	validationResult := handler.appStoreService.ValidateChartRepo(request)
+	writeJsonResp(w, nil, validationResult, http.StatusOK)
 }
