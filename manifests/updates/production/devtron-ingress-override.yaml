@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-dex-ingress-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: extensions/v1beta1
+    kind: Ingress
+    metadata: 
+      name: devtron-ingress
+#    update:
+#      metadata:
+#        annotations:
+#          owner: app1
+#      spec:
+#        rules:
+#        - http:
+#            host: http://change-me

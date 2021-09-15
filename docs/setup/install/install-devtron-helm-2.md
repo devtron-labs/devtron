@@ -45,6 +45,8 @@ helm install devtron devtron/devtron-operator --namespace devtroncd \
 {% endtab %}
 {% endtabs %}
 
+If you are planning to use Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
+
 ## Installation status
 
 Run following command

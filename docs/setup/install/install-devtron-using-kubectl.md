@@ -24,6 +24,8 @@ kubectl apply -n devtroncd -f devtron-operator-configs.yaml
 kubectl apply -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/install/devtron-installer.yaml
 ```
 
+If you are planning to use Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
+
 ## Installation status
 
 Run following command

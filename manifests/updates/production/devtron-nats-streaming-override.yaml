@@ -1,31 +1,29 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: guard-override-cm
+  name: nats-streaming-override-cm
   namespace:  devtroncd
 data:
   override: |
     apiVersion: apps/v1
-    kind: Deployment
+    kind: StatefulSet
     metadata:
-      name: guard
+      name: nats-streaming
     update:
       spec:
+        replicas: 3
         template:
           spec:
             containers:
             - resources:
                 limits:
                   cpu: 0.01
-                  memory: 30Mi
+                  memory: 60Mi
                 requests:
                   cpu: 0.01
-                  memory: 30Mi
+                  memory: 60Mi
 #             env:
-#              - name: CONFIG_HASH
-#                value: give-value
-#              - name: SECRET_HASH
-#                value: give-value
-#              - name: DEVTRON_APP_NAME
-#                value: guard
-
+#             - name: POD_NAME
+#                valueFrom:
+#                  fieldRef:
+#                    fieldPath: metadata.name

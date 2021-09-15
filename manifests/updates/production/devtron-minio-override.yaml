@@ -1,23 +1,29 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: kubewatch-override-cm
+  name: minio-override-cm
   namespace:  devtroncd
 data:
   override: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: devtron-minio
+#    update:
+#      data:
+#        accesskey: ""
+#        secretkey: ""
+    ---
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: kubewatch
+      name: devtron-minio
     update:
       spec:
+        replicas: 2
         template:
           spec:
             containers:
             - resources:
                 requests:
-                  cpu: 0.02
-                  memory: 150Mi
-                limits:
-                  cpu: 0.02
-                  memory: 150Mi
+                  memory: 100Mi
