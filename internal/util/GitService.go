@@ -39,11 +39,11 @@ import (
 
 const (
 	GIT_WORKING_DIR     = "/tmp/gitops/"
-	GetRepoUrlStage   = "GetRepoUrl"
-	CreateRepoStage   = "CreateRepo"
-	CloneHttpStage    = "CloneHttp"
-	CreateReadmeStage = "CreateReadme"
-	CloneSshStage     = "CloneSsh"
+	GetRepoUrlStage   = "Get Repo Url"
+	CreateRepoStage   = "Create Repo"
+	CloneHttpStage    = "Clone Http"
+	CreateReadmeStage = "Create Readme"
+	CloneSshStage     = "Clone Ssh"
 )
 
 type GitClient interface {
