@@ -58,14 +58,17 @@ type GitOpsConfigService interface {
 const (
 	GitOpsSecretName  = "devtron-gitops-secret"
 	DryrunRepoName    = "devtron-sample-repo-dryrun-"
-	DeleteRepoStage   = "DeleteRepo"
-	CommitOnRestStage = "CommitOnRest"
+	DeleteRepoStage   = "Delete Repo"
+	CommitOnRestStage = "Commit On Rest"
 	PushStage         = "Push"
 	CloneStage        = "Clone"
-	GetRepoUrlStage   = "GetRepoUrl"
-	CreateRepoStage   = "CreateRepo"
-	CloneHttp         = "CloneHttp"
-	CreateReadmeStage = "CreateReadme"
+	GetRepoUrlStage   = "Get Repo Url"
+	CreateRepoStage   = "Create Repo"
+	CloneHttp         = "Clone Http"
+	CreateReadmeStage = "Create Readme"
+	GITHUB_PROVIDER   = "GITHUB"
+	GITHUB_HOST       = "https://github.com/"
+	GITLAB_PROVIDER   = "GITLAB"
 )
 
 type DetailedErrorGitOpsConfigResponse struct {
@@ -227,7 +230,16 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 
 		}
 	}
-
+	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
+		request.Host = GITHUB_HOST + request.GitHubOrgId
+	}
+	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
+		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
+		if err != nil {
+			return nil, err
+		}
+		request.Host += groupName
+	}
 	operationComplete := false
 	retryCount := 0
 	for !operationComplete && retryCount < 3 {
@@ -288,7 +300,6 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		impl.logger.Errorw("error in creating new gitops config", "error", err)
 		return err
 	}
-
 	if request.Active {
 		if existingModel != nil && existingModel.Id > 0 && existingModel.Id != model.Id {
 			existingModel.Active = false
@@ -379,7 +390,16 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 
 		}
 	}
-
+	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
+		request.Host = GITHUB_HOST + request.GitHubOrgId
+	}
+	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
+		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
+		if err != nil {
+			return err
+		}
+		request.Host += groupName
+	}
 	operationComplete := false
 	retryCount := 0
 	for !operationComplete && retryCount < 3 {
@@ -565,6 +585,9 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
 	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
+	if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
+		config.Host = GITHUB_HOST
+	}
 	client, gitService, err := impl.gitFactory.NewClientForValidation(config)
 	if err != nil {
 		impl.logger.Errorw("error in creating new client for validation")
@@ -573,7 +596,6 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		detailedErrorGitOpsConfigResponse := impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 		return detailedErrorGitOpsConfigResponse
 	}
-
 	appName := DryrunRepoName + util2.Generate(6)
 	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo")
 
