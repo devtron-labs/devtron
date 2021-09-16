@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	GIT_WORKING_DIR     = "/tmp/gitops/"
+	GIT_WORKING_DIR   = "/tmp/gitops/"
 	GetRepoUrlStage   = "Get Repo Url"
 	CreateRepoStage   = "Create Repo"
 	CloneHttpStage    = "Clone Http"
@@ -83,6 +83,15 @@ func (factory *GitFactory) Reload() error {
 	factory.Client = client
 	logger.Infow(" gitops details reload success")
 	return nil
+}
+
+func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDto) string {
+	git := gitlab.NewClient(nil, gitOpsConfig.Token)
+	group, _, err := git.Groups.GetGroup(gitOpsConfig.GitLabGroupId)
+	if err != nil || group == nil {
+		return ""
+	}
+	return group.FullPath
 }
 
 func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConfigDto) (GitClient, *GitServiceImpl, error) {
@@ -202,7 +211,6 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 					responseStatus := 0
 					if res != nil {
 						responseStatus = res.StatusCode
-
 					}
 					logger.Warnw("error connecting to gitlab", "status code", responseStatus, "err", err.Error())
 				}
@@ -240,13 +248,14 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		gitHubClient := NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService)
 		return gitHubClient, nil
 	} else if config.GitProvider == "AZURE_DEVOPS" {
-		gitAzureClient,err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitService)
+		gitAzureClient, err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitService)
 		return gitAzureClient, err
 	} else {
 		logger.Errorw("no gitops config provided, gitops will not work ")
 		return nil, nil
 	}
 }
+
 func (impl GitLabClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error {
 	err := impl.DeleteProject(name)
 	if err != nil {

@@ -67,7 +67,9 @@ const (
 	CloneHttp         = "Clone Http"
 	CreateReadmeStage = "Create Readme"
 	GITHUB_PROVIDER   = "GITHUB"
-	GITHUB_HOST       = "https://github.com"
+	GITHUB_HOST       = "https://github.com/"
+	GITLAB_PROVIDER   = "GITLAB"
+	GITLAB_HOST       = "https://gitlab.com/"
 )
 
 type DetailedErrorGitOpsConfigResponse struct {
@@ -145,7 +147,10 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		return nil, err
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER{
-		request.Host = GITHUB_HOST
+		request.Host = GITHUB_HOST + request.GitHubOrgId
+	}
+	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER{
+		request.Host = GITLAB_HOST + impl.gitFactory.GetGitLabGroupPath(request)
 	}
 	if existingModel != nil && existingModel.Id > 0 {
 		existingModel.Active = false
