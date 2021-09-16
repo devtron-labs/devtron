@@ -20,3 +20,5 @@ jobs:
         target-url: ${{ secrets.TARGET_URL }}
         target-username: ${{ secrets.TARGET_USER_NAME }}
         target-token: ${{ secrets.GITEE_ACCESS_TOKEN }}
+        target-useremail: ${{ secrets.TARGET_USER_EMAIL }}
+
