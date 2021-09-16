@@ -69,7 +69,6 @@ const (
 	GITHUB_PROVIDER   = "GITHUB"
 	GITHUB_HOST       = "https://github.com/"
 	GITLAB_PROVIDER   = "GITLAB"
-	GITLAB_HOST       = "https://gitlab.com/"
 )
 
 type DetailedErrorGitOpsConfigResponse struct {
@@ -231,11 +230,15 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 
 		}
 	}
-	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER{
+	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
 		request.Host = GITHUB_HOST + request.GitHubOrgId
 	}
-	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER{
-		request.Host = GITLAB_HOST + impl.gitFactory.GetGitLabGroupPath(request)
+	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
+		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
+		if err != nil {
+			return nil, err
+		}
+		request.Host += groupName
 	}
 	operationComplete := false
 	retryCount := 0
@@ -387,11 +390,15 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 
 		}
 	}
-	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER{
+	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
 		request.Host = GITHUB_HOST + request.GitHubOrgId
 	}
-	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER{
-		request.Host = GITLAB_HOST + impl.gitFactory.GetGitLabGroupPath(request)
+	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
+		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
+		if err != nil {
+			return err
+		}
+		request.Host += groupName
 	}
 	operationComplete := false
 	retryCount := 0
@@ -578,11 +585,8 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
 	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
-	if strings.ToUpper(config.Provider) == GITHUB_PROVIDER{
+	if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
 		config.Host = GITHUB_HOST
-	}
-	if strings.ToUpper(config.Provider) == GITLAB_PROVIDER{
-		config.Host = GITLAB_HOST
 	}
 	client, gitService, err := impl.gitFactory.NewClientForValidation(config)
 	if err != nil {

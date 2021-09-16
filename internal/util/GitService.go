@@ -85,13 +85,18 @@ func (factory *GitFactory) Reload() error {
 	return nil
 }
 
-func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDto) string {
+func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDto) (string, error) {
 	git := gitlab.NewClient(nil, gitOpsConfig.Token)
 	group, _, err := git.Groups.GetGroup(gitOpsConfig.GitLabGroupId)
-	if err != nil || group == nil {
-		return ""
+	if err != nil {
+		factory.logger.Errorw("error in fetching gitlab group name", "err", err, "gitLab groupID", gitOpsConfig.GitLabGroupId)
+		return "", err
 	}
-	return group.FullPath
+	if group == nil {
+		factory.logger.Errorw("no matching groups found for gitlab", "gitLab groupID", gitOpsConfig.GitLabGroupId, "err", err)
+		return "", fmt.Errorf("no matching groups found for gitlab group ID : %s", gitOpsConfig.GitLabGroupId)
+	}
+	return group.FullPath, nil
 }
 
 func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConfigDto) (GitClient, *GitServiceImpl, error) {
@@ -126,7 +131,7 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 	gitService := NewGitServiceImpl(cfg, logger, gitCliUtil)
 	client, err := NewGitLabClient(cfg, logger, gitService)
 	if err != nil {
-		logger.Errorw("error in creating gitOps client","err",err,"gitProvider",cfg.GitProvider)
+		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)
 	}
 	return &GitFactory{
 		Client:           client,
