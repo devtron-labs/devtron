@@ -9,7 +9,7 @@ This installation will use Minio for storing build logs and cache.
 kubectl create namespace devtroncd
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
 helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --namespace devtroncd 
+helm install devtron devtron/devtron-operator --namespace devtroncd --set installer.source=gitee
 ```
 {% endtab %}
 
