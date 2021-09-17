@@ -45,6 +45,20 @@ helm install devtron devtron/devtron-operator --namespace devtroncd \
 {% endtab %}
 {% endtabs %}
 
+For those countries/users where Github is blocked or not using , you can use Gitee as the installation source.
+
+{% tabs %}
+{% tab title="Install with Gitee" %}
+```bash
+kubectl create namespace devtroncd
+
+kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
+
+helm install devtron devtron/devtron-operator --namespace devtroncd --set installer.source=gitee
+```
+{% endtab %}
+{% endtabs %
+
 If you are planning to use Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
 
 ## Installation status
