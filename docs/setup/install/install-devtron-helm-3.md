@@ -41,7 +41,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 {% endtab %}
 {% endtabs %}
 
-For those countries/users where Github is blocked or not using , you can use Gitee as the installation source.
+For those countries/users where Github is blocked , you can use Gitee as the installation source.
 
 {% tabs %}
 {% tab title="Install with Gitee" %}
