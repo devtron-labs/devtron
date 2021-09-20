@@ -41,6 +41,17 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 {% endtab %}
 {% endtabs %}
 
+For those countries/users where Github is blocked , you can use Gitee as the installation source.
+
+{% tabs %}
+{% tab title="Install with Gitee" %}
+```bash
+helm repo add devtron https://helm.devtron.ai
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd --set installer.source=gitee
+```
+{% endtab %}
+{% endtabs %}
+
 If you are planning to use Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
 
 ## Installation status
