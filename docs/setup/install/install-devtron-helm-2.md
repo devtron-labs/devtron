@@ -57,7 +57,7 @@ kubectl apply -f https://gitee.com/devtron-labs/devtron/raw/main/manifests/crds/
 helm install devtron devtron/devtron-operator --namespace devtroncd --set installer.source=gitee
 ```
 {% endtab %}
-{% endtabs %
+{% endtabs %}
 
 If you are planning to use Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
 
