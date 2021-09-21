@@ -207,7 +207,7 @@ Or you can do one better and Contribute 👏
 
 ## :question: FAQ & Troubleshooting:
 ### FAQ:
-1. How to resolve unauthorized error while trying to save global configurations like hostname, gitops etc. after successful devtron installation
+1.How to resolve unauthorized error while trying to save global configurations like hostname, gitops etc. after successful devtron installation
 <br>
 A. This occurs most of the time because any one or multiple jobs get failed during installation. To resolve this, you need to first check which are the jobs that have failed. Follow these steps :-
 
@@ -221,7 +221,7 @@ kubectl get pods -n devtroncd
 kubectl delete jobs <job1-name> <job2-name> -n devtroncd..[Read More](https://github.com/devtron-labs/devtron/blob/main/Troubleshooting.md#1-how-to-resolve-unauthorized-error-while-trying-to-save-global-configurations-like-hostname-gitops-etc-after-successful-devtron-installation)
 <br><br>
 
-2. What to do if devtron dashboard is not accessible on browser even after successful completion of all the jobs and all pods are in running mode
+2.What to do if devtron dashboard is not accessible on browser even after successful completion of all the jobs and all pods are in running mode
 <br>
 A. For this, you need to check if nats-cluster is created or not, you can check it using the following command:
 ```bash
