@@ -49,7 +49,7 @@ type DockerArtifactStoreBean struct {
 	Password           string                  `json:"password,omitempty"`
 	IsDefault          bool                    `json:"isDefault"`
 	Connection         string                  `json:"connection"`
-	Cert               string                  `json:"cert`
+	Cert               string                  `json:"cert"`
 	Active             bool                    `json:"active"`
 	User               int32                   `json:"-"`
 }
