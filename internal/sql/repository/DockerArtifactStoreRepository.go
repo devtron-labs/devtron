@@ -43,9 +43,8 @@ type DockerArtifactStore struct {
 	Username           string       `sql:"username" json:"username,omitempty"`
 	Password           string       `sql:"password" json:"password,omitempty"`
 	IsDefault          bool         `sql:"is_default,notnull" json:"isDefault"`
-	Connections        string       `sql:"Connections" json:"Connections,omitempty"`
-	InsecureUrl        string       `sql:"insecureurl" json:"insecureurl,omitempty"`
-	Port               string       `sql:"port" json:"port,omitempty"`
+	Connection         string       `sql:"connection" json:"connection,omitempty"`
+	Cert               string       `sql:"cert" json:"cert,omitempty"`
 	Active             bool         `sql:"active,notnull" json:"active"`
 	models.AuditLog
 }

@@ -48,9 +48,8 @@ type DockerArtifactStoreBean struct {
 	Username           string                  `json:"username,omitempty"`
 	Password           string                  `json:"password,omitempty"`
 	IsDefault          bool                    `json:"isDefault"`
-	Connections        string                  `json:"connections"`
-	InsecureUrl        string                  `json:"insecureurl"`
-	Port               string                  `json:"port"`
+	Connection         string                  `json:"connection"`
+	Cert               string                  `json:"cert`
 	Active             bool                    `json:"active"`
 	User               int32                   `json:"-"`
 }
@@ -80,9 +79,8 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 		Username:           bean.Username,
 		Password:           bean.Password,
 		IsDefault:          bean.IsDefault,
-		Connections:        bean.Connections,
-		InsecureUrl:        bean.InsecureUrl,
-		Port:               bean.Port,
+		Connection:         bean.Connection,
+		Cert:               bean.Cert,
 		Active:             true,
 		AuditLog:           models.AuditLog{CreatedBy: bean.User, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: bean.User},
 	}
@@ -144,9 +142,8 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 			Username:           store.Username,
 			Password:           store.Password,
 			IsDefault:          store.IsDefault,
-			Connections:        store.Connections,
-			InsecureUrl:        store.InsecureUrl,
-			Port:               store.Port,
+			Connection:         store.Connection,
+			Cert:               store.Cert,
 			Active:             store.Active,
 		}
 		storeBeans = append(storeBeans, storeBean)
@@ -177,9 +174,8 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 		Username:           store.Username,
 		Password:           store.Password,
 		IsDefault:          store.IsDefault,
-		Connections:        store.Connections,
-		InsecureUrl:        store.InsecureUrl,
-		Port:               store.Port,
+		Connection:         store.Connection,
+		Cert:               store.Cert,
 		Active:             store.Active,
 	}
 
@@ -204,9 +200,8 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		Username:           bean.Username,
 		Password:           bean.Password,
 		IsDefault:          bean.IsDefault,
-		Connections:        bean.Connections,
-		InsecureUrl:        bean.InsecureUrl,
-		Port:               bean.Port,
+		Connection:         bean.Connection,
+		Cert:               bean.Cert,
 		Active:             true, // later it will change
 		AuditLog:           models.AuditLog{CreatedBy: existingStore.CreatedBy, CreatedOn: existingStore.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: bean.User},
 	}
