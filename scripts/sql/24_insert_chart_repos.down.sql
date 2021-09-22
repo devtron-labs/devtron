@@ -1,0 +1,1 @@
+DELETE FROM "public"."chart_ref" WHERE ( "id" >=5 AND "id" <=9);
