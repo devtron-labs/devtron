@@ -19,17 +19,18 @@ package pipeline
 
 import (
 	"fmt"
+	"path/filepath"
+	"strconv"
+	"time"
+
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
-	"github.com/devtron-labs/devtron/client/events"
+	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
-	"path/filepath"
-	"strconv"
-	"time"
 )
 
 type CiService interface {
@@ -346,6 +347,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		AwsRegion:                pipeline.CiTemplate.DockerRegistry.AWSRegion,
 		AccessKey:                pipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
 		SecretKey:                pipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
+		DockerConnection:         pipeline.CiTemplate.DockerRegistry.Connection,
+		DockerCert:               pipeline.CiTemplate.DockerRegistry.Cert,
 		CiCacheFileName:          pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
 		CiProjectDetails:         ciProjectDetails,
 		Namespace:                ciWorkflowConfig.Namespace,
