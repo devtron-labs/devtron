@@ -300,7 +300,9 @@ func (c ServiceClientImpl) PodLogs(ctx context.Context, query *application.Appli
 	return logs, conn, err
 }
 
-func (c ServiceClientImpl) Watch(ctx context.Context, query *application.ApplicationQuery) (application.ApplicationService_WatchClient, *grpc.ClientConn, error) {
+func (c ServiceClientImpl) Watch(ctxt context.Context, query *application.ApplicationQuery) (application.ApplicationService_WatchClient, *grpc.ClientConn, error) {
+	ctx, cancel := context.WithTimeout(ctxt, TimeoutSlow)
+	defer cancel()
 	token, _ := ctx.Value("token").(string)
 	conn := argocdServer.GetConnection(token, c.settings)
 	//defer conn.Close()
