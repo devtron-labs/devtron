@@ -1,4 +1,20 @@
-# This is an auto-generated file. DO NOT EDIT
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cronworkflows.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: CronWorkflow
+    listKind: CronWorkflowList
+    plural: cronworkflows
+    shortNames:
+    - cwf
+    - cronwf
+    singular: cronworkflow
+  scope: Namespaced
+  version: v1alpha1
+---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -13,15 +29,46 @@ spec:
   scope: Namespaced
   version: v1alpha1
 ---
-apiVersion: v1
-kind: ServiceAccount
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
 metadata:
-  name: argo-ui
+  name: workflowtemplates.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: WorkflowTemplate
+    listKind: WorkflowTemplateList
+    plural: workflowtemplates
+    shortNames:
+    - wftmpl
+    singular: workflowtemplate
+  scope: Namespaced
+  version: v1alpha1
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: argo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argo-role
+rules:
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - get
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -35,6 +82,8 @@ rules:
   resources:
   - workflows
   - workflows/finalizers
+  - cronworkflows
+  - cronworkflows/finalizers
   verbs:
   - create
   - delete
@@ -57,6 +106,8 @@ rules:
   resources:
   - workflows
   - workflows/finalizers
+  - cronworkflows
+  - cronworkflows/finalizers
   verbs:
   - create
   - delete
@@ -79,6 +130,8 @@ rules:
   resources:
   - workflows
   - workflows/finalizers
+  - cronworkflows
+  - cronworkflows/finalizers
   verbs:
   - get
   - list
@@ -102,6 +155,15 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - argoproj.io
+  resources:
+  - workflowtemplates
+  - workflowtemplates/finalizers
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -117,6 +179,7 @@ rules:
   verbs:
   - create
   - delete
+  - get
 - apiGroups:
   - argoproj.io
   resources:
@@ -129,36 +192,49 @@ rules:
   - update
   - patch
   - delete
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: argo-ui-cluster-role
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - pods/exec
-  - pods/log
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
 - apiGroups:
   - argoproj.io
   resources:
-  - workflows
+  - workflowtemplates
+  - workflowtemplates/finalizers
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - argoproj.io
+  resources:
+  - cronworkflows
+  - cronworkflows/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - get
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -174,63 +250,21 @@ subjects:
   namespace: argo
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
-  name: argo-ui-binding
+  name: argo-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: argo-ui-cluster-role
+  kind: Role
+  name: argo-role
 subjects:
 - kind: ServiceAccount
-  name: argo-ui
-  namespace: argo
+  name: argo
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: workflow-controller-configmap
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: argo-ui
-spec:
-  ports:
-  - port: 80
-    targetPort: 8001
-  selector:
-    app: argo-ui
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: argo-ui
-spec:
-  selector:
-    matchLabels:
-      app: argo-ui
-  template:
-    metadata:
-      labels:
-        app: argo-ui
-    spec:
-      containers:
-      - env:
-        - name: ARGO_NAMESPACE
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: metadata.namespace
-        - name: IN_CLUSTER
-          value: "true"
-        - name: ENABLE_WEB_CONSOLE
-          value: "false"
-        - name: BASE_HREF
-          value: /
-        image: "quay.io/devtron/argoui:v2.3.0"
-        name: argo-ui
-      serviceAccountName: argo-ui
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -250,9 +284,15 @@ spec:
         - --configmap
         - workflow-controller-configmap
         - --executor-image
-        - quay.io/argoproj/argoexec:v2.3.0
+        - argoproj/argoexec:v3.0.7
         command:
         - workflow-controller
-        image: "quay.io/argoproj/workflow-controller:v2.3.0"
+        env:
+        - name: LEADER_ELECTION_IDENTITY
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        image: argoproj/workflow-controller:v3.0.7
         name: workflow-controller
       serviceAccountName: argo
