@@ -1,5 +1,5 @@
-LTAG="testing-chart-repos";
-REPO_RAW_URL="https://raw.githubusercontent.com/arushi09-hub/devtron/";
+LTAG="v0.2.28";
+REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
 operatorConfigMap = kubectl get cm -n devtroncd devtron-operator-cm;
