@@ -75,6 +75,7 @@ data:
             "name": "{{ $.Values.app }}-{{ $index }}",
             "type": "STATIC",
             "connect_timeout": "0.250s",
+            "max_requests_per_connection": "1",
             "lb_policy": "ROUND_ROBIN",
 {{- if $element.idleTimeout }}
             "common_http_protocol_options": {
