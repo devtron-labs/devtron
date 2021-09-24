@@ -1,4 +1,4 @@
-LTAG="v0.2.28";
+LTAG="v0.2.29";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
@@ -363,7 +363,23 @@ helmRepo = `- name: incubator
   url: https://devtron-charts.s3.us-east-2.amazonaws.com/charts
 - name: stable
   type: helm
-  url: https://charts.helm.sh/stable`;
+  url: https://charts.helm.sh/stable
+- name: nginx-ingress
+  type: helm
+  url: https://kubernetes.github.io/ingress-nginx
+- name: elastic
+  type: helm
+  url: https://helm.elastic.co
+- name: bitnami
+  type: helm
+  url: https://charts.bitnami.com/bitnami
+- name: prometheus-community
+  type: helm
+  url:  https://prometheus-community.github.io/helm-charts
+- name: jetstack
+  type: helm
+  url:  https://charts.jetstack.io`;
+
 
 kubeYamlEdit(argocd, `data.repositories`, helmRepo, `/ConfigMap//argocd-cm` );
 #kubeYamlEdit(argocd, "data.url", baseURLScheme + "://" + baseURL, `/ConfigMap//argocd-cm`);
@@ -608,6 +624,20 @@ metadata:
   name: workflow-minio-cred
   namespace: devtron-ci
 type: Opaque
+---
+apiVersion: v1
+data:
+  accessKey: `;
+workflowSecret = workflowSecret + azureAccountNameEncoded;
+workflowSecret = workflowSecret + `
+  secretKey: `;
+workflowSecret = workflowSecret + azureAccountKey;
+workflowSecret = workflowSecret + `
+kind: Secret
+metadata:
+  name: workflow-minio-cred
+  namespace: devtron-cd
+type: Opaque
 `;
 #----------------- workflow secret end
 
@@ -629,6 +659,20 @@ kind: Secret
 metadata:
   name: workflow-minio-cred
   namespace: devtron-ci
+type: Opaque
+---
+apiVersion: v1
+data:
+  accessKey: `;
+workflowSecret = workflowSecret + minioAccesskey;
+workflowSecret = workflowSecret + `
+  secretKey: `;
+workflowSecret = workflowSecret + minioSecretkey;
+workflowSecret = workflowSecret + `
+kind: Secret
+metadata:
+  name: workflow-minio-cred
+  namespace: devtron-cd
 type: Opaque
 `;
 #----------------- workflow secret end

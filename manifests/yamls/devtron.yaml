@@ -49,11 +49,12 @@ data:
   CD_LIMIT_CI_MEM: "3G"
   CD_REQ_CI_CPU: "0.5"
   CD_REQ_CI_MEM: "1G"
-  CD_NODE_TAINTS_KEY: ""
+  CD_NODE_TAINTS_KEY: "dedicated"
+  CD_NODE_LABEL_SELECTOR: "kubernetes.io/os=linux"
   CD_WORKFLOW_SERVICE_ACCOUNT: "cd-runner"
   DEFAULT_BUILD_LOGS_KEY_PREFIX: "devtron"
   DEFAULT_CD_ARTIFACT_KEY_LOCATION: "devtron/cd-artifacts"
-  CD_NODE_TAINTS_VALUE: ""
+  CD_NODE_TAINTS_VALUE: "ci"
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
   DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:3ce0f62e-138-5031"
@@ -152,7 +153,7 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:aa4984e3-146-5312"
+          image: "quay.io/devtron/devtron:38438803-146-5340"
           imagePullPolicy: IfNotPresent
           ports:
             - name: devtron

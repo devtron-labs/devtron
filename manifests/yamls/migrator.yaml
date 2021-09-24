@@ -40,12 +40,12 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: aa4984e3bc562e15eb6a7d18a4368b8c35c2a2d4
+          value: 384388037b867800248d8319d51d8b6357de4db9
         envFrom:
           - secretRef:
               name: postgresql-migrator
       restartPolicy: OnFailure
-  backoffLimit: 10
+  backoffLimit: 20
   activeDeadlineSeconds: 1500
 ---
 apiVersion: batch/v1
@@ -83,7 +83,7 @@ spec:
           - secretRef:
               name: postgresql-migrator
       restartPolicy: OnFailure
-  backoffLimit: 1
+  backoffLimit: 20
   activeDeadlineSeconds: 1500
 ---
 apiVersion: batch/v1
@@ -121,7 +121,7 @@ spec:
           - secretRef:
               name: postgresql-migrator
       restartPolicy: OnFailure
-  backoffLimit: 1
+  backoffLimit: 20
   activeDeadlineSeconds: 1500
 ---
 apiVersion: batch/v1
@@ -159,7 +159,7 @@ spec:
           - secretRef:
               name: postgresql-migrator
       restartPolicy: OnFailure
-  backoffLimit: 1
+  backoffLimit: 20
   activeDeadlineSeconds: 1500
 ---
 apiVersion: batch/v1beta1
