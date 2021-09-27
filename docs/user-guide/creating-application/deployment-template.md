@@ -270,7 +270,12 @@ This defines annotations and the type of service, optionally can define name als
 ### Volumes
 
 ```yaml
- volumes: []
+volumes:
+  - name: log-volume
+    emptyDir: {}
+  - name: logpv
+    persistentVolumeClaim:
+      claimName: logpvc
 ```
 
 It is required when some values need to be read from or written to an external disk.
@@ -278,7 +283,12 @@ It is required when some values need to be read from or written to an external d
 ### Volume Mounts
 
 ```yaml
-volumeMounts: []
+volumeMounts:
+  - mountPath: /var/log/nginx/
+    name: log-volume 
+  - mountPath: /mnt/logs
+    name: logpvc
+    subPath: employee  
 ```
 
 It is used to provide mounts to the volume.
@@ -559,6 +569,63 @@ autoscaling:
 ```
 
 HPA, by default is configured to work with CPU and Memory metrics. These metrics are useful for internal cluster sizing, but you might want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.
+ 
+### KEDA Autoscaling
+KEDA is a Kubernetes-based Event Driven Autoscaler. With KEDA, we can scale of any container in Kubernetes based on the events. KEDA can be installed into any Kubernetes cluster and can work alongside standard Kubernetes components like the Horizontal Pod Autoscaler(HPA).
+
+Example for autosccaling with KEDA using Prometheus metrics is given below :
+```yaml
+kedaAutoscaling:
+  enabled: true
+  minReplicas:
+  maxReplicas:
+  idleReplicaCount:
+  pollingInterval:
+  advanced: {}
+  triggers: 
+    - type: prometheus
+      metadata:
+        serverAddress:  http://<prometheus-host>:9090
+        metricName: http_request_total
+        query: envoy_cluster_upstream_rq{appId="300", cluster_name="300-0", container="envoy",}
+        threshold: "50"
+  triggerAuthentication:
+    enabled: true
+    name:
+    spec: {}
+  authenticationRef: {}
+```
+Example for autosccaling with KEDA based on kafka is given below :
+```yaml
+kedaAutoscaling:
+  enabled: true
+  minReplicas:
+  maxReplicas:
+  idleReplicaCount:
+  pollingInterval:
+  advanced: {}
+  triggers: 
+    - type: kafka
+      metadata:
+        bootstrapServers: localhost:9092
+        consumerGroup: my-group       
+        topic: test-topic
+        lagThreshold: "50"
+        offsetResetPolicy: latest
+  triggerAuthentication: keda-trigger-auth-kafka-credential
+    enabled: true
+    name:
+    spec: 
+      secretTargetRef:
+        - parameter: sasl
+          name: keda-kafka-secrets
+          key: sasl
+        - parameter: username
+          name: keda-kafka-secrets
+          key: username
+  authenticationRef: 
+    name: keda-trigger-auth-kafka-credential
+```
 
 ### Wait For Seconds Before Scaling Down
 ```yaml
