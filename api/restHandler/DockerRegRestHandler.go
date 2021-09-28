@@ -19,7 +19,6 @@ package restHandler
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -52,6 +51,8 @@ type DockerRegRestHandlerImpl struct {
 	teamService          team.TeamService
 }
 
+const secureWithCert = "secure-with-cert"
+
 func NewDockerRegRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
 	logger *zap.SugaredLogger,
 	gitRegistryConfig pipeline.GitRegistryConfig,
@@ -77,7 +78,6 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		return
 	}
 	var bean pipeline.DockerArtifactStoreBean
-	fmt.Println(&bean,"aviral")
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveDockerRegistryConfig", "err", err, "payload", bean)
@@ -107,7 +107,7 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	if (res.Connection=="secure-with-cert" && res.Cert == "") || (res.Connection!="secure-with-cert" && res.Cert != "") {
+	if (res.Connection==secureWithCert && res.Cert == "") || (res.Connection!=secureWithCert && res.Cert != "") {
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 	} else{
 		writeJsonResp(w, err, res, http.StatusOK)
@@ -216,7 +216,8 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	if (res.Connection=="secure-with-cert" && res.Cert == "") || (res.Connection!="secure-with-cert" && res.Cert != "") {
+	if (res.Connection==secureWithCert && res.Cert == "") || (res.Connection!=secureWithCert && res.Cert != "") {
+
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 	} else{
 		writeJsonResp(w, err, res, http.StatusOK)
