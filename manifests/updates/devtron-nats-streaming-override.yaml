@@ -5,22 +5,25 @@ metadata:
   namespace:  devtroncd
 data:
   override: |
-  apiVersion: apps/v1
-  kind: StatefulSet
-  metadata:
-    name: nats-streaming
-  update:
-    spec:
-      replicas: 3
-      template:
-        spec:
-          containers:
-          - resources:
-              requests:
-                cpu: 10m
-                memory: 50Mi
-#            env:
-#            - name: POD_NAME
-#              valueFrom:
-#                fieldRef:
-#                  fieldPath: metadata.name
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: nats-streaming
+    update:
+      spec:
+        replicas: 3
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.01
+                  memory: 600Mi
+                requests:
+                  cpu: 0.01
+                  memory: 600Mi
+#             env:
+#             - name: POD_NAME
+#                valueFrom:
+#                  fieldRef:
+#                    fieldPath: metadata.name

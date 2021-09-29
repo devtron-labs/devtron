@@ -27,7 +27,7 @@ func setup() {
 	bulkUpdateRepository := bulkUpdate.NewBulkUpdateRepository(dbConnection, logger)
 	bulkUpdateService = pipeline.NewBulkUpdateServiceImpl(bulkUpdateRepository, nil, nil, nil, nil, "",
 		pipeline.DefaultChart(""), util.MergeUtil{}, nil, nil, nil, nil, nil,
-		nil, nil, nil, nil,nil)
+		nil, nil, nil, nil, nil)
 }
 
 func TestBulkUpdateDeploymentTemplate(t *testing.T) {

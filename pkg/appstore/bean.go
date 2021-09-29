@@ -47,6 +47,7 @@ type InstallAppVersionDTO struct {
 	AppStoreId              int                               `json:"appStoreId"`
 	AppStoreName            string                            `json:"appStoreName"`
 	Deprecated              bool                              `json:"deprecated"`
+	ForceDelete             bool                              `json:"-"`
 }
 
 /// bean for v2

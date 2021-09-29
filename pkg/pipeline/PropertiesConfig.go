@@ -63,7 +63,7 @@ type PropertiesConfigService interface {
 	CreateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties) (*EnvironmentProperties, error)
 	UpdateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties, userId int32) (*EnvironmentProperties, error)
 	//create environment entry for each new environment
-	CreateIfRequired(chart *chartConfig.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride bool, namespace string) (*chartConfig.EnvConfigOverride, error)
+	CreateIfRequired(chart *chartConfig.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride bool, namespace string, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error)
 	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *EnvironmentPropertiesResponse, err error)
 	GetEnvironmentPropertiesById(environmentId int) ([]EnvironmentProperties, error)
 
@@ -223,7 +223,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		return nil, fmt.Errorf("NOCHARTEXIST")
 	}
 	chart.GlobalOverride = string(environmentProperties.EnvOverrideValues)
-	envOverride, err := impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, true, environmentProperties.Namespace)
+	envOverride, err := impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, true, environmentProperties.Namespace, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -354,7 +354,7 @@ func (impl PropertiesConfigServiceImpl) buildAppMetricsJson() ([]byte, error) {
 	return appMetricsJson, nil
 }
 
-func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride bool, namespace string) (*chartConfig.EnvConfigOverride, error) {
+func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride bool, namespace string, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error) {
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
 		return nil, err
@@ -380,7 +380,12 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Char
 				envOverrideExisting.UpdatedOn = time.Now()
 				envOverrideExisting.UpdatedBy = userId
 				envOverrideExisting.IsOverride = isOverride
-				envOverrideExisting, err = impl.envConfigRepo.Update(envOverrideExisting)
+				//maintaining backward compatibility for while
+				if tx != nil {
+					envOverrideExisting, err = impl.envConfigRepo.UpdateWithTxn(envOverrideExisting, tx)
+				} else {
+					envOverrideExisting, err = impl.envConfigRepo.Update(envOverrideExisting)
+				}
 				if err != nil {
 					return nil, err
 				}
@@ -405,7 +410,12 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Char
 		} else {
 			envOverride.EnvOverrideValues = "{}"
 		}
-		err = impl.envConfigRepo.Save(envOverride)
+		//maintaining backward compatibility for while
+		if tx != nil {
+			err = impl.envConfigRepo.SaveWithTxn(envOverride, tx)
+		} else {
+			err = impl.envConfigRepo.Save(envOverride)
+		}
 		if err != nil {
 			impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
 			return nil, err
@@ -530,7 +540,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 	var envOverride *chartConfig.EnvConfigOverride
 	if environmentProperties.Id == 0 {
 		chart.GlobalOverride = "{}"
-		envOverride, err = impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, false, environmentProperties.Namespace)
+		envOverride, err = impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, false, environmentProperties.Namespace, nil)
 		if err != nil {
 			return nil, err
 		}

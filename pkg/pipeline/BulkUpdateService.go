@@ -200,7 +200,7 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 	}
 	if bulkUpdatePayload.Global {
 		//For Deployment Template
-		if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil{
+		if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil {
 			appsGlobalDT, err := impl.bulkUpdateRepository.
 				FindDeploymentTemplateBulkAppNameForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
 			if err != nil {
@@ -286,7 +286,7 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 
 	for _, envId := range bulkUpdatePayload.EnvIds {
 		//For Deployment Template
-		if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil{
+		if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil {
 			appsNotGlobalDT, err := impl.bulkUpdateRepository.
 				FindDeploymentTemplateBulkAppNameForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
 			if err != nil {

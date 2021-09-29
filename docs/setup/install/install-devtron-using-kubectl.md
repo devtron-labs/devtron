@@ -9,8 +9,10 @@ Use a preferred editor to edit the values in install/devtron-operator-configs.ya
 ```bash
 vim devtron-operator-configs.yaml
 ```
-Edit the `devtron-operator-configs.yaml` to configure your Devtron installation. For more details about it, see [configuration](installation-configuration.md)
-Once your configurations are ready, continue with following steps
+Edit the `devtron-operator-configs.yaml` to configure your Devtron installation. For more details about it, see [configuration](installation-configuration.md).Once your configurations are ready, continue with following steps.
+
+> The parameter in the `devtron-operator-configs.yaml` file POSTGRESQL_PASSWORD should be base64 encoded, which is used for postgresql database.
+
 ```bash
 kubectl create ns devtroncd
 kubectl -n devtroncd apply -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
@@ -21,6 +23,8 @@ Edit devtron-operator-configs.yaml and input the values
 kubectl apply -n devtroncd -f devtron-operator-configs.yaml
 kubectl apply -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/install/devtron-installer.yaml
 ```
+
+If you are planning to use Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
 
 ## Installation status
 

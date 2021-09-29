@@ -50,6 +50,7 @@ A personal access token (PAT) is used as an alternate password to authenticate i
 
 * repo - Full control of private repositories(Access commit status , Access deployment status and Access public repositories).
 * admin:org - Full control of organizations and teams(Read and write access).
+* delete_repo - Grants delete repo access on private repositories.
 
 #### For GitLab [Creating a Gitlab Personal Access Token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html):
 

@@ -40,7 +40,7 @@ Once we have made these changes in our local system we need to apply them to kub
 
 
 ```bash
-kubectl apply -f file_name -n devtroncd
+kubectl apply -f file-name -n devtroncd
 ```
 
 For these changes to come into effect we need to run the following command.
@@ -50,3 +50,33 @@ kubectl patch -n devtroncd installer installer-devtron --type='json' -p='[{"op":
 ```
 
 After 20-30 mins our changes would have been propogated to devtron installation.
+
+## Recommended Resources for Production use
+If you are planning to use Devtron for production deployments, please use our recommened production overrides located in [manifests/updates/production](https://github.com/devtron-labs/devtron/tree/main/manifests/updates/production). This configuration should be enough for handling upto 200 microservices.
+
+The overall resources required for the recommended production overrides are:
+
+|Name| Value|
+|-|-|
+|cpu| 6|
+|memory|13GB|
+
+The production overrides can be applied as `pre-devtron installation` as well as `post-devtron installation` in the respective namespace.
+
+### Pre-Devtron Installation
+If you want to install a new Devtron instance for production ready deployments, this is the best option for you.
+
+Create the namespace and apply the overrides files as stated above.
+```bash
+kubectl create ns devtroncd
+```
+
+After files being applied, you are ready to install your Devtron instance with production ready resources.
+
+### Post-Devtron Installation
+If you have an existing Devtron instance and want to migrate it for production ready deployments, this is the right option for you.
+
+In the existing namesapce, apply the production overrides as we do it above.
+```bash
+kubectl apply -f prod-configs -n devtroncd
+```

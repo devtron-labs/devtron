@@ -529,8 +529,8 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *ConfigDataR
 				item.ExternalSecret = configData.ExternalSecret
 				item.RoleARN = configData.RoleARN
 				found = true
-				item.SubPath=configData.SubPath
-				item.FilePermission=configData.FilePermission
+				item.SubPath = configData.SubPath
+				item.FilePermission = configData.FilePermission
 			}
 			configs = append(configs, item)
 		}

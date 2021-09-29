@@ -29,6 +29,7 @@ type GitHostRouter interface {
 type GitHostRouterImpl struct {
 	gitHostRestHandler restHandler.GitHostRestHandler
 }
+
 func NewGitHostRouterImpl(gitHostRestHandler restHandler.GitHostRestHandler) *GitHostRouterImpl {
 	return &GitHostRouterImpl{gitHostRestHandler: gitHostRestHandler}
 }

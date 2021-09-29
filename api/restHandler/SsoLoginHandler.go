@@ -50,7 +50,6 @@ type SsoLoginRestHandlerImpl struct {
 	ssoLoginService sso.SSOLoginService
 }
 
-
 func NewSsoLoginRestHandlerImpl(userAuthService user.UserAuthService, validator *validator.Validate,
 	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService,
 	ssoLoginService sso.SSOLoginService) *SsoLoginRestHandlerImpl {

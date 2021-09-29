@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"context"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -112,6 +111,7 @@ type InstalledAppServiceImpl struct {
 	clusterInstalledAppsRepository       appstore.ClusterInstalledAppsRepository
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
+	aCDAuthConfig                        *user.ACDAuthConfig
 }
 
 func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -134,7 +134,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	envService cluster2.EnvironmentService,
 	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository,
 	argoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *util.GitFactory) (*InstalledAppServiceImpl, error) {
+	gitFactory *util.GitFactory, aCDAuthConfig *user.ACDAuthConfig) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		chartRepository:                      chartRepository,
 		logger:                               logger,
@@ -159,6 +159,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 		clusterInstalledAppsRepository:       clusterInstalledAppsRepository,
 		ArgoK8sClient:                        argoK8sClient,
 		gitFactory:                           gitFactory,
+		aCDAuthConfig:                        aCDAuthConfig,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -199,8 +200,9 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
-		_, _, err := impl.upgradeInstalledApp(ctx, installAppVersionRequest, tx)
+		_, _, err := impl.upgradeInstalledApp(ctx, installAppVersionRequest, installedApp, tx)
 		if err != nil {
+			impl.logger.Errorw("error while upgrade the chart", "error", err)
 			return nil, err
 		}
 	} else {
@@ -208,6 +210,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		var installedAppVersion *appstore.InstalledAppVersions
 		installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
 		if err != nil {
+			impl.logger.Errorw("error while fetching chart installed version", "error", err)
 			return nil, err
 		}
 		if installedAppVersionModel.AppStoreApplicationVersionId != installAppVersionRequest.AppStoreVersion {
@@ -246,6 +249,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 			//update requirements yaml in chart
 			err = impl.updateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion)
 			if err != nil {
+				impl.logger.Errorw("error while commit required dependencies to git", "error", err)
 				return nil, err
 			}
 
@@ -256,6 +260,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		//update values yaml in chart
 		err = impl.updateValuesYaml(environment, installedAppVersion, installAppVersionRequest)
 		if err != nil {
+			impl.logger.Errorw("error while commit values to git", "error", err)
 			return nil, err
 		}
 		installAppVersionRequest.ACDAppName = argocdAppName
@@ -280,6 +285,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	//STEP 8: finish with return response
 	err = tx.Commit()
 	if err != nil {
+		impl.logger.Errorw("error while committing transaction to db", "error", err)
 		return nil, err
 	}
 	return installAppVersionRequest, nil
@@ -359,10 +365,11 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *cluster.Enviro
 	return nil
 }
 
-func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO, tx *pg.Tx) (*InstallAppVersionDTO, *appstore.InstalledAppVersions, error) {
+func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO, installedApp *appstore.InstalledApps, tx *pg.Tx) (*InstallAppVersionDTO, *appstore.InstalledAppVersions, error) {
 	var installedAppVersion *appstore.InstalledAppVersions
 	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
 	if err != nil {
+		impl.logger.Errorw("error while fetching installed version", "error", err)
 		return installAppVersionRequest, installedAppVersion, err
 	}
 	for _, installedAppVersionModel := range installedAppVersions {
@@ -371,7 +378,7 @@ func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, ins
 		installedAppVersionModel.UpdatedBy = installAppVersionRequest.UserId
 		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
 		if err != nil {
-			impl.logger.Errorw("error while fetching from db", "error", err)
+			impl.logger.Errorw("error while update installed chart", "error", err)
 			return installAppVersionRequest, installedAppVersion, err
 		}
 	}
@@ -415,11 +422,13 @@ func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, ins
 	}
 
 	//step 4 db operation status triggered
-	_, err = impl.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appstore.DEPLOY_SUCCESS)
+	installedApp.Status = appstore.DEPLOY_SUCCESS
+	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
 	if err != nil {
-		impl.logger.Errorw(" error", "err", err)
+		impl.logger.Errorw("error while fetching from db", "error", err)
 		return installAppVersionRequest, installedAppVersion, err
 	}
+
 	return installAppVersionRequest, installedAppVersion, err
 }
 
@@ -596,9 +605,10 @@ func (impl InstalledAppServiceImpl) createInArgo(chartGitAttribute *util.ChartGi
 	if len(appNamespace) == 0 {
 		appNamespace = "default"
 	}
+
 	appreq := &argocdServer.AppTemplate{
 		ApplicationName: argocdAppName,
-		Namespace:       argocdServer.DevtronInstalationNs,
+		Namespace:       impl.aCDAuthConfig.ACDConfigMapNamespace,
 		TargetNamespace: appNamespace,
 		TargetServer:    envModel.Cluster.ServerUrl,
 		Project:         "default",
@@ -612,6 +622,7 @@ func (impl InstalledAppServiceImpl) createInArgo(chartGitAttribute *util.ChartGi
 		impl.logger.Errorw("error in creating argo cd app ", "err", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -641,7 +652,7 @@ func (impl InstalledAppServiceImpl) CheckAppExists(appNames []*AppNames) ([]*App
 	return appNames, nil
 }
 
-func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
+func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx) (*bean.CreateAppDTO, error) {
 	app, err := impl.appRepository.FindActiveByName(createRequest.AppName)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -662,12 +673,13 @@ func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.Cre
 		AppStore: true,
 		AuditLog: models.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
-	err = impl.appRepository.Save(pg)
+	err = impl.appRepository.SaveWithTxn(pg, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving entity ", "entity", pg)
 		return nil, err
 	}
 
+	// if found more than 1 application, soft delete all except first item
 	apps, err := impl.appRepository.FindActiveListByName(createRequest.AppName)
 	if err != nil {
 		return nil, err
@@ -677,7 +689,7 @@ func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.Cre
 		firstElement := apps[0]
 		if firstElement.Id != pg.Id {
 			pg.Active = false
-			err = impl.appRepository.Update(pg)
+			err = impl.appRepository.UpdateWithTxn(pg, tx)
 			if err != nil {
 				impl.logger.Errorw("error in saving entity ", "entity", pg)
 				return nil, err
@@ -744,9 +756,9 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(ctx context.Context, inst
 	app.Active = false
 	app.UpdatedBy = installAppVersionRequest.UserId
 	app.UpdatedOn = time.Now()
-	err = impl.appRepository.Update(app)
+	err = impl.appRepository.UpdateWithTxn(app, tx)
 	if err != nil {
-		impl.logger.Errorw("error in saving entity ", "entity", app)
+		impl.logger.Errorw("error in update entity ", "entity", app)
 		return nil, err
 	}
 
@@ -783,7 +795,23 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(ctx context.Context, inst
 	err = impl.deleteACD(acdAppName, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting ACD ", "name", acdAppName, "err", err)
-		return nil, err
+		if installAppVersionRequest.ForceDelete {
+			impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
+		} else {
+			//statusError, _ := err.(*errors2.StatusError)
+			if strings.Contains(err.Error(), "code = NotFound") {
+				err = &util.ApiError{
+					UserMessage:     "Could not delete as application not found in argocd",
+					InternalMessage: err.Error(),
+				}
+			} else {
+				err = &util.ApiError{
+					UserMessage:     "Could not delete application",
+					InternalMessage: err.Error(),
+				}
+			}
+			return nil, err
+		}
 	}
 	deployment, err := impl.chartGroupDeploymentRepository.FindByInstalledAppId(model.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -795,7 +823,7 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(ctx context.Context, inst
 		deployment.Deleted = true
 		deployment.UpdatedOn = time.Now()
 		deployment.UpdatedBy = installAppVersionRequest.UserId
-		_, err := impl.chartGroupDeploymentRepository.Update(deployment)
+		_, err := impl.chartGroupDeploymentRepository.Update(deployment, tx)
 		if err != nil {
 			impl.logger.Errorw("error in mapping delete", "err", err)
 			return nil, err
@@ -803,6 +831,7 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(ctx context.Context, inst
 	}
 	err = tx.Commit()
 	if err != nil {
+		impl.logger.Errorw("error in commit db transaction on delete", "err", err)
 		return nil, err
 	}
 	return installAppVersionRequest, nil
@@ -1031,10 +1060,6 @@ func (impl InstalledAppServiceImpl) CreateInstalledAppV2(installAppVersionReques
 		impl.logger.Errorw(" error", "err", err)
 		return nil, err
 	}
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
 
 	//step 2 git operation pull push
 	installAppVersionRequest, chartGitAttr, err := impl.AppStoreDeployOperationGIT(installAppVersionRequest)
@@ -1050,7 +1075,13 @@ func (impl InstalledAppServiceImpl) CreateInstalledAppV2(installAppVersionReques
 		return nil, err
 	}
 
-	//step 4 db operation status triggered
+	// tx commit here because next operation will be process after this commit.
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	//step 4 db operation status update to deploy success
 	_, err = impl.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appstore.DEPLOY_SUCCESS)
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
@@ -1242,7 +1273,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionR
 		UserId:  installAppVersionRequest.UserId,
 	}
 
-	appCreateRequest, err = impl.createAppForAppStore(appCreateRequest)
+	appCreateRequest, err = impl.createAppForAppStore(appCreateRequest, tx)
 	if err != nil {
 		impl.logger.Errorw("error while creating app", "error", err)
 		return nil, err
@@ -1325,6 +1356,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationStatusUpdate(installA
 	}
 	err = tx.Commit()
 	if err != nil {
+		impl.logger.Errorw("error while commit db transaction to db", "error", err)
 		return false, err
 	}
 	return true, nil

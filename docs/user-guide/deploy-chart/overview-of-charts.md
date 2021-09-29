@@ -10,13 +10,13 @@ Both methods are mentioned in the given document.
 
 ![](../../.gitbook/assets/deploy-chart-store.jpg)
 
-Select Discover and then select the chart that you want to use
+Select Discover and then select the chart that you want to use.
 
-Click on README.MD to get more idea about the configurations of the chart
+Click on README.MD to get more idea about the configurations of the chart.
 
 ![](../../.gitbook/assets/custom%20%283%29%20%284%29.jpg)
 
-Select the Chart Version that you want to use and Chart Value, you can either use the default Values or custom values.
+Select the Chart Version that you want to use and Chart Value, you can either use the Default Values or Custom Values.
 
 To know about Custom Values, Click On: [Custom Values](overview-of-charts.md#custom-values)
 
@@ -31,11 +31,11 @@ The configuration values can be edited in the section given below Chart Version.
 
 ![](../../.gitbook/assets/depchart4config.jpg)
 
-ReadMe.md present on the left can be used by the user to set configuration values
+ReadMe.md present on the left can be used by the user to set configuration values.
 
 ![](../../.gitbook/assets/depchart4readme.jpg)
 
-Click on `Deploy Chart` to deploy the chart
+Click on `Deploy Chart` to deploy the chart.
 
 ![](../../.gitbook/assets/depchartdeployedredo%20%282%29.jpg)
 
@@ -43,13 +43,12 @@ You can see the status of the chart deployed. Click on `Values.Yaml` to reconfig
 
 ![](../../.gitbook/assets/depchartreconfig.jpg)
 
-Configuration values can be edited over here by the help of ReadMe.md
+Configuration values can be edited over here by the help of ReadMe.md.
 
 Select Update And Deploy to update new settings.
-
 ### Custom Values
 
-You can use the default values or create Custom value by clicking on `Create Custom`
+You can use the default values or create Custom value by clicking on `Create Custom`.
 
 ![](../../.gitbook/assets/custom%20%283%29.jpg)
 
@@ -61,13 +60,13 @@ Click on `Save Template` to save the configurations.
 
 ### Deploying Chart Groups
 
-To deploy multiple applications and work with them simulataneously, you can use `Chart Groups`.
+To deploy multiple applications and work with them simultaneously, you can use `Chart Groups`.
 
-To create Chart Groups Click on `Discover` and Click on `Create Group`
+To create Chart Groups Click on `Discover` and Click on `Create Group`.
 
 ![](../../.gitbook/assets/screen2.jpg)
 
-Add the Group Name and Description and Click on `Create Group`
+Add the Group Name and Description and Click on `Create Group`.
 
 ![](../../.gitbook/assets/create_group.jpg)
 
@@ -79,11 +78,11 @@ You can select a particular chart multiple number of times according to your req
 
 Select the `Version` and `Values` for your charts.
 
-You can use Default Values or the Custom Values, just make sure the Value that you select for your Chart is comptabile with the Version of the Chart that you are using.
+You can use Default Values or the Custom Values, just make sure the Value that you select for your Chart is compatible with the Version of the Chart that you are using.
 
 ![](../../.gitbook/assets/select_charts2.jpg)
 
-To edit the Chart Configuration, Click on 'Edit'
+To edit the Chart Configuration, Click on 'Edit'.
 
 ![](../../.gitbook/assets/edit_group%20%282%29.jpg)
 

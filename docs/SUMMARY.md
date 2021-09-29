@@ -30,6 +30,8 @@
   * [Triggering CD](user-guide/deploying-application/triggering-cd.md)
 * [Deploy Chart](user-guide/deploy-chart/README.md)
   * [Overview Of Charts](user-guide/deploy-chart/overview-of-charts.md)
+  * [Charts Create Update Upgrade Deploy Delete](user-guide/deploy-chart/deployment-of-charts.md)
+  * [Chart Group Create Edit And Deploy](user-guide/deploy-chart/chart-group.md)
   * [Examples](user-guide/deploy-chart/examples/README.md)
     * [Deploying Mysql Helm Chart](user-guide/deploy-chart/examples/deploying-mysql-helm-chart.md)
     * [Deploying MongoDB Helm Chart](user-guide/deploy-chart/examples/deploying-mongodb-helm-chart.md)

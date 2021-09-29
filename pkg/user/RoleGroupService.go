@@ -402,6 +402,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 	return request, nil
 }
 
+const AllEnvironment string = ""
 func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup, error) {
 	roleGroup, err := impl.roleGroupRepository.GetRoleGroupById(id)
 	if err != nil {
@@ -417,16 +418,20 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 	roleFilterMap := make(map[string]*bean.RoleFilter)
 	for _, role := range roles {
 		key := ""
-		if len(role.Team) > 0 && len(role.Environment) > 0 {
-			key = fmt.Sprintf("%s_%s", role.Team, role.Environment)
+		if len(role.Team) > 0 {
+			key = fmt.Sprintf("%s_%s", role.Team, role.Action)
 		} else if len(role.Entity) > 0 {
 			key = fmt.Sprintf("%s_%s", role.Entity, role.Action)
 		}
 		if _, ok := roleFilterMap[key]; ok {
-			if !strings.Contains(roleFilterMap[key].Environment, role.Environment) {
+			envArr := strings.Split(roleFilterMap[key].Environment, ",")
+			if containsArr(envArr, AllEnvironment) {
+				roleFilterMap[key].Environment = AllEnvironment
+			} else if !containsArr(envArr, role.Environment) {
 				roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
 			}
-			if !strings.Contains(roleFilterMap[key].EntityName, role.EntityName) {
+			entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
+			if !containsArr(entityArr, role.EntityName) {
 				roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
 			}
 		} else {
