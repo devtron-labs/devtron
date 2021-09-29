@@ -252,7 +252,7 @@ We are deeply grateful for all our amazing contributors!
   <img src="https://contrib.rocks/image?repo=devtron-labs/devtron" />
 </a>
 
-## :beetle: Vulnerability Reporting
+## :bug: Vulnerability Reporting
 
 We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose us at security@devtron.ai.
 
