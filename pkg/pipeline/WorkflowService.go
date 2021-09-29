@@ -19,6 +19,8 @@ package pipeline
 
 import (
 	"encoding/json"
+	"time"
+
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo/pkg/client/clientset/versioned"
 	v1alpha12 "github.com/argoproj/argo/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
@@ -29,9 +31,8 @@ import (
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
-	"time"
 )
 
 type WorkflowService interface {
@@ -62,6 +63,8 @@ type WorkflowRequest struct {
 	DockerImageTag           string             `json:"dockerImageTag"`
 	DockerRegistryType       string             `json:"dockerRegistryType"`
 	DockerRegistryURL        string             `json:"dockerRegistryURL"`
+	DockerConnection         string             `json:"dockerConnection"`
+	DockerCert               string             `json:"dockerCert"`
 	DockerBuildArgs          string             `json:"dockerBuildArgs"`
 	DockerRepository         string             `json:"dockerRepository"`
 	DockerFileLocation       string             `json:"dockerfileLocation"`

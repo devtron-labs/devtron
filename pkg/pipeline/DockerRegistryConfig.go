@@ -19,12 +19,13 @@ package pipeline
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"go.uber.org/zap"
-	"time"
 )
 
 type DockerRegistryConfig interface {
@@ -47,6 +48,8 @@ type DockerArtifactStoreBean struct {
 	Username           string                  `json:"username,omitempty"`
 	Password           string                  `json:"password,omitempty"`
 	IsDefault          bool                    `json:"isDefault"`
+	Connection         string                  `json:"connection"`
+	Cert               string                  `json:"cert"`
 	Active             bool                    `json:"active"`
 	User               int32                   `json:"-"`
 }
@@ -76,6 +79,8 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 		Username:           bean.Username,
 		Password:           bean.Password,
 		IsDefault:          bean.IsDefault,
+		Connection:         bean.Connection,
+		Cert:               bean.Cert,
 		Active:             true,
 		AuditLog:           models.AuditLog{CreatedBy: bean.User, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: bean.User},
 	}
@@ -137,6 +142,8 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 			Username:           store.Username,
 			Password:           store.Password,
 			IsDefault:          store.IsDefault,
+			Connection:         store.Connection,
+			Cert:               store.Cert,
 			Active:             store.Active,
 		}
 		storeBeans = append(storeBeans, storeBean)
@@ -167,6 +174,8 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 		Username:           store.Username,
 		Password:           store.Password,
 		IsDefault:          store.IsDefault,
+		Connection:         store.Connection,
+		Cert:               store.Cert,
 		Active:             store.Active,
 	}
 
@@ -191,6 +200,8 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		Username:           bean.Username,
 		Password:           bean.Password,
 		IsDefault:          bean.IsDefault,
+		Connection:         bean.Connection,
+		Cert:               bean.Cert,
 		Active:             true, // later it will change
 		AuditLog:           models.AuditLog{CreatedBy: existingStore.CreatedBy, CreatedOn: existingStore.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: bean.User},
 	}

@@ -21,6 +21,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
@@ -40,9 +44,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type WorkflowDagExecutor interface {
@@ -534,6 +535,8 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		DockerUsername:        ciPipeline.CiTemplate.DockerRegistry.Username,
 		DockerPassword:        ciPipeline.CiTemplate.DockerRegistry.Password,
 		AwsRegion:             ciPipeline.CiTemplate.DockerRegistry.AWSRegion,
+		DockerConnection:      ciPipeline.CiTemplate.DockerRegistry.Connection,
+		DockerCert:            ciPipeline.CiTemplate.DockerRegistry.Cert,
 		AccessKey:             ciPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
 		SecretKey:             ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
 		DockerRegistryType:    string(ciPipeline.CiTemplate.DockerRegistry.RegistryType),

@@ -18,10 +18,11 @@
 package repository
 
 import (
+	"net/url"
+
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
-	"net/url"
 )
 
 const REGISTRYTYPE_ECR = "ecr"
@@ -42,6 +43,8 @@ type DockerArtifactStore struct {
 	Username           string       `sql:"username" json:"username,omitempty"`
 	Password           string       `sql:"password" json:"password,omitempty"`
 	IsDefault          bool         `sql:"is_default,notnull" json:"isDefault"`
+	Connection         string       `sql:"connection" json:"connection,omitempty"`
+	Cert               string       `sql:"cert" json:"cert,omitempty"`
 	Active             bool         `sql:"active,notnull" json:"active"`
 	models.AuditLog
 }

@@ -19,6 +19,9 @@ package restHandler
 
 import (
 	"encoding/json"
+	"net/http"
+	"strings"
+
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -27,8 +30,6 @@ import (
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strings"
 )
 
 type DockerRegRestHandler interface {
@@ -50,6 +51,8 @@ type DockerRegRestHandlerImpl struct {
 	enforcer             rbac.Enforcer
 	teamService          team.TeamService
 }
+
+const secureWithCert = "secure-with-cert"
 
 func NewDockerRegRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
 	logger *zap.SugaredLogger,
@@ -83,29 +86,35 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 		return
 	}
 	bean.User = userId
-	impl.logger.Infow("request payload, SaveDockerRegistryConfig", "payload", bean)
-	err = impl.validator.Struct(bean)
-	if err != nil {
-		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+	if (bean.Connection == secureWithCert && bean.Cert == "") || (bean.Connection != secureWithCert && bean.Cert != "") {
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
-	}
+	} else {
+		impl.logger.Infow("request payload, SaveDockerRegistryConfig", "payload", bean)
+		err = impl.validator.Struct(bean)
+		if err != nil {
+			impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceDocker, rbac.ActionCreate, "*"); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
+		// RBAC enforcer applying
+		token := r.Header.Get("token")
+		if ok := impl.enforcer.Enforce(token, rbac.ResourceDocker, rbac.ActionCreate, "*"); !ok {
+			writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		//RBAC enforcer Ends
 
-	res, err := impl.dockerRegistryConfig.Create(&bean)
-	if err != nil {
-		impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+		res, err := impl.dockerRegistryConfig.Create(&bean)
+		if err != nil {
+			impl.logger.Errorw("service err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+
+		writeJsonResp(w, err, res, http.StatusOK)
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
 
 }
 
@@ -187,30 +196,36 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		return
 	}
 	bean.User = userId
-	impl.logger.Infow("request payload, UpdateDockerRegistryConfig", "err", err, "payload", bean)
-
-	err = impl.validator.Struct(bean)
-	if err != nil {
-		impl.logger.Errorw("validation err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+	if (bean.Connection == secureWithCert && bean.Cert == "") || (bean.Connection != secureWithCert && bean.Cert != "") {
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
-	}
+	} else {
+		impl.logger.Infow("request payload, UpdateDockerRegistryConfig", "err", err, "payload", bean)
 
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceDocker, rbac.ActionUpdate, strings.ToLower(bean.Id)); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
+		err = impl.validator.Struct(bean)
+		if err != nil {
+			impl.logger.Errorw("validation err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 
-	res, err := impl.dockerRegistryConfig.Update(&bean)
-	if err != nil {
-		impl.logger.Errorw("service err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+		// RBAC enforcer applying
+		token := r.Header.Get("token")
+		if ok := impl.enforcer.Enforce(token, rbac.ResourceDocker, rbac.ActionUpdate, strings.ToLower(bean.Id)); !ok {
+			writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		//RBAC enforcer Ends
+
+		res, err := impl.dockerRegistryConfig.Update(&bean)
+		if err != nil {
+			impl.logger.Errorw("service err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+
+		writeJsonResp(w, err, res, http.StatusOK)
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
 
 }
 
