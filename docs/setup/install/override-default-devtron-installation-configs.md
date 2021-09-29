@@ -21,7 +21,7 @@ In order to modify particular object it looks in namespace `devtroncd` for corre
 |natsStreaming| nats-streaming-override-cm| nats streaming server|
 |notifier| notifier-override-cm| sends notification related to CI and CD|
 |devtron| devtron-override-cm| core engine of devtron|
-|devtronDexIngress| devtron-dex-ingress-override-cm| ingress configuration to expose devtron|
+|devtronIngress| devtron-ingress-override-cm| ingress configuration to expose devtron|
 |workflow| workflow-override-cm| component to run CI workload|
 |externalSecret| external-secret-override-cm| manage secret through external stores like vault/AWS secret store|
 |grafana| grafana-override-cm| grafana config for dashboard|
@@ -30,7 +30,7 @@ In order to modify particular object it looks in namespace `devtroncd` for corre
 |minioStorage| minio-storage-override-cm| db config for minio|
 
 
-Let us take an example to understand how we can override specific values. Assuming you want to override annotations and host in the ingress, that means you want to change devtronDexIngress, please copy file [devtron-ingress-override.yaml](https://github.com/devtron-labs/devtron/tree/main/manifests/updates/devtron-ingress-override.yaml). This file contains a configmap to modify devtronDexIngress as mentioned above. Please note the structure of this configmap, data should have key `override` with multiline string as value. 
+Let us take an example to understand how we can override specific values. Assuming you want to override annotations and host in the ingress, that means you want to change devtronIngress, please copy file [devtron-ingress-override.yaml](https://github.com/devtron-labs/devtron/tree/main/manifests/updates/devtron-ingress-override.yaml). This file contains a configmap to modify devtronIngress as mentioned above. Please note the structure of this configmap, data should have key `override` with multiline string as value. 
 
 `apiVersion`, `kind`, `metadata.name` in the multiline string are used to match the object which needs to be modified. In this particular case it will look for `apiVersion: extensions/v1beta1`, `kind: Ingress` and `metadata.name: devtron-ingress` and will apply changes mentioned inside `update:` as per the example inside the `metadata:` it will add annotations `owner: app1` and inside `spec.rules.http.host` it will add `http://change-me`.
 
