@@ -1,129 +1,145 @@
-<p align="center"><img width="200" height="156" src="./assets/devtron-logo.png"></p>
-<p align="center">Devtron is an open source software delivery workflow for kubernetes written in go.
+
+<p align="center"><img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
+<h1 align= "center">Heroku-like Platform for Kubernetes.</h1>
+</p>
+
+<p align="center">Devtron leverages popular Open-Source tools to provide a No-Code SaaS like experience for Kubernetes.
 <br>
-<a href="https://docs.devtron.ai/" target="_blank" rel="nofollow"><strong>Explore documentation »</strong></a>
+<a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
 <br>
-<br>
-<a href="https://devtron.ai/" target="_blank">Website</a>
+<a href="https://devtron.ai/">Website</a>
 ·
-<a href="https://devtron.ai/blog/" target="_blank">Blog</a>
+<a href="https://devtron.ai/blog/">Blog</a>
 ·
-<a href="https://discord.gg/jsRG5qx2gp" target="_blank">Join Discord</a>
+<a href="https://discord.gg/jsRG5qx2gp">Join Discord</a>
 ·
-<a href="https://twitter.com/DevtronL" target="_blank">Twitter</a>
+<a href="https://twitter.com/DevtronL">Twitter</a>
+
 
 </p>
 <p align="center">
-<a href="https://discord.gg/jsRG5qx2gp" target="_blank"><img src="https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg" alt="Join Discord"></a>
-<a href="https://goreportcard.com/badge/github.com/devtron-labs/devtron" target="_blank"><img src="https://goreportcard.com/badge/github.com/devtron-labs/devtron" alt="Go Report Card"></a>
-<a href="./LICENSE" target="_blank"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
-<a href="https://bestpractices.coreinfrastructure.org/projects/4411" target="_blank"><img src="https://bestpractices.coreinfrastructure.org/projects/4411/badge" alt="CII Best Practices"></a>
-<a href="http://golang.org" target="_blank"><img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go"></a>
-<a href="http://devtron.ai/" target="_blank"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
+<a href="https://discord.gg/jsRG5qx2gp"><img src="https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg" alt="Join Discord"></a>
+<a href="https://goreportcard.com/badge/github.com/devtron-labs/devtron"><img src="https://goreportcard.com/badge/github.com/devtron-labs/devtron" alt="Go Report Card"></a>
+<a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+<a href="https://bestpractices.coreinfrastructure.org/projects/4411"><img src="https://bestpractices.coreinfrastructure.org/projects/4411/badge" alt="CII Best Practices"></a>
+<a href="http://golang.org"><img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go"></a>
+<a href="http://devtron.ai/"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
+<a href="https://twitter.com/intent/tweet?text=Devtron%20helps%20in%20simplifying%20software delivery%20workflow%20for%20Kubernetes,%20check%20it%20out!!%20&hashtags=OpenSource,Kubernetes,DevOps,CICD,go&url=https://github.com/devtron-labs/devtron%0a"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Tweet"></a>
+ 
 
-</p>
+ 
+<!--</p>
+<p align = "center">
+<a href="https://github.com/devtron-labs/devtron"><img src="https://github-readme-stats-one-bice.vercel.app/api?username=Abhinav-26&show_icons=true&include_all_commits=true&count_private=true&role=OWNER,ORGANIZATION_MEMBER,COLLABORATOR" alt="Devtron's GitHub stats"></a>
+</p>-->
+
 
 ## :book: Menu
 
-- [Why Devtron](https://github.com/devtron-labs/devtron#bulb-why-devtron) 
+- [Devtron?](https://github.com/devtron-labs/devtron#bulb-devtron)
 - [Features](https://github.com/devtron-labs/devtron#tada-features)
 - [Getting Started](https://github.com/devtron-labs/devtron#rocket-getting-started)
-- <a href="https://docs.devtron.ai/" target="_blank">Documentation</a>
+- [Documentation](https://docs.devtron.ai/)
+- [Videos](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
+- [Love what you see!](https://github.com/devtron-labs/devtron#sparkling_heart-love-what-you-see)
+- [FAQ & Troubleshooting](https://github.com/devtron-labs/devtron#question-faq--troubleshooting)
 - [Contribute](https://github.com/devtron-labs/devtron#handshake-contribute)
-- [Vulnerability Reporting](https://github.com/devtron-labs/devtron#beetle-vulnerability-reporting)
-- [License](https://github.com/devtron-labs/devtron#bookmark-license)
- 
-## :bulb: Why Devtron?
-It is designed as a self-serve platform for operationalizing and maintaining applications (AppOps) on kubernetes in a developer friendly way. 
+
+## :bulb: Devtron?
+
+### Why use it?
+
+We have seen various tools that are used to greatly increase the ease of using Kubernetes but using these tools simultaneously is painful and hard to use. As these tools dont talk to eachother for managing different aspects of application lifecycle - CI, CD, security, cost, observability, stabilization. We built Devtron to solve this problem precisely.
+
+<p align="center"><img src="./assets/readme-comic.png"></p>
+
+Devtron is an OpenSource modular product providing 'seamless', 'implementation agnostic uniform interface' integrated  with OpenSource and commercial tools across life cycle. All done focusing on a slick User Experience enabling self-serve model. 
 <br>
+You can efficiently handle Security, Stability, Cost and more in a unified experience.
+
+
+## :tada: Features
 <br>
 <img src="./assets/preview.gif">
 <br>
-<br>
-## :tada: Features
+
 <details>
 <summary> 
- <b> Zero code software delivery workflow </b>
+ <b> No code self-serve DevOps platform </b>
   </summary>
 <br>
 
-- Workflow which understands the domain of **kubernetes, testing, CD, SecOps** so that you dont have to write scripts
-- Reusable and composable components so that workflows are easy to contruct and reason through
+- Workflow which understands the domain of Kubernetes, testing, CD, SecOps
+- Reusable and composable pipelines so that workflows are easy to construct and visualize
+
 </details>
 
 <details>
-<summary> <b> Multi cloud deployment </b></summary>
+<summary> <b> Multi-cloud/Multi-cluster deployment </b></summary>
+</details>
+
+
+<details>
+ <summary> <b>Built-in SecOps tools and integration</b> </summary>
+<br>
+ 
+- UI driven hierarchical security policy (global, cluster, environment and application) for efficient policy management
+- Integration with [Clair](https://www.redhat.com/en/topics/containers/what-is-clair) for vulnerability scanning
+
+</details>
+<details>
+<summary> <b> UI-enabled Application debugging dashboard </b></summary>
  <br> 
  
- - Deploy to multiple kubernetes cluster
-</details>
-<details>
- <summary> <b> Easy dev-sec-ops integration </b> </summary>
-<br>
- 
-- Multi level security policy at global, cluster, environment and application for efficient hierarchical policy management
-- Behavior driven security policy
-- Define policies and exception for kubernetes resources
-- Define policies for events for faster resolution
-</details>
+ - Application centric view for K8s components
+ - Built-in monitoring for cpu, ram, http status code and latency
+ - Advanced logging with grep and json search
+ - Access all manifests securely for e.g. secret obfuscation
+ - Auto issue identification
 
-<details>
- <summary> <b> Application debugging dashboard </b> </summary>
-<br>
- 
-- One place for all historical kubernetes events 
-- Access all manifests securely for e.g. secret obfuscation 
-- ***Application metrics*** for cpu, ram, http status code and latency with comparison between new and old 
-- ***Advanced logging*** with grep and json search 
-- Intelligent ***correlation between events, logs*** for faster triangulation of issue 
-- Auto issue identification 
 </details>
 
 <details>
 <summary> <b>Enterprise grade security and compliances </b></summary>
-<br>
- 
-- Fine grained access control; control who can edit configuration and who can deploy
-- Audit log to know who did what and when
-- History of all CI and CD events
-- Kubernetes events impacting application
-- Relevant cloud events and their impact on applications
-- Advanced workflow policies like blackout window, branch environment relationship to secure build and deployment pipelines
 </details>
+
 <details>
-<summary> <b> Gitops aware  </b></summary>
+<summary> <b>Automated Gitops based deployment using argocd </b></summary>
 <br>
  
-- Gitops exposed through API and UI so that you dont have to interact with git cli
-- Gitops backed by postgres for easier analysis
-- Enforce finer access control than git
-
-</details>
-<details>
-<summary> <b>Operational insights  </b></summary>
-<br>
- 
-- Deployment metrics to measure success of agile process. It captures mttr, change failure rate, deployment frequency, deployment size out of the box.
-- Audit log to understand the failure causes
-- Monitor changes across deployments and revert easily
+- Automated git repository and application manifest management
+- Reduces complexity(configuration, access control) in adopting gitops practices
+- Gitops backed by Postgres for easier analysis 
 
 </details>
 
+## :globe_with_meridians: Architecture:
+<br>
+<img src="./assets/Architecture.jpg">
+
+### :blue_heart: We Support:
+In addition to the features, we love supporting platforms that devs find easy to work with.
+<br>
+<p align="center"><img width="660" height="216" src="./assets/we-support.jpg"></p>
 
 ## :rocket: Getting Started
 
+#### You can follow through a detailed installation guide, using Devtron and other key functionalities of devtron in our
+[Devtron Documentation](https://docs.devtron.ai/)
+
 #### Quick installation with default settings
 
-This installation will use Minio for storing build logs and cache. 
+This installation will use Minio for storing build logs and cache.
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd 
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
 ```
 
-For detailed instructions and other options, check out  <a href="https://docs.devtron.ai/setup/install" target="_blank">devtron installation documentation</a>
+#### For detailed installation instructions and other options, check out:
+[devtron installation documentation](https://docs.devtron.ai/setup/install)
 
 
 #### :key: Access Devtron dashboard
@@ -143,22 +159,16 @@ For admin login use username:`admin` and for password run the following command.
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
-#### Using devtron
-  
-- [Deploying First Application](https://docs.devtron.ai/user-guide/creating-application)
-- [Deploying Helm charts](https://docs.devtron.ai/user-guide/deploy-chart)
-- [Configure Security policy](https://docs.devtron.ai/user-guide/security-features)
-- [Detail Userguide](https://docs.devtron.ai)
+## :video_camera: Videos:
 
-
-
-<!--
-## Why another Deployment tool? 
-
-**TODO**
--->
+- [Devtron - A Comprehensive Overview](https://youtu.be/FB5BI3Ef7uw?t=363)
+- [Viktor Farcic(YouTuber) Review](https://youtu.be/ZKcfZC-zSMM)
+- [Running an application on Devtron](https://youtu.be/bA6zgjPD_yA?t=2927)
+- [Devtron Demo](https://youtu.be/ekxHV2Gje-E?t=7856)
 
 ## :memo: Compatibility notes
+
+### Current build: 
 
 - It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
 - Application metrics only works for k8s 1.16+
@@ -166,22 +176,85 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 ## :busts_in_silhouette: Community
 
 Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
+- Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
+- Raise feature requests, suggest enhancements, report bugs at [GitHub issues](https://github.com/devtron-labs/devtron/issues)
+- Read the [Devtron blog](https://devtron.ai/blog/)
 
- - Join the [Discord Community](https://discord.gg/jsRG5qx2gp) 
- - Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
- - Raise feature requests, suggest enhancements, report bugs at [GitHub issues](https://github.com/devtron-labs/devtron/issues)
- - Read the [Devtron blog](https://devtron.ai/blog/)
+### Join Our Discord Community
+<p>
+<a href="https://discord.gg/jsRG5qx2gp">
+    <img 
+    src="https://invidget.switchblade.xyz/jsRG5qx2gp" 
+    alt="Join Devtron : Heroku for Kubernetes"
+    >
+</a>
+ </p>
+
+
+## :sparkling_heart: Love What You See!
+
+If you are loving what we are doing, Please consider giving us a star.
+<br>
+[![GitHub stars](https://img.shields.io/github/stars/devtron-labs/devtron)](https://github.com/devtron-labs/devtron/stargazers)
+<br>
+Or you can tweet about us: 
+<br>
+<a href="https://twitter.com/intent/tweet?text=Devtron%20helps%20in%20simplifying%20software delivery%20workflow%20for%20Kubernetes,%20check%20it%20out!!%20&hashtags=OpenSource,Kubernetes,DevOps,CICD,go&url=https://github.com/devtron-labs/devtron%0a"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Tweet"></a>
+<br>
+Your token of gratitude will go a long way helping us reach more developers like you. ❤:)
+
+Or you can do one better and Contribute 👏
+
+## :question: FAQ & Troubleshooting:
+### FAQ:
+1.How to resolve unauthorized error while trying to save global configurations like hostname, gitops etc. after successful devtron installation
+<br>
+A. This occurs most of the time because any one or multiple jobs get failed during installation. To resolve this, you need to first check which are the jobs that have failed. Follow these steps :-
+
+- Run the following command and check which are the jobs with 0/1 completions:
+```bash
+kubectl get jobs -n devtroncd
+```
+- Note down or remember the names of jobs with 0/1 completions and check if their pods are in running state still or not by running the command:
+kubectl get pods -n devtroncd
+- If they are in running condition, please wait for the jobs to be completed as it may be due to internet issue and if not in running condition, then delete those incomplete jobs using:
+kubectl delete jobs <job1-name> <job2-name> -n devtroncd..[Read More](https://github.com/devtron-labs/devtron/blob/main/Troubleshooting.md#1-how-to-resolve-unauthorized-error-while-trying-to-save-global-configurations-like-hostname-gitops-etc-after-successful-devtron-installation)
+<br><br>
+
+2.What to do if devtron dashboard is not accessible on browser even after successful completion of all the jobs and all pods are in running mode
+<br>
+A. For this, you need to check if nats-cluster is created or not, you can check it using the following command:
+```bash
+kubectl get natscluster -n devtroncd
+```
+- You should see a natscluster with the name devtron-nats and if not, run the given command:
+```bash
+kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/nats-server.yaml -n devtroncd
+```
+- Wait till all the nats pods are created and the pods are in running condition. After that delete devtron and dashboard pods once and then you should be able to access the devtron dashboard without any issues.
+- If your problem is still not resolved, you can post your query in our [discord](https://discord.gg/jsRG5qx2gp) channel
+
+### Troubleshooting:
+- For Installation Troubleshooting, check this [Documentation](https://docs.devtron.ai/setup/install)
+- For other troubleshooting, Check the [Common troubleshooting documentation](https://docs.devtron.ai/user-guide/command-bar)
 
 
 ## :handshake: Contribute
 
-Check out our [contributing guidelines](CONTRIBUTING.md). Included are directions for opening issues, coding standards, and notes on our development processes.
 
-## :beetle: Vulnerability Reporting
+Check out our [contributing guidelines](CONTRIBUTING.md). Included are directions for opening issues, coding standards, and notes on our development processes. We deeply appreciate your contributions.
+
+### Our Contributors:
+
+We are deeply grateful for all our amazing contributors!    
+
+<a href="https://github.com/devtron-labs/devtron/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=devtron-labs/devtron" />
+</a>
+
+## :bug: Vulnerability Reporting
 
 We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose us at security@devtron.ai.
 
 ## :bookmark: License
-
 Devtron is available under the [Apache License, Version 2.0](LICENSE)
-
