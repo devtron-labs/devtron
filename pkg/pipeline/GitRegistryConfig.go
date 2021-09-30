@@ -43,17 +43,17 @@ type GitRegistryConfigImpl struct {
 }
 
 type GitRegistryRequest struct {
-	Id          int                 `json:"id,omitempty" validate:"number"`
-	Name        string              `json:"name,omitempty" validate:"required"`
-	Url         string              `json:"url,omitempty"`
-	UserName    string              `json:"userName,omitempty"`
-	Password    string              `json:"password,omitempty"`
-	SshKey      string              `json:"sshKey,omitempty"`
-	AccessToken string              `json:"accessToken,omitempty"`
-	AuthMode    repository.AuthMode `json:"authMode,omitempty" validate:"required"`
-	Active      bool                `json:"active"`
-	UserId      int32               `json:"-"`
-	GitHostId   int                 `json:"gitHostId"`
+	Id            int                 `json:"id,omitempty" validate:"number"`
+	Name          string              `json:"name,omitempty" validate:"required"`
+	Url           string              `json:"url,omitempty"`
+	UserName      string              `json:"userName,omitempty"`
+	Password      string              `json:"password,omitempty"`
+	SshPrivateKey string              `json:"sshPrivateKey,omitempty"`
+	AccessToken   string              `json:"accessToken,omitempty"`
+	AuthMode      repository.AuthMode `json:"authMode,omitempty" validate:"required"`
+	Active        bool                `json:"active"`
+	UserId        int32               `json:"-"`
+	GitHostId     int                 `json:"gitHostId"`
 }
 
 func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo repository.GitProviderRepository, GitSensorClient gitSensor.GitSensorClient) *GitRegistryConfigImpl {
@@ -86,17 +86,17 @@ func (impl GitRegistryConfigImpl) Create(request *GitRegistryRequest) (*GitRegis
 		return nil, errors.NewAlreadyExists(err, request.Url)
 	}
 	provider := &repository.GitProvider{
-		Name:        request.Name,
-		Url:         request.Url,
-		Id:          request.Id,
-		AuthMode:    request.AuthMode,
-		Password:    request.Password,
-		Active:      request.Active,
-		AccessToken: request.AccessToken,
-		SshKey:      request.SshKey,
-		UserName:    request.UserName,
-		AuditLog:    models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
-		GitHostId:   request.GitHostId,
+		Name:          request.Name,
+		Url:           request.Url,
+		Id:            request.Id,
+		AuthMode:      request.AuthMode,
+		Password:      request.Password,
+		Active:        request.Active,
+		AccessToken:   request.AccessToken,
+		SshPrivateKey: request.SshPrivateKey,
+		UserName:      request.UserName,
+		AuditLog:      models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		GitHostId:     request.GitHostId,
 	}
 	err = impl.gitProviderRepo.Save(provider)
 	if err != nil {
@@ -137,6 +137,7 @@ func (impl GitRegistryConfigImpl) GetAll() ([]GitRegistryRequest, error) {
 			Name:      provider.Name,
 			Url:       provider.Url,
 			GitHostId: provider.GitHostId,
+			AuthMode:  provider.AuthMode,
 		}
 		gitProviders = append(gitProviders, providerRes)
 	}
@@ -153,17 +154,17 @@ func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]GitRegistryRequest, 
 	var gitProviders []GitRegistryRequest
 	for _, provider := range providers {
 		providerRes := GitRegistryRequest{
-			Id:          provider.Id,
-			Name:        provider.Name,
-			Url:         provider.Url,
-			UserName:    provider.UserName,
-			Password:    provider.Password,
-			AuthMode:    provider.AuthMode,
-			AccessToken: provider.AccessToken,
-			SshKey:      provider.SshKey,
-			Active:      provider.Active,
-			UserId:      provider.CreatedBy,
-			GitHostId:   provider.GitHostId,
+			Id:            provider.Id,
+			Name:          provider.Name,
+			Url:           provider.Url,
+			UserName:      provider.UserName,
+			Password:      provider.Password,
+			AuthMode:      provider.AuthMode,
+			AccessToken:   provider.AccessToken,
+			SshPrivateKey: provider.SshPrivateKey,
+			Active:        provider.Active,
+			UserId:        provider.CreatedBy,
+			GitHostId:     provider.GitHostId,
 		}
 		gitProviders = append(gitProviders, providerRes)
 	}
@@ -179,17 +180,17 @@ func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRe
 	}
 
 	providerRes := &GitRegistryRequest{
-		Id:          provider.Id,
-		Name:        provider.Name,
-		Url:         provider.Url,
-		UserName:    provider.UserName,
-		Password:    provider.Password,
-		AuthMode:    provider.AuthMode,
-		AccessToken: provider.AccessToken,
-		SshKey:      provider.SshKey,
-		Active:      provider.Active,
-		UserId:      provider.CreatedBy,
-		GitHostId:   provider.GitHostId,
+		Id:            provider.Id,
+		Name:          provider.Name,
+		Url:           provider.Url,
+		UserName:      provider.UserName,
+		Password:      provider.Password,
+		AuthMode:      provider.AuthMode,
+		AccessToken:   provider.AccessToken,
+		SshPrivateKey: provider.SshPrivateKey,
+		Active:        provider.Active,
+		UserId:        provider.CreatedBy,
+		GitHostId:     provider.GitHostId,
 	}
 
 	return providerRes, err
@@ -222,17 +223,17 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistryRequest) (*GitRegis
 		return nil, err0
 	}
 	provider := &repository.GitProvider{
-		Name:        request.Name,
-		Url:         request.Url,
-		Id:          request.Id,
-		AuthMode:    request.AuthMode,
-		Password:    request.Password,
-		Active:      request.Active,
-		AccessToken: request.AccessToken,
-		SshKey:      request.SshKey,
-		UserName:    request.UserName,
-		GitHostId:   request.GitHostId,
-		AuditLog:    models.AuditLog{CreatedBy: existingProvider.CreatedBy, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		Name:          request.Name,
+		Url:           request.Url,
+		Id:            request.Id,
+		AuthMode:      request.AuthMode,
+		Password:      request.Password,
+		Active:        request.Active,
+		AccessToken:   request.AccessToken,
+		SshPrivateKey: request.SshPrivateKey,
+		UserName:      request.UserName,
+		GitHostId:     request.GitHostId,
+		AuditLog:      models.AuditLog{CreatedBy: existingProvider.CreatedBy, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	err := impl.gitProviderRepo.Update(provider)
 	if err != nil {
@@ -260,15 +261,15 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistryRequest) (*GitRegis
 
 func (impl GitRegistryConfigImpl) UpdateGitSensor(provider *repository.GitProvider) error {
 	sensorGitProvider := &gitSensor.GitProvider{
-		Id:          provider.Id,
-		Url:         provider.Url,
-		Name:        provider.Name,
-		UserName:    provider.UserName,
-		AccessToken: provider.AccessToken,
-		Password:    provider.Password,
-		Active:      provider.Active,
-		SshKey:      provider.SshKey,
-		AuthMode:    provider.AuthMode,
+		Id:            provider.Id,
+		Url:           provider.Url,
+		Name:          provider.Name,
+		UserName:      provider.UserName,
+		AccessToken:   provider.AccessToken,
+		Password:      provider.Password,
+		Active:        provider.Active,
+		SshPrivateKey: provider.SshPrivateKey,
+		AuthMode:      provider.AuthMode,
 	}
 	_, err := impl.GitSensorClient.SaveGitProvider(sensorGitProvider)
 	return err

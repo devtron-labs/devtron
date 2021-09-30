@@ -133,12 +133,13 @@ type ContainerResources struct {
 }*/
 
 type CiProjectDetails struct {
-	GitRepository string    `json:"gitRepository"`
-	MaterialName  string    `json:"materialName"`
-	CheckoutPath  string    `json:"checkoutPath"`
-	CommitHash    string    `json:"commitHash"`
-	GitTag        string    `json:"gitTag"`
-	CommitTime    time.Time `json:"commitTime"`
+	GitRepository   string    `json:"gitRepository"`
+	MaterialName    string    `json:"materialName"`
+	CheckoutPath    string    `json:"checkoutPath"`
+	FetchSubmodules bool      `json:"fetchSubmodules"`
+	CommitHash      string    `json:"commitHash"`
+	GitTag          string    `json:"gitTag"`
+	CommitTime      time.Time `json:"commitTime"`
 	//Branch        string          `json:"branch"`
 	Type        string                    `json:"type"`
 	Message     string                    `json:"message"`
@@ -150,11 +151,11 @@ type CiProjectDetails struct {
 }
 
 type GitOptions struct {
-	UserName    string              `json:"userName"`
-	Password    string              `json:"password"`
-	SSHKey      string              `json:"sshKey"`
-	AccessToken string              `json:"accessToken"`
-	AuthMode    repository.AuthMode `json:"authMode"`
+	UserName      string              `json:"userName"`
+	Password      string              `json:"password"`
+	SshPrivateKey string              `json:"sshPrivateKey"`
+	AccessToken   string              `json:"accessToken"`
+	AuthMode      repository.AuthMode `json:"authMode"`
 }
 
 func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig) *WorkflowServiceImpl {
