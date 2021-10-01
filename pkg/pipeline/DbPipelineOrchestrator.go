@@ -38,7 +38,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -927,11 +926,7 @@ func (impl DbPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.Up
 		return nil, validationErr
 	}
 	currentMaterial.Url = updateMaterialDTO.Material.Url
-	materialUrl, err := url.Parse(updateMaterialDTO.Material.Url)
-	if err != nil {
-		return nil, err
-	}
-	basePath := path.Base(materialUrl.Path)
+	basePath := path.Base(updateMaterialDTO.Material.Url)
 	basePath = strings.TrimSuffix(basePath, ".git")
 
 	currentMaterial.Name = strconv.Itoa(updateMaterialDTO.Material.GitProviderId) + "-" + basePath
@@ -949,11 +944,7 @@ func (impl DbPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.Up
 }
 
 func (impl DbPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitMaterial, appId int, userId int32) (*pipelineConfig.GitMaterial, error) {
-	materialUrl, err := url.Parse(inputMaterial.Url)
-	if err != nil {
-		return nil, err
-	}
-	basePath := path.Base(materialUrl.Path)
+	basePath := path.Base(inputMaterial.Url)
 	basePath = strings.TrimSuffix(basePath, ".git")
 	material := &pipelineConfig.GitMaterial{
 		Url:             inputMaterial.Url,
@@ -965,7 +956,7 @@ func (impl DbPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitMat
 		FetchSubmodules: inputMaterial.FetchSubmodules,
 		AuditLog:        models.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
-	err = impl.materialRepository.SaveMaterial(material)
+	err := impl.materialRepository.SaveMaterial(material)
 	if err != nil {
 		impl.logger.Errorw("error in saving material", "material", material, "err", err)
 		return nil, err
