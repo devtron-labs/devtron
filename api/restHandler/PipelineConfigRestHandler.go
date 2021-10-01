@@ -325,10 +325,10 @@ func (handler PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderI
 		return false, err
 	}
 	if gitProvider.AuthMode == repository.AUTH_MODE_SSH{
-		hasPrefixResult := strings.HasPrefix(gitProvider.Url,SSH_URL_PREFIX)
+		hasPrefixResult := strings.HasPrefix(url,SSH_URL_PREFIX)
 		return hasPrefixResult, nil
 	}
-	 hasPrefixResult := strings.HasPrefix(gitProvider.Url,HTTPS_URL_PREFIX)
+	 hasPrefixResult := strings.HasPrefix(url,HTTPS_URL_PREFIX)
 	 return hasPrefixResult, nil
 }
 
@@ -364,7 +364,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 		} else {
 			if !validationResult {
 				handler.Logger.Errorw("validation err, CreateMaterial : invalid git material url", "err", err, "gitMaterialUrl", gitMaterial.Url, "CreateMaterial", createMaterialDto)
-				writeJsonResp(w, err, nil, http.StatusBadRequest)
+				writeJsonResp(w, fmt.Errorf("validation for url failed"), nil, http.StatusBadRequest)
 				return
 			}
 		}
