@@ -88,6 +88,7 @@ require (
 	github.com/valyala/fasttemplate v1.1.0 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/xanzy/go-gitlab v0.16.1
+	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	go.uber.org/multierr v1.2.0 // indirect
 	go.uber.org/zap v1.10.0
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45

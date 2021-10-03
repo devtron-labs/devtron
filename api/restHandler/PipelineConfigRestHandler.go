@@ -23,6 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -47,10 +52,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/go-playground/validator.v9"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type PipelineConfigRestHandler interface {
@@ -566,6 +567,7 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		return
 	}
 	token := r.Header.Get("token")
+	fmt.Println(templateRequest, "shubham")
 	app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1234,6 +1236,22 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 	handler.Logger.Infow("request payload, UpdateAppOverride", "payload", templateRequest)
+
+	buff, merr := json.Marshal(templateRequest.ValuesOverride)
+	if merr != nil {
+		handler.Logger.Errorw("marshal err, handleForwardResponseStreamError", "err", merr, "response", templateRequest)
+	}
+	var dat map[string]interface{}
+
+	if err := json.Unmarshal(buff, &dat); err != nil {
+		panic(err)
+	}
+	strs_limit := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+	strs_requests := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+	fmt.Println(strs_limit["cpu"],strs_limit["memory"],strs_requests["cpu"],strs_requests["memory"],"aviral")
+	//if (strs_limit["cpu"] >= strs_requests["cpu"]) && (strs_limit["memory"]>=strs_requests["memory"]){
+	//
+	//}
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
 	if err != nil {
