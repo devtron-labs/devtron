@@ -256,9 +256,9 @@ func (impl *AppStoreServiceImpl) FindAppDetailsForAppstoreApplication(installedA
 		Namespace:                     installedAppVerison.InstalledApp.Environment.Namespace,
 		Deprecated:                    installedAppVerison.AppStoreApplicationVersion.Deprecated,
 	}
-	userInfo, err := impl.userService.GetById(installedAppVerison.AuditLog.UpdatedBy)
+	userInfo, err := impl.userService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
-		impl.logger.Error(err)
+		impl.logger.Errorw("error fetching user info", "err", err)
 		return bean.AppDetailContainer{}, err
 	}
 	deploymentContainer.LastDeployedBy = userInfo.EmailId
@@ -644,7 +644,7 @@ func (impl *AppStoreServiceImpl) ValidateChartRepo(request *ChartRepoDto) *Detai
 	}
 	resp, err, statusCode := impl.get(indexURL, helmRepo)
 	if statusCode == 401 || statusCode == 403 {
-		impl.logger.Errorw("authentication or authorization error in request for getting index file","statusCode",statusCode, "url", request.Url, "err", err)
+		impl.logger.Errorw("authentication or authorization error in request for getting index file", "statusCode", statusCode, "url", request.Url, "err", err)
 		detailedErrorHelmRepoValidation.ActualErrMsg = err.Error()
 		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("Invalid authentication credentials. Please verify.")
 		return &detailedErrorHelmRepoValidation
@@ -653,7 +653,7 @@ func (impl *AppStoreServiceImpl) ValidateChartRepo(request *ChartRepoDto) *Detai
 		detailedErrorHelmRepoValidation.ActualErrMsg = err.Error()
 		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("Could not find an index.yaml file in the repo directory. Please try another chart repo.")
 		return &detailedErrorHelmRepoValidation
-	} else if statusCode < 200  || statusCode > 299{
+	} else if statusCode < 200 || statusCode > 299 {
 		impl.logger.Errorw("error in getting index file", "url", request.Url, "err", err)
 		detailedErrorHelmRepoValidation.ActualErrMsg = err.Error()
 		detailedErrorHelmRepoValidation.CustomErrMsg = fmt.Sprintf("Could not validate the repo. Please try again.")
