@@ -1238,19 +1238,17 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 	handler.Logger.Infow("request payload, UpdateAppOverride", "payload", templateRequest)
-	// buff, merr := json.Marshal(templateRequest.ValuesOverride)
-	//if merr != nil {
-	//	handler.Logger.Errorw("marshal err, handleForwardResponseStreamError", "err", merr, "response", templateRequest)
-	//}
+	buff, merr := json.Marshal(templateRequest)
+	if merr != nil {
+		handler.Logger.Errorw("marshal err, handleForwardResponseStreamError", "err", merr, "response", templateRequest)
+	}
 
-	// var dat map[string]interface{}
+	var dat pipeline.TemplateRequest
 
-	// if err := json.Unmarshal(buff, &dat); err != nil {
-	// 	panic(err)
-	// }
-	fmt.Println(3)
-	validatejson()
-	fmt.Println(4)
+	if err := json.Unmarshal(buff, &dat); err != nil {
+		panic(err)
+	}
+	x := validatejson(dat)
 
 	//f, err := os.Create("https://github.com/devtron-labs/devtron/blob/deployment-template/tests/testdata/values.json")
 	//
@@ -3315,9 +3313,10 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 	writeJsonResp(w, err, suggestedName, http.StatusOK)
 }
 
-func validatejson() {
+func validatejson(jsondoc pipeline.TemplateRequest) bool {
+
 	schemaLoader := gojsonschema.NewReferenceLoader("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/schema.json")
-	documentLoader := gojsonschema.NewReferenceLoader("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/values.json")
+	documentLoader := gojsonschema.NewGoLoader(jsondoc)
 
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
@@ -3327,7 +3326,7 @@ func validatejson() {
 	if result.Valid() {
 
 		fmt.Println("ok")
-
+		return true
 	} else {
 
 		fmt.Printf("The document is not valid. see errors :\n")
@@ -3335,6 +3334,6 @@ func validatejson() {
 			fmt.Println("not ok", err)
 
 		}
+		return false
 	}
-
 }

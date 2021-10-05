@@ -271,7 +271,7 @@
       "image": "envoyproxy/envoy:v1.14.1",
       "resources": {
         "limits": {
-          "cpu": 50,
+          "cpu": "50",
           "memory": "50Mi"
         },
         "requests": {

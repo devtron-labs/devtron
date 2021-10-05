@@ -157,7 +157,7 @@
                                     "type" : "object",
                                     "properties": {
                                         "Key": {
-                                            "type":"string"
+                                            "type":"null"
                                         },
                                         "Values": {
                                         "type" : "string"
@@ -602,7 +602,7 @@
                                     "type" : "object",
                                     "properties": {
                                         "Key": {
-                                            "type":"string"
+                                            "type":"null"
                                         },
                                         "Values": {
                                         "type" : "string"

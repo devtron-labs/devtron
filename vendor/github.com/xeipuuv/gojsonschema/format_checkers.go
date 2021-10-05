@@ -146,8 +146,13 @@ var (
 
 	rxRelJSONPointer = regexp.MustCompile("^(?:0|[1-9][0-9]*)(?:#|(?:/(?:[^~/]|~0|~1)*)*)$")
 
-	UChecker, _   = regexp.Compile("([0-9.]+)m")
-	MemChecker, _ = regexp.Compile("([0-9.]+)Mi")
+	UChecker, _   = regexp.Compile("^([0-9.]+)m$")
+	NoUChecker, _ = regexp.Compile("^([0-9.]+)$")
+	MiChecker, _  = regexp.Compile("^[0-9]+Mi$")
+	GiChecker, _  = regexp.Compile("^[0-9]+Gi$")
+	TiChecker, _  = regexp.Compile("^[0-9]+Ti$")
+	PiChecker, _  = regexp.Compile("^[0-9]+Pi$")
+	KiChecker, _  = regexp.Compile("^[0-9]+Ki$")
 
 	lock = new(sync.RWMutex)
 )
@@ -374,20 +379,36 @@ func (f RelativeJSONPointerFormatChecker) IsFormat(input interface{}) bool {
 
 	return rxRelJSONPointer.MatchString(asString)
 }
-
 func (f UnitChecker) IsFormat(input interface{}) bool {
 	asString, ok := input.(string)
 	if !ok {
 		return true
 	}
-
-	return UChecker.MatchString(asString)
+	if UChecker.MatchString(asString) {
+		return true
+	} else if NoUChecker.MatchString(asString) {
+		return true
+	} else {
+		return false
+	}
 }
 func (f MemoryChecker) IsFormat(input interface{}) bool {
 	asString, ok := input.(string)
 	if !ok {
 		return true
 	}
-
-	return MemChecker.MatchString(asString)
+	// fmt.Println("hello", asString)
+	if MiChecker.MatchString(asString) {
+		return true
+	} else if GiChecker.MatchString(asString) {
+		return true
+	} else if TiChecker.MatchString(asString) {
+		return true
+	} else if PiChecker.MatchString(asString) {
+		return true
+	} else if KiChecker.MatchString(asString) {
+		return true
+	} else {
+		return false
+	}
 }
