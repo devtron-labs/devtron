@@ -24,9 +24,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+<<<<<<< HEAD
 	"log"
 	"net/http"
 	"os"
+=======
+	"net/http"
+>>>>>>> bdf6baaba51bfbdbc59014b7f0af0e202be6cfb1
 	"strconv"
 	"strings"
 
@@ -570,6 +574,7 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		return
 	}
 	token := r.Header.Get("token")
+	fmt.Println(templateRequest, "shubham")
 	app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
 	if err != nil {
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1238,7 +1243,12 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 	handler.Logger.Infow("request payload, UpdateAppOverride", "payload", templateRequest)
+<<<<<<< HEAD
 	buff, merr := json.Marshal(templateRequest)
+=======
+
+	buff, merr := json.Marshal(templateRequest.ValuesOverride)
+>>>>>>> bdf6baaba51bfbdbc59014b7f0af0e202be6cfb1
 	if merr != nil {
 		handler.Logger.Errorw("marshal err, handleForwardResponseStreamError", "err", merr, "response", templateRequest)
 	}
@@ -1247,6 +1257,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	if err := json.Unmarshal(buff, &dat); err != nil {
 		panic(err)
 	}
+<<<<<<< HEAD
 	f, err := os.Create("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/values.json")
 
 	if err != nil {
@@ -1267,6 +1278,14 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	strs_requests := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
 	fmt.Println(strs_limit["cpu"], strs_limit["memory"], strs_requests["cpu"], strs_requests["memory"], "aviral")
 
+=======
+	strs_limit := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+	strs_requests := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+	fmt.Println(strs_limit["cpu"],strs_limit["memory"],strs_requests["cpu"],strs_requests["memory"],"aviral")
+	//if (strs_limit["cpu"] >= strs_requests["cpu"]) && (strs_limit["memory"]>=strs_requests["memory"]){
+	//
+	//}
+>>>>>>> bdf6baaba51bfbdbc59014b7f0af0e202be6cfb1
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
 	if err != nil {

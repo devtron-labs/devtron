@@ -20,10 +20,11 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/juju/errors"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
 )
 
 //use of writeJsonRespStructured is preferable. it api exists due to historical reason
