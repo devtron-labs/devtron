@@ -1,0 +1,220 @@
+# Mandatory configs
+replicaCount: 1
+MinReadySeconds: 60
+GracePeriod: 30
+image:
+  pullPolicy: IfNotPresent
+service:
+  type: ClusterIP
+  #name: "service-1234567890"
+  annotations: {}
+    # test1: test2
+    # test3: test4
+ContainerPort:
+  - name: app
+    port: 8080
+    servicePort: 80
+    envoyPort: 8799
+    useHTTP2: true
+    supportStreaming: true
+    idleTimeout: 1800s
+#    servicemonitor:
+#      enabled: true
+#      path: /abc
+#      scheme: 'http'
+#      interval: 30s
+#      scrapeTimeout: 20s
+#      metricRelabelings:
+#        - sourceLabels: [namespace]
+#          regex: '(.*)'
+#          replacement: myapp
+#          targetLabel: target_namespace
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  limits:
+    cpu: 1
+    memory: 200Mi
+  requests:
+    cpu: 0.10
+    memory: 100Mi
+
+
+# Optional configs
+LivenessProbe:
+  Path: ""
+  port: 8080
+  scheme: ""
+  httpHeader:
+    name: ""
+    value: ""
+  tcp: false
+  command: []
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+ReadinessProbe:
+  Path: ""
+  port: 8080
+  scheme: ""
+  httpHeader:
+    name: ""
+    value: ""
+  tcp: false
+  command: []
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+ingress:
+  enabled: false
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
+    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
+    kubernetes.io/ingress.class: nginx
+#    nginx.ingress.kubernetes.io/rewrite-target: /$2
+#    nginx.ingress.kubernetes.io/canary: "true"
+#    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  hosts:
+    - host: chart-example1.local
+      paths:
+        - /example1
+    - host: chart-example2.local
+      paths:
+        - /example2
+        - /example2/healthz
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+ingressInternal:
+  enabled: false
+  annotations: {}
+ #    kubernetes.io/ingress.class: nginx
+ #    kubernetes.io/tls-acme: "true"
+ #    nginx.ingress.kubernetes.io/canary: "true"
+ #    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  hosts:
+    - host: chart-example1.internal
+      paths:
+        - /example1
+    - host: chart-example2.internal
+      paths:
+        - /example2
+        - /example2/healthz
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+command:
+  enabled: false
+  value: []
+    
+args: 
+  enabled: false
+  value:
+    - /bin/sh
+    - -c
+    - touch /tmp/healthy; sleep 30; rm -rf /tmp/healthy; sleep 600
+
+#For adding custom labels to pods
+
+podLabels: {}
+#  customKey: customValue
+podAnnotations: {}
+#  customKey: customValue
+
+rawYaml: []
+
+initContainers: []
+  ## Additional init containers to run before the Scheduler pods.
+  ## for example, be used to run a sidecar that chown Logs storage .
+  #- name: volume-mount-hack
+  #  image: busybox
+  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #  volumeMounts:
+  #    - mountPath: /usr/local/airflow/logs
+  #      name: logs-data
+
+containers: []
+  ## Additional containers to run along with application pods.
+  ## for example, be used to run a sidecar that chown Logs storage .
+  #- name: volume-mount-hack
+  #  image: busybox
+  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #  volumeMounts:
+  #    - mountPath: /usr/local/airflow/logs
+  #      name: logs-data
+
+volumeMounts: []
+#     - name: log-volume
+#       mountPath: /var/log
+
+volumes: []
+#     - name: log-volume
+#       emptyDir: {}
+
+dbMigrationConfig:
+  enabled: false
+
+tolerations: []
+
+Spec:
+  Affinity:
+    Key:
+    #  Key: kops.k8s.io/instancegroup
+    Values:
+
+autoscaling:
+  enabled: false
+  MinReplicas: 1
+  MaxReplicas: 2
+  TargetCPUUtilizationPercentage: 70
+  TargetMemoryUtilizationPercentage: 80
+  extraMetrics: []
+#    - external:
+#        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
+#        metricSelector:
+#          matchLabels:
+#            resource.labels.subscription_id: echo-read
+#        targetAverageValue: "2"
+#      type: External
+#
+
+prometheus:
+  release: monitoring
+
+server:
+  deployment:
+    image_tag: 1-95af053
+    image: ""
+
+servicemonitor:
+  additionalLabels: {}
+
+envoyproxy:
+  image: envoyproxy/envoy:v1.14.1
+  configMapName: ""
+  resources:
+    limits:
+      cpu: 50m
+      memory: 50Mi
+    requests:
+      cpu: 50m
+      memory: 50Mi
+
+
+imagePullSecrets: []
+  # - test1
+  # - test2
