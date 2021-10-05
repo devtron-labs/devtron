@@ -1247,7 +1247,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	if err := json.Unmarshal(buff, &dat); err != nil {
 		panic(err)
 	}
-	f, err := os.Create("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/values.json")
+	f, err := os.Create("https://github.com/devtron-labs/devtron/blob/deployment-template/tests/testdata/values.json")
 
 	if err != nil {
 		log.Fatal(err)
@@ -3312,8 +3312,8 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 }
 
 func validatejson() {
-	schemaLoader := gojsonschema.NewReferenceLoader("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/schema.json")
-	documentLoader := gojsonschema.NewReferenceLoader("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/values.json")
+	schemaLoader := gojsonschema.NewReferenceLoader("https://github.com/devtron-labs/devtron/blob/deployment-template/tests/testdata/schema.json")
+	documentLoader := gojsonschema.NewReferenceLoader("https://github.com/devtron-labs/devtron/blob/deployment-template/tests/testdata/values.json")
 
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
