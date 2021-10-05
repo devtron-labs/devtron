@@ -33,6 +33,7 @@ This defines ports on which application services will be exposed to other servic
 
 ```yaml
 ContainerPort:
+<<<<<<< HEAD
     envoyPort: 8799
     idleTimeout: 
     name: app
@@ -40,10 +41,31 @@ ContainerPort:
     servicePort: 80
     supportStreaming: true
     useHTTP2: true
+=======
+  - name: app
+    port: 8080
+    servicePort: 80
+    envoyPort: 8799
+    useHTTP2: true
+    supportStreaming: true
+    idleTimeout: 1800s
+    servicemonitor:
+      enabled: true
+      path: /metrics
+      scheme: 'http'
+      interval: 30s
+      scrapeTimeout: 20s
+      metricRelabelings:
+        - sourceLabels: [namespace]
+          regex: '(.*)'
+          replacement: myapp
+          targetLabel: target_namespace
+>>>>>>> 87d977d198ef55c4292012cef8440475f200fd6a
 ```
 
-| Key | Description |
+| Key | Description |optional|
 | :--- | :--- |
+<<<<<<< HEAD
 | `envoyPort` | envoy port for the container. |
 | `idleTimeout` | the duration of time that a connection is idle before the connection is terminated. |
 | `name` | name of the port. |
@@ -57,6 +79,27 @@ ContainerPort:
 EnvVariables: []
 ```
 To set environment variables for the containers that run in the Pod.
+=======
+| `name` | name of the container port|
+| `port` | port no in container |
+| `servicePort` | port In service |
+| `envoyPort` | envoy proxy port |
+| `useHTTP2`| envoy should use http2 as proxy |
+| `supportStreaming` | streaming should be enabled | 
+| `idleTimeout` | ideal timeout for envoy proxy |
+| `servicemonitor.` | this configuration is directly passed to service monitor |
+| `servicemonitor.enabled`| serviceMonitor enabled | 
+| `servicemonitor.path`| path for serviceMonitor target| 
+| `servicemonitor.scheme`| scheme for serviceMonitor target  | 
+| `servicemonitor.interval`|  polling interval for serviceMonitor| 
+| `servicemonitor.scrapeTimeout`| timeout for serviceMonitor target | 
+| `servicemonitor.metricRelabelings`| metrics relabling for serviceMonitor | https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/api.md#relabelconfig
+| `servicemonitor.metricRelabelings.sourceLabels`| |
+| `servicemonitor.metricRelabelings.regex`| |
+| `servicemonitor.metricRelabelings.replacement`| |
+| `servicemonitor.metricRelabelings.targetLabel`| |
+
+>>>>>>> 87d977d198ef55c4292012cef8440475f200fd6a
 
 ### Liveness Probe
 
@@ -66,6 +109,12 @@ If this check fails, kubernetes restarts the pod. This should return error code 
 LivenessProbe:
   Path: ""
   port: 8080
+  scheme: ""
+  httpHeader:
+    name: ""
+    value: ""
+  tcp: false
+  command: []
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
@@ -75,15 +124,25 @@ LivenessProbe:
   scheme: ""
   tcp: true
 ```
+<<<<<<< HEAD
  
 | Key | Description |
+=======
+
+
+| Key | Description | optional
+>>>>>>> 87d977d198ef55c4292012cef8440475f200fd6a
 | :--- | :--- |
-| `Path` | It define the path where the liveness needs to be checked. |
+| `Path` | It define the path where the Liveness needs to be checked. |
+| `port` | port for Liveness probe | 
+| `scheme` | scheme for Liveness probe | optional
+| `httpHeader` | headers for Liveness probe request in key val pair (http/https) | optional
 | `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
 | `initialDelaySeconds` | It defines the time to wait before a given container is checked for liveliness. |
 | `periodSeconds` | It defines the time to check a given container for liveness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
+<<<<<<< HEAD
 | `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
@@ -110,6 +169,10 @@ The default value of "MaxSurge: " is 25%.
 MinReadySeconds: 60
 ```
 This specifies the minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available. This defaults to 0 (the Pod will be considered available as soon as it is ready).
+=======
+| `tcp` | |
+| `command`| 
+>>>>>>> 87d977d198ef55c4292012cef8440475f200fd6a
 
 ### Readiness Probe
 

@@ -43,12 +43,15 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/xeipuuv/gojsonschema"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/go-playground/validator.v9"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -1234,6 +1237,35 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 	handler.Logger.Infow("request payload, UpdateAppOverride", "payload", templateRequest)
+	buff, merr := json.Marshal(templateRequest)
+	if merr != nil {
+		handler.Logger.Errorw("marshal err, handleForwardResponseStreamError", "err", merr, "response", templateRequest)
+	}
+	var dat map[string]interface{}
+
+	if err := json.Unmarshal(buff, &dat); err != nil {
+		panic(err)
+	}
+	f, err := os.Create("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/values.json")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer f.Close()
+
+	_, err2 := f.WriteString(string(buff))
+
+	if err2 != nil {
+		log.Fatal(err2)
+	}
+	// os.MkdirAll("/etc/docker/certs.d/"+domain, os.ModePerm)
+	validatejson()
+
+	strs_limit := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+	strs_requests := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+	fmt.Println(strs_limit["cpu"], strs_limit["memory"], strs_requests["cpu"], strs_requests["memory"], "aviral")
+
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
 	if err != nil {
@@ -3276,4 +3308,28 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 		return
 	}
 	writeJsonResp(w, err, suggestedName, http.StatusOK)
+}
+
+func validatejson() {
+	schemaLoader := gojsonschema.NewReferenceLoader("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/schema.json")
+	documentLoader := gojsonschema.NewReferenceLoader("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/values.json")
+
+	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	if result.Valid() {
+
+		fmt.Println("ok")
+
+	} else {
+
+		fmt.Printf("The document is not valid. see errors :\n")
+		for _, err := range result.Errors() {
+			fmt.Println("not ok", err)
+
+		}
+	}
+
 }
