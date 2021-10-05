@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: devtron-dex-ingress-override-cm
+  name: devtron-ingress-override-cm
   namespace:  devtroncd
 data:
   override: |

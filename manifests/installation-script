@@ -86,7 +86,7 @@ natsServer_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-server.yaml";
 natsStreaming_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-streaming.yaml";
 notifier_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/notifier.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
-devtronDexIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-dex-ingress.yaml";
+devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
 workflow_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/workflow.yaml";
 serviceAccount_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/serviceaccount.yaml";
 namespace_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/namespace.yaml";
@@ -114,7 +114,7 @@ natsServer = download(natsServer_raw);
 natsStreaming = download(natsStreaming_raw);
 notifier = download(notifier_raw);
 devtron = download(devtron_raw);
-devtronDexIngress = download(devtronDexIngress_raw);
+devtronIngress = download(devtronIngress_raw);
 workflow = download(workflow_raw);
 serviceAccount = download(serviceAccount_raw);
 namespace = download(namespace_raw);
@@ -142,7 +142,7 @@ natsServerOverride = kubectl get cm -n devtroncd nats-server-override-cm;
 natsStreamingOverride = kubectl get cm -n devtroncd nats-streaming-override-cm;
 notifierOverride = kubectl get cm -n devtroncd notifier-override-cm;
 devtronOverride = kubectl get cm -n devtroncd devtron-override-cm;
-devtronDexIngressOverride = kubectl get cm -n devtroncd devtron-dex-ingress-override-cm;
+devtronIngressOverride = kubectl get cm -n devtroncd devtron-ingress-override-cm;
 workflowOverride = kubectl get cm -n devtroncd workflow-override-cm;
 serviceAccountOverride = kubectl get cm -n devtroncd devtron-service-account-override-cm;
 namespaceOverride = kubectl get cm -n devtroncd namespace-override-cm;
@@ -169,7 +169,7 @@ natsServerOverride = jsonSelect(natsServerOverride, "data.override");
 natsStreamingOverride = jsonSelect(natsStreamingOverride, "data.override");
 notifierOverride = jsonSelect(notifierOverride, "data.override");
 devtronOverride = jsonSelect(devtronOverride, "data.override");
-devtronDexIngressOverride = jsonSelect(devtronDexIngressOverride, "data.override");
+devtronIngressOverride = jsonSelect(devtronIngressOverride, "data.override");
 workflowOverride = jsonSelect(workflowOverride, "data.override");
 serviceAccountOverride = jsonSelect(serviceAccountOverride, "data.override");
 namespaceOverride = jsonSelect(namespaceOverride, "data.override");
@@ -571,7 +571,7 @@ log("executed devtron setup");
 
 if devtronIngressAnnotations {
     log("editing ingress");
-	kubeYamlEdit(devtronDexIngress, "metadata.annotations", devtronIngressAnnotations, `extensions/Ingress//devtron-ingress`, "asObject");
+	kubeYamlEdit(devtronIngress, "metadata.annotations", devtronIngressAnnotations, `extensions/Ingress//devtron-ingress`, "asObject");
 }
 
 if setupDevtronIngress {
@@ -584,12 +584,12 @@ if existingIngress {
 }
 
 if annotations {
-  kubeYamlEdit(devtronDexIngress, "metadata.annotations", annotations, `extensions/Ingress//devtron-ingress`, "asObject");
+  kubeYamlEdit(devtronIngress, "metadata.annotations", annotations, `extensions/Ingress//devtron-ingress`, "asObject");
 }
 
 if setupDevtronIngress {
   log("setup ingress");
-  devtronDexIngress = kubectl apply -n devtroncd devtronDexIngress -u devtronDexIngressOverride;
+  devtronIngress = kubectl apply -n devtroncd devtronIngress -u devtronIngressOverride;
 }
 
 log("executed devtron ingress setup");
