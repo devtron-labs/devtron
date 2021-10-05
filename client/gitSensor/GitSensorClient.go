@@ -77,17 +77,18 @@ type GitMaterial struct {
 	CheckoutStatus   bool
 	CheckoutMsgAny   string
 	Deleted          bool
+	FetchSubmodules  bool
 }
 type GitProvider struct {
-	Id          int
-	Name        string
-	Url         string
-	UserName    string
-	Password    string
-	SshKey      string
-	AccessToken string
-	Active      bool
-	AuthMode    repository.AuthMode
+	Id            int
+	Name          string
+	Url           string
+	UserName      string
+	Password      string
+	SshPrivateKey string
+	AccessToken   string
+	Active        bool
+	AuthMode      repository.AuthMode
 }
 
 type GitCommit struct {

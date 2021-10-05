@@ -27,6 +27,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -157,6 +158,7 @@ type PipelineConfigRestHandlerImpl struct {
 	materialRepository      pipelineConfig.MaterialRepository
 	policyService           security2.PolicyService
 	scanResultRepository    security.ImageScanResultRepository
+	gitProviderRepo         repository.GitProviderRepository
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -177,7 +179,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	appCloneService appClone.AppCloneService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
-	scanResultRepository security.ImageScanResultRepository) *PipelineConfigRestHandlerImpl {
+	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository) *PipelineConfigRestHandlerImpl {
 	return &PipelineConfigRestHandlerImpl{
 		pipelineBuilder:         pipelineBuilder,
 		Logger:                  Logger,
@@ -203,10 +205,15 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		materialRepository:      materialRepository,
 		policyService:           policyService,
 		scanResultRepository:    scanResultRepository,
+		gitProviderRepo:         gitProviderRepo,
 	}
 }
 
-const devtron = "DEVTRON"
+const (
+	devtron = "DEVTRON"
+	SSH_URL_PREFIX = "git@"
+	HTTPS_URL_PREFIX = "https://"
+)
 
 func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
@@ -312,6 +319,19 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 	writeJsonResp(w, err, createResp, http.StatusOK)
 }
 
+func (handler PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool,error ){
+	gitProvider,err := handler.gitProviderRepo.FindOne(strconv.Itoa(gitProviderId))
+	if err !=nil{
+		return false, err
+	}
+	if gitProvider.AuthMode == repository.AUTH_MODE_SSH{
+		hasPrefixResult := strings.HasPrefix(url,SSH_URL_PREFIX)
+		return hasPrefixResult, nil
+	}
+	 hasPrefixResult := strings.HasPrefix(url,HTTPS_URL_PREFIX)
+	 return hasPrefixResult, nil
+}
+
 func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
@@ -334,6 +354,20 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 		handler.Logger.Errorw("validation err, CreateMaterial", "err", err, "CreateMaterial", createMaterialDto)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
+	}
+	for _, gitMaterial := range createMaterialDto.Material {
+		validationResult, err := handler.ValidateGitMaterialUrl(gitMaterial.GitProviderId, gitMaterial.Url)
+		if err != nil {
+			handler.Logger.Errorw("service err, CreateMaterial", "err", err, "CreateMaterial", createMaterialDto)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		} else {
+			if !validationResult {
+				handler.Logger.Errorw("validation err, CreateMaterial : invalid git material url", "err", err, "gitMaterialUrl", gitMaterial.Url, "CreateMaterial", createMaterialDto)
+				writeJsonResp(w, fmt.Errorf("validation for url failed"), nil, http.StatusBadRequest)
+				return
+			}
+		}
 	}
 	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(createMaterialDto.AppId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceObject); !ok {
@@ -372,6 +406,18 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 		handler.Logger.Errorw("validation err, UpdateMaterial", "err", err, "UpdateMaterial", updateMaterialDto)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
+	}
+	validationResult, err := handler.ValidateGitMaterialUrl(updateMaterialDto.Material.GitProviderId, updateMaterialDto.Material.Url)
+	if err != nil {
+		handler.Logger.Errorw("service err, UpdateMaterial", "err", err, "UpdateMaterial", updateMaterialDto)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	} else {
+		if !validationResult {
+			handler.Logger.Errorw("validation err, UpdateMaterial : invalid git material url", "err", err, "gitMaterialUrl", updateMaterialDto.Material.Url, "UpdateMaterial", updateMaterialDto)
+			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
 	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(updateMaterialDto.AppId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceObject); !ok {
