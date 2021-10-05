@@ -48,6 +48,7 @@ type UserService interface {
 	SyncOrchestratorToCasbin() (bool, error)
 	GetUserByToken(token string) (int32, error)
 	IsSuperAdmin(userId int) (bool, error)
+	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
 }
 
 type UserServiceImpl struct {
@@ -974,4 +975,17 @@ func (impl UserServiceImpl) IsSuperAdmin(userId int) (bool, error) {
 		}
 	}
 	return isSuperAdmin, nil
+}
+
+func (impl UserServiceImpl) GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error) {
+	model, err := impl.userRepository.GetByIdIncludeDeleted(id)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	response := &bean.UserInfo{
+		Id:      model.Id,
+		EmailId: model.EmailId,
+	}
+	return response, nil
 }
