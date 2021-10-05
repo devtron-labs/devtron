@@ -18,7 +18,7 @@
                     "type" : "object",
                     "properties": {
                         "ContainerPort": {
-                            "type" : "object",
+                            "type" : "array",
                             "properties": {
                                 "envoyPort": {
                                     "type" : "integer"
@@ -50,7 +50,7 @@
                             "type" : "integer"
                             },
                             "LivenessProbe": {
-                            "type" : "array",
+                            "type" : "object",
                             "properties": {
                                 "Path": {
                                     "type" : "string"
@@ -157,7 +157,7 @@
                                     "type" : "object",
                                     "properties": {
                                         "Key": {
-                                            "type":"null"
+                                            "type":"string"
                                         },
                                         "Values": {
                                         "type" : "string"
@@ -602,7 +602,7 @@
                                     "type" : "object",
                                     "properties": {
                                         "Key": {
-                                            "type":"null"
+                                            "type":"string"
                                         },
                                         "Values": {
                                         "type" : "string"

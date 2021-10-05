@@ -24,9 +24,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+
 	"net/http"
-	"os"
+
 	"strconv"
 	"strings"
 
@@ -1238,34 +1238,38 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 	handler.Logger.Infow("request payload, UpdateAppOverride", "payload", templateRequest)
-	buff, merr := json.Marshal(templateRequest)
-	if merr != nil {
-		handler.Logger.Errorw("marshal err, handleForwardResponseStreamError", "err", merr, "response", templateRequest)
-	}
-	var dat map[string]interface{}
+	// buff, merr := json.Marshal(templateRequest.ValuesOverride)
+	//if merr != nil {
+	//	handler.Logger.Errorw("marshal err, handleForwardResponseStreamError", "err", merr, "response", templateRequest)
+	//}
 
-	if err := json.Unmarshal(buff, &dat); err != nil {
-		panic(err)
-	}
-	f, err := os.Create("https://github.com/devtron-labs/devtron/blob/deployment-template/tests/testdata/values.json")
+	// var dat map[string]interface{}
 
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer f.Close()
-
-	_, err2 := f.WriteString(string(buff))
-
-	if err2 != nil {
-		log.Fatal(err2)
-	}
-	// os.MkdirAll("/etc/docker/certs.d/"+domain, os.ModePerm)
+	// if err := json.Unmarshal(buff, &dat); err != nil {
+	// 	panic(err)
+	// }
+	fmt.Println(3)
 	validatejson()
+	fmt.Println(4)
 
-	strs_limit := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-	strs_requests := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-	fmt.Println(strs_limit["cpu"], strs_limit["memory"], strs_requests["cpu"], strs_requests["memory"], "aviral")
+	//f, err := os.Create("https://github.com/devtron-labs/devtron/blob/deployment-template/tests/testdata/values.json")
+	//
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//
+	//defer f.Close()
+	//
+	//_, err2 := f.WriteString(string(buff))
+	//
+	//if err2 != nil {
+	//	log.Fatal(err2)
+	//}
+	// os.MkdirAll("/etc/docker/certs.d/"+domain, os.ModePerm)
+
+	// strs_limit := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+	// strs_requests := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+	// fmt.Println(strs_limit["cpu"], strs_limit["memory"], strs_requests["cpu"], strs_requests["memory"], "aviral")
 
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
@@ -3312,8 +3316,8 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 }
 
 func validatejson() {
-	schemaLoader := gojsonschema.NewReferenceLoader("https://github.com/devtron-labs/devtron/blob/deployment-template/tests/testdata/schema.json")
-	documentLoader := gojsonschema.NewReferenceLoader("https://github.com/devtron-labs/devtron/blob/deployment-template/tests/testdata/values.json")
+	schemaLoader := gojsonschema.NewReferenceLoader("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/schema.json")
+	documentLoader := gojsonschema.NewReferenceLoader("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/values.json")
 
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
