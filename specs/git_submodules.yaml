@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Git Submodules support in
+  title: Git Submodules support in CI
 paths:
   /orchestrator/git/provider:
     post:
