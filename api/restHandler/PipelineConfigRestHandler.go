@@ -24,6 +24,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"regexp"
 
 	"net/http"
 
@@ -209,6 +211,16 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		scanResultRepository:    scanResultRepository,
 	}
 }
+
+type resourceParser struct {
+	name        string
+	pattern     string
+	regex       *regexp.Regexp
+	conversions map[string]float64
+}
+
+var memoryParser *resourceParser
+var cpuParser *resourceParser
 
 const devtron = "DEVTRON"
 
@@ -1248,47 +1260,31 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	if err := json.Unmarshal(buff, &dat); err != nil {
 		panic(err)
 	}
-	x := validatejson(dat)
+	if validatejson(dat) {
+		token := r.Header.Get("token")
+		app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
+		if err != nil {
+			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 
-	//f, err := os.Create("https://github.com/devtron-labs/devtron/blob/deployment-template/tests/testdata/values.json")
-	//
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//
-	//defer f.Close()
-	//
-	//_, err2 := f.WriteString(string(buff))
-	//
-	//if err2 != nil {
-	//	log.Fatal(err2)
-	//}
-	// os.MkdirAll("/etc/docker/certs.d/"+domain, os.ModePerm)
+		resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceName); !ok {
+			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
 
-	// strs_limit := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-	// strs_requests := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-	// fmt.Println(strs_limit["cpu"], strs_limit["memory"], strs_requests["cpu"], strs_requests["memory"], "aviral")
-
-	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
-	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+		createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
+		if err != nil {
+			handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		writeJsonResp(w, err, createResp, http.StatusOK)
+	} else {
+		fmt.Println("Values are incorrect")
 	}
 
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceName); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-
-	createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
-	if err != nil {
-		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, err, createResp, http.StatusOK)
 }
 func (handler PipelineConfigRestHandlerImpl) FetchArtifactForRollback(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -3317,7 +3313,38 @@ func validatejson(jsondoc pipeline.TemplateRequest) bool {
 
 	schemaLoader := gojsonschema.NewReferenceLoader("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/schema.json")
 	documentLoader := gojsonschema.NewGoLoader(jsondoc)
+	buff, merr := json.Marshal(jsondoc)
+	if merr != nil {
+		panic(merr)
+	}
 
+	var dat map[string]interface{}
+
+	if err := json.Unmarshal(buff, &dat); err != nil {
+		panic(err)
+	}
+	for _, i := range []string{"valuesOverride", "defaultAppOverride"} {
+
+		limit := dat[i].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+		request := dat[i].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+
+		cpu_limit, _ := CpuToNumber(limit["cpu"].(string))
+		memory_limit, _ := MemoryToNumber(limit["memory"].(string))
+		cpu_request, _ := CpuToNumber(request["cpu"].(string))
+		memory_request, _ := MemoryToNumber(request["memory"].(string))
+
+		envoproxy_limit := dat[i].(map[string]interface{})["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+		envoproxy_request := dat[i].(map[string]interface{})["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+
+		envoproxy_cpu_limit, _ := CpuToNumber(envoproxy_limit["cpu"].(string))
+		envoproxy_memory_limit, _ := MemoryToNumber(envoproxy_limit["memory"].(string))
+		envoproxy_cpu_request, _ := CpuToNumber(envoproxy_request["cpu"].(string))
+		envoproxy_memory_request, _ := MemoryToNumber(envoproxy_request["memory"].(string))
+		if (envoproxy_cpu_limit < envoproxy_cpu_request) || (envoproxy_memory_limit < envoproxy_memory_request) || (cpu_limit < cpu_request) || (memory_limit < memory_request) {
+			return false
+		}
+
+	}
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
 		panic(err.Error())
@@ -3336,4 +3363,100 @@ func validatejson(jsondoc pipeline.TemplateRequest) bool {
 		}
 		return false
 	}
+}
+
+func MemoryToNumber(memory string) (float64, error) {
+	if memoryParser == nil {
+		pattern := "(\\d*e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)"
+		re, _ := regexp.Compile(pattern)
+		memoryParser = &resourceParser{
+			name:    "memory",
+			pattern: pattern,
+			regex:   re,
+			conversions: map[string]float64{
+				"E":  float64(1000000000000000000),
+				"P":  float64(1000000000000000),
+				"T":  float64(1000000000000),
+				"G":  float64(1000000000),
+				"M":  float64(1000000),
+				"K":  float64(1000),
+				"Ei": float64(1152921504606846976),
+				"Pi": float64(1125899906842624),
+				"Ti": float64(1099511627776),
+				"Gi": float64(1073741824),
+				"Mi": float64(1048576),
+				"Ki": float64(1024),
+			},
+		}
+	}
+	return convertResource(memoryParser, memory)
+}
+func CpuToNumber(cpu string) (float64, error) {
+	if cpuParser == nil {
+		pattern := "(\\d*e?\\d*)(m?)"
+		re, _ := regexp.Compile(pattern)
+		cpuParser = &resourceParser{
+			name:    "cpu",
+			pattern: pattern,
+			regex:   re,
+			conversions: map[string]float64{
+				"m": .001,
+			},
+		}
+	}
+	return convertResource(cpuParser, cpu)
+}
+func convertResource(rp *resourceParser, resource string) (float64, error) {
+	matches := rp.regex.FindAllStringSubmatch(resource, -1)
+	if len(matches[0]) < 2 {
+		fmt.Printf("expected pattern for %s should match %s, found %s\n", rp.name, rp.pattern, resource)
+		return float64(0), fmt.Errorf("expected pattern for %s should match %s, found %s", rp.name, rp.pattern, resource)
+	}
+	num, err := ParseFloat(matches[0][1])
+	if err != nil {
+		fmt.Println(err)
+		return float64(0), err
+	}
+	if len(matches[0]) == 3 && matches[0][2] != "" {
+		if suffix, ok := rp.conversions[matches[0][2]]; ok {
+			return num * suffix, nil
+		}
+	} else {
+		return num, nil
+	}
+	fmt.Printf("expected pattern for %s should match %s, found %s\n", rp.name, rp.pattern, resource)
+	return float64(0), fmt.Errorf("expected pattern for %s should match %s, found %s", rp.name, rp.pattern, resource)
+}
+
+func ParseFloat(str string) (float64, error) {
+	val, err := strconv.ParseFloat(str, 64)
+	if err == nil {
+		return val, nil
+	}
+
+	//Some number may be seperated by comma, for example, 23,120,123, so remove the comma firstly
+	str = strings.Replace(str, ",", "", -1)
+
+	//Some number is specifed in scientific notation
+	pos := strings.IndexAny(str, "eE")
+	if pos < 0 {
+		return strconv.ParseFloat(str, 64)
+	}
+
+	var baseVal float64
+	var expVal int64
+
+	baseStr := str[0:pos]
+	baseVal, err = strconv.ParseFloat(baseStr, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	expStr := str[(pos + 1):]
+	expVal, err = strconv.ParseInt(expStr, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return baseVal * math.Pow10(int(expVal)), nil
 }
