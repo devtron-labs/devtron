@@ -57,7 +57,7 @@ data:
   CD_NODE_TAINTS_VALUE: "ci"
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
-  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:3ce0f62e-138-5031"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:76a0f1bb-138-5415"
   DEFAULT_CD_TIMEOUT: "3600"
   WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
   CI_LOGS_KEY_PREFIX: "ci-artifacts"
@@ -153,7 +153,7 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:774edb93-146-5351"
+          image: "quay.io/devtron/devtron:d724cf05-146-5431"
           imagePullPolicy: IfNotPresent
           ports:
             - name: devtron
