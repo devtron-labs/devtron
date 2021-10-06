@@ -1,0 +1,348 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Git Submodules support in CI
+paths:
+  /orchestrator/git/provider:
+    post:
+      description: save git repo(account) config
+      operationId: SaveGitRepoConfig
+      requestBody:
+        description: A JSON object containing the git repo configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitRegistry'
+      responses:
+        '200':
+          description: Successfully save the config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitRegistry'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      description: update git repo(account) config
+      operationId: UpdateGitRepoConfig
+      requestBody:
+        description: A JSON object containing the git repo configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitRegistry'
+      responses:
+        '200':
+          description: Successfully update the config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitRegistry'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      description: get all git account config
+      operationId: FetchAllGitProviders
+      responses:
+        '200':
+          description: Successfully return details of all git providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GitRegistry'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/git/material:
+    post:
+      description: save git material config
+      operationId: CreateMaterial
+      requestBody:
+        description: A JSON object containing the git material configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMaterialDTO'
+      responses:
+        '200':
+          description: Successfully save the config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateMaterialDTO'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      description: update git material config
+      operationId: UpdateMaterial
+      requestBody:
+        description: A JSON object containing the git repo configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMaterialDTO'
+      responses:
+        '200':
+          description: Successfully update the config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateMaterialDTO'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/app/get/{appId}:
+    parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      description: get details of an app by its Id
+      operationId: GetApp
+      responses:
+        '200':
+          description: Successfully return details of an app
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CreateAppDTO'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/app/{appId}/autocomplete/git:
+    parameters:
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      description: get all git providers
+      operationId: GitListAutocomplete
+      responses:
+        '200':
+          description: Successfully return details of all git providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GitRegistry'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    GitRegistry:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        url:
+          type: string
+        userName:
+          type: string
+        password:
+          type: string
+        sshPrivateKey:
+          type: string
+        accessToken:
+          type: string
+        authMode:
+          type: string
+        active:
+          type: boolean
+        gitHostId:
+          type: integer
+    CreateAppDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+        appname:
+          type: string
+        material:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitMaterial'
+        teamId:
+          type: integer
+        templateId:
+          type: integer
+        appLabels:
+          type: array
+          items:
+            $ref: '#/components/schemas/labels'
+    labels:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+    CreateMaterialDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+        appId:
+          type: integer
+        material:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitMaterial'
+    UpdateMaterialDTO:
+      type: object
+      properties:
+        appId:
+          type: integer
+        material:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitMaterial'
+    GitMaterial:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        url:
+          type: string
+        gitProviderId:
+          type: integer
+        checkoutPath:
+          type: string
+        fetchSubmodules:
+          type: boolean
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

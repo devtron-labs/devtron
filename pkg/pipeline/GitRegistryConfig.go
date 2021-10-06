@@ -31,11 +31,11 @@ import (
 )
 
 type GitRegistryConfig interface {
-	Create(request *GitRegistryRequest) (*GitRegistryRequest, error)
-	GetAll() ([]GitRegistryRequest, error)
-	FetchAllGitProviders() ([]GitRegistryRequest, error)
-	FetchOneGitProvider(id string) (*GitRegistryRequest, error)
-	Update(request *GitRegistryRequest) (*GitRegistryRequest, error)
+	Create(request *GitRegistry) (*GitRegistry, error)
+	GetAll() ([]GitRegistry, error)
+	FetchAllGitProviders() ([]GitRegistry, error)
+	FetchOneGitProvider(id string) (*GitRegistry, error)
+	Update(request *GitRegistry) (*GitRegistry, error)
 }
 type GitRegistryConfigImpl struct {
 	logger          *zap.SugaredLogger
@@ -43,7 +43,7 @@ type GitRegistryConfigImpl struct {
 	GitSensorClient gitSensor.GitSensorClient
 }
 
-type GitRegistryRequest struct {
+type GitRegistry struct {
 	Id            int                 `json:"id,omitempty" validate:"number"`
 	Name          string              `json:"name,omitempty" validate:"required"`
 	Url           string              `json:"url,omitempty"`
@@ -65,7 +65,7 @@ func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo reposit
 	}
 }
 
-func (impl GitRegistryConfigImpl) Create(request *GitRegistryRequest) (*GitRegistryRequest, error) {
+func (impl GitRegistryConfigImpl) Create(request *GitRegistry) (*GitRegistry, error) {
 	impl.logger.Debugw("get repo create request", "req", request)
 	exist, err := impl.gitProviderRepo.ProviderExists(request.Url)
 	if err != nil {
@@ -125,16 +125,16 @@ func (impl GitRegistryConfigImpl) Create(request *GitRegistryRequest) (*GitRegis
 }
 
 //get all active git providers
-func (impl GitRegistryConfigImpl) GetAll() ([]GitRegistryRequest, error) {
+func (impl GitRegistryConfigImpl) GetAll() ([]GitRegistry, error) {
 	impl.logger.Debug("get all provider request")
 	providers, err := impl.gitProviderRepo.FindAllActiveForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all git providers", "err", err)
 		return nil, err
 	}
-	var gitProviders []GitRegistryRequest
+	var gitProviders []GitRegistry
 	for _, provider := range providers {
-		providerRes := GitRegistryRequest{
+		providerRes := GitRegistry{
 			Id:        provider.Id,
 			Name:      provider.Name,
 			Url:       provider.Url,
@@ -146,16 +146,16 @@ func (impl GitRegistryConfigImpl) GetAll() ([]GitRegistryRequest, error) {
 	return gitProviders, err
 }
 
-func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]GitRegistryRequest, error) {
+func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]GitRegistry, error) {
 	impl.logger.Debug("fetch all git providers from db")
 	providers, err := impl.gitProviderRepo.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all git providers", "err", err)
 		return nil, err
 	}
-	var gitProviders []GitRegistryRequest
+	var gitProviders []GitRegistry
 	for _, provider := range providers {
-		providerRes := GitRegistryRequest{
+		providerRes := GitRegistry{
 			Id:            provider.Id,
 			Name:          provider.Name,
 			Url:           provider.Url,
@@ -173,7 +173,7 @@ func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]GitRegistryRequest, 
 	return gitProviders, err
 }
 
-func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRegistryRequest, error) {
+func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRegistry, error) {
 	impl.logger.Debug("fetch git provider by ID from db")
 	provider, err := impl.gitProviderRepo.FindOne(providerId)
 	if err != nil {
@@ -181,7 +181,7 @@ func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRe
 		return nil, err
 	}
 
-	providerRes := &GitRegistryRequest{
+	providerRes := &GitRegistry{
 		Id:            provider.Id,
 		Name:          provider.Name,
 		Url:           provider.Url,
@@ -198,7 +198,7 @@ func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRe
 	return providerRes, err
 }
 
-func (impl GitRegistryConfigImpl) Update(request *GitRegistryRequest) (*GitRegistryRequest, error) {
+func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, error) {
 	impl.logger.Debugw("get repo create request", "req", request)
 
 	/*
