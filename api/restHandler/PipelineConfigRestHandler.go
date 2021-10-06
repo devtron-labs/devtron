@@ -1232,6 +1232,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+
 	var templateRequest pipeline.TemplateRequest
 	err = decoder.Decode(&templateRequest)
 	templateRequest.UserId = userId
@@ -1240,13 +1241,6 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	err = handler.validator.Struct(templateRequest)
-	if err != nil {
-		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err, "payload", templateRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.Logger.Infow("request payload, UpdateAppOverride", "payload", templateRequest)
 	buff, merr := json.Marshal(templateRequest)
 	if merr != nil {
 		handler.Logger.Errorw("marshal err, UpdateAppOverride", "err", merr, "payload", templateRequest)
@@ -1259,8 +1253,16 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		handler.Logger.Errorw("unmarshal err, UpdateAppOverride", "err", err, "payload", templateRequest)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 	}
-	chartVersion := dat.RefChartTemplate
-	if DeploymentTemplateValidate(dat, chartVersion) {
+	ChartVersion := dat.RefChartTemplate
+	if DeploymentTemplateValidate(dat, ChartVersion) {
+		err = handler.validator.Struct(templateRequest)
+		if err != nil {
+			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err, "payload", templateRequest)
+			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		handler.Logger.Infow("request payload, UpdateAppOverride", "payload", templateRequest)
+
 		token := r.Header.Get("token")
 		app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
 		if err != nil {
@@ -3309,9 +3311,9 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 	writeJsonResp(w, err, suggestedName, http.StatusOK)
 }
 
-func DeploymentTemplateValidate(jsondoc pipeline.TemplateRequest, chartVersion string) bool {
+func DeploymentTemplateValidate(jsondoc pipeline.TemplateRequest, schemafile string) bool {
 
-	schemaLoader := gojsonschema.NewReferenceLoader(fmt.Sprintf("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/%s.json", chartVersion))
+	schemaLoader := gojsonschema.NewReferenceLoader(fmt.Sprintf("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/%s.json", schemafile))
 	documentLoader := gojsonschema.NewGoLoader(jsondoc)
 	buff, _ := json.Marshal(jsondoc)
 
