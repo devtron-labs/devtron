@@ -137,6 +137,8 @@ podAnnotations: {}
 
 rawYaml: []
 
+topologySpreadConstraints: []
+
 initContainers: []
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
@@ -170,6 +172,10 @@ dbMigrationConfig:
 
 tolerations: []
 
+podSecurityContext: {}
+
+containerSecurityContext: {}
+
 Spec:
   Affinity:
     Key:
@@ -191,6 +197,19 @@ autoscaling:
 #        targetAverageValue: "2"
 #      type: External
 #
+
+kedaAutoscaling:
+  enabled: false
+  envSourceContainerName: "" # Optional. Default: .spec.template.spec.containers[0]
+  minReplicaCount: 1 
+  maxReplicaCount: 2
+  advanced: {}
+  triggers: []
+  triggerAuthentication:
+    enabled: false
+    name: ""
+    spec: {}
+  authenticationRef: {}
 
 prometheus:
   release: monitoring
