@@ -13,14 +13,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GitRegistryRequest'
+              $ref: '#/components/schemas/GitRegistry'
       responses:
         '200':
           description: Successfully save the config
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GitRegistryRequest'
+                $ref: '#/components/schemas/GitRegistry'
         '400':
           description: Bad Request. Input Validation(decode) error/wrong request body.
           content:
@@ -48,14 +48,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GitRegistryRequest'
+              $ref: '#/components/schemas/GitRegistry'
       responses:
         '200':
           description: Successfully update the config
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GitRegistryRequest'
+                $ref: '#/components/schemas/GitRegistry'
         '400':
           description: Bad Request. Input Validation(decode) error/wrong request body.
           content:
@@ -85,7 +85,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/GitRegistryRequest'
+                  $ref: '#/components/schemas/GitRegistry'
         '400':
           description: Bad Request. Input Validation(decode) error/wrong request body.
           content:
@@ -230,7 +230,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/GitRegistryRequest'
+                  $ref: '#/components/schemas/GitRegistry'
         '400':
           description: Bad Request. Input Validation(decode) error/wrong request body.
           content:
@@ -251,7 +251,7 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
-    GitRegistryRequest:
+    GitRegistry:
       type: object
       properties:
         id:
