@@ -25,13 +25,10 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"regexp"
-
 	"net/http"
-
+	"regexp"
 	"strconv"
 	"strings"
-
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -1252,16 +1249,18 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	handler.Logger.Infow("request payload, UpdateAppOverride", "payload", templateRequest)
 	buff, merr := json.Marshal(templateRequest)
 	if merr != nil {
-		handler.Logger.Errorw("marshal err, handleForwardResponseStreamError", "err", merr, "response", templateRequest)
+		handler.Logger.Errorw("marshal err, UpdateAppOverride", "err", merr, "payload", templateRequest)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 
 	var dat pipeline.TemplateRequest
 
 	if err := json.Unmarshal(buff, &dat); err != nil {
-		panic(err)
+		handler.Logger.Errorw("unmarshal err, UpdateAppOverride", "err", err, "payload", templateRequest)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 	chartVersion := dat.RefChartTemplate
-	if validatejson(dat, chartVersion) {
+	if DeploymentTemplateValidate(dat, chartVersion) {
 		token := r.Header.Get("token")
 		app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
 		if err != nil {
@@ -3310,19 +3309,16 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 	writeJsonResp(w, err, suggestedName, http.StatusOK)
 }
 
-func validatejson(jsondoc pipeline.TemplateRequest, chartVersion string) bool {
+func DeploymentTemplateValidate(jsondoc pipeline.TemplateRequest, chartVersion string) bool {
 
 	schemaLoader := gojsonschema.NewReferenceLoader(fmt.Sprintf("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/%s.json", chartVersion))
 	documentLoader := gojsonschema.NewGoLoader(jsondoc)
-	buff, merr := json.Marshal(jsondoc)
-	if merr != nil {
-		panic(merr)
-	}
+	buff, _ := json.Marshal(jsondoc)
 
 	var dat map[string]interface{}
 
 	if err := json.Unmarshal(buff, &dat); err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 	for _, i := range []string{"valuesOverride", "defaultAppOverride"} {
 
@@ -3346,10 +3342,7 @@ func validatejson(jsondoc pipeline.TemplateRequest, chartVersion string) bool {
 		}
 
 	}
-	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
-	if err != nil {
-		panic(err.Error())
-	}
+	result, _ := gojsonschema.Validate(schemaLoader, documentLoader)
 
 	if result.Valid() {
 
