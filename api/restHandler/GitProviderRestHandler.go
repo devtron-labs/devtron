@@ -73,7 +73,7 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.GitRegistryRequest
+	var bean pipeline.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveGitRepoConfig", "err", err, "payload", bean)
@@ -127,7 +127,7 @@ func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWrite
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	result := make([]pipeline.GitRegistryRequest, 0)
+	result := make([]pipeline.GitRegistry, 0)
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, rbac.ResourceGit, rbac.ActionGet, strings.ToLower(item.Name)); ok {
 			result = append(result, item)
@@ -166,7 +166,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.GitRegistryRequest
+	var bean pipeline.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateGitRepoConfig", "err", err, "payload", bean)

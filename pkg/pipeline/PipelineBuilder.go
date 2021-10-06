@@ -229,11 +229,12 @@ func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDT
 	var gitMaterials []*bean.GitMaterial
 	for _, material := range materials {
 		gitMaterial := &bean.GitMaterial{
-			Url:           material.Url,
-			Name:          material.Name[strings.Index(material.Name, "-")+1:],
-			Id:            material.Id,
-			GitProviderId: material.GitProviderId,
-			CheckoutPath:  material.CheckoutPath,
+			Url:             material.Url,
+			Name:            material.Name[strings.Index(material.Name, "-")+1:],
+			Id:              material.Id,
+			GitProviderId:   material.GitProviderId,
+			CheckoutPath:    material.CheckoutPath,
+			FetchSubmodules: material.FetchSubmodules,
 		}
 		gitMaterials = append(gitMaterials, gitMaterial)
 	}
