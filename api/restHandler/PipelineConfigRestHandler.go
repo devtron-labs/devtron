@@ -24,11 +24,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
+
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -3311,43 +3313,46 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 	writeJsonResp(w, err, suggestedName, http.StatusOK)
 }
 
-func DeploymentTemplateValidate(jsondoc pipeline.TemplateRequest, schemafile string) bool {
+func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafile string) bool {
+	jsonFile, _ := os.Open(fmt.Sprintf("tests/testdata/%s.json", schemafile))
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+	var schemajson map[string]interface{}
+	json.Unmarshal([]byte(byteValue), &schemajson)
+	schemaLoader := gojsonschema.NewGoLoader(schemajson)
+	documentLoader := gojsonschema.NewGoLoader(templatejson)
+	buff, _ := json.Marshal(templatejson)
 
-	schemaLoader := gojsonschema.NewReferenceLoader(fmt.Sprintf("file:///Users/aviralsrivastava/GolandProjects/devtron/tests/testdata/%s.json", schemafile))
-	documentLoader := gojsonschema.NewGoLoader(jsondoc)
-	buff, _ := json.Marshal(jsondoc)
-
-	var dat map[string]interface{}
-
-	if err := json.Unmarshal(buff, &dat); err != nil {
-		fmt.Println(err)
-	}
-	for _, i := range []string{"valuesOverride", "defaultAppOverride"} {
-
-		limit := dat[i].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-		request := dat[i].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-
-		cpu_limit, _ := CpuToNumber(limit["cpu"].(string))
-		memory_limit, _ := MemoryToNumber(limit["memory"].(string))
-		cpu_request, _ := CpuToNumber(request["cpu"].(string))
-		memory_request, _ := MemoryToNumber(request["memory"].(string))
-
-		envoproxy_limit := dat[i].(map[string]interface{})["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-		envoproxy_request := dat[i].(map[string]interface{})["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-
-		envoproxy_cpu_limit, _ := CpuToNumber(envoproxy_limit["cpu"].(string))
-		envoproxy_memory_limit, _ := MemoryToNumber(envoproxy_limit["memory"].(string))
-		envoproxy_cpu_request, _ := CpuToNumber(envoproxy_request["cpu"].(string))
-		envoproxy_memory_request, _ := MemoryToNumber(envoproxy_request["memory"].(string))
-		if (envoproxy_cpu_limit < envoproxy_cpu_request) || (envoproxy_memory_limit < envoproxy_memory_request) || (cpu_limit < cpu_request) || (memory_limit < memory_request) {
-			return false
-		}
-
-	}
 	result, _ := gojsonschema.Validate(schemaLoader, documentLoader)
 
 	if result.Valid() {
+		var dat map[string]interface{}
 
+		if err := json.Unmarshal(buff, &dat); err != nil {
+			fmt.Println(err)
+		}
+		//limits and requests are mandatory fields in schema
+		for _, i := range []string{"valuesOverride", "defaultAppOverride"} {
+
+			limit := dat[i].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+			request := dat[i].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+
+			cpu_limit, _ := util2.CpuToNumber(limit["cpu"].(string))
+			memory_limit, _ := util2.MemoryToNumber(limit["memory"].(string))
+			cpu_request, _ := util2.CpuToNumber(request["cpu"].(string))
+			memory_request, _ := util2.MemoryToNumber(request["memory"].(string))
+
+			envoproxy_limit := dat[i].(map[string]interface{})["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+			envoproxy_request := dat[i].(map[string]interface{})["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+
+			envoproxy_cpu_limit, _ := util2.CpuToNumber(envoproxy_limit["cpu"].(string))
+			envoproxy_memory_limit, _ := util2.MemoryToNumber(envoproxy_limit["memory"].(string))
+			envoproxy_cpu_request, _ := util2.CpuToNumber(envoproxy_request["cpu"].(string))
+			envoproxy_memory_request, _ := util2.MemoryToNumber(envoproxy_request["memory"].(string))
+			if (envoproxy_cpu_limit < envoproxy_cpu_request) || (envoproxy_memory_limit < envoproxy_memory_request) || (cpu_limit < cpu_request) || (memory_limit < memory_request) {
+				return false
+			}
+
+		}
 		fmt.Println("ok")
 		return true
 	} else {
@@ -3359,100 +3364,4 @@ func DeploymentTemplateValidate(jsondoc pipeline.TemplateRequest, schemafile str
 		}
 		return false
 	}
-}
-
-func MemoryToNumber(memory string) (float64, error) {
-	if memoryParser == nil {
-		pattern := "(\\d*e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)"
-		re, _ := regexp.Compile(pattern)
-		memoryParser = &resourceParser{
-			name:    "memory",
-			pattern: pattern,
-			regex:   re,
-			conversions: map[string]float64{
-				"E":  float64(1000000000000000000),
-				"P":  float64(1000000000000000),
-				"T":  float64(1000000000000),
-				"G":  float64(1000000000),
-				"M":  float64(1000000),
-				"K":  float64(1000),
-				"Ei": float64(1152921504606846976),
-				"Pi": float64(1125899906842624),
-				"Ti": float64(1099511627776),
-				"Gi": float64(1073741824),
-				"Mi": float64(1048576),
-				"Ki": float64(1024),
-			},
-		}
-	}
-	return convertResource(memoryParser, memory)
-}
-func CpuToNumber(cpu string) (float64, error) {
-	if cpuParser == nil {
-		pattern := "(\\d*e?\\d*)(m?)"
-		re, _ := regexp.Compile(pattern)
-		cpuParser = &resourceParser{
-			name:    "cpu",
-			pattern: pattern,
-			regex:   re,
-			conversions: map[string]float64{
-				"m": .001,
-			},
-		}
-	}
-	return convertResource(cpuParser, cpu)
-}
-func convertResource(rp *resourceParser, resource string) (float64, error) {
-	matches := rp.regex.FindAllStringSubmatch(resource, -1)
-	if len(matches[0]) < 2 {
-		fmt.Printf("expected pattern for %s should match %s, found %s\n", rp.name, rp.pattern, resource)
-		return float64(0), fmt.Errorf("expected pattern for %s should match %s, found %s", rp.name, rp.pattern, resource)
-	}
-	num, err := ParseFloat(matches[0][1])
-	if err != nil {
-		fmt.Println(err)
-		return float64(0), err
-	}
-	if len(matches[0]) == 3 && matches[0][2] != "" {
-		if suffix, ok := rp.conversions[matches[0][2]]; ok {
-			return num * suffix, nil
-		}
-	} else {
-		return num, nil
-	}
-	fmt.Printf("expected pattern for %s should match %s, found %s\n", rp.name, rp.pattern, resource)
-	return float64(0), fmt.Errorf("expected pattern for %s should match %s, found %s", rp.name, rp.pattern, resource)
-}
-
-func ParseFloat(str string) (float64, error) {
-	val, err := strconv.ParseFloat(str, 64)
-	if err == nil {
-		return val, nil
-	}
-
-	//Some number may be seperated by comma, for example, 23,120,123, so remove the comma firstly
-	str = strings.Replace(str, ",", "", -1)
-
-	//Some number is specifed in scientific notation
-	pos := strings.IndexAny(str, "eE")
-	if pos < 0 {
-		return strconv.ParseFloat(str, 64)
-	}
-
-	var baseVal float64
-	var expVal int64
-
-	baseStr := str[0:pos]
-	baseVal, err = strconv.ParseFloat(baseStr, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	expStr := str[(pos + 1):]
-	expVal, err = strconv.ParseInt(expStr, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return baseVal * math.Pow10(int(expVal)), nil
 }

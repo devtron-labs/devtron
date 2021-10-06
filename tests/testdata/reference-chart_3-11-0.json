@@ -248,7 +248,8 @@
                                         "type" : "string",
                                         "format": "memory"
                                         }
-                                    }
+                                    },
+                                    "required":["cpu","memory"]
                                     },
                                     "requests": {
                                     "type" : "object",
@@ -262,9 +263,11 @@
                                         "format": "memory"
     
                                         }
+                                    },
+                                    "required":["cpu","memory"]
                                     }
-                                    }
-                                }
+                                },
+                                "required":["limits","requests"]
                                 }
                             }
                             },
@@ -380,7 +383,8 @@
                                     "type" : "string",
                                     "format": "memory"
                                     }
-                                }
+                                },
+                                "required":["cpu","memory"]
                                 },
                                 "requests": {
                                 "type" : "object",
@@ -394,9 +398,11 @@
                                     "format": "memory"
     
                                     }
+                                },
+                                "required":["cpu","memory"]
                                 }
-                                }
-                            }
+                            },
+                            "required":["limits","requests"]
                             },
                             "secret": {
                             "type" : "object",
@@ -693,7 +699,8 @@
                                         "type" : "string",
                                         "format": "memory"
                                         }
-                                    }
+                                    },
+                                    "required":["cpu","memory"]
                                     },
                                     "requests": {
                                     "type" : "object",
@@ -707,9 +714,11 @@
                                         "format": "memory"
     
                                         }
+                                    },
+                                    "required":["cpu","memory"]
                                     }
-                                    }
-                                }
+                                },
+                                "required":["limits","requests"]
                                 }
                             }
                             },
@@ -825,7 +834,8 @@
                                     "type" : "string",
                                     "format": "memory"
                                     }
-                                }
+                                },
+                                "required":["cpu","memory"]
                                 },
                                 "requests": {
                                 "type" : "object",
@@ -839,9 +849,11 @@
                                     "format": "memory"
     
                                     }
+                                },
+                                "required":["cpu","memory"]
                                 }
-                                }
-                            }
+                            },
+                            "required":["limits","requests"]
                             },
                             "secret": {
                             "type" : "object",
