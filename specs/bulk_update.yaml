@@ -10,7 +10,7 @@ paths:
       description: Returns Readme for bulk update for different resource in the url
       operationId: FindBulkUpdateReadme
       parameters:
-        - name: apiVersion
+        - name: apiVrsion
           in: path
           required: true
           schema:
