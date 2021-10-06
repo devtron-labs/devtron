@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -3314,21 +3315,25 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 }
 
 func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafile string) bool {
-	jsonFile, _ := os.Open(fmt.Sprintf("tests/testdata/%s.json", schemafile))
+	jsonFile, _ := os.Open(fmt.Sprintf("schema/%s.json", schemafile))
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 	var schemajson map[string]interface{}
 	json.Unmarshal([]byte(byteValue), &schemajson)
 	schemaLoader := gojsonschema.NewGoLoader(schemajson)
 	documentLoader := gojsonschema.NewGoLoader(templatejson)
-	buff, _ := json.Marshal(templatejson)
-
-	result, _ := gojsonschema.Validate(schemaLoader, documentLoader)
-
+	buff, err := json.Marshal(templatejson)
+	if err != nil {
+		log.Fatal(err)
+	}
+	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	if err != nil {
+		log.Fatal(err)
+	}
 	if result.Valid() {
 		var dat map[string]interface{}
 
 		if err := json.Unmarshal(buff, &dat); err != nil {
-			fmt.Println(err)
+			log.Fatal(err)
 		}
 		//limits and requests are mandatory fields in schema
 		for _, i := range []string{"valuesOverride", "defaultAppOverride"} {
