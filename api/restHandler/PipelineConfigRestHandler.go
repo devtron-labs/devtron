@@ -1257,7 +1257,8 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 	ChartVersion := dat.RefChartTemplate
-	if DeploymentTemplateValidate(dat, ChartVersion) {
+	validate, error := DeploymentTemplateValidate(dat, ChartVersion)
+	if validate {
 		err = handler.validator.Struct(templateRequest)
 		if err != nil {
 			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err, "payload", templateRequest)
@@ -1288,6 +1289,8 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, err, createResp, http.StatusOK)
 	} else {
 		fmt.Println("Values are incorrect")
+		writeJsonResp(w, error, nil, http.StatusBadRequest)
+		return
 	}
 
 }
@@ -3314,7 +3317,7 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 	writeJsonResp(w, err, suggestedName, http.StatusOK)
 }
 
-func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafile string) bool {
+func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafile string) (bool, error) {
 	jsonFile, _ := os.Open(fmt.Sprintf("schema/%s.json", schemafile))
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 	var schemajson map[string]interface{}
@@ -3324,16 +3327,19 @@ func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafil
 	buff, err := json.Marshal(templatejson)
 	if err != nil {
 		log.Fatal(err)
+		return false, err
 	}
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
 		log.Fatal(err)
+		return false, err
 	}
 	if result.Valid() {
 		var dat map[string]interface{}
 
 		if err := json.Unmarshal(buff, &dat); err != nil {
 			log.Fatal(err)
+			return false, err
 		}
 		//limits and requests are mandatory fields in schema
 		for _, i := range []string{"valuesOverride", "defaultAppOverride"} {
@@ -3354,12 +3360,12 @@ func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafil
 			envoproxy_cpu_request, _ := util2.CpuToNumber(envoproxy_request["cpu"].(string))
 			envoproxy_memory_request, _ := util2.MemoryToNumber(envoproxy_request["memory"].(string))
 			if (envoproxy_cpu_limit < envoproxy_cpu_request) || (envoproxy_memory_limit < envoproxy_memory_request) || (cpu_limit < cpu_request) || (memory_limit < memory_request) {
-				return false
+				return false, nil
 			}
 
 		}
 		fmt.Println("ok")
-		return true
+		return true, nil
 	} else {
 
 		fmt.Printf("The document is not valid. see errors :\n")
@@ -3367,6 +3373,6 @@ func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafil
 			fmt.Println("not ok", err)
 
 		}
-		return false
+		return false, err
 	}
 }
