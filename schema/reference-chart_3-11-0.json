@@ -263,11 +263,11 @@
                                         "format": "memory"
     
                                         }
-                                    },
-                                    "required":["cpu","memory"]
+                                    }
+                                   
                                     }
                                 },
-                                "required":["limits","requests"]
+                                "required":["limits"]
                                 }
                             }
                             },
@@ -398,11 +398,10 @@
                                     "format": "memory"
     
                                     }
-                                },
-                                "required":["cpu","memory"]
+                                }
                                 }
                             },
-                            "required":["limits","requests"]
+                            "required":["limits"]
                             },
                             "secret": {
                             "type" : "object",
@@ -463,7 +462,8 @@
                             "type" : "integer"
                             }
                             
-                    }
+                    },
+                    "required":["autoscaling"]
                 },
                 "defaultAppOverride": {
                     "type" : "object",
@@ -653,6 +653,7 @@
                                 "type" : "array"
                                 }
                             }
+                                
                             },
                             "command": {
                             "type" : "object",
@@ -714,11 +715,11 @@
                                         "format": "memory"
     
                                         }
-                                    },
-                                    "required":["cpu","memory"]
+                                    }
+                                   
                                     }
                                 },
-                                "required":["limits","requests"]
+                                "required":["limits"]
                                 }
                             }
                             },
@@ -849,11 +850,10 @@
                                     "format": "memory"
     
                                     }
-                                },
-                                "required":["cpu","memory"]
+                                }
                                 }
                             },
-                            "required":["limits","requests"]
+                            "required":["limits"]
                             },
                             "secret": {
                             "type" : "object",
@@ -914,7 +914,8 @@
                             "type" : "integer"
                             }
                             
-                    }
+                    },
+                    "required":["autoscaling"]
                 },
                 "chartRefId": {
                 "type" : "integer"

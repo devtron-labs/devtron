@@ -3343,26 +3343,28 @@ func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafil
 		}
 		//limits and requests are mandatory fields in schema
 		for _, i := range []string{"valuesOverride", "defaultAppOverride"} {
+			autoscaleEnabled := dat[i].(map[string]interface{})["autoscaling"].(map[string]interface{})
+			if autoscaleEnabled["enabled"].(bool) {
+				limit := dat[i].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+				request := dat[i].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
 
-			limit := dat[i].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-			request := dat[i].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+				cpu_limit, _ := util2.CpuToNumber(limit["cpu"].(string))
+				memory_limit, _ := util2.MemoryToNumber(limit["memory"].(string))
+				cpu_request, _ := util2.CpuToNumber(request["cpu"].(string))
+				memory_request, _ := util2.MemoryToNumber(request["memory"].(string))
 
-			cpu_limit, _ := util2.CpuToNumber(limit["cpu"].(string))
-			memory_limit, _ := util2.MemoryToNumber(limit["memory"].(string))
-			cpu_request, _ := util2.CpuToNumber(request["cpu"].(string))
-			memory_request, _ := util2.MemoryToNumber(request["memory"].(string))
+				envoproxy_limit := dat[i].(map[string]interface{})["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+				envoproxy_request := dat[i].(map[string]interface{})["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
 
-			envoproxy_limit := dat[i].(map[string]interface{})["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-			envoproxy_request := dat[i].(map[string]interface{})["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+				envoproxy_cpu_limit, _ := util2.CpuToNumber(envoproxy_limit["cpu"].(string))
+				envoproxy_memory_limit, _ := util2.MemoryToNumber(envoproxy_limit["memory"].(string))
+				envoproxy_cpu_request, _ := util2.CpuToNumber(envoproxy_request["cpu"].(string))
+				envoproxy_memory_request, _ := util2.MemoryToNumber(envoproxy_request["memory"].(string))
+				if (envoproxy_cpu_limit < envoproxy_cpu_request) || (envoproxy_memory_limit < envoproxy_memory_request) || (cpu_limit < cpu_request) || (memory_limit < memory_request) {
+					return false, errors.New("requests is greater than limits")
+				}
 
-			envoproxy_cpu_limit, _ := util2.CpuToNumber(envoproxy_limit["cpu"].(string))
-			envoproxy_memory_limit, _ := util2.MemoryToNumber(envoproxy_limit["memory"].(string))
-			envoproxy_cpu_request, _ := util2.CpuToNumber(envoproxy_request["cpu"].(string))
-			envoproxy_memory_request, _ := util2.MemoryToNumber(envoproxy_request["memory"].(string))
-			if (envoproxy_cpu_limit < envoproxy_cpu_request) || (envoproxy_memory_limit < envoproxy_memory_request) || (cpu_limit < cpu_request) || (memory_limit < memory_request) {
-				return false, nil
 			}
-
 		}
 		fmt.Println("ok")
 		return true, nil
