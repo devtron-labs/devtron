@@ -240,11 +240,11 @@ These define minimum and maximum RAM and CPU available to the application.
 ```yaml
 resources:
   limits:
-    cpu: '1'
-    memory: 200Mi
+    cpu: "1"
+    memory: "200Mi"
   requests:
-    cpu: '0.10'
-    memory: 100Mi
+    cpu: "0.10"
+    memory: "100Mi"
 ```
 
 Resources are required to set CPU and memory usage.
@@ -502,11 +502,11 @@ envoyproxy:
   configMapName: ""
   resources:
     limits:
-      cpu: 50m
-      memory: 50Mi
+      cpu: "50m"
+      memory: "50Mi"
     requests:
-      cpu: 50m
-      memory: 50Mi
+      cpu: "50m"
+      memory: "50Mi"
 ```
 
 Envoy is attached as a sidecar to the application container to collect metrics like 4XX, 5XX, Throughput and latency. You can now configure the envoy settings such as idleTimeout, resources etc.
@@ -575,3 +575,52 @@ If you want to see application metrics like different HTTP status codes metrics,
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
 
+### Helm Chart Json Schema
+
+Helm Chart json schema is used to validate the deployment template values.
+
+```
+"resources": {
+"type" : "object",
+"properties": {
+    "limits": {
+    "type" : "object",
+    "properties": {
+        "cpu": {
+        "type" : "string",
+        "format": "cpu"
+        },
+        "memory": {
+        "type" : "string",
+        "format": "memory"
+        }
+    },
+    "required":["cpu","memory"]
+    },
+    "requests": {
+    "type" : "object",
+    "properties": {
+        "cpu": {
+        "type" : "string",
+        "format": "cpu"
+        },
+        "memory": {
+        "type" : "string",
+        "format": "memory"
+
+        }
+    }
+    
+    }
+},
+"required":["limits"]
+}
+```
+
+### Format
+
+Format is used to accept the helm chart values in a particular form.
+
+1. ```"format" : "cpu"``` means format to enter the value in ```cpu``` should be ```"1"``` or ```"1000m"```.
+
+2. ```"format" : "memory"``` means format to enter the value in ```memory``` should be ```"1000Mi"``` or ```"1Gi"```.

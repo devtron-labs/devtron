@@ -1288,7 +1288,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		}
 		writeJsonResp(w, err, createResp, http.StatusOK)
 	} else {
-		fmt.Println("Values are incorrect")
+		fmt.Println("Values are incorrect", error)
 		writeJsonResp(w, error, nil, http.StatusBadRequest)
 		return
 	}
@@ -3371,10 +3371,11 @@ func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafil
 	} else {
 
 		fmt.Printf("The document is not valid. see errors :\n")
+		var errorString string
 		for _, err := range result.Errors() {
-			fmt.Println("not ok", err)
+			errorString = errorString + err.Field() + ", discription: " + err.Description() + "; "
 
 		}
-		return false, err
+		return false, errors.New(errorString)
 	}
 }
