@@ -212,16 +212,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	}
 }
 
-type resourceParser struct {
-	name        string
-	pattern     string
-	regex       *regexp.Regexp
-	conversions map[string]float64
-}
-
-var memoryParser *resourceParser
-var cpuParser *resourceParser
-
 const devtron = "DEVTRON"
 
 func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r *http.Request) {
