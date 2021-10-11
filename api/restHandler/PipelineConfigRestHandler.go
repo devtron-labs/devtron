@@ -3317,6 +3317,63 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 	writeJsonResp(w, err, suggestedName, http.StatusOK)
 }
 
+type (
+	UnitChecker   struct{}
+	MemoryChecker struct{}
+)
+
+var (
+	UChecker, _   = regexp.Compile("^([0-9.]+)m$")
+	NoUChecker, _ = regexp.Compile("^([0-9.]+)$")
+	MiChecker, _  = regexp.Compile("^[0-9]+Mi$")
+	GiChecker, _  = regexp.Compile("^[0-9]+Gi$")
+	TiChecker, _  = regexp.Compile("^[0-9]+Ti$")
+	PiChecker, _  = regexp.Compile("^[0-9]+Pi$")
+	KiChecker, _  = regexp.Compile("^[0-9]+Ki$")
+)
+
+func (f UnitChecker) IsFormat(input interface{}) bool {
+	asString, ok := input.(string)
+	if !ok {
+		return true
+	}
+
+	if UChecker.MatchString(asString) {
+		return true
+	} else if NoUChecker.MatchString(asString) {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (f MemoryChecker) IsFormat(input interface{}) bool {
+	asString, ok := input.(string)
+	if !ok {
+		return true
+	}
+
+	// fmt.Println("hello", asString)
+	if MiChecker.MatchString(asString) {
+		return true
+	} else if GiChecker.MatchString(asString) {
+		return true
+	} else if TiChecker.MatchString(asString) {
+		return true
+	} else if PiChecker.MatchString(asString) {
+		return true
+	} else if KiChecker.MatchString(asString) {
+		return true
+	} else {
+		return false
+	}
+}
+
+const memoryPattern = `"100Mi" or "1Gi" or "1Ti"`
+const cpuPattern = `"50m" or "0.05"`
+const cpu = "cpu"
+const memory = "memory"
+
 func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafile string) (bool, error) {
 	jsonFile, _ := os.Open(fmt.Sprintf("schema/%s.json", schemafile))
 	byteValue, _ := ioutil.ReadAll(jsonFile)
@@ -3369,13 +3426,18 @@ func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafil
 		fmt.Println("ok")
 		return true, nil
 	} else {
-
+		var stringerror string
 		fmt.Printf("The document is not valid. see errors :\n")
-		var errorString string
 		for _, err := range result.Errors() {
-			errorString = errorString + err.Field() + ", discription: " + err.Description() + "; "
-
+			fmt.Println(err.Details()["format"])
+			if err.Details()["format"] == cpu {
+				stringerror = stringerror + "Error in " + err.Field() + ". Format should be like " + cpuPattern + "\n"
+			} else if err.Details()["format"] == memory {
+				stringerror = stringerror + "Error in " + err.Field() + ". Format should be like " + memoryPattern + "\n"
+			} else {
+				stringerror = stringerror + err.String() + "\n"
+			}
 		}
-		return false, errors.New(errorString)
+		return false, errors.New(stringerror)
 	}
 }

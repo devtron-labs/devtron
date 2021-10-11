@@ -102,9 +102,6 @@ type (
 
 	// RelativeJSONPointerFormatChecker validates a relative JSON Pointer is in the correct format
 	RelativeJSONPointerFormatChecker struct{}
-
-	UnitChecker   struct{}
-	MemoryChecker struct{}
 )
 
 var (
@@ -129,8 +126,6 @@ var (
 			"regex":                 RegexFormatChecker{},
 			"json-pointer":          JSONPointerFormatChecker{},
 			"relative-json-pointer": RelativeJSONPointerFormatChecker{},
-			"cpu":                   UnitChecker{},
-			"memory":                MemoryChecker{},
 		},
 	}
 
@@ -145,14 +140,6 @@ var (
 	rxJSONPointer = regexp.MustCompile("^(?:/(?:[^~/]|~0|~1)*)*$")
 
 	rxRelJSONPointer = regexp.MustCompile("^(?:0|[1-9][0-9]*)(?:#|(?:/(?:[^~/]|~0|~1)*)*)$")
-
-	UChecker, _   = regexp.Compile("^([0-9.]+)m$")
-	NoUChecker, _ = regexp.Compile("^([0-9.]+)$")
-	MiChecker, _  = regexp.Compile("^[0-9]+Mi$")
-	GiChecker, _  = regexp.Compile("^[0-9]+Gi$")
-	TiChecker, _  = regexp.Compile("^[0-9]+Ti$")
-	PiChecker, _  = regexp.Compile("^[0-9]+Pi$")
-	KiChecker, _  = regexp.Compile("^[0-9]+Ki$")
 
 	lock = new(sync.RWMutex)
 )
@@ -378,37 +365,4 @@ func (f RelativeJSONPointerFormatChecker) IsFormat(input interface{}) bool {
 	}
 
 	return rxRelJSONPointer.MatchString(asString)
-}
-func (f UnitChecker) IsFormat(input interface{}) bool {
-	asString, ok := input.(string)
-	if !ok {
-		return true
-	}
-	if UChecker.MatchString(asString) {
-		return true
-	} else if NoUChecker.MatchString(asString) {
-		return true
-	} else {
-		return false
-	}
-}
-func (f MemoryChecker) IsFormat(input interface{}) bool {
-	asString, ok := input.(string)
-	if !ok {
-		return true
-	}
-	// fmt.Println("hello", asString)
-	if MiChecker.MatchString(asString) {
-		return true
-	} else if GiChecker.MatchString(asString) {
-		return true
-	} else if TiChecker.MatchString(asString) {
-		return true
-	} else if PiChecker.MatchString(asString) {
-		return true
-	} else if KiChecker.MatchString(asString) {
-		return true
-	} else {
-		return false
-	}
 }
