@@ -988,6 +988,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 				writeJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
+
 			if pg.ErrNoRows == err {
 				template.ChartRefId = chartRefId
 				template.Id = 0
