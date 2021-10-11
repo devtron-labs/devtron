@@ -100,6 +100,8 @@ You can use any registry which can be authenticated using `docker login -u <user
 Some popular registries which can be used using username and password mechanism:
 
 * **Google Container Registry (GCR)** : JSON key file authentication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) for getting username and password for this registry. Please remove all the white spaces from json key and wrap it in single quote while putting in password field.  
+
 ![](../../.gitbook/assets/gc-docker-configure-gcr.png)
+
 * **Google Artifact Registry (GAR)** : JSON key file authentication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key) for getting username and password for this registry. Please remove all the white spaces from json key and wrap it in single quote while putting in password field.
 * **Azure Container Registry (ACR)** : Service principal authentication method can be used to authenticate with username and password. Please follow [link](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) for getting username and password for this registry. 
