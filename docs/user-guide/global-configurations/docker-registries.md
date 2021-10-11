@@ -96,7 +96,7 @@ Now click on `Save` to save the configuration of the `Docker registry`.
 
 ### Note:
 
-You can use any registry which can be authenticated using `docker login -u <username> -p <password> <registry-url>`. However these registries might provide a more secured way for authenication, which we will support later.
+You can use any registry which can be authenticated using `docker login -u <username> -p <password> <registry-url>`. However these registries might provide a more secured way for authentication, which we will support later.
 Some popular registries which can be used using username and password mechanism:
 
 * **Google Container Registry (GCR)** : JSON key file authenication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) for getting username and password for this registry.
