@@ -148,7 +148,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 	space := regexp.MustCompile(`\s+`)
 	appName = space.ReplaceAllString(appName, "-")
 
-	gitOpsConfigBitbucket, err := impl.gitFactory.GitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+	gitOpsConfigBitbucket, err := impl.gitFactory.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
@@ -357,7 +357,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
-	gitOpsConfigBitbucket, err := impl.gitFactory.GitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+	gitOpsConfigBitbucket, err := impl.gitFactory.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""

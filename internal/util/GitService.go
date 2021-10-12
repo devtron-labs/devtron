@@ -63,7 +63,7 @@ type GitFactory struct {
 	gitService       GitService
 	GitWorkingDir    string
 	logger           *zap.SugaredLogger
-	GitOpsRepository repository.GitOpsConfigRepository
+	gitOpsRepository repository.GitOpsConfigRepository
 	gitCliUtil       *GitCliUtil
 }
 
@@ -75,7 +75,7 @@ type DetailedErrorGitOpsConfigActions struct {
 
 func (factory *GitFactory) Reload() error {
 	logger.Infow("reloading gitops details")
-	cfg, err := GetGitConfig(factory.GitOpsRepository)
+	cfg, err := GetGitConfig(factory.gitOpsRepository)
 	if err != nil {
 		return err
 	}
@@ -142,7 +142,7 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 		Client:           client,
 		logger:           logger,
 		gitService:       gitService,
-		GitOpsRepository: gitOpsRepository,
+		gitOpsRepository: gitOpsRepository,
 		GitWorkingDir:    cfg.GitWorkingDir,
 		gitCliUtil:       gitCliUtil,
 	}, nil
