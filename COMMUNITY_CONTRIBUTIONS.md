@@ -10,6 +10,8 @@
 
 * https://blog.livspace.io/how-livspace-revolutionised-its-ci-cd-saga-3120724e271b - By Livspace
 
+* https://dzone.com/articles/appops-with-kubernetes-and-devtron-the-perfect-fit - By Sudip Sengupta, Javelynn
+
 * https://gochronicles.com/devtron-introduction/ - By Go-Chronicals (Part-1)
 
 * https://gochronicles.com/installing-devtron/ - By Go-Chronicals (Part-2)
@@ -19,10 +21,12 @@
 
 ## Videos
 
-* https://www.youtube.com/watch?v=FB5BI3Ef7uw&t=363s - Let's learn Devtron
-
 * https://www.youtube.com/watch?v=ZKcfZC-zSMM - By Victor Farcic
 
 * https://www.youtube.com/watch?v=bA6zgjPD_yA&t=2927s - FOSS United Conference
 
 * https://www.youtube.com/watch?v=ekxHV2Gje-E&t=7856s - AWS UG OSTech Conf 2021
+
+* https://www.youtube.com/watch?v=W4-UorfDQxI - Carbon_Capital Consulting 
+
+* https://www.youtube.com/watch?v=FB5BI3Ef7uw&t=363s - Let's learn Devtron
