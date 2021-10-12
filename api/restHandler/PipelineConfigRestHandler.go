@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
+	validator2 "github.com/devtron-labs/devtron/internal/validator"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -43,7 +44,6 @@ import (
 	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
-	schema2 "github.com/devtron-labs/devtron/schema"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
@@ -1244,7 +1244,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 	ChartVersion := dat.RefChartTemplate
-	validate, error := schema2.DeploymentTemplateValidate(dat, ChartVersion)
+	validate, error := validator2.DeploymentTemplateValidate(dat, ChartVersion)
 	if validate {
 		err = handler.validator.Struct(templateRequest)
 		if err != nil {
