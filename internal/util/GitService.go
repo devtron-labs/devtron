@@ -46,10 +46,11 @@ const (
 	CreateReadmeStage     = "Create Readme"
 	CloneSshStage         = "Clone Ssh"
 	GITLAB_PROVIDER       = "GITLAB"
-	GITHUB_PROVIDER       = "GTIHUB"
+	GITHUB_PROVIDER       = "GITHUB"
 	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
 	BITBUCKET_PROVIDER    = "BITBUCKET"
 )
+
 
 type GitClient interface {
 	CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProject string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
