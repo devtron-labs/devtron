@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -114,6 +115,7 @@ type InstalledAppServiceImpl struct {
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *user.ACDAuthConfig
+	gitOpsRepository                     repository3.GitOpsConfigRepository
 }
 
 func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -136,7 +138,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	envService cluster2.EnvironmentService,
 	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository,
 	argoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *util.GitFactory, aCDAuthConfig *user.ACDAuthConfig) (*InstalledAppServiceImpl, error) {
+	gitFactory *util.GitFactory, aCDAuthConfig *user.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		chartRepository:                      chartRepository,
 		logger:                               logger,
@@ -162,6 +164,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 		ArgoK8sClient:                        argoK8sClient,
 		gitFactory:                           gitFactory,
 		aCDAuthConfig:                        aCDAuthConfig,
+		gitOpsRepository:                     gitOpsRepository,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -322,15 +325,15 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *c
 		ChartLocation:  argocdAppName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
-	//gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	//if err != nil {
-	//	if err == pg.ErrNoRows {
-	//		gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-	//	} else {
-	//		return err
-	//	}
-	//}
-	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement, "")
+	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			return err
+		}
+	}
+	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return err
@@ -367,15 +370,15 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *cluster.Enviro
 		ChartLocation:  argocdAppName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
 	}
-	//gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	//if err != nil {
-	//	if err == pg.ErrNoRows {
-	//		gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-	//	} else {
-	//		return err
-	//	}
-	//}
-	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, "")
+	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			return err
+		}
+	}
+	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return err
@@ -992,18 +995,18 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 			impl.logger.Errorw("fetching error", "err", err)
 			return nil, err
 		}
-		//gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-		//if err != nil {
-		//	if err == pg.ErrNoRows {
-		//		gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		//		gitOpsConfigBitbucket.BitBucketProject = ""
-		//	} else {
-		//		return nil, err
-		//	}
-		//}
+		gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+		if err != nil {
+			if err == pg.ErrNoRows {
+				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+				gitOpsConfigBitbucket.BitBucketProject = ""
+			} else {
+				return nil, err
+			}
+		}
 		bitbucketRepoOptions := &bitbucket.RepositoryOptions{
-			Owner:    "",
-			Project:  "",
+			Owner:    gitOpsConfigBitbucket.BitBucketWorkspaceId,
+			Project:  gitOpsConfigBitbucket.BitBucketProject,
 			RepoSlug: installedAppVersion.AppStoreName,
 		}
 		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(installedAppVersion.AppStoreName, bitbucketRepoOptions)
@@ -1182,15 +1185,15 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 		ChartLocation:  argocdAppName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
-	//gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	//if err != nil {
-	//	if err == pg.ErrNoRows {
-	//		gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-	//	} else {
-	//		return nil, nil, err
-	//	}
-	//}
-	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement, "")
+	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			return nil, nil, err
+		}
+	}
+	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return nil, nil, err
@@ -1231,7 +1234,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 		ChartLocation:  argocdAppName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
-	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, "")
+	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return nil, nil, err
