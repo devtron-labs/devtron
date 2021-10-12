@@ -112,4 +112,5 @@ require (
 	k8s.io/utils v0.0.0-20191010214722-8d271d903fe4 // indirect
 	mellium.im/sasl v0.2.1 // indirect
 	xorm.io/core v0.7.2 // indirect
+	github.com/ktrysmt/go-bitbucket v0.9.27
 )
