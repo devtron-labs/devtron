@@ -71,6 +71,7 @@ const (
 	GITHUB_HOST        = "https://github.com/"
 	GITLAB_PROVIDER    = "GITLAB"
 	BITBUCKET_PROVIDER = "BITBUCKET"
+	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
 	BITBUCKET_API_HOST = "https://api.bitbucket.org/2.0/"
 )
 
@@ -697,10 +698,10 @@ func (impl *GitOpsConfigServiceImpl) getDir() string {
 }
 func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, provider string) error {
 	var errorMessage error
-	if provider == "GITLAB" {
+	if provider == GITLAB_PROVIDER {
 		errorResponse := err.(*gitlab.ErrorResponse)
 		errorMessage = fmt.Errorf("%s", errorResponse.Message)
-	} else if provider == "AZURE_DEVOPS" {
+	} else if provider == AZURE_DEVOPS_PROVIDER {
 		if fmt.Sprintf("%T", err) == "azuredevops.WrappedError" {
 			errorResponse := err.(azuredevops.WrappedError)
 			errorMessage = fmt.Errorf("%s", *errorResponse.Message)
@@ -708,10 +709,8 @@ func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, pr
 			errorResponse := err.(*azuredevops.WrappedError)
 			errorMessage = fmt.Errorf("%s", *errorResponse.Message)
 		}
-	} else if provider == "GITHUB" {
+	} else if provider == GITHUB_PROVIDER || provider == BITBUCKET_PROVIDER{
 		return err
-		//errorResponse := err.(*github.ErrorResponse)
-		//errorMessage = fmt.Errorf("%s", errorResponse.Message)
 	}
 	return errorMessage
 }
