@@ -273,15 +273,15 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r
 	var bean bean2.GitOpsConfigDto
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, CreateGitOpsConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("request err, ValidateGitOpsConfig", "err", err, "payload", bean)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, CreateGitOpsConfig", "err", err, "payload", bean)
+	impl.logger.Infow("request payload, ValidateGitOpsConfig", "err", err, "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, CreateGitOpsConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("validation err, ValidateGitOpsConfig", "err", err, "payload", bean)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
