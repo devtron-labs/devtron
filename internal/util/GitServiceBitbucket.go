@@ -14,6 +14,7 @@ import (
 const (
 	BITBUCKET_CLONE_BASE_URL = "https://bitbucket.org/"
 	BITBUCKET_GITOPS_DIR     = "bitbucketGitOps"
+	BITBUCKET_REPO_NOT_FOUND_ERROR = "404 Not Found"
 )
 
 type GitBitbucketClient struct {
@@ -114,7 +115,7 @@ func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, 
 
 func (impl GitBitbucketClient) repoExists(repoOptions *bitbucket.RepositoryOptions) (repo *bitbucket.Repository, exists bool, err error) {
 	repo, err = impl.client.Repositories.Repository.Get(repoOptions)
-	if repo == nil && err == fmt.Errorf("404 Not Found") {
+	if repo == nil && err.Error() == BITBUCKET_REPO_NOT_FOUND_ERROR {
 		return repo, false, nil
 	}
 	if err != nil {
