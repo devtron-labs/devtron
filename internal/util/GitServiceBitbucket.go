@@ -114,7 +114,7 @@ func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, 
 
 func (impl GitBitbucketClient) repoExists(repoOptions *bitbucket.RepositoryOptions) (repo *bitbucket.Repository, exists bool, err error) {
 	repo, err = impl.client.Repositories.Repository.Get(repoOptions)
-	if repo == nil && err == fmt.Errorf("404 not found") {
+	if repo == nil && err == fmt.Errorf("404 Not Found") {
 		return repo, false, nil
 	}
 	if err != nil {
