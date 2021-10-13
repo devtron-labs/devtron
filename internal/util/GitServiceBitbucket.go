@@ -44,7 +44,7 @@ func (impl GitBitbucketClient) GetRepoUrl(repoName string, repoOptions *bitbucke
 	} else if !exists {
 		return "", fmt.Errorf("%s :repo not found", repoOptions.RepoSlug)
 	} else {
-		repoUrl = fmt.Sprintf(BITBUCKET_CLONE_BASE_URL, "%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
+		repoUrl = fmt.Sprintf(BITBUCKET_CLONE_BASE_URL + "%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
 		return repoUrl, nil
 	}
 }
