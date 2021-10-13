@@ -29,7 +29,7 @@ func (impl GitAzureClient) GetRepoUrl(repoName string, repoOptions *bitbucket.Re
 	}
 }
 
-func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitService GitService) (GitAzureClient,error) {
+func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitService GitService) (GitAzureClient, error) {
 	ctx := context.Background()
 	// Create a connection to your organization
 	connection := azuredevops.NewPatConnection(host, token)
@@ -126,7 +126,7 @@ func (impl GitAzureClient) createReadme(repoName string) (string, error) {
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
 	}
-	hash, err := impl.CommitValues(cfg,"")
+	hash, err := impl.CommitValues(cfg, "")
 	if err != nil {
 		impl.logger.Errorw("error in creating readme azure", "repo", repoName, "err", err)
 	}

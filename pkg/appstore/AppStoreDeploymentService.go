@@ -999,7 +999,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		if err != nil {
 			if err == pg.ErrNoRows {
 				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-				gitOpsConfigBitbucket.BitBucketProjectKey  = ""
+				gitOpsConfigBitbucket.BitBucketProjectKey = ""
 			} else {
 				return nil, err
 			}

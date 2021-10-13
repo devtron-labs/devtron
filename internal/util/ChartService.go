@@ -153,7 +153,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 			gitOpsConfigBitbucket.BitBucketProjectKey = ""
-		} else{
+		} else {
 			return nil, err
 		}
 	}
@@ -362,7 +362,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 			gitOpsConfigBitbucket.BitBucketProjectKey = ""
-		} else{
+		} else {
 			return nil, err
 		}
 	}

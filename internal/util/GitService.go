@@ -51,7 +51,6 @@ const (
 	BITBUCKET_PROVIDER    = "BITBUCKET"
 )
 
-
 type GitClient interface {
 	CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
 	CommitValues(config *ChartConfig, bitbucketWorkspaceId string) (commitHash string, err error)
@@ -190,7 +189,7 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		AzureToken:           gitOpsConfig.Token,
 		AzureProject:         gitOpsConfig.AzureProject,
 		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
-		BitbucketProjectKey:     gitOpsConfig.BitBucketProjectKey,
+		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
 	}
 	return cfg, err
 }
