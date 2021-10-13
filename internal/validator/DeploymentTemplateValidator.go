@@ -9,13 +9,12 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/xeipuuv/gojsonschema"
 )
 
 type (
-	UnitChecker   struct{}
+	CpuChecker    struct{}
 	MemoryChecker struct{}
 )
 
@@ -29,7 +28,7 @@ var (
 	KiChecker, _  = regexp.Compile("^[0-9]+Ki$")
 )
 
-func (f UnitChecker) IsFormat(input interface{}) bool {
+func (f CpuChecker) IsFormat(input interface{}) bool {
 	asString, ok := input.(string)
 	if !ok {
 		return true
@@ -50,7 +49,6 @@ func (f MemoryChecker) IsFormat(input interface{}) bool {
 		return true
 	}
 
-	// fmt.Println("hello", asString)
 	if MiChecker.MatchString(asString) {
 		return true
 	} else if GiChecker.MatchString(asString) {
@@ -71,7 +69,10 @@ const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
 
-func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafile string) (bool, error) {
+func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bool, error) {
+	gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
+	gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
+
 	jsonFile, _ := os.Open(fmt.Sprintf("schema/%s.json", schemafile))
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 	var schemajson map[string]interface{}
@@ -83,6 +84,7 @@ func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafil
 		log.Fatal(err)
 		return false, err
 	}
+	fmt.Println(string(buff))
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
 		log.Fatal(err)
@@ -96,30 +98,30 @@ func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafil
 			return false, err
 		}
 		//limits and requests are mandatory fields in schema
-		for _, i := range []string{"valuesOverride", "defaultAppOverride"} {
-			autoscaleEnabled := dat[i].(map[string]interface{})["autoscaling"].(map[string]interface{})
-			if autoscaleEnabled["enabled"].(bool) {
-				limit := dat[i].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-				request := dat[i].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
 
-				cpu_limit, _ := util2.CpuToNumber(limit["cpu"].(string))
-				memory_limit, _ := util2.MemoryToNumber(limit["memory"].(string))
-				cpu_request, _ := util2.CpuToNumber(request["cpu"].(string))
-				memory_request, _ := util2.MemoryToNumber(request["memory"].(string))
+		autoscaleEnabled := dat["autoscaling"].(map[string]interface{})
+		if autoscaleEnabled["enabled"].(bool) {
+			limit := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+			request := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
 
-				envoproxy_limit := dat[i].(map[string]interface{})["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-				envoproxy_request := dat[i].(map[string]interface{})["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+			cpu_limit, _ := util2.CpuToNumber(limit["cpu"].(string))
+			memory_limit, _ := util2.MemoryToNumber(limit["memory"].(string))
+			cpu_request, _ := util2.CpuToNumber(request["cpu"].(string))
+			memory_request, _ := util2.MemoryToNumber(request["memory"].(string))
 
-				envoproxy_cpu_limit, _ := util2.CpuToNumber(envoproxy_limit["cpu"].(string))
-				envoproxy_memory_limit, _ := util2.MemoryToNumber(envoproxy_limit["memory"].(string))
-				envoproxy_cpu_request, _ := util2.CpuToNumber(envoproxy_request["cpu"].(string))
-				envoproxy_memory_request, _ := util2.MemoryToNumber(envoproxy_request["memory"].(string))
-				if (envoproxy_cpu_limit < envoproxy_cpu_request) || (envoproxy_memory_limit < envoproxy_memory_request) || (cpu_limit < cpu_request) || (memory_limit < memory_request) {
-					return false, errors.New("requests is greater than limits")
-				}
+			envoproxy_limit := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+			envoproxy_request := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
 
+			envoproxy_cpu_limit, _ := util2.CpuToNumber(envoproxy_limit["cpu"].(string))
+			envoproxy_memory_limit, _ := util2.MemoryToNumber(envoproxy_limit["memory"].(string))
+			envoproxy_cpu_request, _ := util2.CpuToNumber(envoproxy_request["cpu"].(string))
+			envoproxy_memory_request, _ := util2.MemoryToNumber(envoproxy_request["memory"].(string))
+			if (envoproxy_cpu_limit < envoproxy_cpu_request) || (envoproxy_memory_limit < envoproxy_memory_request) || (cpu_limit < cpu_request) || (memory_limit < memory_request) {
+				return false, errors.New("requests is greater than limits")
 			}
+
 		}
+
 		fmt.Println("ok")
 		return true, nil
 	} else {
@@ -128,9 +130,9 @@ func DeploymentTemplateValidate(templatejson pipeline.TemplateRequest, schemafil
 		for _, err := range result.Errors() {
 			fmt.Println(err.Details()["format"])
 			if err.Details()["format"] == cpu {
-				stringerror = stringerror + "Error in " + err.Field() + ". Format should be like " + cpuPattern + "\n"
+				stringerror = stringerror + err.Field() + ": Format should be like " + cpuPattern + "\n"
 			} else if err.Details()["format"] == memory {
-				stringerror = stringerror + "Error in " + err.Field() + ". Format should be like " + memoryPattern + "\n"
+				stringerror = stringerror + err.Field() + ": Format should be like " + memoryPattern + "\n"
 			} else {
 				stringerror = stringerror + err.String() + "\n"
 			}

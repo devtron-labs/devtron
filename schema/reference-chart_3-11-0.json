@@ -2,499 +2,487 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "object",
     "properties": {
-                "id": {
-                "type" : "integer"
-                },
-                "appId": {
-                "type" : "integer"
-                },
-                "refChartTemplate": {
-                "type" : "string"
-                },
-                "refChartTemplateVersion": {
-                "type" : "string"
-                },
-                "valuesOverride": {
-                    "type" : "object",
-                    "properties": {
-                        "ContainerPort": {
-                            "type" : "array",
-                            "items": {
-                                "type":"object",
-                                "properties": {
-                                "envoyPort": {
-                                    "type" : "integer",
-                                    "enum": [8799,8800]
-                                    },
-                                 "idleTimeout": {
-                                    "type" : "string"
-                                    },
-                                "name": {
-                                    "type" : "string"
-                                    },
-                                "port": {
-                                    "type" : "integer"
-                                    },
-                                "servicePort": {
-                                    "type" : "integer"
-                                    },
-                                "supportStreaming": {
-                                    "type" : "boolean"
-                                    },
-                                 "useHTTP2": {
-                                    "type" : "boolean"
-                                    }
-                            },
-                            "required":["port"]
-                        }
-                        
-                        },
-                        "EnvVariables": {
-                        "type" : "array"
-                        },
-                        "GracePeriod": {
-                        "type" : "integer"
-                        },
-                        "LivenessProbe": {
-                        "type" : "object",
-                        "properties": {
-                            "Path": {
-                                "type" : "string"
-                                },
-                                "command": {
-                                "type" : "array"
-                                },
-                                "failureThreshold": {
-                                "type" : "integer"
-                                },
-                                "httpHeader": {
-                                "type" : "object",
-                                "properties": {
-                                    "name": {
-                                    "type" : "string"
-                                    },
-                                    "value": {
-                                    "type" : "string"
-                                    }
-                                }
-                                },
-                                "initialDelaySeconds": {
-                                "type" : "integer"
-                                },
-                                "periodSeconds": {
-                                "type" : "integer"
-                                },
-                                "port": {
-                                "type" : "integer"
-                                },
-                                "scheme": {
-                                "type" : "string"
-                                },
-                                "successThreshold": {
-                                "type" : "integer"
-                                },
-                                "tcp": {
-                                "type" : "boolean"
-                                },
-                                "timeoutSeconds": {
-                                "type" : "integer"
-                                }
-                        }
-                        },
-                        "MaxSurge": {
-                        "type" : "integer"
-                        },
-                        "MaxUnavailable": {
-                        "type" : "integer"
-                        },
-                        "MinReadySeconds": {
-                        "type" : "integer"
-                        },
-                        "ReadinessProbe": {
-                        "type" : "object",
-                        "properties": {
-                            "Path": {
-                                "type" : "string"
-                                },
-                                "command": {
-                                "type" : "array"
-                                },
-                                "failureThreshold": {
-                                "type" : "integer"
-                                },
-                                "httpHeader": {
-                                "type" : "object",
-                                "properties": {
-                                    "name": {
-                                    "type" : "string"
-                                    },
-                                    "value": {
-                                    "type" : "string"
-                                    }
-                                }
-                                },
-                                "initialDelaySeconds": {
-                                "type" : "integer"
-                                },
-                                "periodSeconds": {
-                                "type" : "integer"
-                                },
-                                "port": {
-                                "type" : "integer"
-                                },
-                                "scheme": {
-                                "type" : "string"
-                                },
-                                "successThreshold": {
-                                "type" : "integer"
-                                },
-                                "tcp": {
-                                "type" : "boolean"
-                                },
-                                "timeoutSeconds": {
-                                "type" : "integer"
-                                }
-                        }
-                        },
-                        "Spec": {
-                        "type" : "object",
-                        "properties": {
-                            "Affinity": {
-                                "type" : "object",
-                                "properties": {
-                                    "Key": {
-                                        "type":"null"
-                                    },
-                                    "Values": {
-                                    "type" : "string"
-                                    },
-                                    "key": {
-                                    "type" : "string"
-                                    }
-                                }
-                                }
-                        }
-                        },
-                        "args": {
-                        "type" : "object",
-                        "properties": {
-                            "enabled": {
-                            "type" : "boolean"
-                            },
-                            "value": {
-                            "type" : "array"
-                            }
-                        }
-                        },
-                        "autoscaling": {
-                        "type" : "object",
-                        "properties": {
-                            "MaxReplicas": {
-                            "type" : "integer"
-                            },
-                            "MinReplicas": {
-                            "type" : "integer"
-                            },
-                            "TargetCPUUtilizationPercentage": {
-                            "type" : "integer"
-                            },
-                            "TargetMemoryUtilizationPercentage": {
-                            "type" : "integer"
-                            },
-                            "enabled": {
-                            "type" : "boolean"
-                            },
-                            "extraMetrics": {
-                            "type" : "array"
-                            }
-                        }
-                        },
-                        "command": {
-                        "type" : "object",
-                        "properties": {
-                            "enabled": {
-                            "type" : "boolean"
-                            },
-                            "value": {
-                            "type" : "array"
-                            }
-                        }
-                        },
-                        "containers": {
-                        "type" : "array"
-                        },
-                        "dbMigrationConfig": {
-                        "type" : "object",
-                        "properties": {
-                            "enabled": {
-                            "type" : "boolean"
-                            }
-                        }
-                        },
-                        "envoyproxy": {
-                        "type" : "object",
-                        "properties": {
-                            "configMapName": {
-                            "type" : "string"
-                            },
-                            "image": {
-                            "type" : "string"
-                            },
-                            "resources": {
-                            "type" : "object",
-                            "properties": {
-                                "limits": {
-                                "description": "Maximum Resource that container can utilize",
-                                "type" : "object",
-                                "properties": {
-                                    "cpu": {
-                                    "type" : "string",
-                                    "format": "cpu"
-                                
-                                    },
-                                    "memory": {
-                                    "type" : "string",
-                                    "format": "memory"
-                                    }
-                                },
-                                "required":["cpu","memory"]
-                                },
-                                "requests": {
-                                "type" : "object",
-                                "properties": {
-                                    "cpu": {
-                                    "type" : "string",
-                                    "format": "cpu"
-                                    },
-                                    "memory": {
-                                    "type" : "string",
-                                    "format": "memory"
-
-                                    }
-                                }
-                                
-                                }
-                            },
-                            "required":["limits"]
-                            }
-                        }
-                        },
-                        "image": {
-                        "type" : "object",
-                        "properties": {
-                            "pullPolicy": {
-                            "type" : "string"
-                            }
-                        }
-                        },
-                        "imagePullSecrets": {
-                        "type" : "array"
-                        },
-                        "ingress": {
-                        "type" : "object",
-                        "properties": {
-                            "annotations": {
-                            "type" : "object",
-                            "patternproperties": {
-                                "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/><,.": {
-                                "type" : "string"
-                                },
-                                "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/.,><": {
-                                "type" : "string"
-                                },
-                                "[a-zA-Z_]+[0-9.]+!@#&%*+-=:;?/><,.": {
-                                "type" : "string"
-                                }
-                            }
-                            },
-                            "enabled": {
-                            "type" : "boolean"
-                            },
-                            "hosts": {
-                            "type" : "array",
-                            "properties": {
-                                "host": {
-                                "type" : "string"
-                                },
-                                "paths": {
-                                "type" : "array"
-                                }
-                            }
-                            },
-                            "tls": {
-                            "type" : "array"
-                            }
-                        }
-                        },
-                        "ingressInternal": {
-                        "type" : "object",
-                        "properties": {
-                            "annotations": {
-                            "type" : "object",
-                            "patternproperties": {
-                                "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/><,.": {
-                                "type" : "string"
-                                },
-                                "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/.,><": {
-                                "type" : "string"
-                                },
-                                "[a-zA-Z_]+[0-9.]+!@#&%*+-=:;?/><,.": {
-                                "type" : "string"
-                                }
-                            }
-                            },
-                            "enabled": {
-                            "type" : "boolean"
-                            },
-                            "hosts": {
-                            "type" : "array",
-                            "properties": {
-                                "host": {
-                                "type" : "string"
-                                },
-                                "paths": {
-                                "type" : "array"
-                                }
-                            }
-                            },
-                            "tls": {
-                            "type" : "array"
-                            }
-                        }
-                        },
-                        "initContainers": {
-                        "type" : "array"
-                        },
-                        "pauseForSecondsBeforeSwitchActive": {
-                        "type" : "integer"
-                        },
-                        "podAnnotations": {
-                        "type" : "object"
-                        },
-                        "podLabels": {
-                        "type" : "object"
-                        },
-                        "prometheus": {
-                        "type" : "object",
-                        "properties": {
-                            "release": {
-                            "type" : "string"
-                            }
-                        }
-                        },
-                        "rawYaml": {
-                        "type" : "array"
-                        },
-                        "replicaCount": {
-                        "type" : "integer"
-                        },
-                        "resources": {
-                        "type" : "object",
-                        "properties": {
-                            "limits": {
-                            "description": "Maximum Resource that container can utilize",
-                            "type" : "object",
-                            "properties": {
-                                "cpu": {
-                                "type" : "string",
-                                "format": "cpu"
-                                },
-                                "memory": {
-                                "type" : "string",
-                                "format": "memory"
-                                }
-                            },
-                            "required":["cpu","memory"]
-                            },
-                            "requests": {
-                            "description": "Maximum Resource that container can utilize",
-                            "type" : "object",
-                            "properties": {
-                                "cpu": {
-                                "type" : "string",
-                                "format": "cpu"
-                                },
-                                "memory": {
-                                "type" : "string",
-                                "format": "memory"
-
-                                }
-                            }
-                            }
-                        },
-                        "required":["limits"]
-                        },
-                        "secret": {
-                        "type" : "object",
-                        "properties": {
-                            "data": {
-                            "type" : "object"
-                            },
-                            "enabled": {
-                            "type" : "boolean"
-                            }
-                        }
-                        },
-                        "server": {
-                        "type" : "object",
-                        "properties": {
-                            "deployment": {
-                            "type" : "object",
-                            "properties": {
-                                "image": {
-                                "type" : "string"
-                                },
-                                "image_tag": {
-                                "type" : "string"
-                                }
-                            }
-                            }
-                        }
-                        },
-                        "service": {
-                        "type" : "object",
-                        "properties": {
-                            "annotations": {
-                            "type" : "object"
-                            },
-                            "type": {
-                            "type" : "string"
-                            }
-                        }
-                        },
-                        "servicemonitor": {
-                        "type" : "object",
-                        "properties": {
-                            "additionalLabels": {
-                            "type" : "object"
-                            }
-                        }
-                        },
-                        "tolerations": {
-                        "type" : "array"
-                        },
-                        "volumeMounts": {
-                        "type" : "array"
-                        },
-                        "volumes": {
-                        "type" : "array"
-                        },
-                        "waitForSecondsBeforeScalingDown": {
-                        "type" : "integer"
-                        }
-                            
+        "ContainerPort": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "envoyPort": {
+                        "type": "integer",
+                        "enum": [
+                            8799,
+                            8800
+                        ]
                     },
-                    "required":["replicaCount","ContainerPort","ingress","ingressInternal"]
+                    "idleTimeout": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "integer"
+                    },
+                    "servicePort": {
+                        "type": "integer"
+                    },
+                    "supportStreaming": {
+                        "type": "boolean"
+                    },
+                    "useHTTP2": {
+                        "type": "boolean"
+                    }
                 },
-
-                "chartRefId": {
-                "type" : "integer"
+                "required": [
+                    "port"
+                ]
+            }
+        },
+        "EnvVariables": {
+            "type": "array"
+        },
+        "GracePeriod": {
+            "type": "integer"
+        },
+        "LivenessProbe": {
+            "type": "object",
+            "properties": {
+                "Path": {
+                    "type": "string"
                 },
-                "latest": {
-                "type" : "boolean"
+                "command": {
+                    "type": "array"
                 },
-                "isAppMetricsEnabled": {
-                "type" : "boolean"
+                "failureThreshold": {
+                    "type": "integer"
+                },
+                "httpHeader": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "value": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "initialDelaySeconds": {
+                    "type": "integer"
+                },
+                "periodSeconds": {
+                    "type": "integer"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "scheme": {
+                    "type": "string"
+                },
+                "successThreshold": {
+                    "type": "integer"
+                },
+                "tcp": {
+                    "type": "boolean"
+                },
+                "timeoutSeconds": {
+                    "type": "integer"
                 }
             }
-    }
+        },
+        "MaxSurge": {
+            "type": "integer"
+        },
+        "MaxUnavailable": {
+            "type": "integer"
+        },
+        "MinReadySeconds": {
+            "type": "integer"
+        },
+        "ReadinessProbe": {
+            "type": "object",
+            "properties": {
+                "Path": {
+                    "type": "string"
+                },
+                "command": {
+                    "type": "array"
+                },
+                "failureThreshold": {
+                    "type": "integer"
+                },
+                "httpHeader": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "value": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "initialDelaySeconds": {
+                    "type": "integer"
+                },
+                "periodSeconds": {
+                    "type": "integer"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "scheme": {
+                    "type": "string"
+                },
+                "successThreshold": {
+                    "type": "integer"
+                },
+                "tcp": {
+                    "type": "boolean"
+                },
+                "timeoutSeconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "Spec": {
+            "type": "object",
+            "properties": {
+                "Affinity": {
+                    "type": "object",
+                    "properties": {
+                        "Key": {
+                            "type": "null"
+                        },
+                        "Values": {
+                            "type": "string"
+                        },
+                        "key": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "args": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "value": {
+                    "type": "array"
+                }
+            }
+        },
+        "autoscaling": {
+            "type": "object",
+            "properties": {
+                "MaxReplicas": {
+                    "type": "integer"
+                },
+                "MinReplicas": {
+                    "type": "integer"
+                },
+                "TargetCPUUtilizationPercentage": {
+                    "type": "integer"
+                },
+                "TargetMemoryUtilizationPercentage": {
+                    "type": "integer"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "extraMetrics": {
+                    "type": "array"
+                }
+            }
+        },
+        "command": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "value": {
+                    "type": "array"
+                }
+            }
+        },
+        "containers": {
+            "type": "array"
+        },
+        "dbMigrationConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "envoyproxy": {
+            "type": "object",
+            "properties": {
+                "configMapName": {
+                    "type": "string"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "object",
+                    "properties": {
+                        "limits": {
+                            "description": "Maximum Resource that container can utilize",
+                            "type": "object",
+                            "properties": {
+                                "cpu": {
+                                    "type": "string",
+                                    "format": "cpu"
+                                },
+                                "memory": {
+                                    "type": "string",
+                                    "format": "memory"
+                                }
+                            },
+                            "required": [
+                                "cpu",
+                                "memory"
+                            ]
+                        },
+                        "requests": {
+                            "type": "object",
+                            "properties": {
+                                "cpu": {
+                                    "type": "string",
+                                    "format": "cpu"
+                                },
+                                "memory": {
+                                    "type": "string",
+                                    "format": "memory"
+                                }
+                            }
+                        }
+                    },
+                    "required": [
+                        "limits"
+                    ]
+                }
+            }
+        },
+        "image": {
+            "type": "object",
+            "properties": {
+                "pullPolicy": {
+                    "type": "string"
+                }
+            }
+        },
+        "imagePullSecrets": {
+            "type": "array"
+        },
+        "ingress": {
+            "type": "object",
+            "properties": {
+                "annotations": {
+                    "type": "object",
+                    "patternproperties": {
+                        "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/><,.": {
+                            "type": "string"
+                        },
+                        "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/.,><": {
+                            "type": "string"
+                        },
+                        "[a-zA-Z_]+[0-9.]+!@#&%*+-=:;?/><,.": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "hosts": {
+                    "type": "array",
+                    "properties": {
+                        "host": {
+                            "type": "string"
+                        },
+                        "paths": {
+                            "type": "array"
+                        }
+                    }
+                },
+                "tls": {
+                    "type": "array"
+                }
+            }
+        },
+        "ingressInternal": {
+            "type": "object",
+            "properties": {
+                "annotations": {
+                    "type": "object",
+                    "patternproperties": {
+                        "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/><,.": {
+                            "type": "string"
+                        },
+                        "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/.,><": {
+                            "type": "string"
+                        },
+                        "[a-zA-Z_]+[0-9.]+!@#&%*+-=:;?/><,.": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "hosts": {
+                    "type": "array",
+                    "properties": {
+                        "host": {
+                            "type": "string"
+                        },
+                        "paths": {
+                            "type": "array"
+                        }
+                    }
+                },
+                "tls": {
+                    "type": "array"
+                }
+            }
+        },
+        "initContainers": {
+            "type": "array"
+        },
+        "pauseForSecondsBeforeSwitchActive": {
+            "type": "integer"
+        },
+        "podAnnotations": {
+            "type": "object"
+        },
+        "podLabels": {
+            "type": "object"
+        },
+        "prometheus": {
+            "type": "object",
+            "properties": {
+                "release": {
+                    "type": "string"
+                }
+            }
+        },
+        "rawYaml": {
+            "type": "array"
+        },
+        "replicaCount": {
+            "type": "integer"
+        },
+        "resources": {
+            "type": "object",
+            "properties": {
+                "limits": {
+                    "description": "Maximum Resource that container can utilize",
+                    "type": "object",
+                    "properties": {
+                        "cpu": {
+                            "type": "string",
+                            "format": "cpu"
+                        },
+                        "memory": {
+                            "type": "string",
+                            "format": "memory"
+                        }
+                    },
+                    "required": [
+                        "cpu",
+                        "memory"
+                    ]
+                },
+                "requests": {
+                    "description": "Maximum Resource that container can utilize",
+                    "type": "object",
+                    "properties": {
+                        "cpu": {
+                            "type": "string",
+                            "format": "cpu"
+                        },
+                        "memory": {
+                            "type": "string",
+                            "format": "memory"
+                        }
+                    }
+                }
+            },
+            "required": [
+                "limits"
+            ]
+        },
+        "secret": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "object"
+                },
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "server": {
+            "type": "object",
+            "properties": {
+                "deployment": {
+                    "type": "object",
+                    "properties": {
+                        "image": {
+                            "type": "string"
+                        },
+                        "image_tag": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "service": {
+            "type": "object",
+            "properties": {
+                "annotations": {
+                    "type": "object"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "servicemonitor": {
+            "type": "object",
+            "properties": {
+                "additionalLabels": {
+                    "type": "object"
+                }
+            }
+        },
+        "tolerations": {
+            "type": "array"
+        },
+        "volumeMounts": {
+            "type": "array"
+        },
+        "volumes": {
+            "type": "array"
+        },
+        "waitForSecondsBeforeScalingDown": {
+            "type": "integer"
+        }
+    },
+    "required": [
+        "replicaCount",
+        "ContainerPort",
+        "ingress",
+        "ingressInternal"
+    ]
+
+}

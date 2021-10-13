@@ -1244,7 +1244,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 	ChartVersion := dat.RefChartTemplate
-	validate, error := validator2.DeploymentTemplateValidate(dat, ChartVersion)
+	validate, error := validator2.DeploymentTemplateValidate(dat.ValuesOverride, ChartVersion)
 	if validate {
 		err = handler.validator.Struct(templateRequest)
 		if err != nil {
