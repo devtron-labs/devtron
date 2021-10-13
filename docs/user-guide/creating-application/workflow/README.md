@@ -11,7 +11,7 @@ Click on `New Build Pipeline` to create a new workflow
 
 On clicking `New Build Pipeline`. Three options appear as mentioned below:
 
-* **Continous Integration:** Choose this option if you want Devtron to build the image of source code.
+* **Continuous Integration:** Choose this option if you want Devtron to build the image of source code.
 * **Linked CI Pipeline:** Choose this option if you want to use an image created by an existing CI pipeline in Devtron.
 * **Incoming Webhook:** Choose this if you want to build your image outside Devtron, it will receive a docker image from an external source via the incoming webhook.
 

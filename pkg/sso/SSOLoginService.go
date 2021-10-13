@@ -241,7 +241,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 		}
 	}
 	if !updateSuccess {
-		return flag, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+		return flag, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
 
 	// TODO - END

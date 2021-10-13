@@ -22,7 +22,7 @@ in mind the following Guidelines -
 	│	├── nginx.default	# server files
 	│	├── start.sh		# shell scripts
 	│	└── uwsgi.ini
-	├── go				# dir should be langauge name (lower-case)
+	├── go				# dir should be language name (lower-case)
 	│	└── Dockerfile		# Dockerfile
 	├── node
 

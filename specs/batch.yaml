@@ -529,7 +529,7 @@ paths:
           description: token generated successfully
           result:
             type: object
-            properites:
+            properties:
               success:
                 type: string
   /batch/workflow:

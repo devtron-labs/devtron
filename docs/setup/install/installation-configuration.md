@@ -34,6 +34,6 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 |EXTERNAL_SECRET_AMAZON_REGION | Region where the cluster is setup for Devtron installation| ""| Mandatory (If using AWS)|
 |ENABLE_INGRESS | To enable Ingress (True/False)| False| Optional|
 |INGRESS_ANNOTATIONS | Annotations for ingress| ""| Optional|
-|PROMETHEUS_URL | Exisitng Prometheous URL if it is installed| ""| Optional|
+|PROMETHEUS_URL | Existing Prometheus URL if it is installed| ""| Optional|
 
 
