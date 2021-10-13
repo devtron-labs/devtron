@@ -23,6 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -31,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
+	validator2 "github.com/devtron-labs/devtron/internal/validator"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -48,10 +54,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/go-playground/validator.v9"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type PipelineConfigRestHandler interface {
@@ -1028,6 +1030,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 				writeJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
+
 			if pg.ErrNoRows == err {
 				template.ChartRefId = chartRefId
 				template.Id = 0
@@ -1265,6 +1268,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+
 	var templateRequest pipeline.TemplateRequest
 	err = decoder.Decode(&templateRequest)
 	templateRequest.UserId = userId
@@ -1273,33 +1277,55 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	err = handler.validator.Struct(templateRequest)
-	if err != nil {
-		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err, "payload", templateRequest)
+	buff, merr := json.Marshal(templateRequest)
+	if merr != nil {
+		handler.Logger.Errorw("marshal err, UpdateAppOverride", "err", merr, "payload", templateRequest)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
-		return
 	}
-	handler.Logger.Infow("request payload, UpdateAppOverride", "payload", templateRequest)
-	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
-	if err != nil {
+
+	var dat pipeline.TemplateRequest
+
+	if err := json.Unmarshal(buff, &dat); err != nil {
+		handler.Logger.Errorw("unmarshal err, UpdateAppOverride", "err", err, "payload", templateRequest)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
+	}
+	ChartVersion := dat.RefChartTemplate
+	validate, error := validator2.DeploymentTemplateValidate(dat.ValuesOverride, ChartVersion)
+	if validate {
+		err = handler.validator.Struct(templateRequest)
+		if err != nil {
+			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err, "payload", templateRequest)
+			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		handler.Logger.Infow("request payload, UpdateAppOverride", "payload", templateRequest)
+
+		token := r.Header.Get("token")
+		app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
+		if err != nil {
+			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceName); !ok {
+			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+
+		createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
+		if err != nil {
+			handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		writeJsonResp(w, err, createResp, http.StatusOK)
+	} else {
+		fmt.Println("Values are incorrect", error)
+		writeJsonResp(w, error, nil, http.StatusBadRequest)
 		return
 	}
 
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceName); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-
-	createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
-	if err != nil {
-		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, err, createResp, http.StatusOK)
 }
 func (handler PipelineConfigRestHandlerImpl) FetchArtifactForRollback(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)

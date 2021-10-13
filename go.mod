@@ -24,6 +24,7 @@ require (
 	github.com/elazarl/goproxy v0.0.0-20210110162100-a92cc753f88e // indirect
 	github.com/emicklei/go-restful v2.11.0+incompatible // indirect
 	github.com/evanphx/json-patch v4.5.0+incompatible
+	github.com/xeipuuv/gojsonschema v1.2.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-openapi/jsonreference v0.19.3 // indirect
 	github.com/go-openapi/spec v0.19.4 // indirect
