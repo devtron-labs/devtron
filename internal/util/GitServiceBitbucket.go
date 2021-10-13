@@ -48,7 +48,7 @@ func (impl GitBitbucketClient) GetRepoUrl(repoName string, repoOptions *bitbucke
 		return repoUrl, nil
 	}
 }
-func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, project string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, projectKey string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 
 	repoOptions := &bitbucket.RepositoryOptions{
@@ -57,7 +57,7 @@ func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, 
 		Scm:         "git",
 		IsPrivate:   "true",
 		Description: description,
-		Project:     project,
+		Project:     projectKey,
 	}
 
 	repo, repoExists, err := impl.repoExists(repoOptions)

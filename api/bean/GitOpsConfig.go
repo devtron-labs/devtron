@@ -11,6 +11,6 @@ type GitOpsConfigDto struct {
 	Active               bool   `json:"active"`
 	AzureProjectName     string `json:"azureProjectName"`
 	BitBucketWorkspaceId string `json:"bitBucketWorkspaceId"`
-	BitBucketProjectName string `json:"bitBucketProjectName"`
+	BitBucketProjectKey  string `json:"bitBucketProjectKey"`
 	UserId               int32  `json:"-"`
 }

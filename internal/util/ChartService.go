@@ -152,12 +152,12 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 	if err != nil {
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-			gitOpsConfigBitbucket.BitBucketProject = ""
+			gitOpsConfigBitbucket.BitBucketProjectKey = ""
 		} else{
 			return nil, err
 		}
 	}
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProject)
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
 
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
@@ -361,12 +361,12 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	if err != nil {
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-			gitOpsConfigBitbucket.BitBucketProject = ""
+			gitOpsConfigBitbucket.BitBucketProjectKey = ""
 		} else{
 			return nil, err
 		}
 	}
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProject)
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "name", appStoreName, "err", err)

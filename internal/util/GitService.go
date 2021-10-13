@@ -53,7 +53,7 @@ const (
 
 
 type GitClient interface {
-	CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProject string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
+	CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
 	CommitValues(config *ChartConfig, bitbucketWorkspaceId string) (commitHash string, err error)
 	GetRepoUrl(projectName string, repoOptions *bitbucket.RepositoryOptions) (repoUrl string, err error)
 	DeleteRepository(name, userName, gitHubOrgName, azureProjectName string, repoOptions *bitbucket.RepositoryOptions) error
@@ -161,7 +161,7 @@ type GitConfig struct {
 	AzureToken           string
 	AzureProject         string
 	BitbucketWorkspaceId string
-	BitbucketProject     string
+	BitbucketProjectKey  string
 }
 
 func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfig, error) {
@@ -190,7 +190,7 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		AzureToken:           gitOpsConfig.Token,
 		AzureProject:         gitOpsConfig.AzureProject,
 		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
-		BitbucketProject:     gitOpsConfig.BitBucketProject,
+		BitbucketProjectKey:     gitOpsConfig.BitBucketProjectKey,
 	}
 	return cfg, err
 }
@@ -286,7 +286,7 @@ func (impl GitLabClient) DeleteRepository(name, userName, gitHubOrgName, azurePr
 	}
 	return err
 }
-func (impl GitLabClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProject string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitLabClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	impl.logger.Debugw("gitlab app create request ", "name", name, "description", description)
 	repoUrl, err := impl.GetRepoUrl(name, nil)
@@ -624,7 +624,7 @@ func (impl GitHubClient) DeleteRepository(name, userName, gitHubOrgName, azurePr
 	}
 	return nil
 }
-func (impl GitHubClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProject string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitHubClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	repoExists := true

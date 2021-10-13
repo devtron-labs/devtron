@@ -57,22 +57,22 @@ type GitOpsConfigService interface {
 }
 
 const (
-	GitOpsSecretName   = "devtron-gitops-secret"
-	DryrunRepoName     = "devtron-sample-repo-dryrun-"
-	DeleteRepoStage    = "Delete Repo"
-	CommitOnRestStage  = "Commit On Rest"
-	PushStage          = "Push"
-	CloneStage         = "Clone"
-	GetRepoUrlStage    = "Get Repo Url"
-	CreateRepoStage    = "Create Repo"
-	CloneHttp          = "Clone Http"
-	CreateReadmeStage  = "Create Readme"
-	GITHUB_PROVIDER    = "GITHUB"
-	GITHUB_HOST        = "https://github.com/"
-	GITLAB_PROVIDER    = "GITLAB"
-	BITBUCKET_PROVIDER = "BITBUCKET"
+	GitOpsSecretName      = "devtron-gitops-secret"
+	DryrunRepoName        = "devtron-sample-repo-dryrun-"
+	DeleteRepoStage       = "Delete Repo"
+	CommitOnRestStage     = "Commit On Rest"
+	PushStage             = "Push"
+	CloneStage            = "Clone"
+	GetRepoUrlStage       = "Get Repo Url"
+	CreateRepoStage       = "Create Repo"
+	CloneHttp             = "Clone Http"
+	CreateReadmeStage     = "Create Readme"
+	GITHUB_PROVIDER       = "GITHUB"
+	GITHUB_HOST           = "https://github.com/"
+	GITLAB_PROVIDER       = "GITLAB"
+	BITBUCKET_PROVIDER    = "BITBUCKET"
 	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
-	BITBUCKET_API_HOST = "https://api.bitbucket.org/2.0/"
+	BITBUCKET_API_HOST    = "https://api.bitbucket.org/2.0/"
 )
 
 type DetailedErrorGitOpsConfigResponse struct {
@@ -169,7 +169,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		Active:               true,
 		AzureProject:         request.AzureProjectName,
 		BitBucketWorkspaceId: request.BitBucketWorkspaceId,
-		BitBucketProject:     request.BitBucketProjectName,
+		BitBucketProjectKey:  request.BitBucketProjectKey,
 		AuditLog:             models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model, tx)
@@ -335,7 +335,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	model.Active = request.Active
 	model.AzureProject = request.AzureProjectName
 	model.BitBucketWorkspaceId = request.BitBucketWorkspaceId
-	model.BitBucketProject = request.BitBucketWorkspaceId
+	model.BitBucketProjectKey = request.BitBucketProjectKey
 	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating team", "data", model, "err", err)
@@ -468,7 +468,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*bean2.GitOpsC
 		UserId:               model.CreatedBy,
 		AzureProjectName:     model.AzureProject,
 		BitBucketWorkspaceId: model.BitBucketWorkspaceId,
-		BitBucketProjectName: model.BitBucketProject,
+		BitBucketProjectKey:  model.BitBucketProjectKey,
 	}
 
 	return config, err
@@ -494,7 +494,7 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*bean2.GitOpsConfig
 			UserId:               model.CreatedBy,
 			AzureProjectName:     model.AzureProject,
 			BitBucketWorkspaceId: model.BitBucketWorkspaceId,
-			BitBucketProjectName: model.BitBucketProject,
+			BitBucketProjectKey:  model.BitBucketProjectKey,
 		}
 		configs = append(configs, config)
 	}
@@ -519,7 +519,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 		UserId:               model.CreatedBy,
 		AzureProjectName:     model.AzureProject,
 		BitBucketWorkspaceId: model.BitBucketWorkspaceId,
-		BitBucketProjectName: model.BitBucketProject,
+		BitBucketProjectKey:  model.BitBucketProjectKey,
 	}
 
 	return config, err
@@ -599,7 +599,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 		UserId:               model.CreatedBy,
 		AzureProjectName:     model.AzureProject,
 		BitBucketWorkspaceId: model.BitBucketWorkspaceId,
-		BitBucketProjectName: model.BitBucketProject,
+		BitBucketProjectKey:  model.BitBucketProjectKey,
 	}
 	return config, err
 }
@@ -612,6 +612,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	}
 	if strings.ToUpper(config.Provider) == BITBUCKET_PROVIDER {
 		config.Host = util.BITBUCKET_CLONE_BASE_URL
+		config.BitBucketProjectKey = strings.ToUpper(config.BitBucketProjectKey)
 	}
 	client, gitService, err := impl.gitFactory.NewClientForValidation(config)
 	if err != nil {
@@ -622,7 +623,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		return detailedErrorGitOpsConfigResponse
 	}
 	appName := DryrunRepoName + util2.Generate(6)
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", config.BitBucketWorkspaceId, config.BitBucketProjectName)
+	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", config.BitBucketWorkspaceId, config.BitBucketProjectKey)
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
@@ -671,7 +672,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		Owner:     config.BitBucketWorkspaceId,
 		RepoSlug:  appName,
 		IsPrivate: "true",
-		Project:   config.BitBucketProjectName,
+		Project:   config.BitBucketProjectKey,
 	}
 	err = client.DeleteRepository(appName, config.Username, config.GitHubOrgId, config.AzureProjectName, repoOptions)
 	if err != nil {
@@ -709,7 +710,7 @@ func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, pr
 			errorResponse := err.(*azuredevops.WrappedError)
 			errorMessage = fmt.Errorf("%s", *errorResponse.Message)
 		}
-	} else if provider == GITHUB_PROVIDER || provider == BITBUCKET_PROVIDER{
+	} else if provider == GITHUB_PROVIDER || provider == BITBUCKET_PROVIDER {
 		return err
 	}
 	return errorMessage

@@ -56,7 +56,7 @@ func (impl GitAzureClient) DeleteRepository(name, userName, gitHubOrgName, azure
 	}
 	return err
 }
-func (impl GitAzureClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProject string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitAzureClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	url, repoExists, err := impl.repoExists(name, impl.project)

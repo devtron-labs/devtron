@@ -999,14 +999,14 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		if err != nil {
 			if err == pg.ErrNoRows {
 				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-				gitOpsConfigBitbucket.BitBucketProject = ""
+				gitOpsConfigBitbucket.BitBucketProjectKey  = ""
 			} else {
 				return nil, err
 			}
 		}
 		bitbucketRepoOptions := &bitbucket.RepositoryOptions{
 			Owner:    gitOpsConfigBitbucket.BitBucketWorkspaceId,
-			Project:  gitOpsConfigBitbucket.BitBucketProject,
+			Project:  gitOpsConfigBitbucket.BitBucketProjectKey,
 			RepoSlug: installedAppVersion.AppStoreName,
 		}
 		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(installedAppVersion.AppStoreName, bitbucketRepoOptions)

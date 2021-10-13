@@ -50,7 +50,7 @@ type GitOpsConfig struct {
 	Host                 string   `sql:"host"`
 	Active               bool     `sql:"active,notnull"`
 	BitBucketWorkspaceId string   `sql:"bitbucket_workspace_id"`
-	BitBucketProject     string   `sql:"bitbucket_project"`
+	BitBucketProjectKey  string   `sql:"bitbucket_project_key"`
 	models.AuditLog
 }
 
