@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	BITBUCKET_CLONE_BASE_URL = "https://bitbucket.org/"
-	BITBUCKET_GITOPS_DIR     = "bitbucketGitOps"
+	BITBUCKET_CLONE_BASE_URL       = "https://bitbucket.org/"
+	BITBUCKET_GITOPS_DIR           = "bitbucketGitOps"
 	BITBUCKET_REPO_NOT_FOUND_ERROR = "404 Not Found"
 )
 
@@ -44,7 +44,7 @@ func (impl GitBitbucketClient) GetRepoUrl(repoName string, repoOptions *bitbucke
 	} else if !exists {
 		return "", fmt.Errorf("%s :repo not found", repoOptions.RepoSlug)
 	} else {
-		repoUrl = fmt.Sprintf(BITBUCKET_CLONE_BASE_URL + "%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
+		repoUrl = fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
 		return repoUrl, nil
 	}
 }
@@ -59,8 +59,7 @@ func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, 
 		Description: description,
 		Project:     projectKey,
 	}
-
-	repo, repoExists, err := impl.repoExists(repoOptions)
+	repoUrl, repoExists, err := impl.repoExists(repoOptions)
 	if err != nil {
 		impl.logger.Errorw("error in communication with bitbucket", "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
@@ -68,15 +67,15 @@ func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, 
 	}
 	if repoExists {
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
-		return "", false, detailedErrorGitOpsConfigActions
+		return repoUrl, false, detailedErrorGitOpsConfigActions
 	}
-	repo, err = impl.client.Repositories.Repository.Create(repoOptions)
+	_, err = impl.client.Repositories.Repository.Create(repoOptions)
 	if err != nil {
 		impl.logger.Errorw("error in creating repo bitbucket", "project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
-	logger.Infow("repo created ", "repoDetails", repo)
+	logger.Infow("repo created ", "repoUrl", repoUrl)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 
 	validated, err := impl.ensureProjectAvailabilityOnHttp(repoOptions)
@@ -110,18 +109,19 @@ func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, 
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
-	return "", true, detailedErrorGitOpsConfigActions
+	return repoUrl, true, detailedErrorGitOpsConfigActions
 }
 
-func (impl GitBitbucketClient) repoExists(repoOptions *bitbucket.RepositoryOptions) (repo *bitbucket.Repository, exists bool, err error) {
-	repo, err = impl.client.Repositories.Repository.Get(repoOptions)
+func (impl GitBitbucketClient) repoExists(repoOptions *bitbucket.RepositoryOptions) (repoUrl string, exists bool, err error) {
+	repo, err := impl.client.Repositories.Repository.Get(repoOptions)
 	if repo == nil && err.Error() == BITBUCKET_REPO_NOT_FOUND_ERROR {
-		return repo, false, nil
+		return "", false, nil
 	}
 	if err != nil {
-		return repo, false, err
+		return "", false, err
 	}
-	return repo, true, nil
+	repoUrl = fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
+	return repoUrl, true, nil
 }
 func (impl GitBitbucketClient) ensureProjectAvailabilityOnHttp(repoOptions *bitbucket.RepositoryOptions) (bool, error) {
 	for count := 0; count < 5; count++ {
@@ -154,7 +154,7 @@ func (impl GitBitbucketClient) createReadme(repoOptions *bitbucket.RepositoryOpt
 	return err
 }
 func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbucket.RepositoryOptions) (bool, error) {
-	repoUrl := fmt.Sprintf(BITBUCKET_CLONE_BASE_URL + "%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
+	repoUrl := fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
 	for count := 0; count < 5; count++ {
 		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", repoOptions.RepoSlug))
 		if err == nil {
