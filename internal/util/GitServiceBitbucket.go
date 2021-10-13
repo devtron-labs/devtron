@@ -75,6 +75,7 @@ func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, 
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
+	repoUrl = fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
 	logger.Infow("repo created ", "repoUrl", repoUrl)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 
