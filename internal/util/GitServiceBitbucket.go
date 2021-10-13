@@ -154,7 +154,7 @@ func (impl GitBitbucketClient) createReadme(repoOptions *bitbucket.RepositoryOpt
 	return err
 }
 func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbucket.RepositoryOptions) (bool, error) {
-	repoUrl := fmt.Sprintf(BITBUCKET_CLONE_BASE_URL, "%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
+	repoUrl := fmt.Sprintf(BITBUCKET_CLONE_BASE_URL + "%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
 	for count := 0; count < 5; count++ {
 		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", repoOptions.RepoSlug))
 		if err == nil {
