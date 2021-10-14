@@ -26,15 +26,16 @@ import (
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"strconv"
+	"strings"
 	"time"
 )
 
 type GitRegistryConfig interface {
-	Create(request *GitRegistryRequest) (*GitRegistryRequest, error)
-	GetAll() ([]GitRegistryRequest, error)
-	FetchAllGitProviders() ([]GitRegistryRequest, error)
-	FetchOneGitProvider(id string) (*GitRegistryRequest, error)
-	Update(request *GitRegistryRequest) (*GitRegistryRequest, error)
+	Create(request *GitRegistry) (*GitRegistry, error)
+	GetAll() ([]GitRegistry, error)
+	FetchAllGitProviders() ([]GitRegistry, error)
+	FetchOneGitProvider(id string) (*GitRegistry, error)
+	Update(request *GitRegistry) (*GitRegistry, error)
 }
 type GitRegistryConfigImpl struct {
 	logger          *zap.SugaredLogger
@@ -42,18 +43,18 @@ type GitRegistryConfigImpl struct {
 	GitSensorClient gitSensor.GitSensorClient
 }
 
-type GitRegistryRequest struct {
-	Id          int                 `json:"id,omitempty" validate:"number"`
-	Name        string              `json:"name,omitempty" validate:"required"`
-	Url         string              `json:"url,omitempty"`
-	UserName    string              `json:"userName,omitempty"`
-	Password    string              `json:"password,omitempty"`
-	SshKey      string              `json:"sshKey,omitempty"`
-	AccessToken string              `json:"accessToken,omitempty"`
-	AuthMode    repository.AuthMode `json:"authMode,omitempty" validate:"required"`
-	Active      bool                `json:"active"`
-	UserId      int32               `json:"-"`
-	GitHostId   int                 `json:"gitHostId"`
+type GitRegistry struct {
+	Id            int                 `json:"id,omitempty" validate:"number"`
+	Name          string              `json:"name,omitempty" validate:"required"`
+	Url           string              `json:"url,omitempty"`
+	UserName      string              `json:"userName,omitempty"`
+	Password      string              `json:"password,omitempty"`
+	SshPrivateKey string              `json:"sshPrivateKey,omitempty"`
+	AccessToken   string              `json:"accessToken,omitempty"`
+	AuthMode      repository.AuthMode `json:"authMode,omitempty" validate:"required"`
+	Active        bool                `json:"active"`
+	UserId        int32               `json:"-"`
+	GitHostId     int                 `json:"gitHostId"`
 }
 
 func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo repository.GitProviderRepository, GitSensorClient gitSensor.GitSensorClient) *GitRegistryConfigImpl {
@@ -64,7 +65,7 @@ func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo reposit
 	}
 }
 
-func (impl GitRegistryConfigImpl) Create(request *GitRegistryRequest) (*GitRegistryRequest, error) {
+func (impl GitRegistryConfigImpl) Create(request *GitRegistry) (*GitRegistry, error) {
 	impl.logger.Debugw("get repo create request", "req", request)
 	exist, err := impl.gitProviderRepo.ProviderExists(request.Url)
 	if err != nil {
@@ -86,18 +87,19 @@ func (impl GitRegistryConfigImpl) Create(request *GitRegistryRequest) (*GitRegis
 		return nil, errors.NewAlreadyExists(err, request.Url)
 	}
 	provider := &repository.GitProvider{
-		Name:        request.Name,
-		Url:         request.Url,
-		Id:          request.Id,
-		AuthMode:    request.AuthMode,
-		Password:    request.Password,
-		Active:      request.Active,
-		AccessToken: request.AccessToken,
-		SshKey:      request.SshKey,
-		UserName:    request.UserName,
-		AuditLog:    models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
-		GitHostId:   request.GitHostId,
+		Name:          request.Name,
+		Url:           request.Url,
+		Id:            request.Id,
+		AuthMode:      request.AuthMode,
+		Password:      request.Password,
+		Active:        request.Active,
+		AccessToken:   request.AccessToken,
+		SshPrivateKey: request.SshPrivateKey,
+		UserName:      request.UserName,
+		AuditLog:      models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		GitHostId:     request.GitHostId,
 	}
+	provider.SshPrivateKey = ModifySshPrivateKey(provider.SshPrivateKey,provider.AuthMode)
 	err = impl.gitProviderRepo.Save(provider)
 	if err != nil {
 		impl.logger.Errorw("error in saving git repo config", "data", provider, "err", err)
@@ -123,54 +125,55 @@ func (impl GitRegistryConfigImpl) Create(request *GitRegistryRequest) (*GitRegis
 }
 
 //get all active git providers
-func (impl GitRegistryConfigImpl) GetAll() ([]GitRegistryRequest, error) {
+func (impl GitRegistryConfigImpl) GetAll() ([]GitRegistry, error) {
 	impl.logger.Debug("get all provider request")
 	providers, err := impl.gitProviderRepo.FindAllActiveForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all git providers", "err", err)
 		return nil, err
 	}
-	var gitProviders []GitRegistryRequest
+	var gitProviders []GitRegistry
 	for _, provider := range providers {
-		providerRes := GitRegistryRequest{
+		providerRes := GitRegistry{
 			Id:        provider.Id,
 			Name:      provider.Name,
 			Url:       provider.Url,
 			GitHostId: provider.GitHostId,
+			AuthMode:  provider.AuthMode,
 		}
 		gitProviders = append(gitProviders, providerRes)
 	}
 	return gitProviders, err
 }
 
-func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]GitRegistryRequest, error) {
+func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]GitRegistry, error) {
 	impl.logger.Debug("fetch all git providers from db")
 	providers, err := impl.gitProviderRepo.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all git providers", "err", err)
 		return nil, err
 	}
-	var gitProviders []GitRegistryRequest
+	var gitProviders []GitRegistry
 	for _, provider := range providers {
-		providerRes := GitRegistryRequest{
-			Id:          provider.Id,
-			Name:        provider.Name,
-			Url:         provider.Url,
-			UserName:    provider.UserName,
-			Password:    provider.Password,
-			AuthMode:    provider.AuthMode,
-			AccessToken: provider.AccessToken,
-			SshKey:      provider.SshKey,
-			Active:      provider.Active,
-			UserId:      provider.CreatedBy,
-			GitHostId:   provider.GitHostId,
+		providerRes := GitRegistry{
+			Id:            provider.Id,
+			Name:          provider.Name,
+			Url:           provider.Url,
+			UserName:      provider.UserName,
+			Password:      provider.Password,
+			AuthMode:      provider.AuthMode,
+			AccessToken:   provider.AccessToken,
+			SshPrivateKey: provider.SshPrivateKey,
+			Active:        provider.Active,
+			UserId:        provider.CreatedBy,
+			GitHostId:     provider.GitHostId,
 		}
 		gitProviders = append(gitProviders, providerRes)
 	}
 	return gitProviders, err
 }
 
-func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRegistryRequest, error) {
+func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRegistry, error) {
 	impl.logger.Debug("fetch git provider by ID from db")
 	provider, err := impl.gitProviderRepo.FindOne(providerId)
 	if err != nil {
@@ -178,24 +181,24 @@ func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRe
 		return nil, err
 	}
 
-	providerRes := &GitRegistryRequest{
-		Id:          provider.Id,
-		Name:        provider.Name,
-		Url:         provider.Url,
-		UserName:    provider.UserName,
-		Password:    provider.Password,
-		AuthMode:    provider.AuthMode,
-		AccessToken: provider.AccessToken,
-		SshKey:      provider.SshKey,
-		Active:      provider.Active,
-		UserId:      provider.CreatedBy,
-		GitHostId:   provider.GitHostId,
+	providerRes := &GitRegistry{
+		Id:            provider.Id,
+		Name:          provider.Name,
+		Url:           provider.Url,
+		UserName:      provider.UserName,
+		Password:      provider.Password,
+		AuthMode:      provider.AuthMode,
+		AccessToken:   provider.AccessToken,
+		SshPrivateKey: provider.SshPrivateKey,
+		Active:        provider.Active,
+		UserId:        provider.CreatedBy,
+		GitHostId:     provider.GitHostId,
 	}
 
 	return providerRes, err
 }
 
-func (impl GitRegistryConfigImpl) Update(request *GitRegistryRequest) (*GitRegistryRequest, error) {
+func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, error) {
 	impl.logger.Debugw("get repo create request", "req", request)
 
 	/*
@@ -222,18 +225,19 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistryRequest) (*GitRegis
 		return nil, err0
 	}
 	provider := &repository.GitProvider{
-		Name:        request.Name,
-		Url:         request.Url,
-		Id:          request.Id,
-		AuthMode:    request.AuthMode,
-		Password:    request.Password,
-		Active:      request.Active,
-		AccessToken: request.AccessToken,
-		SshKey:      request.SshKey,
-		UserName:    request.UserName,
-		GitHostId:   request.GitHostId,
-		AuditLog:    models.AuditLog{CreatedBy: existingProvider.CreatedBy, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		Name:          request.Name,
+		Url:           request.Url,
+		Id:            request.Id,
+		AuthMode:      request.AuthMode,
+		Password:      request.Password,
+		Active:        request.Active,
+		AccessToken:   request.AccessToken,
+		SshPrivateKey: request.SshPrivateKey,
+		UserName:      request.UserName,
+		GitHostId:     request.GitHostId,
+		AuditLog:      models.AuditLog{CreatedBy: existingProvider.CreatedBy, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
+	provider.SshPrivateKey = ModifySshPrivateKey(provider.SshPrivateKey,provider.AuthMode)
 	err := impl.gitProviderRepo.Update(provider)
 	if err != nil {
 		impl.logger.Errorw("error in updating git repo config", "data", provider, "err", err)
@@ -260,16 +264,26 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistryRequest) (*GitRegis
 
 func (impl GitRegistryConfigImpl) UpdateGitSensor(provider *repository.GitProvider) error {
 	sensorGitProvider := &gitSensor.GitProvider{
-		Id:          provider.Id,
-		Url:         provider.Url,
-		Name:        provider.Name,
-		UserName:    provider.UserName,
-		AccessToken: provider.AccessToken,
-		Password:    provider.Password,
-		Active:      provider.Active,
-		SshKey:      provider.SshKey,
-		AuthMode:    provider.AuthMode,
+		Id:            provider.Id,
+		Url:           provider.Url,
+		Name:          provider.Name,
+		UserName:      provider.UserName,
+		AccessToken:   provider.AccessToken,
+		Password:      provider.Password,
+		Active:        provider.Active,
+		SshPrivateKey: provider.SshPrivateKey,
+		AuthMode:      provider.AuthMode,
 	}
 	_, err := impl.GitSensorClient.SaveGitProvider(sensorGitProvider)
 	return err
+}
+
+// Modifying Ssh Private Key because Ssh key authentication requires a new-line at the end of string & there are chances that user skips sending \n
+func ModifySshPrivateKey (sshPrivateKey string, authMode repository.AuthMode) string{
+	if authMode == repository.AUTH_MODE_SSH {
+		if !strings.HasSuffix(sshPrivateKey,"\n"){
+			sshPrivateKey += "\n"
+		}
+	}
+	return sshPrivateKey
 }
