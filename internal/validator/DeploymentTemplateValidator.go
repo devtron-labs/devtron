@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/devtron-labs/devtron/internal/util"
 	"io/ioutil"
-	"log"
+
 	"os"
 	"regexp"
 
@@ -70,6 +72,9 @@ const cpu = "cpu"
 const memory = "memory"
 
 func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bool, error) {
+
+	sugaredLogger := util.NewSugardLogger()
+
 	gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
 	gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
 
@@ -81,47 +86,51 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 	documentLoader := gojsonschema.NewGoLoader(templatejson)
 	buff, err := json.Marshal(templatejson)
 	if err != nil {
-		log.Fatal(err)
+    sugaredLogger.Error(err)
 		return false, err
 	}
 	fmt.Println(string(buff))
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
-		log.Fatal(err)
+		sugaredLogger.Error(err)
 		return false, err
 	}
 	if result.Valid() {
 		var dat map[string]interface{}
 
 		if err := json.Unmarshal(buff, &dat); err != nil {
-			log.Fatal(err)
+			sugaredLogger.Error(err)
 			return false, err
 		}
 		//limits and requests are mandatory fields in schema
+		autoscaleEnabled := dat["autoscaling"]
+		if autoscaleEnabled == nil {
+			fmt.Println(autoscaleEnabled)
+		}else if autoscaleEnabled.(map[string]interface{})["enabled"] == nil {
+			fmt.Println("hello")
+		}else{
+			if autoscaleEnabled.(map[string]interface{})["enabled"].(bool) {
+				limit := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+				request := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
 
-		autoscaleEnabled := dat["autoscaling"].(map[string]interface{})
-		if autoscaleEnabled["enabled"].(bool) {
-			limit := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-			request := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+				cpu_limit, _ := util2.CpuToNumber(limit["cpu"].(string))
+				memory_limit, _ := util2.MemoryToNumber(limit["memory"].(string))
+				cpu_request, _ := util2.CpuToNumber(request["cpu"].(string))
+				memory_request, _ := util2.MemoryToNumber(request["memory"].(string))
 
-			cpu_limit, _ := util2.CpuToNumber(limit["cpu"].(string))
-			memory_limit, _ := util2.MemoryToNumber(limit["memory"].(string))
-			cpu_request, _ := util2.CpuToNumber(request["cpu"].(string))
-			memory_request, _ := util2.MemoryToNumber(request["memory"].(string))
+				envoproxy_limit := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+				envoproxy_request := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
 
-			envoproxy_limit := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-			envoproxy_request := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+				envoproxy_cpu_limit, _ := util2.CpuToNumber(envoproxy_limit["cpu"].(string))
+				envoproxy_memory_limit, _ := util2.MemoryToNumber(envoproxy_limit["memory"].(string))
+				envoproxy_cpu_request, _ := util2.CpuToNumber(envoproxy_request["cpu"].(string))
+				envoproxy_memory_request, _ := util2.MemoryToNumber(envoproxy_request["memory"].(string))
+				if (envoproxy_cpu_limit < envoproxy_cpu_request) || (envoproxy_memory_limit < envoproxy_memory_request) || (cpu_limit < cpu_request) || (memory_limit < memory_request) {
+					return false, errors.New("requests is greater than limits")
+				}
 
-			envoproxy_cpu_limit, _ := util2.CpuToNumber(envoproxy_limit["cpu"].(string))
-			envoproxy_memory_limit, _ := util2.MemoryToNumber(envoproxy_limit["memory"].(string))
-			envoproxy_cpu_request, _ := util2.CpuToNumber(envoproxy_request["cpu"].(string))
-			envoproxy_memory_request, _ := util2.MemoryToNumber(envoproxy_request["memory"].(string))
-			if (envoproxy_cpu_limit < envoproxy_cpu_request) || (envoproxy_memory_limit < envoproxy_memory_request) || (cpu_limit < cpu_request) || (memory_limit < memory_request) {
-				return false, errors.New("requests is greater than limits")
 			}
-
 		}
-
 		fmt.Println("ok")
 		return true, nil
 	} else {
