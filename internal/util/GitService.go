@@ -92,6 +92,16 @@ func (factory *GitFactory) Reload() error {
 
 func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDto) (string, error) {
 	git := gitlab.NewClient(nil, gitOpsConfig.Token)
+	if len(gitOpsConfig.Host) > 0 {
+		_, err := url.ParseRequestURI(gitOpsConfig.Host)
+		if err != nil {
+			return "", err
+		}
+		err = git.SetBaseURL(gitOpsConfig.Host)
+		if err != nil {
+			return "", err
+		}
+	}
 	group, _, err := git.Groups.GetGroup(gitOpsConfig.GitLabGroupId)
 	if err != nil {
 		factory.logger.Errorw("error in fetching gitlab group name", "err", err, "gitLab groupID", gitOpsConfig.GitLabGroupId)
