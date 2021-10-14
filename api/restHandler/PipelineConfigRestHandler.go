@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -1244,8 +1245,16 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 	ChartVersion := dat.RefChartTemplate
-	validate, error := validator2.DeploymentTemplateValidate(dat.ValuesOverride, ChartVersion)
-	if validate {
+	if _, err := os.Stat(fmt.Sprintf("schema/%s.json",ChartVersion)); err == nil {
+		validate, error := validator2.DeploymentTemplateValidate(dat.ValuesOverride, ChartVersion)
+		if !validate {
+			fmt.Println("Values are incorrect", error)
+			writeJsonResp(w, error, nil, http.StatusBadRequest)
+			return
+		}
+
+
+	}
 		err = handler.validator.Struct(templateRequest)
 		if err != nil {
 			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err, "payload", templateRequest)
@@ -1274,11 +1283,8 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 			return
 		}
 		writeJsonResp(w, err, createResp, http.StatusOK)
-	} else {
-		fmt.Println("Values are incorrect", error)
-		writeJsonResp(w, error, nil, http.StatusBadRequest)
-		return
-	}
+
+
 
 }
 func (handler PipelineConfigRestHandlerImpl) FetchArtifactForRollback(w http.ResponseWriter, r *http.Request) {

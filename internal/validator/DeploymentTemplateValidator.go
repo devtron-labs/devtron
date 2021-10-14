@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"regexp"
 
@@ -81,20 +80,17 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 	documentLoader := gojsonschema.NewGoLoader(templatejson)
 	buff, err := json.Marshal(templatejson)
 	if err != nil {
-		log.Fatal(err)
 		return false, err
 	}
 	fmt.Println(string(buff))
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
-		log.Fatal(err)
 		return false, err
 	}
 	if result.Valid() {
 		var dat map[string]interface{}
 
 		if err := json.Unmarshal(buff, &dat); err != nil {
-			log.Fatal(err)
 			return false, err
 		}
 		//limits and requests are mandatory fields in schema
