@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
 	"io/ioutil"
-	"log"
 	"os"
 	"regexp"
 
@@ -70,6 +70,7 @@ const cpu = "cpu"
 const memory = "memory"
 
 func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bool, error) {
+	sugaredLogger := util.NewSugardLogger()
 	gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
 	gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
 
@@ -86,14 +87,14 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 	fmt.Println(string(buff))
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
-		log.Println(err)
+		sugaredLogger.Error(err)
 		return false, err
 	}
 	if result.Valid() {
 		var dat map[string]interface{}
 
 		if err := json.Unmarshal(buff, &dat); err != nil {
-			log.Println(err)
+			sugaredLogger.Error(err)
 			return false, err
 		}
 		//limits and requests are mandatory fields in schema
