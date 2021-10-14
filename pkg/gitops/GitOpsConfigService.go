@@ -703,22 +703,22 @@ func (impl *GitOpsConfigServiceImpl) getDir() string {
 	return strconv.FormatInt(r1, 10)
 }
 func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, provider string) error {
-	var errorMessage error
 	if provider == GITLAB_PROVIDER {
-		errorResponse := err.(*gitlab.ErrorResponse)
-		errorMessage = fmt.Errorf("%s", errorResponse.Message)
-	} else if provider == AZURE_DEVOPS_PROVIDER {
-		if fmt.Sprintf("%T", err) == "azuredevops.WrappedError" {
-			errorResponse := err.(azuredevops.WrappedError)
-			errorMessage = fmt.Errorf("%s", *errorResponse.Message)
-		} else if fmt.Sprintf("%T", err) == "*azuredevops.WrappedError" {
-			errorResponse := err.(*azuredevops.WrappedError)
-			errorMessage = fmt.Errorf("%s", *errorResponse.Message)
+		errorResponse, ok := err.(*gitlab.ErrorResponse)
+		if ok{
+			errorMessage := fmt.Errorf("%s", errorResponse.Message)
+			return errorMessage
 		}
-	} else if provider == GITHUB_PROVIDER || provider == BITBUCKET_PROVIDER {
-		return err
+	} else if provider == AZURE_DEVOPS_PROVIDER {
+		if errorResponse, ok := err.(azuredevops.WrappedError); ok {
+			errorMessage := fmt.Errorf("%s", *errorResponse.Message)
+			return errorMessage
+		} else if errorResponse, ok := err.(*azuredevops.WrappedError); ok {
+			errorMessage := fmt.Errorf("%s", *errorResponse.Message)
+			return errorMessage
+		}
 	}
-	return errorMessage
+	return err
 }
 func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions util.DetailedErrorGitOpsConfigActions) (detailedErrorResponse DetailedErrorGitOpsConfigResponse) {
 	detailedErrorResponse.StageErrorMap = make(map[string]string)
