@@ -272,7 +272,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	// NOTE: if no role assigned, user will be visible to all manager.
 	// RBAC enforcer applying
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
-		authPass := false
+		authPass := true
 		for _, filter := range res.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); ok {
