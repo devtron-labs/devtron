@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
 	"io/ioutil"
 	"os"
 	"regexp"
+
+	"github.com/devtron-labs/devtron/internal/util"
 
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/xeipuuv/gojsonschema"
@@ -74,7 +75,10 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 	gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
 	gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
 
-	jsonFile, _ := os.Open(fmt.Sprintf("schema/%s.json", schemafile))
+	jsonFile, err := os.Open(fmt.Sprintf("schema/%s.json", schemafile))
+	if err != nil {
+		sugaredLogger.Error(err)
+	}
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 	var schemajson map[string]interface{}
 	json.Unmarshal([]byte(byteValue), &schemajson)
@@ -102,9 +106,9 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 		autoscaleEnabled := dat["autoscaling"]
 		if autoscaleEnabled == nil {
 			fmt.Println(autoscaleEnabled)
-		}else if autoscaleEnabled.(map[string]interface{})["enabled"] == nil {
+		} else if autoscaleEnabled.(map[string]interface{})["enabled"] == nil {
 			fmt.Println("hello")
-		}else{
+		} else {
 			if autoscaleEnabled.(map[string]interface{})["enabled"].(bool) {
 				limit := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
 				request := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
