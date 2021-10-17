@@ -644,7 +644,7 @@ func (impl *PolicyServiceImpl) vulnerabilityPolicyBuilder(policyLevel security.P
 			Id: v.Id,
 			Policy: &bean.VulnerabilityPermission{
 				Action:      bean.VulnerabilityAction(v.Action.String()),
-				Inherited:   !(v.PolicyLevel() == policyLevel),
+				Inherited:   v.PolicyLevel() != policyLevel,
 				IsOverriden: v.PolicyLevel() == policyLevel,
 			},
 			PolicyOrigin: v.PolicyLevel().String(),
@@ -658,7 +658,7 @@ func (impl *PolicyServiceImpl) vulnerabilityPolicyBuilder(policyLevel security.P
 				Id: v.Id,
 				Policy: &bean.VulnerabilityPermission{
 					Action:      bean.VulnerabilityAction(v.Action.String()),
-					Inherited:   !(v.PolicyLevel() == policyLevel),
+					Inherited:   v.PolicyLevel() != policyLevel,
 					IsOverriden: v.PolicyLevel() == policyLevel,
 				},
 				PolicyOrigin: v.PolicyLevel().String(),
