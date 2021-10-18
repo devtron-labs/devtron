@@ -13,19 +13,19 @@ Areas impacted by GitOps are:
 
 ## Add Git Configuration
 
-Select the GitOps section of global configuration. At the top of the section, three Git providers are available.
+Select the GitOps section of global configuration. At the top of the section, four Git providers are available.
 
 * **GitHub**
 * **GitLab**
 * **Azure**
-* **BitBucket**
+* **BitBucket Cloud**
 
 ![](../../.gitbook/assets/gc-gitops-provider.png)
 
 Select one of the Git providers. To add git account, You need to provide the following inputs as given below:
 1. Git Host / Azure DevOps Organisation Url / BitBucket Host <br />
 2. GitHub Organization Name / Gitlab Group id / Azure DevOps Project Name / BitBucket Workspace ID <br />
-3. BitBucket Project Key (only for BitBucket) <br />
+3. BitBucket Project Key (only for BitBucket Cloud) <br />
 4. Git access credential <br />
 
 ### 1. Git Host: 
@@ -37,11 +37,11 @@ This field is filled by default, Showing the URL of the selected git providers. 
 In the case of GitHub provide `Github Organization Name*`. Learn more about [Github organization Name](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations). <br />
 In the case of Gitlab provide `Gitlab group Id*`. Learn more about [Gitlab group Id](https://docs.gitlab.com/ee/user/group/). <br />
 Similarly in the case of Azure provide `Azure DevOps Project Name*`. Learn more about [Azure DevOps Project Name](https://docs.microsoft.com/en-us/azure/devops/organizations/projects/create-project?view=azure-devops&tabs=preview-page). <br />
-For Bitbucket, provide `Bitbucket Workspace Id*`. Learn more about [Bitbucket Workspace Id](https://support.atlassian.com/bitbucket-cloud/docs/what-is-a-workspace/).
+For Bitbucket Cloud, provide `Bitbucket Workspace Id*`. Learn more about [Bitbucket Workspace Id](https://support.atlassian.com/bitbucket-cloud/docs/what-is-a-workspace/).
 
 ### 3. BitBucket Project Key: 
 
-This field is non-mandatory and is only to be filled when you have chosen Bitbucket as your git provider. If not provided, the oldest project in the workspace will be used. Learn more about [Bitbucket Project Key](https://support.atlassian.com/bitbucket-cloud/docs/group-repositories-into-projects/).
+This field is non-mandatory and is only to be filled when you have chosen `Bitbucket Cloud` as your git provider. If not provided, the oldest project in the workspace will be used. Learn more about [Bitbucket Project Key](https://support.atlassian.com/bitbucket-cloud/docs/group-repositories-into-projects/).
 ### 4. Git access credential
 
 Provide Git `Username` and `Personal Access Token` of your git account. 
@@ -68,7 +68,7 @@ A personal access token (PAT) is used as an alternate password to authenticate i
 * code - Grants the ability to read source code and metadata about commits, change sets, branches, and other version control artifacts.
 [More Information on scopes in Azure devops](https://docs.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/oauth?view=azure-devops#scopes).
 
-#### For BitBucket [Creating a Bitbucket Personal Access Token (App passwords)](https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/)
+#### For BitBucket Cloud [Creating a Bitbucket Cloud Personal Access Token (App passwords)](https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/)
 
 * repo - Full control of repositories (Read, Write, Admin, Delete access). 
 
