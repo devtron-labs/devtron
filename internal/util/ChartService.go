@@ -154,10 +154,11 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 			gitOpsConfigBitbucket.BitBucketProjectKey = ""
 		} else {
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
 			return nil, err
 		}
 	}
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appName, fmt.Sprintf("helm chart for " + appName), gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
 
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
@@ -363,6 +364,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 			gitOpsConfigBitbucket.BitBucketProjectKey = ""
 		} else {
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
 			return nil, err
 		}
 	}

@@ -1134,6 +1134,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
 			return 0, err
 		}
 	}

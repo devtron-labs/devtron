@@ -330,6 +330,7 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *c
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
 			return err
 		}
 	}
@@ -375,6 +376,7 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *cluster.Enviro
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
 			return err
 		}
 	}
