@@ -1,12 +1,12 @@
 # Introduction
 
-Devtron is an open source software delivery workflow for kubernetes written in go.
+Devtron is an open source software delivery workflow for Kubernetes written in go.
 
 [Website](https://devtron.ai/) · [Blog](https://devtron.ai/blog/) · [Join Discord](https://discord.gg/jsRG5qx2gp) · [Twitter](https://twitter.com/DevtronL)
 
 ## Why Devtron?
 
-It is designed as a self-serve platform for operationalizing and maintaining applications \(AppOps\) on kubernetes in a developer friendly way.
+It is designed as a self-serve platform for operationalizing and maintaining applications \(AppOps\) on Kubernetes in a developer friendly way.
 
 ![](.gitbook/assets/preview%20%281%29%20%282%29.gif)
 
@@ -14,7 +14,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 #### Zero code software delivery workflow
 
-* Workflow which understands the domain of **kubernetes, testing, CD, SecOps** so that you dont have to write scripts
+* Workflow which understands the domain of **Kubernetes, testing, CD, SecOps** so that you dont have to write scripts
 * Reusable and composable components so that workflows are easy to contruct and reason through
 
 #### Multi cloud deployment
@@ -23,7 +23,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 * Works for all cloud providers and on-premise Kubernetes clusters.
 
 
-#### Easy dev-sec-ops integration
+#### Easy DevSecOps integration
 
 * Multi level security policy at global, cluster, environment and application for efficient hierarchical policy management
 * Behavior driven security policy
@@ -48,10 +48,10 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 * Relevant cloud events and their impact on applications
 * Advanced workflow policies like blackout window, branch environment relationship to secure build and deployment pipelines
 
-#### Gitops aware
+#### GitOps aware
 
-* Gitops exposed through API and UI so that you dont have to interact with git cli
-* Gitops backed by postgres for easier analysis
+* GitOps exposed through API and UI so that you dont have to interact with git CLI
+* GitOps backed by postgres for easier analysis
 * Enforce finer access control than git
 
 #### Operational insights
