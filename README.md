@@ -241,7 +241,6 @@ kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/man
 
 ## :handshake: Contribute
 
-
 Check out our [contributing guidelines](CONTRIBUTING.md). Included are directions for opening issues, coding standards, and notes on our development processes. We deeply appreciate your contributions.
 
 ### Our Contributors:

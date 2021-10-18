@@ -20,6 +20,7 @@ package util
 import (
 	"fmt"
 	"github.com/ghodss/yaml"
+	"github.com/go-pg/pg"
 	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -146,7 +147,18 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appName = space.ReplaceAllString(appName, "-")
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appName, "helm chart for "+appName)
+
+	gitOpsConfigBitbucket, err := impl.gitFactory.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+			gitOpsConfigBitbucket.BitBucketProjectKey = ""
+		} else {
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
+			return nil, err
+		}
+	}
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appName, fmt.Sprintf("helm chart for " + appName), gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
 
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
@@ -346,7 +358,17 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName)
+	gitOpsConfigBitbucket, err := impl.gitFactory.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+			gitOpsConfigBitbucket.BitBucketProjectKey = ""
+		} else {
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
+			return nil, err
+		}
+	}
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "name", appStoreName, "err", err)

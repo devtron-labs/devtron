@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"github.com/google/go-github/github"
+	"github.com/ktrysmt/go-bitbucket"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -38,19 +39,23 @@ import (
 )
 
 const (
-	GIT_WORKING_DIR   = "/tmp/gitops/"
-	GetRepoUrlStage   = "Get Repo Url"
-	CreateRepoStage   = "Create Repo"
-	CloneHttpStage    = "Clone Http"
-	CreateReadmeStage = "Create Readme"
-	CloneSshStage     = "Clone Ssh"
+	GIT_WORKING_DIR       = "/tmp/gitops/"
+	GetRepoUrlStage       = "Get Repo Url"
+	CreateRepoStage       = "Create Repo"
+	CloneHttpStage        = "Clone Http"
+	CreateReadmeStage     = "Create Readme"
+	CloneSshStage         = "Clone Ssh"
+	GITLAB_PROVIDER       = "GITLAB"
+	GITHUB_PROVIDER       = "GITHUB"
+	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
+	BITBUCKET_PROVIDER    = "BITBUCKET"
 )
 
 type GitClient interface {
-	CreateRepository(name, description string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
-	CommitValues(config *ChartConfig) (commitHash string, err error)
-	GetRepoUrl(projectName string) (repoUrl string, err error)
-	DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error
+	CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
+	CommitValues(config *ChartConfig, bitbucketWorkspaceId string) (commitHash string, err error)
+	GetRepoUrl(projectName string, repoOptions *bitbucket.RepositoryOptions) (repoUrl string, err error)
+	DeleteRepository(name, userName, gitHubOrgName, azureProjectName string, repoOptions *bitbucket.RepositoryOptions) error
 }
 
 type GitFactory struct {
@@ -76,7 +81,7 @@ func (factory *GitFactory) Reload() error {
 	}
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
 	factory.gitService = gitService
-	client, err := NewGitLabClient(cfg, logger, gitService)
+	client, err := NewGitOpsClient(cfg, logger, gitService)
 	if err != nil {
 		return err
 	}
@@ -87,6 +92,16 @@ func (factory *GitFactory) Reload() error {
 
 func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDto) (string, error) {
 	git := gitlab.NewClient(nil, gitOpsConfig.Token)
+	if len(gitOpsConfig.Host) > 0 {
+		_, err := url.ParseRequestURI(gitOpsConfig.Host)
+		if err != nil {
+			return "", err
+		}
+		err = git.SetBaseURL(gitOpsConfig.Host)
+		if err != nil {
+			return "", err
+		}
+	}
 	group, _, err := git.Groups.GetGroup(gitOpsConfig.GitLabGroupId)
 	if err != nil {
 		factory.logger.Errorw("error in fetching gitlab group name", "err", err, "gitLab groupID", gitOpsConfig.GitLabGroupId)
@@ -113,7 +128,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	}
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
 	//factory.gitService = gitService
-	client, err := NewGitLabClient(cfg, logger, gitService)
+	client, err := NewGitOpsClient(cfg, logger, gitService)
 	if err != nil {
 		return client, gitService, err
 	}
@@ -129,7 +144,7 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 		return nil, err
 	}
 	gitService := NewGitServiceImpl(cfg, logger, gitCliUtil)
-	client, err := NewGitLabClient(cfg, logger, gitService)
+	client, err := NewGitOpsClient(cfg, logger, gitService)
 	if err != nil {
 		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)
 	}
@@ -144,16 +159,18 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 }
 
 type GitConfig struct {
-	GitlabGroupId      string //local
-	GitlabGroupPath    string //local
-	GitToken           string //not null  // public
-	GitUserName        string //not null  // public
-	GitWorkingDir      string //working directory for git. might use pvc
-	GithubOrganization string
-	GitProvider        string // SUPPORTED VALUES  GITHUB, GITLAB
-	GitHost            string
-	AzureToken         string
-	AzureProject       string
+	GitlabGroupId        string //local
+	GitlabGroupPath      string //local
+	GitToken             string //not null  // public
+	GitUserName          string //not null  // public
+	GitWorkingDir        string //working directory for git. might use pvc
+	GithubOrganization   string
+	GitProvider          string // SUPPORTED VALUES  GITHUB, GITLAB
+	GitHost              string
+	AzureToken           string
+	AzureProject         string
+	BitbucketWorkspaceId string
+	BitbucketProjectKey  string
 }
 
 func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfig, error) {
@@ -172,15 +189,17 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		return nil, err
 	}
 	cfg := &GitConfig{
-		GitlabGroupId:      gitOpsConfig.GitLabGroupId,
-		GitToken:           gitOpsConfig.Token,
-		GitUserName:        gitOpsConfig.Username,
-		GitWorkingDir:      GIT_WORKING_DIR,
-		GithubOrganization: gitOpsConfig.GitHubOrgId,
-		GitProvider:        gitOpsConfig.Provider,
-		GitHost:            gitOpsConfig.Host,
-		AzureToken:         gitOpsConfig.Token,
-		AzureProject:       gitOpsConfig.AzureProject,
+		GitlabGroupId:        gitOpsConfig.GitLabGroupId,
+		GitToken:             gitOpsConfig.Token,
+		GitUserName:          gitOpsConfig.Username,
+		GitWorkingDir:        GIT_WORKING_DIR,
+		GithubOrganization:   gitOpsConfig.GitHubOrgId,
+		GitProvider:          gitOpsConfig.Provider,
+		GitHost:              gitOpsConfig.Host,
+		AzureToken:           gitOpsConfig.Token,
+		AzureProject:         gitOpsConfig.AzureProject,
+		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
+		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
 	}
 	return cfg, err
 }
@@ -192,86 +211,94 @@ type GitLabClient struct {
 	gitService GitService
 }
 
-func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
-	if config.GitProvider == "GITLAB" {
-		git := gitlab.NewClient(nil, config.GitToken)
-		if len(config.GitHost) > 0 {
-			_, err := url.ParseRequestURI(config.GitHost)
-			if err != nil {
-				return nil, err
-			}
-			err = git.SetBaseURL(config.GitHost)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		gitlabGroupId := ""
-		if len(config.GitlabGroupId) > 0 {
-			if _, err := strconv.Atoi(config.GitlabGroupId); err == nil {
-				gitlabGroupId = config.GitlabGroupId
-			} else {
-				groups, res, err := git.Groups.SearchGroup(config.GitlabGroupId)
-				if err != nil {
-					responseStatus := 0
-					if res != nil {
-						responseStatus = res.StatusCode
-					}
-					logger.Warnw("error connecting to gitlab", "status code", responseStatus, "err", err.Error())
-				}
-				logger.Debugw("gitlab groups found ", "group", groups)
-				if len(groups) == 0 {
-					logger.Warn("no matching namespace found for gitlab")
-				}
-				for _, group := range groups {
-					if config.GitlabGroupId == group.Name {
-						gitlabGroupId = strconv.Itoa(group.ID)
-					}
-				}
-			}
-		} else {
-			return nil, fmt.Errorf("no gitlab group id found")
-		}
-		if len(gitlabGroupId) == 0 {
-			return nil, fmt.Errorf("no gitlab group id found")
-		}
-		group, _, err := git.Groups.GetGroup(gitlabGroupId)
-		if err != nil {
-			return nil, err
-		}
-		if group != nil {
-			config.GitlabGroupPath = group.FullPath
-		}
-		logger.Debugw("gitlab config", "config", config)
-		return &GitLabClient{
-			client:     git,
-			config:     config,
-			logger:     logger,
-			gitService: gitService,
-		}, nil
-	} else if config.GitProvider == "GITHUB" {
+func NewGitOpsClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
+	if config.GitProvider == GITLAB_PROVIDER {
+		gitLabClient, err := NewGitLabClient(config, logger, gitService)
+		return gitLabClient, err
+	} else if config.GitProvider == GITHUB_PROVIDER {
 		gitHubClient := NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService)
 		return gitHubClient, nil
-	} else if config.GitProvider == "AZURE_DEVOPS" {
+	} else if config.GitProvider == AZURE_DEVOPS_PROVIDER {
 		gitAzureClient, err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitService)
 		return gitAzureClient, err
+	} else if config.GitProvider == BITBUCKET_PROVIDER {
+		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitService)
+		return gitBitbucketClient, nil
 	} else {
 		logger.Errorw("no gitops config provided, gitops will not work ")
 		return nil, nil
 	}
 }
 
-func (impl GitLabClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error {
+func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
+	git := gitlab.NewClient(nil, config.GitToken)
+	if len(config.GitHost) > 0 {
+		_, err := url.ParseRequestURI(config.GitHost)
+		if err != nil {
+			return nil, err
+		}
+		err = git.SetBaseURL(config.GitHost)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	gitlabGroupId := ""
+	if len(config.GitlabGroupId) > 0 {
+		if _, err := strconv.Atoi(config.GitlabGroupId); err == nil {
+			gitlabGroupId = config.GitlabGroupId
+		} else {
+			groups, res, err := git.Groups.SearchGroup(config.GitlabGroupId)
+			if err != nil {
+				responseStatus := 0
+				if res != nil {
+					responseStatus = res.StatusCode
+				}
+				logger.Warnw("error connecting to gitlab", "status code", responseStatus, "err", err.Error())
+			}
+			logger.Debugw("gitlab groups found ", "group", groups)
+			if len(groups) == 0 {
+				logger.Warn("no matching namespace found for gitlab")
+			}
+			for _, group := range groups {
+				if config.GitlabGroupId == group.Name {
+					gitlabGroupId = strconv.Itoa(group.ID)
+				}
+			}
+		}
+	} else {
+		return nil, fmt.Errorf("no gitlab group id found")
+	}
+	if len(gitlabGroupId) == 0 {
+		return nil, fmt.Errorf("no gitlab group id found")
+	}
+	group, _, err := git.Groups.GetGroup(gitlabGroupId)
+	if err != nil {
+		return nil, err
+	}
+	if group != nil {
+		config.GitlabGroupPath = group.FullPath
+	}
+	logger.Debugw("gitlab config", "config", config)
+	return &GitLabClient{
+		client:     git,
+		config:     config,
+		logger:     logger,
+		gitService: gitService,
+	}, nil
+}
+
+func (impl GitLabClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string, repoOptions *bitbucket.RepositoryOptions) error {
 	err := impl.DeleteProject(name)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo gitlab", "project", name, "err", err)
 	}
 	return err
 }
-func (impl GitLabClient) CreateRepository(name, description string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitLabClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	impl.logger.Debugw("gitlab app create request ", "name", name, "description", description)
-	repoUrl, err := impl.GetRepoUrl(name)
+	repoUrl, err := impl.GetRepoUrl(name, nil)
 	if err != nil {
 		impl.logger.Errorw("error in getting repo url ", "gitlab project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
@@ -387,11 +414,11 @@ func (impl GitLabClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 	return false, nil
 }
 
-func (impl GitLabClient) GetRepoUrl(projectName string) (repoUrl string, err error) {
+func (impl GitLabClient) GetRepoUrl(projectName string, repoOptions *bitbucket.RepositoryOptions) (repoUrl string, err error) {
 	pid := fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName)
 	prop, res, err := impl.client.Projects.GetProject(pid, &gitlab.GetProjectOptions{})
 	if err != nil {
-		impl.logger.Debugw("gitlab get project err", "pod", pid, "err", err)
+		impl.logger.Debugw("gitlab get project err", "pid", pid, "err", err)
 		if res != nil && res.StatusCode == 404 {
 			return "", nil
 		}
@@ -417,7 +444,7 @@ func (impl GitLabClient) checkIfFileExists(projectName, ref, file string) (exist
 	return err == nil, err
 }
 
-func (impl GitLabClient) CommitValues(config *ChartConfig) (commitHash string, err error) {
+func (impl GitLabClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId string) (commitHash string, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	exists, err := impl.checkIfFileExists(config.ChartName, branch, path)
@@ -598,7 +625,7 @@ func NewGithubClient(token string, org string, logger *zap.SugaredLogger, gitSer
 	client := github.NewClient(tc)
 	return GitHubClient{client: client, org: org, logger: logger, gitService: gitService}
 }
-func (impl GitHubClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error {
+func (impl GitHubClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string, repoOptions *bitbucket.RepositoryOptions) error {
 	_, err := impl.client.Repositories.Delete(context.Background(), gitHubOrgName, name)
 	if err != nil {
 		impl.logger.Errorw("repo deletion failed for github", "repo", name, "err", err)
@@ -606,11 +633,11 @@ func (impl GitHubClient) DeleteRepository(name, userName, gitHubOrgName, azurePr
 	}
 	return nil
 }
-func (impl GitHubClient) CreateRepository(name, description string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitHubClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	repoExists := true
-	url, err := impl.GetRepoUrl(name)
+	url, err := impl.GetRepoUrl(name, nil)
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
@@ -684,14 +711,14 @@ func (impl GitHubClient) createReadme(repoName string) (string, error) {
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
 	}
-	hash, err := impl.CommitValues(cfg)
+	hash, err := impl.CommitValues(cfg, "")
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "repo", repoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, err error) {
+func (impl GitHubClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId string) (commitHash string, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	ctx := context.Background()
@@ -724,7 +751,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, e
 	return *c.SHA, nil
 }
 
-func (impl GitHubClient) GetRepoUrl(projectName string) (repoUrl string, err error) {
+func (impl GitHubClient) GetRepoUrl(projectName string, repoOptions *bitbucket.RepositoryOptions) (repoUrl string, err error) {
 	ctx := context.Background()
 	repo, _, err := impl.client.Repositories.Get(ctx, impl.org, projectName)
 	if err != nil {
@@ -737,7 +764,7 @@ func (impl GitHubClient) ensureProjectAvailabilityOnHttp(projectName string) (bo
 	count := 0
 	for count < 3 {
 		count = count + 1
-		_, err := impl.GetRepoUrl(projectName)
+		_, err := impl.GetRepoUrl(projectName, nil)
 		if err == nil {
 			return true, nil
 		}

@@ -210,8 +210,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 }
 
 const (
-	devtron = "DEVTRON"
-	SSH_URL_PREFIX = "git@"
+	devtron          = "DEVTRON"
+	SSH_URL_PREFIX   = "git@"
 	HTTPS_URL_PREFIX = "https://"
 )
 
@@ -319,17 +319,17 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 	writeJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool,error ){
-	gitProvider,err := handler.gitProviderRepo.FindOne(strconv.Itoa(gitProviderId))
-	if err !=nil{
+func (handler PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool, error) {
+	gitProvider, err := handler.gitProviderRepo.FindOne(strconv.Itoa(gitProviderId))
+	if err != nil {
 		return false, err
 	}
-	if gitProvider.AuthMode == repository.AUTH_MODE_SSH{
-		hasPrefixResult := strings.HasPrefix(url,SSH_URL_PREFIX)
+	if gitProvider.AuthMode == repository.AUTH_MODE_SSH {
+		hasPrefixResult := strings.HasPrefix(url, SSH_URL_PREFIX)
 		return hasPrefixResult, nil
 	}
-	 hasPrefixResult := strings.HasPrefix(url,HTTPS_URL_PREFIX)
-	 return hasPrefixResult, nil
+	hasPrefixResult := strings.HasPrefix(url, HTTPS_URL_PREFIX)
+	return hasPrefixResult, nil
 }
 
 func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWriter, r *http.Request) {
