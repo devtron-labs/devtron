@@ -414,7 +414,12 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		if err != nil {
 			return err
 		}
-		request.Host += groupName
+		slashSuffixPresent := strings.HasSuffix(request.Host, "/")
+		if slashSuffixPresent{
+			request.Host += groupName
+		} else{
+			request.Host = fmt.Sprintf(request.Host + "/%s", groupName)
+		}
 	}
 	if strings.ToUpper(request.Provider) == BITBUCKET_PROVIDER {
 		request.Host = util.BITBUCKET_CLONE_BASE_URL + request.BitBucketWorkspaceId
