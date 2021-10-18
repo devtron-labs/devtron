@@ -36,7 +36,7 @@ type ClusterBean struct {
 	Id                      int                        `json:"id,omitempty" validate:"number"`
 	ClusterName             string                     `json:"cluster_name,omitempty" validate:"required"`
 	ServerUrl               string                     `json:"server_url,omitempty" validate:"url,required"`
-	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"url,required"`
+	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
 	Active                  bool                       `json:"active"`
 	Config                  map[string]string          `json:"config,omitempty" validate:"required"`
 	PrometheusAuth          *PrometheusAuth            `json:"prometheusAuth,omitempty"`
