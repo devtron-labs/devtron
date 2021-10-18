@@ -51,13 +51,13 @@
 
 ### Why use it?
 
-We have seen various tools that are used to greatly increase the ease of using Kubernetes but using these tools simultaneously is painful and hard to use. As these tools dont talk to eachother for managing different aspects of application lifecycle - CI, CD, security, cost, observability, stabilization. We built Devtron to solve this problem precisely.
+We have seen various tools that are used to greatly increase the ease of using Kubernetes but using these tools simultaneously is painful and hard to use. These tools don't talk to each other for managing different aspects of the application lifecycle - CI, CD, security, cost, observability, stabilization. We built Devtron to solve this problem precisely.
 
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
-Devtron is an OpenSource modular product providing 'seamless', 'implementation agnostic uniform interface' integrated  with OpenSource and commercial tools across life cycle. All done focusing on a slick User Experience enabling self-serve model. 
+Devtron is an OpenSource modular product providing a 'seamless', 'implementation agnostic uniform interface' integrated with OpenSource and commercial tools across the life cycle. All done focusing on a slick User Experience enabling a self-serve model. 
 <br>
-You can efficiently handle Security, Stability, Cost and more in a unified experience.
+You can efficiently handle Security, Stability, Cost, and more in a unified experience.
 
 
 ## :tada: Features
@@ -85,7 +85,7 @@ You can efficiently handle Security, Stability, Cost and more in a unified exper
  <summary> <b>Built-in SecOps tools and integration</b> </summary>
 <br>
  
-- UI driven hierarchical security policy (global, cluster, environment and application) for efficient policy management
+- UI driven hierarchical security policy (global, cluster, environment, and application) for efficient policy management
 - Integration with [Clair](https://www.redhat.com/en/topics/containers/what-is-clair) for vulnerability scanning
 
 </details>
@@ -93,9 +93,9 @@ You can efficiently handle Security, Stability, Cost and more in a unified exper
 <summary> <b> UI-enabled Application debugging dashboard </b></summary>
  <br> 
  
- - Application centric view for K8s components
- - Built-in monitoring for cpu, ram, http status code and latency
- - Advanced logging with grep and json search
+ - Application-centric view for K8s components
+ - Built-in monitoring for CPU, RAM, HTTP status code, and latency
+ - Advanced logging with grep and JSON search
  - Access all manifests securely for e.g. secret obfuscation
  - Auto issue identification
 
@@ -144,7 +144,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 
 #### :key: Access Devtron dashboard
 
-By default Devtron creates a loadbalancer. Use the following command to get the dashboard url.
+By default, Devtron creates a load balancer. Use the following command to get the dashboard URL.
 
 ```text
 kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
@@ -170,12 +170,12 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 
 ### Current build: 
 
-- It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
-- Application metrics only works for k8s 1.16+
+- It uses a modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
+- Application metrics only work for k8s 1.16+
 
 ## :busts_in_silhouette: Community
 
-Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
+Get updates on Devtron's development and chat with the project maintainers, contributors, and community members.
 - Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
 - Raise feature requests, suggest enhancements, report bugs at [GitHub issues](https://github.com/devtron-labs/devtron/issues)
 - Read the [Devtron blog](https://devtron.ai/blog/)
@@ -193,7 +193,7 @@ Get updates on Devtron's development and chat with the project maintainers, cont
 
 ## :sparkling_heart: Love What You See!
 
-If you are loving what we are doing, Please consider giving us a star.
+If you love what we are doing, please consider giving us a star.
 <br>
 [![GitHub stars](https://img.shields.io/github/stars/devtron-labs/devtron)](https://github.com/devtron-labs/devtron/stargazers)
 <br>
@@ -201,15 +201,15 @@ Or you can tweet about us:
 <br>
 <a href="https://twitter.com/intent/tweet?text=Devtron%20helps%20in%20simplifying%20software delivery%20workflow%20for%20Kubernetes,%20check%20it%20out!!%20&hashtags=OpenSource,Kubernetes,DevOps,CICD,go&url=https://github.com/devtron-labs/devtron%0a"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Tweet"></a>
 <br>
-Your token of gratitude will go a long way helping us reach more developers like you. ❤:)
+Your token of gratitude will go a long way to helping us reach more developers like you. ❤:)
 
 Or you can do one better and Contribute 👏
 
 ## :question: FAQ & Troubleshooting:
 ### FAQ:
-1.How to resolve unauthorized error while trying to save global configurations like hostname, gitops etc. after successful devtron installation
+1. How to resolve unauthorized errors while trying to save global configurations like hostname, gitops, etc. after successful devtron installation
 <br>
-A. This occurs most of the time because any one or multiple jobs get failed during installation. To resolve this, you need to first check which are the jobs that have failed. Follow these steps :-
+A. This occurs most of the time because anyone or multiple jobs get failed during installation. To resolve this, you need to first check which are jobs have failed. Follow these steps:-
 
 - Run the following command and check which are the jobs with 0/1 completions:
 ```bash
@@ -217,13 +217,13 @@ kubectl get jobs -n devtroncd
 ```
 - Note down or remember the names of jobs with 0/1 completions and check if their pods are in running state still or not by running the command:
 kubectl get pods -n devtroncd
-- If they are in running condition, please wait for the jobs to be completed as it may be due to internet issue and if not in running condition, then delete those incomplete jobs using:
+- If they are in running condition, please wait for the jobs to be completed as it may be due to an internet issue and if not in running condition, then delete those incomplete jobs using:
 kubectl delete jobs <job1-name> <job2-name> -n devtroncd..[Read More](https://github.com/devtron-labs/devtron/blob/main/Troubleshooting.md#1-how-to-resolve-unauthorized-error-while-trying-to-save-global-configurations-like-hostname-gitops-etc-after-successful-devtron-installation)
 <br><br>
 
-2.What to do if devtron dashboard is not accessible on browser even after successful completion of all the jobs and all pods are in running mode
+2. What to do if devtron dashboard is not accessible on the browser even after successful completion of all the jobs and all pods are in running mode
 <br>
-A. For this, you need to check if nats-cluster is created or not, you can check it using the following command:
+A. For this, you need to check if nats-cluster is created or not. You can check it using the following command:
 ```bash
 kubectl get natscluster -n devtroncd
 ```
@@ -231,7 +231,7 @@ kubectl get natscluster -n devtroncd
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/nats-server.yaml -n devtroncd
 ```
-- Wait till all the nats pods are created and the pods are in running condition. After that delete devtron and dashboard pods once and then you should be able to access the devtron dashboard without any issues.
+- Wait till all the nats pods are created and the pods are in running condition. After that delete the devtron and dashboard pods once and then you should be able to access the devtron dashboard without any issues.
 - If your problem is still not resolved, you can post your query in our [discord](https://discord.gg/jsRG5qx2gp) channel
 
 ### Troubleshooting:
