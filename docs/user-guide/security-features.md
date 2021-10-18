@@ -33,7 +33,7 @@ The user gets informed in both cases if it finds any vulnerability or doesn't fi
 
 You can find the Vulnerabilities `Build History` Page if you have enabled the `Scan for vulnerabilities` option.
 
-Your Application-&gt; Build History-&gt; Select pipeline-&gt; Go to Security Tab.
+Your `Application-&gt; Build History-&gt; Select pipeline-&gt; Go to Security`Tab.
 
 ![](../.gitbook/assets/security-feature-build-history-security.png)
 
@@ -75,9 +75,13 @@ You can find Vulnerabilities on the `App Details` page too. Here we are displayi
 
 You can check Vulnerabilities for all your applications in one place. On the Home page, there is an option named `Security`. Here, you can see a list of applications under the `Security Scan` tab. Here all the applications are listed which have the `Scan for Vulnerabilities` feature enabled. You can see the vulnerability count along with the Severity Level for all your applications.
 
+
+{% hint style="info" %}
 **Note:-**
 
 It displays the “Vulnerability count and Severity Level” on a priority basis. And critical level has the highest priority, so it displays the critical level vulnerabilities and there counts if any application is having critical Vulnerability in it.
+
+{% endhint %}
 
 You can directly `Search` your application using the Search bar or you can `filter out` your requirement according to Severity, Clusters, and Environment.
 
