@@ -62,6 +62,7 @@ require (
 	github.com/juju/errors v0.0.0-20200330140219-3fe23663418f
 	github.com/juju/testing v0.0.0-20210324180055-18c50b0c2098 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
+	github.com/ktrysmt/go-bitbucket v0.9.27
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/lib/pq v1.2.0
 	github.com/mailru/easyjson v0.7.0 // indirect
@@ -82,7 +83,7 @@ require (
 	github.com/rogpeppe/go-internal v1.5.0 // indirect
 	github.com/satori/go.uuid v1.2.0
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.6.1
 	github.com/tidwall/gjson v1.8.1
 	github.com/tidwall/sjson v1.1.7
 	github.com/valyala/fasttemplate v1.1.0 // indirect

@@ -32,7 +32,7 @@ type PipelineConfigRouterImpl struct {
 }
 
 func NewPipelineRouterImpl(restHandler restHandler.PipelineConfigRestHandler, appWorkflowRestHandler restHandler.AppWorkflowRestHandler, webhookDataRestHandler restHandler.WebhookDataRestHandler) *PipelineConfigRouterImpl {
-	return &PipelineConfigRouterImpl{restHandler: restHandler, appWorkflowRestHandler: appWorkflowRestHandler, webhookDataRestHandler : webhookDataRestHandler}
+	return &PipelineConfigRouterImpl{restHandler: restHandler, appWorkflowRestHandler: appWorkflowRestHandler, webhookDataRestHandler: webhookDataRestHandler}
 
 }
 

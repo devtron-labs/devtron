@@ -1,4 +1,4 @@
-LTAG="v0.2.31";
+LTAG="v0.2.32";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
@@ -378,7 +378,10 @@ helmRepo = `- name: incubator
   url:  https://prometheus-community.github.io/helm-charts
 - name: jetstack
   type: helm
-  url:  https://charts.jetstack.io`;
+  url:  https://charts.jetstack.io
+- name: metrics-server
+  type: helm
+  url:  https://kubernetes-sigs.github.io/metrics-server`;
 
 
 kubeYamlEdit(argocd, `data.repositories`, helmRepo, `/ConfigMap//argocd-cm` );

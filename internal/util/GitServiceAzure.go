@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"github.com/ktrysmt/go-bitbucket"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"go.uber.org/zap"
@@ -17,7 +18,7 @@ type GitAzureClient struct {
 	gitService GitService
 }
 
-func (impl GitAzureClient) GetRepoUrl(repoName string) (repoUrl string, err error) {
+func (impl GitAzureClient) GetRepoUrl(repoName string, repoOptions *bitbucket.RepositoryOptions) (repoUrl string, err error) {
 	url, exists, err := impl.repoExists(repoName, impl.project)
 	if err != nil {
 		return "", err
@@ -28,7 +29,7 @@ func (impl GitAzureClient) GetRepoUrl(repoName string) (repoUrl string, err erro
 	}
 }
 
-func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitService GitService) (GitAzureClient,error) {
+func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitService GitService) (GitAzureClient, error) {
 	ctx := context.Background()
 	// Create a connection to your organization
 	connection := azuredevops.NewPatConnection(host, token)
@@ -39,7 +40,7 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 	}
 	return GitAzureClient{client: &coreClient, project: project, logger: logger, gitService: gitService}, err
 }
-func (impl GitAzureClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string) error {
+func (impl GitAzureClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string, repoOptions *bitbucket.RepositoryOptions) error {
 	clientAzure := *impl.client
 	gitRepository, err := clientAzure.GetRepository(context.Background(), git.GetRepositoryArgs{
 		RepositoryId: &name,
@@ -55,7 +56,7 @@ func (impl GitAzureClient) DeleteRepository(name, userName, gitHubOrgName, azure
 	}
 	return err
 }
-func (impl GitAzureClient) CreateRepository(name, description string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitAzureClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	url, repoExists, err := impl.repoExists(name, impl.project)
@@ -125,14 +126,14 @@ func (impl GitAzureClient) createReadme(repoName string) (string, error) {
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
 	}
-	hash, err := impl.CommitValues(cfg)
+	hash, err := impl.CommitValues(cfg, "")
 	if err != nil {
 		impl.logger.Errorw("error in creating readme azure", "repo", repoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string, err error) {
+func (impl GitAzureClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId string) (commitHash string, err error) {
 	branch := "master"
 	branchfull := "refs/heads/master"
 	path := filepath.Join(config.ChartLocation, config.FileName)

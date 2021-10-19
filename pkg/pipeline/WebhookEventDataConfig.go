@@ -70,7 +70,6 @@ func (impl WebhookEventDataConfigImpl) Save(webhookEventDataRequest *WebhookEven
 	return nil
 }
 
-
 func (impl WebhookEventDataConfigImpl) GetById(payloadId int) (*WebhookEventDataRequest, error) {
 	impl.logger.Debug("get webhook payload request")
 
@@ -81,7 +80,7 @@ func (impl WebhookEventDataConfigImpl) GetById(payloadId int) (*WebhookEventData
 	}
 
 	webhookEventDataRequest := &WebhookEventDataRequest{
-		RequestPayloadJson : webhookEventData.PayloadJson,
+		RequestPayloadJson: webhookEventData.PayloadJson,
 	}
 
 	return webhookEventDataRequest, nil
