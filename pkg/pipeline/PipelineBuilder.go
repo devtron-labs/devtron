@@ -121,6 +121,7 @@ type PipelineBuilderImpl struct {
 	ArgoK8sClient                 argocdServer.ArgoK8sClient
 	attributesService             attributes.AttributesService
 	aCDAuthConfig                 *user.ACDAuthConfig
+	gitOpsRepository              repository.GitOpsConfigRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -147,7 +148,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	imageScanResultRepository security.ImageScanResultRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	GitFactory *util.GitFactory, attributesService attributes.AttributesService,
-	aCDAuthConfig *user.ACDAuthConfig) *PipelineBuilderImpl {
+	aCDAuthConfig *user.ACDAuthConfig, gitOpsRepository repository.GitOpsConfigRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		dbPipelineOrchestrator:        dbPipelineOrchestrator,
@@ -175,6 +176,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		GitFactory:                    GitFactory,
 		attributesService:             attributesService,
 		aCDAuthConfig:                 aCDAuthConfig,
+		gitOpsRepository:              gitOpsRepository,
 	}
 }
 
@@ -1127,7 +1129,16 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 		ChartLocation:  chart.ChartLocation,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
 	}
-	_, err = impl.GitFactory.Client.CommitValues(chartGitAttr)
+	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
+			return 0, err
+		}
+	}
+	_, err = impl.GitFactory.Client.CommitValues(chartGitAttr, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return 0, err

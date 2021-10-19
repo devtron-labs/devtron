@@ -86,6 +86,7 @@ type AppServiceImpl struct {
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
 	imageScanHistoryRepository    security.ImageScanHistoryRepository
 	ArgoK8sClient                 argocdServer.ArgoK8sClient
+	gitOpsRepository              repository.GitOpsConfigRepository
 }
 
 type AppService interface {
@@ -121,7 +122,7 @@ func NewAppService(
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *GitFactory) *AppServiceImpl {
+	gitFactory *GitFactory, gitOpsRepository repository.GitOpsConfigRepository) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:   environmentConfigRepository,
 		mergeUtil:                     mergeUtil,
@@ -153,6 +154,7 @@ func NewAppService(
 		imageScanHistoryRepository:    imageScanHistoryRepository,
 		ArgoK8sClient:                 ArgoK8sClient,
 		gitFactory:                    gitFactory,
+		gitOpsRepository:              gitOpsRepository,
 	}
 	return appServiceImpl
 }
@@ -1082,7 +1084,15 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		ChartLocation:  envOverride.Chart.ChartLocation,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", override.Id, envOverride.TargetEnvironment),
 	}
-	commitHash, err := impl.gitFactory.Client.CommitValues(chartGitAttr)
+	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			return 0, 0, err
+		}
+	}
+	commitHash, err := impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return 0, 0, err
