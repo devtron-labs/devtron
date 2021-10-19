@@ -70,7 +70,7 @@ const (
 	GITHUB_PROVIDER       = "GITHUB"
 	GITHUB_HOST           = "https://github.com/"
 	GITLAB_PROVIDER       = "GITLAB"
-	BITBUCKET_PROVIDER    = "BITBUCKET"
+	BITBUCKET_PROVIDER    = "BITBUCKET_CLOUD"
 	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
 	BITBUCKET_API_HOST    = "https://api.bitbucket.org/2.0/"
 )
