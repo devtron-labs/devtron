@@ -34,12 +34,12 @@ This defines ports on which application services will be exposed to other servic
 ```yaml
 ContainerPort:
   - envoyPort: 8799
-     idleTimeout: 
-     name: app
-     port: 8080
-     servicePort: 80
-     supportStreaming: true
-     useHTTP2: true
+    idleTimeout: 
+    name: app
+    port: 8080
+    servicePort: 80
+    supportStreaming: true
+    useHTTP2: true
 ```
 
 | Key | Description |
