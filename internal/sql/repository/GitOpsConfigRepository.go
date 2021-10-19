@@ -39,16 +39,18 @@ type GitOpsConfigRepositoryImpl struct {
 }
 
 type GitOpsConfig struct {
-	tableName     struct{} `sql:"gitops_config" pg:",discard_unknown_columns"`
-	Id            int      `sql:"id,pk"`
-	Provider      string   `sql:"provider"`
-	Username      string   `sql:"username"`
-	Token         string   `sql:"token"`
-	GitLabGroupId string   `sql:"gitlab_group_id"`
-	GitHubOrgId   string   `sql:"github_org_id"`
-	AzureProject  string   `sql:"azure_project"`
-	Host          string   `sql:"host"`
-	Active        bool     `sql:"active,notnull"`
+	tableName            struct{} `sql:"gitops_config" pg:",discard_unknown_columns"`
+	Id                   int      `sql:"id,pk"`
+	Provider             string   `sql:"provider"`
+	Username             string   `sql:"username"`
+	Token                string   `sql:"token"`
+	GitLabGroupId        string   `sql:"gitlab_group_id"`
+	GitHubOrgId          string   `sql:"github_org_id"`
+	AzureProject         string   `sql:"azure_project"`
+	Host                 string   `sql:"host"`
+	Active               bool     `sql:"active,notnull"`
+	BitBucketWorkspaceId string   `sql:"bitbucket_workspace_id"`
+	BitBucketProjectKey  string   `sql:"bitbucket_project_key"`
 	models.AuditLog
 }
 
