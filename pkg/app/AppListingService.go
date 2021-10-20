@@ -393,8 +393,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		} else {
 			if pipeline.PreStageConfig != "" {
 				if preCdStageRunner != nil && preCdStageRunner.Id != 0 {
-					var status string
-					status = latestTriggeredWf.WorkflowStatus.String()
+					var status string = latestTriggeredWf.WorkflowStatus.String()
 					env.PreStageStatus = &status
 				} else {
 					status := ""
@@ -403,16 +402,15 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			}
 			if pipeline.PostStageConfig != "" {
 				if postCdStageRunner != nil && postCdStageRunner.Id != 0 {
-					var status string
-					status = latestTriggeredWf.WorkflowStatus.String()
+					var status string = latestTriggeredWf.WorkflowStatus.String()
 					env.PostStageStatus = &status
 				} else {
 					status := ""
 					env.PostStageStatus = &status
 				}
 			}
-			var status string
-			status = latestTriggeredWf.WorkflowStatus.String()
+			var status string = latestTriggeredWf.WorkflowStatus.String()
+
 
 			env.CdStageStatus = &status
 		}
