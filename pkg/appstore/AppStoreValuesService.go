@@ -240,7 +240,7 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreId(appStoreId int, ins
 	// default val
 	appVersions, err := impl.appStoreApplicationRepository.FindChartVersionByAppStoreId(appStoreId)
 	if err != nil {
-		impl.logger.Errorw("error while  getting default versoin", "error", err)
+		impl.logger.Errorw("error while  getting default version", "error", err)
 		return nil, err
 	}
 	defaultVal := &AppStoreVersionValuesCategoryWiseDTO{

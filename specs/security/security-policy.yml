@@ -113,7 +113,7 @@ components:
         - block
         - allow
     VulnerabilityPermission:
-      description: Whether vulnerability is allowed or blocked and is it inherited or is it overriden
+      description: Whether vulnerability is allowed or blocked and is it inherited or is it overridden
       type: object
       required:
         - action

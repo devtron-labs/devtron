@@ -178,7 +178,7 @@ func (impl PumpImpl) StartStream(w http.ResponseWriter, recv func() (proto.Messa
 			return
 		}
 		if err != nil {
-			impl.logger.Errorf("Error occured while reading data from argocd %+v\n", err)
+			impl.logger.Errorf("Error occurred while reading data from argocd %+v\n", err)
 			impl.handleForwardResponseStreamError(wroteHeader, w, err)
 			return
 		}

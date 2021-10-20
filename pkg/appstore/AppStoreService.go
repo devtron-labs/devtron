@@ -358,7 +358,7 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 		}
 	}
 	if !updateSuccess {
-		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
 	err = tx.Commit()
 	if err != nil {
@@ -443,7 +443,7 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 		}
 	}
 	if !updateSuccess {
-		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
 	err = tx.Commit()
 	if err != nil {
