@@ -113,6 +113,12 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		gitOpsConfig, err := impl.CreateGitOpsConfig(config)
+		successfulStageLength := len(detailedErrorGitOpsConfigResponse.SuccessfulStages)
+		if detailedErrorGitOpsConfigResponse.SuccessfulStages[successfulStageLength-1] == DeleteRepoStage{
+			gitOpsConfig.DeleteRepoSuccessful = true
+		} else{
+			gitOpsConfig.DeleteRepoSuccessful = false
+		}
 		if err != nil {
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
 			return gitOpsConfig, detailedErrorGitOpsConfigResponse, err
@@ -124,6 +130,12 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2
 func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error) {
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
+		successfulStageLength := len(detailedErrorGitOpsConfigResponse.SuccessfulStages)
+		if detailedErrorGitOpsConfigResponse.SuccessfulStages[successfulStageLength-1] == DeleteRepoStage{
+			config.DeleteRepoSuccessful = true
+		} else{
+			config.DeleteRepoSuccessful = false
+		}
 		err := impl.UpdateGitOpsConfig(config)
 		if err != nil {
 			impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", config)
