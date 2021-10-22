@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/apiclient"
@@ -32,7 +34,6 @@ import (
 	"google.golang.org/grpc"
 	v12 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"time"
 )
 
 const (
@@ -585,9 +586,9 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 			startTime := time.Now()
 			res, err := asc.GetResource(ctx, &request)
 			if err != nil {
-				c.logger.Errorw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Now().Sub(startTime), "err", err)
+				c.logger.Errorw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime), "err", err)
 			} else {
-				c.logger.Debugw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Now().Sub(startTime))
+				c.logger.Debugw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime))
 			}
 			if res != nil || err != nil {
 				response <- Result{Response: res, Error: err, Request: &request}
