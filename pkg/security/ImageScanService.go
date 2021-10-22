@@ -18,6 +18,8 @@
 package security
 
 import (
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -27,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ImageScanService interface {
@@ -448,8 +449,7 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 	var executionTime time.Time
 
 	var objectType []string
-	objectType = append(objectType, security.ScanObjectType_APP)
-	objectType = append(objectType, security.ScanObjectType_CHART)
+	objectType = append(objectType, security.ScanObjectType_APP, security.ScanObjectType_CHART)
 	scanDeployInfo, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(request.AppId, request.EnvId, objectType)
 	if err != nil && pg.ErrNoRows != err {
 		impl.Logger.Errorw("error while fetching scan execution result", "err", err)
