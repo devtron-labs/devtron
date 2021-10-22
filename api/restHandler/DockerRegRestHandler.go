@@ -248,7 +248,7 @@ func (impl DockerRegRestHandlerImpl) IsDockerRegConfigured(w http.ResponseWriter
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	if res != nil && len(res) > 0 {
+	if len(res) > 0 {
 		isConfigured = true
 	}
 

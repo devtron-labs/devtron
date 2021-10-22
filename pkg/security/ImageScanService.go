@@ -18,6 +18,8 @@
 package security
 
 import (
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -27,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ImageScanService interface {
@@ -377,7 +378,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 		Low:      lowCount,
 	}
 	imageScanResponse.ImageScanDeployInfoId = request.ImageScanDeployInfoId
-	if vulnerabilities == nil || len(vulnerabilities) == 0 {
+	if len(vulnerabilities) == 0 {
 		vulnerabilities = make([]*Vulnerabilities, 0)
 	}
 	imageScanResponse.Vulnerabilities = vulnerabilities
@@ -433,7 +434,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 				}
 				updatedVulnerabilities = append(updatedVulnerabilities, vulnerability)
 			}
-			if updatedVulnerabilities == nil || len(updatedVulnerabilities) == 0 {
+			if len(updatedVulnerabilities) == 0 {
 				updatedVulnerabilities = make([]*Vulnerabilities, 0)
 			}
 			imageScanResponse.Vulnerabilities = updatedVulnerabilities

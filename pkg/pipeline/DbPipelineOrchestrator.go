@@ -25,6 +25,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -38,10 +43,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"path"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type DbPipelineOrchestrator interface {
@@ -1131,7 +1132,7 @@ func (impl DbPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipeli
 		AppId:     appId,
 		Pipelines: pipelines,
 	}
-	if pipelines == nil || len(pipelines) == 0 {
+	if len(pipelines) == 0 {
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no cd pipeline found"}
 	} else {
 		err = nil
