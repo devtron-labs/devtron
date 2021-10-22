@@ -23,12 +23,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/devtron-labs/devtron/client/events"
+	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -38,11 +44,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type CiHandler interface {
@@ -826,7 +827,7 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ci
 
 		// get target branch name from webhook
 		targetBranchName := webhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_BRANCH_NAME_NAME]
-		if len(targetBranchName) == 0 {
+		if targetBranchName == "" {
 			impl.Logger.Error("target branch not found from webhook data")
 			return bean.GitCommit{}, err
 		}

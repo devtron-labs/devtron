@@ -20,13 +20,14 @@ package util
 import (
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func ContainsString(list []string, element string) bool {
@@ -56,7 +57,7 @@ func GetErrorOrNil(errs []string) error {
 }
 
 func ExtractChartVersion(chartVersion string) (int, int, error) {
-	if len(chartVersion) == 0 {
+	if chartVersion == "" {
 		return 0, 0, nil
 	}
 	chartVersions := strings.Split(chartVersion, ".")

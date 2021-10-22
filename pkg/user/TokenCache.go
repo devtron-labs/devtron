@@ -20,10 +20,11 @@ package user
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/caarlos0/env"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
-	"time"
 )
 
 type TokenCache struct {
@@ -71,10 +72,10 @@ func GetACDAuthConfig() (*ACDAuthConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(cfg.ACDPassword) == 0 {
+	if cfg.ACDPassword == "" {
 		return nil, fmt.Errorf("ACD_PASSWORD is not present in environment")
 	}
-	if len(cfg.ACDUsername) == 0 {
+	if cfg.ACDUsername == "" {
 		return nil, fmt.Errorf("ACD_USERNAME is not present in environment")
 	}
 	return cfg, err

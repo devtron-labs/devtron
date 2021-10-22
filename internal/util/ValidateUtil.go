@@ -18,9 +18,10 @@
 package util
 
 import (
-	"gopkg.in/go-playground/validator.v9"
 	"regexp"
 	"strings"
+
+	"gopkg.in/go-playground/validator.v9"
 )
 
 func ValidateName(fl validator.FieldLevel) bool {
@@ -39,7 +40,7 @@ func ValidateCheckoutPath(fl validator.FieldLevel) bool {
 
 func validateAppLabel(fl validator.FieldLevel) bool {
 	label := fl.Field().String()
-	if len(label) == 0 {
+	if label == "" {
 		return false
 	}
 	index := strings.Index(label, ":")
@@ -55,7 +56,7 @@ func validateAppLabel(fl validator.FieldLevel) bool {
 
 func validateNonEmptyUrl(fl validator.FieldLevel) bool {
 	value := fl.Field().String()
-	if len(value) == 0 {
+	if value == "" {
 		return true
 	}
 	return IsValidUrl(value)

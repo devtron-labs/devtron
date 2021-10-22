@@ -329,7 +329,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	checkoutPath := pipeline.CiTemplate.GitMaterial.CheckoutPath
-	if len(checkoutPath) == 0 {
+	if checkoutPath == "" {
 		checkoutPath = "./"
 	}
 	dockerfilePath := filepath.Join(pipeline.CiTemplate.GitMaterial.CheckoutPath, pipeline.CiTemplate.DockerfilePath)
@@ -394,13 +394,13 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id
 	for _, v := range commitHashes {
 		_truncatedCommit := ""
 		if v.WebhookData == nil {
-			if len(v.Commit) == 0 {
+			if v.Commit == "" {
 				continue
 			}
 			_truncatedCommit = _getTruncatedImageTag(v.Commit)
 		} else {
 			_targetCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME]
-			if len(_targetCheckout) == 0 {
+			if _targetCheckout == "" {
 				continue
 			}
 			_truncatedCommit = _getTruncatedImageTag(_targetCheckout)

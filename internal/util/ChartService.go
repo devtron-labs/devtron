@@ -19,13 +19,7 @@ package util
 
 import (
 	"fmt"
-	"github.com/ghodss/yaml"
-	"github.com/go-pg/pg"
-	dirCopy "github.com/otiai10/copy"
-	"go.uber.org/zap"
 	"io/ioutil"
-	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 	"math/rand"
 	"net/http"
 	"os"
@@ -33,6 +27,13 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/ghodss/yaml"
+	"github.com/go-pg/pg"
+	dirCopy "github.com/otiai10/copy"
+	"go.uber.org/zap"
+	"k8s.io/helm/pkg/chartutil"
+	"k8s.io/helm/pkg/proto/hapi/chart"
 )
 
 type ChartWorkingDir string
@@ -154,11 +155,11 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 			gitOpsConfigBitbucket.BitBucketProjectKey = ""
 		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
 			return nil, err
 		}
 	}
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appName, fmt.Sprintf("helm chart for " + appName), gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appName, fmt.Sprintf("helm chart for "+appName), gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
 
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
@@ -342,7 +343,7 @@ func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metad
 		impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
 		return "", nil, err
 	}
-	if len(valuesYaml) == 0 {
+	if valuesYaml == "" {
 		valuesYaml = "{}"
 	} else {
 		valuesYamlByte, err := yaml.YAMLToJSON([]byte(valuesYaml))
@@ -364,7 +365,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 			gitOpsConfigBitbucket.BitBucketProjectKey = ""
 		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
 			return nil, err
 		}
 	}

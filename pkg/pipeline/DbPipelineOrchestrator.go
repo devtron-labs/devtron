@@ -25,6 +25,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -38,10 +43,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"path"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type DbPipelineOrchestrator interface {
@@ -561,7 +562,7 @@ func (impl DbPipelineOrchestratorImpl) generateApiKey(ciPipelineId int, ciPipeli
 }
 
 func (impl DbPipelineOrchestratorImpl) generateExternalCiPayload(ciPipeline *bean.CiPipeline, externalCiPipeline *pipelineConfig.ExternalCiPipeline, keyPrefix string, apiKey string) *bean.CiPipeline {
-	if len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
+	if impl.ciConfig.ExternalCiWebhookUrl == "" {
 		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
 		if err != nil {
 			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", ciPipeline)
@@ -748,7 +749,7 @@ func (impl DbPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *be
 		checkoutPaths[material.Id] = material.CheckoutPath
 	}
 	for i, material := range createMaterialRequest.Material {
-		if len(material.CheckoutPath) == 0 {
+		if material.CheckoutPath == "" {
 			material.CheckoutPath = "./"
 		}
 		checkoutPaths[i*-1] = material.CheckoutPath
@@ -879,7 +880,7 @@ func (impl DbPipelineOrchestratorImpl) validateCheckoutPathsForMultiGit(allPaths
 	impl.logger.Debugw("all paths ", "path", allPaths)
 	isMulti := len(allPaths) > 1
 	for _, c := range allPaths {
-		if isMulti && (len(c) == 0) {
+		if isMulti && (c == "") {
 			impl.logger.Errorw("validation err", "err", "checkout path required for multi-git")
 			return fmt.Errorf("checkout path required for multi-git")
 		}
@@ -916,7 +917,7 @@ func (impl DbPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.Up
 	if currentMaterial == nil {
 		return nil, errors.New("material to be updated does not exist")
 	}
-	if len(updateMaterialDTO.Material.CheckoutPath) == 0 {
+	if updateMaterialDTO.Material.CheckoutPath == "" {
 		updateMaterialDTO.Material.CheckoutPath = "./"
 	}
 	checkoutPaths[updateMaterialDTO.Material.Id] = updateMaterialDTO.Material.CheckoutPath
