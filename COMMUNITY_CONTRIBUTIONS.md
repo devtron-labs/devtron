@@ -17,6 +17,7 @@
 * https://gochronicles.com/installing-devtron/ - By Go-Chronicals (Part-2)
 
 * https://gochronicles.com/devtron-deploy/ - By Go-Chronicals (Part-3)
+* https://community.codenewbie.org/varghesejose2020/opensourcekubernetesdevtron-3fjj -By Varghese Jose
 
 
 ## Videos
