@@ -111,10 +111,7 @@ func compareDeployment(resource *ResourcePath, with *ResourcePath) bool {
 	pipelineSame := (resource.Pipeline == nil && with.Pipeline == nil) || *resource.Pipeline == *with.Pipeline
 	uidSame := (resource.Uid == nil && with.Uid == nil) || *resource.Uid == *with.Uid
 	workflowSame := (resource.Workflow == nil && with.Workflow == nil) || *resource.Workflow == *with.Workflow
-	if !(appSame && pipelineSame && uidSame && workflowSame) {
-		return false
-	}
-	return true
+	return (appSame && pipelineSame && uidSame && workflowSame)
 }
 
 func (o *DataHolder) GetOperation() Operation {
