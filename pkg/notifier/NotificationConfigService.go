@@ -19,16 +19,17 @@ package notifier
 
 import (
 	"encoding/json"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	util2 "github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/util/event"
+	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 )
 
 type NotificationConfigService interface {
@@ -531,9 +532,7 @@ func (impl *NotificationConfigServiceImpl) buildPipelineResponses(config config,
 
 	if len(config.Pipelines) > 0 {
 		var pipelinesIds []int
-		for _, p := range config.Pipelines {
-			pipelinesIds = append(pipelinesIds, p)
-		}
+		pipelinesIds = append(pipelinesIds, config.Pipelines...)
 		if util.CI == config.PipelineType {
 			ciPipelines, err = impl.ciPipelineRepository.FindByIdsIn(pipelinesIds)
 		} else if util.CD == config.PipelineType {

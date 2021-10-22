@@ -25,6 +25,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -38,10 +43,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"path"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type DbPipelineOrchestrator interface {
@@ -193,12 +194,8 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 	if err != nil {
 		return nil, err
 	}
-	for _, item := range materialsAdd {
-		materials = append(materials, item)
-	}
-	for _, item := range materialsUpdate {
-		materials = append(materials, item)
-	}
+	materials = append(materials, materialsAdd...)
+	materials = append(materials, materialsUpdate...)
 
 	if ciPipelineObject.IsExternal {
 		createRequest, err = impl.updateExternalCiDetails(createRequest, userId, tx)
