@@ -532,9 +532,7 @@ func (impl *NotificationConfigServiceImpl) buildPipelineResponses(config config,
 
 	if len(config.Pipelines) > 0 {
 		var pipelinesIds []int
-		for _, p := range config.Pipelines {
-			pipelinesIds = append(pipelinesIds, p)
-		}
+		pipelinesIds = append(pipelinesIds, config.Pipelines...)
 		if util.CI == config.PipelineType {
 			ciPipelines, err = impl.ciPipelineRepository.FindByIdsIn(pipelinesIds)
 		} else if util.CD == config.PipelineType {

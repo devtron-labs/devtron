@@ -154,9 +154,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	}
 	appEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
 	if isActionUserSuperAdmin {
-		for _, envContainer := range envContainers {
-			appEnvContainers = append(appEnvContainers, envContainer)
-		}
+		appEnvContainers = append(appEnvContainers, envContainers...)
 	} else {
 		uniqueTeams := make(map[int]string)
 		authorizedTeams := make(map[int]bool)

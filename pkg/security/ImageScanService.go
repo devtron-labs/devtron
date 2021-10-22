@@ -288,9 +288,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			return nil, err
 		}
 
-		for _, id := range scanDeployInfo.ImageScanExecutionHistoryId {
-			scanExecutionIds = append(scanExecutionIds, id)
-		}
+		scanExecutionIds = append(scanExecutionIds, scanDeployInfo.ImageScanExecutionHistoryId...)
 
 		if scanDeployInfo.ObjectType == security.ScanObjectType_APP || scanDeployInfo.ObjectType == security.ScanObjectType_CHART {
 			request.AppId = scanDeployInfo.ScanObjectMetaId
@@ -458,9 +456,7 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 	if scanDeployInfo == nil || scanDeployInfo.Id == 0 || err == pg.ErrNoRows {
 		return nil, err
 	}
-	for _, id := range scanDeployInfo.ImageScanExecutionHistoryId {
-		scanExecutionIds = append(scanExecutionIds, id)
-	}
+	scanExecutionIds = append(scanExecutionIds, scanDeployInfo.ImageScanExecutionHistoryId...)
 
 	var highCount, moderateCount, lowCount int
 	if len(scanExecutionIds) > 0 {

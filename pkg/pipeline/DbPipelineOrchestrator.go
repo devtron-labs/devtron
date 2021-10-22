@@ -194,12 +194,8 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 	if err != nil {
 		return nil, err
 	}
-	for _, item := range materialsAdd {
-		materials = append(materials, item)
-	}
-	for _, item := range materialsUpdate {
-		materials = append(materials, item)
-	}
+	materials = append(materials, materialsAdd...)
+	materials = append(materials, materialsUpdate...)
 
 	if ciPipelineObject.IsExternal {
 		createRequest, err = impl.updateExternalCiDetails(createRequest, userId, tx)
