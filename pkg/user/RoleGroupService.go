@@ -449,7 +449,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 	for _, v := range roleFilterMap {
 		roleFilters = append(roleFilters, *v)
 	}
-	if roleFilters == nil || len(roleFilters) == 0 {
+	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
 	bean := &bean.RoleGroup{
@@ -478,7 +478,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroups() ([]*bean.RoleGroup, error) {
 		list = append(list, bean)
 	}
 
-	if list == nil || len(list) == 0 {
+	if len(list) == 0 {
 		list = make([]*bean.RoleGroup, 0)
 	}
 	return list, nil

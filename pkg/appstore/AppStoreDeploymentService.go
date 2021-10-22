@@ -1533,7 +1533,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 			}
 		}
 
-		if chartComponents != nil && len(chartComponents) > 0 {
+		if len(chartComponents) > 0 {
 			charts.ChartComponent = chartComponents
 			impl.logger.Info("STEP 4 - prepare a bulk request")
 			// STEP 4 - prepare a bulk request (unique names need to apply for deploying chart)

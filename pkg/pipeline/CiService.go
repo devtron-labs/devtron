@@ -70,7 +70,7 @@ const WorkflowAborted = "Aborted"
 const WorkflowFailed = "Failed"
 
 func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error) {
-	if !(ciMaterials == nil || len(ciMaterials) == 0) {
+	if !(len(ciMaterials) == 0) {
 		return ciMaterials, nil
 	} else {
 		ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(pipelineId)

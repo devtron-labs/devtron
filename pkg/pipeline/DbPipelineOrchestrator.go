@@ -1132,7 +1132,7 @@ func (impl DbPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipeli
 		AppId:     appId,
 		Pipelines: pipelines,
 	}
-	if pipelines == nil || len(pipelines) == 0 {
+	if len(pipelines) == 0 {
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no cd pipeline found"}
 	} else {
 		err = nil

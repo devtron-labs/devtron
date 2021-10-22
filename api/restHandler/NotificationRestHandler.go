@@ -22,23 +22,24 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/util/event"
+	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"io/ioutil"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type NotificationRestHandler interface {
@@ -532,7 +533,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 
 	//RBAC
 	pass := true
-	if slackConfigs != nil && len(slackConfigs) > 0 {
+	if len(slackConfigs) > 0 {
 		var teamIds []*int
 		for _, item := range slackConfigs {
 			teamIds = append(teamIds, &item.TeamId)

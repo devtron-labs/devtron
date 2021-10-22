@@ -378,7 +378,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 		Low:      lowCount,
 	}
 	imageScanResponse.ImageScanDeployInfoId = request.ImageScanDeployInfoId
-	if vulnerabilities == nil || len(vulnerabilities) == 0 {
+	if len(vulnerabilities) == 0 {
 		vulnerabilities = make([]*Vulnerabilities, 0)
 	}
 	imageScanResponse.Vulnerabilities = vulnerabilities
@@ -434,7 +434,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 				}
 				updatedVulnerabilities = append(updatedVulnerabilities, vulnerability)
 			}
-			if updatedVulnerabilities == nil || len(updatedVulnerabilities) == 0 {
+			if len(updatedVulnerabilities) == 0 {
 				updatedVulnerabilities = make([]*Vulnerabilities, 0)
 			}
 			imageScanResponse.Vulnerabilities = updatedVulnerabilities

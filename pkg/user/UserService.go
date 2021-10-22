@@ -721,10 +721,10 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	for _, item := range filterGroupsModels {
 		filterGroups = append(filterGroups, item.Name)
 	}
-	if filterGroups == nil || len(filterGroups) == 0 {
+	if len(filterGroups) == 0 {
 		filterGroups = make([]string, 0)
 	}
-	if roleFilters == nil || len(roleFilters) == 0 {
+	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
 	response := &bean.UserInfo{
@@ -762,7 +762,7 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 			Groups:      make([]string, 0),
 		})
 	}
-	if response == nil || len(response) == 0 {
+	if len(response) == 0 {
 		response = make([]bean.UserInfo, 0)
 	}
 	return response, nil

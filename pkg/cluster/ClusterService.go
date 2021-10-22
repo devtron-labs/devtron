@@ -266,7 +266,7 @@ func (impl ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 			failed := false
 			chartLen := 0
 			chartPass := 0
-			if charts != nil && len(charts) > 0 {
+			if len(charts) > 0 {
 				chartLen = len(charts)
 			}
 			for _, chart := range charts {

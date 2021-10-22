@@ -294,7 +294,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		}
 	}
 
-	if scanResultsId != nil && len(scanResultsId) > 0 {
+	if len(scanResultsId) > 0 {
 		ot, err := impl.imageScanDeployInfoRepository.FindByTypeMetaAndTypeId(typeId, objectType) //todo insure this touple unique in db
 		if err != nil && err != pg.ErrNoRows {
 			return nil, err
