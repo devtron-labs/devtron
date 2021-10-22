@@ -294,7 +294,6 @@ func (impl PipelineRepositoryImpl) FindByPipelineTriggerGitHash(gitHash string) 
 	return pipelines, err
 }
 
-
 func (impl PipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*").

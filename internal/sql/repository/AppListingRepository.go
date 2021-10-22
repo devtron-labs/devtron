@@ -237,7 +237,7 @@ func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMes
 func (impl AppListingRepositoryImpl) FetchAppDetail(appId int, envId int) (bean.AppDetailContainer, error) {
 	impl.Logger.Debugf("reached at AppListingRepository:")
 	var appDetailContainer bean.AppDetailContainer
-	//Fetch deployment detail of cd pipeline latest triggered withing env of any App.
+	//Fetch deployment detail of cd pipeline latest triggered within env of any App.
 	deploymentDetail, err := impl.DeploymentDetailsByAppIdAndEnvId(appId, envId)
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
