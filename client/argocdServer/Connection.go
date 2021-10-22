@@ -19,10 +19,11 @@ package argocdServer
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/argoproj/argo-cd/util/settings"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
-	"log"
 )
 
 func init() {
@@ -40,8 +41,7 @@ func GetConnection(token string, settings *settings.ArgoCDSettings) *grpc.Client
 	if len(token) > 0 {
 		option = append(option, grpc.WithPerRPCCredentials(TokenAuth{token: token}))
 	}
-	option = append(option, grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor))
-	option = append(option, grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor))
+	option = append(option, grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor), grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor))
 
 	//if conf.Environment=="DEV"{
 	//	option=append(option,grpc.WithInsecure())
