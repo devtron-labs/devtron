@@ -20,13 +20,14 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 )
 
 type CiArtifact struct {
@@ -129,8 +130,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId int) 
 	}
 
 	var artifactsB []Object
-	var queryTemp string
-	queryTemp = "SELECT cia.id, cia.material_info FROM ci_artifact cia" +
+	var queryTemp string = "SELECT cia.id, cia.material_info FROM ci_artifact cia" +
 		" INNER JOIN ci_pipeline cp on cp.id=cia.pipeline_id" +
 		" INNER JOIN pipeline p on p.ci_pipeline_id = cp.id" +
 		" WHERE p.id= ? ORDER BY cia.id DESC"
@@ -224,8 +224,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPip
 	}
 
 	var artifactsB []Object
-	var queryTemp string
-	queryTemp = "SELECT cia.id, cia.material_info FROM ci_artifact cia" +
+	var queryTemp string = "SELECT cia.id, cia.material_info FROM ci_artifact cia" +
 		" INNER JOIN ci_pipeline cp on cp.id=cia.pipeline_id" +
 		" INNER JOIN pipeline p on p.ci_pipeline_id = cp.id" +
 		" WHERE p.id= ? ORDER BY cia.id DESC"

@@ -21,6 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -36,12 +41,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/prometheus"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/api/prometheus/v1"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type AppListingService interface {
@@ -393,8 +394,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		} else {
 			if pipeline.PreStageConfig != "" {
 				if preCdStageRunner != nil && preCdStageRunner.Id != 0 {
-					var status string
-					status = latestTriggeredWf.WorkflowStatus.String()
+					var status string = latestTriggeredWf.WorkflowStatus.String()
 					env.PreStageStatus = &status
 				} else {
 					status := ""
@@ -403,16 +403,14 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			}
 			if pipeline.PostStageConfig != "" {
 				if postCdStageRunner != nil && postCdStageRunner.Id != 0 {
-					var status string
-					status = latestTriggeredWf.WorkflowStatus.String()
+					var status string = latestTriggeredWf.WorkflowStatus.String()
 					env.PostStageStatus = &status
 				} else {
 					status := ""
 					env.PostStageStatus = &status
 				}
 			}
-			var status string
-			status = latestTriggeredWf.WorkflowStatus.String()
+			var status string = latestTriggeredWf.WorkflowStatus.String()
 
 			env.CdStageStatus = &status
 		}
