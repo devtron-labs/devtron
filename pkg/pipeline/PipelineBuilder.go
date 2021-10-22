@@ -21,6 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -44,10 +49,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 var DefaultPipelineValue = []byte(`{"ConfigMaps":{"enabled":false},"ConfigSecrets":{"enabled":false},"ContainerPort":[],"EnvVariables":[],"GracePeriod":30,"LivenessProbe":{},"MaxSurge":1,"MaxUnavailable":0,"MinReadySeconds":60,"ReadinessProbe":{},"Spec":{"Affinity":{"Values":"nodes","key":""}},"app":"13","appMetrics":false,"args":{},"autoscaling":{},"command":{"enabled":false,"value":[]},"containers":[],"dbMigrationConfig":{"enabled":false},"deployment":{"strategy":{"rolling":{"maxSurge":"25%","maxUnavailable":1}}},"deploymentType":"ROLLING","env":"1","envoyproxy":{"configMapName":"","image":"","resources":{"limits":{"cpu":"50m","memory":"50Mi"},"requests":{"cpu":"50m","memory":"50Mi"}}},"image":{"pullPolicy":"IfNotPresent"},"ingress":{},"ingressInternal":{"annotations":{},"enabled":false,"host":"","path":"","tls":[]},"initContainers":[],"pauseForSecondsBeforeSwitchActive":30,"pipelineName":"","prometheus":{"release":"monitoring"},"rawYaml":[],"releaseVersion":"1","replicaCount":1,"resources":{"limits":{"cpu":"0.05","memory":"50Mi"},"requests":{"cpu":"0.01","memory":"10Mi"}},"secret":{"data":{},"enabled":false},"server":{"deployment":{"image":"","image_tag":""}},"service":{"annotations":{},"type":"ClusterIP"},"servicemonitor":{"additionalLabels":{}},"tolerations":[],"volumeMounts":[],"volumes":[],"waitForSecondsBeforeScalingDown":30}`)
@@ -349,7 +350,7 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		return nil, err
 	}
 
-	if len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
+	if impl.ciConfig.ExternalCiWebhookUrl == "" {
 		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
 		if err != nil {
 			return nil, err
@@ -670,11 +671,11 @@ func (impl PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMat
 
 			} else if material.GitProvider.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
 				password = material.GitProvider.AccessToken
-				if len(userName) == 0 {
+				if userName == "" {
 					userName = "devtron-boat"
 				}
 			}
-			if len(userName) == 0 || len(password) == 0 {
+			if userName == "" || password == "" {
 				return nil, util.ApiError{}.ErrorfUser("invalid git credentials config")
 			}
 			u.User = url.UserPassword(userName, password)
@@ -1134,7 +1135,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
 			return 0, err
 		}
 	}
@@ -1411,7 +1412,7 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 	} else if appStatus == http.StatusNotFound {
 		//create
 		appNamespace := envConfigOverride.Namespace
-		if len(appNamespace) == 0 {
+		if appNamespace == "" {
 			appNamespace = "default"
 		}
 		namespace := argocdServer.DevtronInstalationNs
@@ -2051,7 +2052,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		}
 	}
 
-	if len(impl.ciConfig.ExternalCiWebhookUrl) == 0 {
+	if impl.ciConfig.ExternalCiWebhookUrl == "" {
 		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
 		if err != nil {
 			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", pipeline)

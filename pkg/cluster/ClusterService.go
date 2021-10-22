@@ -19,6 +19,11 @@ package cluster
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
@@ -26,10 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"time"
 )
 
 type ClusterBean struct {
@@ -403,7 +404,7 @@ func (impl ClusterServiceImpl) Update(bean *ClusterBean, userId int32) (*Cluster
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
 
-	if len(model.K8sVersion) == 0 {
+	if model.K8sVersion == "" {
 		cfg, err := impl.GetClusterConfig(bean)
 		if err != nil {
 			return nil, err

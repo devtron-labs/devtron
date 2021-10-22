@@ -21,13 +21,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/client/events"
+	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -40,7 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/event"
+	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
@@ -48,10 +53,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type AppServiceImpl struct {
@@ -716,14 +717,14 @@ func (impl AppServiceImpl) GetCmSecretNew(appId int, envId int) (*bean.ConfigMap
 		return nil, nil, err
 	}
 	configResponse := bean.ConfigMapJson{}
-	if len(configMapJson) != 0 {
+	if configMapJson != "" {
 		err = json.Unmarshal([]byte(configMapJson), &configResponse)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 	secretResponse := bean.ConfigSecretJson{}
-	if len(configMapJson) != 0 {
+	if configMapJson != "" {
 		err = json.Unmarshal([]byte(secretDataJson), &secretResponse)
 		if err != nil {
 			return nil, nil, err
@@ -832,7 +833,7 @@ func (impl AppServiceImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pip
 	}
 	configResponseR := bean.ConfigMapRootJson{}
 	configResponse := bean.ConfigMapJson{}
-	if len(configMapJson) != 0 {
+	if configMapJson != "" {
 		err = json.Unmarshal([]byte(configMapJson), &configResponse)
 		if err != nil {
 			return []byte("{}"), err
@@ -841,7 +842,7 @@ func (impl AppServiceImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pip
 	configResponseR.ConfigMapJson = configResponse
 	secretResponseR := bean.ConfigSecretRootJson{}
 	secretResponse := bean.ConfigSecretJson{}
-	if len(configMapJson) != 0 {
+	if configMapJson != "" {
 		err = json.Unmarshal([]byte(secretDataJson), &secretResponse)
 		if err != nil {
 			return []byte("{}"), err
