@@ -16,8 +16,8 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 #### Zero code software delivery workflow
 
-* Workflow which understands the domain of **kubernetes, testing, CD, SecOps** so that you dont have to write scripts
-* Reusable and composable components so that workflows are easy to contruct and reason through
+* Workflow which understands the domain of **kubernetes, testing, CD, SecOps** so that you don't have to write scripts
+* Reusable and composable components so that workflows are easy to construct and reason through
 
 #### Multi cloud deployment
 
@@ -53,7 +53,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 #### Gitops aware
 
-* Gitops exposed through API and UI so that you dont have to interact with git cli
+* Gitops exposed through API and UI so that you don't have to interact with git cli
 * Gitops backed by postgres for easier analysis
 * Enforce finer access control than git
 
