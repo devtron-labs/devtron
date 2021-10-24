@@ -91,7 +91,7 @@ type GitCommit struct {
 	GitBranchName   string
 	GitMaterialUrl  string
 	GitMaterialName string
-	GitBranchType   string
+	GitBranchType   SourceType
 }
 
 type WebhookData struct {
