@@ -315,13 +315,13 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, offset int, size int)
 		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
 	}
 
-	worlFlows, err := impl.ciWorkflowRepository.FindByPipelineId(pipelineId, offset, size)
+	workFlows, err := impl.ciWorkflowRepository.FindByPipelineId(pipelineId, offset, size)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "err", err)
 		return nil, err
 	}
 	var ciWorkLowResponses []WorkflowResponse
-	for _, w := range worlFlows {
+	for _, w := range workFlows {
 		wfResponse := WorkflowResponse{
 			Id:               w.Id,
 			Name:             w.Name,
@@ -763,7 +763,7 @@ func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.
 
 		pipelineType := pipeLineMaterialFromDb.Type
 		if pipelineType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
-			gitCommit, err := impl.BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial)
+			gitCommit, err := impl.BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial, pipeLineMaterialFromDb)
 			if err != nil {
 				impl.Logger.Errorw("err", "err", err)
 				return map[int]bean.GitCommit{}, err
@@ -784,7 +784,7 @@ func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.
 	return commitHashes, nil
 }
 
-func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial bean.CiPipelineMaterial) (bean.GitCommit, error) {
+func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial bean.CiPipelineMaterial, pipeLineMaterialFromDb *pipelineConfig.CiPipelineMaterial) (bean.GitCommit, error) {
 	commitMetadataRequest := &gitSensor.CommitMetadataRequest{
 		PipelineMaterialId: ciPipelineMaterial.Id,
 		GitHash:            ciPipelineMaterial.GitCommit.Commit,
@@ -797,11 +797,15 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeBranchFix(
 	}
 
 	gitCommit := bean.GitCommit{
-		Commit:  gitCommitResponse.Commit,
-		Author:  gitCommitResponse.Author,
-		Date:    gitCommitResponse.Date,
-		Message: gitCommitResponse.Message,
-		Changes: gitCommitResponse.Changes,
+		Commit:          gitCommitResponse.Commit,
+		Author:          gitCommitResponse.Author,
+		Date:            gitCommitResponse.Date,
+		Message:         gitCommitResponse.Message,
+		Changes:         gitCommitResponse.Changes,
+		GitMaterialName: pipeLineMaterialFromDb.GitMaterial.Name[strings.Index(pipeLineMaterialFromDb.GitMaterial.Name, "-")+1:],
+		GitMaterialUrl:  pipeLineMaterialFromDb.GitMaterial.Url,
+		GitBranchName:   pipeLineMaterialFromDb.Value,
+		GitBranchType:   pipeLineMaterialFromDb.Type,
 	}
 
 	return gitCommit, nil
