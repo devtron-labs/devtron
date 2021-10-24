@@ -189,6 +189,10 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 			Date:    v.Date,
 			Message: v.Message,
 			Changes: v.Changes,
+			GitBranchName: v.GitBranchName,
+			GitBranchType: v.GitBranchType,
+			GitMaterialUrl: v.GitMaterialUrl,
+			GitMaterialName: v.GitMaterialName,
 		}
 		webhookData := v.WebhookData
 		if webhookData != nil {
