@@ -75,7 +75,7 @@ func Test_updatePath(t *testing.T) {
 				},
 			},
 		}, {
-			name: "One not to be overriden",
+			name: "One not to be overridden",
 			args: args{
 				to: &ResourcePath{
 					App:         nil,

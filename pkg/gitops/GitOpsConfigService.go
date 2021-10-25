@@ -276,7 +276,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if !operationComplete {
-		return nil, fmt.Errorf("resouce version not matched with config map attemped 3 times")
+		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
 
 	err = tx.Commit()
@@ -446,7 +446,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if !operationComplete {
-		return fmt.Errorf("resouce version not matched with config map attemped 3 times")
+		return fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
 
 	err = tx.Commit()

@@ -258,7 +258,7 @@ func GetGitSensorConfig() (*GitSensorConfig, error) {
 
 func (session *GitSensorClientImpl) doRequest(clientRequest *ClientRequest) (resBody []byte, resCode *StatusCode, err error) {
 	if clientRequest.ResponseBody == nil {
-		return nil, nil, fmt.Errorf("responce body cant be nil")
+		return nil, nil, fmt.Errorf("response body cant be nil")
 	}
 	if reflect.ValueOf(clientRequest.ResponseBody).Kind() != reflect.Ptr {
 		return nil, nil, fmt.Errorf("responsebody non pointer")
