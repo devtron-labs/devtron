@@ -25,8 +25,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-
 	"strconv"
 	"strings"
 
@@ -1279,48 +1277,17 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	buff, merr := json.Marshal(templateRequest)
-	if merr != nil {
-		handler.Logger.Errorw("marshal err, UpdateAppOverride", "err", merr, "payload", templateRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-	}
 
-	var dat pipeline.TemplateRequest
+	ChartVersion := templateRequest.RefChartTemplate
 
-	if err := json.Unmarshal(buff, &dat); err != nil {
-		handler.Logger.Errorw("unmarshal err, UpdateAppOverride", "err", err, "payload", templateRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
-	}
-	ChartVersion := dat.RefChartTemplate
-
-	schemafile, err := os.Stat(fmt.Sprintf("schema/%s.json", ChartVersion))
-	if err!=nil{
-		handler.Logger.Errorw("file not validate",err)
-	}
-	if schemafile != nil {
-
-
-	if _, err := os.Stat(fmt.Sprintf("schema/%s.json",ChartVersion)); err == nil {
-
-		validate, error := validator2.DeploymentTemplateValidate(dat.ValuesOverride, ChartVersion)
-		if !validate {
+	validate, error := validator2.DeploymentTemplateValidate(templateRequest.ValuesOverride, ChartVersion)
+	if !validate {
 			fmt.Println("Values are incorrect", error)
 			writeJsonResp(w, error, nil, http.StatusBadRequest)
 
 			return
-		}
-
-
 	}
-		err = handler.validator.Struct(templateRequest)
-		if err != nil {
-			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err, "payload", templateRequest)
-			writeJsonResp(w, err, nil, http.StatusBadRequest)
 
-			return
-		}
-
-	}
 	err = handler.validator.Struct(templateRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err, "payload", templateRequest)
