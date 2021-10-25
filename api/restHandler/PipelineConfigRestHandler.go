@@ -214,8 +214,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 }
 
 const (
-	devtron = "DEVTRON"
-	SSH_URL_PREFIX = "git@"
+	devtron          = "DEVTRON"
+	SSH_URL_PREFIX   = "git@"
 	HTTPS_URL_PREFIX = "https://"
 )
 
@@ -323,17 +323,17 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 	writeJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool,error ){
-	gitProvider,err := handler.gitProviderRepo.FindOne(strconv.Itoa(gitProviderId))
-	if err !=nil{
+func (handler PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool, error) {
+	gitProvider, err := handler.gitProviderRepo.FindOne(strconv.Itoa(gitProviderId))
+	if err != nil {
 		return false, err
 	}
-	if gitProvider.AuthMode == repository.AUTH_MODE_SSH{
-		hasPrefixResult := strings.HasPrefix(url,SSH_URL_PREFIX)
+	if gitProvider.AuthMode == repository.AUTH_MODE_SSH {
+		hasPrefixResult := strings.HasPrefix(url, SSH_URL_PREFIX)
 		return hasPrefixResult, nil
 	}
-	 hasPrefixResult := strings.HasPrefix(url,HTTPS_URL_PREFIX)
-	 return hasPrefixResult, nil
+	hasPrefixResult := strings.HasPrefix(url, HTTPS_URL_PREFIX)
+	return hasPrefixResult, nil
 }
 
 func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWriter, r *http.Request) {
@@ -1292,20 +1292,31 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 	ChartVersion := dat.RefChartTemplate
-<<<<<<< HEAD
+
 	schemafile, err := os.Stat(fmt.Sprintf("schema/%s.json", ChartVersion))
 	if err!=nil{
 		handler.Logger.Errorw("file not validate",err)
 	}
 	if schemafile != nil {
-=======
+
 
 	if _, err := os.Stat(fmt.Sprintf("schema/%s.json",ChartVersion)); err == nil {
->>>>>>> 0463b29768b15321b7e4888b6b0d21a9562369ab
+
 		validate, error := validator2.DeploymentTemplateValidate(dat.ValuesOverride, ChartVersion)
 		if !validate {
 			fmt.Println("Values are incorrect", error)
 			writeJsonResp(w, error, nil, http.StatusBadRequest)
+
+			return
+		}
+
+
+	}
+		err = handler.validator.Struct(templateRequest)
+		if err != nil {
+			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err, "payload", templateRequest)
+			writeJsonResp(w, err, nil, http.StatusBadRequest)
+
 			return
 		}
 
@@ -1325,19 +1336,22 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 
+
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceName); !ok {
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
-	createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
-	if err != nil {
-		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	writeJsonResp(w, err, createResp, http.StatusOK)
+		createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
+		if err != nil {
+			handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		writeJsonResp(w, err, createResp, http.StatusOK)
+
+
 
 
 }

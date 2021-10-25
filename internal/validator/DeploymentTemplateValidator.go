@@ -87,7 +87,9 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 	documentLoader := gojsonschema.NewGoLoader(templatejson)
 	buff, err := json.Marshal(templatejson)
 	if err != nil {
+
 		sugaredLogger.Error(err)
+
 		return false, err
 	}
 	fmt.Println(string(buff))
@@ -107,9 +109,11 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 		autoscaleEnabled := dat["autoscaling"]
 		if autoscaleEnabled == nil {
 			fmt.Println(autoscaleEnabled)
+
 		} else if autoscaleEnabled.(map[string]interface{})["enabled"] == nil {
 			fmt.Println("hello")
 		} else {
+
 			if autoscaleEnabled.(map[string]interface{})["enabled"].(bool) {
 				limit := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
 				request := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})

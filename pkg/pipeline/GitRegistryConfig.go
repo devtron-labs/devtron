@@ -99,7 +99,7 @@ func (impl GitRegistryConfigImpl) Create(request *GitRegistry) (*GitRegistry, er
 		AuditLog:      models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 		GitHostId:     request.GitHostId,
 	}
-	provider.SshPrivateKey = ModifySshPrivateKey(provider.SshPrivateKey,provider.AuthMode)
+	provider.SshPrivateKey = ModifySshPrivateKey(provider.SshPrivateKey, provider.AuthMode)
 	err = impl.gitProviderRepo.Save(provider)
 	if err != nil {
 		impl.logger.Errorw("error in saving git repo config", "data", provider, "err", err)
@@ -237,7 +237,7 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, er
 		GitHostId:     request.GitHostId,
 		AuditLog:      models.AuditLog{CreatedBy: existingProvider.CreatedBy, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
-	provider.SshPrivateKey = ModifySshPrivateKey(provider.SshPrivateKey,provider.AuthMode)
+	provider.SshPrivateKey = ModifySshPrivateKey(provider.SshPrivateKey, provider.AuthMode)
 	err := impl.gitProviderRepo.Update(provider)
 	if err != nil {
 		impl.logger.Errorw("error in updating git repo config", "data", provider, "err", err)
@@ -279,9 +279,9 @@ func (impl GitRegistryConfigImpl) UpdateGitSensor(provider *repository.GitProvid
 }
 
 // Modifying Ssh Private Key because Ssh key authentication requires a new-line at the end of string & there are chances that user skips sending \n
-func ModifySshPrivateKey (sshPrivateKey string, authMode repository.AuthMode) string{
+func ModifySshPrivateKey(sshPrivateKey string, authMode repository.AuthMode) string {
 	if authMode == repository.AUTH_MODE_SSH {
-		if !strings.HasSuffix(sshPrivateKey,"\n"){
+		if !strings.HasSuffix(sshPrivateKey, "\n") {
 			sshPrivateKey += "\n"
 		}
 	}
