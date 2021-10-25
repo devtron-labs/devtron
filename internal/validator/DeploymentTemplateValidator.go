@@ -9,7 +9,6 @@ import (
 	"regexp"
 
 	"github.com/devtron-labs/devtron/internal/util"
-
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -71,7 +70,9 @@ const cpu = "cpu"
 const memory = "memory"
 
 func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bool, error) {
+
 	sugaredLogger := util.NewSugardLogger()
+
 	gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
 	gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
 
@@ -86,6 +87,7 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 	documentLoader := gojsonschema.NewGoLoader(templatejson)
 	buff, err := json.Marshal(templatejson)
 	if err != nil {
+		sugaredLogger.Error(err)
 		return false, err
 	}
 	fmt.Println(string(buff))
@@ -102,7 +104,6 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 			return false, err
 		}
 		//limits and requests are mandatory fields in schema
-
 		autoscaleEnabled := dat["autoscaling"]
 		if autoscaleEnabled == nil {
 			fmt.Println(autoscaleEnabled)

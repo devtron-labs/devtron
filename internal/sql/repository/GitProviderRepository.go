@@ -32,17 +32,17 @@ const (
 )
 
 type GitProvider struct {
-	tableName   struct{} `sql:"git_provider" pg:",discard_unknown_columns"`
-	Id          int      `sql:"id,pk"`
-	Name        string   `sql:"name,notnull"`
-	Url         string   `sql:"url,notnull"`
-	UserName    string   `sql:"user_name"`
-	Password    string   `sql:"password"`
-	SshKey      string   `sql:"ssh_key"`
-	AccessToken string   `sql:"access_token"`
-	AuthMode    AuthMode `sql:"auth_mode,notnull"`
-	Active      bool     `sql:"active,notnull"`
-	GitHostId   int      `sql:"git_host_id"` //id stored in db git_host( foreign key)
+	tableName     struct{} `sql:"git_provider" pg:",discard_unknown_columns"`
+	Id            int      `sql:"id,pk"`
+	Name          string   `sql:"name,notnull"`
+	Url           string   `sql:"url,notnull"`
+	UserName      string   `sql:"user_name"`
+	Password      string   `sql:"password"`
+	SshPrivateKey string   `sql:"ssh_private_key"`
+	AccessToken   string   `sql:"access_token"`
+	AuthMode      AuthMode `sql:"auth_mode,notnull"`
+	Active        bool     `sql:"active,notnull"`
+	GitHostId     int      `sql:"git_host_id"` //id stored in db git_host( foreign key)
 	models.AuditLog
 }
 
@@ -80,7 +80,7 @@ func (impl GitProviderRepositoryImpl) ProviderExists(url string) (bool, error) {
 func (impl GitProviderRepositoryImpl) FindAllActiveForAutocomplete() ([]GitProvider, error) {
 	var providers []GitProvider
 	err := impl.dbConnection.Model(&providers).
-		Where("active = ?", true).Column("id", "name", "url").Select()
+		Where("active = ?", true).Column("id", "name", "url","auth_mode").Select()
 	return providers, err
 }
 

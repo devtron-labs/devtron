@@ -35,14 +35,15 @@ const (
 
 //TODO: add support for submodule
 type GitMaterial struct {
-	tableName     struct{} `sql:"git_material" pg:",discard_unknown_columns"`
-	Id            int      `sql:"id,pk"`
-	AppId         int      `sql:"app_id,notnull"`
-	GitProviderId int      `sql:"git_provider_id,notnull"`
-	Active        bool     `sql:"active,notnull"`
-	Url           string   `sql:"url,omitempty"`
-	Name          string   `sql:"name, omitempty"`
-	CheckoutPath  string   `sql:"checkout_path, omitempty"`
+	tableName       struct{} `sql:"git_material" pg:",discard_unknown_columns"`
+	Id              int      `sql:"id,pk"`
+	AppId           int      `sql:"app_id,notnull"`
+	GitProviderId   int      `sql:"git_provider_id,notnull"`
+	Active          bool     `sql:"active,notnull"`
+	Url             string   `sql:"url,omitempty"`
+	Name            string   `sql:"name, omitempty"`
+	CheckoutPath    string   `sql:"checkout_path, omitempty"`
+	FetchSubmodules bool     `sql:"fetch_submodules,notnull"`
 	models.AuditLog
 	App         *App
 	GitProvider *repository.GitProvider

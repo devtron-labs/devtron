@@ -16,12 +16,12 @@ In this section, you have to select the git provider of your code repository lik
 
 ## 2. Git Repo URL
 
-Inside the git repo URL, you have to provide your code repository’s https URL. For Example- [https://github.com/devtron-labs/django-repo](https://github.com/devtron-labs/django-repo)
+Inside the git repo URL, you have to provide your code repository’s URL. For Example- [https://github.com/devtron-labs/django-repo](https://github.com/devtron-labs/django-repo)
 
 You can find this URL by clicking on the '⤓ code' button on your git repository page.
 
 Note: 
-* Copy the HTTPS url of the repository
+* Copy the HTTPS/SSH url of the repository
 * Please make sure that you've added your [dockerfile](https://docs.docker.com/engine/reference/builder/) in the repo. 
 
 
@@ -37,7 +37,11 @@ This field is optional in case of a single git repository application and you ca
 
 If you want to go with a multi-git approach, then you need to specify a separate path for each of your repositories. The first repository can be checked out at the default `./` path as explained above. But, for all the rest of the repositories, you need to ensure that you provide unique checkout paths. In failing to do so, you may cause Devtron to checkout multiple repositories in one directory and overwriting files from different repositories on each other.
 
-## 4. Multi Git:
+## 4. Pull Modules Recursively:
+
+This checkbox is optional and is used for pulling [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules) present in a repo. The submodules will be pulled recursively and  same auth method which is used for parent repo will be used for submodules.
+
+## 5. Multi Git:
 
 As we discussed, Devtron also supports multiple git repositories in a single application. To add multiple repositories, click on add material and repeat steps 1 to 3. Repeat the process for every new git repository you add. Ensure that the checkout paths are unique for each.
 

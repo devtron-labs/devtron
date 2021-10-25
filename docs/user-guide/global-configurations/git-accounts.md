@@ -32,25 +32,27 @@ Here you have to provide the type of authentication required by your version con
 
 * **Anonymous**
 
-If you select `Anonymous` then you do not have to provide any username, password, or authentication token. Just click on `Save` to save your git account provider details.
+If you select `Anonymous` then you do not have to provide any username, password/authentication token or SSH key. Just click on `Save` to save your git account provider details.
 
 ![](../../.gitbook/assets/git-accounts-2.png)
 
-* **Password/Auth token**
+* **User Auth**
 
-If you select Password/Auth token then you have to provide the `Access Token` for the authentication of your version controller account in the Access token box. Click on `Save` to save your git account provider details.
+If you select `User Auth` then you have to provide the `Username` and either of `Password` or `Auth Token` for the authentication of your version controller account. Click on `Save` to save your git account provider details.
 
 ![](../../.gitbook/assets/git-accounts-3.png)
 
-* **User Auth**
+* **SSH Key**
 
-If you choose `User auth` then you have to provide the `Username` and `Password` of your version controller account. Click on `Save` to save your git account provider details.
+If you choose `SSH Key` then you have to provide the `Private SSH Key` corresponding to the public key added in your version controller account. Click on `Save` to save your git account provider details.
 
 ![](../../.gitbook/assets/git-accounts-4.png)
 
 ## Update Git Account
 
 You can update your saved git account settings at any point in time. Just click on the git account which you want to update. Make the required changes and click on `Update` to save you changes.
+
+Updates can only be made within one Authentication type or one protocol type, i.e. HTTPS(Anonymous or User Auth) & SSH. You can update from Anonymous to User Auth & vice versa, but not from Anonymous/User Auth to SSH or reverse.
 
 ![](../../.gitbook/assets/git-accounts-5.png)
 

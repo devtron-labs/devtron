@@ -38,7 +38,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -800,6 +799,7 @@ func (impl DbPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *pip
 		GitProviderId:    material.GitProviderId,
 		CheckoutLocation: material.CheckoutPath,
 		Deleted:          !material.Active,
+		FetchSubmodules:  material.FetchSubmodules,
 	}
 	_, err := impl.GitSensorClient.UpdateRepo(sensorMaterial)
 	return err
@@ -809,11 +809,12 @@ func (impl DbPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bea
 	var sensorMaterials []*gitSensor.GitMaterial
 	for _, material := range materials {
 		sensorMaterial := &gitSensor.GitMaterial{
-			Name:          material.Name,
-			Url:           material.Url,
-			Id:            material.Id,
-			GitProviderId: material.GitProviderId,
-			Deleted:       false,
+			Name:            material.Name,
+			Url:             material.Url,
+			Id:              material.Id,
+			GitProviderId:   material.GitProviderId,
+			Deleted:         false,
+			FetchSubmodules: material.FetchSubmodules,
 		}
 		sensorMaterials = append(sensorMaterials, sensorMaterial)
 	}
@@ -925,16 +926,13 @@ func (impl DbPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.Up
 		return nil, validationErr
 	}
 	currentMaterial.Url = updateMaterialDTO.Material.Url
-	materialUrl, err := url.Parse(updateMaterialDTO.Material.Url)
-	if err != nil {
-		return nil, err
-	}
-	basePath := path.Base(materialUrl.Path)
+	basePath := path.Base(updateMaterialDTO.Material.Url)
 	basePath = strings.TrimSuffix(basePath, ".git")
 
 	currentMaterial.Name = strconv.Itoa(updateMaterialDTO.Material.GitProviderId) + "-" + basePath
 	currentMaterial.GitProviderId = updateMaterialDTO.Material.GitProviderId
 	currentMaterial.CheckoutPath = updateMaterialDTO.Material.CheckoutPath
+	currentMaterial.FetchSubmodules = updateMaterialDTO.Material.FetchSubmodules
 	currentMaterial.AuditLog = models.AuditLog{UpdatedBy: updateMaterialDTO.UserId, CreatedBy: currentMaterial.CreatedBy, UpdatedOn: time.Now(), CreatedOn: currentMaterial.CreatedOn}
 
 	err = impl.materialRepository.UpdateMaterial(currentMaterial)
@@ -946,22 +944,19 @@ func (impl DbPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.Up
 }
 
 func (impl DbPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitMaterial, appId int, userId int32) (*pipelineConfig.GitMaterial, error) {
-	materialUrl, err := url.Parse(inputMaterial.Url)
-	if err != nil {
-		return nil, err
-	}
-	basePath := path.Base(materialUrl.Path)
+	basePath := path.Base(inputMaterial.Url)
 	basePath = strings.TrimSuffix(basePath, ".git")
 	material := &pipelineConfig.GitMaterial{
-		Url:           inputMaterial.Url,
-		AppId:         appId,
-		Name:          strconv.Itoa(inputMaterial.GitProviderId) + "-" + basePath,
-		GitProviderId: inputMaterial.GitProviderId,
-		Active:        true,
-		CheckoutPath:  inputMaterial.CheckoutPath,
-		AuditLog:      models.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+		Url:             inputMaterial.Url,
+		AppId:           appId,
+		Name:            strconv.Itoa(inputMaterial.GitProviderId) + "-" + basePath,
+		GitProviderId:   inputMaterial.GitProviderId,
+		Active:          true,
+		CheckoutPath:    inputMaterial.CheckoutPath,
+		FetchSubmodules: inputMaterial.FetchSubmodules,
+		AuditLog:        models.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
-	err = impl.materialRepository.SaveMaterial(material)
+	err := impl.materialRepository.SaveMaterial(material)
 	if err != nil {
 		impl.logger.Errorw("error in saving material", "material", material, "err", err)
 		return nil, err
