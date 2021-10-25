@@ -823,10 +823,12 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 	if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 		artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
 		if err != nil {
+			impl.logger.Errorw("err", "err", err)
 			return 0, err
 		}
 		err = impl.TriggerPreStage(nil, artifact, cdPipeline, overrideRequest.UserId, false)
 		if err != nil {
+			impl.logger.Errorw("err", "err", err)
 			return 0, err
 		}
 	} else if overrideRequest.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY {
@@ -848,6 +850,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 			if err != nil {
+				impl.logger.Errorw("err", "err", err)
 				return 0, err
 			}
 			cdWorkflowId = cdWf.Id
@@ -865,6 +868,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		}
 		err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 		if err != nil {
+			impl.logger.Errorw("err", "err", err)
 			return 0, err
 		}
 		overrideRequest.CdWorkflowId = cdWorkflowId
@@ -872,6 +876,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		//checking vulnerability for deploying image
 		artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
 		if err != nil {
+			impl.logger.Errorw("err", "err", err)
 			return 0, err
 		}
 		isVulnerable := false
@@ -903,11 +908,12 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				TriggeredBy:  1,
 				StartedOn:    time.Now(),
 				Namespace:    impl.cdConfig.DefaultNamespace,
-				CdWorkflowId: cdWf.Id,
+				CdWorkflowId: cdWorkflowId,
 				Message:      "Found vulnerability on image",
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 			if err != nil {
+				impl.logger.Errorw("err", "err", err)
 				return 0, err
 			}
 			return 0, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
@@ -938,6 +944,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 			if err != nil {
+				impl.logger.Errorw("err", "err", err)
 				return 0, err
 			}
 			err = impl.TriggerPostStage(cdWf, cdPipeline, overrideRequest.UserId)
