@@ -73,7 +73,6 @@ const memory = "memory"
 func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bool, error) {
 
 	sugaredLogger := util.NewSugardLogger()
-	pwd, _ := os.Getwd()
 	filestatus1 := filepath.Join("schema", schemafile+".json")
 	if _, err := os.Stat(filestatus1); os.IsNotExist(err) {
 		fmt.Println("filestatus2",filestatus1)
@@ -84,7 +83,7 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 		gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
 		gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
 
-		jsonFile, err := os.Open(fmt.Sprintf("%s/schema/%s.json", pwd,schemafile))
+		jsonFile, err := os.Open(filestatus1)
 		if err != nil {
 			sugaredLogger.Error(err)
 		}
