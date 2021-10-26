@@ -186,10 +186,10 @@ type GitCommit struct {
 	Message         string
 	Changes         []string
 	WebhookData     *WebhookData
-	GitBranchName   string
 	GitMaterialUrl  string
-	GitMaterialName string
-	GitBranchType   pipelineConfig.SourceType
+	GitRepoName     string
+	GitSourceType   pipelineConfig.SourceType
+	GitSourceValue  string
 }
 
 type WebhookData struct {
