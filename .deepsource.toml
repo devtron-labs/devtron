@@ -5,7 +5,8 @@ name = "go"
 enabled = true
 
   [analyzers.meta]
-  import_root = "github.com/Dhruvacube/devtron"
+  import_paths = ["github.com/devtron-labs/devtron"]
+  import_root = " github.com/devtron-labs/devtron"
 
 [[transformers]]
 name = "gofmt"
