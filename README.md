@@ -51,7 +51,7 @@
 
 ### Why use it?
 
-We have seen various tools that are used to greatly increase the ease of using Kubernetes but using these tools simultaneously is painful and hard to use. As these tools dont talk to eachother for managing different aspects of application lifecycle - CI, CD, security, cost, observability, stabilization. We built Devtron to solve this problem precisely.
+We have seen various tools that are used to greatly increase the ease of using Kubernetes but using these tools simultaneously is painful and hard to use. As these tools don't talk to each other for managing different aspects of application lifecycle - CI, CD, security, cost, observability, stabilization. We built Devtron to solve this problem precisely.
 
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
