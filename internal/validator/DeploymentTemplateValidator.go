@@ -72,11 +72,12 @@ const memory = "memory"
 func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bool, error) {
 
 	sugaredLogger := util.NewSugardLogger()
-	if _, err := os.Stat(fmt.Sprintf("schema/%s.json", schemafile)); err == nil {
+	pwd, _ := os.Getwd()
+	if _, err := os.Stat(fmt.Sprintf("%s/schema/%s.json", pwd,schemafile)); err == nil {
 		gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
 		gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
 
-		jsonFile, err := os.Open(fmt.Sprintf("schema/%s.json", schemafile))
+		jsonFile, err := os.Open(fmt.Sprintf("%s/schema/%s.json", pwd,schemafile))
 		if err != nil {
 			sugaredLogger.Error(err)
 		}
@@ -85,14 +86,13 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 		json.Unmarshal([]byte(byteValueJsonFile), &schemajson)
 		schemaLoader := gojsonschema.NewGoLoader(schemajson)
 		documentLoader := gojsonschema.NewGoLoader(templatejson)
-		buff, err := json.Marshal(templatejson)
+		marshalTemplatejson, err := json.Marshal(templatejson)
 		if err != nil {
 
 			sugaredLogger.Error(err)
 
 			return false, err
 		}
-		fmt.Println(string(buff))
 		result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 		if err != nil {
 			sugaredLogger.Error(err)
@@ -101,11 +101,10 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 		if result.Valid() {
 			var dat map[string]interface{}
 
-			if err := json.Unmarshal(buff, &dat); err != nil {
+			if err := json.Unmarshal(marshalTemplatejson, &dat); err != nil {
 				sugaredLogger.Error(err)
 				return false, err
 			}
-			//limits and requests are mandatory fields in schema
 			autoscaleEnabled,ok := dat["autoscaling"].(map[string]interface{})["enabled"]
 			if ok && autoscaleEnabled.(bool) {
 				checkCPUlimit,ok := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})["cpu"]
@@ -161,11 +160,9 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 
 			}
 
-			fmt.Println("ok")
 			return true, nil
 		} else {
 			var stringerror string
-			fmt.Printf("The document is not valid. see errors :\n")
 			for _, err := range result.Errors() {
 				fmt.Println(err.Details()["format"])
 				if err.Details()["format"] == cpu {
