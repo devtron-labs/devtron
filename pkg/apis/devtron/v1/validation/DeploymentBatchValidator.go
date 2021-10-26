@@ -38,7 +38,7 @@ func ValidateDeployment(deployment *v1.Deployment, props v1.InheritedProps) erro
 	errs = util.AppendErrorString(errs, deployment.CompareDestination(props.Destination))
 
 	for i := range deployment.ConfigMaps {
-		errs = util.AppendErrorString(errs, validateConfigMap(&deployment.Secrets[i], deployment.GetProps()))
+		errs = util.AppendErrorString(errs, validateConfigMap(&deployment.ConfigMaps[i], deployment.GetProps()))
 	}
 
 	for i := range deployment.Secrets {
