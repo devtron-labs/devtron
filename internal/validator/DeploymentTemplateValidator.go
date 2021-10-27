@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -71,9 +72,9 @@ const cpu = "cpu"
 const memory = "memory"
 
 func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bool, error) {
-
+	refChartDir := pipeline.RefChartDir("scripts/devtron-reference-helm-charts")
 	sugaredLogger := util.NewSugardLogger()
-	filestatus1 := filepath.Join("schema", schemafile+".json")
+	filestatus1 := filepath.Join(string(refChartDir), schemafile,"schema.json")
 	if _, err := os.Stat(filestatus1); os.IsNotExist(err) {
 		fmt.Println("filestatus2",filestatus1)
 		return true, nil
