@@ -74,17 +74,14 @@ const memory = "memory"
 func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bool, error) {
 	refChartDir := pipeline.RefChartDir("scripts/devtron-reference-helm-charts")
 	sugaredLogger := util.NewSugardLogger()
-	filestatus1 := filepath.Join(string(refChartDir), schemafile,"schema.json")
-	if _, err := os.Stat(filestatus1); os.IsNotExist(err) {
-		fmt.Println("filestatus2",filestatus1)
+	filestatus := filepath.Join(string(refChartDir), schemafile,"schema.json")
+	if _, err := os.Stat(filestatus); os.IsNotExist(err) {
 		return true, nil
 	} else{
-		fmt.Println("filestatus1",filestatus1)
-
 		gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
 		gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
 
-		jsonFile, err := os.Open(filestatus1)
+		jsonFile, err := os.Open(filestatus)
 		if err != nil {
 			sugaredLogger.Error(err)
 		}
