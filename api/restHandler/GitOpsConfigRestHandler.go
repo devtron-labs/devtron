@@ -135,12 +135,12 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	gitOpsSaveResponse, err := impl.gitOpsConfigService.ValidateAndUpdateGitOpsConfig(&bean)
+	gitOpsUpdateResponse, err := impl.gitOpsConfigService.ValidateAndUpdateGitOpsConfig(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
-	writeJsonResp(w, nil, gitOpsSaveResponse, http.StatusOK)
+	writeJsonResp(w, nil, gitOpsUpdateResponse, http.StatusOK)
 
 }
 
