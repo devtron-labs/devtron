@@ -242,21 +242,6 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if userInfo.RoleFilters != nil && len(userInfo.RoleFilters) > 0 {
-		for _, filter := range userInfo.RoleFilters {
-			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
-					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-					return
-				}
-			}
-		}
-	} else {
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, "*"); !ok {
-			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-			return
-		}
-	}
 	authCheck, preparedRoleFilter := handler.applyAuthentication(token, userInfo)
 	if authCheck == false {
 		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -341,26 +326,55 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 
 	// NOTE: if no role assigned, user will be visible to all manager.
 	// RBAC enforcer applying
-	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
-		authPass := true
-		for _, filter := range res.RoleFilters {
-			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); ok {
-					authPass = true
+	/*
+		if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
+			authPass := true
+			for _, filter := range res.RoleFilters {
+				if len(filter.Team) > 0 {
+					if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); ok {
+						authPass = true
+					}
 				}
 			}
+			if len(res.RoleFilters) == 1 && res.RoleFilters[0].Entity == rbac.ResourceChartGroup {
+				authPass = true
+			}
+			if isActionUserSuperAdmin {
+				authPass = true
+			}
+			if authPass == false {
+				writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+				return
+			}
 		}
+	*/
+	newRoleFilter := make([]bean.RoleFilter, 0)
+	for _, filter := range res.RoleFilters {
+		pass := 0
+		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); ok {
+			pass = pass + 1
+		}
+
+		envArr := strings.Split(filter.Environment, ",")
+		envNewArr := make([]string, 0)
+		for _, env := range envArr {
+			if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionUpdate, strings.ToLower(env)); ok {
+				pass = pass + 1
+				envNewArr = append(envNewArr, env)
+			}
+		}
+		filter.Environment = strings.Join(envNewArr[:], ",")
 		if len(res.RoleFilters) == 1 && res.RoleFilters[0].Entity == rbac.ResourceChartGroup {
-			authPass = true
+			pass = pass + 1
 		}
 		if isActionUserSuperAdmin {
-			authPass = true
+			pass = pass + 1
 		}
-		if authPass == false {
-			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-			return
+		if pass >= 2 {
+			newRoleFilter = append(newRoleFilter, filter)
 		}
 	}
+	res.RoleFilters = newRoleFilter
 	//RBAC enforcer Ends
 
 	writeJsonResp(w, err, res, http.StatusOK)
