@@ -79,7 +79,7 @@ type DetailedErrorGitOpsConfigResponse struct {
 	SuccessfulStages []string          `json:"successfulStages"`
 	StageErrorMap    map[string]string `json:"stageErrorMap"`
 	ValidatedOn      time.Time         `json:"validatedOn"`
-	DeleteRepoSuccessful bool   `json:"deleteRepoSuccessful"`
+	DeleteRepoFailed bool   `json:"deleteRepoFailed"`
 }
 type GitOpsConfigServiceImpl struct {
 	randSource       rand.Source
@@ -114,7 +114,7 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		gitOpsConfig, err := impl.CreateGitOpsConfig(config)
-		gitOpsConfig.DeleteRepoSuccessful = detailedErrorGitOpsConfigResponse.DeleteRepoSuccessful
+		gitOpsConfig.DeleteRepoFailed = detailedErrorGitOpsConfigResponse.DeleteRepoFailed
 		if err != nil {
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
 			return gitOpsConfig, detailedErrorGitOpsConfigResponse, err
@@ -126,7 +126,7 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2
 func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error) {
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
-		config.DeleteRepoSuccessful = detailedErrorGitOpsConfigResponse.DeleteRepoSuccessful
+		config.DeleteRepoFailed = detailedErrorGitOpsConfigResponse.DeleteRepoFailed
 		err := impl.UpdateGitOpsConfig(config)
 		if err != nil {
 			impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", config)
@@ -692,10 +692,10 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		impl.logger.Errorw("error in deleting repo", "err", err)
 		//here below the assignment of delete is removed for making this stage optional, and it's failure not preventing it from saving/updating gitOps config
 		//detailedErrorGitOpsConfigActions.StageErrorMap[DeleteRepoStage] = impl.extractErrorMessageByProvider(err, config.Provider)
-		detailedErrorGitOpsConfigActions.DeleteRepoSuccessful = false
+		detailedErrorGitOpsConfigActions.DeleteRepoFailed = true
 	} else {
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, DeleteRepoStage)
-		detailedErrorGitOpsConfigActions.DeleteRepoSuccessful = true
+		detailedErrorGitOpsConfigActions.DeleteRepoFailed = false
 	}
 	detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
 	defer impl.cleanDir(clonedDir)
@@ -737,6 +737,6 @@ func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErro
 	for stage, err := range detailedErrorGitOpsConfigActions.StageErrorMap {
 		detailedErrorResponse.StageErrorMap[stage] = err.Error()
 	}
-	detailedErrorResponse.DeleteRepoSuccessful = detailedErrorGitOpsConfigActions.DeleteRepoSuccessful
+	detailedErrorResponse.DeleteRepoFailed = detailedErrorGitOpsConfigActions.DeleteRepoFailed
 	return detailedErrorResponse
 }

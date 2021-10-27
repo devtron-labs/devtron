@@ -71,7 +71,7 @@ type DetailedErrorGitOpsConfigActions struct {
 	SuccessfulStages []string         `json:"successfulStages"`
 	StageErrorMap    map[string]error `json:"stageErrorMap"`
 	ValidatedOn      time.Time        `json:"validatedOn"`
-	DeleteRepoSuccessful bool   `json:"deleteRepoSuccessful"`
+	DeleteRepoFailed bool   `json:"deleteRepoFailed"`
 }
 
 func (factory *GitFactory) Reload() error {
