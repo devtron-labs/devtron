@@ -45,8 +45,8 @@ import (
 )
 
 type GitOpsConfigService interface {
-	ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error)
-	ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error)
+	ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (*GitOpsSaveUpdateResponse, error)
+	ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (*GitOpsSaveUpdateResponse, error)
 	GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse
 	CreateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error)
 	UpdateGitOpsConfig(config *bean2.GitOpsConfigDto) error
@@ -81,6 +81,12 @@ type DetailedErrorGitOpsConfigResponse struct {
 	ValidatedOn      time.Time         `json:"validatedOn"`
 	DeleteRepoFailed bool   `json:"deleteRepoFailed"`
 }
+
+type GitOpsSaveUpdateResponse struct{
+	GitOpsValidationResponse DetailedErrorGitOpsConfigResponse `json:"gitOpsValidationResponse"`
+	GitOpsConfig             *bean2.GitOpsConfigDto             `json:"gitOpsConfig"`
+}
+
 type GitOpsConfigServiceImpl struct {
 	randSource       rand.Source
 	logger           *zap.SugaredLogger
@@ -110,31 +116,37 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 	}
 }
 
-func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error) {
+func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (*GitOpsSaveUpdateResponse, error) {
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
+	gitOpsSaveResponse := &GitOpsSaveUpdateResponse{
+		GitOpsValidationResponse: detailedErrorGitOpsConfigResponse,
+	}
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		gitOpsConfig, err := impl.CreateGitOpsConfig(config)
-		gitOpsConfig.DeleteRepoFailed = detailedErrorGitOpsConfigResponse.DeleteRepoFailed
+		gitOpsSaveResponse.GitOpsConfig = gitOpsConfig
 		if err != nil {
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
-			return gitOpsConfig, detailedErrorGitOpsConfigResponse, err
+			return gitOpsSaveResponse, err
 		}
-		return gitOpsConfig, detailedErrorGitOpsConfigResponse, nil
+		return gitOpsSaveResponse, nil
 	}
-	return nil, detailedErrorGitOpsConfigResponse, nil
+	return gitOpsSaveResponse, nil
 }
-func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error) {
+func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (*GitOpsSaveUpdateResponse, error) {
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
+	gitOpsUpdateResponse := &GitOpsSaveUpdateResponse{
+		GitOpsValidationResponse: detailedErrorGitOpsConfigResponse,
+	}
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
-		config.DeleteRepoFailed = detailedErrorGitOpsConfigResponse.DeleteRepoFailed
 		err := impl.UpdateGitOpsConfig(config)
+		gitOpsUpdateResponse.GitOpsConfig = config
 		if err != nil {
 			impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", config)
-			return config, detailedErrorGitOpsConfigResponse, err
+			return gitOpsUpdateResponse, err
 		}
-		return config, detailedErrorGitOpsConfigResponse, nil
+		return gitOpsUpdateResponse, nil
 	}
-	return nil, detailedErrorGitOpsConfigResponse, nil
+	return gitOpsUpdateResponse, nil
 }
 
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error) {

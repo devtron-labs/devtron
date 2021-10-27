@@ -13,5 +13,4 @@ type GitOpsConfigDto struct {
 	BitBucketWorkspaceId string `json:"bitBucketWorkspaceId"`
 	BitBucketProjectKey  string `json:"bitBucketProjectKey"`
 	UserId               int32  `json:"-"`
-	DeleteRepoFailed bool   `json:"deleteRepoFailed"`
 }
