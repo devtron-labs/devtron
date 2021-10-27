@@ -128,7 +128,6 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
 			return gitOpsSaveResponse, err
 		}
-		return gitOpsSaveResponse, nil
 	}
 	return gitOpsSaveResponse, nil
 }
@@ -144,7 +143,6 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2
 			impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", config)
 			return gitOpsUpdateResponse, err
 		}
-		return gitOpsUpdateResponse, nil
 	}
 	return gitOpsUpdateResponse, nil
 }
@@ -707,7 +705,6 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		detailedErrorGitOpsConfigActions.DeleteRepoFailed = true
 	} else {
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, DeleteRepoStage)
-		detailedErrorGitOpsConfigActions.DeleteRepoFailed = false
 	}
 	detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
 	defer impl.cleanDir(clonedDir)
