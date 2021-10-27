@@ -737,5 +737,6 @@ func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErro
 	for stage, err := range detailedErrorGitOpsConfigActions.StageErrorMap {
 		detailedErrorResponse.StageErrorMap[stage] = err.Error()
 	}
+	detailedErrorResponse.DeleteRepoSuccessful = detailedErrorGitOpsConfigActions.DeleteRepoSuccessful
 	return detailedErrorResponse
 }
