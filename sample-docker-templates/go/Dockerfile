@@ -5,6 +5,12 @@ FROM golang:1.16 as builder
 # Setup the working directory
 WORKDIR /app
 
+# COPY go module
+COPY go.mod go.sum /app/
+
+# Download go modules and cache for next time build
+RUN go mod download
+
 # Add source code
 ADD . /app/
 
@@ -24,11 +30,7 @@ RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
 WORKDIR /root
 
 # Copy the binary from builder
-COPY --from=builder /app/. .
+COPY --from=builder /app/main .
 
 # Run the binary
 CMD ["./main"]
-
-
-
-
