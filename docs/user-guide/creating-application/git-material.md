@@ -29,7 +29,7 @@ Note:
 
 ## 3. Checkout Path
 
-After clicking on checbox, git checkout path field appears. The git checkout path is the directory where your code is pulled or cloned for the repository you specified in the previous step.
+After clicking on checkbox, git checkout path field appears. The git checkout path is the directory where your code is pulled or cloned for the repository you specified in the previous step.
 
 This field is optional in case of a single git repository application and you can leave the path as default. Devtron assigns a directory by itself when the field is left blank. The default value of this field is `./`
 

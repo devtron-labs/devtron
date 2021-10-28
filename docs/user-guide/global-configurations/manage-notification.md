@@ -22,7 +22,7 @@ Click on `Add` and configure SES.
 
 | Key | Description |
 | :--- | :--- |
-| `Configuation Name` | Give a name to the SES Configuration |
+| `Configuration Name` | Give a name to the SES Configuration |
 | `Access Key ID` | Valid AWS Access Key ID |
 | `Secret Access Key` | Valid AWS Secret Access Key |
 | `AWS Region` | Select the AWS Region from the drop-down menu |

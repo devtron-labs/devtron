@@ -11,7 +11,7 @@ In order to modify particular object it looks in namespace `devtroncd` for corre
 |clair| clair-config-override-cm| clair configuration|
 |dashboard| dashboard-override-cm| ui of devtron|
 |gitSensor| git-sensor-override-cm| microservice for git interaction|
-|guard| guard-override-cm| validaing webhook to block images with security violations|
+|guard| guard-override-cm| validating webhook to block images with security violations|
 |postgresql| postgresql-override-cm| db store of devtron|
 |imageScanner| image-scanner-override-cm| image scanner for vulnerability|
 |kubewatch| kubewatch-override-cm| watches changes in ci and cd running in different clusters|
@@ -76,7 +76,7 @@ After files being applied, you are ready to install your Devtron instance with p
 ### Post-Devtron Installation
 If you have an existing Devtron instance and want to migrate it for production ready deployments, this is the right option for you.
 
-In the existing namesapce, apply the production overrides as we do it above.
+In the existing namespace, apply the production overrides as we do it above.
 ```bash
 kubectl apply -f prod-configs -n devtroncd
 ```
