@@ -100,26 +100,7 @@ func (repo MaterialRepositoryImpl) SaveMaterial(material *GitMaterial) error {
 }
 
 func (repo MaterialRepositoryImpl) UpdateMaterial(material *GitMaterial) error {
-	oldMaterial, err := repo.FindById(material.Id)
-	if err != nil{
-		return err
-	}
-	oldMaterial.Active = false
-	err = repo.dbConnection.Update(oldMaterial)
-	if err != nil{
-		return err
-	}
-	newMaterial := &GitMaterial{
-		AppId: oldMaterial.AppId,
-		GitProviderId: oldMaterial.GitProviderId,
-		Active: true,
-		Url: oldMaterial.Url,
-		Name: oldMaterial.Name,
-		CheckoutPath: oldMaterial.CheckoutPath,
-		FetchSubmodules: oldMaterial.FetchSubmodules,
-	}
-	err = repo.dbConnection.Insert(newMaterial)
-	return err
+	return repo.dbConnection.Update(material)
 }
 
 func (repo MaterialRepositoryImpl) UpdateMaterialScmId(material *GitMaterial) error {
