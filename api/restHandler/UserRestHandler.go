@@ -159,26 +159,29 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	writeJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) applyAuthentication(token string, userInfo bean.UserInfo) (bool, []bean.RoleFilter) {
+func (handler UserRestHandlerImpl) applyAuthentication(token string, newRoleFilters []bean.RoleFilter, oldRoleFilters []bean.RoleFilter) (bool, []bean.RoleFilter) {
 	uniqueExisting := make(map[string]bool)
 	uniqueNew := make(map[string]bool)
-	newRoleFilter := make([]bean.RoleFilter, 0)
-	existingRoleFilter := make([]bean.RoleFilter, 0)
-
-	user, err := handler.userService.GetById(userInfo.Id)
-	if err != nil {
-		return false, newRoleFilter
-	}
+	combinedRoleFilters := make([]bean.RoleFilter, 0)
+	dedupeRoleFilters := make([]bean.RoleFilter, 0)
 
 	// here expectation is only permitted items comes in new request, coz user can't see others
-	for _, roleFilter := range userInfo.RoleFilters {
+	for _, roleFilter := range newRoleFilters {
 		envArr := strings.Split(roleFilter.Environment, ",")
 		for _, env := range envArr {
 			key := fmt.Sprintf("%s_%s_%s_%s", roleFilter.Team, env, roleFilter.EntityName, roleFilter.Action)
 			if _, ok := uniqueNew[key]; !ok {
 				uniqueNew[key] = true
-				newRoleFilter = append(newRoleFilter, roleFilter)
+				combinedRoleFilters = append(combinedRoleFilters, roleFilter)
 			}
+		}
+	}
+	for _, filter := range combinedRoleFilters {
+		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
+			return false, combinedRoleFilters
+		}
+		if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, strings.ToLower(filter.Environment)); !ok {
+			return false, combinedRoleFilters
 		}
 	}
 
@@ -186,7 +189,7 @@ func (handler UserRestHandlerImpl) applyAuthentication(token string, userInfo be
 	// here check manager access for remaining item weather he has access or not ..
 	// .. if yes then remove them also as it intentionally removed by manager
 	// .. else retain other item which are not belongs to him.
-	for _, roleFilter := range user.RoleFilters {
+	for _, roleFilter := range oldRoleFilters {
 		envArr := strings.Split(roleFilter.Environment, ",")
 		for _, env := range envArr {
 			key := fmt.Sprintf("%s_%s_%s_%s", roleFilter.Team, env, roleFilter.EntityName, roleFilter.Action)
@@ -194,21 +197,12 @@ func (handler UserRestHandlerImpl) applyAuthentication(token string, userInfo be
 			if _, ok := uniqueExisting[key]; !ok {
 				uniqueExisting[key] = true
 				if _, ok := uniqueNew[key]; !ok {
-					existingRoleFilter = append(existingRoleFilter, roleFilter)
+					dedupeRoleFilters = append(dedupeRoleFilters, roleFilter)
 				}
 			}
 		}
 	}
-
-	for _, filter := range newRoleFilter {
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
-			return false, newRoleFilter
-		}
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, strings.ToLower(filter.Environment)); !ok {
-			return false, newRoleFilter
-		}
-	}
-	for _, filter := range existingRoleFilter {
+	for _, filter := range dedupeRoleFilters {
 		pass := 0
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
 			pass = pass + 1
@@ -217,10 +211,10 @@ func (handler UserRestHandlerImpl) applyAuthentication(token string, userInfo be
 			pass = pass + 1
 		}
 		if pass != 2 {
-			newRoleFilter = append(newRoleFilter, filter)
+			combinedRoleFilters = append(combinedRoleFilters, filter)
 		}
 	}
-	return true, newRoleFilter
+	return true, combinedRoleFilters
 }
 
 func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -242,7 +236,12 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	authCheck, preparedRoleFilter := handler.applyAuthentication(token, userInfo)
+	user, err := handler.userService.GetById(userInfo.Id)
+	if err != nil {
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	authCheck, preparedRoleFilter := handler.applyAuthentication(token, userInfo.RoleFilters, user.RoleFilters)
 	if authCheck == false {
 		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
@@ -350,7 +349,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 		}
 
 		filter.Environment = strings.Join(envNewArr[:], ",")
-		if filter.Entity == rbac.ResourceChartGroup || isActionUserSuperAdmin{
+		if filter.Entity == rbac.ResourceChartGroup || isActionUserSuperAdmin {
 			pass = pass + 1
 		}
 		if pass > 1 {
@@ -532,21 +531,17 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 	handler.logger.Infow("request payload, UpdateRoleGroup", "err", err, "payload", request)
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if request.RoleFilters != nil && len(request.RoleFilters) > 0 {
-		for _, filter := range request.RoleFilters {
-			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
-					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-					return
-				}
-			}
-		}
-	} else {
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, "*"); !ok {
-			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-			return
-		}
+	roleGroup, err := handler.roleGroupService.FetchRoleGroupsById(request.Id)
+	if err != nil {
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
+	authCheck, preparedRoleFilter := handler.applyAuthentication(token, request.RoleFilters, roleGroup.RoleFilters)
+	if authCheck == false {
+		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	request.RoleFilters = preparedRoleFilter
 	//RBAC enforcer Ends
 
 	err = handler.validator.Struct(request)
