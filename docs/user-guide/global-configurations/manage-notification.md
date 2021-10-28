@@ -12,7 +12,7 @@ Click on `Configurations` and you will see Devtron support two types of configur
 
 ### **Manage SES Configurations**
 
-You can manage the `SES configuration` to recieve e-mails by entering the valid credentials. Make sure your e-mail is verified by SES.
+You can manage the `SES configuration` to receive e-mails by entering the valid credentials. Make sure your e-mail is verified by SES.
 
 ![](../../.gitbook/assets/gc-noitfication-condfiguration-add.jpg)
 
@@ -26,13 +26,13 @@ Click on `Add` and configure SES.
 | `Access Key ID` | Valid AWS Access Key ID |
 | `Secret Access Key` | Valid AWS Secret Access Key |
 | `AWS Region` | Select the AWS Region from the drop-down menu |
-| `E-mail` | Enter the SES verified e-mail id on which you wish to recieve e-mail notifications |
+| `E-mail` | Enter the SES verified e-mail id on which you wish to receive e-mail notifications |
 
 Click on `Save` to save your SES configuration or e-mail ID
 
 ### **Manage Slack Configurations**
 
-You can manage the `Slack configurations` to recieve notifications on your preferred Slack channel.
+You can manage the `Slack configurations` to receive notifications on your preferred Slack channel.
 
 ![](../../.gitbook/assets/gc-noitfication-condfiguration-add-slack.jpg)
 
@@ -42,7 +42,7 @@ Click on `Add` to add new Slack Channel.
 
 | Key | Description |
 | :--- | :--- |
-| `Slack Channel` | Name of the Slack channel on which you wish to recieve notifications. |
+| `Slack Channel` | Name of the Slack channel on which you wish to receive notifications. |
 | `Webhook URL` | Enter the valid [Webhook URL link](https://slack.com/intl/en-gb/help/articles/115005265063-Incoming-webhooks-for-Slack) |
 | `Project` | Select the project name to control user access |
 
@@ -50,7 +50,7 @@ Click on `Save` and your slack channel will be added.
 
 ## **Manage Notifications**
 
-Click on `Add New` to recieve new notification.
+Click on `Add New` to receive new notification.
 
 ![](../../.gitbook/assets/gc-noitfication-add-notification%20%283%29.jpg)
 

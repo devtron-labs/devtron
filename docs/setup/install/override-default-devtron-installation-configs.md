@@ -52,7 +52,7 @@ kubectl patch -n devtroncd installer installer-devtron --type='json' -p='[{"op":
 After 20-30 mins our changes would have been propogated to devtron installation.
 
 ## Recommended Resources for Production use
-If you are planning to use Devtron for production deployments, please use our recommened production overrides located in [manifests/updates/production](https://github.com/devtron-labs/devtron/tree/main/manifests/updates/production). This configuration should be enough for handling upto 200 microservices.
+If you are planning to use Devtron for production deployments, please use our recommended production overrides located in [manifests/updates/production](https://github.com/devtron-labs/devtron/tree/main/manifests/updates/production). This configuration should be enough for handling upto 200 microservices.
 
 The overall resources required for the recommended production overrides are:
 
