@@ -20,6 +20,12 @@ package util
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"net/url"
+	"path/filepath"
+	"strconv"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
@@ -31,11 +37,6 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
-	"io/ioutil"
-	"net/url"
-	"path/filepath"
-	"strconv"
-	"time"
 )
 
 const (
@@ -269,7 +270,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 	} else {
 		return nil, fmt.Errorf("no gitlab group id found")
 	}
-	if len(gitlabGroupId) == 0 {
+	if gitlabGroupId == "" {
 		return nil, fmt.Errorf("no gitlab group id found")
 	}
 	group, _, err := git.Groups.GetGroup(gitlabGroupId)

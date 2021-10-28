@@ -18,11 +18,12 @@
 package appstore
 
 import (
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ChartGroupServiceImpl struct {
@@ -294,7 +295,7 @@ func (impl *ChartGroupServiceImpl) ChartGroupList(max int) (*ChartGroupList, err
 	for _, v := range groupMap {
 		chartGroups = append(chartGroups, v)
 	}
-	if chartGroups == nil || len(chartGroups) == 0 {
+	if len(chartGroups) == 0 {
 		chartGroups = make([]*ChartGroupBean, 0)
 	}
 	return &ChartGroupList{Groups: chartGroups}, nil
@@ -379,7 +380,7 @@ func (impl *ChartGroupServiceImpl) ChartGroupListMin(max int) ([]*ChartGroupBean
 		}
 		chartGroupList = append(chartGroupList, chartGroupRes)
 	}
-	if chartGroupList == nil || len(chartGroupList) == 0 {
+	if len(chartGroupList) == 0 {
 		chartGroupList = make([]*ChartGroupBean, 0)
 	}
 	return chartGroupList, nil

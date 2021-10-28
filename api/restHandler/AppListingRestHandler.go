@@ -21,6 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -35,10 +40,6 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type AppListingRestHandler interface {
@@ -153,9 +154,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	}
 	appEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
 	if isActionUserSuperAdmin {
-		for _, envContainer := range envContainers {
-			appEnvContainers = append(appEnvContainers, envContainer)
-		}
+		appEnvContainers = append(appEnvContainers, envContainers...)
 	} else {
 		uniqueTeams := make(map[int]string)
 		authorizedTeams := make(map[int]bool)
@@ -402,7 +401,7 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 				return
 			}
 			response <- AppStatus{name: pipelineName, status: "", message: "", err: fmt.Errorf("Connection Closed by Client"), conditions: make([]v1alpha1.ApplicationCondition, 0)}
-			return
+
 		}(acdAppName)
 	}
 	rCount := 0

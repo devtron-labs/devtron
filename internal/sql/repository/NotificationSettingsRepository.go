@@ -130,7 +130,7 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsViewById
 
 func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsViewByIds(ids []*int) ([]*NotificationSettingsView, error) {
 	var notificationSettingsView []*NotificationSettingsView
-	if ids == nil || len(ids) == 0 {
+	if len(ids) == 0 {
 		return notificationSettingsView, nil
 	}
 	err := impl.dbConnection.Model(&notificationSettingsView).Where("id in (?)", pg.In(ids)).Select()

@@ -23,6 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -48,10 +53,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/go-playground/validator.v9"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type PipelineConfigRestHandler interface {
@@ -1205,7 +1206,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 				if err != nil {
 					handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 				}
-				if blockCveList != nil && len(blockCveList) > 0 {
+				if len(blockCveList) > 0 {
 					vulnerableMap[digest] = true
 				}
 			}

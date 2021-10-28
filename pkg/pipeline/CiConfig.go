@@ -20,12 +20,13 @@ package pipeline
 import (
 	"flag"
 	"fmt"
-	"github.com/caarlos0/env"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"os/user"
 	"path/filepath"
 	"strings"
+
+	"github.com/caarlos0/env"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 const DevMode = "DEV"
@@ -94,7 +95,7 @@ func GetCiConfig() (*CiConfig, error) {
 	}
 	cfg.NodeLabel = make(map[string]string)
 	for _, l := range cfg.NodeLabelSelector {
-		if len(l) == 0 {
+		if l == "" {
 			continue
 		}
 		kv := strings.Split(l, "=")

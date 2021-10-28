@@ -20,6 +20,13 @@ package gitops
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -36,12 +43,6 @@ import (
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"math/rand"
-	"net/http"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type GitOpsConfigService interface {
@@ -245,10 +246,10 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 			return nil, err
 		}
 		slashSuffixPresent := strings.HasSuffix(request.Host, "/")
-		if slashSuffixPresent{
+		if slashSuffixPresent {
 			request.Host += groupName
-		} else{
-			request.Host = fmt.Sprintf(request.Host + "/%s", groupName)
+		} else {
+			request.Host = fmt.Sprintf(request.Host+"/%s", groupName)
 		}
 	}
 	if strings.ToUpper(request.Provider) == BITBUCKET_PROVIDER {
@@ -415,10 +416,10 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 			return err
 		}
 		slashSuffixPresent := strings.HasSuffix(request.Host, "/")
-		if slashSuffixPresent{
+		if slashSuffixPresent {
 			request.Host += groupName
-		} else{
-			request.Host = fmt.Sprintf(request.Host + "/%s", groupName)
+		} else {
+			request.Host = fmt.Sprintf(request.Host+"/%s", groupName)
 		}
 	}
 	if strings.ToUpper(request.Provider) == BITBUCKET_PROVIDER {
@@ -675,8 +676,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 			detailedErrorGitOpsConfigActions.StageErrorMap[PushStage] = err
 		}
 	} else {
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CommitOnRestStage)
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, PushStage)
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CommitOnRestStage, PushStage)
 	}
 	repoOptions := &bitbucket.RepositoryOptions{
 		Owner:     config.BitBucketWorkspaceId,
@@ -710,7 +710,7 @@ func (impl *GitOpsConfigServiceImpl) getDir() string {
 func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, provider string) error {
 	if provider == GITLAB_PROVIDER {
 		errorResponse, ok := err.(*gitlab.ErrorResponse)
-		if ok{
+		if ok {
 			errorMessage := fmt.Errorf("%s", errorResponse.Message)
 			return errorMessage
 		}

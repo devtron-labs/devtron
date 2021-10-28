@@ -19,9 +19,10 @@ package validation
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
-	"github.com/devtron-labs/devtron/util"
 	"strings"
+
+	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
+	"github.com/devtron-labs/devtron/util"
 )
 
 var validateBuildFunc = []func(build *v1.Build) error{validateBuildVersion, validateBuildClone}
@@ -31,7 +32,7 @@ func ValidateBuild(build *v1.Build) error {
 	if len(build.GetOperation()) == 0 {
 		return fmt.Errorf(v1.OperationUndefinedError, "build")
 	}
-	if len(build.ApiVersion) == 0 || !util.ContainsString(validBuildVersions, build.ApiVersion) {
+	if build.ApiVersion == "" || !util.ContainsString(validBuildVersions, build.ApiVersion) {
 		return fmt.Errorf(v1.UnsupportedVersion, build.ApiVersion, "build")
 	}
 	errs := make([]string, 0)
@@ -48,7 +49,7 @@ func ValidateBuild(build *v1.Build) error {
 }
 
 func validateBuildVersion(build *v1.Build) error {
-	if len(build.ApiVersion) == 0 || !util.ContainsString(validDeploymentVersions, build.ApiVersion) {
+	if build.ApiVersion == "" || !util.ContainsString(validDeploymentVersions, build.ApiVersion) {
 		return fmt.Errorf(v1.UnsupportedVersion, build.ApiVersion, "build")
 	}
 	return nil

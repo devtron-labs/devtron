@@ -20,6 +20,7 @@ package appstore
 import (
 	"bytes"
 	"context"
+
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/ktrysmt/go-bitbucket"
 
@@ -27,6 +28,15 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"path"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/Pallinder/go-randomdata"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	repository2 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
@@ -52,16 +62,8 @@ import (
 	"github.com/nats-io/stan.go"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"io/ioutil"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
-	"net/http"
-	"os"
-	"path"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT string = "devtron"
@@ -330,7 +332,7 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *c
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
 			return err
 		}
 	}
@@ -376,7 +378,7 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *cluster.Enviro
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err",err)
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
 			return err
 		}
 	}
@@ -625,7 +627,7 @@ func (impl InstalledAppServiceImpl) registerInArgo(chartGitAttribute *util.Chart
 
 func (impl InstalledAppServiceImpl) createInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, envModel cluster.Environment, argocdAppName string) error {
 	appNamespace := envModel.Namespace
-	if len(appNamespace) == 0 {
+	if appNamespace == "" {
 		appNamespace = "default"
 	}
 
@@ -1059,7 +1061,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 
 func (impl InstalledAppServiceImpl) requestBuilderForBulkDeployment(installRequest *ChartGroupInstallChartRequest, projectId int, userId int32) (*InstallAppVersionDTO, error) {
 	valYaml := installRequest.ValuesOverrideYaml
-	if len(valYaml) == 0 {
+	if valYaml == "" {
 		valVersion, err := impl.appStoreValuesService.FindValuesByIdAndKind(installRequest.ReferenceValueId, installRequest.ReferenceValueKind)
 		if err != nil {
 			return nil, err
@@ -1531,7 +1533,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 			}
 		}
 
-		if chartComponents != nil && len(chartComponents) > 0 {
+		if len(chartComponents) > 0 {
 			charts.ChartComponent = chartComponents
 			impl.logger.Info("STEP 4 - prepare a bulk request")
 			// STEP 4 - prepare a bulk request (unique names need to apply for deploying chart)

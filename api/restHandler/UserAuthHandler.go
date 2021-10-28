@@ -20,6 +20,9 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/casbin"
@@ -30,8 +33,6 @@ import (
 	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strings"
 )
 
 type UserAuthHandler interface {
@@ -252,7 +253,6 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 		return
 	}
 
-	return
 }
 
 func (handler UserAuthHandlerImpl) AuthVerification(w http.ResponseWriter, r *http.Request) {

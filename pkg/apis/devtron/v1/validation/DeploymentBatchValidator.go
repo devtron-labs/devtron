@@ -19,7 +19,8 @@ package validation
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
+
+	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/util"
 )
 
@@ -70,7 +71,7 @@ func validateDeploymentDestination(destination *v1.ResourcePath) error {
 }
 
 func validateDeploymentVersion(deployment *v1.Deployment) error {
-	if len(deployment.ApiVersion) == 0 || !util.ContainsString(validDeploymentVersions, deployment.ApiVersion) {
+	if deployment.ApiVersion == "" || !util.ContainsString(validDeploymentVersions, deployment.ApiVersion) {
 		return fmt.Errorf(v1.UnsupportedVersion, deployment.ApiVersion, "deployment")
 	}
 	return nil

@@ -19,11 +19,12 @@ package telemetry
 
 import (
 	"encoding/base64"
+	"time"
+
 	"github.com/devtron-labs/devtron/util"
 	"github.com/patrickmn/go-cache"
 	"github.com/posthog/posthog-go"
 	"go.uber.org/zap"
-	"time"
 )
 
 type PosthogClient struct {
@@ -47,7 +48,7 @@ const (
 )
 
 func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
-	if len(PosthogApiKey) == 0 {
+	if PosthogApiKey == "" {
 		encodedApiKey, apiKey, err := getPosthogApiKey(TelemetryApiKeyEndpoint, logger)
 		if err != nil {
 			logger.Errorw("exception caught while getting api key", "err", err)
