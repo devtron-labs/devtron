@@ -87,7 +87,7 @@ type ResourceLevel string
 type SeverityPolicy struct {
 	Id int `json:"id"`
 
-	// Whether vulnerability is allowed or blocked and is it inherited or is it overriden
+	// Whether vulnerability is allowed or blocked and is it inherited or is it overridden
 	Policy       *VulnerabilityPermission `json:"policy"`
 	PolicyOrigin string                   `json:"policyOrigin"`
 	Severity     string                   `json:"severity"`

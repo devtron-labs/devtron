@@ -360,7 +360,7 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 		impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
 		userMsg := "failed to update on cluster via ACD"
 		if strings.Contains(err.Error(), "https://kubernetes.default.svc") {
-			userMsg = fmt.Sprintf("%s, %s", err.Error(), ", sucessfully updated in ACD")
+			userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
 		}
 		err = &util.ApiError{
 			Code:            constants.ClusterUpdateACDFailed,

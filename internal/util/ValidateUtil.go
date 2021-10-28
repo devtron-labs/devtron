@@ -53,6 +53,14 @@ func validateAppLabel(fl validator.FieldLevel) bool {
 	return true
 }
 
+func validateNonEmptyUrl(fl validator.FieldLevel) bool {
+	value := fl.Field().String()
+	if len(value) == 0 {
+		return true
+	}
+	return IsValidUrl(value)
+}
+
 func IntValidator() (*validator.Validate, error) {
 	v := validator.New()
 	err := v.RegisterValidation("name-component", ValidateName)
@@ -64,6 +72,10 @@ func IntValidator() (*validator.Validate, error) {
 		return v, err
 	}
 	err = v.RegisterValidation("app-label-component", validateAppLabel)
+	if err != nil {
+		return v, err
+	}
+	err = v.RegisterValidation("validate-non-empty-url", validateNonEmptyUrl)
 	if err != nil {
 		return v, err
 	}
