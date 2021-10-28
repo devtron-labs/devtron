@@ -48,7 +48,7 @@ func validatePrePostDeployment(task *v1.Task, props v1.InheritedProps) error {
 	}
 
 	for _, f := range validateStageFunc {
-		for i, _ := range task.Stages {
+		for i := range task.Stages {
 			errs = util.AppendErrorString(errs, f(&task.Stages[i]))
 		}
 	}
@@ -134,7 +134,7 @@ func validatePrePostDeploymentAppend(task *v1.Task) error {
 	if len(task.Stages) == 0 {
 		errs = util.AppendErrorString(errs, fmt.Errorf(v1.StagesMissing))
 	}
-	for i, _ := range task.Stages {
+	for i := range task.Stages {
 		errs = util.AppendErrorString(errs, validateStageAppend(&task.Stages[i]))
 	}
 	return util.GetErrorOrNil(errs)
