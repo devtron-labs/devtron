@@ -669,7 +669,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			impl.logger.Errorw("error while fetching blocked cve list", "err", err)
 			return err
 		}
-		if blockCveList != nil && len(blockCveList) > 0 {
+		if len(blockCveList) > 0 {
 			isVulnerable = true
 		}
 	}
@@ -895,7 +895,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				impl.logger.Errorw("error while fetching env", "err", err)
 				return 0, err
 			}
-			if blockCveList != nil && len(blockCveList) > 0 {
+			if len(blockCveList) > 0 {
 				isVulnerable = true
 			}
 		}

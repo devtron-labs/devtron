@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"fmt"
+
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 )
@@ -105,7 +106,7 @@ func (impl AppLabelRepositoryImpl) FindByAppIdAndKeyAndValue(appId int, key stri
 }
 
 func (impl AppLabelRepositoryImpl) FindByLabelValue(label string) ([]*AppLabel, error) {
-	if len(label) == 0 {
+	if label == "" {
 		return nil, fmt.Errorf("no labels provided for search")
 	}
 	var models []*AppLabel

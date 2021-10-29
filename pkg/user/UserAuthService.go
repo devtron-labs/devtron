@@ -23,6 +23,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"math/rand"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/caarlos0/env"
 	"github.com/casbin/casbin"
@@ -37,11 +43,6 @@ import (
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
-	"log"
-	"math/rand"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type UserAuthService interface {
@@ -353,7 +354,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 				token = cookie.Value
 				r.Header.Set("token", token)
 			}
-			if len(token) == 0 && cookie == nil {
+			if token == "" && cookie == nil {
 				token = r.Header.Get("token")
 				//if cookie == nil && len(token) != 0 {
 				//	http.SetCookie(w, &http.Cookie{Name: "argocd.token", Value: token, Path: "/"})
@@ -365,7 +366,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 			config := auth.GetConfig()
 			authEnabled = config.AuthEnabled
 
-			if len(token) != 0 && authEnabled && !contains(r.URL.Path) {
+			if token != "" && authEnabled && !contains(r.URL.Path) {
 				_, err := sessionManager.VerifyToken(token)
 				if err != nil {
 					log.Printf("Error verifying token: %+v\n", err)
@@ -382,13 +383,13 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 				if r.URL.Path == "/app/ci-pipeline/github-webhook/trigger" {
 					apiKey := r.Header.Get("api-key")
 					t, err := GetWebhookToken()
-					if err != nil || len(t.WebhookToken) == 0 || t.WebhookToken != apiKey {
+					if err != nil || t.WebhookToken == "" || t.WebhookToken != apiKey {
 						writeResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, errors.New("unauthenticated"))
 						return
 					}
 				}
 				next.ServeHTTP(w, r)
-			} else if len(token) == 0 {
+			} else if token == "" {
 				writeResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, errors.New("unauthenticated"))
 				return
 			} else {
@@ -494,7 +495,7 @@ func (impl UserAuthServiceImpl) CreateRole(roleData *bean.RoleData) (bool, error
 
 func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) {
 	token := r.Header.Get("token")
-	if len(token) == 0 {
+	if token == "" {
 		impl.logger.Infow("no token provided", "token", token)
 		err := &util.ApiError{
 			HttpStatusCode:  http.StatusUnauthorized,

@@ -19,6 +19,10 @@ package user
 
 import (
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	jwt2 "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -30,9 +34,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type UserService interface {
@@ -77,7 +78,7 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository, sessio
 
 func (impl UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) (bool, error) {
 	if len(userInfo.RoleFilters) == 1 &&
-		len(userInfo.RoleFilters[0].Team) == 0 && len(userInfo.RoleFilters[0].Environment) == 0 && len(userInfo.RoleFilters[0].Action) == 0 {
+		userInfo.RoleFilters[0].Team == "" && userInfo.RoleFilters[0].Environment == "" && userInfo.RoleFilters[0].Action == "" {
 		//skip
 	} else {
 		invalid := false
@@ -200,10 +201,10 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	if userInfo.SuperAdmin == false {
 		for _, roleFilter := range userInfo.RoleFilters {
 
-			if len(roleFilter.EntityName) == 0 {
+			if roleFilter.EntityName == "" {
 				roleFilter.EntityName = "NONE"
 			}
-			if len(roleFilter.Environment) == 0 {
+			if roleFilter.Environment == "" {
 				roleFilter.Environment = "NONE"
 			}
 			entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -438,10 +439,10 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 
 		// DELETE Removed Items
 		for _, roleFilter := range userInfo.RoleFilters {
-			if len(roleFilter.EntityName) == 0 {
+			if roleFilter.EntityName == "" {
 				roleFilter.EntityName = "NONE"
 			}
-			if len(roleFilter.Environment) == 0 {
+			if roleFilter.Environment == "" {
 				roleFilter.Environment = "NONE"
 			}
 			entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -490,10 +491,10 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 
 		//Adding New Policies
 		for _, roleFilter := range userInfo.RoleFilters {
-			if len(roleFilter.EntityName) == 0 {
+			if roleFilter.EntityName == "" {
 				roleFilter.EntityName = "NONE"
 			}
-			if len(roleFilter.Environment) == 0 {
+			if roleFilter.Environment == "" {
 				roleFilter.Environment = "NONE"
 			}
 			entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -720,10 +721,10 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	for _, item := range filterGroupsModels {
 		filterGroups = append(filterGroups, item.Name)
 	}
-	if filterGroups == nil || len(filterGroups) == 0 {
+	if len(filterGroups) == 0 {
 		filterGroups = make([]string, 0)
 	}
-	if roleFilters == nil || len(roleFilters) == 0 {
+	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
 	response := &bean.UserInfo{
@@ -761,7 +762,7 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 			Groups:      make([]string, 0),
 		})
 	}
-	if response == nil || len(response) == 0 {
+	if len(response) == 0 {
 		response = make([]bean.UserInfo, 0)
 	}
 	return response, nil
@@ -804,7 +805,7 @@ func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 }
 
 func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
-	if len(token) == 0 {
+	if token == "" {
 		impl.logger.Infow("no token provided", "token", token)
 		err := &util.ApiError{
 			Code:            constants.UserNoTokenProvided,
@@ -832,7 +833,7 @@ func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
 	email := jwt2.GetField(mapClaims, "email")
 	sub := jwt2.GetField(mapClaims, "sub")
 
-	if len(email) == 0 && sub == "admin" {
+	if email == "" && sub == "admin" {
 		email = sub
 	}
 

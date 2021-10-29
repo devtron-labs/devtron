@@ -20,6 +20,8 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -30,7 +32,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
-	"time"
 )
 
 type EnvironmentProperties struct {
@@ -154,7 +155,7 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 			IsOverride: envOverride.IsOverride,
 		}
 
-		if len(environmentPropertiesResponse.Namespace) == 0 {
+		if environmentPropertiesResponse.Namespace == "" {
 			environmentPropertiesResponse.Namespace = envOverride.Namespace
 		}
 	}

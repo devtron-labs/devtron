@@ -3,7 +3,7 @@
 
 {% embed url="https://www.youtube.com/watch?v=VTqBRIFbuSU" caption="" %}
 
-Like any entreprise product, Devtron supports fine grained access control to the resources based on
+Like any enterprise product, Devtron supports fine grained access control to the resources based on
 1. Type of action allowed on the Devtron resources (Create Vs View)
 2. Sensitivity of the data (Editing image Vs Editing memory)
 

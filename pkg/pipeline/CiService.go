@@ -70,7 +70,7 @@ const WorkflowAborted = "Aborted"
 const WorkflowFailed = "Failed"
 
 func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error) {
-	if !(ciMaterials == nil || len(ciMaterials) == 0) {
+	if !(len(ciMaterials) == 0) {
 		return ciMaterials, nil
 	} else {
 		ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(pipelineId)
@@ -329,7 +329,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	checkoutPath := pipeline.CiTemplate.GitMaterial.CheckoutPath
-	if len(checkoutPath) == 0 {
+	if checkoutPath == "" {
 		checkoutPath = "./"
 	}
 	dockerfilePath := filepath.Join(pipeline.CiTemplate.GitMaterial.CheckoutPath, pipeline.CiTemplate.DockerfilePath)
@@ -394,13 +394,13 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id
 	for _, v := range commitHashes {
 		_truncatedCommit := ""
 		if v.WebhookData == nil {
-			if len(v.Commit) == 0 {
+			if v.Commit == "" {
 				continue
 			}
 			_truncatedCommit = _getTruncatedImageTag(v.Commit)
 		} else {
 			_targetCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME]
-			if len(_targetCheckout) == 0 {
+			if _targetCheckout == "" {
 				continue
 			}
 			_truncatedCommit = _getTruncatedImageTag(_targetCheckout)

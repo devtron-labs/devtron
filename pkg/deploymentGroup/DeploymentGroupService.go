@@ -20,6 +20,9 @@ package deploymentGroup
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
@@ -28,8 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 )
 
 type DeploymentGroupRequest struct {
@@ -229,7 +230,7 @@ func (impl *DeploymentGroupServiceImpl) FetchParentCiForDG(deploymentGroupId int
 	parentIdsMap := make(map[int][]int)
 	for _, item := range parentCiIds {
 		list := parentIdsMap[item.ParentCiPipeline]
-		if list == nil || len(list) == 0 {
+		if len(list) == 0 {
 			var ids []int
 			ids = append(ids, item.Id)
 			parentIdsMap[item.ParentCiPipeline] = ids

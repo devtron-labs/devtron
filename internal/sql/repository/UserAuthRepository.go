@@ -22,12 +22,13 @@ package repository
 
 import (
 	"encoding/json"
+	"strings"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strings"
 )
 
 type UserAuthRepository interface {
@@ -139,29 +140,29 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, a
 	if len(entity) > 0 && len(app) > 0 && act == "update" {
 		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.entity_name=? AND role.action=?"
 		_, err = impl.dbConnection.Query(&models, query, entity, app, act)
-	} else if len(entity) > 0 && len(app) == 0 {
+	} else if len(entity) > 0 && app == "" {
 		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.action=?"
 		_, err = impl.dbConnection.Query(&models, query, entity, act)
 	} else {
 		if len(team) > 0 && len(app) > 0 && len(env) > 0 && len(act) > 0 {
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND role.environment=? AND role.action=?"
 			_, err = impl.dbConnection.Query(&models, query, team, app, env, act)
-		} else if len(team) > 0 && len(app) == 0 && len(env) > 0 && len(act) > 0 {
+		} else if len(team) > 0 && app == "" && len(env) > 0 && len(act) > 0 {
 			query := "SELECT role.* FROM roles role WHERE role.team=? AND coalesce(role.entity_name,'')=? AND role.environment=? AND role.action=?"
 			_, err = impl.dbConnection.Query(&models, query, team, EMPTY, env, act)
-		} else if len(team) > 0 && len(app) > 0 && len(env) == 0 && len(act) > 0 {
+		} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
 			//this is applicable for all environment of a team
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND coalesce(role.environment,'')=? AND role.action=?"
 			_, err = impl.dbConnection.Query(&models, query, team, app, EMPTY, act)
-		} else if len(team) > 0 && len(app) == 0 && len(env) == 0 && len(act) > 0 {
+		} else if len(team) > 0 && app == "" && env == "" && len(act) > 0 {
 			//this is applicable for all environment of a team
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
 			_, err = impl.dbConnection.Query(&models, query, team, EMPTY, EMPTY, act)
-		} else if len(team) == 0 && len(app) == 0 && len(env) == 0 && len(act) > 0 {
+		} else if team == "" && app == "" && env == "" && len(act) > 0 {
 			//this is applicable for super admin, all env, all team, all app
 			query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
 			_, err = impl.dbConnection.Query(&models, query, EMPTY, EMPTY, EMPTY, act)
-		} else if len(team) == 0 && len(app) == 0 && len(env) == 0 && len(act) == 0 {
+		} else if team == "" && app == "" && env == "" && act == "" {
 			return models, nil
 		} else {
 			return models, nil
@@ -233,13 +234,13 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 	teamObj := team
 	envObj := env
 	appObj := entityName
-	if len(teamObj) == 0 {
+	if teamObj == "" {
 		teamObj = "*"
 	}
-	if len(envObj) == 0 {
+	if envObj == "" {
 		envObj = "*"
 	}
-	if len(appObj) == 0 {
+	if appObj == "" {
 		appObj = "*"
 	}
 	managerPolicies = strings.ReplaceAll(managerPolicies, "<TEAM_OBJ>", teamObj)
@@ -550,13 +551,13 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 	teamObj := team
 	envObj := env
 	appObj := entityName
-	if len(teamObj) == 0 {
+	if teamObj == "" {
 		teamObj = "*"
 	}
-	if len(envObj) == 0 {
+	if envObj == "" {
 		envObj = "*"
 	}
-	if len(appObj) == 0 {
+	if appObj == "" {
 		appObj = "*"
 	}
 
