@@ -210,7 +210,7 @@ func (handler UserRestHandlerImpl) applyAuthentication(token string, newRoleFilt
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, strings.ToLower(filter.Environment)); !ok {
 			pass = pass + 1
 		}
-		if pass != 2 {
+		if pass == 2 {
 			combinedRoleFilters = append(combinedRoleFilters, filter)
 		}
 	}
