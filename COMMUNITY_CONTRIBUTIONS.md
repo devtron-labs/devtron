@@ -19,6 +19,8 @@
 * https://gochronicles.com/devtron-deploy/ - By Go-Chronicals (Part-3)
 * https://community.codenewbie.org/varghesejose2020/opensourcekubernetesdevtron-3fjj -By Varghese Jose
 
+* https://www.financialexpress.com/industry/sme/devtron-a-business-opportunity-in-developers-needs/2274094/ - By Srinath Srinivasan
+
 
 ## Videos
 
