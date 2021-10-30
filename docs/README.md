@@ -14,7 +14,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 #### Zero code software delivery workflow
 
-* Workflow which understands the domain of **Kubernetes, testing, CD, SecOps** so that you dont have to write scripts
+* Workflow which understands the domain of **Kubernetes, testing, CD, SecOps** so that you don't have to write scripts
 * Reusable and composable components so that workflows are easy to contruct and reason through
 
 #### Multi cloud deployment
@@ -41,7 +41,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 #### Enterprise Grade security and compliances
 
-* Fine grained access control; control who can edit configuration and who can deploy.
+* Fine-grained access control; control who can edit configuration and who can deploy.
 * Audit log to know who did what and when
 * History of all CI and CD events
 * Kubernetes events impacting application
@@ -50,7 +50,7 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 #### GitOps aware
 
-* GitOps exposed through API and UI so that you dont have to interact with git CLI
+* GitOps exposed through API and UI so that you don't have to interact with git CLI
 * GitOps backed by postgres for easier analysis
 * Enforce finer access control than git
 

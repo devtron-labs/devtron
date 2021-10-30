@@ -127,7 +127,7 @@ kubectl delete -n devtroncd -f charts/devtron/crds
 kubectl delete ns devtroncd
 ```
 
-#### Trouble shooting steps
+#### Troubleshooting steps
 
 **1**. How do I know when installation is complete?
 

@@ -81,7 +81,7 @@ Trigger the CI Pipeline, build should be **Successful**. Then trigger the CD Pip
 
 #### _\*Test Rest API_
 
-It exposes 3 REST endpoints for it's users to create, to _view specific_ student record and _view all_ student records.
+It exposes 3 REST endpoints for its users to create, to _view specific_ student record and _view all_ student records.
 
 To test Rest API, you can use _curl_ command line tool
 

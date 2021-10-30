@@ -1,6 +1,6 @@
 # Bring Your Own Chart
 
-We at Devtron strongly believe that a product is always incomplete without the contribution of it's community and the users. What else can be better than devtron users becoming a part of devtron team, the product they love and through this upcoming feature you can help other community members by sharing your own helm charts with devtron.
+We at Devtron strongly believe that a product is always incomplete without the contribution of its community and the users. What else can be better than devtron users becoming a part of devtron team, the product they love and through this upcoming feature you can help other community members by sharing your own helm charts with devtron.
 
 ## Introduction
 
@@ -54,7 +54,7 @@ This is an example of deployment.yaml which will create a deployment named `http
 
 1. Fork the [devtron-labs/devtron](https://github.com/devtron-labs/devtron) repository
 2. Upload your chart directory inside `chart-contrib` directory
-4. Add a README file inside your chart describing it's use case and how to use
+4. Add a README file inside your chart describing its use case and how to use
 5. Verify everything works fine by using the command `helm template --debug <template-dir-name>`
 6. Generate a Pull Request on the branch `contribute-chart` of [devtron-labs/devtron](https://github.com/devtron-labs/devtron)
 7. Hold on till we verify everything and upload on the community charts section

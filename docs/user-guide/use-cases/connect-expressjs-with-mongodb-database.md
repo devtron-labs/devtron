@@ -2,7 +2,7 @@
 
 ## Introduction
 
-In this application, you will learn about how to create a Expressjs Application that connects to mongoDb.
+In this application, you will learn about how to create an Expressjs Application that connects to mongoDb.
 
 Follow the below-mentioned steps, to deploy the application on Devtron using mongoDb Helm Chart.
 

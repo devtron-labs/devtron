@@ -92,7 +92,7 @@ For multiple files mount at the same location you need to check sub path bool fi
 Sub Path feature is not applicable in case of external configmap.
 
 ## File Permission
-File permission will be provide at the configmap level not on the each key of the configmap. it will take 3 digit standard permission for the file.
+File permission will be provided at the configmap level not on the each key of the configmap. it will take 3 digit standard permission for the file.
 
 ### \(B\) Kubernetes External ConfigMap
 
@@ -102,7 +102,7 @@ By default, the data type is set to `Kubernetes ConfigMap`.
 
 Kubernetes External ConfigMap is created using the `kubectl create configmap` command. You can also use the ConfigMap generator in `kustomization.yaml` to create a ConfigMap.
 
-If you are using `Kubernetes External ConfigMap`, make sure you give the name of ConfigMap the same as the name that you have given using kubectl create `Configmap <configmap-name> <data source>` command, otherwise, it might result in an error during the built.
+If you are using `Kubernetes External ConfigMap`, make sure you give the name of ConfigMap the same as the name that you have given using kubectl create `Configmap <configmap-name> <data source>` command, otherwise, it might result in an error during the build.
 
 You have to ensure that the External ConfigMap exists and is available to the pod.
 
@@ -114,7 +114,7 @@ The config map is created.
 
 ## Update ConfigMap
 
-You can update your configmap anytime later but you cannot change the name of your configmap. If you want to change the name of the configmap then you have to create a new configmap. To update configmap, click on the configmap you have created make changes as required.
+You can update your configmap anytime later, but you cannot change the name of your configmap. If you want to change the name of the configmap then you have to create a new configmap. To update configmap, click on the configmap you have created make changes as required.
 
 ![](../../.gitbook/assets/update_configmap%20%281%29.png)
 

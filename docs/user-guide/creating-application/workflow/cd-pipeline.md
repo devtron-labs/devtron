@@ -139,7 +139,7 @@ To Delete a CD Pipeline, go to the App Configurations and then click on the Work
 
 ## Deployment Strategies
 
-A deployment strategy is a way to make changes to an application, without downtime in a way that the user barely notices the changes. There are different types of deployment strategies like Blue/green Strategy, Rolling Strategy, Canary Strategy, Recreate Strategy. These deployment configuration-based strategies are discussed in this section.
+A deployment strategy is a way to make changes to an application, without downtime in a way that the user barely notices the changes. There are different types of deployment strategies like Blue/green Strategy, Rolling Strategy, Canary Strategy, Recreate Strategy. These configuration-based deployment strategies are discussed in this section.
 
 **Blue Green Strategy**
 

@@ -23,7 +23,7 @@ Click on Continuous Integration, a prompt comes up in which we need to provide o
 Pipeline name is an auto-generated name which can also be renamed by clicking on Advanced options.
 
 ### II. Pipeline Execution
-You can select the method you want to execute the pipeline. By default the value is automatic. In this case it will get automatically triggered if any changes are made to the respective git repository. You can set it to manual if you want to trigger the pipeline manually.
+You can select the method you want to execute the pipeline. By default, the value is automatic. In this case it will get automatically triggered if any changes are made to the respective git repository. You can set it to manual if you want to trigger the pipeline manually.
 
 ### III. Source Type
 In source type, we can observe that we have three types of mechanisms which can be used for building your CI Pipeline. In the drop-down you can observe we have Branch Fixed, Pull Request and Tag Creation. 
@@ -36,7 +36,7 @@ If you select the Branch Fixed as your source type for building CI Pipeline, the
 Branch Name is the name of the corresponding branch (eg. main or master, or any other branch)
 
 #### ii) Pull Request
-[Note] It only works if Git Host is Github or Bitbucket Cloud as of now. In case you need support for any other Git Host, please create a [github issue](https://github.com/devtron-labs/devtron/issues).
+[Note] It only works if Git Host is GitHub or Bitbucket Cloud as of now. In case you need support for any other Git Host, please create a [github issue](https://github.com/devtron-labs/devtron/issues).
 
 If you select the Pull Request option, you can configure the CI Pipeline using the generated PR. For this mechanism you need to configure a webhook for the repository added in the Git Material.
 
@@ -44,13 +44,13 @@ If you select the Pull Request option, you can configure the CI Pipeline using t
 
 ##### Prerequisites for Pull Request
 **If using GitHub -**
-To use this mechanism, as stated above you need to create a webhook for the corresponding repository of your Git Provider. In Github to create a webhook for the repository -
+To use this mechanism, as stated above you need to create a webhook for the corresponding repository of your Git Provider. In GitHub to create a webhook for the repository -
 
 1. Go to settings of that particular repository
 2. Click on webhook section under options tab
-3. In the Payload URL section, please copy paste the Webhook URL which can be found at Devtron Dashboard when you select source type as Pull Request as seen in above image.
+3. In the Payload URL section, please copy and paste the Webhook URL which can be found at Devtron Dashboard when you select source type as Pull Request as seen in above image.
 4. Change content type to - application/json
-5. Copy paste the Secret as well from the Dashboard when you select the source type as Pull Request
+5. Copy and paste the Secret as well from the Dashboard when you select the source type as Pull Request
 
 ![](../../../.gitbook/assets/ci-pipeline-4.png)
 
@@ -66,7 +66,7 @@ Now,  scroll down and select the custom events for which you want to trigger the
 After selecting the respective options, click on the generate the webhook button to create a webhook for your respective repository.
 
 **If using Bitbucket Cloud -**
-If you are using Bitbucket cloud as your git provider, you need to create a webhook for that as we created for Github in the above section.  Follow the steps to create webhook -
+If you are using Bitbucket cloud as your git provider, you need to create a webhook for that as we created for GitHub in the above section.  Follow the steps to create webhook -
 
 1. Go to Repository Settings on left sidebar of repository window
 2. Click on Webhooks and then click on Add webhook as shown in the image.
@@ -98,7 +98,7 @@ Devtron uses regexp library, view [regexp cheatsheet](https://yourbasic.org/gola
 | `State` | It shows the state of PR and as of now it is fixed to Open which cannot be changed. |
 
 #### iii) Tag Creation
-The third option i.e, **Tag Creation**. In this mechanism you need to provide the tag name or author to specify the exact tag for which you want to build the CI Pipeline. To work with this feature as well, you need to configure the webhook for either Github or Bitbucket as we did in the previous mechanism i.e, **Pull Request**.
+The third option i.e, **Tag Creation**. In this mechanism you need to provide the tag name or author to specify the exact tag for which you want to build the CI Pipeline. To work with this feature as well, you need to configure the webhook for either GitHub or Bitbucket as we did in the previous mechanism i.e, **Pull Request**.
 
 In this process as well you can find the option to filter the specific tags with certain filter parameters. Select the appropriate filter as per your requirement and pass the value in form of regex, one of the examples is already given.
 
@@ -205,7 +205,7 @@ You can use Devtron for Deployments on Kubernetes while using your own CI tool s
 
 ![](../../../.gitbook/assets/ca-workflow-external.png)
 
-You can send the ‘Payload script’ to your CI tools such as Jenkins and Devtron will receive the build image every time the CI Service is triggered or you can use the Webhook URL which will build an image every time CI Service is triggered using Devtron Dashboard.
+You can send the ‘Payload script’ to your CI tools such as Jenkins and Devtron will receive the build image every time the CI Service is triggered, or you can use the Webhook URL which will build an image every time CI Service is triggered using Devtron Dashboard.
 
 | Key | Description |
 | :--- | :--- |

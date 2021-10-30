@@ -46,7 +46,7 @@ Click on `Add` to add new Slack Channel.
 | `Webhook URL` | Enter the valid [Webhook URL link](https://slack.com/intl/en-gb/help/articles/115005265063-Incoming-webhooks-for-Slack) |
 | `Project` | Select the project name to control user access |
 
-Click on `Save` and your slack channel will be added.
+Click on `Save` and your Slack channel will be added.
 
 ## **Manage Notifications**
 
@@ -60,7 +60,7 @@ Click on `Add New` to receive new notification.
 
 _**Send To**_
 
-When you click on the `Send to` box, a drop-down will appear, select your slack channel name if you have already configured Slack Channel. If you have not yet configured the Slack Channel, Click on [Configure Slack Channel](manage-notification.md#manage-slack-configurations)
+When you click on the `Send to` box, a drop-down will appear, select your Slack channel name if you have already configured Slack Channel. If you have not yet configured the Slack Channel, Click on [Configure Slack Channel](manage-notification.md#manage-slack-configurations)
 
 _**Select Pipelines**_
 

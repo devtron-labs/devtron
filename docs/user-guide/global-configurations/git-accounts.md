@@ -16,7 +16,7 @@ Git Accounts allow you to connect your code source with Devtron. You’ll be abl
 
 ### 1. Name
 
-Provide a `Name` to your Git provider. This name will be displayed in the the Git Provider drop-down inside the Git Material configuration section.
+Provide a `Name` to your Git provider. This name will be displayed in the Git Provider drop-down inside the Git Material configuration section.
 
 ### 2. Git Host
 
@@ -24,7 +24,7 @@ It is the git provider on which corresponding application git repository is host
 
 ### 3. URL
 
-Provide the `URL`. **For example**- [https://github.com](https://github.com) for Github, [https://gitlab.com](https://gitlab.com) for GitLab, etc.
+Provide the `URL`. **For example**- [https://github.com](https://github.com) for GitHub, [https://gitlab.com](https://gitlab.com) for GitLab, etc.
 
 ### 4. Authentication type
 

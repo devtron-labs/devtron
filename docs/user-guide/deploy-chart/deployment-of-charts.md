@@ -55,7 +55,7 @@ Arrow 4 will land you to the page where you can se all the running instances of 
 
 ![](../../.gitbook/assets/charts-6.png)
 
-For update you can change its chart version and values yaml and than click on `Update And Deploy` Button.
+For update you can change its chart version and values yaml and then click on `Update And Deploy` Button.
 
 For upgrade click on `Repo/Chart` field and search any chart name like `minio` and change values corresponding to that chart and `Click on Update And Deploy` Button.
 ![](../../.gitbook/assets/charts-5.png)
