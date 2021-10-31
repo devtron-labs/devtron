@@ -51,13 +51,13 @@
 
 ### Why use it?
 
-We have seen various tools that are used to greatly increase the ease of using Kubernetes. However, using these tools simultaneously is painful, and hard to use. This is due to the fact these tools don't talk to each other for managing different aspects of application lifecycle; including CI, CD, security, cost, observability, stabilization.
+We have seen various tools that are used to increase the ease of using Kubernetes significantly. However, using these tools simultaneously is painful and hard to use because these tools don't talk to each other for managing different aspects of the application lifecycle, including CI, CD, security, cost, observability, stabilization.
  
 Thus, we built Devtron to solve this problem!
 
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
-Devtron is an open source modular product providing 'seamless', 'implementation agnostic uniform interface', integrated  with open source, and commercial tools across the entire life cycle. This is all achieved while focusing on a slick User Experience, including a self-serve model. 
+Devtron is an open-source modular product providing a 'seamless,' 'implementation agnostic uniform interface,' integrated with open source and commercial tools across the entire life cycle. These are all achieved while focusing on a slick User Experience, including a self-serve model. 
 <br>
 You can efficiently handle Security, Stability, Cost, and more in a unified experience.
 
@@ -96,9 +96,9 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
  <br> 
  
  - Application-centric view for K8s components
- - Built-in monitoring for CPU, RAM, http status code, and latency
- - Advanced logging, with grep and json search
- - Access all manifests securely for e.g. secret obfuscation
+ - Built-in monitoring for CPU, RAM, HTTP status code, and latency
+ - Advanced logging, with grep and JSON search
+ - Access all manifests securely, e.g., secret obfuscation
  - Auto issue identification
 
 </details>
@@ -113,7 +113,7 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
  
 - Automated git repository and application manifest management
 - Reduces complexity(configuration, access control) in adopting GitOps practices
-- GitOps backed by Postgres for easier analysis 
+- GitOps backed by Postgres for more accessible analysis 
 
 </details>
 
@@ -223,7 +223,7 @@ kubectl get pods -n devtroncd
 kubectl delete jobs <job1-name> <job2-name> -n devtroncd..[Read More](https://github.com/devtron-labs/devtron/blob/main/Troubleshooting.md#1-how-to-resolve-unauthorized-error-while-trying-to-save-global-configurations-like-hostname-gitops-etc-after-successful-devtron-installation)
 <br><br>
 
-2.What to do if devtron dashboard is not accessible on browser, even after successful completion of all jobs and all pods are in running mode?
+2.What to do if the devtron dashboard is not accessible on the browser, even after completing all jobs and all pods are in running mode?
 <br>
 A. Check if nats-cluster is created or not, you can check it using the following command:
 ```bash
@@ -233,7 +233,7 @@ kubectl get natscluster -n devtroncd
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/nats-server.yaml -n devtroncd
 ```
-- Wait util all nats pods are created, and the pods are in running condition. Once complete, delete devtron and dashboard pods. Then you should be able to access the devtron dashboard without any issues.
+- Wait until all nats pods get created, and the pods are in running condition. Once complete, delete devtron and dashboard pods. Then you should be able to access the devtron dashboard without any issues.
 - If your problem is still not resolved, you can post your query in our [discord](https://discord.gg/jsRG5qx2gp) channel
 
 ### Troubleshooting:
