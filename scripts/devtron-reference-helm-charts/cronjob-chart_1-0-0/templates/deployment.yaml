@@ -99,7 +99,7 @@ spec:
     {{- end}}
     {{- if .resources}}
               resources:
-    {{ toYaml .resources | indent 12 -}}
+    {{ toYaml .resources | nindent 12 -}}
     {{- end}}
     {{- if .volumeMounts}}
               volumeMounts:
@@ -170,7 +170,7 @@ spec:
                 - name: {{ .name }}
                   valueFrom:
                     fieldRef:
-                     fieldPath: {{ .fieldPath }}
+                      fieldPath: {{ .fieldPath }}
               {{- end}}
               {{- range $.Values.EnvVariables }}
                 - name: {{ .name}}

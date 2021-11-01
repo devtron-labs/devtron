@@ -225,4 +225,3 @@ envoyproxy:
 imagePullSecrets: []
   # - test1
   # - test2
-
