@@ -519,7 +519,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 
 	if dockerArtifaceStore.RegistryType == repository.REGISTRYTYPE_ECR {
 		impl.logger.Debugw("attempting repo creation ", "repo", repo)
-		err := util.CreateEcrRepo(repo, updateRequest.DockerRepository, dockerArtifaceStore.AWSRegion, dockerArtifaceStore.AWSAccessKeyId,
+		err := util.CreateEcrRepo(repo, "", dockerArtifaceStore.AWSRegion, dockerArtifaceStore.AWSAccessKeyId,
 			dockerArtifaceStore.AWSSecretAccessKey)
 		if err != nil {
 			if errors.IsAlreadyExists(err) {
