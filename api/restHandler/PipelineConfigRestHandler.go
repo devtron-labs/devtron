@@ -606,6 +606,14 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	ChartVersion := templateRequest.RefChartTemplate
+
+	validate, error := validator2.DeploymentTemplateValidate(templateRequest.ValuesOverride, ChartVersion)
+	if !validate {
+		writeJsonResp(w, error, nil, http.StatusBadRequest)
+
+		return
+	}
 	handler.Logger.Infow("request payload, ConfigureDeploymentTemplateForApp", "payload", templateRequest)
 	err = handler.validator.Struct(templateRequest)
 	if err != nil {
@@ -1282,10 +1290,9 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 
 	validate, error := validator2.DeploymentTemplateValidate(templateRequest.ValuesOverride, ChartVersion)
 	if !validate {
-			fmt.Println("Values are incorrect", error)
-			writeJsonResp(w, error, nil, http.StatusBadRequest)
+		writeJsonResp(w, error, nil, http.StatusBadRequest)
 
-			return
+		return
 	}
 
 	err = handler.validator.Struct(templateRequest)
@@ -1303,23 +1310,19 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 
-
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceName); !ok {
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
-		createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
-		if err != nil {
-			handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		writeJsonResp(w, err, createResp, http.StatusOK)
-
-
-
+	createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	writeJsonResp(w, err, createResp, http.StatusOK)
 
 }
 func (handler PipelineConfigRestHandlerImpl) FetchArtifactForRollback(w http.ResponseWriter, r *http.Request) {
