@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -1014,11 +1015,13 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
+
 		mapB, _ := json.Marshal(appOverride)
 		if err != nil {
 			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 			return
 		}
+
 		appConfigResponse["globalConfig"] = mapB
 	} else {
 		if template.ChartRefId != chartRefId {
@@ -1041,7 +1044,16 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 					handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 					return
 				}
-				appConfigResponse["globalConfig"] = mapB
+				bytes, err := json.Marshal(template.DefaultAppOverride)
+				if err != nil {
+					handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+					return
+				}
+				withCombinedPatch, err := jsonpatch.MergePatch(mapB, bytes)
+				if err != nil {
+					panic(err)
+				}
+				appConfigResponse["globalConfig"] = json.RawMessage(withCombinedPatch)
 				writeJsonResp(w, nil, appConfigResponse, http.StatusOK)
 				return
 				//template.ChartRefId = chartRefId
