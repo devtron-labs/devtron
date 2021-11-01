@@ -510,6 +510,28 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		return nil, err
 	}
 
+	var repo string
+	if updateRequest.DockerRepository != "" {
+		repo = updateRequest.DockerRepository
+	} else {
+		repo = originalCiConf.DockerRepository
+	}
+
+	if dockerArtifaceStore.RegistryType == repository.REGISTRYTYPE_ECR {
+		impl.logger.Debugw("attempting repo creation ", "repo", repo)
+		err := util.CreateEcrRepo(repo, updateRequest.DockerRepository, dockerArtifaceStore.AWSRegion, dockerArtifaceStore.AWSAccessKeyId,
+			dockerArtifaceStore.AWSSecretAccessKey)
+		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				impl.logger.Warnw("this repo already exists!, skipping repo creation", "repo", repo)
+			} else {
+				impl.logger.Errorw("ecr repo creation failed, it might be due to authorization or any other external "+
+					"dependency. please create repo manually before triggering ci", "repo", repo, "err", err)
+				return nil, err
+			}
+		}
+	}
+
 	originalCiConf.AfterDockerBuild = updateRequest.AfterDockerBuild
 	originalCiConf.BeforeDockerBuild = updateRequest.BeforeDockerBuild
 	originalCiConf.DockerBuildConfig = updateRequest.DockerBuildConfig
