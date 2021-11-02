@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	request "github.com/devtron-labs/devtron/pkg/cluster"
 	"net/http"
 	"strconv"
 	"strings"
@@ -60,18 +61,21 @@ type userNamePassword struct {
 }
 
 type UserRestHandlerImpl struct {
-	userService      user.UserService
-	validator        *validator.Validate
-	logger           *zap.SugaredLogger
-	enforcer         rbac.Enforcer
-	natsClient       *pubsub.PubSubClient
-	roleGroupService user.RoleGroupService
+	userService                       user.UserService
+	validator                         *validator.Validate
+	logger                            *zap.SugaredLogger
+	enforcer                          rbac.Enforcer
+	natsClient                        *pubsub.PubSubClient
+	roleGroupService                  user.RoleGroupService
+	environmentClusterMappingsService request.EnvironmentService
 }
 
 func NewUserRestHandlerImpl(userService user.UserService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, roleGroupService user.RoleGroupService) *UserRestHandlerImpl {
+	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, roleGroupService user.RoleGroupService,
+	environmentClusterMappingsService request.EnvironmentService) *UserRestHandlerImpl {
 	userAuthHandler := &UserRestHandlerImpl{userService: userService, validator: validator, logger: logger,
-		enforcer: enforcer, natsClient: natsClient, roleGroupService: roleGroupService}
+		enforcer: enforcer, natsClient: natsClient, roleGroupService: roleGroupService,
+		environmentClusterMappingsService: environmentClusterMappingsService}
 	return userAuthHandler
 }
 
@@ -178,11 +182,13 @@ func (handler UserRestHandlerImpl) applyAuthentication(token string, newRoleFilt
 		}
 	}
 	for _, filter := range combinedRoleFilters {
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
-			return false, combinedRoleFilters
-		}
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, strings.ToLower(filter.Environment)); !ok {
-			return false, combinedRoleFilters
+		if len(filter.Team) > 0 {
+			if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
+				return false, combinedRoleFilters
+			}
+			if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, strings.ToLower(filter.Environment)); !ok {
+				return false, combinedRoleFilters
+			}
 		}
 	}
 
@@ -205,14 +211,16 @@ func (handler UserRestHandlerImpl) applyAuthentication(token string, newRoleFilt
 	}
 	for _, filter := range dedupeRoleFilters {
 		pass := 0
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
-			pass = pass + 1
-		}
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, strings.ToLower(filter.Environment)); !ok {
-			pass = pass + 1
-		}
-		if pass == 2 {
-			combinedRoleFilters = append(combinedRoleFilters, filter)
+		if len(filter.Team) > 0 {
+			if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
+				pass = pass + 1
+			}
+			if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, strings.ToLower(filter.Environment)); !ok {
+				pass = pass + 1
+			}
+			if pass == 2 {
+				combinedRoleFilters = append(combinedRoleFilters, filter)
+			}
 		}
 	}
 	return true, combinedRoleFilters
@@ -324,10 +332,27 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 		isActionUserSuperAdmin = true
 	}
 
+	environments, err := handler.environmentClusterMappingsService.GetEnvironmentListForAutocomplete()
+	if err != nil {
+		handler.logger.Errorw("service err, CreateRoleGroup", "err", err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	var grantedEnvironment []string
+	for _, item := range environments {
+		if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, strings.ToLower(item.Environment)); ok {
+			grantedEnvironment = append(grantedEnvironment, item.Environment)
+		}
+	}
+
 	// NOTE: if no role assigned, user will be visible to all manager.
 	// RBAC enforcer applying
 	newRoleFilter := make([]bean.RoleFilter, 0)
 	for _, filter := range res.RoleFilters {
+		if filter.Entity == rbac.ResourceChartGroup || isActionUserSuperAdmin {
+			newRoleFilter = append(newRoleFilter, filter)
+			continue
+		}
 		pass := 0
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); ok {
 			pass = pass + 1
@@ -340,6 +365,10 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, "*"); ok {
 					pass = pass + 1
 					envNewArr = append(envNewArr, env)
+				} else {
+					pass = pass + 1
+					envNewArr = grantedEnvironment
+					filter.ViewOnly = true
 				}
 			} else {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, strings.ToLower(env)); ok {
@@ -350,9 +379,6 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 		}
 
 		filter.Environment = strings.Join(envNewArr[:], ",")
-		if filter.Entity == rbac.ResourceChartGroup || isActionUserSuperAdmin {
-			pass = pass + 1
-		}
 		if pass > 1 {
 			newRoleFilter = append(newRoleFilter, filter)
 		}

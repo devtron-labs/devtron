@@ -53,6 +53,7 @@ type RoleFilter struct {
 	EntityName  string `json:"entityName"`
 	Environment string `json:"environment"`
 	Action      string `json:"action"`
+	ViewOnly    bool   `json:"viewOnly"`
 }
 
 type Role struct {
