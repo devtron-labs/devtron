@@ -518,17 +518,10 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	}
 
 	if dockerArtifaceStore.RegistryType == repository.REGISTRYTYPE_ECR {
-		impl.logger.Debugw("attempting repo creation ", "repo", repo)
-		err := util.CreateEcrRepo(repo, "", dockerArtifaceStore.AWSRegion, dockerArtifaceStore.AWSAccessKeyId,
-			dockerArtifaceStore.AWSSecretAccessKey)
+		err := impl.createEcrRepo(repo, dockerArtifaceStore.AWSRegion, dockerArtifaceStore.AWSAccessKeyId, dockerArtifaceStore.AWSSecretAccessKey)
 		if err != nil {
-			if errors.IsAlreadyExists(err) {
-				impl.logger.Warnw("this repo already exists!, skipping repo creation", "repo", repo)
-			} else {
-				impl.logger.Errorw("ecr repo creation failed, it might be due to authorization or any other external "+
-					"dependency. please create repo manually before triggering ci", "repo", repo, "err", err)
-				return nil, err
-			}
+			impl.logger.Errorw("ecr repo creation failed while updating ci template", "repo", repo, "err", err)
+			return nil, err
 		}
 	}
 
@@ -603,17 +596,10 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	}
 
 	if store.RegistryType == repository.REGISTRYTYPE_ECR {
-		impl.logger.Debugw("attempting repo creation ", "repo", repo)
-		err := util.CreateEcrRepo(repo, createRequest.DockerRepository, store.AWSRegion, store.AWSAccessKeyId,
-			store.AWSSecretAccessKey)
+		err := impl.createEcrRepo(repo, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
 		if err != nil {
-			if errors.IsAlreadyExists(err) {
-				impl.logger.Warnw("this repo already exists!!, skipping repo creation", "repo", repo)
-			} else {
-				impl.logger.Errorw("ecr repo creation failed, it might be due to authorization or any other external "+
-					"dependency. please create repo manually before triggering ci", "repo", repo, "err", err)
-				return nil, err
-			}
+			impl.logger.Errorw("ecr repo creation failed while creating ci pipeline", "repo", repo, "err", err)
+			return nil, err
 		}
 	}
 	createRequest.DockerRepository = repo
@@ -668,6 +654,21 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	}
 	createRes := &bean.PipelineCreateResponse{AppName: app.AppName, AppId: createRequest.AppId} //FIXME
 	return createRes, nil
+}
+
+func (impl PipelineBuilderImpl) createEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error {
+	impl.logger.Debugw("attempting ecr repo creation ", "repo", dockerRepository)
+	err := util.CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey)
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			impl.logger.Warnw("this repo already exists!!, skipping repo creation", "repo", dockerRepository)
+		} else {
+			impl.logger.Errorw("ecr repo creation failed, it might be due to authorization or any other external "+
+				"dependency. please create repo manually before triggering ci", "repo", dockerRepository, "err", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (impl PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMaterial, error) {
