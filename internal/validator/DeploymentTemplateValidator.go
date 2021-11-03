@@ -84,15 +84,18 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 		jsonFile, err := os.Open(fileStatus)
 		if err != nil {
 			sugaredLogger.Errorw("jsonfile open err, DeploymentTemplateValidate","err",err)
+			return false, err
 		}
 		byteValueJsonFile, err := ioutil.ReadAll(jsonFile)
 		if err != nil {
 			sugaredLogger.Errorw("byteValueJsonFile read err, DeploymentTemplateValidate","err",err)
+			return false, err
 		}
 		var schemajson map[string]interface{}
 		err = json.Unmarshal([]byte(byteValueJsonFile), &schemajson)
 		if err != nil {
 			sugaredLogger.Errorw("Unmarshal err in byteValueJsonFile, DeploymentTemplateValidate","err",err)
+			return false, err
 		}
 		schemaLoader := gojsonschema.NewGoLoader(schemajson)
 		documentLoader := gojsonschema.NewGoLoader(templatejson)
