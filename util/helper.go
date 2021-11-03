@@ -174,8 +174,10 @@ func CpuToNumber(cpu string) (float64, error) {
 	return convertResource(cpuParser, cpu)
 }
 func convertResource(rp *resourceParser, resource string) (float64, error) {
+	//sugaredLogger := util.NewSugardLogger()
 	matches := rp.regex.FindAllStringSubmatch(resource, -1)
 	if len(matches[0]) < 2 {
+		//sugaredLogger.Infow(fmt.Sprintf("expected pattern for %s should match %s, found %s\n", rp.name, rp.pattern, resource))
 		fmt.Printf("expected pattern for %s should match %s, found %s\n", rp.name, rp.pattern, resource)
 		return float64(0), fmt.Errorf("expected pattern for %s should match %s, found %s", rp.name, rp.pattern, resource)
 	}
