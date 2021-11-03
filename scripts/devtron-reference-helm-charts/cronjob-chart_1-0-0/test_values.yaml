@@ -1,12 +1,14 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-schedule: "* * * * *"
-startingDeadlineSeconds: 100
-concurrencyPolicy: Allow
-suspend: false
-successfulJobsHistoryLimit: 3
-failedJobsHistoryLimit: 1
+cronjobConfigs:
+  schedule: "* * * * *"
+  startingDeadlineSeconds: 100
+  concurrencyPolicy: Allow
+  suspend: false
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  restartPolicy: OnFailure
 
 imagePullSecrets:
   - test1
@@ -196,9 +198,10 @@ dbMigrationConfig:
   enabled: false
 
 command:
-  enabled: false
-  value: []
-
+  enabled: true
+  value:
+    - /bin/sh
+    
 args:
   enabled: false
   value: []
@@ -215,13 +218,13 @@ resources:
     cpu: 0.10
     memory: 100Mi
 
-volumeMounts: []
-#     - name: log-volume
-#       mountPath: /var/log
+volumeMounts:
+  - name: log-volume
+    mountPath: /var/log
 
-volumes: []
-#     - name: log-volume
-#       emptyDir: {}
+volumes:
+  - name: log-volume
+    emptyDir: {}
 
 
 nodeSelector: {}
@@ -283,25 +286,56 @@ ConfigSecrets:
 #     key2: abc-2
 
 
-initContainers: []
+initContainers:
   ## Additional init containers to run before the Scheduler pods.
-  ## for example, be used to run a sidecar that chown Logs storage .
-  #- name: volume-mount-hack
-  #  image: busybox
-  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
-  #  volumeMounts:
-  #    - mountPath: /usr/local/airflow/logs
-#      name: logs-data
+  ## for example, be used to run a sidecar that chown Logs storage.
+  ## If reuse container image is set as true, you cannot specify an addition init container along with the image.
+  # - reuseContainerImage: true
+  #   volumeMounts:
+  #     - mountPath: /etc/ls-oms
+  #       name: ls-oms-cm-vol
+  #   command:
+  #     - flyway
+  #     - -configFiles=/etc/ls-oms/flyway.conf
+  #     - migrate
 
-containers: []
+  # - name: volume-mount-hack
+  #   image: busybox
+  #   command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #   volumeMounts:
+  #    - mountPath: /usr/local/airflow/logs
+  #      name: logs-data
+  #   resources:
+  #     limits:
+  #       cpu: 50m
+  #       memory: 100Mi
+  #     requests:
+  #       cpu: 10m
+  #       memory: 50Mi
+
+  - name: volume-mount-hack2
+    image: busybox
+    command: ["sh", "-c", "chown -R 1000:1000 logs"]
+    volumeMounts:
+     - mountPath: /usr/local/airflow/logs
+       name: logs-data
+    resources:
+      limits:
+        cpu: 50m
+        memory: 100Mi
+      requests:
+        cpu: 10m
+        memory: 50Mi
+
+containers:
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
-  #- name: volume-mount-hack
-  #  image: busybox
-  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
-  #  volumeMounts:
+  # - name: volume-mount-hack
+  #   image: busybox
+  #   command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #   volumeMounts:
   #    - mountPath: /usr/local/airflow/logs
-#      name: logs-data
+  #      name: logs-data
 
 
 rawYaml: []
@@ -362,9 +396,15 @@ podDisruptionBudget: {}
 ##
 
 tolerations: []
-  #  - key: "key"
-  #    operator: "Equal|Exists"
-  #    value: "value"
-#    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
+  # - key: "key"
+  #   operator: "Equal|Exists"
+  #   value: "value"
+  #   effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 
 appMetrics: false
+
+podAnnotations:
+  fluentbit.io/exclude: true
+
+podLabels:
+  severity: critical

@@ -1,10 +1,12 @@
 # Mandatory configs
-schedule: "* * * * *"
-startingDeadlineSeconds: 100
-concurrencyPolicy: Allow
-suspend: false
-successfulJobsHistoryLimit: 3
-failedJobsHistoryLimit: 1
+cronjobConfigs:
+  schedule: "* * * * *"
+  startingDeadlineSeconds: 100
+  concurrencyPolicy: Allow
+  suspend: false
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  restartPolicy: OnFailure
 
 replicaCount: 1
 MinReadySeconds: 60
@@ -146,7 +148,7 @@ rawYaml: []
 
 initContainers: []
   ## Additional init containers to run before the Scheduler pods.
-  ## for example, be used to run a sidecar that chown Logs storage .
+  ## for example, be used to run a sidecar that chown Logs storage.
   #- name: volume-mount-hack
   #  image: busybox
   #  command: ["sh", "-c", "chown -R 1000:1000 logs"]

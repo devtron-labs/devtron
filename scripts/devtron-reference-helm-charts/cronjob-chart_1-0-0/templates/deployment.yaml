@@ -34,12 +34,12 @@ metadata:
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
 spec:
-  schedule: {{ $.Values.schedule | quote }}
-  startingDeadlineSeconds: {{ $.Values.startingDeadlineSeconds }}
-  concurrencyPolicy: {{ $.Values.concurrencyPolicy }}
-  suspend: {{ $.Values.suspend }}
-  successfulJobsHistoryLimit: {{ $.Values.successfulJobsHistoryLimit }}
-  failedJobsHistoryLimit: {{ $.Values.failedJobsHistoryLimit }}
+  schedule: {{ $.Values.cronjobConfigs.schedule | quote }}
+  startingDeadlineSeconds: {{ $.Values.cronjobConfigs.startingDeadlineSeconds }}
+  concurrencyPolicy: {{ $.Values.cronjobConfigs.concurrencyPolicy }}
+  suspend: {{ $.Values.cronjobConfigs.suspend }}
+  successfulJobsHistoryLimit: {{ $.Values.cronjobConfigs.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ $.Values.cronjobConfigs.failedJobsHistoryLimit }}
   jobTemplate:
     spec:
       template:
@@ -60,7 +60,7 @@ spec:
     {{- end }}
         spec:
           terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
-          restartPolicy: OnFailure
+          restartPolicy: {{ $.Values.cronjobConfigs.restartPolicy }}
     {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
           affinity:
             nodeAffinity:
@@ -78,7 +78,7 @@ spec:
     {{- end }}
       {{- if .Values.tolerations }}
           tolerations:
-    {{ toYaml .Values.tolerations | indent 8 }}
+    {{- toYaml .Values.tolerations | nindent 12 }}
       {{- end }}
     {{- if $.Values.imagePullSecrets}}
           imagePullSecrets:
@@ -95,18 +95,19 @@ spec:
               imagePullPolicy: {{ $.Values.image.pullPolicy }}
     {{- if .command}}
               command:
-    {{ toYaml .command | indent 12 -}}
+    {{- toYaml .command | nindent 16 -}}
     {{- end}}
     {{- if .resources}}
               resources:
-    {{ toYaml .resources | nindent 12 -}}
+    {{- toYaml .resources | nindent 16 -}}
     {{- end}}
     {{- if .volumeMounts}}
               volumeMounts:
-    {{ toYaml .volumeMounts | indent 12 -}}
+    {{- toYaml .volumeMounts | nindent 16 -}}
     {{- end}}
     {{- else}}
-    {{ toYaml $.Values.initContainers | indent 8 -}}
+            -
+    {{- toYaml $c | nindent 14 -}}
     {{- end}}
     {{- end}}
     {{- end}}
@@ -115,7 +116,7 @@ spec:
             - name: envoy
               image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
               resources:
-    {{ toYaml $.Values.envoyproxy.resources | trim | indent 12 }}
+    {{- toYaml $.Values.envoyproxy.resources | trim | nindent 14 }}
               ports:
                 - containerPort: 9901
                   protocol: TCP
@@ -132,7 +133,7 @@ spec:
                   mountPath: /etc/envoy-config/
     {{- end}}
     {{- if $.Values.containers }}
-    {{ toYaml $.Values.containers | indent 8 -}}
+    {{- toYaml $.Values.containers | nindent 12 -}}
     {{- end}}
             - name: {{ $.Chart.Name }}
               image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
@@ -149,11 +150,11 @@ spec:
               {{- end}}
     {{- if and $.Values.command.value $.Values.command.enabled}}
               command:
-    {{ toYaml $.Values.command.value | indent 12 -}}
+    {{- toYaml $.Values.command.value | nindent 16 -}}
     {{- end}}
     {{- if and $.Values.args.value $.Values.args.enabled}}
               args:
-    {{ toYaml $.Values.args.value | indent 12 -}}
+    {{- toYaml $.Values.args.value | nindent 16 -}}
     {{- end }}
               env:
                 - name: CONFIG_HASH
@@ -214,7 +215,7 @@ spec:
     {{- if $.Values.LivenessProbe.command }}
                 exec:
                   command:
-    {{ toYaml .Values.LivenessProbe.command | indent 16 }}
+    {{- toYaml .Values.LivenessProbe.command | nindent 20 }}
     {{- end}}
     {{- if and $.Values.LivenessProbe.tcp }}
                 tcpSocket:
@@ -236,7 +237,7 @@ spec:
     {{- if $.Values.ReadinessProbe.command }}
                 exec:
                   command:
-    {{ toYaml .Values.ReadinessProbe.command | indent 16 }}
+    {{- toYaml .Values.ReadinessProbe.command | nindent 20 }}
     {{- end}}
     {{- if and $.Values.ReadinessProbe.tcp }}
                 tcpSocket:
@@ -252,7 +253,7 @@ spec:
     {{- toYaml $.Values.resources | trim | nindent 16 }}
               volumeMounts:
     {{- with .Values.volumeMounts }}
-    {{ toYaml . | trim | indent 12 }}
+    {{- toYaml . | trim | nindent 16 }}
     {{- end }}
               {{- if .Values.ConfigMaps.enabled }}
               {{- range .Values.ConfigMaps.maps }}
@@ -300,7 +301,6 @@ spec:
               {{- end }}
               {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
               {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} []{{- end }}
-
           volumes:
       {{- if $.Values.appMetrics }}
             - name: envoy-config-volume
@@ -308,7 +308,7 @@ spec:
                 name: sidecar-config-{{ template ".Chart.Name .name" $ }}
       {{- end }}
     {{- with .Values.volumes }}
-    {{ toYaml . | trim | indent 8 }}
+    {{- toYaml . | trim | nindent 12 }}
     {{- end }}
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
