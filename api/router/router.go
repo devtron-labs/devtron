@@ -20,7 +20,6 @@ package router
 import (
 	"encoding/json"
 	"net/http"
-
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"

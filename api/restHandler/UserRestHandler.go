@@ -20,7 +20,6 @@ package restHandler
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -159,70 +158,6 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	writeJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) applyAuthentication(token string, userInfo bean.UserInfo) (bool, []bean.RoleFilter) {
-	uniqueExisting := make(map[string]bool)
-	uniqueNew := make(map[string]bool)
-	newRoleFilter := make([]bean.RoleFilter, 0)
-	existingRoleFilter := make([]bean.RoleFilter, 0)
-
-	user, err := handler.userService.GetById(userInfo.Id)
-	if err != nil {
-		return false, newRoleFilter
-	}
-
-	// here expectation is only permitted items comes in new request, coz user can't see others
-	for _, roleFilter := range userInfo.RoleFilters {
-		envArr := strings.Split(roleFilter.Environment, ",")
-		for _, env := range envArr {
-			key := fmt.Sprintf("%s_%s_%s_%s", roleFilter.Team, env, roleFilter.EntityName, roleFilter.Action)
-			if _, ok := uniqueNew[key]; !ok {
-				uniqueNew[key] = true
-				newRoleFilter = append(newRoleFilter, roleFilter)
-			}
-		}
-	}
-
-	// here remove element which are existing in new set,
-	// here check manager access for remaining item weather he has access or not ..
-	// .. if yes then remove them also as it intentionally removed by manager
-	// .. else retain other item which are not belongs to him.
-	for _, roleFilter := range user.RoleFilters {
-		envArr := strings.Split(roleFilter.Environment, ",")
-		for _, env := range envArr {
-			key := fmt.Sprintf("%s_%s_%s_%s", roleFilter.Team, env, roleFilter.EntityName, roleFilter.Action)
-
-			if _, ok := uniqueExisting[key]; !ok {
-				uniqueExisting[key] = true
-				if _, ok := uniqueNew[key]; !ok {
-					existingRoleFilter = append(existingRoleFilter, roleFilter)
-				}
-			}
-		}
-	}
-
-	for _, filter := range newRoleFilter {
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
-			return false, newRoleFilter
-		}
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionUpdate, strings.ToLower(filter.Environment)); !ok {
-			return false, newRoleFilter
-		}
-	}
-	for _, filter := range existingRoleFilter {
-		pass := 0
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
-			pass = pass + 1
-		}
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionUpdate, strings.ToLower(filter.Environment)); !ok {
-			pass = pass + 1
-		}
-		if pass != 2 {
-			newRoleFilter = append(newRoleFilter, filter)
-		}
-	}
-	return true, newRoleFilter
-}
-
 func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
@@ -257,12 +192,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 			return
 		}
 	}
-	authCheck, preparedRoleFilter := handler.applyAuthentication(token, userInfo)
-	if authCheck == false {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	userInfo.RoleFilters = preparedRoleFilter
+
 	// auth check inside groups
 	if len(userInfo.Groups) > 0 {
 		groupRoles, err := handler.roleGroupService.FetchRolesForGroups(userInfo.Groups)
@@ -342,7 +272,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	// NOTE: if no role assigned, user will be visible to all manager.
 	// RBAC enforcer applying
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
-		authPass := true
+		authPass := false
 		for _, filter := range res.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); ok {

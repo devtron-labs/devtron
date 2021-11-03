@@ -3,7 +3,6 @@ package DeploymentTemplateValidate
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"io/ioutil"
 	"os"
@@ -74,39 +73,44 @@ const memory = "memory"
 func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bool, error) {
 	refChartDir := pipeline.RefChartDir("scripts/devtron-reference-helm-charts")
 	sugaredLogger := util.NewSugardLogger()
-	filestatus := filepath.Join(string(refChartDir), schemafile,"schema.json")
-	if _, err := os.Stat(filestatus); os.IsNotExist(err) {
+	fileStatus := filepath.Join(string(refChartDir), schemafile,"schema.json")
+	if _, err := os.Stat(fileStatus); os.IsNotExist(err) {
+		sugaredLogger.Errorw("Schema File Not Found err, DeploymentTemplateValidate",err)
 		return true, nil
 	} else{
 		gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
 		gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
 
-		jsonFile, err := os.Open(filestatus)
+		jsonFile, err := os.Open(fileStatus)
 		if err != nil {
-			sugaredLogger.Error(err)
+			sugaredLogger.Errorw("jsonfile open err, DeploymentTemplateValidate","err",err)
 		}
-		byteValueJsonFile, _ := ioutil.ReadAll(jsonFile)
+		byteValueJsonFile, err := ioutil.ReadAll(jsonFile)
+		if err != nil {
+			sugaredLogger.Errorw("byteValueJsonFile read err, DeploymentTemplateValidate","err",err)
+		}
 		var schemajson map[string]interface{}
-		json.Unmarshal([]byte(byteValueJsonFile), &schemajson)
+		err = json.Unmarshal([]byte(byteValueJsonFile), &schemajson)
+		if err != nil {
+			sugaredLogger.Errorw("Unmarshal err in byteValueJsonFile, DeploymentTemplateValidate","err",err)
+		}
 		schemaLoader := gojsonschema.NewGoLoader(schemajson)
 		documentLoader := gojsonschema.NewGoLoader(templatejson)
 		marshalTemplatejson, err := json.Marshal(templatejson)
 		if err != nil {
-
-			sugaredLogger.Error(err)
-
+			sugaredLogger.Errorw("json template marshal err, DeploymentTemplateValidate","err",err)
 			return false, err
 		}
 		result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 		if err != nil {
-			sugaredLogger.Error(err)
+			sugaredLogger.Errorw("result validate err, DeploymentTemplateValidate","err",err)
 			return false, err
 		}
 		if result.Valid() {
 			var dat map[string]interface{}
 
 			if err := json.Unmarshal(marshalTemplatejson, &dat); err != nil {
-				sugaredLogger.Error(err)
+				sugaredLogger.Errorw("json template unmarshal err, DeploymentTemplateValidate","err",err)
 				return false, err
 			}
 			autoscaleEnabled,ok := dat["autoscaling"].(map[string]interface{})["enabled"]
@@ -168,7 +172,7 @@ func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bo
 		} else {
 			var stringerror string
 			for _, err := range result.Errors() {
-				fmt.Println(err.Details()["format"])
+				sugaredLogger.Errorw("result err, DeploymentTemplateValidate","err",err.Details())
 				if err.Details()["format"] == cpu {
 					stringerror = stringerror + err.Field() + ": Format should be like " + cpuPattern + "\n"
 				} else if err.Details()["format"] == memory {

@@ -488,7 +488,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 	//RBAC block starts from here
 	token := r.Header.Get("token")
 	rbacObject := ""
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionGet, rbacObject); !ok {
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionUpdate, rbacObject); !ok {
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}

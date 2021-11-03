@@ -1286,15 +1286,6 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 
-	ChartVersion := templateRequest.RefChartTemplate
-
-	validate, error := validator2.DeploymentTemplateValidate(templateRequest.ValuesOverride, ChartVersion)
-	if !validate {
-		writeJsonResp(w, error, nil, http.StatusBadRequest)
-
-		return
-	}
-
 	err = handler.validator.Struct(templateRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err, "payload", templateRequest)
@@ -1315,7 +1306,14 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
+	ChartVersion := templateRequest.RefChartTemplate
 
+	validate, error := validator2.DeploymentTemplateValidate(templateRequest.ValuesOverride, ChartVersion)
+	if !validate {
+		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", templateRequest)
+		writeJsonResp(w, error, nil, http.StatusBadRequest)
+		return
+	}
 	createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
