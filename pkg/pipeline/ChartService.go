@@ -116,7 +116,7 @@ type ChartService interface {
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]json.RawMessage, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
-	DefaultTemplateWithSavedTemplateData(appOverride map[string]json.RawMessage,templateRequest *TemplateRequest)(json.RawMessage, error)
+	DefaultTemplateWithSavedTemplateData(RequestChartRefId int,templateRequest *TemplateRequest)(json.RawMessage, error)
 }
 type ChartServiceImpl struct {
 	chartRepository           chartConfig.ChartRepository
@@ -1035,7 +1035,12 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 	}
 	return nil, err
 }
-func (impl ChartServiceImpl) DefaultTemplateWithSavedTemplateData(appOverride map[string]json.RawMessage,templateRequest *TemplateRequest)(json.RawMessage, error){
+func (impl ChartServiceImpl) DefaultTemplateWithSavedTemplateData(RequestChartRefId int,templateRequest *TemplateRequest)(json.RawMessage, error){
+	appOverride,err:= impl.GetAppOverrideForDefaultTemplate(RequestChartRefId)
+	if err != nil {
+		impl.logger.Errorw("GetAppOverrideForDefaultTemplate err, appOverride", "err", err)
+		return nil, err
+	}
 	mapB, err := json.Marshal(appOverride)
 	if err != nil {
 		impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err)

@@ -979,13 +979,13 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	chartRefId, err := strconv.Atoi(vars["chartRefId"])
+	RequestChartRefId, err := strconv.Atoi(vars["chartRefId"])
 	if err != nil {
 		handler.Logger.Error(err)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, GetDeploymentTemplate", "appId", appId, "chartRefId", chartRefId)
+	handler.Logger.Infow("request payload, GetDeploymentTemplate", "appId", appId, "chartRefId", RequestChartRefId)
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
@@ -1003,45 +1003,38 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 
 	template, err := handler.chartService.FindLatestChartForAppByAppId(appId)
 	if err != nil && pg.ErrNoRows != err {
-		handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+		handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", RequestChartRefId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	if pg.ErrNoRows == err {
-		appOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+		appOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(RequestChartRefId)
 		if err != nil {
-			handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+			handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", RequestChartRefId)
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 
 		mapB, _ := json.Marshal(appOverride)
 		if err != nil {
-			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", RequestChartRefId)
 			return
 		}
 
 		appConfigResponse["globalConfig"] = mapB
 	} else {
-		if template.ChartRefId != chartRefId {
-			templateRequested, err := handler.chartService.GetByAppIdAndChartRefId(appId, chartRefId)
+		if template.ChartRefId != RequestChartRefId {
+			templateRequested, err := handler.chartService.GetByAppIdAndChartRefId(appId, RequestChartRefId)
 			if err != nil && err != pg.ErrNoRows {
-				handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+				handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", RequestChartRefId)
 				writeJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
 
 			if pg.ErrNoRows == err {
-				appOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+				withCombinedPatch, err := handler.chartService.DefaultTemplateWithSavedTemplateData(RequestChartRefId,template)
 				if err != nil {
-					handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
-					writeJsonResp(w, err, nil, http.StatusInternalServerError)
-					return
-				}
-
-				withCombinedPatch, err := handler.chartService.DefaultTemplateWithSavedTemplateData(appOverride,template)
-				if err != nil {
-					handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+					handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", RequestChartRefId)
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
 					return
 				}
@@ -1063,7 +1056,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 
 		bytes, err := json.Marshal(template)
 		if err != nil {
-			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", RequestChartRefId)
 			return
 		}
 		appOverride := json.RawMessage(bytes)
