@@ -41,7 +41,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
-	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -1039,21 +1038,14 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
 					return
 				}
-				mapB, _ := json.Marshal(appOverride)
+
+				withCombinedPatch, err := handler.chartService.DefaultTemplateWithSavedTemplateData(appOverride,template)
 				if err != nil {
-					handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+					handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+					writeJsonResp(w, err, nil, http.StatusInternalServerError)
 					return
 				}
-				bytes, err := json.Marshal(template.DefaultAppOverride)
-				if err != nil {
-					handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
-					return
-				}
-				withCombinedPatch, err := jsonpatch.MergePatch(mapB, bytes)
-				if err != nil {
-					panic(err)
-				}
-				appConfigResponse["globalConfig"] = json.RawMessage(withCombinedPatch)
+				appConfigResponse["globalConfig"] = withCombinedPatch
 				writeJsonResp(w, nil, appConfigResponse, http.StatusOK)
 				return
 				//template.ChartRefId = chartRefId

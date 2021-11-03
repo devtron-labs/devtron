@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/util"
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -115,6 +116,7 @@ type ChartService interface {
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]json.RawMessage, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
+	DefaultTemplateWithSavedTemplateData(appOverride map[string]json.RawMessage,templateRequest *TemplateRequest)(json.RawMessage, error)
 }
 type ChartServiceImpl struct {
 	chartRepository           chartConfig.ChartRepository
@@ -1032,4 +1034,25 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 		return &appMetricRequest, nil
 	}
 	return nil, err
+}
+func (impl ChartServiceImpl) DefaultTemplateWithSavedTemplateData(appOverride map[string]json.RawMessage,templateRequest *TemplateRequest)(json.RawMessage, error){
+	mapB, err := json.Marshal(appOverride)
+	if err != nil {
+		impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err)
+		return nil, err
+	}
+	bytes, err := json.Marshal(templateRequest.DefaultAppOverride)
+	if err != nil {
+		impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err)
+		return nil, err
+
+	}
+	withCombinedPatch, err := jsonpatch.MergePatch(mapB, bytes)
+	if err != nil {
+		impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err)
+		return nil, err
+	}
+	messages := json.RawMessage(withCombinedPatch)
+	return messages, nil
+
 }
