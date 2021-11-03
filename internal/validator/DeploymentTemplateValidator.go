@@ -32,7 +32,7 @@ var (
 func (f CpuChecker) IsFormat(input interface{}) bool {
 	asString, ok := input.(string)
 	if !ok {
-		return true
+		return false
 	}
 
 	if CpuUnitChecker.MatchString(asString) {
@@ -47,7 +47,7 @@ func (f CpuChecker) IsFormat(input interface{}) bool {
 func (f MemoryChecker) IsFormat(input interface{}) bool {
 	asString, ok := input.(string)
 	if !ok {
-		return true
+		return false
 	}
 
 	if MiChecker.MatchString(asString) {
