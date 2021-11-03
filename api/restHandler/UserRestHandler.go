@@ -172,12 +172,17 @@ func (handler UserRestHandlerImpl) applyAuthentication(token string, newRoleFilt
 
 	// here expectation is only permitted items comes in new request, coz user can't see others
 	for _, roleFilter := range newRoleFilters {
+		if roleFilter.Entity == rbac.ResourceChartGroup {
+			combinedRoleFilters = append(combinedRoleFilters, roleFilter)
+			continue
+		}
 		envArr := strings.Split(roleFilter.Environment, ",")
 		for _, env := range envArr {
 			key := fmt.Sprintf("%s_%s_%s_%s", roleFilter.Team, env, roleFilter.EntityName, roleFilter.Action)
 			if _, ok := uniqueNew[key]; !ok {
 				uniqueNew[key] = true
-				combinedRoleFilters = append(combinedRoleFilters, roleFilter)
+				rf := bean.RoleFilter{Team: roleFilter.Team, Environment: env, EntityName: roleFilter.EntityName, Action: roleFilter.Action}
+				combinedRoleFilters = append(combinedRoleFilters, rf)
 			}
 		}
 	}
@@ -204,7 +209,8 @@ func (handler UserRestHandlerImpl) applyAuthentication(token string, newRoleFilt
 			if _, ok := uniqueExisting[key]; !ok {
 				uniqueExisting[key] = true
 				if _, ok := uniqueNew[key]; !ok {
-					dedupeRoleFilters = append(dedupeRoleFilters, roleFilter)
+					rf := bean.RoleFilter{Team: roleFilter.Team, Environment: env, EntityName: roleFilter.EntityName, Action: roleFilter.Action}
+					dedupeRoleFilters = append(dedupeRoleFilters, rf)
 				}
 			}
 		}
@@ -219,7 +225,8 @@ func (handler UserRestHandlerImpl) applyAuthentication(token string, newRoleFilt
 				pass = pass + 1
 			}
 			if pass == 2 {
-				combinedRoleFilters = append(combinedRoleFilters, filter)
+				rf := bean.RoleFilter{Team: filter.Team, Environment: filter.Environment, EntityName: filter.EntityName, Action: filter.Action}
+				combinedRoleFilters = append(combinedRoleFilters, rf)
 			}
 		}
 	}
