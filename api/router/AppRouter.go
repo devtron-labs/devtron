@@ -15,14 +15,26 @@
  *
  */
 
-package util
+package router
 
-const (
-	KubernetesSecret                    string = "KubernetesSecret"
-	AWSSecretsManager                   string = "AWSSecretsManager"
-	AWSSystemManager                    string = "AWSSystemManager"
-	HashiCorpVault                      string = "HashiCorpVault"
-	KubernetesExternalSecret            string = "KubernetesExternalSecret"
-	ConfigMapSecretUsageTypeEnvironment string = "environment"
-	ConfigMapSecretUsageTypeVolume      string = "volume"
+import (
+	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/gorilla/mux"
 )
+
+type AppRouter interface {
+	init(configRouter *mux.Router)
+}
+
+type AppRouterImpl struct {
+	restHandler restHandler.AppRestHandler
+}
+
+func NewAppRouterImpl(restHandler restHandler.AppRestHandler) *AppRouterImpl {
+	return &AppRouterImpl{restHandler: restHandler}
+
+}
+
+func (router AppRouterImpl) init(configRouter *mux.Router) {
+	configRouter.Path("/{appId}").HandlerFunc(router.restHandler.GetAppAllDetail).Methods("GET")
+}

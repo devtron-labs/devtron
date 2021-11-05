@@ -79,6 +79,7 @@ type MuxRouter struct {
 	bulkUpdateRouter                 BulkUpdateRouter
 	WebhookListenerRouter            WebhookListenerRouter
 	appLabelsRouter                  AppLabelRouter
+	appV2Router                      AppRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -98,7 +99,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter,
-	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter) *MuxRouter {
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter, appV2Router AppRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -148,6 +149,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		bulkUpdateRouter:                 bulkUpdateRouter,
 		WebhookListenerRouter:            webhookListenerRouter,
 		appLabelsRouter:                  appLabelsRouter,
+		appV2Router:                      appV2Router,
 	}
 	return r
 }
@@ -173,6 +175,9 @@ func (r MuxRouter) Init() {
 		}
 		_, _ = writer.Write(b)
 	})
+
+	appV2Router := r.Router.PathPrefix("/orchestrator/app/v2").Subrouter()
+	r.appV2Router.init(appV2Router)
 
 	pipelineConfigRouter := r.Router.PathPrefix("/orchestrator/app").Subrouter()
 	r.PipelineConfigRouter.initPipelineConfigRouter(pipelineConfigRouter)

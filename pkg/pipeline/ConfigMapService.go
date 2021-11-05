@@ -119,8 +119,10 @@ type ConfigMapService interface {
 
 	CSGlobalAddUpdate(configMapRequest *ConfigDataRequest) (*ConfigDataRequest, error)
 	CSGlobalFetch(appId int) (*ConfigDataRequest, error)
+	CSGlobalFetchWithSecretValues(appId int) (*ConfigDataRequest, error)
 	CSEnvironmentAddUpdate(configMapRequest *ConfigDataRequest) (*ConfigDataRequest, error)
 	CSEnvironmentFetch(appId int, envId int) (*ConfigDataRequest, error)
+	CSEnvironmentFetchWithSecretValues(appId int, envId int) (*ConfigDataRequest, error)
 
 	CMGlobalDelete(name string, id int, userId int32) (bool, error)
 	CMEnvironmentDelete(name string, id int, userId int32) (bool, error)
@@ -132,8 +134,8 @@ type ConfigMapService interface {
 	CSGlobalDeleteByAppId(name string, appId int, userId int32) (bool, error)
 	CSEnvironmentDeleteByAppIdAndEnvId(name string, appId int, envId int, userId int32) (bool, error)
 
-	CSGlobalFetchForEdit(name string, id int, userId int32) (*ConfigDataRequest, error)
-	CSEnvironmentFetchForEdit(name string, id int, appId int, envId int, userId int32) (*ConfigDataRequest, error)
+	CSGlobalFetchForEdit(name string, id int) (*ConfigDataRequest, error)
+	CSEnvironmentFetchForEdit(name string, id int, appId int, envId int) (*ConfigDataRequest, error)
 	ConfigSecretGlobalBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error)
 	ConfigSecretEnvironmentBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error)
 }
@@ -584,6 +586,14 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *ConfigDataR
 }
 
 func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*ConfigDataRequest, error) {
+	return impl.fetchGlobalSecret(appId, false)
+}
+
+func (impl ConfigMapServiceImpl) CSGlobalFetchWithSecretValues(appId int) (*ConfigDataRequest, error) {
+	return impl.fetchGlobalSecret(appId, true)
+}
+
+func (impl ConfigMapServiceImpl) fetchGlobalSecret(appId int, fetchSecretValues bool) (*ConfigDataRequest, error) {
 	configMapGlobal, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
 	if err != nil && pg.ErrNoRows != err {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -623,9 +633,13 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*ConfigDataRequest, e
 				configs = append(configs, item)
 				continue
 			}
-			for k := range resultMap {
-				resultMapFinal[k] = ""
+
+			if !fetchSecretValues {
+				for k := range resultMap {
+					resultMapFinal[k] = ""
+				}
 			}
+
 			resultByte, err := json.Marshal(resultMapFinal)
 			if err != nil {
 				impl.logger.Errorw("error while marshaling request ", "err", err)
@@ -753,7 +767,17 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *Config
 	return configMapRequest, nil
 }
 
+
+func (impl ConfigMapServiceImpl) CSEnvironmentFetchWithSecretValues(appId int, envId int) (*ConfigDataRequest, error) {
+	return impl.fetchEnvironmentSecret(appId, envId, true)
+}
+
 func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*ConfigDataRequest, error) {
+	return impl.fetchEnvironmentSecret(appId, envId, false)
+}
+
+
+func (impl ConfigMapServiceImpl) fetchEnvironmentSecret(appId int, envId int, fetchSecretValues bool) (*ConfigDataRequest, error) {
 	configMapGlobal, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
 	if err != nil && pg.ErrNoRows != err {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -861,9 +885,13 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 				continue
 				//return nil, err
 			}
-			for k := range resultMap {
-				resultMapFinal[k] = ""
+
+			if !fetchSecretValues {
+				for k := range resultMap {
+					resultMapFinal[k] = ""
+				}
 			}
+
 			resultByte, err := json.Marshal(resultMapFinal)
 			if err != nil {
 				impl.logger.Errorw("error while marshaling request ", "err", err)
@@ -891,9 +919,12 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 				continue
 				//return nil, err
 			}
-			for k := range resultMap {
-				resultMapFinal[k] = ""
+			if !fetchSecretValues {
+				for k := range resultMap {
+					resultMapFinal[k] = ""
+				}
 			}
+
 			resultByte, err := json.Marshal(resultMapFinal)
 			if err != nil {
 				impl.logger.Errorw("error while marshaling request ", "err", err)
@@ -1300,7 +1331,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDeleteByAppIdAndEnvId(name string,
 
 ////
 
-func (impl ConfigMapServiceImpl) CSGlobalFetchForEdit(name string, id int, userId int32) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CSGlobalFetchForEdit(name string, id int) (*ConfigDataRequest, error) {
 	configMapEnvLevel, err := impl.configMapRepository.GetByIdAppLevel(id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -1329,7 +1360,7 @@ func (impl ConfigMapServiceImpl) CSGlobalFetchForEdit(name string, id int, userI
 	return configDataRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, appId int, envId int, userId int32) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, appId int, envId int) (*ConfigDataRequest, error) {
 	configDataRequest := &ConfigDataRequest{}
 	configsList := &SecretsList{}
 	var configs []*ConfigData
