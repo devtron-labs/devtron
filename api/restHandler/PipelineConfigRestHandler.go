@@ -1041,9 +1041,6 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 				appConfigResponse["globalConfig"] = withCombinedPatch
 				writeJsonResp(w, nil, appConfigResponse, http.StatusOK)
 				return
-				//template.ChartRefId = chartRefId
-				//template.Id = 0
-				//template.Latest = false
 			} else {
 				template.ChartRefId = templateRequested.ChartRefId
 				template.Id = templateRequested.Id

@@ -1041,20 +1041,20 @@ func (impl ChartServiceImpl) DefaultTemplateWithSavedTemplateData(RequestChartRe
 		impl.logger.Errorw("GetAppOverrideForDefaultTemplate err, appOverride", "err", err)
 		return nil, err
 	}
-	mapB, err := json.Marshal(appOverride)
+	appOverrideMarshalJson, err := json.Marshal(appOverride)
 	if err != nil {
-		impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err)
+		impl.logger.Errorw("appOverrideMarshalJson err, GetDeploymentTemplate", "err", err)
 		return nil, err
 	}
-	bytes, err := json.Marshal(templateRequest.DefaultAppOverride)
+	DefaultAppOverrideMarshalJson, err := json.Marshal(templateRequest.DefaultAppOverride)
 	if err != nil {
-		impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err)
+		impl.logger.Errorw("DefaultAppOverrideMarshalJson err, GetDeploymentTemplate", "err", err)
 		return nil, err
 
 	}
-	withCombinedPatch, err := jsonpatch.MergePatch(mapB, bytes)
+	withCombinedPatch, err := jsonpatch.MergePatch(appOverrideMarshalJson, DefaultAppOverrideMarshalJson)
 	if err != nil {
-		impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err)
+		impl.logger.Errorw("withCombinedPatch err, MergePatch err, GetDeploymentTemplate", "err", err)
 		return nil, err
 	}
 	messages := json.RawMessage(withCombinedPatch)
