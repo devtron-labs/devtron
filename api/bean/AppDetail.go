@@ -70,3 +70,7 @@ type EnvironmentOverride struct {
 	ConfigMaps         []*ConfigMap        `json:"configMaps"`
 	Secrets            []*Secret           `json:"secrets"`
 }
+
+type AppWorkflows struct{
+
+}

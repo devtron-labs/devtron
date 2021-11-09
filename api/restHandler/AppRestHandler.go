@@ -50,11 +50,12 @@ type AppRestHandlerImpl struct {
 	chartService       pipeline.ChartService
 	configMapService   pipeline.ConfigMapService
 	appListingService  app.AppListingService
+	propertiesConfigService pipeline.PropertiesConfigService
 }
 
 func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
 	enforcer rbac.Enforcer, appLabelService app.AppLabelService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
-	chartService pipeline.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService) *AppRestHandlerImpl {
+	chartService pipeline.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService, propertiesConfigService pipeline.PropertiesConfigService) *AppRestHandlerImpl {
 	handler := &AppRestHandlerImpl{
 		logger:             logger,
 		userAuthService:    userAuthService,
@@ -67,6 +68,7 @@ func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserS
 		chartService:       chartService,
 		configMapService:   configMapService,
 		appListingService:  appListingService,
+		propertiesConfigService: propertiesConfigService,
 	}
 	return handler
 }
@@ -241,12 +243,21 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 		return nil, true
 	}
 
-	// set deployment template
+	// set deployment template & showAppMetrics
 	var deploymentTemplateObj map[string]interface{}
+	var showAppMetrics bool
 	var deploymentTemplateRaw json.RawMessage
-	if envId > 0 && deploymentTemplate.ValuesOverride != nil {
-		deploymentTemplateRaw = deploymentTemplate.ValuesOverride
+	if envId > 0 {
+		env, err:= handler.propertiesConfigService.GetEnvironmentProperties(appId,envId,chartRefData.LatestEnvChartRef)
+		if err!=nil{
+			handler.logger.Errorw("service err, GetEnvConfOverride", "err", err, "payload", appId, envId, chartRefData.LatestEnvChartRef)
+		}
+		deploymentTemplateRaw = env.EnvironmentConfig.EnvOverrideValues
+		if *env.AppMetrics != showAppMetrics{
+			showAppMetrics = true
+		}
 	}else{
+		showAppMetrics = deploymentTemplate.IsAppMetricsEnabled
 		deploymentTemplateRaw = deploymentTemplate.DefaultAppOverride
 	}
 
@@ -270,7 +281,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 	deploymentTemplateResp := &apiBean.DeploymentTemplate{
 		ChartRefId:     chartRefId,
 		Template:       deploymentTemplateObj,
-		ShowAppMetrics: deploymentTemplate.IsAppMetricsEnabled,
+		ShowAppMetrics: showAppMetrics,
 	}
 
 	return deploymentTemplateResp, false
