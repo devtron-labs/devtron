@@ -184,15 +184,15 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 	gitTriggers := make(map[int]pipelineConfig.GitCommit)
 	for k, v := range commitHashes {
 		gitCommit := pipelineConfig.GitCommit{
-			Commit:         v.Commit,
-			Author:         v.Author,
-			Date:           v.Date,
-			Message:        v.Message,
-			Changes:        v.Changes,
-			GitSourceValue: v.GitSourceValue,
-			GitSourceType:  v.GitSourceType,
-			GitMaterialUrl: v.GitMaterialUrl,
-			GitRepoName:    v.GitRepoName,
+			Commit:                 v.Commit,
+			Author:                 v.Author,
+			Date:                   v.Date,
+			Message:                v.Message,
+			Changes:                v.Changes,
+			CiConfigureSourceValue: v.CiConfigureSourceValue,
+			CiConfigureSourceType:  v.CiConfigureSourceType,
+			GitRepoUrl:             v.GitRepoUrl,
+			GitRepoName:            v.GitRepoName,
 		}
 		webhookData := v.WebhookData
 		if webhookData != nil {

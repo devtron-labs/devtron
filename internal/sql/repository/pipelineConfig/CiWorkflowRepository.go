@@ -82,16 +82,16 @@ type WorkflowWithArtifact struct {
 }
 
 type GitCommit struct {
-	Commit         string //git hash
-	Author         string
-	Date           time.Time
-	Message        string
-	Changes        []string
-	WebhookData    WebhookData
-	GitSourceValue string
-	GitMaterialUrl string
-	GitRepoName    string
-	GitSourceType  SourceType
+	Commit                 string //git hash
+	Author                 string
+	Date                   time.Time
+	Message                string
+	Changes                []string
+	WebhookData            WebhookData
+	CiConfigureSourceValue string
+	GitRepoUrl             string
+	GitRepoName            string
+	CiConfigureSourceType  SourceType
 }
 
 type WebhookData struct {

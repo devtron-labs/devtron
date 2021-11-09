@@ -732,20 +732,9 @@ func (impl *CiHandlerImpl) GetCiPipeline(ciMaterialId int) (*pipelineConfig.CiPi
 
 func (impl *CiHandlerImpl) buildAutomaticTriggerCommitHashes(ciMaterials []*pipelineConfig.CiPipelineMaterial, request bean.GitCiTriggerRequest) (map[int]bean.GitCommit, error) {
 	commitHashes := map[int]bean.GitCommit{}
-	if len(ciMaterials) == 1 {
-		request.CiPipelineMaterial.GitCommit.GitSourceType = ciMaterials[0].Type
-		request.CiPipelineMaterial.GitCommit.GitSourceValue = ciMaterials[0].Value
-		request.CiPipelineMaterial.GitCommit.GitMaterialUrl = ciMaterials[0].GitMaterial.Url
-		request.CiPipelineMaterial.GitCommit.GitRepoName = ciMaterials[0].GitMaterial.Name[strings.Index(ciMaterials[0].GitMaterial.Name, "-")+1:]
-		commitHashes[ciMaterials[0].Id] = request.CiPipelineMaterial.GitCommit
-		return commitHashes, nil
-	}
 	for _, ciMaterial := range ciMaterials {
-		if ciMaterial.Id == request.CiPipelineMaterial.Id {
-			request.CiPipelineMaterial.GitCommit.GitSourceType = ciMaterial.Type
-			request.CiPipelineMaterial.GitCommit.GitSourceValue = ciMaterial.Value
-			request.CiPipelineMaterial.GitCommit.GitMaterialUrl = ciMaterial.GitMaterial.Url
-			request.CiPipelineMaterial.GitCommit.GitRepoName = ciMaterial.GitMaterial.Name[strings.Index(ciMaterial.GitMaterial.Name, "-")+1:]
+		if ciMaterial.Id == request.CiPipelineMaterial.Id || len(ciMaterials) == 1 {
+			request.CiPipelineMaterial.GitCommit = SetGitCommitValuesForBuildingCommitHash(ciMaterial, request.CiPipelineMaterial.GitCommit)
 			commitHashes[ciMaterial.Id] = request.CiPipelineMaterial.GitCommit
 		} else {
 			// this is possible in case of non Webhook, as there would be only one pipeline material per git material in case of PR
@@ -753,14 +742,20 @@ func (impl *CiHandlerImpl) buildAutomaticTriggerCommitHashes(ciMaterials []*pipe
 			if err != nil {
 				return map[int]bean.GitCommit{}, err
 			}
-			lastCommit.GitSourceType = ciMaterial.Type
-			lastCommit.GitSourceValue = ciMaterial.Value
-			lastCommit.GitMaterialUrl = ciMaterial.GitMaterial.Url
-			lastCommit.GitRepoName = ciMaterial.GitMaterial.Name[strings.Index(ciMaterial.GitMaterial.Name, "-")+1:]
+			lastCommit = SetGitCommitValuesForBuildingCommitHash(ciMaterial, lastCommit)
 			commitHashes[ciMaterial.Id] = lastCommit
 		}
 	}
 	return commitHashes, nil
+}
+
+func SetGitCommitValuesForBuildingCommitHash(ciMaterial *pipelineConfig.CiPipelineMaterial, oldGitCommit bean.GitCommit) bean.GitCommit {
+	newGitCommit := oldGitCommit
+	newGitCommit.CiConfigureSourceType = ciMaterial.Type
+	newGitCommit.CiConfigureSourceValue = ciMaterial.Value
+	newGitCommit.GitRepoUrl = ciMaterial.GitMaterial.Url
+	newGitCommit.GitRepoName = ciMaterial.GitMaterial.Name[strings.Index(ciMaterial.GitMaterial.Name, "-")+1:]
+	return newGitCommit
 }
 
 func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.CiTriggerRequest) (map[int]bean.GitCommit, error) {
@@ -809,15 +804,15 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeBranchFix(
 	}
 
 	gitCommit := bean.GitCommit{
-		Commit:         gitCommitResponse.Commit,
-		Author:         gitCommitResponse.Author,
-		Date:           gitCommitResponse.Date,
-		Message:        gitCommitResponse.Message,
-		Changes:        gitCommitResponse.Changes,
-		GitRepoName:    pipeLineMaterialFromDb.GitMaterial.Name[strings.Index(pipeLineMaterialFromDb.GitMaterial.Name, "-")+1:],
-		GitMaterialUrl: pipeLineMaterialFromDb.GitMaterial.Url,
-		GitSourceValue: pipeLineMaterialFromDb.Value,
-		GitSourceType:  pipeLineMaterialFromDb.Type,
+		Commit:                 gitCommitResponse.Commit,
+		Author:                 gitCommitResponse.Author,
+		Date:                   gitCommitResponse.Date,
+		Message:                gitCommitResponse.Message,
+		Changes:                gitCommitResponse.Changes,
+		GitRepoName:            pipeLineMaterialFromDb.GitMaterial.Name[strings.Index(pipeLineMaterialFromDb.GitMaterial.Name, "-")+1:],
+		GitRepoUrl:             pipeLineMaterialFromDb.GitMaterial.Url,
+		CiConfigureSourceValue: pipeLineMaterialFromDb.Value,
+		CiConfigureSourceType:  pipeLineMaterialFromDb.Type,
 	}
 
 	return gitCommit, nil
@@ -867,10 +862,10 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ci
 
 	// build git commit
 	gitCommit := bean.GitCommit{
-		GitRepoName:    pipeLineMaterialFromDb.GitMaterial.Name[strings.Index(pipeLineMaterialFromDb.GitMaterial.Name, "-")+1:],
-		GitMaterialUrl: pipeLineMaterialFromDb.GitMaterial.Url,
-		GitSourceValue: pipeLineMaterialFromDb.Value,
-		GitSourceType:  pipeLineMaterialFromDb.Type,
+		GitRepoName:            pipeLineMaterialFromDb.GitMaterial.Name[strings.Index(pipeLineMaterialFromDb.GitMaterial.Name, "-")+1:],
+		GitRepoUrl:             pipeLineMaterialFromDb.GitMaterial.Url,
+		CiConfigureSourceValue: pipeLineMaterialFromDb.Value,
+		CiConfigureSourceType:  pipeLineMaterialFromDb.Type,
 		WebhookData: &bean.WebhookData{
 			Id:              webhookData.Id,
 			EventActionType: webhookData.EventActionType,
