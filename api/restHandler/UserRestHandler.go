@@ -274,6 +274,10 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 
 		if len(groupRoles) > 0 {
 			for _, groupRole := range groupRoles {
+				if groupRole.Entity == rbac.ResourceChartGroup {
+					continue
+				}
+
 				if len(groupRole.Team) > 0 {
 					if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(groupRole.Team)); !ok {
 						response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
