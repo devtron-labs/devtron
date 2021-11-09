@@ -3,15 +3,14 @@ package DeploymentTemplateValidate
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/xeipuuv/gojsonschema"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
-
-	"github.com/devtron-labs/devtron/internal/util"
-	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/xeipuuv/gojsonschema"
 )
 
 type (
@@ -69,6 +68,7 @@ const memoryPattern = `"100Mi" or "1Gi" or "1Ti"`
 const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
+
 
 func DeploymentTemplateValidate(templatejson interface{}, schemafile string) (bool, error) {
 	refChartDir := pipeline.RefChartDir("scripts/devtron-reference-helm-charts")

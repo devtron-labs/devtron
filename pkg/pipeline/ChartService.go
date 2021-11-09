@@ -22,14 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
-
 	repository2 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
@@ -43,9 +35,19 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
+	"github.com/xeipuuv/gojsonschema"
 	"go.uber.org/zap"
+	"io/ioutil"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
 )
 
 type TemplateRequest struct {
@@ -116,6 +118,7 @@ type ChartService interface {
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]json.RawMessage, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
+	DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error)
 }
 type ChartServiceImpl struct {
 	chartRepository           chartConfig.ChartRepository
@@ -1033,4 +1036,138 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 		return &appMetricRequest, nil
 	}
 	return nil, err
+}
+
+
+type (
+	CpuChecker    struct{}
+	MemoryChecker struct{}
+)
+
+var (
+	CpuUnitChecker, _   = regexp.Compile("^([0-9.]+)m$")
+	NoCpuUnitChecker, _ = regexp.Compile("^([0-9.]+)$")
+	MiChecker, _  = regexp.Compile("^[0-9]+Mi$")
+	GiChecker, _  = regexp.Compile("^[0-9]+Gi$")
+	TiChecker, _  = regexp.Compile("^[0-9]+Ti$")
+	PiChecker, _  = regexp.Compile("^[0-9]+Pi$")
+	KiChecker, _  = regexp.Compile("^[0-9]+Ki$")
+)
+
+func (f CpuChecker) IsFormat(input interface{}) bool {
+	asString, ok := input.(string)
+	if !ok {
+		return false
+	}
+
+	if CpuUnitChecker.MatchString(asString) {
+		return true
+	} else if NoCpuUnitChecker.MatchString(asString) {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (f MemoryChecker) IsFormat(input interface{}) bool {
+	asString, ok := input.(string)
+	if !ok {
+		return false
+	}
+
+	if MiChecker.MatchString(asString) {
+		return true
+	} else if GiChecker.MatchString(asString) {
+		return true
+	} else if TiChecker.MatchString(asString) {
+		return true
+	} else if PiChecker.MatchString(asString) {
+		return true
+	} else if KiChecker.MatchString(asString) {
+		return true
+	} else {
+		return false
+	}
+}
+
+const memoryPattern = `"100Mi" or "1Gi" or "1Ti"`
+const cpuPattern = `"50m" or "0.05"`
+const cpu = "cpu"
+const memory = "memory"
+
+
+func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error) {
+	refChartDir, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	if err != nil {
+		return true, err
+	}
+	fileStatus := filepath.Join(refChartDir,"schema.json")
+	if _, err := os.Stat(fileStatus); os.IsNotExist(err) {
+		impl.logger.Errorw("Schema File Not Found err, DeploymentTemplateValidate",err)
+		return true, nil
+	} else{
+		gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
+		gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
+
+		jsonFile, err := os.Open(fileStatus)
+		if err != nil {
+			impl.logger.Errorw("jsonfile open err, DeploymentTemplateValidate","err",err)
+			return false, err
+		}
+		byteValueJsonFile, err := ioutil.ReadAll(jsonFile)
+		if err != nil {
+			impl.logger.Errorw("byteValueJsonFile read err, DeploymentTemplateValidate","err",err)
+			return false, err
+		}
+		var schemajson map[string]interface{}
+		err = json.Unmarshal([]byte(byteValueJsonFile), &schemajson)
+		if err != nil {
+			impl.logger.Errorw("Unmarshal err in byteValueJsonFile, DeploymentTemplateValidate","err",err)
+			return false, err
+		}
+		schemaLoader := gojsonschema.NewGoLoader(schemajson)
+		documentLoader := gojsonschema.NewGoLoader(templatejson)
+		marshalTemplatejson, err := json.Marshal(templatejson)
+		if err != nil {
+			impl.logger.Errorw("json template marshal err, DeploymentTemplateValidate","err",err)
+			return false, err
+		}
+		result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+		if err != nil {
+			impl.logger.Errorw("result validate err, DeploymentTemplateValidate","err",err)
+			return false, err
+		}
+		if result.Valid() {
+			var dat map[string]interface{}
+
+			if err := json.Unmarshal(marshalTemplatejson, &dat); err != nil {
+				impl.logger.Errorw("json template unmarshal err, DeploymentTemplateValidate","err",err)
+				return false, err
+			}
+			autoscaleEnabled,ok := dat["autoscaling"].(map[string]interface{})["enabled"]
+			if ok && autoscaleEnabled.(bool) {
+				_, err := util2.Autoscale(dat)
+				if err != nil {
+					impl.logger.Errorw("LimitRequestCompare err, DeploymentTemplateValidate","err",err)
+					return false, err
+				}
+			}
+			return true, nil
+		} else {
+			var stringerror string
+			for _, err := range result.Errors() {
+				impl.logger.Errorw("result err, DeploymentTemplateValidate","err",err.Details())
+				if err.Details()["format"] == cpu {
+					stringerror = stringerror + err.Field() + ": Format should be like " + cpuPattern + "\n"
+				} else if err.Details()["format"] == memory {
+					stringerror = stringerror + err.Field() + ": Format should be like " + memoryPattern + "\n"
+				} else {
+					stringerror = stringerror + err.String() + "\n"
+				}
+			}
+			return false, errors.New(stringerror)
+		}
+	}
+
+
 }

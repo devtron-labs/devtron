@@ -36,7 +36,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
-	validator2 "github.com/devtron-labs/devtron/internal/validator"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -606,9 +605,15 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ChartVersion := templateRequest.RefChartTemplate
-
-	validate, error := validator2.DeploymentTemplateValidate(templateRequest.ValuesOverride, ChartVersion)
+	ChartVersion := templateRequest.RefChartTemplateVersion
+	splitChartVersion := strings.Split(ChartVersion, ".")
+	chartRefId, err := strconv.Atoi(splitChartVersion[1])
+	if err != nil {
+		handler.Logger.Errorw("chartRefId err, UpdateAppOverride", "err", err, "payload", templateRequest)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	validate, error := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
 	if !validate {
 		writeJsonResp(w, error, nil, http.StatusBadRequest)
 
@@ -1306,9 +1311,15 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	ChartVersion := templateRequest.RefChartTemplate
-
-	validate, error := validator2.DeploymentTemplateValidate(templateRequest.ValuesOverride, ChartVersion)
+	ChartVersion := templateRequest.RefChartTemplateVersion
+	splitChartVersion := strings.Split(ChartVersion, ".")
+	chartRefId, err := strconv.Atoi(splitChartVersion[1])
+	if err != nil {
+		handler.Logger.Errorw("chartRefId err, UpdateAppOverride", "err", err, "payload", templateRequest)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	validate, error := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", templateRequest)
 		writeJsonResp(w, error, nil, http.StatusBadRequest)
