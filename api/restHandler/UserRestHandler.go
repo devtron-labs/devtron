@@ -280,10 +280,61 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 						return
 					}
 				}
+
+				envArr := strings.Split(groupRole.Environment, ",")
+				for _, env := range envArr {
+					rbObject := env
+					if env == "" {
+						rbObject = "*"
+					}
+					if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, rbObject); !ok {
+						writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+						return
+					}
+				}
 			}
-		} else {
-			if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, "*"); !ok {
+		}
+	}
+
+	var dedupeRoleFilters []string
+	uniqueExisting := make(map[string]bool)
+	uniqueNew := make(map[string]bool)
+	for _, item := range user.Groups{
+		if _, ok := uniqueNew[item]; !ok {
+			uniqueNew[item] = true
+		}
+	}
+	for _, item := range user.Groups{
+		if _, ok := uniqueExisting[item]; !ok {
+			uniqueExisting[item] = true
+			if _, ok := uniqueNew[item]; !ok {
+				dedupeRoleFilters = append(dedupeRoleFilters, item)
+			}
+		}
+	}
+
+	eGroupRoles, err := handler.roleGroupService.FetchRolesForGroups(dedupeRoleFilters)
+	if err != nil && err != pg.ErrNoRows {
+		handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
+		writeJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	for _, groupRole := range eGroupRoles {
+		if len(groupRole.Team) > 0 {
+			if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(groupRole.Team)); !ok {
 				response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+				return
+			}
+		}
+
+		envArr := strings.Split(groupRole.Environment, ",")
+		for _, env := range envArr {
+			rbObject := env
+			if env == "" {
+				rbObject = "*"
+			}
+			if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, rbObject); !ok {
+				writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 				return
 			}
 		}
@@ -480,6 +531,18 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 		for _, filter := range res.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); !ok {
+					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					return
+				}
+			}
+
+			envArr := strings.Split(filter.Environment, ",")
+			for _, env := range envArr {
+				rbObject := env
+				if env == "" {
+					rbObject = "*"
+				}
+				if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, rbObject); !ok {
 					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
