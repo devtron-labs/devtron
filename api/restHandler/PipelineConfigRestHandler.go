@@ -1038,6 +1038,8 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
 					return
 				}
+				template.ChartRefId = RequestChartRefId
+				template.Id = 0
 				template.DefaultAppOverride = withCombinedPatch
 				bytes, err := json.Marshal(template)
 				if err != nil {
