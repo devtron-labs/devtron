@@ -303,7 +303,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	var dedupeRoleFilters []string
 	uniqueExisting := make(map[string]bool)
 	uniqueNew := make(map[string]bool)
-	for _, item := range user.Groups{
+	for _, item := range userInfo.Groups{
 		if _, ok := uniqueNew[item]; !ok {
 			uniqueNew[item] = true
 		}
@@ -324,6 +324,9 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 		return
 	}
 	for _, groupRole := range eGroupRoles {
+		if groupRole.Entity == rbac.ResourceChartGroup {
+			continue
+		}
 		if len(groupRole.Team) > 0 {
 			if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(groupRole.Team)); !ok {
 				response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
