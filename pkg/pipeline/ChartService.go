@@ -1041,7 +1041,7 @@ func (impl ChartServiceImpl) DefaultTemplateWithSavedTemplateData(RequestChartRe
 		impl.logger.Errorw("GetAppOverrideForDefaultTemplate err, appOverride", "err", err)
 		return nil, err
 	}
-	appOverrideMarshalJson, err := json.Marshal(appOverride)
+	appOverrideMarshalJson, err := json.Marshal(appOverride["defaultAppOverride"])
 	if err != nil {
 		impl.logger.Errorw("appOverrideMarshalJson err, GetDeploymentTemplate", "err", err)
 		return nil, err
