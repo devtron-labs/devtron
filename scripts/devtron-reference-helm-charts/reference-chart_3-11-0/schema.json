@@ -368,6 +368,12 @@
       "pauseForSecondsBeforeSwitchActive": {
         "type": "integer"
       },
+      "podAnnotations": {
+        "type":"object"
+      },
+      "podLabels": {
+        "type":"object"
+      },
       "prometheus": {
         "type": "object",
         "properties": {

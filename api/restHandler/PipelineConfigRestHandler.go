@@ -605,14 +605,7 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ChartVersion := templateRequest.RefChartTemplateVersion
-	splitChartVersion := strings.Split(ChartVersion, ".")
-	chartRefId, err := strconv.Atoi(splitChartVersion[1])
-	if err != nil {
-		handler.Logger.Errorw("chartRefId err, UpdateAppOverride", "err", err, "payload", templateRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
+	chartRefId := templateRequest.ChartRefId
 	validate, error := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
 	if !validate {
 		writeJsonResp(w, error, nil, http.StatusBadRequest)
@@ -1022,6 +1015,12 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	template.JsonSchema,err = handler.chartService.FindJsonSchema(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("template.JsonSchema err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	if pg.ErrNoRows == err {
 		appOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
 		if err != nil {
@@ -1311,14 +1310,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	ChartVersion := templateRequest.RefChartTemplateVersion
-	splitChartVersion := strings.Split(ChartVersion, ".")
-	chartRefId, err := strconv.Atoi(splitChartVersion[1])
-	if err != nil {
-		handler.Logger.Errorw("chartRefId err, UpdateAppOverride", "err", err, "payload", templateRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
+	chartRefId := templateRequest.ChartRefId
 	validate, error := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
 	if !validate {
 		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", templateRequest)
