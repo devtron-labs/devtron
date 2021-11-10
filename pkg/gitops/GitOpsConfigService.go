@@ -618,9 +618,9 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
 	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
-	if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
+	/*if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
 		config.Host = GITHUB_HOST
-	}
+	}*/
 	if strings.ToUpper(config.Provider) == BITBUCKET_PROVIDER {
 		config.Host = util.BITBUCKET_CLONE_BASE_URL
 		config.BitBucketProjectKey = strings.ToUpper(config.BitBucketProjectKey)
