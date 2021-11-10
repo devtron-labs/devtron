@@ -638,6 +638,7 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 	if host == "https://github.com/" || host == "https://github.com" {
 		client = github.NewClient(tc)
 	} else {
+		logger.Infow("creating git client with org", "host", host, "org", org)
 		client, err = github.NewEnterpriseClient(host, host, tc)
 	}
 
