@@ -238,6 +238,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
+		impl.logger.Infow("git request host", "host", request.Host)
 		request.Host = GITHUB_HOST + request.GitHubOrgId
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
@@ -408,6 +409,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
+		impl.logger.Infow("git request host", "host", request.Host)
 		request.Host = GITHUB_HOST + request.GitHubOrgId
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
