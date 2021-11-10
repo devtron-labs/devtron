@@ -1015,12 +1015,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	template.JsonSchema,err = handler.chartService.FindJsonSchema(chartRefId)
-	if err != nil {
-		handler.Logger.Errorw("template.JsonSchema err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
+
 	if pg.ErrNoRows == err {
 		appOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
 		if err != nil {

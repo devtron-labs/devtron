@@ -624,3 +624,12 @@ Format is used to accept the helm chart values in a particular form.
 1. ```"format" : "cpu"``` means format to enter the value in ```cpu``` should be ```"1"``` or ```"1000m"```.
 
 2. ```"format" : "memory"``` means format to enter the value in ```memory``` should be ```"1000Mi"``` or ```"1Gi"```.
+
+### Json Schema Table
+
+| Chart Version | Link |
+| :--- | :--- |
+| `reference-chart_3-12-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-12-0/schema.json) |
+| `reference-chart_3-11-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-11-0/schema.json) |
+| `reference-chart_3-10-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-10-0/schema.json) |
+| `reference-chart_3-9-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-9-0/schema.json) |

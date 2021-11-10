@@ -121,7 +121,7 @@ type ChartService interface {
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]json.RawMessage, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
 	DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error)
-	FindJsonSchema(chartRefId int) (json.RawMessage, error)
+	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
 }
 type ChartServiceImpl struct {
 	chartRepository           chartConfig.ChartRepository
@@ -1092,108 +1092,95 @@ func (f MemoryChecker) IsFormat(input interface{}) bool {
 	}
 }
 
+
 const memoryPattern = `"100Mi" or "1Gi" or "1Ti"`
 const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
 
 func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error) {
+	gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
+	gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
+	schemajson, err := impl.JsonSchemaExtractFromFile(chartRefId)
+	if err != nil && chartRefId >= 9 {
+		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
+		return false, err
+	} else if err != nil {
+		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
+		return true, nil
+	}
+	schemaLoader := gojsonschema.NewGoLoader(schemajson)
+	documentLoader := gojsonschema.NewGoLoader(templatejson)
+	marshalTemplatejson, err := json.Marshal(templatejson)
+	if err != nil {
+		impl.logger.Errorw("json template marshal err, DeploymentTemplateValidate", "err", err)
+		return false, err
+	}
+	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	if err != nil {
+		impl.logger.Errorw("result validate err, DeploymentTemplateValidate", "err", err)
+		return false, err
+	}
+	if result.Valid() {
+		var dat map[string]interface{}
+		if err := json.Unmarshal(marshalTemplatejson, &dat); err != nil {
+			impl.logger.Errorw("json template unmarshal err, DeploymentTemplateValidate", "err", err)
+			return false, err
+		}
+
+		_, err := util2.CompareLimitsRequests(dat)
+		if err != nil {
+			impl.logger.Errorw("LimitRequestCompare err, DeploymentTemplateValidate", "err", err)
+			return false, err
+		}
+
+		return true, nil
+	} else {
+		var stringerror string
+		for _, err := range result.Errors() {
+			impl.logger.Errorw("result err, DeploymentTemplateValidate", "err", err.Details())
+			if err.Details()["format"] == cpu {
+				stringerror = stringerror + err.Field() + ": Format should be like " + cpuPattern + "\n"
+			} else if err.Details()["format"] == memory {
+				stringerror = stringerror + err.Field() + ": Format should be like " + memoryPattern + "\n"
+			} else {
+				stringerror = stringerror + err.String() + "\n"
+			}
+		}
+		return false, errors.New(stringerror)
+	}
+}
+
+func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error) {
 	refChartDir, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
-		return true, err
+		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
+		return nil, err
 	}
 	fileStatus := filepath.Join(refChartDir, "schema.json")
 	if _, err := os.Stat(fileStatus); os.IsNotExist(err) {
-		impl.logger.Errorw("Schema File Not Found err, DeploymentTemplateValidate", err)
-		return true, nil
+		impl.logger.Errorw("Schema File Not Found err, JsonSchemaExtractFromFile", err)
+		return nil, err
 	} else {
-		gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
-		gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
-
 		jsonFile, err := os.Open(fileStatus)
 		if err != nil {
-			impl.logger.Errorw("jsonfile open err, DeploymentTemplateValidate", "err", err)
-			return false, err
+			impl.logger.Errorw("jsonfile open err, JsonSchemaExtractFromFile", "err", err)
+			return nil, err
 		}
 		byteValueJsonFile, err := ioutil.ReadAll(jsonFile)
 		if err != nil {
-			impl.logger.Errorw("byteValueJsonFile read err, DeploymentTemplateValidate", "err", err)
-			return false, err
+			impl.logger.Errorw("byteValueJsonFile read err, JsonSchemaExtractFromFile", "err", err)
+			return nil, err
 		}
+
 		var schemajson map[string]interface{}
 		err = json.Unmarshal([]byte(byteValueJsonFile), &schemajson)
 		if err != nil {
 			impl.logger.Errorw("Unmarshal err in byteValueJsonFile, DeploymentTemplateValidate", "err", err)
-			return false, err
-		}
-		schemaLoader := gojsonschema.NewGoLoader(schemajson)
-		documentLoader := gojsonschema.NewGoLoader(templatejson)
-		marshalTemplatejson, err := json.Marshal(templatejson)
-		if err != nil {
-			impl.logger.Errorw("json template marshal err, DeploymentTemplateValidate", "err", err)
-			return false, err
-		}
-		result, err := gojsonschema.Validate(schemaLoader, documentLoader)
-		if err != nil {
-			impl.logger.Errorw("result validate err, DeploymentTemplateValidate", "err", err)
-			return false, err
-		}
-		if result.Valid() {
-			var dat map[string]interface{}
-
-			if err := json.Unmarshal(marshalTemplatejson, &dat); err != nil {
-				impl.logger.Errorw("json template unmarshal err, DeploymentTemplateValidate", "err", err)
-				return false, err
-			}
-			autoscaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
-			if ok && autoscaleEnabled.(bool) {
-				_, err := util2.Autoscale(dat)
-				if err != nil {
-					impl.logger.Errorw("LimitRequestCompare err, DeploymentTemplateValidate", "err", err)
-					return false, err
-				}
-			}
-			return true, nil
-		} else {
-			var stringerror string
-			for _, err := range result.Errors() {
-				impl.logger.Errorw("result err, DeploymentTemplateValidate", "err", err.Details())
-				if err.Details()["format"] == cpu {
-					stringerror = stringerror + err.Field() + ": Format should be like " + cpuPattern + "\n"
-				} else if err.Details()["format"] == memory {
-					stringerror = stringerror + err.Field() + ": Format should be like " + memoryPattern + "\n"
-				} else {
-					stringerror = stringerror + err.String() + "\n"
-				}
-			}
-			return false, errors.New(stringerror)
-		}
-	}
-
-}
-
-func (impl ChartServiceImpl) FindJsonSchema(chartRefId int) (json.RawMessage, error) {
-	refChartDir, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
-	if err != nil {
-		return nil, err
-	}
-	fileStatus := filepath.Join(refChartDir, "schema.json")
-	if _, err := os.Stat(fileStatus); os.IsNotExist(err) {
-		impl.logger.Errorw("Schema File Not Found err, FindJsonSchema", err)
-		return nil, err
-	} else {
-
-		jsonFile, err := os.Open(fileStatus)
-		if err != nil {
-			impl.logger.Errorw("jsonfile open err, FindJsonSchema", "err", err)
 			return nil, err
 		}
-		byteValueJsonFile, err := ioutil.ReadAll(jsonFile)
-		if err != nil {
-			impl.logger.Errorw("byteValueJsonFile read err, FindJsonSchema", "err", err)
-			return nil, err
-		}
-		appOverride := json.RawMessage(byteValueJsonFile)
-		return appOverride, nil
+		return schemajson, nil
 	}
 }
+
+

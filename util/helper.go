@@ -175,16 +175,12 @@ func CpuToNumber(cpu string) (float64, error) {
 	return convertResource(cpuParser, cpu)
 }
 func convertResource(rp *resourceParser, resource string) (float64, error) {
-	//sugaredLogger := util.NewSugardLogger()
 	matches := rp.regex.FindAllStringSubmatch(resource, -1)
 	if len(matches[0]) < 2 {
-		//sugaredLogger.Infow(fmt.Sprintf("expected pattern for %s should match %s, found %s\n", rp.name, rp.pattern, resource))
-		fmt.Printf("expected pattern for %s should match %s, found %s\n", rp.name, rp.pattern, resource)
-		return float64(0), fmt.Errorf("expected pattern for %s should match %s, found %s", rp.name, rp.pattern, resource)
+		return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
 	}
 	num, err := ParseFloat(matches[0][1])
 	if err != nil {
-		fmt.Println(err)
 		return float64(0), err
 	}
 	if len(matches[0]) == 3 && matches[0][2] != "" {
@@ -194,8 +190,7 @@ func convertResource(rp *resourceParser, resource string) (float64, error) {
 	} else {
 		return num, nil
 	}
-	fmt.Printf("expected pattern for %s should match %s, found %s\n", rp.name, rp.pattern, resource)
-	return float64(0), fmt.Errorf("expected pattern for %s should match %s, found %s", rp.name, rp.pattern, resource)
+	return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
 }
 
 func ParseFloat(str string) (float64, error) {
@@ -219,6 +214,7 @@ func ParseFloat(str string) (float64, error) {
 	baseStr := str[0:pos]
 	baseVal, err = strconv.ParseFloat(baseStr, 64)
 	if err != nil {
+
 		return 0, err
 	}
 
@@ -231,70 +227,107 @@ func ParseFloat(str string) (float64, error) {
 	return baseVal * math.Pow10(int(expVal)), nil
 }
 
-func Autoscale(dat map[string]interface{}) (bool, error) {
-	limit, ok:= dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
+	limit, ok := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
 	if !ok {
 		return false, errors.New("limit is required")
 	}
-	request, ok:= dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-	if !ok {
-		return false, errors.New("Request is required")
-	}
-	envoproxyLimit,ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+	envoproxyLimit, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
 	if !ok {
 		return false, errors.New("envoproxyLimit is required")
 	}
-	envoproxyMemory,ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-	if !ok {
-		return false, errors.New("envoproxyMemory is required")
-	}
-
-
 	checkCPUlimit, ok := limit["cpu"]
 	if !ok {
-		return false, errors.New("CPU limit is required")
+		return false, errors.New("limits.CPU is required")
 	}
 	checkMemorylimit, ok := limit["memory"]
 	if !ok {
-		return false, errors.New("Memory limit is required")
+		return false, errors.New("limits.Memory is required")
 	}
-	checkCPURequests, ok := request["cpu"]
-	if !ok {
-		return false, errors.New("CPU requests is required")
-	}
-	checkMemoryRequests, ok := request["memory"]
-	if !ok {
-		return false, errors.New("Memory requests is required")
-	}
-
 	checkEnvoproxyCPUlimit, ok := envoproxyLimit["cpu"]
 	if !ok {
-		return false, errors.New("Envoproxy CPU limit is required")
+		return false, errors.New("envoproxy.limits.cpu is required")
 	}
 	checkEnvoproxyMemorylimit, ok := envoproxyLimit["memory"]
 	if !ok {
-		return false, errors.New("Envoproxy Memory limit is required")
+		return false, errors.New("envoproxy.limits.memory is required")
 	}
-	checkEnvoproxyCPURequests, ok := envoproxyMemory["cpu"]
+	autoscaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
 	if !ok {
-		return false, errors.New("Envoproxy CPU requests is required")
+		autoscaleEnabled = false
 	}
-	checkEnvoproxyMemoryRequests, ok := envoproxyMemory["memory"]
-	if !ok {
-		return false, errors.New("Envoproxy memory requests is required")
+	request, ok := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+	if !ok && autoscaleEnabled.(bool) {
+		return false, errors.New("Request is required")
+	} else if !ok && !autoscaleEnabled.(bool) {
+		return true, nil
+	}
+	envoproxyRequest, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+	if !ok && autoscaleEnabled.(bool) {
+		return false, errors.New("envoproxyMemory is required")
+	} else if !ok && !autoscaleEnabled.(bool) {
+		return true, nil
+	}
+	checkCPURequests, ok := request["cpu"]
+	if !ok && autoscaleEnabled.(bool) {
+		return false, errors.New("requests.cpu is required")
+	} else if !ok && !autoscaleEnabled.(bool) {
+		return true, nil
+	}
+	checkMemoryRequests, ok := request["memory"]
+	if !ok && autoscaleEnabled.(bool) {
+		return false, errors.New("requests.memory is required")
+	} else if !ok && !autoscaleEnabled.(bool) {
+		return true, nil
+	}
+	checkEnvoproxyCPURequests, ok := envoproxyRequest["cpu"]
+	if !ok && autoscaleEnabled.(bool) {
+		return false, errors.New("envoproxy.requests.cpu is required")
+	} else if !ok && !autoscaleEnabled.(bool) {
+		return true, nil
+	}
+	checkEnvoproxyMemoryRequests, ok := envoproxyRequest["memory"]
+	if !ok && autoscaleEnabled.(bool) {
+		return false, errors.New("envoproxy.requests.memory is required")
+	} else if !ok && !autoscaleEnabled.(bool) {
+		return true, nil
 	}
 
-	cpu_limit, _ := CpuToNumber(checkCPUlimit.(string))
-	memory_limit, _ := MemoryToNumber(checkMemorylimit.(string))
-	cpu_request, _ := CpuToNumber(checkCPURequests.(string))
-	memory_request, _ := MemoryToNumber(checkMemoryRequests.(string))
+	cpuLimit, err := CpuToNumber(checkCPUlimit.(string))
+	if err != nil {
+		return false, err
+	}
+	memoryLimit, err := MemoryToNumber(checkMemorylimit.(string))
+	if err != nil {
+		return false, err
+	}
+	cpuRequest, err := CpuToNumber(checkCPURequests.(string))
+	if err != nil {
+		return false, err
+	}
+	memoryRequest, err := MemoryToNumber(checkMemoryRequests.(string))
+	if err != nil {
+		return false, err
+	}
 
-	envoproxy_cpu_limit, _ := CpuToNumber(checkEnvoproxyCPUlimit.(string))
-	envoproxy_memory_limit, _ := MemoryToNumber(checkEnvoproxyMemorylimit.(string))
-	envoproxy_cpu_request, _ := CpuToNumber(checkEnvoproxyCPURequests.(string))
-	envoproxy_memory_request, _ := MemoryToNumber(checkEnvoproxyMemoryRequests.(string))
-	if (envoproxy_cpu_limit < envoproxy_cpu_request) || (envoproxy_memory_limit < envoproxy_memory_request) || (cpu_limit < cpu_request) || (memory_limit < memory_request) {
-		return false, errors.New("requests is greater than limits")
+	envoproxyCPULimit, err := CpuToNumber(checkEnvoproxyCPUlimit.(string))
+	if err != nil {
+		return false, err
+	}
+	envoproxyMemoryLimit, err := MemoryToNumber(checkEnvoproxyMemorylimit.(string))
+	if err != nil {
+		return false, err
+	}
+	envoproxyCPURequest, err := CpuToNumber(checkEnvoproxyCPURequests.(string))
+	if err != nil {
+		return false, err
+	}
+	envoproxyMemoryRequest, err := MemoryToNumber(checkEnvoproxyMemoryRequests.(string))
+	if err != nil {
+		return false, err
+	}
+	if (envoproxyCPULimit < envoproxyCPURequest) || (envoproxyMemoryLimit < envoproxyMemoryRequest) || (cpuLimit < cpuRequest) || (memoryLimit < memoryRequest) {
+		return false, errors.New("requests value is greater than limits value")
 	}
 	return true, nil
 
