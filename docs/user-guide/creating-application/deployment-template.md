@@ -617,13 +617,6 @@ Helm Chart json schema is used to validate the deployment template values.
 }
 ```
 
-### Format
-
-Format is used to accept the helm chart values in a particular form.
-
-1. ```"format" : "cpu"``` means format to enter the value in ```cpu``` should be ```"1"``` or ```"1000m"```.
-
-2. ```"format" : "memory"``` means format to enter the value in ```memory``` should be ```"1000Mi"``` or ```"1Gi"```.
 
 ### Json Schema Table
 
@@ -633,3 +626,15 @@ Format is used to accept the helm chart values in a particular form.
 | `reference-chart_3-11-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-11-0/schema.json) |
 | `reference-chart_3-10-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-10-0/schema.json) |
 | `reference-chart_3-9-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-9-0/schema.json) |
+
+
+### Other Validations in Json Schema
+
+The values of CPU and Memory in limits must be greater than or equal to in requests respectively. Similarly, In case of envoyproxy, the values of limits are greater than or equal to requests as mentioned above.
+```
+resources.limits.cpu >= resources.requests.cpu
+resources.limits.memory >= resources.requests.memory
+envoyproxy.resources.limits.cpu >= envoyproxy.resources.requests.cpu
+envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
+```
+
