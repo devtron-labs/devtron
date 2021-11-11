@@ -164,7 +164,7 @@ imageScannerOverride = jsonSelect(imageScannerOverride, "data.override");
 kubewatchOverride = jsonSelect(kubewatchOverride, "data.override");
 lensOverride = jsonSelect(lensOverride, "data.override");
 migratorOverride = jsonSelect(migratorOverride, "data.override");
-natsOperatorOverride = jsonSelect(natsOperatorOverride, "data.override");
+## natsOperatorOverride = jsonSelect(natsOperatorOverride, "data.override");
 natsServerOverride = jsonSelect(natsServerOverride, "data.override");
 natsStreamingOverride = jsonSelect(natsStreamingOverride, "data.override");
 notifierOverride = jsonSelect(notifierOverride, "data.override");
@@ -438,9 +438,9 @@ kubeYamlEdit(migrator, "data.DB_PASSWORD", postgresqlPassword, `/Secret//postgre
 migrator = kubectl apply -n devtroncd migrator -u migratorOverride;
 log("executed migrator setup command");
 
-#nats
-natsOperator = kubectl apply -n devtroncd natsOperator -u natsOperatorOverride;
-log("executed nats operator setup");
+## #nats
+## natsOperator = kubectl apply -n devtroncd natsOperator -u natsOperatorOverride;
+## log("executed nats operator setup");
 ignore = shellScript sleep50;
 natsServer = kubectl apply -n devtroncd natsServer -u natsServerOverride;
 log("executed nats server setup");
