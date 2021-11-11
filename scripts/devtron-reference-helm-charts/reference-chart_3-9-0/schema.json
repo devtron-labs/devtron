@@ -487,6 +487,7 @@
         "replicaCount",
         "ContainerPort",
         "ingress",
-        "ingressInternal"
+        "ingressInternal",
+        "autoscaling"
     ]
   }

@@ -27,7 +27,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -63,7 +62,6 @@ type TemplateRequest struct {
 	Latest                  bool            `json:"latest"`
 	IsAppMetricsEnabled     bool            `json:"isAppMetricsEnabled"`
 	UserId                  int32           `json:"-"`
-	JsonSchema              json.RawMessage `json:"jsonSchema"`
 }
 
 type AppMetricEnableDisableRequest struct {
@@ -1041,66 +1039,13 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 	return nil, err
 }
 
-type (
-	CpuChecker    struct{}
-	MemoryChecker struct{}
-)
-
-var (
-	CpuUnitChecker, _   = regexp.Compile("^([0-9.]+)m$")
-	NoCpuUnitChecker, _ = regexp.Compile("^([0-9.]+)$")
-	MiChecker, _        = regexp.Compile("^[0-9]+Mi$")
-	GiChecker, _        = regexp.Compile("^[0-9]+Gi$")
-	TiChecker, _        = regexp.Compile("^[0-9]+Ti$")
-	PiChecker, _        = regexp.Compile("^[0-9]+Pi$")
-	KiChecker, _        = regexp.Compile("^[0-9]+Ki$")
-)
-
-func (f CpuChecker) IsFormat(input interface{}) bool {
-	asString, ok := input.(string)
-	if !ok {
-		return false
-	}
-
-	if CpuUnitChecker.MatchString(asString) {
-		return true
-	} else if NoCpuUnitChecker.MatchString(asString) {
-		return true
-	} else {
-		return false
-	}
-}
-
-func (f MemoryChecker) IsFormat(input interface{}) bool {
-	asString, ok := input.(string)
-	if !ok {
-		return false
-	}
-
-	if MiChecker.MatchString(asString) {
-		return true
-	} else if GiChecker.MatchString(asString) {
-		return true
-	} else if TiChecker.MatchString(asString) {
-		return true
-	} else if PiChecker.MatchString(asString) {
-		return true
-	} else if KiChecker.MatchString(asString) {
-		return true
-	} else {
-		return false
-	}
-}
-
-
 const memoryPattern = `"100Mi" or "1Gi" or "1Ti"`
 const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
 
 func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error) {
-	gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
-	gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
+	gojsonschema.FormatCheckers.Add("memory", util2.MemoryChecker{})
 	schemajson, err := impl.JsonSchemaExtractFromFile(chartRefId)
 	if err != nil && chartRefId >= 9 {
 		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
@@ -1133,6 +1078,12 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}
 			impl.logger.Errorw("LimitRequestCompare err, DeploymentTemplateValidate", "err", err)
 			return false, err
 		}
+		_, err = util2.AutoScale(dat)
+		if err != nil {
+			impl.logger.Errorw("LimitRequestCompare err, DeploymentTemplateValidate", "err", err)
+			return false, err
+		}
+
 
 		return true, nil
 	} else {
@@ -1182,5 +1133,3 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 		return schemajson, nil
 	}
 }
-
-

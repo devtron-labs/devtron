@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/xeipuuv/gojsonschema"
 	"io/ioutil"
 	"math"
 	"math/rand"
@@ -252,44 +253,28 @@ func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 	if !ok {
 		return false, errors.New("envoproxy.limits.memory is required")
 	}
-	autoscaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
-	if !ok {
-		autoscaleEnabled = false
-	}
 	request, ok := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-	if !ok && autoscaleEnabled.(bool) {
-		return false, errors.New("Request is required")
-	} else if !ok && !autoscaleEnabled.(bool) {
+	if !ok {
 		return true, nil
 	}
 	envoproxyRequest, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-	if !ok && autoscaleEnabled.(bool) {
-		return false, errors.New("envoproxyMemory is required")
-	} else if !ok && !autoscaleEnabled.(bool) {
+	if !ok {
 		return true, nil
 	}
 	checkCPURequests, ok := request["cpu"]
-	if !ok && autoscaleEnabled.(bool) {
-		return false, errors.New("requests.cpu is required")
-	} else if !ok && !autoscaleEnabled.(bool) {
+	if !ok {
 		return true, nil
 	}
 	checkMemoryRequests, ok := request["memory"]
-	if !ok && autoscaleEnabled.(bool) {
-		return false, errors.New("requests.memory is required")
-	} else if !ok && !autoscaleEnabled.(bool) {
+	if !ok {
 		return true, nil
 	}
 	checkEnvoproxyCPURequests, ok := envoproxyRequest["cpu"]
-	if !ok && autoscaleEnabled.(bool) {
-		return false, errors.New("envoproxy.requests.cpu is required")
-	} else if !ok && !autoscaleEnabled.(bool) {
+	if !ok {
 		return true, nil
 	}
 	checkEnvoproxyMemoryRequests, ok := envoproxyRequest["memory"]
-	if !ok && autoscaleEnabled.(bool) {
-		return false, errors.New("envoproxy.requests.memory is required")
-	} else if !ok && !autoscaleEnabled.(bool) {
+	if !ok {
 		return true, nil
 	}
 
@@ -326,9 +311,185 @@ func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	if (envoproxyCPULimit < envoproxyCPURequest) || (envoproxyMemoryLimit < envoproxyMemoryRequest) || (cpuLimit < cpuRequest) || (memoryLimit < memoryRequest) {
 		return false, errors.New("requests value is greater than limits value")
 	}
 	return true, nil
 
 }
+
+
+func AutoScale(dat map[string]interface{}) (bool, error) {
+	autoscaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
+	if !ok {
+		return true, nil
+	}
+	if autoscaleEnabled.(bool) {
+		limit, ok := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+		if !ok {
+			return false, errors.New("limit is required")
+		}
+		envoproxyLimit, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+		if !ok {
+			return false, errors.New("envoproxyLimit is required")
+		}
+		checkCPUlimit, ok := limit["cpu"]
+		if !ok {
+			return false, errors.New("limits.CPU is required")
+		}
+		checkMemorylimit, ok := limit["memory"]
+		if !ok {
+			return false, errors.New("limits.Memory is required")
+		}
+		checkEnvoproxyCPUlimit, ok := envoproxyLimit["cpu"]
+		if !ok {
+			return false, errors.New("envoproxy.limits.cpu is required")
+		}
+		checkEnvoproxyMemorylimit, ok := envoproxyLimit["memory"]
+		if !ok {
+			return false, errors.New("envoproxy.limits.memory is required")
+		}
+
+		request, ok := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+		if !ok {
+			return false, errors.New("Request is required")
+		}
+		envoproxyRequest, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+		if !ok {
+			return false, errors.New("envoproxyRequest is required")
+		}
+		checkCPURequests, ok := request["cpu"]
+		if !ok {
+			return false, errors.New("requests.cpu is required")
+		}
+		checkMemoryRequests, ok := request["memory"]
+		if !ok {
+			return false, errors.New("requests.memory is required")
+		}
+		checkEnvoproxyCPURequests, ok := envoproxyRequest["cpu"]
+		if !ok {
+			return false, errors.New("envoproxy.requests.cpu is required")
+		}
+		checkEnvoproxyMemoryRequests, ok := envoproxyRequest["memory"]
+		if !ok {
+			return false, errors.New("envoproxy.requests.memory is required")
+		}
+
+		cpuLimit, err := CpuToNumber(checkCPUlimit.(string))
+		if err != nil {
+			return false, err
+		}
+		memoryLimit, err := MemoryToNumber(checkMemorylimit.(string))
+		if err != nil {
+			return false, err
+		}
+		cpuRequest, err := CpuToNumber(checkCPURequests.(string))
+		if err != nil {
+			return false, err
+		}
+		memoryRequest, err := MemoryToNumber(checkMemoryRequests.(string))
+		if err != nil {
+			return false, err
+		}
+
+		envoproxyCPULimit, err := CpuToNumber(checkEnvoproxyCPUlimit.(string))
+		if err != nil {
+			return false, err
+		}
+		envoproxyMemoryLimit, err := MemoryToNumber(checkEnvoproxyMemorylimit.(string))
+		if err != nil {
+			return false, err
+		}
+		envoproxyCPURequest, err := CpuToNumber(checkEnvoproxyCPURequests.(string))
+		if err != nil {
+			return false, err
+		}
+		envoproxyMemoryRequest, err := MemoryToNumber(checkEnvoproxyMemoryRequests.(string))
+		if err != nil {
+			return false, err
+		}
+
+		if (envoproxyCPULimit < envoproxyCPURequest) || (envoproxyMemoryLimit < envoproxyMemoryRequest) || (cpuLimit < cpuRequest) || (memoryLimit < memoryRequest) {
+			return false, errors.New("requests value is greater than limits value")
+		}
+		return true, nil
+	} else {
+		return true, nil
+	}
+}
+
+
+var (
+	CpuUnitChecker, _   = regexp.Compile("^([0-9.]+)m$")
+	NoCpuUnitChecker, _ = regexp.Compile("^([0-9.]+)$")
+	MiChecker, _        = regexp.Compile("^[0-9]+Mi$")
+	GiChecker, _        = regexp.Compile("^[0-9]+Gi$")
+	TiChecker, _        = regexp.Compile("^[0-9]+Ti$")
+	PiChecker, _        = regexp.Compile("^[0-9]+Pi$")
+	KiChecker, _        = regexp.Compile("^[0-9]+Ki$")
+)
+
+func (f CpuChecker) IsFormat(input interface{}) bool {
+	asString, ok := input.(string)
+	if !ok {
+		return false
+	}
+
+	if CpuUnitChecker.MatchString(asString) {
+		return true
+	} else if NoCpuUnitChecker.MatchString(asString) {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (f MemoryChecker) IsFormat(input interface{}) bool {
+	asString, ok := input.(string)
+	if !ok {
+		return false
+	}
+
+	if MiChecker.MatchString(asString) {
+		return true
+	} else if GiChecker.MatchString(asString) {
+		return true
+	} else if TiChecker.MatchString(asString) {
+		return true
+	} else if PiChecker.MatchString(asString) {
+		return true
+	} else if KiChecker.MatchString(asString) {
+		return true
+	} else {
+		return false
+	}
+}
+
+type (
+	CpuChecker    struct{}
+	MemoryChecker struct{}
+)
+
+type NewFormatChecker interface {
+	Cpu()bool
+	Memory()bool
+}
+
+type CombinedCpuMemory struct{
+	CpuMemory bool
+}
+
+func Checker(CpuMemory bool)*CombinedCpuMemory{
+	return &CombinedCpuMemory{CpuMemory:  CpuMemory}
+}
+func (impl CombinedCpuMemory) Cpu() bool{
+	gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
+	return true
+}
+
+func (impl CombinedCpuMemory) Memory() bool{
+	gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
+	return true
+}
+

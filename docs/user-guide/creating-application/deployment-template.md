@@ -630,7 +630,7 @@ Helm Chart json schema is used to validate the deployment template values.
 
 ### Other Validations in Json Schema
 
-The values of CPU and Memory in limits must be greater than or equal to in requests respectively. Similarly, In case of envoyproxy, the values of limits are greater than or equal to requests as mentioned above.
+The values of CPU and Memory in limits must be greater than or equal to in requests respectively. Similarly, In case of envoyproxy, the values of limits are greater than or equal to requests as mentioned below.
 ```
 resources.limits.cpu >= resources.requests.cpu
 resources.limits.memory >= resources.requests.memory
