@@ -292,7 +292,7 @@ func InitializeApp() (*App, error) {
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger)
 	applicationRestHandlerImpl := restHandler.NewApplicationRestHandlerImpl(serviceClientImpl, pumpImpl, enforcerImpl, teamServiceImpl, environmentServiceImpl, sugaredLogger, enforcerUtilImpl, terminalSessionHandlerImpl)
 	applicationRouterImpl := router.NewApplicationRouterImpl(applicationRestHandlerImpl, sugaredLogger)
-	applRestHandlerImpl := restHandler.NewAppRestHandlerImpl(sugaredLogger, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, appLabelServiceImpl, pipelineBuilderImpl, gitRegistryConfigImpl, chartServiceImpl, configMapServiceImpl, appListingServiceImpl, propertiesConfigServiceImpl)
+	applRestHandlerImpl := restHandler.NewAppRestHandlerImpl(sugaredLogger, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, appLabelServiceImpl, pipelineBuilderImpl, gitRegistryConfigImpl, chartServiceImpl, configMapServiceImpl, appListingServiceImpl, propertiesConfigServiceImpl, appWorkflowServiceImpl, materialRepositoryImpl)
 	appRouterImpl := router.NewAppRouterImpl(applRestHandlerImpl)
 	argoConfig, err := ArgoUtil.GetArgoConfig()
 	if err != nil {
