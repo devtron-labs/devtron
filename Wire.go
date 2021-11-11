@@ -701,8 +701,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
-		util2.Checker,
-		wire.Bind(new(util2.NewFormatChecker),new(util2.CombinedCpuMemory)),
+		util2.NewGoJsonSchemaCustomFormatChecker,
 	)
 	return &App{}, nil
 }

@@ -319,7 +319,6 @@ func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 
 }
 
-
 func AutoScale(dat map[string]interface{}) (bool, error) {
 	autoscaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
 	if !ok {
@@ -419,7 +418,6 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 	}
 }
 
-
 var (
 	CpuUnitChecker, _   = regexp.Compile("^([0-9.]+)m$")
 	NoCpuUnitChecker, _ = regexp.Compile("^([0-9.]+)$")
@@ -471,25 +469,40 @@ type (
 	MemoryChecker struct{}
 )
 
-type NewFormatChecker interface {
-	Cpu()bool
-	Memory()bool
+type CustomFormatCheckers struct {
 }
 
-type CombinedCpuMemory struct{
+func (c CustomFormatCheckers) AddCheckers() {
+	gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
+	gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
+}
+
+func NewGoJsonSchemaCustomFormatChecker() *CustomFormatCheckers {
+
+	checker := &CustomFormatCheckers{}
+	checker.AddCheckers()
+	return checker
+}
+/*
+type NewFormatChecker interface {
+	Cpu() bool
+	Memory() bool
+}
+
+type CombinedCpuMemory struct {
 	CpuMemory bool
 }
 
-func Checker(CpuMemory bool)*CombinedCpuMemory{
-	return &CombinedCpuMemory{CpuMemory:  CpuMemory}
+func Checker(CpuMemory bool) *CombinedCpuMemory {
+	return &CombinedCpuMemory{CpuMemory: CpuMemory}
 }
-func (impl CombinedCpuMemory) Cpu() bool{
+func (impl CombinedCpuMemory) Cpu() bool {
 	gojsonschema.FormatCheckers.Add("cpu", CpuChecker{})
 	return true
 }
 
-func (impl CombinedCpuMemory) Memory() bool{
+func (impl CombinedCpuMemory) Memory() bool {
 	gojsonschema.FormatCheckers.Add("memory", MemoryChecker{})
 	return true
 }
-
+*/
