@@ -1046,7 +1046,6 @@ const cpu = "cpu"
 const memory = "memory"
 
 func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error) {
-	//gojsonschema.FormatCheckers.Add("memory", util2.MemoryChecker{})
 	schemajson, err := impl.JsonSchemaExtractFromFile(chartRefId)
 	if err != nil && chartRefId >= 9 {
 		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
