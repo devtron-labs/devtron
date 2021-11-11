@@ -19,7 +19,8 @@ package validation
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
+
+	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/util"
 )
 
@@ -47,7 +48,7 @@ func validatePrePostDeployment(task *v1.Task, props v1.InheritedProps) error {
 	}
 
 	for _, f := range validateStageFunc {
-		for i, _ := range task.Stages {
+		for i := range task.Stages {
 			errs = util.AppendErrorString(errs, f(&task.Stages[i]))
 		}
 	}
@@ -65,7 +66,7 @@ func validatePrePostDeploymentDestination(destination *v1.ResourcePath) error {
 }
 
 func validatePrePostDeploymentVersion(task *v1.Task) error {
-	if len(task.ApiVersion) == 0 || !util.ContainsString(validPrePostDeploymentVersions, task.ApiVersion) {
+	if task.ApiVersion == "" || !util.ContainsString(validPrePostDeploymentVersions, task.ApiVersion) {
 		return fmt.Errorf(v1.UnsupportedVersion, task.ApiVersion, "task")
 	}
 	return nil
@@ -133,7 +134,7 @@ func validatePrePostDeploymentAppend(task *v1.Task) error {
 	if len(task.Stages) == 0 {
 		errs = util.AppendErrorString(errs, fmt.Errorf(v1.StagesMissing))
 	}
-	for i, _ := range task.Stages {
+	for i := range task.Stages {
 		errs = util.AppendErrorString(errs, validateStageAppend(&task.Stages[i]))
 	}
 	return util.GetErrorOrNil(errs)
@@ -155,7 +156,7 @@ func validateStageEdit(stage *v1.Stage) error {
 	if stage.Operation != v1.Edit {
 		return nil
 	}
-	if stage.Position == nil && len(stage.Name) == 0 {
+	if stage.Position == nil && stage.Name == "" {
 		return fmt.Errorf("name and position cannot be null in stage edit")
 	}
 	if stage.Script == nil {
@@ -168,7 +169,7 @@ func validateStageDelete(stage *v1.Stage) error {
 	if stage.Operation != v1.Delete {
 		return nil
 	}
-	if stage.Position == nil && len(stage.Name) == 0 {
+	if stage.Position == nil && stage.Name == "" {
 		return fmt.Errorf("name and position cannot be null in stage delete")
 	}
 	return nil

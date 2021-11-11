@@ -186,7 +186,7 @@ func (repo AppRepositoryImpl) FetchAppsByFilterV2(appNameIncludes string, appNam
 			Where("app.active=?", true).Where("app_store=?", false).
 			Where("p.environment_id = ?", environmentId).Where("p.deleted = ?", false).
 			Select()
-	} else if environmentId > 0 && len(appNameExcludes) == 0 {
+	} else if environmentId > 0 && appNameExcludes == "" {
 		err = repo.dbConnection.Model(&apps).ColumnExpr("DISTINCT app.*").
 			Join("inner join pipeline p on p.app_id=app.id").
 			Where("app.app_name like ?", ""+appNameIncludes+"%").
@@ -198,7 +198,7 @@ func (repo AppRepositoryImpl) FetchAppsByFilterV2(appNameIncludes string, appNam
 			Where("app.app_name like ?", ""+appNameIncludes+"%").Where("app.app_name not like ?", ""+appNameExcludes+"%").
 			Where("app.active=?", true).Where("app_store=?", false).
 			Select()
-	} else if environmentId == 0 && len(appNameExcludes) == 0 {
+	} else if environmentId == 0 && appNameExcludes == "" {
 		err = repo.dbConnection.Model(&apps).ColumnExpr("DISTINCT app.*").
 			Where("app.app_name like ?", ""+appNameIncludes+"%").
 			Where("app.active=?", true).Where("app_store=?", false).

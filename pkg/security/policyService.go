@@ -21,6 +21,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -31,9 +35,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type PolicyService interface {
@@ -293,7 +294,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		}
 	}
 
-	if scanResultsId != nil && len(scanResultsId) > 0 {
+	if len(scanResultsId) > 0 {
 		ot, err := impl.imageScanDeployInfoRepository.FindByTypeMetaAndTypeId(typeId, objectType) //todo insure this touple unique in db
 		if err != nil && err != pg.ErrNoRows {
 			return nil, err
@@ -644,7 +645,7 @@ func (impl *PolicyServiceImpl) vulnerabilityPolicyBuilder(policyLevel security.P
 			Id: v.Id,
 			Policy: &bean.VulnerabilityPermission{
 				Action:      bean.VulnerabilityAction(v.Action.String()),
-				Inherited:   !(v.PolicyLevel() == policyLevel),
+				Inherited:   v.PolicyLevel() != policyLevel,
 				IsOverriden: v.PolicyLevel() == policyLevel,
 			},
 			PolicyOrigin: v.PolicyLevel().String(),
@@ -658,7 +659,7 @@ func (impl *PolicyServiceImpl) vulnerabilityPolicyBuilder(policyLevel security.P
 				Id: v.Id,
 				Policy: &bean.VulnerabilityPermission{
 					Action:      bean.VulnerabilityAction(v.Action.String()),
-					Inherited:   !(v.PolicyLevel() == policyLevel),
+					Inherited:   v.PolicyLevel() != policyLevel,
 					IsOverriden: v.PolicyLevel() == policyLevel,
 				},
 				PolicyOrigin: v.PolicyLevel().String(),

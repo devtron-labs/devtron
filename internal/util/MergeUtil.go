@@ -19,9 +19,10 @@ package util
 
 import (
 	"encoding/json"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/evanphx/json-patch"
+	jsonpatch "github.com/evanphx/json-patch"
 	"go.uber.org/zap"
 )
 
@@ -100,13 +101,13 @@ func (m MergeUtil) ConfigMapMerge(appLevelConfigMapJson string, envLevelConfigMa
 	configResponse := bean.ConfigMapJson{}
 	commonMaps := map[string]bean.Map{}
 	var finalMaps []bean.Map
-	if len(appLevelConfigMapJson) != 0 {
+	if appLevelConfigMapJson != "" {
 		err = json.Unmarshal([]byte(appLevelConfigMapJson), &appLevelConfigMap)
 		if err != nil {
 			m.Logger.Debugw("error in Unmarshal ", "appLevelConfigMapJson", appLevelConfigMapJson, "envLevelConfigMapJson", envLevelConfigMapJson, "err", err)
 		}
 	}
-	if len(envLevelConfigMapJson) != 0 {
+	if envLevelConfigMapJson != "" {
 		err = json.Unmarshal([]byte(envLevelConfigMapJson), &envLevelConfigMap)
 		if err != nil {
 			m.Logger.Debugw("error in Unmarshal ", "appLevelConfigMapJson", appLevelConfigMapJson, "envLevelConfigMapJson", envLevelConfigMapJson, "err", err)
@@ -143,13 +144,13 @@ func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJs
 	secretResponse := bean.ConfigSecretJson{}
 	commonSecrets := map[string]*bean.Map{}
 	var finalMaps []*bean.Map
-	if len(appLevelSecretJson) != 0 {
+	if appLevelSecretJson != "" {
 		err = json.Unmarshal([]byte(appLevelSecretJson), &appLevelSecret)
 		if err != nil {
 			m.Logger.Debugw("error in Unmarshal ", "appLevelSecretJson", appLevelSecretJson, "envLevelSecretJson", envLevelSecretJson, "err", err)
 		}
 	}
-	if len(envLevelSecretJson) != 0 {
+	if envLevelSecretJson != "" {
 		err = json.Unmarshal([]byte(envLevelSecretJson), &envLevelSecret)
 		if err != nil {
 			m.Logger.Debugw("error in Unmarshal ", "appLevelSecretJson", appLevelSecretJson, "envLevelSecretJson", envLevelSecretJson, "err", err)

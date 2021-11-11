@@ -8,5 +8,5 @@ Any kubernetes Cluster
 ## Setup Guide
 We have documented some of the most popular and easiest ways of creating local kubernetes clusters and setting up the development environment for devtron in our machine.
 
-* Over Minikube Cluster
-* Over k3s Cluster using k3d
+* [Over Minikube Cluster](https://dev.to/arushi09/local-kubernetes-development-made-easy-with-minikube-devtron-17hf)
+* [Over k3s Cluster using k3d](https://hackernoon.com/how-to-install-k3d-and-devtron-locally-for-local-kubernetes-development)

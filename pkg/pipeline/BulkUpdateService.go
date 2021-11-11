@@ -3,6 +3,8 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
@@ -14,7 +16,6 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type NameIncludesExcludes struct {
@@ -874,13 +875,13 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload *BulkUpdatePayloa
 	var deploymentTemplateBulkUpdateResponse *DeploymentTemplateBulkUpdateResponse
 	var configMapBulkUpdateResponse *CmAndSecretBulkUpdateResponse
 	var secretBulkUpdateResponse *CmAndSecretBulkUpdateResponse
-	if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil && len(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson) != 0 {
+	if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil && bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson != "" {
 		deploymentTemplateBulkUpdateResponse = impl.BulkUpdateDeploymentTemplate(bulkUpdatePayload)
 	}
-	if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 && len(bulkUpdatePayload.ConfigMap.Spec.PatchJson) != 0 {
+	if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 && bulkUpdatePayload.ConfigMap.Spec.PatchJson != "" {
 		configMapBulkUpdateResponse = impl.BulkUpdateConfigMap(bulkUpdatePayload)
 	}
-	if bulkUpdatePayload.Secret != nil && bulkUpdatePayload.Secret.Spec != nil && len(bulkUpdatePayload.Secret.Spec.Names) != 0 && len(bulkUpdatePayload.Secret.Spec.PatchJson) != 0 {
+	if bulkUpdatePayload.Secret != nil && bulkUpdatePayload.Secret.Spec != nil && len(bulkUpdatePayload.Secret.Spec.Names) != 0 && bulkUpdatePayload.Secret.Spec.PatchJson != "" {
 		secretBulkUpdateResponse = impl.BulkUpdateSecret(bulkUpdatePayload)
 	}
 

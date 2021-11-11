@@ -19,7 +19,8 @@ package validation
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
+
+	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/util"
 )
 
@@ -37,11 +38,11 @@ func ValidateDeployment(deployment *v1.Deployment, props v1.InheritedProps) erro
 
 	errs = util.AppendErrorString(errs, deployment.CompareDestination(props.Destination))
 
-	for i, _ := range deployment.ConfigMaps {
-		errs = util.AppendErrorString(errs, validateConfigMap(&deployment.Secrets[i], deployment.GetProps()))
+	for i := range deployment.ConfigMaps {
+		errs = util.AppendErrorString(errs, validateConfigMap(&deployment.ConfigMaps[i], deployment.GetProps()))
 	}
 
-	for i, _ := range deployment.Secrets {
+	for i := range deployment.Secrets {
 		errs = util.AppendErrorString(errs, validateSecret(&deployment.Secrets[i], deployment.GetProps()))
 	}
 
@@ -70,7 +71,7 @@ func validateDeploymentDestination(destination *v1.ResourcePath) error {
 }
 
 func validateDeploymentVersion(deployment *v1.Deployment) error {
-	if len(deployment.ApiVersion) == 0 || !util.ContainsString(validDeploymentVersions, deployment.ApiVersion) {
+	if deployment.ApiVersion == "" || !util.ContainsString(validDeploymentVersions, deployment.ApiVersion) {
 		return fmt.Errorf(v1.UnsupportedVersion, deployment.ApiVersion, "deployment")
 	}
 	return nil

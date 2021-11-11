@@ -19,6 +19,9 @@ package user
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
@@ -29,8 +32,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 )
 
 type RoleGroupService interface {
@@ -114,10 +115,10 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		//Starts Role and Mapping
 		var policies []casbin2.Policy
 		for _, roleFilter := range request.RoleFilters {
-			if len(roleFilter.EntityName) == 0 {
+			if roleFilter.EntityName == "" {
 				roleFilter.EntityName = "NONE"
 			}
-			if len(roleFilter.Environment) == 0 {
+			if roleFilter.Environment == "" {
 				roleFilter.Environment = "NONE"
 			}
 			entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -245,10 +246,10 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 	// Filter out removed items in current request
 	//var policies []casbin2.Policy
 	for _, roleFilter := range request.RoleFilters {
-		if len(roleFilter.EntityName) == 0 {
+		if roleFilter.EntityName == "" {
 			roleFilter.EntityName = "NONE"
 		}
-		if len(roleFilter.Environment) == 0 {
+		if roleFilter.Environment == "" {
 			roleFilter.Environment = "NONE"
 		}
 		entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -306,10 +307,10 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 	//Adding New Policies
 	var policies []casbin2.Policy
 	for _, roleFilter := range request.RoleFilters {
-		if len(roleFilter.EntityName) == 0 {
+		if roleFilter.EntityName == "" {
 			roleFilter.EntityName = "NONE"
 		}
-		if len(roleFilter.Environment) == 0 {
+		if roleFilter.Environment == "" {
 			roleFilter.Environment = "NONE"
 		}
 		entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -448,7 +449,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 	for _, v := range roleFilterMap {
 		roleFilters = append(roleFilters, *v)
 	}
-	if roleFilters == nil || len(roleFilters) == 0 {
+	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
 	bean := &bean.RoleGroup{
@@ -477,7 +478,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroups() ([]*bean.RoleGroup, error) {
 		list = append(list, bean)
 	}
 
-	if list == nil || len(list) == 0 {
+	if len(list) == 0 {
 		list = make([]*bean.RoleGroup, 0)
 	}
 	return list, nil

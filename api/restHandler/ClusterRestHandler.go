@@ -22,6 +22,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+
 	cluster3 "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -34,9 +38,6 @@ import (
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type ClusterRestHandler interface {
@@ -360,7 +361,7 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 		impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
 		userMsg := "failed to update on cluster via ACD"
 		if strings.Contains(err.Error(), "https://kubernetes.default.svc") {
-			userMsg = fmt.Sprintf("%s, %s", err.Error(), ", sucessfully updated in ACD")
+			userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
 		}
 		err = &util.ApiError{
 			Code:            constants.ClusterUpdateACDFailed,
@@ -514,7 +515,7 @@ func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter,
 	}
 	//RBAC enforcer Ends
 
-	if result == nil || len(result) == 0 {
+	if len(result) == 0 {
 		result = make([]cluster.ClusterBean, 0)
 	}
 	writeJsonResp(w, err, result, http.StatusOK)

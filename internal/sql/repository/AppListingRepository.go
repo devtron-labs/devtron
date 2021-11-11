@@ -23,13 +23,14 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type AppListingRepository interface {
@@ -237,7 +238,7 @@ func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMes
 func (impl AppListingRepositoryImpl) FetchAppDetail(appId int, envId int) (bean.AppDetailContainer, error) {
 	impl.Logger.Debugf("reached at AppListingRepository:")
 	var appDetailContainer bean.AppDetailContainer
-	//Fetch deployment detail of cd pipeline latest triggered withing env of any App.
+	//Fetch deployment detail of cd pipeline latest triggered within env of any App.
 	deploymentDetail, err := impl.DeploymentDetailsByAppIdAndEnvId(appId, envId)
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
@@ -401,24 +402,13 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int) ([]bean.AppS
 		materialExists = 1
 	}
 
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId))
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(1, "MATERIAL", materialExists))
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId))
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(3, "CI_PIPELINE", stages.CiPipelineId))
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(4, "CHART", stages.ChartId))
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(5, "CD_PIPELINE", stages.PipelineId))
-	appStageStatus = append(appStageStatus, bean.AppStageStatus{
-		Stage:     6,
-		StageName: "CHART_ENV_CONFIG",
-		Status: func() bool {
-			if stages.YamlStatus == 3 && stages.YamlReviewed == true {
-				return true
-			} else {
-				return false
-			}
-		}(),
-		Required: true,
-	})
+	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId), impl.makeAppStageStatus(1, "MATERIAL", materialExists), impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId), impl.makeAppStageStatus(3, "CI_PIPELINE", stages.CiPipelineId), impl.makeAppStageStatus(4, "CHART", stages.ChartId), impl.makeAppStageStatus(5, "CD_PIPELINE", stages.PipelineId), bean.AppStageStatus{Stage: 6, StageName: "CHART_ENV_CONFIG", Status: func() bool {
+		if stages.YamlStatus == 3 && stages.YamlReviewed == true {
+			return true
+		} else {
+			return false
+		}
+	}(), Required: true})
 
 	return appStageStatus, nil
 }

@@ -19,7 +19,8 @@ package validation
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
+
+	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/util"
 )
 
@@ -50,9 +51,9 @@ func validateSecret(holder *v1.DataHolder, props v1.InheritedProps) error {
 }
 
 func validateHolderVersion(holder *v1.DataHolder, holderType string) error {
-	if holderType == "secret" && (len(holder.ApiVersion) == 0 || !util.ContainsString(validSecretVersions, holder.ApiVersion)) {
+	if holderType == "secret" && (holder.ApiVersion == "" || !util.ContainsString(validSecretVersions, holder.ApiVersion)) {
 		return fmt.Errorf(v1.UnsupportedVersion, holder.ApiVersion, "secret")
-	} else if len(holder.ApiVersion) == 0 || !util.ContainsString(validConfigMapVersions, holder.ApiVersion) {
+	} else if holder.ApiVersion == "" || !util.ContainsString(validConfigMapVersions, holder.ApiVersion) {
 		return fmt.Errorf(v1.UnsupportedVersion, holder.ApiVersion, "configMap")
 	}
 	return nil

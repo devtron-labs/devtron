@@ -74,7 +74,7 @@ func (impl *SlackNotificationRepositoryImpl) FindAll() ([]SlackConfig, error) {
 
 func (impl *SlackNotificationRepositoryImpl) FindByTeamIdOrOwnerId(ownerId int32, teamIds []int) ([]SlackConfig, error) {
 	var slackConfigs []SlackConfig
-	if teamIds == nil || len(teamIds) == 0 {
+	if len(teamIds) == 0 {
 		err := impl.dbConnection.Model(&slackConfigs).Where(`owner_id = ?`, ownerId).
 			Select()
 		return slackConfigs, err
