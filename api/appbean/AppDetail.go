@@ -1,7 +1,6 @@
 package appbean
 
 import (
-	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 )
 
@@ -53,85 +52,62 @@ type DeploymentTemplate struct {
 }
 
 type AppWorkflow struct {
-	Name       string               `json:"name"`
-	CiPipeline *CiPipelineDetails   `json:"ciPipeline"`
-	CdPipeline []*CdPipelineDetails `json:"cdPipeline"`
+	Name        string               `json:"name"`
+	CiPipeline  *CiPipelineDetails   `json:"ciPipeline"`
+	CdPipelines []*CdPipelineDetails `json:"cdPipelines"`
 }
 
 type CiPipelineDetails struct {
-	Name                     string            `json:"name"` //name suffix of corresponding pipeline
-	IsManual                 bool              `json:"isManual"`
-	DockerArgs               map[string]string `json:"dockerArgs"`
-	CiMaterials              []*CiMaterial     `json:"ciMaterials"`
-	BeforeDockerBuild        []*Task           `json:"beforeDockerBuild"`
-	AfterDockerBuild         []*Task           `json:"afterDockerBuild"`
-	BeforeDockerBuildScripts []*CiScript       `json:"beforeDockerBuildScripts"`
-	AfterDockerBuildScripts  []*CiScript       `json:"afterDockerBuildScripts"`
-	LinkedCount              int               `json:"linkedCount"`
-	ScanEnabled              bool              `json:"scanEnabled"`
+	Name                      string                      `json:"name" validate:"required"` //name suffix of corresponding pipeline
+	IsManual                  bool                        `json:"isManual" validate:"required"`
+	CiPipelineMaterialsConfig []*CiPipelineMaterialConfig `json:"ciPipelineMaterialsConfig"`
+	DockerBuildArgs           map[string]string           `json:"dockerBuildArgs"`
+	BeforeDockerBuildScripts  []*BuildScript              `json:"beforeDockerBuildScripts"`
+	AfterDockerBuildScripts   []*BuildScript              `json:"afterDockerBuildScripts"`
+	VulnerabilityScanEnabled  bool                        `json:"vulnerabilitiesScanEnabled"`
 }
 
-type Task struct {
-	Name string   `json:"name"`
-	Type string   `json:"type"` //for now ignore this input
-	Cmd  string   `json:"cmd"`
-	Args []string `json:"args"`
+type CiPipelineMaterialConfig struct {
+	Type       pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED WEBHOOK"`
+	Value      string                    `json:"value,omitempty" `
+	GitRepoUrl string                    `json:"gitRepoUrl"`
 }
 
-type CiMaterial struct {
-	Source          *SourceTypeConfig `json:"source"`
-	Path            string            `json:"path"`
-	CheckoutPath    string            `json:"checkoutPath"`
-	GitMaterialName string            `json:"gitMaterialName"`
-}
-
-type SourceTypeConfig struct {
-	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
-	Value string                    `json:"value,omitempty" `
-}
-
-type CiScript struct {
-	Index          int    `json:"index"`
-	Name           string `json:"name"`
-	Script         string `json:"script"`
-	OutputLocation string `json:"outputLocation"`
+type BuildScript struct {
+	Index               int    `json:"index"`
+	Name                string `json:"name"`
+	Script              string `json:"script"`
+	ReportDirectoryPath string `json:"reportDirectoryPath"`
 }
 
 type CdPipelineDetails struct {
-	EnvironmentName               string                            `json:"environmentName" `
-	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType"`
 	Name                          string                            `json:"name"` //pipelineName
-	Strategies                    []Strategy                        `json:"strategies"`
-	Namespace                     string                            `json:"namespace"` //namespace
-	DeploymentTemplate            pipelineConfig.DeploymentTemplate `json:"deploymentTemplate"`
-	PreStage                      CdStage                           `json:"preStage"`
-	PostStage                     CdStage                           `json:"postStage"`
-	PreStageConfigMapSecretNames  PreStageConfigMapSecretNames      `json:"preStageConfigMapSecretNames"`
-	PostStageConfigMapSecretNames PostStageConfigMapSecretNames     `json:"postStageConfigMapSecretNames"`
+	EnvironmentName               string                            `json:"environmentName" `
+	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType" validate:"required"`
+	DeploymentType                pipelineConfig.DeploymentTemplate `json:"deploymentType,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
+	DeploymentStrategies          []*DeploymentStrategy             `json:"deploymentStrategies"`
+	PreStage                      *CdStage                          `json:"preStage"`
+	PostStage                     *CdStage                          `json:"postStage"`
+	PreStageConfigMapSecretNames  *CdStageConfigMapSecretNames      `json:"preStageConfigMapSecretNames"`
+	PostStageConfigMapSecretNames *CdStageConfigMapSecretNames      `json:"postStageConfigMapSecretNames"`
 	RunPreStageInEnv              bool                              `json:"runPreStageInEnv"`
 	RunPostStageInEnv             bool                              `json:"runPostStageInEnv"`
-	CdArgoSetup                   bool                              `json:"isClusterCdActive"`
+	IsClusterCdActive             bool                              `json:"isClusterCdActive"`
 }
 
-type Strategy struct {
-	DeploymentTemplate pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
-	Config             json.RawMessage                   `json:"config,omitempty" validate:"string"`
-	Default            bool                              `json:"default"`
+type DeploymentStrategy struct {
+	DeploymentType pipelineConfig.DeploymentTemplate `json:"deploymentType,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
+	Config         map[string]interface{}            `json:"config,omitempty" validate:"string"`
+	IsDefault      bool                              `json:"isDefault" validate:"required"`
 }
 
 type CdStage struct {
-	TriggerType pipelineConfig.TriggerType `json:"triggerType,omitempty"`
 	Name        string                     `json:"name,omitempty"`
-	Status      string                     `json:"status,omitempty"`
+	TriggerType pipelineConfig.TriggerType `json:"triggerType,omitempty"`
 	Config      string                     `json:"config,omitempty"`
 }
 
-type PreStageConfigMapSecretNames struct {
-	ConfigMaps []string `json:"configMaps"`
-	Secrets    []string `json:"secrets"`
-}
-
-type PostStageConfigMapSecretNames struct {
+type CdStageConfigMapSecretNames struct {
 	ConfigMaps []string `json:"configMaps"`
 	Secrets    []string `json:"secrets"`
 }
