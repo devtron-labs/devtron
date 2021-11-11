@@ -13,7 +13,7 @@ data:
     # NATS Streaming Config #
     #########################
     streaming {
-      ns: nats://devtron-nats.devtroncd:4222
+      ns: nats://devtron-nats:4222
 
       id: devtron-stan
 
