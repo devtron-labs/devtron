@@ -634,13 +634,13 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	ctx = context.WithValue(r.Context(), "token", token)
-	createResp, err := handler.chartService.Create(templateRequest, ctx)
+	_, isAppMetricsUpdateSuccessful, err := handler.chartService.Create(templateRequest, ctx)
 	if err != nil {
 		handler.Logger.Errorw("service err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, createResp, http.StatusOK)
+	writeJsonResp(w, err, isAppMetricsUpdateSuccessful, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWriter, r *http.Request) {
@@ -1294,13 +1294,13 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 
-	createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
+	_, isAppMetricsUpdateSuccessful, err := handler.chartService.UpdateAppOverride(&templateRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, createResp, http.StatusOK)
+	writeJsonResp(w, err, isAppMetricsUpdateSuccessful, http.StatusOK)
 }
 func (handler PipelineConfigRestHandlerImpl) FetchArtifactForRollback(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)

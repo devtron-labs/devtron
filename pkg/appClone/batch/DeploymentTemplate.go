@@ -90,7 +90,7 @@ func executeDeploymentTemplateCreate(impl DeploymentTemplateActionImpl, template
 		IsAppMetricsEnabled: template.IsAppMetricsEnabled,
 		UserId:              1,
 	}
-	_, err = impl.chartService.Create(dTemplate, ctx)
+	_, _, err = impl.chartService.Create(dTemplate, ctx)
 	if err != nil {
 		impl.logger.Errorw("create err", "err", err)
 		return err

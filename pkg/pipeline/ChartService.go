@@ -103,12 +103,12 @@ type RefChartDir string
 type DefaultChart string
 
 type ChartService interface {
-	Create(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
+	Create(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, isAppMetricsUpdateSuccessful bool, err error)
 	CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
 	FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	GetByAppIdAndChartRefId(appId int, chartRefId int) (chartTemplate *TemplateRequest, err error)
 	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]json.RawMessage, error)
-	UpdateAppOverride(templateRequest *TemplateRequest) (*TemplateRequest, error)
+	UpdateAppOverride(templateRequest *TemplateRequest) (*TemplateRequest, bool, error)
 	IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error)
 	ChartRefAutocomplete() ([]chartRef, error)
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefResponse, error)
@@ -212,10 +212,11 @@ type AppMetricsEnabled struct {
 	AppMetrics bool `json:"app-metrics"`
 }
 
-func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
+func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, bool, error) {
+	var isAppMetricsUpdateSuccessful bool
 	chartMeta, err := impl.getChartMetaData(templateRequest)
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 
 	//save chart
@@ -223,29 +224,29 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	chartRepo, err := impl.getChartRepo(templateRequest)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart repo detail", "req", templateRequest)
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 
 	refChart, templateName, err, chartversion := impl.getRefChart(templateRequest)
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 
 	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartversion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 
 	existingChart, _ := impl.chartRepository.FindChartByAppIdAndRefId(templateRequest.AppId, templateRequest.ChartRefId)
 	if existingChart != nil && existingChart.Id > 0 {
-		return nil, fmt.Errorf("this reference chart already has added to appId %d refId %d", templateRequest.AppId, templateRequest.Id)
+		return nil, isAppMetricsUpdateSuccessful, fmt.Errorf("this reference chart already has added to appId %d refId %d", templateRequest.AppId, templateRequest.Id)
 	}
 
 	// STARTS
 	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
 	if err != nil && pg.ErrNoRows != err {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 	impl.logger.Debugw("current latest chart in db", "chartId", currentLatestChart.Id)
 	if currentLatestChart.Id > 0 {
@@ -261,7 +262,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 				noLatestChart.Previous = false
 				err = impl.chartRepository.Update(noLatestChart)
 				if err != nil {
-					return nil, err
+					return nil, isAppMetricsUpdateSuccessful, err
 				}
 			}
 		}
@@ -272,7 +273,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		currentLatestChart.Previous = true
 		err = impl.chartRepository.Update(currentLatestChart)
 		if err != nil {
-			return nil, err
+			return nil, isAppMetricsUpdateSuccessful, err
 		}
 	}
 	// ENDS
@@ -282,35 +283,35 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
 	chartMeta.Version = version
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName)
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 	override, err := templateRequest.ValuesOverride.MarshalJSON()
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 	valuesJson, err := yaml.YAMLToJSON([]byte(chartValues.Values))
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 	merged, err := impl.mergeUtil.JsonPatch(valuesJson, []byte(templateRequest.ValuesOverride))
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 
 	dst := new(bytes.Buffer)
 	err = json.Compact(dst, override)
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 	override = dst.Bytes()
 
 	err = impl.registerInArgo(chartGitAttr, ctx)
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 
 	chart := &chartConfig.Chart{
@@ -340,26 +341,28 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		impl.logger.Errorw("error in saving chart ", "chart", chart, "error", err)
 		//If found any error, rollback chart museum
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 
-	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(templateRequest.AppId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in app metrics app level flag", "error", err)
-		return nil, err
-	}
-
+	var appLevelMetrics *repository3.AppLevelMetrics
 	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
 		appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
-		_, err = impl.updateAppLevelMetrics(&appMetricsRequest)
+		appLevelMetrics, err = impl.updateAppLevelMetrics(&appMetricsRequest)
 		if err != nil {
 			impl.logger.Errorw("err while disable app metrics for lower versions", "err", err)
-			return nil, err
+		}
+	} else {
+		appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: templateRequest.IsAppMetricsEnabled}
+		appLevelMetrics, err = impl.updateAppLevelMetrics(&appMetricsRequest)
+		if err != nil {
+			impl.logger.Errorw("err while updating app metrics", "err", err)
+		} else {
+			isAppMetricsUpdateSuccessful = true
 		}
 	}
 
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
-	return chartVal, err
+	return chartVal, isAppMetricsUpdateSuccessful, err
 }
 
 func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
@@ -647,24 +650,24 @@ func (impl ChartServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId int) 
 	return chartTemplate, err
 }
 
-func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest) (*TemplateRequest, error) {
-
+func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest) (*TemplateRequest, bool, error) {
+	var isAppMetricsUpdateSuccessful bool
 	template, err := impl.chartRepository.FindById(templateRequest.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart config", "id", templateRequest.Id, "err", err)
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 
 	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(template.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 
 	//STARTS
 	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 	if currentLatestChart.Id > 0 && currentLatestChart.Id == templateRequest.Id {
 
@@ -683,7 +686,7 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 				noLatestChart.Previous = false
 				err = impl.chartRepository.Update(noLatestChart)
 				if err != nil {
-					return nil, err
+					return nil, isAppMetricsUpdateSuccessful, err
 				}
 			}
 		}
@@ -694,18 +697,18 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 		currentLatestChart.Previous = true
 		err = impl.chartRepository.Update(currentLatestChart)
 		if err != nil {
-			return nil, err
+			return nil, isAppMetricsUpdateSuccessful, err
 		}
 
 	} else {
-		return nil, nil
+		return nil, isAppMetricsUpdateSuccessful, nil
 	}
 	//ENDS
 
 	impl.logger.Debug("now finally update request chart in db to latest and previous flag = false")
 	values, err := impl.mergeUtil.JsonPatch([]byte(template.Values), templateRequest.ValuesOverride)
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 	template.Values = string(values)
 	template.UpdatedOn = time.Now()
@@ -715,7 +718,7 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 	template.Previous = false
 	err = impl.chartRepository.Update(template)
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsUpdateSuccessful, err
 	}
 
 	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
@@ -723,11 +726,18 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 		_, err := impl.updateAppLevelMetrics(&appMetricRequest)
 		if err != nil {
 			impl.logger.Errorw("error in disable app metric flag", "error", err)
-			return nil, err
+		}
+	} else {
+		appMetricRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: templateRequest.IsAppMetricsEnabled}
+		_, err := impl.updateAppLevelMetrics(&appMetricRequest)
+		if err != nil {
+			impl.logger.Errorw("error in updating app metric flag", "error", err)
+		} else {
+			isAppMetricsUpdateSuccessful = true
 		}
 	}
 
-	return templateRequest, nil
+	return templateRequest, isAppMetricsUpdateSuccessful, nil
 }
 
 func (impl ChartServiceImpl) updateAppLevelMetrics(appMetricRequest *AppMetricEnableDisableRequest) (*repository3.AppLevelMetrics, error) {
@@ -898,7 +908,7 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 	templateRequest.ValuesOverride = currentChart.DefaultAppOverride
 	templateRequest.UserId = userId
 
-	upgradedChartReq, err := impl.Create(templateRequest, ctx)
+	upgradedChartReq, _, err := impl.Create(templateRequest, ctx)
 	if err != nil {
 		impl.logger.Error(err)
 		return false, err

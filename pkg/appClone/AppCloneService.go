@@ -301,7 +301,7 @@ func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int
 		ChartRefId:     refTemplate.ChartRefId,
 		UserId:         userId,
 	}
-	templateRes, err := impl.chartService.Create(templateReq, context)
+	templateRes, _, err := impl.chartService.Create(templateReq, context)
 	if err != nil {
 		impl.logger.Errorw("template clone err", "req", templateReq, "err", templateReq)
 	}
