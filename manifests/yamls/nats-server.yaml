@@ -4,7 +4,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: devtron-nats-config
-  namespace: "default"
+  namespace: "devtroncd"
   labels:
     helm.sh/chart: nats-0.9.2
 
@@ -31,7 +31,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: devtron-nats
-  namespace: "default"
+  namespace: "devtroncd"
   labels:
     helm.sh/chart: nats-0.9.2
 
@@ -64,7 +64,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: devtron-nats-box
-  namespace: "default"
+  namespace: "devtroncd"
   labels:
     app: devtron-nats-box
     chart: nats-0.9.2
@@ -99,7 +99,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: devtron-nats
-  namespace: "default"
+  namespace: "devtroncd"
   labels:
     helm.sh/chart: nats-0.9.2
 
