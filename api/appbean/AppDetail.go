@@ -8,12 +8,12 @@ import (
 type AppDetail struct {
 	Metadata                 *AppMetadata                    `json:"metadata,notnull" validate:"required"`
 	GitMaterials             []*GitMaterial                  `json:"gitMaterials,notnull" validate:"required"`
+	DockerConfig             *DockerConfig                   `json:"dockerConfig:"`
 	GlobalDeploymentTemplate *DeploymentTemplate             `json:"globalDeploymentTemplate,notnull" validate:"required"`
+	AppWorkflows             []*AppWorkflow                  `json:"workflows"`
 	GlobalConfigMaps         []*ConfigMap                    `json:"globalConfigMaps"`
 	GlobalSecrets            []*Secret                       `json:"globalSecrets"`
 	EnvironmentOverrides     map[string]*EnvironmentOverride `json:"environmentOverride"`
-	AppWorkflows             []*AppWorkflow                  `json:"workflows"`
-	DockerConfig             *DockerConfig                   `json:"dockerConfig:"`
 }
 
 type AppMetadata struct {
@@ -28,54 +28,28 @@ type AppLabel struct {
 }
 
 type GitMaterial struct {
-	GitAccountUrl   string `json:"gitAccountUrl,notnull" validate:"required"`
-	GitUrl          string `json:"gitUrl,notnull" validate:"required"`
+	GitProviderUrl  string `json:"gitProviderUrl,notnull" validate:"required"`
+	GitRepoUrl      string `json:"gitRepoUrl,notnull" validate:"required"`
 	CheckoutPath    string `json:"checkoutPath,notnull" validate:"required"`
 	FetchSubmodules bool   `json:"fetchSubmodules"`
+}
+
+type DockerConfig struct {
+	DockerRegistry   string             `json:"dockerRegistry" validate:"required"`
+	DockerRepository string             `json:"dockerRepository" validate:"required"`
+	BuildConfig      *DockerBuildConfig `json:"dockerBuildConfig"`
+}
+
+type DockerBuildConfig struct {
+	GitMaterialUrl         string            `json:"gitMaterialUrl,omitempty" validate:"required"`
+	DockerfileRelativePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
+	Args                   map[string]string `json:"args,omitempty"`
 }
 
 type DeploymentTemplate struct {
 	ChartRefId     int                    `json:"chartRefId,notnull" validate:"required"`
 	Template       map[string]interface{} `json:"template,notnull" validate:"required"`
 	ShowAppMetrics bool                   `json:"showAppMetrics"`
-}
-
-type ConfigMap struct {
-	Name                  string                                `json:"name,notnull" validate:"required"`
-	IsExternal            bool                                  `json:"isExternal"`
-	UsageType             string                                `json:"usageType,omitempty" validate:"oneof=environment volume"`
-	Data                  map[string]interface{}                `json:"data"`
-	DataVolumeUsageConfig *ConfigMapSecretDataVolumeUsageConfig `json:"dataVolumeUsageConfig"`
-}
-
-type Secret struct {
-	Name                  string                                `json:"name,notnull" validate:"required"`
-	IsExternal            bool                                  `json:"isExternal"`
-	ExternalType          string                                `json:"externalType,omitempty"`
-	UsageType             string                                `json:"usageType,omitempty" validate:"oneof=environment volume"`
-	Data                  map[string]interface{}                `json:"data"`
-	DataVolumeUsageConfig *ConfigMapSecretDataVolumeUsageConfig `json:"dataVolumeUsageConfig"`
-	RoleArn               string                                `json:"roleArn"`
-	ExternalSecretData    []*ExternalSecret                     `json:"externalSecretData"`
-}
-
-type ConfigMapSecretDataVolumeUsageConfig struct {
-	MountPath      string `json:"mountPath"`
-	SubPath        bool   `json:"subPath"`
-	FilePermission string `json:"filePermission"`
-}
-
-type ExternalSecret struct {
-	Key      string `json:"key"`
-	Name     string `json:"name"`
-	Property string `json:"property,omitempty"`
-	IsBinary bool   `json:"isBinary"`
-}
-
-type EnvironmentOverride struct {
-	DeploymentTemplate *DeploymentTemplate `json:"deploymentTemplate"`
-	ConfigMaps         []*ConfigMap        `json:"configMaps"`
-	Secrets            []*Secret           `json:"secrets"`
 }
 
 type AppWorkflow struct {
@@ -103,12 +77,6 @@ type Task struct {
 	Cmd  string   `json:"cmd"`
 	Args []string `json:"args"`
 }
-
-//type ExternalCiConfiguration struct {
-//	WebhookUrl string `json:"webhookUrl"`
-//	Payload    string `json:"payload"`
-//	AccessKey  string `json:"accessKey"`
-//}
 
 type CiMaterial struct {
 	Source          *SourceTypeConfig `json:"source"`
@@ -168,14 +136,40 @@ type PostStageConfigMapSecretNames struct {
 	Secrets    []string `json:"secrets"`
 }
 
-type DockerConfig struct {
-	DockerRegistry   string             `json:"dockerRegistry"`
-	DockerRepository string             `json:"dockerRepository"`
-	BuildConfig      *DockerBuildConfig `json:"dockerBuildConfig"`
+type ConfigMap struct {
+	Name                  string                                `json:"name,notnull" validate:"required"`
+	IsExternal            bool                                  `json:"isExternal"`
+	UsageType             string                                `json:"usageType,omitempty" validate:"oneof=environment volume"`
+	Data                  map[string]interface{}                `json:"data"`
+	DataVolumeUsageConfig *ConfigMapSecretDataVolumeUsageConfig `json:"dataVolumeUsageConfig"`
 }
 
-type DockerBuildConfig struct {
-	GitMaterialUrl string            `json:"gitMaterialUrl,omitempty" validate:"required"`
-	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
-	Args           map[string]string `json:"args,omitempty"`
+type Secret struct {
+	Name                  string                                `json:"name,notnull" validate:"required"`
+	IsExternal            bool                                  `json:"isExternal"`
+	ExternalType          string                                `json:"externalType,omitempty"`
+	UsageType             string                                `json:"usageType,omitempty" validate:"oneof=environment volume"`
+	Data                  map[string]interface{}                `json:"data"`
+	DataVolumeUsageConfig *ConfigMapSecretDataVolumeUsageConfig `json:"dataVolumeUsageConfig"`
+	RoleArn               string                                `json:"roleArn"`
+	ExternalSecretData    []*ExternalSecret                     `json:"externalSecretData"`
+}
+
+type ConfigMapSecretDataVolumeUsageConfig struct {
+	MountPath      string `json:"mountPath"`
+	SubPath        bool   `json:"subPath"`
+	FilePermission string `json:"filePermission"`
+}
+
+type ExternalSecret struct {
+	Key      string `json:"key"`
+	Name     string `json:"name"`
+	Property string `json:"property,omitempty"`
+	IsBinary bool   `json:"isBinary"`
+}
+
+type EnvironmentOverride struct {
+	DeploymentTemplate *DeploymentTemplate `json:"deploymentTemplate"`
+	ConfigMaps         []*ConfigMap        `json:"configMaps"`
+	Secrets            []*Secret           `json:"secrets"`
 }

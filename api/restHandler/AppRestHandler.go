@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	appBean "github.com/devtron-labs/devtron/api/appbean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -101,10 +102,11 @@ func (handler AppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *http
 		return
 	}
 
-	//rback implementation for app
+	//rback implementation for app (user should be admin)
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, object); !ok {
+		handler.logger.Errorw("Unauthorized User for app update action", "err", err, "appId", appId)
 		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -124,12 +126,26 @@ func (handler AppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *http
 	}
 	// get/build git materials ends
 
+	// get/build docker config starts
+	dockerConfig, done := handler.validateAndBuildDockerConfig(w, appId)
+	if done {
+		return
+	}
+	// get/build docker config ends
+
 	// get/build global deployment template starts
 	globalDeploymentTemplateResp, done := handler.validateAndBuildAppDeploymentTemplate(w, appId, 0)
 	if done {
 		return
 	}
 	// get/build global deployment template ends
+
+	// get/build app workflows starts
+	//appWorkflows, done := handler.validateAndBuildAppWorkflows(w, appId)
+	if done {
+		return
+	}
+	// get/build app workflows ends
 
 	// get/build global config maps starts
 	globalConfigMapsResp, done := handler.validateAndBuildAppGlobalConfigMaps(w, appId)
@@ -146,37 +162,23 @@ func (handler AppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *http
 	// get/build global secrets ends
 
 	// get/build environment override starts
-	environmentOverrides, done := handler.validateAndBuildEnvironmentOverrides(w, appId)
+	environmentOverrides, done := handler.validateAndBuildEnvironmentOverrides(w, appId, token)
 	if done {
 		return
 	}
-
 	// get/build environment override ends
-
-	// get/build app workflows starts
-	appWorkflows, done := handler.validateAndBuildAppWorkflows(w, appId)
-	if done {
-		return
-	}
-	// get/build app workflows ends
-
-	// get/build docker config starts
-	dockerConfig, done := handler.validateAndBuildDockerConfig(w, appId)
-	if done {
-		return
-	}
-	// get/build docker config ends
 
 	// build full object for response
 	appDetail := &appBean.AppDetail{
 		Metadata:                 appMetadataResp,
 		GitMaterials:             gitMaterialsResp,
-		GlobalDeploymentTemplate: globalDeploymentTemplateResp,
-		GlobalConfigMaps:         globalConfigMapsResp,
-		GlobalSecrets:            globalSecretsResp,
-		EnvironmentOverrides:     environmentOverrides,
-		AppWorkflows:             appWorkflows,
 		DockerConfig:             dockerConfig,
+		GlobalDeploymentTemplate: globalDeploymentTemplateResp,
+		//AppWorkflows:             appWorkflows,
+
+		GlobalConfigMaps:     globalConfigMapsResp,
+		GlobalSecrets:        globalSecretsResp,
+		EnvironmentOverrides: environmentOverrides,
 	}
 	// end
 
@@ -231,40 +233,71 @@ func (handler AppRestHandlerImpl) validateAndBuildAppGitMaterials(w http.Respons
 			}
 
 			gitMaterialsResp = append(gitMaterialsResp, &appBean.GitMaterial{
-				GitUrl:          gitMaterial.Url,
+				GitRepoUrl:      gitMaterial.Url,
 				CheckoutPath:    gitMaterial.CheckoutPath,
 				FetchSubmodules: gitMaterial.FetchSubmodules,
-				GitAccountUrl:   gitRegistry.Url,
+				GitProviderUrl:  gitRegistry.Url,
 			})
 		}
 	}
 	return gitMaterialsResp, false
 }
 
+//get/build docker build config
+func (handler AppRestHandlerImpl) validateAndBuildDockerConfig(w http.ResponseWriter, appId int) (*appBean.DockerConfig, bool) {
+	ciConfig, err := handler.pipelineBuilder.GetCiPipeline(appId)
+	if err != nil {
+		handler.logger.Errorw("service err, GetCiPipeline in GetAppAllDetail", "err", err, "appId", appId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return nil, true
+	}
+
+	//getting gitMaterialUrl by id
+	gitMaterial, err := handler.materialRepository.FindById(ciConfig.DockerBuildConfig.GitMaterialId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching materialUrl by ID in GetAppAllDetail", "err", err, "gitMaterialId", ciConfig.DockerBuildConfig.GitMaterialId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return nil, true
+	}
+
+	dockerConfig := &appBean.DockerConfig{
+		DockerRegistry:   ciConfig.DockerRegistry,
+		DockerRepository: ciConfig.DockerRepository,
+		BuildConfig: &appBean.DockerBuildConfig{
+			Args:                   ciConfig.DockerBuildConfig.Args,
+			DockerfileRelativePath: ciConfig.DockerBuildConfig.DockerfilePath,
+			GitMaterialUrl:         gitMaterial.Url,
+		},
+	}
+
+	return dockerConfig, false
+}
+
+
 //get/build deployment template
 func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.ResponseWriter, appId int, envId int) (*appBean.DeploymentTemplate, bool) {
 	chartRefData, err := handler.chartService.ChartRefAutocompleteForAppOrEnv(appId, envId)
 	if err != nil {
-		handler.logger.Errorw("service err, ChartRefAutocompleteForApp in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
+		handler.logger.Errorw("service err, ChartRefAutocompleteForAppOrEnv in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
 	if chartRefData == nil {
-		err = errors.New("invalid appId - chartRefData is null")
+		err = errors.New("invalid appId/envId - chartRefData is null")
 		handler.logger.Errorw("Validation error ", "err", err, "appId", appId, "envId", envId)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, true
 	}
 
-	deploymentTemplate, err := handler.chartService.FindLatestChartForAppByAppId(appId)
+	appDeploymentTemplate, err := handler.chartService.FindLatestChartForAppByAppId(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetDeploymentTemplate in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
-	if deploymentTemplate == nil {
+	if appDeploymentTemplate == nil {
 		err = errors.New("invalid appId - deploymentTemplate is null")
 		handler.logger.Errorw("Validation error ", "err", err, "appId", appId, "envId", envId)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
@@ -272,23 +305,33 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 	}
 
 	// set deployment template & showAppMetrics
-	var deploymentTemplateObj map[string]interface{}
 	var showAppMetrics bool
 	var deploymentTemplateRaw json.RawMessage
+	var chartRefId int
 	if envId > 0 {
+		// on env level
 		env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envId, chartRefData.LatestEnvChartRef)
 		if err != nil {
-			handler.logger.Errorw("service err, GetEnvConfOverride", "err", err, "payload", appId, envId, chartRefData.LatestEnvChartRef)
+			handler.logger.Errorw("service err, GetEnvironmentProperties in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return nil, true
 		}
-		deploymentTemplateRaw = env.EnvironmentConfig.EnvOverrideValues
-		if *env.AppMetrics != showAppMetrics {
-			showAppMetrics = true
+		chartRefId = chartRefData.LatestEnvChartRef
+		if env.EnvironmentConfig.IsOverride {
+			deploymentTemplateRaw = env.EnvironmentConfig.EnvOverrideValues
+			showAppMetrics = *env.AppMetrics
+		} else {
+			showAppMetrics = appDeploymentTemplate.IsAppMetricsEnabled
+			deploymentTemplateRaw = appDeploymentTemplate.DefaultAppOverride
 		}
 	} else {
-		showAppMetrics = deploymentTemplate.IsAppMetricsEnabled
-		deploymentTemplateRaw = deploymentTemplate.DefaultAppOverride
+		// on app level
+		showAppMetrics = appDeploymentTemplate.IsAppMetricsEnabled
+		deploymentTemplateRaw = appDeploymentTemplate.DefaultAppOverride
+		chartRefId = chartRefData.LatestAppChartRef
 	}
 
+	var deploymentTemplateObj map[string]interface{}
 	if deploymentTemplateRaw != nil {
 		err = json.Unmarshal([]byte(deploymentTemplateRaw), &deploymentTemplateObj)
 		if err != nil {
@@ -296,14 +339,6 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return nil, true
 		}
-	}
-
-	// set chartRefId
-	var chartRefId int
-	if envId == 0 {
-		chartRefId = chartRefData.LatestAppChartRef
-	} else {
-		chartRefId = chartRefData.LatestEnvChartRef
 	}
 
 	deploymentTemplateResp := &appBean.DeploymentTemplate{
@@ -324,7 +359,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppGlobalConfigMaps(w http.Res
 		return nil, true
 	}
 
-	return handler.validateAndBuildAppConfigMaps(w, appId, configMapData)
+	return handler.validateAndBuildAppConfigMaps(w, appId, 0, configMapData)
 }
 
 // get/build environment config maps
@@ -336,44 +371,58 @@ func (handler AppRestHandlerImpl) validateAndBuildAppEnvironmentConfigMaps(w htt
 		return nil, true
 	}
 
-	return handler.validateAndBuildAppConfigMaps(w, appId, configMapData)
+	return handler.validateAndBuildAppConfigMaps(w, appId, envId, configMapData)
 }
 
 // get/build config maps
-func (handler AppRestHandlerImpl) validateAndBuildAppConfigMaps(w http.ResponseWriter, appId int, configMapData *pipeline.ConfigDataRequest) ([]*appBean.ConfigMap, bool) {
+func (handler AppRestHandlerImpl) validateAndBuildAppConfigMaps(w http.ResponseWriter, appId int, envId int, configMapData *pipeline.ConfigDataRequest) ([]*appBean.ConfigMap, bool) {
 	var configMapsResp []*appBean.ConfigMap
 	if configMapData != nil && len(configMapData.ConfigData) > 0 {
 		for _, configMap := range configMapData.ConfigData {
 
 			// initialise
-			globalConfigMap := &appBean.ConfigMap{
+			configMapRes := &appBean.ConfigMap{
 				Name:       configMap.Name,
 				IsExternal: configMap.External,
 				UsageType:  configMap.Type,
 			}
 
+			considerGlobalDefaultData := envId > 0 && configMap.Data == nil
+
 			// set data
+			var data json.RawMessage
+			if considerGlobalDefaultData {
+				data = configMap.DefaultData
+			} else {
+				data = configMap.Data
+			}
 			var dataObj map[string]interface{}
-			if configMap.Data != nil {
-				err := json.Unmarshal([]byte(configMap.Data), &dataObj)
+			if data != nil {
+				err := json.Unmarshal([]byte(data), &dataObj)
 				if err != nil {
 					handler.logger.Errorw("service err, un-marshling fail in config map", "err", err, "appId", appId)
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, true
 				}
 			}
-			globalConfigMap.Data = dataObj
+			configMapRes.Data = dataObj
 
 			// set data volume usage type
 			if configMap.Type == util.ConfigMapSecretUsageTypeVolume {
-				globalConfigMap.DataVolumeUsageConfig = &appBean.ConfigMapSecretDataVolumeUsageConfig{
-					MountPath:      configMap.MountPath,
-					SubPath:        configMap.SubPath,
+				dataVolumeUsageConfig := &appBean.ConfigMapSecretDataVolumeUsageConfig{
 					FilePermission: configMap.FilePermission,
+					SubPath:        configMap.SubPath,
 				}
+				if considerGlobalDefaultData {
+					dataVolumeUsageConfig.MountPath = configMap.DefaultMountPath
+				} else {
+					dataVolumeUsageConfig.MountPath = configMap.MountPath
+				}
+
+				configMapRes.DataVolumeUsageConfig = dataVolumeUsageConfig
 			}
 
-			configMapsResp = append(configMapsResp, globalConfigMap)
+			configMapsResp = append(configMapsResp, configMapRes)
 		}
 	}
 	return configMapsResp, false
@@ -381,33 +430,82 @@ func (handler AppRestHandlerImpl) validateAndBuildAppConfigMaps(w http.ResponseW
 
 // get/build global secrets
 func (handler AppRestHandlerImpl) validateAndBuildAppGlobalSecrets(w http.ResponseWriter, appId int) ([]*appBean.Secret, bool) {
-	secretData, err := handler.configMapService.CSGlobalFetchWithSecretValues(appId)
+	secretData, err := handler.configMapService.CSGlobalFetch(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, CSGlobalFetch in GetAppAllDetail", "err", err, "appId", appId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
-	return handler.validateAndBuildAppSecrets(w, appId, secretData)
+	var secretsResp []*appBean.Secret
+	if secretData != nil && len(secretData.ConfigData) > 0 {
+
+		for _, secretConfig := range secretData.ConfigData {
+			secretDataWithData, err := handler.configMapService.CSGlobalFetchForEdit(secretConfig.Name, secretData.Id)
+			if err != nil {
+				handler.logger.Errorw("service err, CSGlobalFetch-CSGlobalFetchForEdit in GetAppAllDetail", "err", err, "appId", appId)
+				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				return nil, true
+			}
+
+			secretRes, err := handler.validateAndBuildAppSecrets(w, appId, 0, secretDataWithData)
+			if err != nil {
+				handler.logger.Errorw("service err, CSGlobalFetch-validateAndBuildAppSecrets in GetAppAllDetail", "err", err, "appId", appId)
+				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				return nil, true
+			}
+
+			for _, secret := range secretRes {
+				secretsResp = append(secretsResp, secret)
+			}
+		}
+	}
+
+	return secretsResp, false
 }
 
 // get/build environment secrets
 func (handler AppRestHandlerImpl) validateAndBuildAppEnvironmentSecrets(w http.ResponseWriter, appId int, envId int) ([]*appBean.Secret, bool) {
-	secretData, err := handler.configMapService.CSEnvironmentFetchWithSecretValues(appId, envId)
+	secretData, err := handler.configMapService.CSEnvironmentFetch(appId, envId)
 	if err != nil {
 		handler.logger.Errorw("service err, CSEnvironmentFetch in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
-	return handler.validateAndBuildAppSecrets(w, appId, secretData)
+	var secretsResp []*appBean.Secret
+	if secretData != nil && len(secretData.ConfigData) > 0 {
+
+		for _, secretConfig := range secretData.ConfigData {
+			secretDataWithData, err := handler.configMapService.CSEnvironmentFetchForEdit(secretConfig.Name, secretData.Id, appId, envId)
+			if err != nil {
+				handler.logger.Errorw("service err, CSEnvironmentFetchForEdit in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
+				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				return nil, true
+			}
+
+			secretRes, err := handler.validateAndBuildAppSecrets(w, appId, envId, secretDataWithData)
+			if err != nil {
+				handler.logger.Errorw("service err, CSGlobalFetch-validateAndBuildAppSecrets in GetAppAllDetail", "err", err, "appId", appId)
+				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				return nil, true
+			}
+
+			for _, secret := range secretRes {
+				secretsResp = append(secretsResp, secret)
+			}
+		}
+	}
+
+	return secretsResp, false
 }
 
 // get/build secrets
-func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWriter, appId int, secretData *pipeline.ConfigDataRequest) ([]*appBean.Secret, bool) {
+func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWriter, appId int, envId int, secretData *pipeline.ConfigDataRequest) ([]*appBean.Secret, error) {
 	var secretsResp []*appBean.Secret
 	if secretData != nil && len(secretData.ConfigData) > 0 {
 		for _, secret := range secretData.ConfigData {
+
 			// initialise
 			globalSecret := &appBean.Secret{
 				Name:         secret.Name,
@@ -417,22 +515,33 @@ func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWrit
 				ExternalType: secret.ExternalSecretType,
 			}
 
+			considerGlobalDefaultData := envId > 0 && secret.Data == nil
+
 			// set data
+			var data json.RawMessage
+			var externalSecrets []pipeline.ExternalSecret
+			if considerGlobalDefaultData {
+				data = secret.DefaultData
+				externalSecrets = secret.DefaultExternalSecret
+			} else {
+				data = secret.Data
+				externalSecrets = secret.ExternalSecret
+			}
 			var dataObj map[string]interface{}
-			if secret.Data != nil {
-				err := json.Unmarshal([]byte(secret.Data), &dataObj)
+			if data != nil {
+				err := json.Unmarshal([]byte(data), &dataObj)
 				if err != nil {
 					handler.logger.Errorw("service err, un-marshling fail in secret", "err", err, "appId", appId)
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
-					return nil, true
+					return nil, err
 				}
 			}
 			globalSecret.Data = dataObj
 
 			// set external data
 			var externalSecretsResp []*appBean.ExternalSecret
-			if len(secret.ExternalSecret) > 0 {
-				for _, externalSecret := range secret.ExternalSecret {
+			if len(externalSecrets) > 0 {
+				for _, externalSecret := range externalSecrets {
 					externalSecretsResp = append(externalSecretsResp, &appBean.ExternalSecret{
 						Name:     externalSecret.Name,
 						Key:      externalSecret.Key,
@@ -446,19 +555,23 @@ func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWrit
 			// set data volume usage type
 			if secret.Type == util.ConfigMapSecretUsageTypeVolume {
 				globalSecret.DataVolumeUsageConfig = &appBean.ConfigMapSecretDataVolumeUsageConfig{
-					MountPath:      secret.MountPath,
 					SubPath:        secret.SubPath,
 					FilePermission: secret.FilePermission,
+				}
+				if considerGlobalDefaultData {
+					globalSecret.DataVolumeUsageConfig.MountPath = secret.DefaultMountPath
+				} else {
+					globalSecret.DataVolumeUsageConfig.MountPath = secret.MountPath
 				}
 			}
 
 			secretsResp = append(secretsResp, globalSecret)
 		}
 	}
-	return secretsResp, false
+	return secretsResp, nil
 }
 
-func (handler AppRestHandlerImpl) validateAndBuildEnvironmentOverrides(w http.ResponseWriter, appId int) (map[string]*appBean.EnvironmentOverride, bool) {
+func (handler AppRestHandlerImpl) validateAndBuildEnvironmentOverrides(w http.ResponseWriter, appId int, token string) (map[string]*appBean.EnvironmentOverride, bool) {
 	appEnvironments, err := handler.appListingService.FetchOtherEnvironment(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, Fetch app environments in GetAppAllDetail", "err", err, "appId", appId)
@@ -469,7 +582,17 @@ func (handler AppRestHandlerImpl) validateAndBuildEnvironmentOverrides(w http.Re
 	environmentOverrides := make(map[string]*appBean.EnvironmentOverride)
 	if len(appEnvironments) > 0 {
 		for _, appEnvironment := range appEnvironments {
+
 			envId := appEnvironment.EnvironmentId
+
+			// check RBAC for environment
+			object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+			if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
+				handler.logger.Errorw("Unauthorized User for env update action", "err", err, "appId", appId, "envId", envId)
+				writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+				return nil, true
+			}
+			// RBAC end
 
 			envDeploymentTemplateResp, done := handler.validateAndBuildAppDeploymentTemplate(w, appId, envId)
 			if done {
@@ -495,33 +618,8 @@ func (handler AppRestHandlerImpl) validateAndBuildEnvironmentOverrides(w http.Re
 	}
 	return environmentOverrides, false
 }
-func (handler AppRestHandlerImpl) validateAndBuildDockerConfig(w http.ResponseWriter, appId int) (*appBean.DockerConfig, bool) {
-	ciConfig, err := handler.pipelineBuilder.GetCiPipeline(appId)
-	if err != nil {
-		handler.logger.Errorw("service err, GetCiPipeline in GetAppAllDetail", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return nil, true
-	}
 
-	dockerConfig := &appBean.DockerConfig{
-		DockerRegistry:   ciConfig.DockerRegistry,
-		DockerRepository: ciConfig.DockerRepository,
-	}
 
-	//getting gitMaterialUrl by id
-	gitMaterial, err := handler.materialRepository.FindById(ciConfig.DockerBuildConfig.GitMaterialId)
-	if err != nil {
-		handler.logger.Errorw("error in fetching materialUrl by ID in GetAppAllDetail", "err", err, "gitMaterialId", ciConfig.DockerBuildConfig.GitMaterialId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return nil, true
-	}
-	dockerConfig.BuildConfig = &appBean.DockerBuildConfig{
-		Args:           ciConfig.DockerBuildConfig.Args,
-		DockerfilePath: ciConfig.DockerBuildConfig.DockerfilePath,
-		GitMaterialUrl: gitMaterial.Url,
-	}
-	return dockerConfig, false
-}
 func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWriter, appId int) ([]*appBean.AppWorkflow, bool) {
 	var appWorkflowsResp []*appBean.AppWorkflow
 	workflowsList, err := handler.appWorkflowService.FindAppWorkflows(appId)
