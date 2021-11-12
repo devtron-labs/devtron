@@ -19,6 +19,7 @@ package router
 
 import (
 	"encoding/json"
+	"net/http"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
@@ -27,7 +28,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type MuxRouter struct {

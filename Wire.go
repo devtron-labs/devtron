@@ -1,4 +1,5 @@
-//+build wireinject
+//go:build wireinject
+// +build wireinject
 
 /*
  * Copyright (c) 2020 Devtron Labs
@@ -20,7 +21,16 @@
 package main
 
 import (
+	"github.com/devtron-labs/devtron/api/connector"
+	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
+	"github.com/devtron-labs/devtron/api/sse"
+	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
+	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
+	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	eClient "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -30,20 +40,27 @@ import (
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/casbin"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
+	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	teamRepo "github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/internal/util/ArgoUtil"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	clusterAccounts2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dex"
@@ -52,32 +69,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/notifier"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
-	"github.com/devtron-labs/devtron/util/rbac"
-
-	"github.com/devtron-labs/devtron/api/connector"
-	"github.com/devtron-labs/devtron/api/restHandler"
-	"github.com/devtron-labs/devtron/api/router"
-	"github.com/devtron-labs/devtron/api/sse"
-	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
-	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
-	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
-	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/app"
-	clusterAccounts2 "github.com/devtron-labs/devtron/pkg/cluster"
-
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	user2 "github.com/devtron-labs/devtron/pkg/user"
+	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/session"
 	"github.com/google/wire"
 )
@@ -107,7 +107,6 @@ func InitializeApp() (*App, error) {
 		casbin.Create,
 		rbac.NewEnforcerImpl,
 		wire.Bind(new(rbac.Enforcer), new(*rbac.EnforcerImpl)),
-
 		dex.GetConfig,
 		argocdServer.GetConfig,
 		session2.NewSessionServiceClient,
@@ -702,6 +701,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
+		util2.NewGoJsonSchemaCustomFormatChecker,
 	)
 	return &App{}, nil
 }
