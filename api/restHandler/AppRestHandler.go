@@ -22,8 +22,10 @@ import (
 	"errors"
 	"fmt"
 	appBean "github.com/devtron-labs/devtron/api/appbean"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	teamRepo "github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -36,11 +38,12 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type AppRestHandler interface {
 	GetAppAllDetail(w http.ResponseWriter, r *http.Request)
-	//CreateApp(w http.ResponseWriter, r *http.Request)
+	CreateApp(w http.ResponseWriter, r *http.Request)
 }
 
 type AppRestHandlerImpl struct {
@@ -58,11 +61,14 @@ type AppRestHandlerImpl struct {
 	propertiesConfigService pipeline.PropertiesConfigService
 	appWorkflowService      appWorkflow.AppWorkflowService
 	materialRepository      pipelineConfig.MaterialRepository
+	teamRepository  		teamRepo.TeamRepository
+	gitProviderRepo			repository.GitProviderRepository
 }
 
 func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
 	enforcer rbac.Enforcer, appLabelService app.AppLabelService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
-	chartService pipeline.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService, propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService, materialRepository pipelineConfig.MaterialRepository) *AppRestHandlerImpl {
+	chartService pipeline.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService, propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
+	materialRepository pipelineConfig.MaterialRepository, teamRepository  teamRepo.TeamRepository, gitProviderRepo	repository.GitProviderRepository) *AppRestHandlerImpl {
 	handler := &AppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -78,6 +84,8 @@ func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserS
 		propertiesConfigService: propertiesConfigService,
 		appWorkflowService:      appWorkflowService,
 		materialRepository:      materialRepository,
+		teamRepository: teamRepository,
+		gitProviderRepo: gitProviderRepo,
 	}
 	return handler
 }
@@ -269,7 +277,7 @@ func (handler AppRestHandlerImpl) validateAndBuildDockerConfig(w http.ResponseWr
 		BuildConfig: &appBean.DockerBuildConfig{
 			Args:                   ciConfig.DockerBuildConfig.Args,
 			DockerfileRelativePath: ciConfig.DockerBuildConfig.DockerfilePath,
-			GitMaterialUrl:         gitMaterial.Url,
+			GitCheckoutPath:   gitMaterial.CheckoutPath,
 		},
 	}
 
@@ -820,4 +828,203 @@ func (handler AppRestHandlerImpl) validateAndBuildEnvironmentOverrides(w http.Re
 		}
 	}
 	return environmentOverrides, false
+}
+
+//Create App related methods below
+
+func (handler AppRestHandlerImpl) CreateApp (w http.ResponseWriter, r *http.Request){
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	var createAppRequest  appBean.AppDetail
+	err = decoder.Decode(&createAppRequest)
+	if err != nil {
+		handler.logger.Errorw("request err, CreateApp by API", "err", err, "CreateApp", createAppRequest)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//to add more validations here
+	handler.logger.Infow("request payload, CreateApp by API", "CreateApp", createAppRequest)
+	err = handler.validator.Struct(createAppRequest)
+	if err != nil {
+		handler.logger.Errorw("validation err, CreateApp by API", "err", err, "CreateApp", createAppRequest)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// to implement rbac
+
+
+
+	//rbac ends
+
+
+	handler.logger.Infow("creating app v2", "createAppRequest", createAppRequest)
+
+
+	//creating blank app starts
+	createBlankAppResp, done := handler.CreateBlankApp(w, createAppRequest.Metadata, userId)
+	if done {
+		return
+	}
+	//creating blank app ends
+
+	//declaring appId for creating other components of app
+	appId := createBlankAppResp.Id
+
+	//creating git material starts
+	//createMaterialsResp
+	_, done = handler.CreateGitMaterials(w, appId, createAppRequest.GitMaterials, userId)
+	if done{
+		handler.DeleteApp()
+		return
+	}
+	//creating git material ends
+
+	//creating docker config starts
+	//createDockerConfigResp
+	_, done = handler.CreateDockerConfig(w,appId,createAppRequest.DockerConfig,userId)
+	if done{
+		handler.DeleteApp()
+		return
+	}
+	//creating docker config starts
+
+
+
+}
+
+func(handler AppRestHandlerImpl) CreateBlankApp(w http.ResponseWriter, appMetadata *appBean.AppMetadata, userId int32) (*bean.CreateAppDTO, bool){
+	//validating app metadata
+	err := handler.validator.Struct(appMetadata)
+	if err != nil {
+		handler.logger.Errorw("validation err, AppMetadata in create app by API", "err", err, "AppMetadata", appMetadata)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return nil, true
+	}
+
+	team, err := handler.teamRepository.FindByTeamName(appMetadata.ProjectName)
+	if err != nil {
+		handler.logger.Infow("no project found by name in CreateApp request by API")
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return nil, true
+	}
+
+	handler.logger.Infow("Create App - creating blank app with metadata", "appMetadata",appMetadata)
+
+	createAppRequestDTO :=  &bean.CreateAppDTO{
+		AppName: appMetadata.AppName,
+		TeamId: team.Id,
+	}
+	for _, requestLabel := range appMetadata.Labels{
+		appLabel := &bean.Label{
+			Key: requestLabel.Key,
+			Value: requestLabel.Value,
+		}
+		createAppRequestDTO.AppLabels = append(createAppRequestDTO.AppLabels, appLabel)
+	}
+
+	createAppResp, err := handler.pipelineBuilder.CreateApp(createAppRequestDTO)
+	if err != nil {
+		handler.logger.Errorw("service err, CreateApp in CreateBlankApp", "err", err, "CreateApp", createAppRequestDTO)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return nil, true
+	}
+	return createAppResp, false
+}
+
+func(handler AppRestHandlerImpl) DeleteApp(){
+
+}
+
+func(handler AppRestHandlerImpl) CreateGitMaterials(w http.ResponseWriter,appId int, gitMaterials []*appBean.GitMaterial, userId int32) ( *bean.CreateMaterialDTO, bool){
+	handler.logger.Infow("Create App - creating git materials", "appId", appId, "GitMaterials", gitMaterials)
+
+	createMaterialRequestDto  := &bean.CreateMaterialDTO{
+		AppId: appId,
+		UserId: userId,
+	}
+
+	for _, material := range gitMaterials{
+		err := handler.validator.Struct(material)
+		if err != nil {
+			handler.logger.Errorw("validation err, gitMaterial in create app by API", "err", err, "GitMaterial", material)
+			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			return nil, true
+		}
+
+		//finding gitProvider to update gitMaterial
+		gitProvider, err := handler.gitProviderRepo.FindByUrl(material.GitProviderUrl)
+		if err != nil{
+			handler.logger.Errorw("service err, FindByUrl in CreateGitMaterials", "err", err, "gitProviderUrl", material.GitProviderUrl)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return nil, true
+		}
+
+		//validating git material by git provider auth mode
+		var hasPrefixResult bool
+		if gitProvider.AuthMode == repository.AUTH_MODE_SSH {
+			hasPrefixResult = strings.HasPrefix(material.GitRepoUrl, SSH_URL_PREFIX)
+		} else{
+			hasPrefixResult = strings.HasPrefix(material.GitRepoUrl, HTTPS_URL_PREFIX)
+		}
+		if !hasPrefixResult{
+			handler.logger.Errorw("validation err, CreateGitMaterials : invalid git material url", "err", err, "gitMaterialUrl", material.GitRepoUrl)
+			writeJsonResp(w, fmt.Errorf("validation for url failed"), nil, http.StatusBadRequest)
+			return nil, true
+		}
+
+		gitMaterialRequest := &bean.GitMaterial{
+			Url: material.GitRepoUrl,
+			GitProviderId: gitProvider.Id,
+			CheckoutPath: material.CheckoutPath,
+			FetchSubmodules: material.FetchSubmodules,
+		}
+
+		createMaterialRequestDto.Material = append(createMaterialRequestDto.Material, gitMaterialRequest)
+	}
+	createMaterialsResp, err := handler.pipelineBuilder.CreateMaterialsForApp(createMaterialRequestDto)
+	if err != nil {
+		handler.logger.Errorw("service err, CreateMaterialsForApp in CreateGitMaterials", "err", err, "CreateMaterial", createMaterialRequestDto)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return nil, true
+	}
+	return createMaterialsResp, false
+}
+
+func(handler AppRestHandlerImpl) CreateDockerConfig(w http.ResponseWriter,appId int, dockerConfig *appBean.DockerConfig, userId int32) ( *bean.PipelineCreateResponse, bool){
+	handler.logger.Infow("Create App - creating docker config", "appId", appId, "DockerConfig", dockerConfig)
+
+	createDockerConfigRequest := &bean.CiConfigRequest{
+		AppId: appId,
+		UserId: userId,
+		DockerRegistry: dockerConfig.DockerRegistry,
+		DockerRepository: dockerConfig.DockerRepository,
+	}
+
+	//finding gitMaterial by appId and checkoutPath
+	gitMaterial, err := handler.materialRepository.FindByAppIdAndCheckoutPath(appId, dockerConfig.BuildConfig.GitCheckoutPath)
+	if err != nil {
+		handler.logger.Errorw("service err, FindByAppIdAndCheckoutPath in CreateDockerConfig", "err", err, "appId", appId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return nil, true
+	}
+
+	dockerBuildConfigRequest := &bean.DockerBuildConfig{
+		GitMaterialId: gitMaterial.Id,
+		DockerfilePath: dockerConfig.BuildConfig.DockerfileRelativePath,
+		Args: dockerConfig.BuildConfig.Args,
+	}
+	createDockerConfigRequest.DockerBuildConfig = dockerBuildConfigRequest
+	createResp, err := handler.pipelineBuilder.CreateCiPipeline(createDockerConfigRequest)
+	if err != nil {
+		handler.logger.Errorw("service err, CreateCiPipeline in CreateDockerConfig", "err", err, "createRequest", createDockerConfigRequest)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return nil, true
+	}
+	return createResp, false
 }

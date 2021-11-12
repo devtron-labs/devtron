@@ -40,7 +40,7 @@ type DockerConfig struct {
 }
 
 type DockerBuildConfig struct {
-	GitMaterialUrl         string            `json:"gitMaterialUrl,omitempty" validate:"required"`
+	GitCheckoutPath   string            `json:"GitCheckoutPath,omitempty" validate:"required"`
 	DockerfileRelativePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
 	Args                   map[string]string `json:"args,omitempty"`
 }
