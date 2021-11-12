@@ -23,6 +23,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -73,8 +74,6 @@ const (
 	BITBUCKET_PROVIDER    = "BITBUCKET_CLOUD"
 	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
 	BITBUCKET_API_HOST    = "https://api.bitbucket.org/2.0/"
-
-
 )
 
 type DetailedErrorGitOpsConfigResponse struct {
@@ -240,7 +239,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
 		impl.logger.Infow("git request host", "host", request.Host)
-		request.Host = request.Host + request.GitHubOrgId
+		request.Host = path.Join(request.Host, request.GitHubOrgId)
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
@@ -411,7 +410,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
 		impl.logger.Infow("git request host", "host", request.Host)
-		request.Host = request.Host + request.GitHubOrgId
+		request.Host = path.Join(request.Host, request.GitHubOrgId)
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
