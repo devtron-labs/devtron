@@ -47,6 +47,10 @@ func MemoryToNumber(memory string) (float64, error) {
 	return convertResource(memoryParser, memory)
 }
 func CpuToNumber(cpu string) (float64, error) {
+	demo := NoCpuUnitChecker.MatchString(cpu)
+	if demo {
+		return strconv.ParseFloat(cpu, 64)
+	}
 	if cpuParser == nil {
 		pattern := "(\\d*e?\\d*)(m?)"
 		re, _ := regexp.Compile(pattern)
