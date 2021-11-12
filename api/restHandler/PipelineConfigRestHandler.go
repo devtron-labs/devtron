@@ -868,6 +868,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 	}
 	var envConfigProperties pipeline.EnvironmentProperties
 	err = decoder.Decode(&envConfigProperties)
+	chartRefId := envConfigProperties.ChartRefId
+	validate, error := handler.chartService.DeploymentTemplateValidate(envConfigProperties.EnvOverrideValues, chartRefId)
+	if !validate {
+		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", envConfigProperties)
+		writeJsonResp(w, error, nil, http.StatusBadRequest)
+		return
+	}
 	envConfigProperties.UserId = userId
 	if err != nil {
 		handler.Logger.Errorw("request err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
