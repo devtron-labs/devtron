@@ -34,7 +34,7 @@ This defines ports on which application services will be exposed to other servic
 ```yaml
 ContainerPort:
   - envoyPort: 8799
-    idleTimeout: 
+    idleTimeout:
     name: app
     port: 8080
     servicePort: 80
@@ -75,7 +75,7 @@ LivenessProbe:
   scheme: ""
   tcp: true
 ```
- 
+
 | Key | Description |
 | :--- | :--- |
 | `Path` | It define the path where the liveness needs to be checked. |
@@ -90,7 +90,7 @@ LivenessProbe:
 
 
 ### MaxUnavailable
- 
+
  ```yaml
   MaxUnavailable: 0
 ```
@@ -240,11 +240,11 @@ These define minimum and maximum RAM and CPU available to the application.
 ```yaml
 resources:
   limits:
-    cpu: '1'
-    memory: 200Mi
+    cpu: "1"
+    memory: "200Mi"
   requests:
-    cpu: '0.10'
-    memory: 100Mi
+    cpu: "0.10"
+    memory: "100Mi"
 ```
 
 Resources are required to set CPU and memory usage.
@@ -502,11 +502,11 @@ envoyproxy:
   configMapName: ""
   resources:
     limits:
-      cpu: 50m
-      memory: 50Mi
+      cpu: "50m"
+      memory: "50Mi"
     requests:
-      cpu: 50m
-      memory: 50Mi
+      cpu: "50m"
+      memory: "50Mi"
 ```
 
 Envoy is attached as a sidecar to the application container to collect metrics like 4XX, 5XX, Throughput and latency. You can now configure the envoy settings such as idleTimeout, resources etc.
@@ -574,4 +574,26 @@ If you want to see application metrics like different HTTP status codes metrics,
 ![](../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
+
+### Helm Chart Json Schema Table
+
+Helm Chart json schema is used to validate the deployment template values.
+
+| Chart Version | Link |
+| :--- | :--- |
+| `reference-chart_3-12-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-12-0/schema.json) |
+| `reference-chart_3-11-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-11-0/schema.json) |
+| `reference-chart_3-10-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-10-0/schema.json) |
+| `reference-chart_3-9-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-9-0/schema.json) |
+
+
+### Other Validations in Json Schema
+
+The values of CPU and Memory in limits must be greater than or equal to in requests respectively. Similarly, In case of envoyproxy, the values of limits are greater than or equal to requests as mentioned below.
+```
+resources.limits.cpu >= resources.requests.cpu
+resources.limits.memory >= resources.requests.memory
+envoyproxy.resources.limits.cpu >= envoyproxy.resources.requests.cpu
+envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
+```
 
