@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strconv"
@@ -239,7 +240,12 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
 		impl.logger.Infow("git request host", "host", request.Host)
-		request.Host = path.Join(request.Host, request.GitHubOrgId)
+		hostUrl, err := url.Parse(request.Host)
+		if err != nil {
+			return nil, err
+		}
+		hostUrl.Path = path.Join(hostUrl.Path, request.GitHubOrgId)
+		request.Host = hostUrl.String()
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
@@ -410,7 +416,12 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
 		impl.logger.Infow("git request host", "host", request.Host)
-		request.Host = path.Join(request.Host, request.GitHubOrgId)
+		hostUrl, err := url.Parse(request.Host)
+		if err != nil {
+			return err
+		}
+		hostUrl.Path = path.Join(hostUrl.Path, request.GitHubOrgId)
+		request.Host = hostUrl.String()
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
