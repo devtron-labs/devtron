@@ -19,7 +19,6 @@ package util
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	http2 "net/http"
@@ -623,7 +622,6 @@ type GitHubClient struct {
 func NewGithubClient(host string, token string, org string, logger *zap.SugaredLogger, gitService GitService) (GitHubClient, error) {
 	ctx := context.Background()
 	httpTransport := &http2.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	httpClient := &http2.Client{Transport: httpTransport}
 	ts := oauth2.StaticTokenSource(
@@ -808,7 +806,7 @@ func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 	count := 0
 	for count < 3 {
 		count = count + 1
-		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/tmp/ensure-clone/%s", projectName))
+		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
 			impl.logger.Infow("github ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
 			return true, nil
