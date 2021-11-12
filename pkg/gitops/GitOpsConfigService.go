@@ -239,7 +239,6 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
-		impl.logger.Infow("git request host", "host", request.Host)
 		hostUrl, err := url.Parse(request.Host)
 		if err != nil {
 			return nil, err
@@ -415,7 +414,6 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
-		impl.logger.Infow("git request host", "host", request.Host)
 		hostUrl, err := url.Parse(request.Host)
 		if err != nil {
 			return err
@@ -448,7 +446,6 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 			return err
 		}
 		updatedData := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
-		impl.logger.Infow("update cm data", "data", updatedData)
 		data := cm.Data
 		data["repository.credentials"] = updatedData["repository.credentials"]
 		cm.Data = data
@@ -551,7 +548,6 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 }
 
 func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *bean2.GitOpsConfigDto, secretName string, existingHost string) map[string]string {
-	impl.logger.Infow("secret update", "req", request, "existingHost", existingHost)
 	var newRepositories []*RepositoryCredentialsDto
 	var existingRepositories []*RepositoryCredentialsDto
 	repoStr := data["repository.credentials"]
