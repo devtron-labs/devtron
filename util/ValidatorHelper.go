@@ -117,27 +117,27 @@ func ParseFloat(str string) (float64, error) {
 func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 	limit, ok := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
 	if !ok {
-		return false, errors.New("limit is required")
+		return false, errors.New("resources.limits is required")
 	}
 	envoproxyLimit, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
 	if !ok {
-		return false, errors.New("envoproxyLimit is required")
+		return false, errors.New("envoproxy.resources.limits is required")
 	}
 	checkCPUlimit, ok := limit["cpu"]
 	if !ok {
-		return false, errors.New("limits.CPU is required")
+		return false, errors.New("resources.limits.cpu is required")
 	}
 	checkMemorylimit, ok := limit["memory"]
 	if !ok {
-		return false, errors.New("limits.Memory is required")
+		return false, errors.New("resources.limits.memory is required")
 	}
 	checkEnvoproxyCPUlimit, ok := envoproxyLimit["cpu"]
 	if !ok {
-		return false, errors.New("envoproxy.limits.cpu is required")
+		return false, errors.New("envoyproxy.resources.limits.cpu is required")
 	}
 	checkEnvoproxyMemorylimit, ok := envoproxyLimit["memory"]
 	if !ok {
-		return false, errors.New("envoproxy.limits.memory is required")
+		return false, errors.New("envoyproxy.resources.limits.memory is required")
 	}
 	request, ok := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
 	if !ok {
@@ -198,8 +198,14 @@ func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 		return false, err
 	}
 
-	if (envoproxyCPULimit < envoproxyCPURequest) || (envoproxyMemoryLimit < envoproxyMemoryRequest) || (cpuLimit < cpuRequest) || (memoryLimit < memoryRequest) {
-		return false, errors.New("requests value is greater than limits value")
+	if (envoproxyCPULimit < envoproxyCPURequest){
+		return false, errors.New("envoyproxy.resources.limits.cpu must be greater than or equal to envoyproxy.resources.requests.cpu")
+	}else if (envoproxyMemoryLimit < envoproxyMemoryRequest){
+		return false, errors.New("envoyproxy.resources.limits.memory must be greater than or equal to envoyproxy.resources.requests.memory")
+	}else if (cpuLimit < cpuRequest) {
+		return false, errors.New("resources.limits.cpu must be greater than or equal to resources.requests.cpu")
+	}else if (memoryLimit < memoryRequest) {
+		return false, errors.New("resources.limits.memory must be greater than or equal to resources.requests.memory")
 	}
 	return true, nil
 
@@ -213,52 +219,51 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 	if autoscaleEnabled.(bool) {
 		limit, ok := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
 		if !ok {
-			return false, errors.New("limit is required")
+			return false, errors.New("resources.limits is required")
 		}
 		envoproxyLimit, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
 		if !ok {
-			return false, errors.New("envoproxyLimit is required")
+			return false, errors.New("envoproxy.resources.limits is required")
 		}
 		checkCPUlimit, ok := limit["cpu"]
 		if !ok {
-			return false, errors.New("limits.CPU is required")
+			return false, errors.New("resources.limits.cpu is required")
 		}
 		checkMemorylimit, ok := limit["memory"]
 		if !ok {
-			return false, errors.New("limits.Memory is required")
+			return false, errors.New("resources.limits.memory is required")
 		}
 		checkEnvoproxyCPUlimit, ok := envoproxyLimit["cpu"]
 		if !ok {
-			return false, errors.New("envoproxy.limits.cpu is required")
+			return false, errors.New("envoyproxy.resources.limits.cpu is required")
 		}
 		checkEnvoproxyMemorylimit, ok := envoproxyLimit["memory"]
 		if !ok {
-			return false, errors.New("envoproxy.limits.memory is required")
+			return false, errors.New("envoyproxy.resources.limits.memory is required")
 		}
-
 		request, ok := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
 		if !ok {
-			return false, errors.New("Request is required")
+			return false, errors.New("resources.requests is required")
 		}
 		envoproxyRequest, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
 		if !ok {
-			return false, errors.New("envoproxyRequest is required")
+			return false, errors.New("envoyproxy.resources.requests is required")
 		}
 		checkCPURequests, ok := request["cpu"]
 		if !ok {
-			return false, errors.New("requests.cpu is required")
+			return false, errors.New("resources.requests.cpu is required")
 		}
 		checkMemoryRequests, ok := request["memory"]
 		if !ok {
-			return false, errors.New("requests.memory is required")
+			return false, errors.New("resources.requests.memory is required")
 		}
 		checkEnvoproxyCPURequests, ok := envoproxyRequest["cpu"]
 		if !ok {
-			return false, errors.New("envoproxy.requests.cpu is required")
+			return false, errors.New("envoyproxy.resources.requests.cpu is required")
 		}
 		checkEnvoproxyMemoryRequests, ok := envoproxyRequest["memory"]
 		if !ok {
-			return false, errors.New("envoproxy.requests.memory is required")
+			return false, errors.New("envoyproxy.resources.requests.memory is required")
 		}
 
 		cpuLimit, err := CpuToNumber(checkCPUlimit.(string))
@@ -295,10 +300,17 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 			return false, err
 		}
 
-		if (envoproxyCPULimit < envoproxyCPURequest) || (envoproxyMemoryLimit < envoproxyMemoryRequest) || (cpuLimit < cpuRequest) || (memoryLimit < memoryRequest) {
-			return false, errors.New("requests value is greater than limits value")
+		if (envoproxyCPULimit < envoproxyCPURequest){
+			return false, errors.New("envoyproxy.resources.limits.cpu must be greater than or equal to envoyproxy.resources.requests.cpu")
+		}else if (envoproxyMemoryLimit < envoproxyMemoryRequest){
+			return false, errors.New("envoyproxy.resources.limits.memory must be greater than or equal to envoyproxy.resources.requests.memory")
+		}else if (cpuLimit < cpuRequest) {
+			return false, errors.New("resources.limits.cpu must be greater than or equal to resources.requests.cpu")
+		}else if (memoryLimit < memoryRequest) {
+			return false, errors.New("resources.limits.memory must be greater than or equal to resources.requests.memory")
+		}else {
+			return true, nil
 		}
-		return true, nil
 	} else {
 		return true, nil
 	}
