@@ -20,9 +20,11 @@ package util
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/gitops"
 	"io/ioutil"
 	http2 "net/http"
 	"net/url"
+	"path"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -621,8 +623,7 @@ type GitHubClient struct {
 
 func NewGithubClient(host string, token string, org string, logger *zap.SugaredLogger, gitService GitService) (GitHubClient, error) {
 	ctx := context.Background()
-	httpTransport := &http2.Transport{
-	}
+	httpTransport := &http2.Transport{}
 	httpClient := &http2.Client{Transport: httpTransport}
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
@@ -638,11 +639,12 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 		logger.Errorw("error in creating git client ", "host", hostUrl, "err", err)
 		return GitHubClient{}, err
 	}
-	if hostUrl.Host == "github.com" {
+	if hostUrl.Host == gitops.GITHUB_HOST {
 		client = github.NewClient(tc)
 	} else {
 		logger.Infow("creating github EnterpriseClient with org", "host", host, "org", org)
-		client, err = github.NewEnterpriseClient(host, host, tc)
+		hostUrl.Path = path.Join(hostUrl.Path, gitops.GITHUB_API_V3)
+		client, err = github.NewEnterpriseClient(hostUrl.String(), hostUrl.String(), tc)
 	}
 
 	return GitHubClient{client: client, org: org, logger: logger, gitService: gitService}, err

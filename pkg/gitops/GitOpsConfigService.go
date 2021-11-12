@@ -69,18 +69,19 @@ const (
 	CloneHttp             = "Clone Http"
 	CreateReadmeStage     = "Create Readme"
 	GITHUB_PROVIDER       = "GITHUB"
-	GITHUB_HOST           = "https://github.com/"
+	GITHUB_HOST           = "github.com"
 	GITLAB_PROVIDER       = "GITLAB"
 	BITBUCKET_PROVIDER    = "BITBUCKET_CLOUD"
 	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
 	BITBUCKET_API_HOST    = "https://api.bitbucket.org/2.0/"
+	GITHUB_API_V3         = "api/v3"
 )
 
 type DetailedErrorGitOpsConfigResponse struct {
 	SuccessfulStages []string          `json:"successfulStages"`
 	StageErrorMap    map[string]string `json:"stageErrorMap"`
 	ValidatedOn      time.Time         `json:"validatedOn"`
-	DeleteRepoFailed bool   `json:"deleteRepoFailed"`
+	DeleteRepoFailed bool              `json:"deleteRepoFailed"`
 }
 
 type GitOpsConfigServiceImpl struct {
@@ -239,7 +240,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
 		impl.logger.Infow("git request host", "host", request.Host)
-		request.Host = GITHUB_HOST + request.GitHubOrgId
+		request.Host = request.Host + request.GitHubOrgId
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
@@ -410,7 +411,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
 		impl.logger.Infow("git request host", "host", request.Host)
-		request.Host = GITHUB_HOST + request.GitHubOrgId
+		request.Host = request.Host + request.GitHubOrgId
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
