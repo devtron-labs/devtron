@@ -20,7 +20,6 @@ package util
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/gitops"
 	"io/ioutil"
 	http2 "net/http"
 	"net/url"
@@ -53,6 +52,8 @@ const (
 	GITHUB_PROVIDER       = "GITHUB"
 	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
 	BITBUCKET_PROVIDER    = "BITBUCKET_CLOUD"
+	GITHUB_API_V3         = "api/v3"
+	GITHUB_HOST           = "github.com"
 )
 
 type GitClient interface {
@@ -639,11 +640,11 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 		logger.Errorw("error in creating git client ", "host", hostUrl, "err", err)
 		return GitHubClient{}, err
 	}
-	if hostUrl.Host == gitops.GITHUB_HOST {
+	if hostUrl.Host == GITHUB_HOST {
 		client = github.NewClient(tc)
 	} else {
 		logger.Infow("creating github EnterpriseClient with org", "host", host, "org", org)
-		hostUrl.Path = path.Join(hostUrl.Path, gitops.GITHUB_API_V3)
+		hostUrl.Path = path.Join(hostUrl.Path, GITHUB_API_V3)
 		client, err = github.NewEnterpriseClient(hostUrl.String(), hostUrl.String(), tc)
 	}
 

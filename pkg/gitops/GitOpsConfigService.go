@@ -69,12 +69,12 @@ const (
 	CloneHttp             = "Clone Http"
 	CreateReadmeStage     = "Create Readme"
 	GITHUB_PROVIDER       = "GITHUB"
-	GITHUB_HOST           = "github.com"
 	GITLAB_PROVIDER       = "GITLAB"
 	BITBUCKET_PROVIDER    = "BITBUCKET_CLOUD"
 	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
 	BITBUCKET_API_HOST    = "https://api.bitbucket.org/2.0/"
-	GITHUB_API_V3         = "api/v3"
+
+
 )
 
 type DetailedErrorGitOpsConfigResponse struct {
