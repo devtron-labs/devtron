@@ -294,6 +294,10 @@
         }
       }
     },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {}
+    },
     "ingress": {
       "type": "object",
       "properties": {
@@ -317,11 +321,45 @@
         "enabled": {
           "type": "boolean"
         },
-        "host": {
-          "type": "string"
-        },
-        "path": {
-          "type": "string"
+        "hosts": {
+          "type": "array",
+          "items": [
+            {
+              "type": "object",
+              "properties": {
+                "host": {
+                  "type": "string"
+                },
+                "paths": {
+                  "type": "array",
+                  "items": [
+                    {
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "host": {
+                  "type": "string"
+                },
+                "paths": {
+                  "type": "array",
+                  "items": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
         },
         "tls": {
           "type": "array",
