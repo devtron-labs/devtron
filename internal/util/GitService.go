@@ -635,10 +635,15 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 	var client *github.Client
 	var err error
 	//FIXME: make it more obvious and UI DRIVEN
-	if host == "https://github.com/" || host == "https://github.com" {
+	hostUrl, err := url.Parse(host)
+	if err != nil {
+		logger.Errorw("error in creating git client ", "host", hostUrl, "err", err)
+		return GitHubClient{}, err
+	}
+	if hostUrl.Host == "github.com" {
 		client = github.NewClient(tc)
 	} else {
-		logger.Infow("creating git client with org", "host", host, "org", org)
+		logger.Infow("creating github EnterpriseClient with org", "host", host, "org", org)
 		client, err = github.NewEnterpriseClient(host, host, tc)
 	}
 
@@ -803,7 +808,7 @@ func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 	count := 0
 	for count < 3 {
 		count = count + 1
-		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
+		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/tmp/ensure-clone/%s", projectName))
 		if err == nil {
 			impl.logger.Infow("github ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
 			return true, nil
