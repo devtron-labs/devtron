@@ -634,7 +634,6 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 	tc := oauth2.NewClient(ctx, ts)
 	var client *github.Client
 	var err error
-	//FIXME: make it more obvious and UI DRIVEN
 	hostUrl, err := url.Parse(host)
 	if err != nil {
 		logger.Errorw("error in creating git client ", "host", hostUrl, "err", err)

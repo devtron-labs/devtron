@@ -136,6 +136,14 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2
 	return detailedErrorGitOpsConfigResponse, nil
 }
 
+func (impl *GitOpsConfigServiceImpl) buildGithubOrgUrl(host, orgId string) (orgUrl string, err error) {
+	hostUrl, err := url.Parse(host)
+	if err != nil {
+		return "", err
+	}
+	hostUrl.Path = path.Join(hostUrl.Path, orgId)
+	return hostUrl.String(), nil
+}
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error) {
 	impl.logger.Debugw("gitops create request", "req", request)
 	dbConnection := impl.gitOpsRepository.GetConnection()
@@ -239,12 +247,11 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
-		hostUrl, err := url.Parse(request.Host)
+		orgUrl, err := impl.buildGithubOrgUrl(request.Host, request.GitHubOrgId)
 		if err != nil {
 			return nil, err
 		}
-		hostUrl.Path = path.Join(hostUrl.Path, request.GitHubOrgId)
-		request.Host = hostUrl.String()
+		request.Host = orgUrl
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
@@ -414,12 +421,11 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
-		hostUrl, err := url.Parse(request.Host)
+		orgUrl, err := impl.buildGithubOrgUrl(request.Host, request.GitHubOrgId)
 		if err != nil {
 			return err
 		}
-		hostUrl.Path = path.Join(hostUrl.Path, request.GitHubOrgId)
-		request.Host = hostUrl.String()
+		request.Host = orgUrl
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
