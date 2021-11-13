@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -69,7 +71,6 @@ const (
 	CloneHttp             = "Clone Http"
 	CreateReadmeStage     = "Create Readme"
 	GITHUB_PROVIDER       = "GITHUB"
-	GITHUB_HOST           = "https://github.com/"
 	GITLAB_PROVIDER       = "GITLAB"
 	BITBUCKET_PROVIDER    = "BITBUCKET_CLOUD"
 	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
@@ -80,7 +81,7 @@ type DetailedErrorGitOpsConfigResponse struct {
 	SuccessfulStages []string          `json:"successfulStages"`
 	StageErrorMap    map[string]string `json:"stageErrorMap"`
 	ValidatedOn      time.Time         `json:"validatedOn"`
-	DeleteRepoFailed bool   `json:"deleteRepoFailed"`
+	DeleteRepoFailed bool              `json:"deleteRepoFailed"`
 }
 
 type GitOpsConfigServiceImpl struct {
@@ -135,6 +136,14 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2
 	return detailedErrorGitOpsConfigResponse, nil
 }
 
+func (impl *GitOpsConfigServiceImpl) buildGithubOrgUrl(host, orgId string) (orgUrl string, err error) {
+	hostUrl, err := url.Parse(host)
+	if err != nil {
+		return "", err
+	}
+	hostUrl.Path = path.Join(hostUrl.Path, orgId)
+	return hostUrl.String(), nil
+}
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error) {
 	impl.logger.Debugw("gitops create request", "req", request)
 	dbConnection := impl.gitOpsRepository.GetConnection()
@@ -238,7 +247,11 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
-		request.Host = GITHUB_HOST + request.GitHubOrgId
+		orgUrl, err := impl.buildGithubOrgUrl(request.Host, request.GitHubOrgId)
+		if err != nil {
+			return nil, err
+		}
+		request.Host = orgUrl
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
@@ -408,7 +421,11 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
-		request.Host = GITHUB_HOST + request.GitHubOrgId
+		orgUrl, err := impl.buildGithubOrgUrl(request.Host, request.GitHubOrgId)
+		if err != nil {
+			return err
+		}
+		request.Host = orgUrl
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
@@ -618,9 +635,9 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
 	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
-	if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
+	/*if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
 		config.Host = GITHUB_HOST
-	}
+	}*/
 	if strings.ToUpper(config.Provider) == BITBUCKET_PROVIDER {
 		config.Host = util.BITBUCKET_CLONE_BASE_URL
 		config.BitBucketProjectKey = strings.ToUpper(config.BitBucketProjectKey)
