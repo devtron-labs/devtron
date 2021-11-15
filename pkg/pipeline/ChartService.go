@@ -116,7 +116,7 @@ type ChartService interface {
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]json.RawMessage, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
-	DefaultTemplateWithSavedTemplateData(RequestChartRefId int,templateRequest *TemplateRequest)(json.RawMessage, error)
+	DefaultTemplateWithSavedTemplateData(RequestChartRefId int,templateRequest *TemplateRequest)(*TemplateRequest, error)
 }
 type ChartServiceImpl struct {
 	chartRepository           chartConfig.ChartRepository
@@ -1035,7 +1035,7 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 	}
 	return nil, err
 }
-func (impl ChartServiceImpl) DefaultTemplateWithSavedTemplateData(RequestChartRefId int,templateRequest *TemplateRequest)(json.RawMessage, error){
+func (impl ChartServiceImpl) DefaultTemplateWithSavedTemplateData(RequestChartRefId int,templateRequest *TemplateRequest)(*TemplateRequest, error){
 	appOverride,err:= impl.GetAppOverrideForDefaultTemplate(RequestChartRefId)
 	if err != nil {
 		impl.logger.Errorw("GetAppOverrideForDefaultTemplate err, appOverride", "err", err)
@@ -1061,12 +1061,12 @@ func (impl ChartServiceImpl) DefaultTemplateWithSavedTemplateData(RequestChartRe
 	templateRequest.ChartRefId = RequestChartRefId
 	templateRequest.Id = 0
 	templateRequest.DefaultAppOverride = messages
-	templateBytesValue, err := json.Marshal(templateRequest)
-	if err != nil {
-		impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "chartRefId", RequestChartRefId)
-		return nil, err
-	}
-	templateAppOverride := json.RawMessage(templateBytesValue)
-	return templateAppOverride, nil
+	//templateBytesValue, err := json.Marshal(templateRequest)
+	//if err != nil {
+	//	impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "chartRefId", RequestChartRefId)
+	//	return nil, err
+	//}
+	//templateAppOverride := json.RawMessage(templateBytesValue)
+	return templateRequest, nil
 
 }

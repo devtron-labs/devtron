@@ -1026,6 +1026,12 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		appConfigResponse["globalConfig"] = mapB
 	} else {
 		if template.ChartRefId != RequestChartRefId {
+			template, err = handler.chartService.DefaultTemplateWithSavedTemplateData(RequestChartRefId,template)
+			if err != nil && err != pg.ErrNoRows{
+				handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", RequestChartRefId)
+				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
 			templateRequested, err := handler.chartService.GetByAppIdAndChartRefId(appId, RequestChartRefId)
 			if err != nil && err != pg.ErrNoRows {
 				handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", RequestChartRefId)
@@ -1034,16 +1040,9 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 			}
 
 			if pg.ErrNoRows == err {
-				appOverride, err := handler.chartService.DefaultTemplateWithSavedTemplateData(RequestChartRefId,template)
-				if err != nil {
-					handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", RequestChartRefId)
-					writeJsonResp(w, err, nil, http.StatusInternalServerError)
-					return
-				}
+				template.ChartRefId = RequestChartRefId
+				template.Id = 0
 
-				appConfigResponse["globalConfig"] = appOverride
-				writeJsonResp(w, nil, appConfigResponse, http.StatusOK)
-				return
 			} else {
 				template.ChartRefId = templateRequested.ChartRefId
 				template.Id = templateRequested.Id
