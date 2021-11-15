@@ -180,6 +180,8 @@ This allows public access to the url, please ensure you are using right nginx an
 ```yaml
 ingress:
   enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx
   annotations: {}
   path: ""
   host: ""
@@ -201,6 +203,8 @@ This allows private access to the url, please ensure you are using right nginx a
 ```yaml
 ingressInternal:
   enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx-internal
   annotations: {}
   path: ""
   host: ""
@@ -557,6 +561,23 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
 ```
 
 HPA, by default is configured to work with CPU and Memory metrics. These metrics are useful for internal cluster sizing, but you might want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.

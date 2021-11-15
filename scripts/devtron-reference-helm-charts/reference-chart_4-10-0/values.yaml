@@ -52,6 +52,23 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
+  behavior: {}
+#    scaleDown:
+#      stabilizationWindowSeconds: 300
+#      policies:
+#      - type: Percent
+#        value: 100
+#        periodSeconds: 15
+#    scaleUp:
+#      stabilizationWindowSeconds: 0
+#      policies:
+#      - type: Percent
+#        value: 100
+#        periodSeconds: 15
+#      - type: Pods
+#        value: 4
+#        periodSeconds: 15
+#      selectPolicy: Max
   extraMetrics: []
 #    - external:
 #        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
@@ -136,6 +153,7 @@ prometheusRule:
 
 ingress:
   enabled: false
+  ingressClassName: nginx
   annotations: {}
 #    nginx.ingress.kubernetes.io/rewrite-target: /
 #    nginx.ingress.kubernetes.io/ssl-redirect: "false"
@@ -159,6 +177,7 @@ ingress:
 
 ingressInternal:
   enabled: false
+  ingressClassName: nginx-internal
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
  #    kubernetes.io/tls-acme: "true"
