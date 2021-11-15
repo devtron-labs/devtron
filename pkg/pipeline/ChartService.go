@@ -1061,12 +1061,6 @@ func (impl ChartServiceImpl) DefaultTemplateWithSavedTemplateData(RequestChartRe
 	templateRequest.ChartRefId = RequestChartRefId
 	templateRequest.Id = 0
 	templateRequest.DefaultAppOverride = messages
-	//templateBytesValue, err := json.Marshal(templateRequest)
-	//if err != nil {
-	//	impl.logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "chartRefId", RequestChartRefId)
-	//	return nil, err
-	//}
-	//templateAppOverride := json.RawMessage(templateBytesValue)
 	return templateRequest, nil
 
 }
