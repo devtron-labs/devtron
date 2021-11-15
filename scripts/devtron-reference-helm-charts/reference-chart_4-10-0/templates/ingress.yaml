@@ -19,6 +19,7 @@ metadata:
 {{- end }}
 spec:
   rules:
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
   {{- if or .Values.ingress.host .Values.ingress.path }}
     - host: {{ .Values.ingress.host }}
       http:
@@ -38,7 +39,7 @@ spec:
         {{- range .paths }}
           - path: {{ . }}
             pathType: Prefix
-            defaultBackend:
+            backend:
               service:
                 name: {{ $svcName }}
                 port:
@@ -69,6 +70,7 @@ metadata:
 {{- end }}
 spec:
   rules:
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
   {{- if or .Values.ingressInternal.host .Values.ingressInternal.path }}
     - host: {{ .Values.ingressInternal.host }}
       http:
@@ -88,7 +90,7 @@ spec:
         {{- range .paths }}
           - path: {{ . }}
             pathType: Prefix
-            defaultBackend:
+            backend:
               service:
                 name: {{ $svcName }}
                 port:
