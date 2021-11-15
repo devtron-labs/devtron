@@ -989,6 +989,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
+		handler.Logger.Error(err)
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -1018,6 +1019,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		mapB, _ := json.Marshal(appOverride)
 		if err != nil {
 			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", RequestChartRefId)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 
@@ -1055,6 +1057,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		bytes, err := json.Marshal(template)
 		if err != nil {
 			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", RequestChartRefId)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 		appOverride := json.RawMessage(bytes)
