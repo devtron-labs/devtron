@@ -84,6 +84,9 @@ data:
 {{- if or $element.useHTTP2 $element.useGRPC }}
             "http2_protocol_options": {},
 {{- end }}
+{{- if and (not $element.useGRPC) (not $element.supportStreaming) }}
+            "max_requests_per_connection": "1",
+{{- end }}
             "load_assignment": {
               "cluster_name": "9",
               "endpoints": {
