@@ -11,11 +11,22 @@ spec:
     name: {{ include ".Chart.Name .fullname" $ }}
   minReplicas: {{ $.Values.autoscaling.MinReplicas  }}
   maxReplicas: {{ $.Values.autoscaling.MaxReplicas }}
+  metrics:
   {{- if $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
-  targetMemoryUtilizationPercentage: {{ $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
   {{- end }}
   {{- if $.Values.autoscaling.TargetCPUUtilizationPercentage }}
-  targetCPUUtilizationPercentage: {{ $.Values.autoscaling.TargetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ $.Values.autoscaling.TargetCPUUtilizationPercentage }}
   {{- end }}
     {{- if $.Values.autoscaling.extraMetrics }}
   {{toYaml $.Values.autoscaling.extraMetrics | indent 4 }}
