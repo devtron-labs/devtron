@@ -21,7 +21,9 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	http2 "net/http"
 	"net/url"
+	"path"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -50,6 +52,8 @@ const (
 	GITHUB_PROVIDER       = "GITHUB"
 	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
 	BITBUCKET_PROVIDER    = "BITBUCKET_CLOUD"
+	GITHUB_API_V3         = "api/v3"
+	GITHUB_HOST           = "github.com"
 )
 
 type GitClient interface {
@@ -72,7 +76,7 @@ type DetailedErrorGitOpsConfigActions struct {
 	SuccessfulStages []string         `json:"successfulStages"`
 	StageErrorMap    map[string]error `json:"stageErrorMap"`
 	ValidatedOn      time.Time        `json:"validatedOn"`
-	DeleteRepoFailed bool   `json:"deleteRepoFailed"`
+	DeleteRepoFailed bool             `json:"deleteRepoFailed"`
 }
 
 func (factory *GitFactory) Reload() error {
@@ -218,8 +222,8 @@ func NewGitOpsClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		gitLabClient, err := NewGitLabClient(config, logger, gitService)
 		return gitLabClient, err
 	} else if config.GitProvider == GITHUB_PROVIDER {
-		gitHubClient := NewGithubClient(config.GitToken, config.GithubOrganization, logger, gitService)
-		return gitHubClient, nil
+		gitHubClient, err := NewGithubClient(config.GitHost, config.GitToken, config.GithubOrganization, logger, gitService)
+		return gitHubClient, err
 	} else if config.GitProvider == AZURE_DEVOPS_PROVIDER {
 		gitAzureClient, err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitService)
 		return gitAzureClient, err
@@ -618,14 +622,32 @@ type GitHubClient struct {
 	gitService GitService
 }
 
-func NewGithubClient(token string, org string, logger *zap.SugaredLogger, gitService GitService) GitHubClient {
+func NewGithubClient(host string, token string, org string, logger *zap.SugaredLogger, gitService GitService) (GitHubClient, error) {
 	ctx := context.Background()
+	httpTransport := &http2.Transport{}
+	httpClient := &http2.Client{Transport: httpTransport}
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
+
 	tc := oauth2.NewClient(ctx, ts)
-	client := github.NewClient(tc)
-	return GitHubClient{client: client, org: org, logger: logger, gitService: gitService}
+	var client *github.Client
+	var err error
+	hostUrl, err := url.Parse(host)
+	if err != nil {
+		logger.Errorw("error in creating git client ", "host", hostUrl, "err", err)
+		return GitHubClient{}, err
+	}
+	if hostUrl.Host == GITHUB_HOST {
+		client = github.NewClient(tc)
+	} else {
+		logger.Infow("creating github EnterpriseClient with org", "host", host, "org", org)
+		hostUrl.Path = path.Join(hostUrl.Path, GITHUB_API_V3)
+		client, err = github.NewEnterpriseClient(hostUrl.String(), hostUrl.String(), tc)
+	}
+
+	return GitHubClient{client: client, org: org, logger: logger, gitService: gitService}, err
 }
 func (impl GitHubClient) DeleteRepository(name, userName, gitHubOrgName, azureProjectName string, repoOptions *bitbucket.RepositoryOptions) error {
 	_, err := impl.client.Repositories.Delete(context.Background(), gitHubOrgName, name)
