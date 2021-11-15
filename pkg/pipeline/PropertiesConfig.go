@@ -650,3 +650,6 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 	}
 	return appMetricRequest, err
 }
+
+func (impl PropertiesConfigServiceImpl) hello(){
+}

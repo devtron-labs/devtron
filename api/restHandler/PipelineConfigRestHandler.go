@@ -605,13 +605,7 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	chartRefId := templateRequest.ChartRefId
-	validate, error := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
-	if !validate {
-		writeJsonResp(w, error, nil, http.StatusBadRequest)
 
-		return
-	}
 	handler.Logger.Infow("request payload, ConfigureDeploymentTemplateForApp", "payload", templateRequest)
 	err = handler.validator.Struct(templateRequest)
 	if err != nil {
@@ -869,12 +863,12 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 	var envConfigProperties pipeline.EnvironmentProperties
 	err = decoder.Decode(&envConfigProperties)
 	chartRefId := envConfigProperties.ChartRefId
-	validate, error := handler.chartService.DeploymentTemplateValidate(envConfigProperties.EnvOverrideValues, chartRefId)
-	if !validate {
-		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", envConfigProperties)
-		writeJsonResp(w, error, nil, http.StatusBadRequest)
-		return
-	}
+	//validate, error := handler.chartService.DeploymentTemplateValidate(envConfigProperties.EnvOverrideValues, chartRefId)
+	//if !validate {
+	//	handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", envConfigProperties)
+	//	writeJsonResp(w, error, nil, http.StatusBadRequest)
+	//	return
+	//}
 	envConfigProperties.UserId = userId
 	if err != nil {
 		handler.Logger.Errorw("request err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
@@ -897,6 +891,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 	}
 	appId := envConfigOverride.Chart.AppId
 	envId := envConfigOverride.TargetEnvironment
+
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, resourceName); !ok {
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -905,6 +900,25 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 	object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", token)
+	templateRequest := pipeline.TemplateRequest{
+		AppId:          appId,
+		ChartRefId:     envConfigProperties.ChartRefId,
+		ValuesOverride: []byte("{}"),
+		UserId:         userId,
+	}
+	mergedtemplate, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+	if err != nil {
+		handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	validate, err := handler.chartService.DeploymentTemplateValidate(mergedtemplate, chartRefId)
+	if !validate {
+		handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(appId, &envConfigProperties, userId)
@@ -1312,13 +1326,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	chartRefId := templateRequest.ChartRefId
-	validate, error := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
-	if !validate {
-		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", templateRequest)
-		writeJsonResp(w, error, nil, http.StatusBadRequest)
-		return
-	}
+
 	createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
