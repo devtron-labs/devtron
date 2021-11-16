@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	teamRepo "github.com/devtron-labs/devtron/internal/sql/repository/team"
@@ -76,13 +77,15 @@ type AppRestHandlerImpl struct {
 	gitProviderRepo         repository.GitProviderRepository
 	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
 	environmentRepository   cluster.EnvironmentRepository
+	configMapRepository     chartConfig.ConfigMapRepository
 }
 
 func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
 	enforcer rbac.Enforcer, appLabelService app.AppLabelService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
-	chartService pipeline.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService, propertiesConfigService pipeline.PropertiesConfigService,
-	appWorkflowService appWorkflow.AppWorkflowService, materialRepository pipelineConfig.MaterialRepository, teamRepository teamRepo.TeamRepository,
-	gitProviderRepo repository.GitProviderRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository cluster.EnvironmentRepository) *AppRestHandlerImpl {
+	chartService pipeline.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService,
+	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
+	materialRepository pipelineConfig.MaterialRepository, teamRepository teamRepo.TeamRepository, gitProviderRepo repository.GitProviderRepository,
+	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository cluster.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository) *AppRestHandlerImpl {
 	handler := &AppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -102,6 +105,7 @@ func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserS
 		gitProviderRepo:         gitProviderRepo,
 		appWorkflowRepository:   appWorkflowRepository,
 		environmentRepository:   environmentRepository,
+		configMapRepository:     configMapRepository,
 	}
 	return handler
 }
@@ -1201,9 +1205,21 @@ func (handler AppRestHandlerImpl) createDeploymentTemplate(w http.ResponseWriter
 //create global CMs
 func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, appId int, userId int32, configMaps []*appBean.ConfigMap) bool {
 	handler.logger.Infow("Create App - creating global configMap", "appId", appId)
+
+	//getting app level by app id
+	appLevel, err := handler.configMapRepository.GetByAppIdAppLevel(appId)
+	if err != nil && err != pg.ErrNoRows {
+		handler.logger.Errorw("error in getting app level by app id in createGlobalConfigMaps", "appId", appId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+	}
+	var appLevelId int
+	if appLevel != nil {
+		appLevelId = appLevel.Id
+	}
 	configMapRequest := &pipeline.ConfigDataRequest{
 		AppId:  appId,
 		UserId: userId,
+		Id:     appLevelId,
 	}
 	for _, configMap := range configMaps {
 		//marshalling configMap data, i.e. key-value pairs
@@ -1243,9 +1259,21 @@ func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, 
 //create global secrets
 func (handler AppRestHandlerImpl) createGlobalSecrets(w http.ResponseWriter, appId int, userId int32, secrets []*appBean.Secret) bool {
 	handler.logger.Infow("Create App - creating global secrets", "appId", appId)
+
+	//getting app level by app id
+	appLevel, err := handler.configMapRepository.GetByAppIdAppLevel(appId)
+	if err != nil && err != pg.ErrNoRows {
+		handler.logger.Errorw("error in getting app level by app id in createGlobalSecrets", "appId", appId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+	}
+	var appLevelId int
+	if appLevel != nil {
+		appLevelId = appLevel.Id
+	}
 	secretRequest := &pipeline.ConfigDataRequest{
 		AppId:  appId,
 		UserId: userId,
+		Id:     appLevelId,
 	}
 
 	for _, secret := range secrets {
@@ -1520,11 +1548,23 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 //create CM overrides
 func (handler AppRestHandlerImpl) createEnvCM(w http.ResponseWriter, appId int, userId int32, envModel *cluster.Environment, CmOverrides []*appBean.ConfigMap) bool {
 	handler.logger.Infow("Create App - creating CM override", "appId", appId, "CmOverrides", CmOverrides)
+
+	//getting env level by app id
+	envLevel, err := handler.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envModel.Id)
+	if err != nil && err != pg.ErrNoRows {
+		handler.logger.Errorw("error in getting app level by app id in createEnvCM", "appId", appId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+	}
+	var envLevelId int
+	if envLevel != nil {
+		envLevelId = envLevel.Id
+	}
 	for _, cmOverride := range CmOverrides {
 		cmEnvRequest := &pipeline.ConfigDataRequest{
 			AppId:         appId,
 			UserId:        userId,
 			EnvironmentId: envModel.Id,
+			Id:            envLevelId,
 		}
 
 		cmOverrideData, err := json.Marshal(cmOverride.Data)
@@ -1561,11 +1601,23 @@ func (handler AppRestHandlerImpl) createEnvCM(w http.ResponseWriter, appId int, 
 //create secret overrides
 func (handler AppRestHandlerImpl) createEnvSecret(w http.ResponseWriter, appId int, userId int32, envModel *cluster.Environment, secretOverrides []*appBean.Secret) bool {
 	handler.logger.Infow("Create App - creating secret overrides", "appId", appId, "secretOverrides", secretOverrides)
+
+	//getting env level by app id
+	envLevel, err := handler.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envModel.Id)
+	if err != nil && err != pg.ErrNoRows {
+		handler.logger.Errorw("error in getting app level by app id in createEnvSecret", "appId", appId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+	}
+	var envLevelId int
+	if envLevel != nil {
+		envLevelId = envLevel.Id
+	}
 	for _, secretOverride := range secretOverrides {
 		secretEnvRequest := &pipeline.ConfigDataRequest{
 			AppId:         appId,
 			UserId:        userId,
 			EnvironmentId: envModel.Id,
+			Id:            envLevelId,
 		}
 		secretOverrideData, err := json.Marshal(secretOverride.Data)
 		if err != nil {
