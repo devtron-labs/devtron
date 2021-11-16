@@ -433,6 +433,8 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			ScanEnabled:              pipeline.ScanEnabled,
 		}
 		for _, material := range pipeline.CiPipelineMaterials {
+			impl.logger.Infow("ci pipeline material","material",material)
+			impl.logger.Infow("git material in ci pipeline material","gitMaterial",material.GitMaterial)
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
 				CheckoutPath:    material.CheckoutPath,

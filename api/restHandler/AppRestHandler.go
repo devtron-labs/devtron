@@ -1206,22 +1206,22 @@ func (handler AppRestHandlerImpl) createDeploymentTemplate(w http.ResponseWriter
 func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, appId int, userId int32, configMaps []*appBean.ConfigMap) bool {
 	handler.logger.Infow("Create App - creating global configMap", "appId", appId)
 
-	//getting app level by app id
-	appLevel, err := handler.configMapRepository.GetByAppIdAppLevel(appId)
-	if err != nil && err != pg.ErrNoRows {
-		handler.logger.Errorw("error in getting app level by app id in createGlobalConfigMaps", "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	}
-	var appLevelId int
-	if appLevel != nil {
-		appLevelId = appLevel.Id
-	}
-	configMapRequest := &pipeline.ConfigDataRequest{
-		AppId:  appId,
-		UserId: userId,
-		Id:     appLevelId,
-	}
 	for _, configMap := range configMaps {
+		//getting app level by app id
+		appLevel, err := handler.configMapRepository.GetByAppIdAppLevel(appId)
+		if err != nil && err != pg.ErrNoRows {
+			handler.logger.Errorw("error in getting app level by app id in createGlobalConfigMaps", "appId", appId)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		var appLevelId int
+		if appLevel != nil {
+			appLevelId = appLevel.Id
+		}
+		configMapRequest := &pipeline.ConfigDataRequest{
+			AppId:  appId,
+			UserId: userId,
+			Id:     appLevelId,
+		}
 		//marshalling configMap data, i.e. key-value pairs
 		configMapKeyValueData, err := json.Marshal(configMap.Data)
 		if err != nil {
@@ -1260,25 +1260,23 @@ func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, 
 func (handler AppRestHandlerImpl) createGlobalSecrets(w http.ResponseWriter, appId int, userId int32, secrets []*appBean.Secret) bool {
 	handler.logger.Infow("Create App - creating global secrets", "appId", appId)
 
-	//getting app level by app id
-	appLevel, err := handler.configMapRepository.GetByAppIdAppLevel(appId)
-	if err != nil && err != pg.ErrNoRows {
-		handler.logger.Errorw("error in getting app level by app id in createGlobalSecrets", "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	}
-	var appLevelId int
-	if appLevel != nil {
-		appLevelId = appLevel.Id
-	}
-	secretRequest := &pipeline.ConfigDataRequest{
-		AppId:  appId,
-		UserId: userId,
-		Id:     appLevelId,
-	}
-
 	for _, secret := range secrets {
+		//getting app level by app id
+		appLevel, err := handler.configMapRepository.GetByAppIdAppLevel(appId)
+		if err != nil && err != pg.ErrNoRows {
+			handler.logger.Errorw("error in getting app level by app id in createGlobalSecrets", "appId", appId)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		var appLevelId int
+		if appLevel != nil {
+			appLevelId = appLevel.Id
+		}
+		secretRequest := &pipeline.ConfigDataRequest{
+			AppId:  appId,
+			UserId: userId,
+			Id:     appLevelId,
+		}
 		var secretDataRequest []*pipeline.ConfigData
-
 		secretData := &pipeline.ConfigData{
 			Name:               secret.Name,
 			External:           secret.IsExternal,
@@ -1315,7 +1313,7 @@ func (handler AppRestHandlerImpl) createGlobalSecrets(w http.ResponseWriter, app
 		secretDataRequest = append(secretDataRequest, secretData)
 		secretRequest.ConfigData = secretDataRequest
 		//using same var for every request, since appId and userID are same
-		_, err := handler.configMapService.CSGlobalAddUpdate(secretRequest)
+		_, err = handler.configMapService.CSGlobalAddUpdate(secretRequest)
 		if err != nil {
 			handler.logger.Errorw("service err, CSGlobalAddUpdate in CreateGlobalSecret", "err", err, "appId", appId, "secretRequest", secretRequest)
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1559,17 +1557,17 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 func (handler AppRestHandlerImpl) createEnvCM(w http.ResponseWriter, appId int, userId int32, envModel *cluster.Environment, CmOverrides []*appBean.ConfigMap) bool {
 	handler.logger.Infow("Create App - creating CM override", "appId", appId, "CmOverrides", CmOverrides)
 
-	//getting env level by app id
-	envLevel, err := handler.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envModel.Id)
-	if err != nil && err != pg.ErrNoRows {
-		handler.logger.Errorw("error in getting app level by app id in createEnvCM", "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	}
-	var envLevelId int
-	if envLevel != nil {
-		envLevelId = envLevel.Id
-	}
 	for _, cmOverride := range CmOverrides {
+		//getting env level by app id
+		envLevel, err := handler.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envModel.Id)
+		if err != nil && err != pg.ErrNoRows {
+			handler.logger.Errorw("error in getting app level by app id in createEnvCM", "appId", appId)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		var envLevelId int
+		if envLevel != nil {
+			envLevelId = envLevel.Id
+		}
 		cmEnvRequest := &pipeline.ConfigDataRequest{
 			AppId:         appId,
 			UserId:        userId,
@@ -1612,17 +1610,17 @@ func (handler AppRestHandlerImpl) createEnvCM(w http.ResponseWriter, appId int, 
 func (handler AppRestHandlerImpl) createEnvSecret(w http.ResponseWriter, appId int, userId int32, envModel *cluster.Environment, secretOverrides []*appBean.Secret) bool {
 	handler.logger.Infow("Create App - creating secret overrides", "appId", appId, "secretOverrides", secretOverrides)
 
-	//getting env level by app id
-	envLevel, err := handler.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envModel.Id)
-	if err != nil && err != pg.ErrNoRows {
-		handler.logger.Errorw("error in getting app level by app id in createEnvSecret", "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	}
-	var envLevelId int
-	if envLevel != nil {
-		envLevelId = envLevel.Id
-	}
 	for _, secretOverride := range secretOverrides {
+		//getting env level by app id
+		envLevel, err := handler.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envModel.Id)
+		if err != nil && err != pg.ErrNoRows {
+			handler.logger.Errorw("error in getting app level by app id in createEnvSecret", "appId", appId)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		var envLevelId int
+		if envLevel != nil {
+			envLevelId = envLevel.Id
+		}
 		secretEnvRequest := &pipeline.ConfigDataRequest{
 			AppId:         appId,
 			UserId:        userId,
