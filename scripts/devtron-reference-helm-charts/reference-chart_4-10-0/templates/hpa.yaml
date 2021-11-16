@@ -33,6 +33,6 @@ spec:
     {{- end}}
   {{- if $.Values.autoscaling.behavior }}
   behavior:
-    {{- toYaml . | nindent 4 }}
+    {{- toYaml $.Values.autoscaling.behavior | nindent 4 }}
   {{- end }}
   {{- end }}
