@@ -76,10 +76,10 @@ ReadinessProbe:
 ingress:
   enabled: false
   ingressClassName: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
-    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
-    kubernetes.io/ingress.class: nginx
+  annotations: {}
+#    nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
+#    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
+#    kubernetes.io/ingress.class: nginx
 #    nginx.ingress.kubernetes.io/rewrite-target: /$2
 #    nginx.ingress.kubernetes.io/canary: "true"
 #    nginx.ingress.kubernetes.io/canary-weight: "10"
