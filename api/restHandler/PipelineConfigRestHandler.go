@@ -818,9 +818,9 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		return
 	}
 
-	mergeDefaultTemplateWithEnvOverrideValues, err := handler.propertiesConfigService.MergeValidation(defaultTemplate,envConfigProperties.EnvOverrideValues)
+	mergeDefaultTemplateWithEnvOverrideValues, err := handler.propertiesConfigService.MergeWithDefaultTemplate(defaultTemplate,envConfigProperties.EnvOverrideValues)
 	if err != nil {
-		handler.Logger.Errorw("mergeValidation err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
+		handler.Logger.Errorw("MergeWithDefaultTemplate err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -925,9 +925,9 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		return
 	}
 
-	mergeDefaultTemplateWithEnvOverrideValues, err := handler.propertiesConfigService.MergeValidation(defaultTemplate,envConfigProperties.EnvOverrideValues)
+	mergeDefaultTemplateWithEnvOverrideValues, err := handler.propertiesConfigService.MergeWithDefaultTemplate(defaultTemplate,envConfigProperties.EnvOverrideValues)
 	if err != nil {
-		handler.Logger.Errorw("mergeValidation err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
+		handler.Logger.Errorw("MergeWithDefaultTemplate err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
