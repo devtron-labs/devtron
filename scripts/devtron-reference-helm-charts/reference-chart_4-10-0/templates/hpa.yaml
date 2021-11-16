@@ -30,9 +30,9 @@ spec:
   {{- end }}
     {{- if $.Values.autoscaling.extraMetrics }}
   {{toYaml $.Values.autoscaling.extraMetrics | indent 4 }}
-  {{- end}}
-  {{- end }}
+    {{- end}}
   {{- if $.Values.autoscaling.behavior }}
   behavior:
     {{- toYaml . | nindent 4 }}
+  {{- end }}
   {{- end }}
