@@ -1367,9 +1367,18 @@ func (handler AppRestHandlerImpl) createWorkflows(w http.ResponseWriter, ctx con
 				writeJsonResp(w, err, nil, http.StatusInternalServerError)
 				return true
 			}
+			if ciMaterial.GitRepoUrl != gitMaterial.Url {
+				handler.logger.Errorw("error in finding git material for given ciMaterial config", "appId", appId, "ciMaterial", ciMaterial)
+				writeJsonResp(w, fmt.Errorf("no git material found"), nil, http.StatusInternalServerError)
+			}
 			ciMaterialRequest := &bean.CiMaterial{
 				Id:              gitMaterial.Id,
 				GitMaterialName: gitMaterial.Name,
+				Source: &bean.SourceTypeConfig{
+					Type:  ciMaterial.Type,
+					Value: ciMaterial.Value,
+				},
+				CheckoutPath: gitMaterial.CheckoutPath,
 			}
 			ciMaterialsRequest = append(ciMaterialsRequest, ciMaterialRequest)
 		}
