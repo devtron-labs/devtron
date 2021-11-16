@@ -810,6 +810,26 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
+	ChartRefId := envConfigProperties.ChartRefId
+	defaultTemplate,err:= handler.chartService.GetAppOverrideForDefaultTemplate(ChartRefId)
+	if err != nil {
+		handler.Logger.Errorw("defaultTemplate err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	mergeValidation, err := handler.propertiesConfigService.MergeValidation(defaultTemplate,envConfigProperties.EnvOverrideValues)
+	if err != nil {
+		handler.Logger.Errorw("mergeValidation err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	validate, error := handler.chartService.DeploymentTemplateValidate(mergeValidation, ChartRefId)
+	if !validate {
+		handler.Logger.Errorw("validate err, EnvConfigOverrideUpdate", "err", error, "payload", envConfigProperties)
+		writeJsonResp(w, error, nil, http.StatusBadRequest)
+		return
+	}
 	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, &envConfigProperties)
 	if err != nil {
 		if err.Error() == bean2.NOCHARTEXIST {
@@ -849,6 +869,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 			return
 		}
 	}
+
 	writeJsonResp(w, err, createResp, http.StatusOK)
 }
 
@@ -862,13 +883,6 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 	}
 	var envConfigProperties pipeline.EnvironmentProperties
 	err = decoder.Decode(&envConfigProperties)
-	chartRefId := envConfigProperties.ChartRefId
-	//validate, error := handler.chartService.DeploymentTemplateValidate(envConfigProperties.EnvOverrideValues, chartRefId)
-	//if !validate {
-	//	handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", envConfigProperties)
-	//	writeJsonResp(w, error, nil, http.StatusBadRequest)
-	//	return
-	//}
 	envConfigProperties.UserId = userId
 	if err != nil {
 		handler.Logger.Errorw("request err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
@@ -902,23 +916,25 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	ctx := context.WithValue(r.Context(), "token", token)
-	templateRequest := pipeline.TemplateRequest{
-		AppId:          appId,
-		ChartRefId:     envConfigProperties.ChartRefId,
-		ValuesOverride: []byte("{}"),
-		UserId:         userId,
-	}
-	mergedtemplate, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+
+	ChartRefId := envConfigProperties.ChartRefId
+	defaultTemplate,err:= handler.chartService.GetAppOverrideForDefaultTemplate(ChartRefId)
 	if err != nil {
-		handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
+		handler.Logger.Errorw("defaultTemplate err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	validate, err := handler.chartService.DeploymentTemplateValidate(mergedtemplate, chartRefId)
-	if !validate {
-		handler.Logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
+
+	mergeValidation, err := handler.propertiesConfigService.MergeValidation(defaultTemplate,envConfigProperties.EnvOverrideValues)
+	if err != nil {
+		handler.Logger.Errorw("mergeValidation err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	validate, error := handler.chartService.DeploymentTemplateValidate(mergeValidation, ChartRefId)
+	if !validate {
+		handler.Logger.Errorw("validate err, EnvConfigOverrideUpdate", "err", error, "payload", envConfigProperties)
+		writeJsonResp(w, error, nil, http.StatusBadRequest)
 		return
 	}
 	createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(appId, &envConfigProperties, userId)

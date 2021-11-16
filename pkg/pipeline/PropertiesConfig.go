@@ -72,7 +72,7 @@ type PropertiesConfigService interface {
 	GetLatestEnvironmentProperties(appId, environmentId int) (*EnvironmentProperties, error)
 	ResetEnvironmentProperties(id int) (bool, error)
 	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *EnvironmentProperties) (*EnvironmentProperties, error)
-
+	MergeValidation(defaultTemplate map[string]json.RawMessage,EnvOverrideValues json.RawMessage)( json.RawMessage,error)
 	EnvMetricsEnableDisable(appMetricRequest *AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
 }
 type PropertiesConfigServiceImpl struct {
@@ -651,5 +651,23 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 	return appMetricRequest, err
 }
 
-func (impl PropertiesConfigServiceImpl) hello(){
+func (impl PropertiesConfigServiceImpl) MergeValidation(defaultTemplate map[string]json.RawMessage,EnvOverrideValues json.RawMessage)( json.RawMessage,error){
+	marshalDefaultTemplate, err := json.Marshal(defaultTemplate["defaultAppOverride"])
+	if err != nil {
+		impl.logger.Errorw("DefaultTemplate Marshal err, MergeValidation", "err", err)
+		return nil, err
+	}
+	marshalEnvOverrideValues, err := json.Marshal(EnvOverrideValues)
+	if err != nil {
+		impl.logger.Errorw("EnvOverrideValues Marshal err, MergeValidation", "err", err)
+		return nil, err
+	}
+	merged, _ := impl.mergeUtil.JsonPatch(marshalDefaultTemplate,marshalEnvOverrideValues)
+	if err != nil {
+		impl.logger.Errorw("json merge err, MergeValidation", "err", err)
+		return nil, err
+	}
+	templateRequestValuesOverride := json.RawMessage(merged)
+
+	return templateRequestValuesOverride, nil
 }

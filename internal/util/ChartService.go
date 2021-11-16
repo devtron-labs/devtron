@@ -43,6 +43,7 @@ type ChartTemplateService interface {
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
+	GetChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource      rand.Source
@@ -439,4 +440,46 @@ func (impl ChartTemplateServiceImpl) GitPull(clonedDir string, repoUrl string, a
 		return nil
 	}
 	return nil
+}
+
+func (impl ChartTemplateServiceImpl) GetChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error) {
+	chartMetaData.ApiVersion = "v1" // ensure always v1
+	dir := impl.getDir()
+	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
+	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
+	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
+	if err != nil {
+		impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
+		return nil, nil, err
+	}
+	defer impl.CleanDir(chartDir)
+	err = dirCopy.Copy(refChartLocation, chartDir)
+
+	if err != nil {
+		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
+		return nil, nil, err
+	}
+	archivePath, valuesYaml, err := impl.packageChart(chartDir, chartMetaData)
+	if err != nil {
+		impl.logger.Errorw("error in creating archive", "err", err)
+		return nil, nil, err
+	}
+	values, err := impl.getValues(chartDir)
+	if err != nil {
+		impl.logger.Errorw("error in pushing chart", "path", archivePath, "err", err)
+		return nil, nil, err
+	}
+	values.Values = valuesYaml
+	chartGitAttr, err := impl.createAndPushToGit(chartMetaData.Name, templateName, chartMetaData.Version, chartDir)
+	if err != nil {
+		impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
+		return nil, nil, err
+	}
+	descriptor, err := ioutil.ReadFile(filepath.Clean(filepath.Join(chartDir, ".image_descriptor_template.json")))
+	if err != nil {
+		impl.logger.Errorw("error in reading descriptor", "path", chartDir, "err", err)
+		return nil, nil, err
+	}
+	values.ImageDescriptorTemplate = string(descriptor)
+	return values, chartGitAttr, nil
 }
