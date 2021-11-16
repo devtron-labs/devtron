@@ -47,7 +47,10 @@ import (
 	"time"
 )
 
-const APP_DELETE_FAILED_RESP = "Devtron was unable to delete the app by itself, please try deleting the app manually."
+const (
+	APP_DELETE_FAILED_RESP     = "Devtron was unable to delete the app by itself, please try deleting the app manually."
+	APP_CREATE_SUCCESSFUL_RESP = "App created successfully."
+)
 
 type AppRestHandler interface {
 	GetAppAllDetail(w http.ResponseWriter, r *http.Request)
@@ -299,6 +302,8 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	//creating environment override ends
+
+	writeJsonResp(w, nil, APP_CREATE_SUCCESSFUL_RESP, http.StatusOK)
 }
 
 //GetApp related methods starts
@@ -975,7 +980,7 @@ func (handler AppRestHandlerImpl) createBlankApp(w http.ResponseWriter, appMetad
 	createAppRequestDTO := &bean.CreateAppDTO{
 		AppName: appMetadata.AppName,
 		TeamId:  team.Id,
-		UserId: userId,
+		UserId:  userId,
 	}
 	for _, requestLabel := range appMetadata.Labels {
 		appLabel := &bean.Label{
