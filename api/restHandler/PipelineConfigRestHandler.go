@@ -818,13 +818,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		return
 	}
 
-	mergeValidation, err := handler.propertiesConfigService.MergeValidation(defaultTemplate,envConfigProperties.EnvOverrideValues)
+	mergeDefaultTemplateWithEnvOverrideValues, err := handler.propertiesConfigService.MergeValidation(defaultTemplate,envConfigProperties.EnvOverrideValues)
 	if err != nil {
 		handler.Logger.Errorw("mergeValidation err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	validate, error := handler.chartService.DeploymentTemplateValidate(mergeValidation, ChartRefId)
+	validate, error := handler.chartService.DeploymentTemplateValidate(mergeDefaultTemplateWithEnvOverrideValues, ChartRefId)
 	if !validate {
 		handler.Logger.Errorw("validate err, EnvConfigOverrideUpdate", "err", error, "payload", envConfigProperties)
 		writeJsonResp(w, error, nil, http.StatusBadRequest)
@@ -925,13 +925,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		return
 	}
 
-	mergeValidation, err := handler.propertiesConfigService.MergeValidation(defaultTemplate,envConfigProperties.EnvOverrideValues)
+	mergeDefaultTemplateWithEnvOverrideValues, err := handler.propertiesConfigService.MergeValidation(defaultTemplate,envConfigProperties.EnvOverrideValues)
 	if err != nil {
 		handler.Logger.Errorw("mergeValidation err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	validate, error := handler.chartService.DeploymentTemplateValidate(mergeValidation, ChartRefId)
+	validate, error := handler.chartService.DeploymentTemplateValidate(mergeDefaultTemplateWithEnvOverrideValues, ChartRefId)
 	if !validate {
 		handler.Logger.Errorw("validate err, EnvConfigOverrideUpdate", "err", error, "payload", envConfigProperties)
 		writeJsonResp(w, error, nil, http.StatusBadRequest)
