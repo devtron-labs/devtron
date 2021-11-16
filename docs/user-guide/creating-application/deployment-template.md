@@ -183,6 +183,24 @@ ingress:
   # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
   ingressClassName: nginx
   annotations: {}
+  hosts:
+      - host: example1.com
+        paths:
+            - /example
+      - host: example2.com
+        paths:
+            - /example2
+            - /example2/healthz
+  tls: []
+```
+Legacy deployment-template ingress format
+
+```yaml
+ingress:
+  enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx-internal
+  annotations: {}
   path: ""
   host: ""
   tls: []
@@ -206,8 +224,14 @@ ingressInternal:
   # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
   ingressClassName: nginx-internal
   annotations: {}
-  path: ""
-  host: ""
+  hosts:
+      - host: example1.com
+        paths:
+            - /example
+      - host: example2.com
+        paths:
+            - /example2
+            - /example2/healthz
   tls: []
 ```
 
