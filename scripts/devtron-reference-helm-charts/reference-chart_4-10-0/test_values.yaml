@@ -159,8 +159,8 @@ prometheusRule:
 
 
 ingress:
-  enabled: false
-  ingressClassName: nginx
+  enabled: true
+  className: nginx
   annotations: {}
 #    nginx.ingress.kubernetes.io/rewrite-target: /
 #    nginx.ingress.kubernetes.io/ssl-redirect: "false"
@@ -168,12 +168,13 @@ ingress:
 #    kubernetes.io/tls-acme: "true"
 #    nginx.ingress.kubernetes.io/canary: "true"
 #    nginx.ingress.kubernetes.io/canary-weight: "10"
-
   hosts:
     - host: chart-example1.local
+      pathType: "Prefix"
       paths:
         - /example1
     - host: chart-example2.local
+      pathType: "Prefix"
       paths:
         - /example2
         - /example2/healthz
@@ -184,7 +185,7 @@ ingress:
 
 ingressInternal:
   enabled: false
-  ingressClassName: nginx-internal
+  className: nginx-internal
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
  #    kubernetes.io/tls-acme: "true"
@@ -193,13 +194,14 @@ ingressInternal:
 
   hosts:
     - host: chart-example1.internal
+      pathType: "Prefix"
       paths:
         - /example1
     - host: chart-example2.internal
+      pathType: "Prefix"
       paths:
         - /example2
         - /example2/healthz
-  tls: []
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
