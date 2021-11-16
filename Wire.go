@@ -671,6 +671,11 @@ func InitializeApp() (*App, error) {
 		restHandler.NewBulkUpdateRestHandlerImpl,
 		wire.Bind(new(restHandler.BulkUpdateRestHandler), new(*restHandler.BulkUpdateRestHandlerImpl)),
 
+		router.NewAppRouterImpl,
+		wire.Bind(new(router.AppRouter),new(*router.AppRouterImpl)),
+		restHandler.NewAppRestHandlerImpl,
+		wire.Bind(new(restHandler.AppRestHandler), new(*restHandler.AppRestHandlerImpl)),
+
 		// Webhook
 		repository.NewGitHostRepositoryImpl,
 		wire.Bind(new(repository.GitHostRepository), new(*repository.GitHostRepositoryImpl)),
