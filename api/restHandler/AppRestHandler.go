@@ -1371,7 +1371,7 @@ func (handler AppRestHandlerImpl) createWorkflows(w http.ResponseWriter, ctx con
 				return true
 			}
 			ciMaterialRequest := &bean.CiMaterial{
-				Id:              gitMaterial.Id,
+				GitMaterialId:   gitMaterial.Id,
 				GitMaterialName: gitMaterial.Name,
 				Source: &bean.SourceTypeConfig{
 					Type:  ciMaterial.Type,
