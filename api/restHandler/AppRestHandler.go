@@ -40,13 +40,13 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
+	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-	errors2 "github.com/juju/errors"
 )
 
 const (
@@ -109,6 +109,7 @@ func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserS
 		appWorkflowRepository:   appWorkflowRepository,
 		environmentRepository:   environmentRepository,
 		configMapRepository:     configMapRepository,
+		envConfigRepo:           envConfigRepo,
 	}
 	return handler
 }
@@ -1204,12 +1205,12 @@ func (handler AppRestHandlerImpl) createDeploymentTemplate(w http.ResponseWriter
 		return true
 	}
 
-	 appMetricsRequest :=  pipeline.AppMetricEnableDisableRequest{
-	 	AppId: appId,
-	 	UserId: userId,
-	 	IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
-	 }
-	 //updating app metrics
+	appMetricsRequest := pipeline.AppMetricEnableDisableRequest{
+		AppId:               appId,
+		UserId:              userId,
+		IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
+	}
+	//updating app metrics
 	_, err = handler.chartService.AppMetricsEnableDisable(appMetricsRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, AppMetricsEnableDisable in createDeploymentTemplate", "err", err, "appId", appId, "payload", appMetricsRequest)
@@ -1568,18 +1569,20 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 		}
 	}
 
-	appMetricsRequest :=  &pipeline.AppMetricEnableDisableRequest{
-		AppId: appId,
-		UserId: userId,
-		EnvironmentId: envModel.Id,
+	appMetricsRequest := &pipeline.AppMetricEnableDisableRequest{
+		AppId:               appId,
+		UserId:              userId,
+		EnvironmentId:       envModel.Id,
 		IsAppMetricsEnabled: templateOverride.ShowAppMetrics,
 	}
 	//checking for env override
 	_, err = handler.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envModel.Id)
 	if err != nil && !errors2.IsNotFound(err) {
-		handler.logger.Errorw("not able to found chart for app by env", "appId",appId,"envId",envModel.Id)
+		handler.logger.Errorw("not able to found chart for app by env", "appId", appId, "envId", envModel.Id)
 		return true
-	} else{
+	} else if errors2.IsNotFound(err) {
+		handler.logger.Errorw("no env chart configured for this app", "appId", appId)
+	} else {
 		//updating app metrics
 		_, err = handler.propertiesConfigService.EnvMetricsEnableDisable(appMetricsRequest)
 		if err != nil {
