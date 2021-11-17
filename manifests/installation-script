@@ -10,6 +10,7 @@ grafanaPassword = jsonSelect(operatorSecret, "data.GRAFANA_PASSWORD");
 azureAccountKey = jsonSelect(operatorSecret, "data.AZURE_ACCOUNT_KEY");
 postgresSecret = kubectl get secret -n devtroncd postgresql-postgresql;
 kubernetesVersion = jsonSelect(operatorConfigMap, "data.KUBERNETES_VERSION");
+enableLegacyApi = jsonSelect(operatorConfigMap, "data.ENABLE_LEGACY_API");
 
 baseURLScheme = jsonSelect(operatorConfigMap, "data.BASE_URL_SCHEME");
 baseURL = jsonSelect(operatorConfigMap, "data.BASE_URL");
@@ -89,6 +90,9 @@ notifier_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/notifier.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
 if kubernetesVersion < 1.19 {
+devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress-legacy.yaml";
+}
+if enableLegacyApi=="true" {
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress-legacy.yaml";
 }
 workflow_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/workflow.yaml";
