@@ -1026,7 +1026,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		appConfigResponse["globalConfig"] = mapB
 	} else {
 		if template.ChartRefId != RequestChartRefId {
-			template, err = handler.chartService.DefaultTemplateWithSavedTemplateData(RequestChartRefId,template)
+			template, err = handler.chartService.MergeDefaultTemplateWithSavedTemplateData(RequestChartRefId,template)
 			if err != nil && err != pg.ErrNoRows{
 				handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", RequestChartRefId)
 				writeJsonResp(w, err, nil, http.StatusInternalServerError)
