@@ -1,6 +1,10 @@
 {{- if $.Values.autoscaling.enabled }}
 ---
+{{- if semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion -}}
 apiVersion: autoscaling/v2beta2
+{{- else -}}
+apiVersion: autoscaling/v2beta1
+{{- end }}
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ template ".Chart.Name .fullname" $ }}-hpa
@@ -31,7 +35,7 @@ spec:
     {{- if $.Values.autoscaling.extraMetrics }}
   {{toYaml $.Values.autoscaling.extraMetrics | indent 4 }}
     {{- end}}
-  {{- if $.Values.autoscaling.behavior }}
+  {{- if and $.Values.autoscaling.behavior (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
   behavior:
     {{- toYaml $.Values.autoscaling.behavior | nindent 4 }}
   {{- end }}
