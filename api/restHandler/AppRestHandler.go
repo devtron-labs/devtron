@@ -1560,53 +1560,6 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 			}
 		}
 	}
-	//_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigPropertiesRequest, userId)
-	//if err != nil {
-	//	handler.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigPropertiesRequest)
-	//	writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//	return true
-	//}
-
-	//_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
-	//if err != nil {
-	//	if err.Error() == bean2.NOCHARTEXIST {
-	//		//TODO update context - token
-	//		//ctx, cancel := context.WithCancel(r.Context())
-	//		//if cn, ok := w.(http.CloseNotifier); ok {
-	//		//	go func(done <-chan struct{}, closed <-chan bool) {
-	//		//		select {
-	//		//		case <-done:
-	//		//		case <-closed:
-	//		//			cancel()
-	//		//		}
-	//		//	}(ctx.Done(), cn.CloseNotify())
-	//		//}
-	//		//ctx = context.WithValue(r.Context(), "token", token)
-	//		templateRequest := pipeline.TemplateRequest{
-	//			AppId:          appId,
-	//			ChartRefId:     templateOverride.ChartRefId,
-	//			ValuesOverride: []byte("{}"),
-	//			UserId:         userId,
-	//		}
-	//
-	//		_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
-	//		if err != nil {
-	//			handler.logger.Errorw("service err, CreateChartFromEnvOverride in CreateEnvDeploymentTemplate", "err", err, "payload", envConfigProperties)
-	//			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//			return true
-	//		}
-	//		_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
-	//		if err != nil {
-	//			handler.logger.Errorw("service err, CreateChartFromEnvOverride in CreateEnvDeploymentTemplate", "err", err, "payload", envConfigProperties)
-	//			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//			return true
-	//		}
-	//	} else {
-	//		handler.logger.Errorw("service err, CreateEnvDeploymentTemplate", "err", err, "payload", envConfigProperties)
-	//		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//		return true
-	//	}
-	//}
 	//updating app metrics
 	appMetricsRequest := &pipeline.AppMetricEnableDisableRequest{
 		AppId:               appId,
