@@ -32,10 +32,7 @@
               "useHTTP2": {
                 "type": "boolean"
               }
-            },
-            "required": [
-                "port"
-            ]
+            }
           }
       },
       "EnvVariables": {
@@ -260,11 +257,7 @@
                     "type": "string",
                     "format": "memory"
                   }
-                },
-                "required": [
-                    "cpu",
-                    "memory"
-                ]
+                }
               },
               "requests": {
                 "type": "object",
@@ -279,10 +272,7 @@
                   }
                 }
               }
-            },
-            "required": [
-                "limits"
-            ]
+            }
           }
         }
       },
@@ -388,11 +378,7 @@
                 "type": "string",
                 "format": "memory"
               }
-            },
-            "required": [
-                "cpu",
-                "memory"
-            ]
+            }
           },
           "requests": {
             "type": "object",
@@ -407,10 +393,7 @@
               }
             }
           }
-        },
-        "required": [
-            "limits"
-        ]
+        }
       },
       "secret": {
         "type": "object",
@@ -473,12 +456,5 @@
       "waitForSecondsBeforeScalingDown": {
         "type": "integer"
       }
-    },
-    "required": [
-        "replicaCount",
-        "ContainerPort",
-        "ingress",
-        "ingressInternal",
-        "autoscaling"
-    ]
+    }
   }

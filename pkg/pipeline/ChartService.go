@@ -306,12 +306,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		return nil, err
 	}
-	templateRequestValuesOverride := json.RawMessage(merged)
-	chartRefId := templateRequest.ChartRefId
-	validate, error := impl.DeploymentTemplateValidate(templateRequestValuesOverride, chartRefId)
-	if !validate {
-		return nil, error
-	}
+
 	dst := new(bytes.Buffer)
 	err = json.Compact(dst, override)
 	if err != nil {
@@ -717,12 +712,6 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 	values, err := impl.mergeUtil.JsonPatch([]byte(template.Values), templateRequest.ValuesOverride)
 	if err != nil {
 		return nil, err
-	}
-	templateRequestValuesOverride := json.RawMessage(values)
-	chartRefId := templateRequest.ChartRefId
-	validate, error := impl.DeploymentTemplateValidate(templateRequestValuesOverride, chartRefId)
-	if !validate {
-		return nil, error
 	}
 	template.Values = string(values)
 	template.UpdatedOn = time.Now()

@@ -605,7 +605,13 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	chartRefId := templateRequest.ChartRefId
+	validate, error := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
+	if !validate {
+		writeJsonResp(w, error, nil, http.StatusBadRequest)
 
+		return
+	}
 	handler.Logger.Infow("request payload, ConfigureDeploymentTemplateForApp", "payload", templateRequest)
 	err = handler.validator.Struct(templateRequest)
 	if err != nil {
@@ -810,23 +816,10 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	ChartRefId := envConfigProperties.ChartRefId
-	defaultTemplate,err:= handler.chartService.GetAppOverrideForDefaultTemplate(ChartRefId)
-	if err != nil {
-		handler.Logger.Errorw("defaultTemplate err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	mergeDefaultTemplateWithEnvOverrideValues, err := handler.propertiesConfigService.MergeWithDefaultTemplate(defaultTemplate,envConfigProperties.EnvOverrideValues)
-	if err != nil {
-		handler.Logger.Errorw("MergeWithDefaultTemplate err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	validate, error := handler.chartService.DeploymentTemplateValidate(mergeDefaultTemplateWithEnvOverrideValues, ChartRefId)
+	chartRefId := envConfigProperties.ChartRefId
+	validate, error := handler.chartService.DeploymentTemplateValidate(envConfigProperties.EnvOverrideValues, chartRefId)
 	if !validate {
-		handler.Logger.Errorw("validate err, EnvConfigOverrideUpdate", "err", error, "payload", envConfigProperties)
+		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", envConfigProperties)
 		writeJsonResp(w, error, nil, http.StatusBadRequest)
 		return
 	}
@@ -869,7 +862,6 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 			return
 		}
 	}
-
 	writeJsonResp(w, err, createResp, http.StatusOK)
 }
 
@@ -905,7 +897,6 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 	}
 	appId := envConfigOverride.Chart.AppId
 	envId := envConfigOverride.TargetEnvironment
-
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, resourceName); !ok {
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -916,24 +907,10 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-
-	ChartRefId := envConfigProperties.ChartRefId
-	defaultTemplate,err:= handler.chartService.GetAppOverrideForDefaultTemplate(ChartRefId)
-	if err != nil {
-		handler.Logger.Errorw("defaultTemplate err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	mergeDefaultTemplateWithEnvOverrideValues, err := handler.propertiesConfigService.MergeWithDefaultTemplate(defaultTemplate,envConfigProperties.EnvOverrideValues)
-	if err != nil {
-		handler.Logger.Errorw("MergeWithDefaultTemplate err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	validate, error := handler.chartService.DeploymentTemplateValidate(mergeDefaultTemplateWithEnvOverrideValues, ChartRefId)
+	chartRefId := envConfigProperties.ChartRefId
+	validate, error := handler.chartService.DeploymentTemplateValidate(envConfigProperties.EnvOverrideValues, chartRefId)
 	if !validate {
-		handler.Logger.Errorw("validate err, EnvConfigOverrideUpdate", "err", error, "payload", envConfigProperties)
+		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", envConfigProperties)
 		writeJsonResp(w, error, nil, http.StatusBadRequest)
 		return
 	}
@@ -1342,7 +1319,13 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-
+	chartRefId := templateRequest.ChartRefId
+	validate, error := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
+	if !validate {
+		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", templateRequest)
+		writeJsonResp(w, error, nil, http.StatusBadRequest)
+		return
+	}
 	createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)
