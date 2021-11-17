@@ -179,6 +179,10 @@ ingress:
         - /example2
         - /example2/healthz
   tls: []
+### Legacy Ingress Format ##
+  host: abc.com
+  path: "/"
+  pathType: "ImplementationSpecific"
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local

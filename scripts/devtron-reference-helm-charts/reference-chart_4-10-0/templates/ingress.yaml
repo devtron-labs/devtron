@@ -64,7 +64,7 @@ spec:
         {{- range .paths }}
           - path: {{ . }}
             {{- if (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
-            pathType: "Prefix"
+            pathType: "ImplementationSpecific"
             {{- end }}
             backend:
               {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
@@ -137,7 +137,7 @@ spec:
         {{- range .paths }}
           - path: {{ . }}
             {{- if (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
-            pathType: "Prefix"
+            pathType: "ImplementationSpecific"
             {{- end }}
             backend:
               {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
