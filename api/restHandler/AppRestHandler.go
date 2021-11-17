@@ -1193,9 +1193,23 @@ func (handler AppRestHandlerImpl) createDeploymentTemplate(w http.ResponseWriter
 	templateRequest := json.RawMessage(template)
 	createDeploymentTemplateRequest.ValuesOverride = templateRequest
 	//TODO update context - token
+	//creating deployment template
 	_, err = handler.chartService.Create(createDeploymentTemplateRequest, ctx)
 	if err != nil {
 		handler.logger.Errorw("service err, Create in CreateDeploymentTemplate", "err", err, "createRequest", createDeploymentTemplateRequest)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return true
+	}
+
+	 appMetricsRequest :=  pipeline.AppMetricEnableDisableRequest{
+	 	AppId: appId,
+	 	UserId: userId,
+	 	IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
+	 }
+	 //updating app metrics
+	_, err = handler.chartService.AppMetricsEnableDisable(appMetricsRequest)
+	if err != nil {
+		handler.logger.Errorw("service err, AppMetricsEnableDisable in createDeploymentTemplate", "err", err, "appId", appId, "payload", appMetricsRequest)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
@@ -1549,6 +1563,20 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
+	}
+
+	appMetricsRequest :=  &pipeline.AppMetricEnableDisableRequest{
+		AppId: appId,
+		UserId: userId,
+		EnvironmentId: envModel.Id,
+		IsAppMetricsEnabled: templateOverride.ShowAppMetrics,
+	}
+	//updating app metrics
+	_, err = handler.propertiesConfigService.EnvMetricsEnableDisable(appMetricsRequest)
+	if err != nil {
+		handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "environmentId", envModel.Id, "payload", appMetricsRequest)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return true
 	}
 	return false
 }
