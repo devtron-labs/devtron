@@ -20,6 +20,9 @@ metadata:
   namespace: devtroncd
 data:
   BLOB_STORAGE_PROVIDER: "MINIO" # AZURE| GCP| S3 | MINIO
+  KUBERNETES_VERSION: "v1.21.0"
+  KUBERNETES_MAJOR_VERSION: "1"
+  KUBERNETES_MINOR_VERSION: "21"
 
 # Amazon AWS S3 bucket and region for storing Build-cache for faster build process. Mandatory if BLOB_STORAGE_PROVIDER is AWS.
   #DEFAULT_CACHE_BUCKET: "change-me"   #Do not include s3://

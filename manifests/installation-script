@@ -9,6 +9,7 @@ webHookToken = jsonSelect(operatorSecret, "data.WEBHOOK_TOKEN");
 grafanaPassword = jsonSelect(operatorSecret, "data.GRAFANA_PASSWORD");
 azureAccountKey = jsonSelect(operatorSecret, "data.AZURE_ACCOUNT_KEY");
 postgresSecret = kubectl get secret -n devtroncd postgresql-postgresql;
+kubernetesVersion = jsonSelect(operatorConfigMap, "data.KUBERNETES_VERSION");
 
 baseURLScheme = jsonSelect(operatorConfigMap, "data.BASE_URL_SCHEME");
 baseURL = jsonSelect(operatorConfigMap, "data.BASE_URL");
