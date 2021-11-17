@@ -46,6 +46,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	errors2 "github.com/juju/errors"
 )
 
 const (
@@ -78,6 +79,7 @@ type AppRestHandlerImpl struct {
 	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
 	environmentRepository   cluster.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
+	envConfigRepo           chartConfig.EnvConfigOverrideRepository
 }
 
 func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
@@ -85,7 +87,8 @@ func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserS
 	chartService pipeline.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, teamRepository teamRepo.TeamRepository, gitProviderRepo repository.GitProviderRepository,
-	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository cluster.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository) *AppRestHandlerImpl {
+	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository cluster.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
+	envConfigRepo chartConfig.EnvConfigOverrideRepository) *AppRestHandlerImpl {
 	handler := &AppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -1571,13 +1574,21 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 		EnvironmentId: envModel.Id,
 		IsAppMetricsEnabled: templateOverride.ShowAppMetrics,
 	}
-	//updating app metrics
-	_, err = handler.propertiesConfigService.EnvMetricsEnableDisable(appMetricsRequest)
-	if err != nil {
-		handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "environmentId", envModel.Id, "payload", appMetricsRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+	//checking for env override
+	_, err = handler.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envModel.Id)
+	if err != nil && !errors2.IsNotFound(err) {
+		handler.logger.Errorw("not able to found chart for app by env", "appId",appId,"envId",envModel.Id)
 		return true
+	} else{
+		//updating app metrics
+		_, err = handler.propertiesConfigService.EnvMetricsEnableDisable(appMetricsRequest)
+		if err != nil {
+			handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "environmentId", envModel.Id, "payload", appMetricsRequest)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return true
+		}
 	}
+
 	return false
 }
 
