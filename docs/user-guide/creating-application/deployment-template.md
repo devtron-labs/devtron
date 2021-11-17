@@ -310,17 +310,17 @@ Value part of the label for node selection, this should be same as that on node.
 
 ```yaml
 tolerations:
-  key: "key"
-  operator: "Equal"
-  value: "value"
-  effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
+ - key: "key"
+   operator: "Equal"
+   value: "value"
+   effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 ```
 
 Taints are the opposite, they allow a node to repel a set of pods.
 
 A given pod can access the given node and avoid the given taint only if the given pod satisfies a given taint.
 
-Taints and tolerations work together to ensure that pods are not scheduled onto the inappropriate nodes. One or more taints can be applied to a node, this marks that the node should not accept any pods that don't tolerate the taints.
+Taints and tolerations are a mechanism which work together that allows you to ensure that pods are not placed on inappropriate nodes. Taints are added to nodes, while tolerations are defined in the pod specification. When you taint a node, it will repel all the pods except those that have a toleration for that taint. A node can have one or many taints associated with it.
 
 ### Arguments
 
