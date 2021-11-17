@@ -1160,7 +1160,7 @@ func (handler AppRestHandlerImpl) createDockerConfig(w http.ResponseWriter, appI
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
-	var dockerBuildArgs map[string]string
+	dockerBuildArgs := make(map[string]string)
 	if dockerConfig.BuildConfig.Args != nil{
 		dockerBuildArgs = dockerConfig.BuildConfig.Args
 	}
