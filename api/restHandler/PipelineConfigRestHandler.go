@@ -816,6 +816,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
+	chartRefId := envConfigProperties.ChartRefId
+	validate, error := handler.chartService.DeploymentTemplateValidate(envConfigProperties.EnvOverrideValues, chartRefId)
+	if !validate {
+		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", envConfigProperties)
+		writeJsonResp(w, error, nil, http.StatusBadRequest)
+		return
+	}
 	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, &envConfigProperties)
 	if err != nil {
 		if err.Error() == bean2.NOCHARTEXIST {
@@ -868,13 +875,6 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 	}
 	var envConfigProperties pipeline.EnvironmentProperties
 	err = decoder.Decode(&envConfigProperties)
-	chartRefId := envConfigProperties.ChartRefId
-	validate, error := handler.chartService.DeploymentTemplateValidate(envConfigProperties.EnvOverrideValues, chartRefId)
-	if !validate {
-		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", envConfigProperties)
-		writeJsonResp(w, error, nil, http.StatusBadRequest)
-		return
-	}
 	envConfigProperties.UserId = userId
 	if err != nil {
 		handler.Logger.Errorw("request err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
@@ -905,6 +905,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 	object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
 		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	chartRefId := envConfigProperties.ChartRefId
+	validate, error := handler.chartService.DeploymentTemplateValidate(envConfigProperties.EnvOverrideValues, chartRefId)
+	if !validate {
+		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", error, "payload", envConfigProperties)
+		writeJsonResp(w, error, nil, http.StatusBadRequest)
 		return
 	}
 	createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(appId, &envConfigProperties, userId)

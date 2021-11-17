@@ -5,38 +5,35 @@
     "ContainerPort": {
       "type": "array",
       "items": {
-          "type": "object",
-          "properties": {
-            "envoyPort": {
-              "type": "integer",
-              "enum": [
-                  8799,
-                  8800
-              ]
-            },
-            "idleTimeout": {
-              "type": "string"
-            },
-            "name": {
-              "type": "string"
-            },
-            "port": {
-              "type": "integer"
-            },
-            "servicePort": {
-              "type": "integer"
-            },
-            "supportStreaming": {
-              "type": "boolean"
-            },
-            "useHTTP2": {
-              "type": "boolean"
-            }
+        "type": "object",
+        "properties": {
+          "envoyPort": {
+            "type": "integer",
+            "enum": [
+              8799,
+              8800
+            ]
           },
-          "required": [
-              "port"
-          ]
+          "idleTimeout": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "servicePort": {
+            "type": "integer"
+          },
+          "supportStreaming": {
+            "type": "boolean"
+          },
+          "useHTTP2": {
+            "type": "boolean"
+          }
         }
+      }
     },
     "EnvVariables": {
       "type": "array",
@@ -260,11 +257,7 @@
                   "type": "string",
                   "format": "memory"
                 }
-              },
-              "required": [
-                  "cpu",
-                  "memory"
-              ]
+              }
             },
             "requests": {
               "type": "object",
@@ -279,10 +272,7 @@
                 }
               }
             }
-          },
-          "required": [
-              "limits"
-          ]
+          }
         }
       }
     },
@@ -305,15 +295,6 @@
           "type": "object",
           "patternproperties": {
             "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/><,.": {
-                "type": "string"
-            },
-            "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/.,><": {
-                "type": "string"
-            },
-            "[a-zA-Z_]+[0-9.]+!@#&%*+-=:;?/><,.": {
-                "type": "string"
-            },
-            "[a-zA-Z_]+[0-9.]+!@#&%+*-=:;?/><,.": {
               "type": "string"
             }
           }
@@ -374,9 +355,9 @@
           "type": "object",
           "patternproperties": {
             "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/><,.": {
-                "type": "string"
+              "type": "string"
             }
-        }
+          }
         },
         "enabled": {
           "type": "boolean"
@@ -435,11 +416,7 @@
               "type": "string",
               "format": "memory"
             }
-          },
-          "required": [
-              "cpu",
-              "memory"
-          ]
+          }
         },
         "requests": {
           "type": "object",
@@ -454,10 +431,7 @@
             }
           }
         }
-      },
-      "required": [
-          "limits"
-      ]
+      }
     },
     "secret": {
       "type": "object",
@@ -520,11 +494,5 @@
     "waitForSecondsBeforeScalingDown": {
       "type": "integer"
     }
-  },
-  "required": [
-      "replicaCount",
-      "ContainerPort",
-      "ingress",
-      "ingressInternal"
-  ]
+  }
 }
