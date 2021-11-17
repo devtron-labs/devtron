@@ -12,8 +12,8 @@ ContainerPort:
     port: 8080
     servicePort: 80
     envoyPort: 8799
-    useHTTP2: true
-    supportStreaming: true
+    useHTTP2: false
+    supportStreaming: false
     idleTimeout: 1800s
 #    servicemonitor:
 #      enabled: true
@@ -164,9 +164,11 @@ ingress:
 
   hosts:
     - host: chart-example1.local
+      pathType: "ImplementationSpecific"
       paths:
         - /example1
     - host: chart-example2.local
+      pathType: "ImplementationSpecific"
       paths:
         - /example2
         - /example2/healthz
@@ -186,9 +188,11 @@ ingressInternal:
 
   hosts:
     - host: chart-example1.internal
+      pathType: "ImplementationSpecific"
       paths:
         - /example1
     - host: chart-example2.internal
+      pathType: "ImplementationSpecific"
       paths:
         - /example2
         - /example2/healthz
