@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	appBean "github.com/devtron-labs/devtron/api/appbean"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -40,7 +39,6 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
-	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -1161,7 +1159,7 @@ func (handler AppRestHandlerImpl) createDockerConfig(w http.ResponseWriter, appI
 		return true
 	}
 	dockerBuildArgs := make(map[string]string)
-	if dockerConfig.BuildConfig.Args != nil{
+	if dockerConfig.BuildConfig.Args != nil {
 		dockerBuildArgs = dockerConfig.BuildConfig.Args
 	}
 	dockerBuildConfigRequest := &bean.DockerBuildConfig{
@@ -1524,76 +1522,80 @@ func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx 
 //create template overrides
 func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWriter, ctx context.Context, appId int, userId int32, templateOverride *appBean.DeploymentTemplate, envModel *cluster.Environment) bool {
 	handler.logger.Infow("Create App - creating template override", "appId", appId, "templateOverride", templateOverride)
-	envConfigProperties, err := convertEnvTemplateOverride(templateOverride, envModel)
+
+	//finding env properties for appId & envId(this get created when cd pipeline is created)
+	envConfigPropertiesExisting, err := handler.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envModel.Id)
+	if err != nil {
+		handler.logger.Errorw("not able to found chart for app by env in createEnvDeploymentTemplate", "appId", appId, "envId", envModel.Id)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return true
+	}
+	envConfigPropertiesRequest, err := buildEnvTemplateOverrideRequest(templateOverride, envModel, envConfigPropertiesExisting)
 	if err != nil {
 		handler.logger.Errorw("err in converting template config for creating env override", "appId", appId, "templateOverride", templateOverride)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
-	_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigPropertiesRequest, userId)
 	if err != nil {
-		if err.Error() == bean2.NOCHARTEXIST {
-			//TODO update context - token
-			//ctx, cancel := context.WithCancel(r.Context())
-			//if cn, ok := w.(http.CloseNotifier); ok {
-			//	go func(done <-chan struct{}, closed <-chan bool) {
-			//		select {
-			//		case <-done:
-			//		case <-closed:
-			//			cancel()
-			//		}
-			//	}(ctx.Done(), cn.CloseNotify())
-			//}
-			//ctx = context.WithValue(r.Context(), "token", token)
-			templateRequest := pipeline.TemplateRequest{
-				AppId:          appId,
-				ChartRefId:     templateOverride.ChartRefId,
-				ValuesOverride: []byte("{}"),
-				UserId:         userId,
-			}
-
-			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
-			if err != nil {
-				handler.logger.Errorw("service err, CreateChartFromEnvOverride in CreateEnvDeploymentTemplate", "err", err, "payload", envConfigProperties)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
-				return true
-			}
-			_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
-			if err != nil {
-				handler.logger.Errorw("service err, CreateChartFromEnvOverride in CreateEnvDeploymentTemplate", "err", err, "payload", envConfigProperties)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
-				return true
-			}
-		} else {
-			handler.logger.Errorw("service err, CreateEnvDeploymentTemplate", "err", err, "payload", envConfigProperties)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return true
-		}
+		handler.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigPropertiesRequest)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return true
 	}
 
+	//_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+	//if err != nil {
+	//	if err.Error() == bean2.NOCHARTEXIST {
+	//		//TODO update context - token
+	//		//ctx, cancel := context.WithCancel(r.Context())
+	//		//if cn, ok := w.(http.CloseNotifier); ok {
+	//		//	go func(done <-chan struct{}, closed <-chan bool) {
+	//		//		select {
+	//		//		case <-done:
+	//		//		case <-closed:
+	//		//			cancel()
+	//		//		}
+	//		//	}(ctx.Done(), cn.CloseNotify())
+	//		//}
+	//		//ctx = context.WithValue(r.Context(), "token", token)
+	//		templateRequest := pipeline.TemplateRequest{
+	//			AppId:          appId,
+	//			ChartRefId:     templateOverride.ChartRefId,
+	//			ValuesOverride: []byte("{}"),
+	//			UserId:         userId,
+	//		}
+	//
+	//		_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+	//		if err != nil {
+	//			handler.logger.Errorw("service err, CreateChartFromEnvOverride in CreateEnvDeploymentTemplate", "err", err, "payload", envConfigProperties)
+	//			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+	//			return true
+	//		}
+	//		_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+	//		if err != nil {
+	//			handler.logger.Errorw("service err, CreateChartFromEnvOverride in CreateEnvDeploymentTemplate", "err", err, "payload", envConfigProperties)
+	//			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+	//			return true
+	//		}
+	//	} else {
+	//		handler.logger.Errorw("service err, CreateEnvDeploymentTemplate", "err", err, "payload", envConfigProperties)
+	//		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+	//		return true
+	//	}
+	//}
+	//updating app metrics
 	appMetricsRequest := &pipeline.AppMetricEnableDisableRequest{
 		AppId:               appId,
 		UserId:              userId,
 		EnvironmentId:       envModel.Id,
 		IsAppMetricsEnabled: templateOverride.ShowAppMetrics,
 	}
-	//checking for env override
-	_, err = handler.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envModel.Id)
-	if err != nil && !errors2.IsNotFound(err) {
-		handler.logger.Errorw("not able to found chart for app by env", "appId", appId, "envId", envModel.Id)
+	_, err = handler.propertiesConfigService.EnvMetricsEnableDisable(appMetricsRequest)
+	if err != nil {
+		handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "environmentId", envModel.Id, "payload", appMetricsRequest)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
-	} else if errors2.IsNotFound(err) {
-		handler.logger.Errorw("no env chart configured for this app", "appId", appId)
-	} else {
-		//updating app metrics
-		_, err = handler.propertiesConfigService.EnvMetricsEnableDisable(appMetricsRequest)
-		if err != nil {
-			handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "environmentId", envModel.Id, "payload", appMetricsRequest)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return true
-		}
 	}
-
 	return false
 }
 
@@ -1779,17 +1781,23 @@ func convertCdDeploymentStrategies(deploymentStrategies []*appBean.DeploymentStr
 	return convertedStrategies, nil
 }
 
-func convertEnvTemplateOverride(templateOverride *appBean.DeploymentTemplate, envModel *cluster.Environment) (*pipeline.EnvironmentProperties, error) {
+func buildEnvTemplateOverrideRequest(templateOverride *appBean.DeploymentTemplate, envModel *cluster.Environment, envConfigPropertiesExisting *chartConfig.EnvConfigOverride) (*pipeline.EnvironmentProperties, error) {
 	template, err := json.Marshal(templateOverride.Template)
 	if err != nil {
 		return nil, err
 	}
-	convertedTemplate := &pipeline.EnvironmentProperties{
-		ChartRefId:        templateOverride.ChartRefId,
-		AppMetrics:        &templateOverride.ShowAppMetrics,
+	envTemplateOverrideRequest := &pipeline.EnvironmentProperties{
+		ChartRefId: templateOverride.ChartRefId,
+		AppMetrics: &templateOverride.ShowAppMetrics,
 		EnvOverrideValues: template,
-		EnvironmentId:     envModel.Id,
-		EnvironmentName:   envModel.Name,
+		EnvironmentId: envModel.Id,
+		EnvironmentName: envModel.Name,
+		Id: envConfigPropertiesExisting.Id,
+		Namespace: envConfigPropertiesExisting.Namespace,
+		Status: envConfigPropertiesExisting.Status,
+		ManualReviewed: envConfigPropertiesExisting.ManualReviewed,
+		Active: envConfigPropertiesExisting.Active,
+		IsOverride: envConfigPropertiesExisting.IsOverride,
 	}
-	return convertedTemplate, nil
+	return envTemplateOverrideRequest, nil
 }
