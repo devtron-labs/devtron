@@ -1527,10 +1527,11 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 	//finding env properties for appId & envId (this get created when cd pipeline is created)
 	envProperties, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envModel.Id, templateOverride.ChartRefId)
 	if err != nil {
-		handler.logger.Errorw("service err, GetEnvConfOverride in createEnvDeploymentTemplate", "err", err, "appId", appId,"envId", envModel.Id, "chartRefId",templateOverride.ChartRefId)
+		handler.logger.Errorw("service err, GetEnvConfOverride in createEnvDeploymentTemplate", "err", err, "appId", appId, "envId", envModel.Id, "chartRefId", templateOverride.ChartRefId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
+	handler.logger.Infow("getEnvProperties in createEnvDeploymentTemplate result", "envProperties", envProperties, "err", err)
 	envConfigPropertiesRequest, err := buildEnvTemplateOverrideRequest(templateOverride, envModel, envProperties, userId)
 	if err != nil {
 		handler.logger.Errorw("err in converting template config for creating env override", "appId", appId, "templateOverride", templateOverride)
@@ -1548,14 +1549,14 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 			}
 			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
 			if err != nil {
-				handler.logger.Errorw("err in creating chart from env override in createEnvDeploymentTemplate","err",err,"payload",templateRequest)
-				writeJsonResp(w,err,nil,http.StatusInternalServerError)
+				handler.logger.Errorw("err in creating chart from env override in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
+				writeJsonResp(w, err, nil, http.StatusInternalServerError)
 				return true
 			}
 			_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigPropertiesRequest)
-			if err!=nil{
-				handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate","err",err,"payload",templateRequest)
-				writeJsonResp(w,err,nil,http.StatusInternalServerError)
+			if err != nil {
+				handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
+				writeJsonResp(w, err, nil, http.StatusInternalServerError)
 				return true
 			}
 		}
@@ -1571,7 +1572,7 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 	if err != nil {
 		handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "environmentId", envModel.Id, "payload", appMetricsRequest)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return true
+		return false
 	}
 	return false
 }
@@ -1764,18 +1765,18 @@ func buildEnvTemplateOverrideRequest(templateOverride *appBean.DeploymentTemplat
 		return nil, err
 	}
 	envTemplateOverrideRequest := &pipeline.EnvironmentProperties{
-		ChartRefId: templateOverride.ChartRefId,
-		AppMetrics: &templateOverride.ShowAppMetrics,
+		ChartRefId:        templateOverride.ChartRefId,
+		AppMetrics:        &templateOverride.ShowAppMetrics,
 		EnvOverrideValues: template,
-		EnvironmentId: envModel.Id,
-		EnvironmentName: envModel.Name,
-		Id: envProperties.EnvironmentConfig.Id,
-		Namespace: envModel.Namespace,
-		Status: envProperties.EnvironmentConfig.Status,
-		ManualReviewed: envProperties.EnvironmentConfig.ManualReviewed,
-		Active: envProperties.EnvironmentConfig.Active,
-		IsOverride: true,
-		UserId: userId,
+		EnvironmentId:     envModel.Id,
+		EnvironmentName:   envModel.Name,
+		Id:                envProperties.EnvironmentConfig.Id,
+		Namespace:         envModel.Namespace,
+		Status:            envProperties.EnvironmentConfig.Status,
+		ManualReviewed:    envProperties.EnvironmentConfig.ManualReviewed,
+		Active:            envProperties.EnvironmentConfig.Active,
+		IsOverride:        true,
+		UserId:            userId,
 	}
 	return envTemplateOverrideRequest, nil
 }
