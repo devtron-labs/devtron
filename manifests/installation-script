@@ -88,6 +88,9 @@ natsStreaming_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-streaming.yaml"
 notifier_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/notifier.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
+if kubernetesVersion < 1.19 {
+devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress-legacy.yaml";
+}
 workflow_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/workflow.yaml";
 serviceAccount_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/serviceaccount.yaml";
 namespace_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/namespace.yaml";
