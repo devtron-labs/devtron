@@ -1160,11 +1160,14 @@ func (handler AppRestHandlerImpl) createDockerConfig(w http.ResponseWriter, appI
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
-
+	var dockerBuildArgs map[string]string
+	if dockerConfig.BuildConfig.Args != nil{
+		dockerBuildArgs = dockerConfig.BuildConfig.Args
+	}
 	dockerBuildConfigRequest := &bean.DockerBuildConfig{
 		GitMaterialId:  gitMaterial.Id,
 		DockerfilePath: dockerConfig.BuildConfig.DockerfileRelativePath,
-		Args:           dockerConfig.BuildConfig.Args,
+		Args:           dockerBuildArgs,
 	}
 	createDockerConfigRequest.DockerBuildConfig = dockerBuildConfigRequest
 	_, err = handler.pipelineBuilder.CreateCiPipeline(createDockerConfigRequest)
@@ -1410,7 +1413,6 @@ func (handler AppRestHandlerImpl) createWorkflows(w http.ResponseWriter, ctx con
 			ScanEnabled:              ciPipelineData.VulnerabilityScanEnabled,
 			CiMaterial:               ciMaterialsRequest,
 		}
-
 		ciPipelineRequest.CiPipeline = ciPipelineRequestData
 		_, err = handler.pipelineBuilder.PatchCiPipeline(ciPipelineRequest)
 		if err != nil {
