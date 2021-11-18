@@ -1538,7 +1538,9 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
-	_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigPropertiesRequest)
+	handler.logger.Infow("env properties request in createEnvDeploymentTemplate","payload",envConfigPropertiesRequest)
+	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigPropertiesRequest)
+	handler.logger.Infow("createEnvProperties in createEnvDeploymentTemplate first try","createResp",createResp,"err",err)
 	if err != nil {
 		if err.Error() == bean2.NOCHARTEXIST {
 			templateRequest := pipeline.TemplateRequest{
@@ -1547,13 +1549,15 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 				ValuesOverride: []byte("{}"),
 				UserId:         userId,
 			}
-			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+			createChartResp, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+			handler.logger.Infow("createChart from env in createEnvDeploymentTemplate","createChartResp",createChartResp,"err",err)
 			if err != nil {
 				handler.logger.Errorw("err in creating chart from env override in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
 				writeJsonResp(w, err, nil, http.StatusInternalServerError)
 				return true
 			}
-			_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigPropertiesRequest)
+			createResp2, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigPropertiesRequest)
+			handler.logger.Infow("createEnvProperties in createEnvDeploymentTemplate second try","createResp",createResp2,"err",err)
 			if err != nil {
 				handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
 				writeJsonResp(w, err, nil, http.StatusInternalServerError)
