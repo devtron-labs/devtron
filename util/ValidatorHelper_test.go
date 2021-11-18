@@ -73,3 +73,74 @@ func TestCompareLimitsRequests(t *testing.T) {
 		})
 	}
 }
+
+func TestAutoScale(t *testing.T) {
+	autoScaling := "autoscaling"
+	minReplicas := "MinReplicas"
+	maxReplicas := "MaxReplicas"
+	enabled := "enabled"
+	type args struct {
+		dat map[string]interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "empty base object",
+			args: args{dat: nil},
+			want: true,
+			wantErr: false,
+		},
+		{
+			name: "empty autoscaling object",
+			args: args{dat: map[string]interface{}{autoScaling: nil}},
+			want: true,
+			wantErr: false,
+		},
+		{
+			name: "negative : non-empty autoscaling empty enabled minReplicas maxReplicas object",
+			args: args{dat: map[string]interface{}{autoScaling: map[string]interface{}{}}},
+			want: true,
+			wantErr: false,
+		},
+		{
+			name: "non-empty autoscaling enabled minReplicas maxReplicas object",
+			args: args{dat: map[string]interface{}{autoScaling: map[string]interface{}{enabled: false,minReplicas: 10, maxReplicas:11}}},
+			want: true,
+			wantErr: false,
+		},
+		{
+			name: "non-empty autoscaling enabled minReplicas empty maxReplicas object",
+			args: args{dat: map[string]interface{}{autoScaling: map[string]interface{}{enabled: false,minReplicas: 11}}},
+			want: true,
+			wantErr: false,
+		},
+		{
+			name: "non-empty autoscaling minReplicas maxReplicas object empty enabled",
+			args: args{dat: map[string]interface{}{autoScaling: map[string]interface{}{minReplicas: 10, maxReplicas:11}}},
+			want: true,
+			wantErr: false,
+		},
+		{
+			name: "negative: non-empty and greater minReplicas than maxReplicas object",
+			args: args{dat: map[string]interface{}{autoScaling: map[string]interface{}{enabled: true, minReplicas: 10, maxReplicas:9}}},
+			want: false,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := AutoScale(tt.args.dat)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AutoScale() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("AutoScale() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

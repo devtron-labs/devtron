@@ -237,97 +237,25 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 	if dat == nil {
 		return true, nil
 	}
-	autoscaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
-	if !ok {
-		return true, nil
-	}
-	if autoscaleEnabled.(bool) {
-		limit := validateAndBuildResourcesAssignment(dat, getResourcesLimitsKeys(false))
-		envoproxyLimit := validateAndBuildResourcesAssignment(dat, getResourcesLimitsKeys(true))
-		checkCPUlimit, ok := limit["cpu"]
+	if dat["autoscaling"]!=nil {
+		autoScaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
 		if !ok {
-			return false, errors.New("resources.limits.cpu is required")
-		}
-		checkMemorylimit, ok := limit["memory"]
-		if !ok {
-			return false, errors.New("resources.limits.memory is required")
-		}
-		checkEnvoproxyCPUlimit, ok := envoproxyLimit["cpu"]
-		if !ok {
-			return false, errors.New("envoyproxy.resources.limits.cpu is required")
-		}
-		checkEnvoproxyMemorylimit, ok := envoproxyLimit["memory"]
-		if !ok {
-			return false, errors.New("envoyproxy.resources.limits.memory is required")
-		}
-		request := validateAndBuildResourcesAssignment(dat, getResourcesRequestsKeys(false))
-		envoproxyRequest := validateAndBuildResourcesAssignment(dat, getResourcesRequestsKeys(true))
-		checkCPURequests, ok := request["cpu"]
-		if !ok {
-			return false, errors.New("resources.requests.cpu is required")
-		}
-		checkMemoryRequests, ok := request["memory"]
-		if !ok {
-			return false, errors.New("resources.requests.memory is required")
-		}
-		checkEnvoproxyCPURequests, ok := envoproxyRequest["cpu"]
-		if !ok {
-			return false, errors.New("envoyproxy.resources.requests.cpu is required")
-		}
-		checkEnvoproxyMemoryRequests, ok := envoproxyRequest["memory"]
-		if !ok {
-			return false, errors.New("envoyproxy.resources.requests.memory is required")
-		}
-
-		cpuLimit, err := CpuToNumber(checkCPUlimit.(string))
-		if err != nil {
-			return false, err
-		}
-		memoryLimit, err := MemoryToNumber(checkMemorylimit.(string))
-		if err != nil {
-			return false, err
-		}
-		cpuRequest, err := CpuToNumber(checkCPURequests.(string))
-		if err != nil {
-			return false, err
-		}
-		memoryRequest, err := MemoryToNumber(checkMemoryRequests.(string))
-		if err != nil {
-			return false, err
-		}
-
-		envoproxyCPULimit, err := CpuToNumber(checkEnvoproxyCPUlimit.(string))
-		if err != nil {
-			return false, err
-		}
-		envoproxyMemoryLimit, err := MemoryToNumber(checkEnvoproxyMemorylimit.(string))
-		if err != nil {
-			return false, err
-		}
-		envoproxyCPURequest, err := CpuToNumber(checkEnvoproxyCPURequests.(string))
-		if err != nil {
-			return false, err
-		}
-		envoproxyMemoryRequest, err := MemoryToNumber(checkEnvoproxyMemoryRequests.(string))
-		if err != nil {
-			return false, err
-		}
-
-		if envoproxyCPULimit < envoproxyCPURequest && envoproxyCPULimit != 0 {
-			return false, errors.New("envoyproxy.resources.limits.cpu must be greater than or equal to envoyproxy.resources.requests.cpu")
-		} else if envoproxyMemoryLimit < envoproxyMemoryRequest {
-			return false, errors.New("envoyproxy.resources.limits.memory must be greater than or equal to envoyproxy.resources.requests.memory")
-		} else if cpuLimit < cpuRequest {
-			return false, errors.New("resources.limits.cpu must be greater than or equal to resources.requests.cpu")
-		} else if memoryLimit < memoryRequest {
-			return false, errors.New("resources.limits.memory must be greater than or equal to resources.requests.memory")
-		} else {
 			return true, nil
 		}
-	} else {
-		return true, nil
+		if autoScaleEnabled.(bool) {
+			minReplicas, okMin := dat["autoscaling"].(map[string]interface{})["MinReplicas"]
+			maxReplicas, okMax := dat["autoscaling"].(map[string]interface{})["MaxReplicas"]
+			if !okMin || !okMax{
+				return false, errors.New("autoscaling.MinReplicas and autoscaling.MaxReplicas are mandatory fields")
+			}
+			if minReplicas.(int) > maxReplicas.(int){
+				return false, errors.New("autoscaling.MinReplicas can not be greater than autoscaling.MaxReplicas")
+			}
+		}
 	}
+	return true,nil
 }
+
 
 var (
 	CpuUnitChecker, _   = regexp.Compile("^([0-9.]+)m$")
