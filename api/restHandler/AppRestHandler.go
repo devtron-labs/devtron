@@ -1526,15 +1526,8 @@ func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx 
 func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWriter, ctx context.Context, appId int, userId int32, templateOverride *appBean.DeploymentTemplate, envModel *cluster.Environment) bool {
 	handler.logger.Infow("Create App - creating template override", "appId", appId, "templateOverride", templateOverride)
 
-	//finding env properties for appId & envId (this get created when cd pipeline is created)
-	envProperties, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envModel.Id, templateOverride.ChartRefId)
-	if err != nil {
-		handler.logger.Errorw("service err, GetEnvConfOverride in createEnvDeploymentTemplate", "err", err, "appId", appId, "envId", envModel.Id, "chartRefId", templateOverride.ChartRefId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return true
-	}
 	//finding charts for app and chartRefId
-	_, err = handler.chartRepo.FindChartByAppIdAndRefId(appId, templateOverride.ChartRefId)
+	_, err := handler.chartRepo.FindChartByAppIdAndRefId(appId, templateOverride.ChartRefId)
 	if err != nil && pg.ErrNoRows != err {
 		handler.logger.Errorw("not able to find chart by app & ref id in createEnvDeploymentTemplate","err",err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1554,15 +1547,32 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 			return true
 		}
 	}
+	//finding env properties for appId & envId (this get created when cd pipeline is created)
+	envProperties, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envModel.Id, templateOverride.ChartRefId)
+	if err != nil {
+		handler.logger.Errorw("service err, GetEnvConfOverride in createEnvDeploymentTemplate", "err", err, "appId", appId, "envId", envModel.Id, "chartRefId", templateOverride.ChartRefId)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return true
+	}
 	envConfigPropertiesRequest, err := buildEnvTemplateOverrideRequest(templateOverride, envModel, envProperties, userId)
 	if err != nil {
 		handler.logger.Errorw("err in converting template config for creating env override", "appId", appId, "templateOverride", templateOverride)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
+	if envConfigPropertiesRequest.Id == 0{
+		//need to create environment properties since no properties found
+		createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId,envConfigPropertiesRequest)
+		if err!=nil{
+			handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate", "err", err, "payload", envConfigPropertiesRequest)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return true
+		}
+		envConfigPropertiesRequest.Id = createResp.Id
+	}
 	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigPropertiesRequest, userId)
 	if err!=nil{
-		handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate", "err", err, "payload", envConfigPropertiesRequest)
+		handler.logger.Errorw("err in updating env properties in createEnvDeploymentTemplate", "err", err, "payload", envConfigPropertiesRequest)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
