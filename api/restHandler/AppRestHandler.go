@@ -1533,11 +1533,11 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
-	handler.logger.Infow("getEnvProperties in createEnvDeploymentTemplate result", "envProperties", envProperties, "err", err)
-	chart, err := handler.chartRepo.FindChartByAppIdAndRefId(appId, templateOverride.ChartRefId)
-	handler.logger.Infow("find chart by app id and ref id response","chart",chart,"err",err)
+	//finding charts for app and chartRefId
+	_, err = handler.chartRepo.FindChartByAppIdAndRefId(appId, templateOverride.ChartRefId)
 	if err != nil && pg.ErrNoRows != err {
 		handler.logger.Errorw("not able to find chart by app & ref id in createEnvDeploymentTemplate","err",err)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
 	if pg.ErrNoRows == err {
@@ -1547,8 +1547,7 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 			ValuesOverride: []byte("{}"),
 			UserId:         userId,
 		}
-		createChartResp, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
-		handler.logger.Infow("createChart from env in createEnvDeploymentTemplate","createChartResp",createChartResp,"err",err)
+		_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
 		if err != nil {
 			handler.logger.Errorw("err in creating chart from env override in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1561,41 +1560,12 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
-	handler.logger.Infow("env properties request in createEnvDeploymentTemplate","payload",envConfigPropertiesRequest)
-
-	updateResp, err:= handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigPropertiesRequest, userId)
-	handler.logger.Infow("updateEnvProperties in createEnvDeploymentTemplate","createResp",updateResp,"err",err)
+	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigPropertiesRequest, userId)
 	if err!=nil{
 		handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate", "err", err, "payload", envConfigPropertiesRequest)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
-	//createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigPropertiesRequest)
-	//handler.logger.Infow("createEnvProperties in createEnvDeploymentTemplate first try","createResp",createResp,"err",err)
-	//if err != nil {
-	//	if err.Error() == bean2.NOCHARTEXIST {
-	//		templateRequest := pipeline.TemplateRequest{
-	//			AppId:          appId,
-	//			ChartRefId:     envConfigPropertiesRequest.ChartRefId,
-	//			ValuesOverride: []byte("{}"),
-	//			UserId:         userId,
-	//		}
-	//		createChartResp, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
-	//		handler.logger.Infow("createChart from env in createEnvDeploymentTemplate","createChartResp",createChartResp,"err",err)
-	//		if err != nil {
-	//			handler.logger.Errorw("err in creating chart from env override in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
-	//			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//			return true
-	//		}
-	//		createResp2, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigPropertiesRequest)
-	//		handler.logger.Infow("createEnvProperties in createEnvDeploymentTemplate second try","createResp",createResp2,"err",err)
-	//		if err != nil {
-	//			handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
-	//			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//			return true
-	//		}
-	//	}
-	//}
 	//updating app metrics
 	appMetricsRequest := &pipeline.AppMetricEnableDisableRequest{
 		AppId:               appId,
