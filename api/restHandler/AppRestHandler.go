@@ -430,10 +430,13 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 	}
 
 	appDeploymentTemplate, err := handler.chartService.FindLatestChartForAppByAppId(appId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows{
 		handler.logger.Errorw("service err, GetDeploymentTemplate in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
+	} else if err == pg.ErrNoRows{
+		handler.logger.Errorw("no charts configured for app, GetDeploymentTemplate in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
+		return nil, false
 	}
 
 	if appDeploymentTemplate == nil {
