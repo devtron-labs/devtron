@@ -1640,18 +1640,11 @@ func (handler AppRestHandlerImpl) createEnvCM(w http.ResponseWriter, appId int, 
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
-		cmOverrideDefaultData, err := json.Marshal(cmOverride.DefaultData)
-		if err != nil {
-			handler.logger.Errorw("service err, could not json marshal template in CreateEnvCM", "err", err, "appId", appId, "cmOverrideData", cmOverride.Data)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return true
-		}
 		configData := &pipeline.ConfigData{
 			Name:        cmOverride.Name,
 			External:    cmOverride.IsExternal,
 			Type:        cmOverride.UsageType,
 			Data:        cmOverrideData,
-			DefaultData: cmOverrideDefaultData,
 		}
 		cmOverrideDataVolumeUsageConfig := cmOverride.DataVolumeUsageConfig
 		if cmOverrideDataVolumeUsageConfig != nil {
@@ -1699,19 +1692,12 @@ func (handler AppRestHandlerImpl) createEnvSecret(w http.ResponseWriter, appId i
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
-		secretOverrideDefaultData, err := json.Marshal(secretOverride.Data)
-		if err != nil {
-			handler.logger.Errorw("service err, could not json marshal secret default data in CreateEnvSecret", "err", err, "appId", appId, "secretOverrideData", secretOverride.Data)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return true
-		}
 		secretData := &pipeline.ConfigData{
 			Name:               secretOverride.Name,
 			External:           secretOverride.IsExternal,
 			ExternalSecretType: secretOverride.ExternalType,
 			Type:               secretOverride.UsageType,
 			Data:               secretOverrideData,
-			DefaultData:        secretOverrideDefaultData,
 			RoleARN:            secretOverride.RoleArn,
 			ExternalSecret:     convertCSExternalSecretData(secretOverride.ExternalSecretData),
 		}
