@@ -338,7 +338,7 @@ var (
 
 func (f CpuChecker) IsFormat(input interface{}) bool {
 	if input == nil{
-		return true
+		return false
 	}
 	asString, ok := input.(string)
 	if !ok {
@@ -356,7 +356,7 @@ func (f CpuChecker) IsFormat(input interface{}) bool {
 
 func (f MemoryChecker) IsFormat(input interface{}) bool {
 	if input ==nil{
-		return true
+		return false
 	}
 	asString, ok := input.(string)
 	if !ok {
