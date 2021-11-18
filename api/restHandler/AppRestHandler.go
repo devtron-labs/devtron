@@ -110,7 +110,7 @@ func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserS
 		environmentRepository:   environmentRepository,
 		configMapRepository:     configMapRepository,
 		envConfigRepo:           envConfigRepo,
-		chartRepo: chartRepo,
+		chartRepo:               chartRepo,
 	}
 	return handler
 }
@@ -724,11 +724,9 @@ func (handler AppRestHandlerImpl) validateAndBuildAppConfigMaps(w http.ResponseW
 
 			//set data
 			var data json.RawMessage
-			if considerGlobalDefaultData {
-				data = configMap.DefaultData
-			} else {
-				data = configMap.Data
-			}
+			var defaultData json.RawMessage
+			data = configMap.Data
+			defaultData = configMap.DefaultData
 			var dataObj map[string]interface{}
 			if data != nil {
 				err := json.Unmarshal([]byte(data), &dataObj)
@@ -738,7 +736,17 @@ func (handler AppRestHandlerImpl) validateAndBuildAppConfigMaps(w http.ResponseW
 					return nil, true
 				}
 			}
+			var defaultDataObj map[string]interface{}
+			if defaultData != nil {
+				err := json.Unmarshal([]byte(defaultData), &defaultDataObj)
+				if err != nil {
+					handler.logger.Errorw("service err, un-marshaling fail in config map", "err", err, "appId", appId)
+					writeJsonResp(w, err, nil, http.StatusInternalServerError)
+					return nil, true
+				}
+			}
 			configMapRes.Data = dataObj
+			configMapRes.DefaultData = defaultDataObj
 
 			//set data volume usage type
 			if configMap.Type == util.ConfigMapSecretUsageTypeVolume {
@@ -858,14 +866,13 @@ func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWrit
 
 			//set data
 			var data json.RawMessage
+			var defaultData json.RawMessage
 			var externalSecrets []pipeline.ExternalSecret
-			if considerGlobalDefaultData {
-				data = secret.DefaultData
-				externalSecrets = secret.DefaultExternalSecret
-			} else {
-				data = secret.Data
-				externalSecrets = secret.ExternalSecret
-			}
+
+			data = secret.Data
+			defaultData = secret.DefaultData
+			externalSecrets = secret.ExternalSecret
+
 			var dataObj map[string]interface{}
 			if data != nil {
 				err := json.Unmarshal([]byte(data), &dataObj)
@@ -875,7 +882,17 @@ func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWrit
 					return nil, err
 				}
 			}
+			var defaultDataObj map[string]interface{}
+			if defaultData != nil {
+				err := json.Unmarshal([]byte(defaultData), &defaultDataObj)
+				if err != nil {
+					handler.logger.Errorw("service err, un-marshaling fail in secret", "err", err, "appId", appId)
+					writeJsonResp(w, err, nil, http.StatusInternalServerError)
+					return nil, err
+				}
+			}
 			globalSecret.Data = dataObj
+			globalSecret.DefaultData = defaultDataObj
 
 			//set external data
 			var externalSecretsResp []*appBean.ExternalSecret
@@ -1529,7 +1546,7 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 	//finding charts for app and chartRefId
 	_, err := handler.chartRepo.FindChartByAppIdAndRefId(appId, templateOverride.ChartRefId)
 	if err != nil && pg.ErrNoRows != err {
-		handler.logger.Errorw("not able to find chart by app & ref id in createEnvDeploymentTemplate","err",err)
+		handler.logger.Errorw("not able to find chart by app & ref id in createEnvDeploymentTemplate", "err", err)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
@@ -1560,13 +1577,13 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
-	if envConfigPropertiesRequest.Id == 0{
+	if envConfigPropertiesRequest.Id == 0 {
 		//need to create environment properties since no properties found
 		//using new var so that override values don't get changed
 		var envConfigCreateRequest *pipeline.EnvironmentProperties
 		envConfigCreateRequest = envConfigPropertiesRequest
-		createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId,envConfigCreateRequest)
-		if err!=nil{
+		createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigCreateRequest)
+		if err != nil {
 			handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate", "err", err, "payload", envConfigPropertiesRequest)
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
@@ -1574,7 +1591,7 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 		envConfigPropertiesRequest.Id = createResp.Id
 	}
 	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigPropertiesRequest, userId)
-	if err!=nil{
+	if err != nil {
 		handler.logger.Errorw("err in updating env properties in createEnvDeploymentTemplate", "err", err, "payload", envConfigPropertiesRequest)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
@@ -1623,11 +1640,18 @@ func (handler AppRestHandlerImpl) createEnvCM(w http.ResponseWriter, appId int, 
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
+		cmOverrideDefaultData, err := json.Marshal(cmOverride.DefaultData)
+		if err != nil {
+			handler.logger.Errorw("service err, could not json marshal template in CreateEnvCM", "err", err, "appId", appId, "cmOverrideData", cmOverride.Data)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return true
+		}
 		configData := &pipeline.ConfigData{
-			Name:     cmOverride.Name,
-			External: cmOverride.IsExternal,
-			Type:     cmOverride.UsageType,
-			Data:     cmOverrideData,
+			Name:        cmOverride.Name,
+			External:    cmOverride.IsExternal,
+			Type:        cmOverride.UsageType,
+			Data:        cmOverrideData,
+			DefaultData: cmOverrideDefaultData,
 		}
 		cmOverrideDataVolumeUsageConfig := cmOverride.DataVolumeUsageConfig
 		if cmOverrideDataVolumeUsageConfig != nil {
@@ -1671,7 +1695,13 @@ func (handler AppRestHandlerImpl) createEnvSecret(w http.ResponseWriter, appId i
 		}
 		secretOverrideData, err := json.Marshal(secretOverride.Data)
 		if err != nil {
-			handler.logger.Errorw("service err, could not json marshal template in CreateEnvSecret", "err", err, "appId", appId, "secretOverrideData", secretOverride.Data)
+			handler.logger.Errorw("service err, could not json marshal secret data in CreateEnvSecret", "err", err, "appId", appId, "secretOverrideData", secretOverride.Data)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return true
+		}
+		secretOverrideDefaultData, err := json.Marshal(secretOverride.Data)
+		if err != nil {
+			handler.logger.Errorw("service err, could not json marshal secret default data in CreateEnvSecret", "err", err, "appId", appId, "secretOverrideData", secretOverride.Data)
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
@@ -1681,6 +1711,7 @@ func (handler AppRestHandlerImpl) createEnvSecret(w http.ResponseWriter, appId i
 			ExternalSecretType: secretOverride.ExternalType,
 			Type:               secretOverride.UsageType,
 			Data:               secretOverrideData,
+			DefaultData:        secretOverrideDefaultData,
 			RoleARN:            secretOverride.RoleArn,
 			ExternalSecret:     convertCSExternalSecretData(secretOverride.ExternalSecretData),
 		}
@@ -1795,7 +1826,7 @@ func buildEnvTemplateOverrideRequest(templateOverride *appBean.DeploymentTemplat
 		Active:            true,
 		IsOverride:        true,
 		UserId:            userId,
-		Latest: 		   true,
+		Latest:            true,
 	}
 	return envTemplateOverrideRequest, nil
 }
