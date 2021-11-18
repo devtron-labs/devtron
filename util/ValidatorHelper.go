@@ -119,6 +119,9 @@ func ParseFloat(str string) (float64, error) {
 }
 
 func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
+	if dat == nil{
+		return true, nil
+	}
 	limit, ok := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
 	if !ok {
 		return false, errors.New("resources.limits is required")
@@ -216,6 +219,9 @@ func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 }
 
 func AutoScale(dat map[string]interface{}) (bool, error) {
+	if dat == nil{
+		return true, nil
+	}
 	autoscaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
 	if !ok {
 		return true, nil
@@ -331,6 +337,9 @@ var (
 )
 
 func (f CpuChecker) IsFormat(input interface{}) bool {
+	if input == nil{
+		return true
+	}
 	asString, ok := input.(string)
 	if !ok {
 		return false
@@ -346,6 +355,9 @@ func (f CpuChecker) IsFormat(input interface{}) bool {
 }
 
 func (f MemoryChecker) IsFormat(input interface{}) bool {
+	if input ==nil{
+		return true
+	}
 	asString, ok := input.(string)
 	if !ok {
 		return false
