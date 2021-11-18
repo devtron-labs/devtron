@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 	appBean "github.com/devtron-labs/devtron/api/appbean"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	//bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -79,6 +79,7 @@ type AppRestHandlerImpl struct {
 	environmentRepository   cluster.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
 	envConfigRepo           chartConfig.EnvConfigOverrideRepository
+	chartRepo               chartConfig.ChartRepository
 }
 
 func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
@@ -87,7 +88,7 @@ func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserS
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, teamRepository teamRepo.TeamRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository cluster.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
-	envConfigRepo chartConfig.EnvConfigOverrideRepository) *AppRestHandlerImpl {
+	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartConfig.ChartRepository) *AppRestHandlerImpl {
 	handler := &AppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -109,6 +110,7 @@ func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserS
 		environmentRepository:   environmentRepository,
 		configMapRepository:     configMapRepository,
 		envConfigRepo:           envConfigRepo,
+		chartRepo: chartRepo,
 	}
 	return handler
 }
@@ -1532,6 +1534,27 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 		return true
 	}
 	handler.logger.Infow("getEnvProperties in createEnvDeploymentTemplate result", "envProperties", envProperties, "err", err)
+	chart, err := handler.chartRepo.FindChartByAppIdAndRefId(appId, templateOverride.ChartRefId)
+	handler.logger.Infow("find chart by app id and ref id response","chart",chart,"err",err)
+	if err != nil && pg.ErrNoRows != err {
+		handler.logger.Errorw("not able to find chart by app & ref id in createEnvDeploymentTemplate","err",err)
+		return true
+	}
+	if pg.ErrNoRows == err {
+		templateRequest := pipeline.TemplateRequest{
+			AppId:          appId,
+			ChartRefId:     templateOverride.ChartRefId,
+			ValuesOverride: []byte("{}"),
+			UserId:         userId,
+		}
+		createChartResp, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+		handler.logger.Infow("createChart from env in createEnvDeploymentTemplate","createChartResp",createChartResp,"err",err)
+		if err != nil {
+			handler.logger.Errorw("err in creating chart from env override in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return true
+		}
+	}
 	envConfigPropertiesRequest, err := buildEnvTemplateOverrideRequest(templateOverride, envModel, envProperties, userId)
 	if err != nil {
 		handler.logger.Errorw("err in converting template config for creating env override", "appId", appId, "templateOverride", templateOverride)
@@ -1539,32 +1562,40 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 		return true
 	}
 	handler.logger.Infow("env properties request in createEnvDeploymentTemplate","payload",envConfigPropertiesRequest)
-	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigPropertiesRequest)
-	handler.logger.Infow("createEnvProperties in createEnvDeploymentTemplate first try","createResp",createResp,"err",err)
-	if err != nil {
-		if err.Error() == bean2.NOCHARTEXIST {
-			templateRequest := pipeline.TemplateRequest{
-				AppId:          appId,
-				ChartRefId:     envConfigPropertiesRequest.ChartRefId,
-				ValuesOverride: []byte("{}"),
-				UserId:         userId,
-			}
-			createChartResp, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
-			handler.logger.Infow("createChart from env in createEnvDeploymentTemplate","createChartResp",createChartResp,"err",err)
-			if err != nil {
-				handler.logger.Errorw("err in creating chart from env override in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
-				return true
-			}
-			createResp2, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigPropertiesRequest)
-			handler.logger.Infow("createEnvProperties in createEnvDeploymentTemplate second try","createResp",createResp2,"err",err)
-			if err != nil {
-				handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
-				return true
-			}
-		}
+
+	updateResp, err:= handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigPropertiesRequest, userId)
+	handler.logger.Infow("updateEnvProperties in createEnvDeploymentTemplate","createResp",updateResp,"err",err)
+	if err!=nil{
+		handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate", "err", err, "payload", envConfigPropertiesRequest)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return true
 	}
+	//createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigPropertiesRequest)
+	//handler.logger.Infow("createEnvProperties in createEnvDeploymentTemplate first try","createResp",createResp,"err",err)
+	//if err != nil {
+	//	if err.Error() == bean2.NOCHARTEXIST {
+	//		templateRequest := pipeline.TemplateRequest{
+	//			AppId:          appId,
+	//			ChartRefId:     envConfigPropertiesRequest.ChartRefId,
+	//			ValuesOverride: []byte("{}"),
+	//			UserId:         userId,
+	//		}
+	//		createChartResp, err := handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
+	//		handler.logger.Infow("createChart from env in createEnvDeploymentTemplate","createChartResp",createChartResp,"err",err)
+	//		if err != nil {
+	//			handler.logger.Errorw("err in creating chart from env override in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
+	//			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+	//			return true
+	//		}
+	//		createResp2, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigPropertiesRequest)
+	//		handler.logger.Infow("createEnvProperties in createEnvDeploymentTemplate second try","createResp",createResp2,"err",err)
+	//		if err != nil {
+	//			handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
+	//			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+	//			return true
+	//		}
+	//	}
+	//}
 	//updating app metrics
 	appMetricsRequest := &pipeline.AppMetricEnableDisableRequest{
 		AppId:               appId,
