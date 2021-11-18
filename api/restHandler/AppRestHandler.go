@@ -1781,6 +1781,7 @@ func buildEnvTemplateOverrideRequest(templateOverride *appBean.DeploymentTemplat
 		Active:            envProperties.EnvironmentConfig.Active,
 		IsOverride:        true,
 		UserId:            userId,
+		Latest: 		   true,
 	}
 	return envTemplateOverrideRequest, nil
 }
