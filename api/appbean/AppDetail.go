@@ -6,9 +6,9 @@ import (
 
 type AppDetail struct {
 	Metadata                 *AppMetadata                    `json:"metadata,notnull" validate:"required"`
-	GitMaterials             []*GitMaterial                  `json:"gitMaterials,notnull" validate:"required"`
+	GitMaterials             []*GitMaterial                  `json:"gitMaterials,notnull"`
 	DockerConfig             *DockerConfig                   `json:"dockerConfig:"`
-	GlobalDeploymentTemplate *DeploymentTemplate             `json:"globalDeploymentTemplate,notnull" validate:"required"`
+	GlobalDeploymentTemplate *DeploymentTemplate             `json:"globalDeploymentTemplate,notnull"`
 	AppWorkflows             []*AppWorkflow                  `json:"workflows"`
 	GlobalConfigMaps         []*ConfigMap                    `json:"globalConfigMaps"`
 	GlobalSecrets            []*Secret                       `json:"globalSecrets"`
