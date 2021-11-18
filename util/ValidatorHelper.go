@@ -220,14 +220,13 @@ func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-
 	if envoproxyCPULimit < envoproxyCPURequest && envoproxyCPULimit != 0 {
 		return false, errors.New("envoyproxy.resources.limits.cpu must be greater than or equal to envoyproxy.resources.requests.cpu")
-	} else if envoproxyMemoryLimit < envoproxyMemoryRequest {
+	} else if envoproxyMemoryLimit < envoproxyMemoryRequest && envoproxyMemoryLimit != 0 {
 		return false, errors.New("envoyproxy.resources.limits.memory must be greater than or equal to envoyproxy.resources.requests.memory")
-	} else if cpuLimit < cpuRequest {
+	} else if cpuLimit < cpuRequest && cpuLimit != 0 {
 		return false, errors.New("resources.limits.cpu must be greater than or equal to resources.requests.cpu")
-	} else if memoryLimit < memoryRequest {
+	} else if memoryLimit < memoryRequest && memoryLimit != 0 {
 		return false, errors.New("resources.limits.memory must be greater than or equal to resources.requests.memory")
 	}
 	return true, nil
