@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	teamRepo "github.com/devtron-labs/devtron/internal/sql/repository/team"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -384,12 +385,15 @@ func (handler AppRestHandlerImpl) validateAndBuildDockerConfig(w http.ResponseWr
 	handler.logger.Debugw("Getting app detail - docker build", "appId", appId)
 
 	ciConfig, err := handler.pipelineBuilder.GetCiPipeline(appId)
-	if err != nil {
+	if errResponse, ok := err.(*util2.ApiError); ok && errResponse.UserMessage=="no ci pipeline exists"{
+		handler.logger.Errorw("docker config not available for app, GetCiPipeline in GetAppAllDetail", "err", err, "appId", appId)
+		return nil, false
+	}
+	if err != nil{
 		handler.logger.Errorw("service err, GetCiPipeline in GetAppAllDetail", "err", err, "appId", appId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
-
 	//getting gitMaterialUrl by id
 	gitMaterial, err := handler.materialRepository.FindById(ciConfig.DockerBuildConfig.GitMaterialId)
 	if err != nil {

@@ -282,7 +282,7 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		return nil, err
 	}
 	if errors.IsNotFound(err) {
-		impl.logger.Debugw(" no ci pipeline exists", "appId", appId, "err", err)
+		impl.logger.Debugw("no ci pipeline exists", "appId", appId, "err", err)
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline exists"}
 		return nil, err
 	}
