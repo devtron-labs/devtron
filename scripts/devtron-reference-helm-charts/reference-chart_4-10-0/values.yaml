@@ -355,7 +355,7 @@ rawYaml: []
 #    type: ClusterIP
 
 envoyproxy:
- image: envoyproxy/envoy:v1.14.1
+ image: quay.io/devtron/envoy:v1.14.1
  configMapName: ""
  resources:
    limits:
