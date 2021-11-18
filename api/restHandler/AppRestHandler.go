@@ -821,15 +821,15 @@ func (handler AppRestHandlerImpl) validateAndBuildAppEnvironmentSecrets(w http.R
 	var secretsResp []*appBean.Secret
 	if secretData != nil && len(secretData.ConfigData) > 0 {
 
-		for _, secretConfig := range secretData.ConfigData {
-			secretDataWithData, err := handler.configMapService.CSEnvironmentFetchForEdit(secretConfig.Name, secretData.Id, appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, CSEnvironmentFetchForEdit in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
-				return nil, true
-			}
+		//for _, secretConfig := range secretData.ConfigData {
+		//	secretDataWithData, err := handler.configMapService.CSEnvironmentFetchForEdit(secretConfig.Name, secretData.Id, appId, envId)
+		//	if err != nil {
+		//		handler.logger.Errorw("service err, CSEnvironmentFetchForEdit in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
+		//		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		//		return nil, true
+		//	}
 
-			secretRes, err := handler.validateAndBuildAppSecrets(w, appId, envId, secretDataWithData)
+			secretRes, err := handler.validateAndBuildAppSecrets(w, appId, envId,secretData) //secretDataWithData)
 			if err != nil {
 				handler.logger.Errorw("service err, CSGlobalFetch-validateAndBuildAppSecrets in GetAppAllDetail", "err", err, "appId", appId)
 				writeJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -840,7 +840,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppEnvironmentSecrets(w http.R
 				secretsResp = append(secretsResp, secret)
 			}
 		}
-	}
+	//}
 
 	return secretsResp, false
 }
