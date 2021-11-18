@@ -20,6 +20,34 @@ type resourceParser struct {
 var memoryParser *resourceParser
 var cpuParser *resourceParser
 
+func getResourcesLimitsKeys(envoyProxy bool) []string {
+	if envoyProxy {
+		return []string{"envoyproxy", "resources", "limits"}
+	} else {
+		return []string{"resources", "limits"}
+	}
+}
+func getResourcesRequestsKeys(envoyProxy bool) []string {
+	if envoyProxy {
+		return []string{"envoyproxy", "resources", "requests"}
+	} else {
+		return []string{"resources", "requests"}
+	}
+}
+
+func validateResourcesAssignment(dat map[string]interface{}, validationKeys []string) (validatedMap map[string]interface{},validationSuccessful bool) {
+	var test map[string]interface{}
+	test = dat
+	for _, validationKey := range validationKeys {
+		if test[validationKey] != nil {
+			test = test[validationKey].(map[string]interface{})
+		} else {
+			return nil,false
+		}
+	}
+	return test,true
+}
+
 func MemoryToNumber(memory string) (float64, error) {
 	if memoryParser == nil {
 		pattern := "(\\d*e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)"
@@ -119,15 +147,15 @@ func ParseFloat(str string) (float64, error) {
 }
 
 func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
-	if dat == nil{
+	if dat == nil {
 		return true, nil
 	}
-	limit, ok := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-	if !ok {
-		return false, errors.New("resources.limits is required")
+	limit, validationSuccessful := validateResourcesAssignment(dat, getResourcesLimitsKeys(false))
+	if !validationSuccessful {
+			return false, errors.New("resources.limits is required")
 	}
-	envoproxyLimit, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-	if !ok {
+	envoproxyLimit, validationSuccessful := validateResourcesAssignment(dat, getResourcesLimitsKeys(true))
+	if !validationSuccessful {
 		return false, errors.New("envoproxy.resources.limits is required")
 	}
 	checkCPUlimit, ok := limit["cpu"]
@@ -146,12 +174,12 @@ func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 	if !ok {
 		return false, errors.New("envoyproxy.resources.limits.memory is required")
 	}
-	request, ok := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-	if !ok {
+	request, validationSuccessful := validateResourcesAssignment(dat, getResourcesRequestsKeys(false))
+	if !validationSuccessful {
 		return true, nil
 	}
-	envoproxyRequest, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-	if !ok {
+	envoproxyRequest, validationSuccessful := validateResourcesAssignment(dat, getResourcesRequestsKeys(true))
+	if !validationSuccessful {
 		return true, nil
 	}
 	checkCPURequests, ok := request["cpu"]
@@ -205,13 +233,13 @@ func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 		return false, err
 	}
 
-	if (envoproxyCPULimit < envoproxyCPURequest){
+	if envoproxyCPULimit < envoproxyCPURequest {
 		return false, errors.New("envoyproxy.resources.limits.cpu must be greater than or equal to envoyproxy.resources.requests.cpu")
-	}else if (envoproxyMemoryLimit < envoproxyMemoryRequest){
+	} else if envoproxyMemoryLimit < envoproxyMemoryRequest {
 		return false, errors.New("envoyproxy.resources.limits.memory must be greater than or equal to envoyproxy.resources.requests.memory")
-	}else if (cpuLimit < cpuRequest) {
+	} else if cpuLimit < cpuRequest {
 		return false, errors.New("resources.limits.cpu must be greater than or equal to resources.requests.cpu")
-	}else if (memoryLimit < memoryRequest) {
+	} else if memoryLimit < memoryRequest {
 		return false, errors.New("resources.limits.memory must be greater than or equal to resources.requests.memory")
 	}
 	return true, nil
@@ -219,7 +247,7 @@ func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 }
 
 func AutoScale(dat map[string]interface{}) (bool, error) {
-	if dat == nil{
+	if dat == nil {
 		return true, nil
 	}
 	autoscaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
@@ -227,12 +255,12 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 		return true, nil
 	}
 	if autoscaleEnabled.(bool) {
-		limit, ok := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-		if !ok {
+		limit, validationSuccessful := validateResourcesAssignment(dat, getResourcesLimitsKeys(false))
+		if !validationSuccessful {
 			return false, errors.New("resources.limits is required")
 		}
-		envoproxyLimit, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-		if !ok {
+		envoproxyLimit, validationSuccessful := validateResourcesAssignment(dat, getResourcesLimitsKeys(true))
+		if !validationSuccessful {
 			return false, errors.New("envoproxy.resources.limits is required")
 		}
 		checkCPUlimit, ok := limit["cpu"]
@@ -251,12 +279,12 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 		if !ok {
 			return false, errors.New("envoyproxy.resources.limits.memory is required")
 		}
-		request, ok := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-		if !ok {
+		request, validationSuccessful := validateResourcesAssignment(dat, getResourcesRequestsKeys(false))
+		if !validationSuccessful {
 			return false, errors.New("resources.requests is required")
 		}
-		envoproxyRequest, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-		if !ok {
+		envoproxyRequest, validationSuccessful := validateResourcesAssignment(dat, getResourcesRequestsKeys(true))
+		if !validationSuccessful {
 			return false, errors.New("envoyproxy.resources.requests is required")
 		}
 		checkCPURequests, ok := request["cpu"]
@@ -310,15 +338,15 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 			return false, err
 		}
 
-		if (envoproxyCPULimit < envoproxyCPURequest){
+		if envoproxyCPULimit < envoproxyCPURequest {
 			return false, errors.New("envoyproxy.resources.limits.cpu must be greater than or equal to envoyproxy.resources.requests.cpu")
-		}else if (envoproxyMemoryLimit < envoproxyMemoryRequest){
+		} else if envoproxyMemoryLimit < envoproxyMemoryRequest {
 			return false, errors.New("envoyproxy.resources.limits.memory must be greater than or equal to envoyproxy.resources.requests.memory")
-		}else if (cpuLimit < cpuRequest) {
+		} else if cpuLimit < cpuRequest {
 			return false, errors.New("resources.limits.cpu must be greater than or equal to resources.requests.cpu")
-		}else if (memoryLimit < memoryRequest) {
+		} else if memoryLimit < memoryRequest {
 			return false, errors.New("resources.limits.memory must be greater than or equal to resources.requests.memory")
-		}else {
+		} else {
 			return true, nil
 		}
 	} else {
@@ -337,7 +365,7 @@ var (
 )
 
 func (f CpuChecker) IsFormat(input interface{}) bool {
-	if input == nil{
+	if input == nil {
 		return false
 	}
 	asString, ok := input.(string)
@@ -355,7 +383,7 @@ func (f CpuChecker) IsFormat(input interface{}) bool {
 }
 
 func (f MemoryChecker) IsFormat(input interface{}) bool {
-	if input ==nil{
+	if input == nil {
 		return false
 	}
 	asString, ok := input.(string)
