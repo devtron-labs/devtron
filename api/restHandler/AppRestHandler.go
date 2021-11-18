@@ -1562,7 +1562,10 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 	}
 	if envConfigPropertiesRequest.Id == 0{
 		//need to create environment properties since no properties found
-		createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId,envConfigPropertiesRequest)
+		//using new var so that override values don't get changed
+		var envConfigCreateRequest *pipeline.EnvironmentProperties
+		envConfigCreateRequest = envConfigPropertiesRequest
+		createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId,envConfigCreateRequest)
 		if err!=nil{
 			handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate", "err", err, "payload", envConfigPropertiesRequest)
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
