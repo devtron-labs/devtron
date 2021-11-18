@@ -16,7 +16,32 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
-
+  behavior: {}
+#    scaleDown:
+#      stabilizationWindowSeconds: 300
+#      policies:
+#      - type: Percent
+#        value: 100
+#        periodSeconds: 15
+#    scaleUp:
+#      stabilizationWindowSeconds: 0
+#      policies:
+#      - type: Percent
+#        value: 100
+#        periodSeconds: 15
+#      - type: Pods
+#        value: 4
+#        periodSeconds: 15
+#      selectPolicy: Max
+  extraMetrics: []
+#    - external:
+#        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
+#        metricSelector:
+#          matchLabels:
+#            resource.labels.subscription_id: echo-read
+#        targetAverageValue: "2"
+#      type: External
+#
 secret:
  enabled: false
  data: {}

@@ -60,24 +60,6 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
-  behavior: {}
-#    scaleDown:
-#      stabilizationWindowSeconds: 300
-#      policies:
-#      - type: Percent
-#        value: 100
-#        periodSeconds: 15
-#    scaleUp:
-#      stabilizationWindowSeconds: 0
-#      policies:
-#      - type: Percent
-#        value: 100
-#        periodSeconds: 15
-#      - type: Pods
-#        value: 4
-#        periodSeconds: 15
-#      selectPolicy: Max
-
   extraMetrics: []
 #    - external:
 #        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
@@ -159,8 +141,7 @@ prometheusRule:
 
 
 ingress:
-  enabled: true
-  className: nginx
+  enabled: false
   annotations: {}
 #    nginx.ingress.kubernetes.io/rewrite-target: /
 #    nginx.ingress.kubernetes.io/ssl-redirect: "false"
@@ -168,28 +149,22 @@ ingress:
 #    kubernetes.io/tls-acme: "true"
 #    nginx.ingress.kubernetes.io/canary: "true"
 #    nginx.ingress.kubernetes.io/canary-weight: "10"
+
   hosts:
     - host: chart-example1.local
-      pathType: "ImplementationSpecific"
       paths:
         - /example1
     - host: chart-example2.local
-      pathType: "ImplementationSpecific"
       paths:
         - /example2
         - /example2/healthz
   tls: []
-### Legacy Ingress Format ##
-#  host: abc.com
-#  path: "/"
-#  pathType: "ImplementationSpecific"
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
 
 ingressInternal:
-  enabled: true
-  className: nginx-internal
+  enabled: false
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
  #    kubernetes.io/tls-acme: "true"
@@ -198,14 +173,13 @@ ingressInternal:
 
   hosts:
     - host: chart-example1.internal
-      pathType: "ImplementationSpecific"
       paths:
         - /example1
     - host: chart-example2.internal
-      pathType: "ImplementationSpecific"
       paths:
         - /example2
         - /example2/healthz
+  tls: []
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:

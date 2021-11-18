@@ -15,8 +15,8 @@ ContainerPort:
     port: 8080
     servicePort: 80
     envoyPort: 8799
-    useHTTP2: false
-    supportStreaming: false
+    useHTTP2: true
+    supportStreaming: true
     idleTimeout: 1800s
 #    servicemonitor:
 #      enabled: true
@@ -75,22 +75,19 @@ ReadinessProbe:
 
 ingress:
   enabled: false
-  className: nginx
-  annotations: {}
-#    nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
-#    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
-#    kubernetes.io/ingress.class: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
+    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
+    kubernetes.io/ingress.class: nginx
 #    nginx.ingress.kubernetes.io/rewrite-target: /$2
 #    nginx.ingress.kubernetes.io/canary: "true"
 #    nginx.ingress.kubernetes.io/canary-weight: "10"
 
   hosts:
     - host: chart-example1.local
-      pathType: "ImplementationSpecific"
       paths:
         - /example1
     - host: chart-example2.local
-      pathType: "ImplementationSpecific"
       paths:
         - /example2
         - /example2/healthz
@@ -101,7 +98,6 @@ ingress:
 
 ingressInternal:
   enabled: false
-  className: nginx-internal
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
  #    kubernetes.io/tls-acme: "true"
@@ -110,11 +106,9 @@ ingressInternal:
 
   hosts:
     - host: chart-example1.internal
-      pathType: "ImplementationSpecific"
       paths:
         - /example1
     - host: chart-example2.internal
-      pathType: "ImplementationSpecific"
       paths:
         - /example2
         - /example2/healthz
@@ -188,24 +182,6 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 70
   TargetMemoryUtilizationPercentage: 80
-  behavior: {}
-#    scaleDown:
-#      stabilizationWindowSeconds: 300
-#      policies:
-#      - type: Percent
-#        value: 100
-#        periodSeconds: 15
-#    scaleUp:
-#      stabilizationWindowSeconds: 0
-#      policies:
-#      - type: Percent
-#        value: 100
-#        periodSeconds: 15
-#      - type: Pods
-#        value: 4
-#        periodSeconds: 15
-#      selectPolicy: Max
-
   extraMetrics: []
 #    - external:
 #        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
@@ -228,7 +204,7 @@ servicemonitor:
   additionalLabels: {}
 
 envoyproxy:
-  image: quay.io/devtron/envoy:v1.14.1
+  image: envoyproxy/envoy:v1.14.1
   configMapName: ""
   resources:
     limits:
