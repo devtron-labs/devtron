@@ -1465,7 +1465,7 @@ func (handler AppRestHandlerImpl) createWorkflows(w http.ResponseWriter, ctx con
 				RunPostStageInEnv:             cdPipeline.RunPostStageInEnv,
 				PreStage:                      convertCdStages(cdPipeline.PreStage),
 				PostStage:                     convertCdStages(cdPipeline.PostStage),
-				PreStageConfigMapSecretNames:  convertCdPreStageCMorCSNames(cdPipeline.PostStageConfigMapSecretNames),
+				PreStageConfigMapSecretNames:  convertCdPreStageCMorCSNames(cdPipeline.PreStageConfigMapSecretNames),
 				PostStageConfigMapSecretNames: convertCdPostStageCMorCSNames(cdPipeline.PostStageConfigMapSecretNames),
 			}
 			convertedDeploymentStrategies, err := convertCdDeploymentStrategies(cdPipeline.DeploymentStrategies)
