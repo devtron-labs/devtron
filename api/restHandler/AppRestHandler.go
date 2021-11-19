@@ -258,58 +258,72 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 	appId := createBlankAppResp.Id
 
 	//creating git material starts
-	done = handler.createGitMaterials(w, appId, createAppRequest.GitMaterials, userId)
-	if done {
-		handler.deleteApp(w, ctx, appId, userId)
-		return
+	if createAppRequest.GitMaterials!=nil {
+		done = handler.createGitMaterials(w, appId, createAppRequest.GitMaterials, userId)
+		if done {
+			handler.deleteApp(w, ctx, appId, userId)
+			return
+		}
 	}
 	//creating git material ends
 
-	//creating docker config starts
-	done = handler.createDockerConfig(w, appId, createAppRequest.DockerConfig, userId)
-	if done {
-		handler.deleteApp(w, ctx, appId, userId)
-		return
+	//creating docker config
+	if createAppRequest.DockerConfig!=nil {
+		done = handler.createDockerConfig(w, appId, createAppRequest.DockerConfig, userId)
+		if done {
+			handler.deleteApp(w, ctx, appId, userId)
+			return
+		}
 	}
 	//creating docker config ends
 
 	//creating deployment template starts
-	done = handler.createDeploymentTemplate(w, ctx, appId, createAppRequest.GlobalDeploymentTemplate, userId)
-	if done {
-		handler.deleteApp(w, ctx, appId, userId)
-		return
+	if createAppRequest.GlobalDeploymentTemplate!=nil {
+		done = handler.createDeploymentTemplate(w, ctx, appId, createAppRequest.GlobalDeploymentTemplate, userId)
+		if done {
+			handler.deleteApp(w, ctx, appId, userId)
+			return
+		}
 	}
 	//creating deployment template ends
 
 	//creating global configMaps starts
-	done = handler.createGlobalConfigMaps(w, appId, userId, createAppRequest.GlobalConfigMaps)
-	if done {
-		handler.deleteApp(w, ctx, appId, userId)
-		return
+	if createAppRequest.GlobalConfigMaps!=nil {
+		done = handler.createGlobalConfigMaps(w, appId, userId, createAppRequest.GlobalConfigMaps)
+		if done {
+			handler.deleteApp(w, ctx, appId, userId)
+			return
+		}
 	}
 	//creating global configMaps ends
 
 	//creating global secrets starts
-	done = handler.createGlobalSecrets(w, appId, userId, createAppRequest.GlobalSecrets)
-	if done {
-		handler.deleteApp(w, ctx, appId, userId)
-		return
+	if createAppRequest.GlobalSecrets!=nil {
+		done = handler.createGlobalSecrets(w, appId, userId, createAppRequest.GlobalSecrets)
+		if done {
+			handler.deleteApp(w, ctx, appId, userId)
+			return
+		}
 	}
 	//creating global secrets ends
 
 	//creating workflow starts
-	done = handler.createWorkflows(w, ctx, appId, userId, createAppRequest.AppWorkflows)
-	if done {
-		handler.deleteApp(w, ctx, appId, userId)
-		return
+	if createAppRequest.AppWorkflows!=nil {
+		done = handler.createWorkflows(w, ctx, appId, userId, createAppRequest.AppWorkflows)
+		if done {
+			handler.deleteApp(w, ctx, appId, userId)
+			return
+		}
 	}
 	//creating workflow ends
 
 	//creating environment override starts
-	done = handler.createEnvOverrides(w, ctx, appId, userId, createAppRequest.EnvironmentOverrides)
-	if done {
-		handler.deleteApp(w, ctx, appId, userId)
-		return
+	if createAppRequest.EnvironmentOverrides!=nil {
+		done = handler.createEnvOverrides(w, ctx, appId, userId, createAppRequest.EnvironmentOverrides)
+		if done {
+			handler.deleteApp(w, ctx, appId, userId)
+			return
+		}
 	}
 	//creating environment override ends
 
