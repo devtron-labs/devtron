@@ -527,7 +527,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 		workflowResp := &appBean.AppWorkflow{
 			Name: workflow.Name,
 		}
-
+		var isExternalPipelineInWorkflow bool
 		var cdPipelinesResp []*appBean.CdPipelineDetails
 		for _, workflowMappingDto := range workflow.AppWorkflowMappingDto {
 			if workflowMappingDto.Type == appWorkflow2.CIPIPELINE {
@@ -537,7 +537,10 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, true
 				}
-
+				if ciPipeline!=nil && ciPipeline.IsExternal{
+					isExternalPipelineInWorkflow  = true
+					break
+				}
 				ciPipelineResp, err := handler.validateAndBuildCiPipelineResp(w, appId, ciPipeline)
 				if err != nil {
 					handler.logger.Errorw("service err, validateAndBuildCiPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
@@ -564,8 +567,10 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 				cdPipelinesResp = append(cdPipelinesResp, cdPipelineResp)
 			}
 		}
-		workflowResp.CdPipelines = cdPipelinesResp
-		appWorkflowsResp = append(appWorkflowsResp, workflowResp)
+		if !isExternalPipelineInWorkflow {
+			workflowResp.CdPipelines = cdPipelinesResp
+			appWorkflowsResp = append(appWorkflowsResp, workflowResp)
+		}
 	}
 
 	return appWorkflowsResp, false
@@ -574,7 +579,9 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 //build ci pipeline resp
 func (handler AppRestHandlerImpl) validateAndBuildCiPipelineResp(w http.ResponseWriter, appId int, ciPipeline *bean.CiPipeline) (*appBean.CiPipelineDetails, error) {
 	handler.logger.Debugw("Getting app detail - build ci pipeline resp", "appId", appId)
-
+	 if ciPipeline == nil{
+	 	return nil, nil
+	 }
 	ciPipelineResp := &appBean.CiPipelineDetails{
 		Name:                     ciPipeline.Name,
 		IsManual:                 ciPipeline.IsManual,
@@ -633,7 +640,9 @@ func (handler AppRestHandlerImpl) validateAndBuildCiPipelineResp(w http.Response
 //build cd pipeline resp
 func (handler AppRestHandlerImpl) validateAndBuildCdPipelineResp(w http.ResponseWriter, appId int, cdPipeline *bean.CDPipelineConfigObject) (*appBean.CdPipelineDetails, error) {
 	handler.logger.Debugw("Getting app detail - build cd pipeline resp", "appId", appId)
-
+	if cdPipeline==nil{
+		return nil,nil
+	}
 	cdPipelineResp := &appBean.CdPipelineDetails{
 		Name:              cdPipeline.Name,
 		EnvironmentName:   cdPipeline.EnvironmentName,
