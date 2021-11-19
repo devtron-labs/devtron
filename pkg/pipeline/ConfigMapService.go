@@ -623,11 +623,9 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*ConfigDataRequest, e
 				configs = append(configs, item)
 				continue
 			}
-
 			for k := range resultMap {
 				resultMapFinal[k] = ""
 			}
-
 			resultByte, err := json.Marshal(resultMapFinal)
 			if err != nil {
 				impl.logger.Errorw("error while marshaling request ", "err", err)
@@ -755,7 +753,6 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *Config
 	return configMapRequest, nil
 }
 
-
 func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*ConfigDataRequest, error) {
 	configMapGlobal, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
 	if err != nil && pg.ErrNoRows != err {
@@ -864,15 +861,16 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 				continue
 				//return nil, err
 			}
-
 			for k := range resultMap {
 				resultMapFinal[k] = ""
 			}
-
-			resultByte, err := json.Marshal(resultMapFinal)
-			if err != nil {
-				impl.logger.Errorw("error while marshaling request ", "err", err)
-				return nil, err
+			var resultByte []byte
+			if resultMapFinal!=nil && len(resultMapFinal) >0 {
+				resultByte, err = json.Marshal(resultMapFinal)
+				if err != nil {
+					impl.logger.Errorw("error while marshaling request ", "err", err)
+					return nil, err
+				}
 			}
 			item.Data = resultByte
 		}
@@ -896,12 +894,9 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 				continue
 				//return nil, err
 			}
-
 			for k := range resultMap {
 				resultMapFinal[k] = ""
 			}
-
-
 			resultByte, err := json.Marshal(resultMapFinal)
 			if err != nil {
 				impl.logger.Errorw("error while marshaling request ", "err", err)
