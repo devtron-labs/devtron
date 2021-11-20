@@ -1,0 +1,19 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    app: devtron
+    release: devtron
+  name: devtron-ingress
+spec:
+  rules:
+  - http:
+      paths:
+      - backend:
+          serviceName: devtron-service
+          servicePort: 80
+        path: /orchestrator
+      - backend:
+          serviceName: devtron-service
+          servicePort: 80
+        path: /dashboard

@@ -71,10 +71,11 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeader:
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
   scheme: ""
   tcp: true
-```
 
 | Key | Description |
 | :--- | :--- |
@@ -84,7 +85,7 @@ LivenessProbe:
 | `periodSeconds` | It defines the time to check a given container for liveness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
-| `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
@@ -124,10 +125,12 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeader:
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
   scheme: ""
   tcp: true
-```
+
 
 | Key | Description |
 | :--- | :--- |
@@ -137,7 +140,7 @@ ReadinessProbe:
 | `periodSeconds` | It defines the time to check a given container for readiness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
-| `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
@@ -180,6 +183,26 @@ This allows public access to the url, please ensure you are using right nginx an
 ```yaml
 ingress:
   enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx
+  annotations: {}
+  hosts:
+      - host: example1.com
+        paths:
+            - /example
+      - host: example2.com
+        paths:
+            - /example2
+            - /example2/healthz
+  tls: []
+```
+Legacy deployment-template ingress format
+
+```yaml
+ingress:
+  enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx-internal
   annotations: {}
   path: ""
   host: ""
@@ -201,9 +224,17 @@ This allows private access to the url, please ensure you are using right nginx a
 ```yaml
 ingressInternal:
   enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx-internal
   annotations: {}
-  path: ""
-  host: ""
+  hosts:
+      - host: example1.com
+        paths:
+            - /example
+      - host: example2.com
+        paths:
+            - /example2
+            - /example2/healthz
   tls: []
 ```
 
@@ -557,6 +588,23 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
 ```
 
 HPA, by default is configured to work with CPU and Memory metrics. These metrics are useful for internal cluster sizing, but you might want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.

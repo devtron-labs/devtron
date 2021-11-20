@@ -1,11 +1,320 @@
 ---
-# Source: nats-server/templates/nats.yaml
-apiVersion: "nats.io/v1alpha2"
-kind: "NatsCluster"
+# Source: nats/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: "devtron-nats"
-  namespace: devtroncd
+  name: devtron-nats-config
+  namespace: "devtroncd"
   labels:
-    release: "devtron"
+    helm.sh/chart: nats-0.9.2
+
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/instance: devtron-nats
+    app.kubernetes.io/version: "2.6.3"
+    app.kubernetes.io/managed-by: Helm
+data:
+  nats.conf: |
+    # PID file shared with configuration reloader.
+    pid_file: "/var/run/nats/nats.pid"
+
+    ###############
+    #             #
+    # Monitoring  #
+    #             #
+    ###############
+    http: 8222
+    server_name:$POD_NAME
+    lame_duck_duration: 120s
+---
+# Source: nats/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: devtron-nats
+  namespace: "devtroncd"
+  labels:
+    helm.sh/chart: nats-0.9.2
+
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/instance: devtron-nats
+    app.kubernetes.io/version: "2.6.3"
+    app.kubernetes.io/managed-by: Helm
 spec:
-  size: 3
+  selector:
+
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/instance: devtron-nats
+  clusterIP: None
+  ports:
+  - name: client
+    port: 4222
+  - name: cluster
+    port: 6222
+  - name: monitor
+    port: 8222
+  - name: metrics
+    port: 7777
+  - name: leafnodes
+    port: 7422
+  - name: gateways
+    port: 7522
+---
+# Source: nats/templates/nats-box.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devtron-nats-box
+  namespace: "devtroncd"
+  labels:
+    app: devtron-nats-box
+    chart: nats-0.9.2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devtron-nats-box
+  template:
+    metadata:
+      labels:
+        app: devtron-nats-box
+    spec:
+      volumes:
+      containers:
+      - name: nats-box
+        image: natsio/nats-box:0.7.0
+        imagePullPolicy: IfNotPresent
+        resources:
+          null
+        env:
+        - name: NATS_URL
+          value: devtron-nats
+        command:
+         - "tail"
+         - "-f"
+         - "/dev/null"
+        volumeMounts:
+---
+# Source: nats/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: devtron-nats
+  namespace: "devtroncd"
+  labels:
+    helm.sh/chart: nats-0.9.2
+
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/instance: devtron-nats
+    app.kubernetes.io/version: "2.6.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+
+      app.kubernetes.io/name: nats
+      app.kubernetes.io/instance: devtron-nats
+  replicas: 3
+  serviceName: devtron-nats
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "7777"
+        prometheus.io/scrape: "true"
+      labels:
+
+        app.kubernetes.io/name: nats
+        app.kubernetes.io/instance: devtron-nats
+    spec:
+      # Common volumes for the containers.
+      volumes:
+      - name: config-volume
+
+        configMap:
+          name: devtron-nats-config
+
+
+      # Local volume shared with the reloader.
+      - name: pid
+        emptyDir: {}
+
+      #################
+      #               #
+      #  TLS Volumes  #
+      #               #
+      #################
+
+
+
+      # Required to be able to HUP signal and apply config
+      # reload to the server without restarting the pod.
+      shareProcessNamespace: true
+
+      #################
+      #               #
+      #  NATS Server  #
+      #               #
+      #################
+      terminationGracePeriodSeconds: 120
+      containers:
+      - name: nats
+        image: nats:2.6.3-alpine
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+        ports:
+        - containerPort: 4222
+          name: client
+        - containerPort: 7422
+          name: leafnodes
+        - containerPort: 7522
+          name: gateways
+        - containerPort: 6222
+          name: cluster
+        - containerPort: 8222
+          name: monitor
+        - containerPort: 7777
+          name: metrics
+
+        command:
+         - "nats-server"
+         - "--config"
+         - "/etc/nats-config/nats.conf"
+
+        # Required to be able to define an environment variable
+        # that refers to other environment variables.  This env var
+        # is later used as part of the configuration file.
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: SERVER_NAME
+          value: $(POD_NAME)
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: CLUSTER_ADVERTISE
+          value: $(POD_NAME).devtron-nats.$(POD_NAMESPACE).svc.cluster.local
+        volumeMounts:
+          - name: config-volume
+            mountPath: /etc/nats-config
+          - name: pid
+            mountPath: /var/run/nats
+
+        # Liveness/Readiness probes against the monitoring.
+        #
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8222
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8222
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+
+        # Gracefully stop NATS Server on pod deletion or image upgrade.
+        #
+        lifecycle:
+          preStop:
+            exec:
+              # Using the alpine based NATS image, we add an extra sleep that is
+              # the same amount as the terminationGracePeriodSeconds to allow
+              # the NATS Server to gracefully terminate the client connections.
+              #
+              command:
+              - "/bin/sh"
+              - "-c"
+              - "nats-server -sl=ldm=/var/run/nats/nats.pid && /bin/sleep 120"
+
+      #################################
+      #                               #
+      #  NATS Configuration Reloader  #
+      #                               #
+      #################################
+
+      - name: reloader
+        image: natsio/nats-server-config-reloader:0.6.2
+        imagePullPolicy: IfNotPresent
+        resources:
+          null
+        command:
+         - "nats-server-config-reloader"
+         - "-pid"
+         - "/var/run/nats/nats.pid"
+         - "-config"
+         - "/etc/nats-config/nats.conf"
+        volumeMounts:
+          - name: config-volume
+            mountPath: /etc/nats-config
+          - name: pid
+            mountPath: /var/run/nats
+
+
+      ##############################
+      #                            #
+      #  NATS Prometheus Exporter  #
+      #                            #
+      ##############################
+
+      - name: metrics
+        image: natsio/prometheus-nats-exporter:0.9.0
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+        args:
+        - -connz
+        - -routez
+        - -subz
+        - -varz
+        - -prefix=nats
+        - -use_internal_server_id
+        - http://localhost:8222/
+        ports:
+        - containerPort: 7777
+          name: metrics
+
+
+  volumeClaimTemplates:
+---
+# Source: nats/templates/tests/test-request-reply.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "devtron-nats-test-request-reply"
+  labels:
+    helm.sh/chart: nats-0.9.2
+
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/instance: devtron-nats
+    app.kubernetes.io/version: "2.6.3"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: nats-box
+      image: synadia/nats-box
+      env:
+        - name: NATS_HOST
+          value: devtron-nats
+      command:
+        - /bin/sh
+        - -ec
+        - |
+          nats reply -s nats://$NATS_HOST:4222 'name.>' --command "echo 1" &
+        - |
+          "&&"
+        - |
+          name=$(nats request -s nats://$NATS_HOST:4222 name.test '' 2>/dev/null)
+        - |
+          "&&"
+        - |
+          [ $name = test ]
+
+  restartPolicy: Never

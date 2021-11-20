@@ -1,4 +1,4 @@
-LTAG="v0.2.37";
+LTAG="v0.3.0";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
@@ -9,6 +9,7 @@ webHookToken = jsonSelect(operatorSecret, "data.WEBHOOK_TOKEN");
 grafanaPassword = jsonSelect(operatorSecret, "data.GRAFANA_PASSWORD");
 azureAccountKey = jsonSelect(operatorSecret, "data.AZURE_ACCOUNT_KEY");
 postgresSecret = kubectl get secret -n devtroncd postgresql-postgresql;
+enableLegacyApi = jsonSelect(operatorConfigMap, "data.ENABLE_LEGACY_API");
 
 baseURLScheme = jsonSelect(operatorConfigMap, "data.BASE_URL_SCHEME");
 baseURL = jsonSelect(operatorConfigMap, "data.BASE_URL");
@@ -81,12 +82,16 @@ imageScanner_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/image-scanner.yaml";
 kubewatch_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/kubewatch.yaml";
 lens_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/lens.yaml";
 migrator_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/migrator.yaml";
-natsOperator_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-operator.yaml";
+## natsOperator_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-operator.yaml";
 natsServer_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-server.yaml";
 natsStreaming_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-streaming.yaml";
 notifier_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/notifier.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
+if enableLegacyApi=="true" {
+devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress-legacy.yaml";
+}
+log(devtronIngress_raw);
 workflow_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/workflow.yaml";
 serviceAccount_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/serviceaccount.yaml";
 namespace_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/namespace.yaml";
@@ -109,7 +114,7 @@ imageScanner = download(imageScanner_raw);
 kubewatch = download(kubewatch_raw);
 lens = download(lens_raw);
 migrator = download(migrator_raw);
-natsOperator = download(natsOperator_raw);
+## natsOperator = download(natsOperator_raw);
 natsServer = download(natsServer_raw);
 natsStreaming = download(natsStreaming_raw);
 notifier = download(notifier_raw);
@@ -137,7 +142,7 @@ imageScannerOverride = kubectl get cm -n devtroncd image-scanner-override-cm;
 kubewatchOverride = kubectl get cm -n devtroncd kubewatch-override-cm;
 lensOverride = kubectl get cm -n devtroncd lens-override-cm;
 migratorOverride = kubectl get cm -n devtroncd migrator-override-cm;
-natsOperatorOverride = kubectl get cm -n devtroncd nats-operator-override-cm;
+## natsOperatorOverride = kubectl get cm -n devtroncd nats-operator-override-cm;
 natsServerOverride = kubectl get cm -n devtroncd nats-server-override-cm;
 natsStreamingOverride = kubectl get cm -n devtroncd nats-streaming-override-cm;
 notifierOverride = kubectl get cm -n devtroncd notifier-override-cm;
@@ -164,7 +169,7 @@ imageScannerOverride = jsonSelect(imageScannerOverride, "data.override");
 kubewatchOverride = jsonSelect(kubewatchOverride, "data.override");
 lensOverride = jsonSelect(lensOverride, "data.override");
 migratorOverride = jsonSelect(migratorOverride, "data.override");
-natsOperatorOverride = jsonSelect(natsOperatorOverride, "data.override");
+## natsOperatorOverride = jsonSelect(natsOperatorOverride, "data.override");
 natsServerOverride = jsonSelect(natsServerOverride, "data.override");
 natsStreamingOverride = jsonSelect(natsStreamingOverride, "data.override");
 notifierOverride = jsonSelect(notifierOverride, "data.override");
@@ -438,9 +443,9 @@ kubeYamlEdit(migrator, "data.DB_PASSWORD", postgresqlPassword, `/Secret//postgre
 migrator = kubectl apply -n devtroncd migrator -u migratorOverride;
 log("executed migrator setup command");
 
-#nats
-natsOperator = kubectl apply -n devtroncd natsOperator -u natsOperatorOverride;
-log("executed nats operator setup");
+## #nats
+## natsOperator = kubectl apply -n devtroncd natsOperator -u natsOperatorOverride;
+## log("executed nats operator setup");
 ignore = shellScript sleep50;
 natsServer = kubectl apply -n devtroncd natsServer -u natsServerOverride;
 log("executed nats server setup");
@@ -592,6 +597,7 @@ if annotations {
 
 if setupDevtronIngress {
   log("setup ingress");
+  log(devtronIngress);
   devtronIngress = kubectl apply -n devtroncd devtronIngress -u devtronIngressOverride;
 }
 
