@@ -117,7 +117,7 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeaders: []
+  httpHeaders:
     - name: Custom-Header
       value: abc
     - name: Custom-Header2
@@ -131,7 +131,7 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeaders: []
+  httpHeaders:
     - name: Custom-Header
       value: abc
 
