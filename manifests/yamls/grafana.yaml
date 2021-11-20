@@ -274,7 +274,7 @@ spec:
     - "ReadWriteOnce"
   resources:
     requests:
-      storage: "20Gi"
+      storage: "2Gi"
 ---
 # Source: grafana/templates/clusterrole.yaml
 kind: ClusterRole

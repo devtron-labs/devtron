@@ -47,9 +47,9 @@ LivenessProbe:
   Path: ""
   port: 8080
   scheme: ""
-  httpHeader:
-    name: ""
-    value: ""
+  httpHeaders: []
+#    - name: Custom-Header
+#      value: abc
   tcp: false
   command: []
   initialDelaySeconds: 20
@@ -62,9 +62,9 @@ ReadinessProbe:
   Path: ""
   port: 8080
   scheme: ""
-  httpHeader:
-    name: ""
-    value: ""
+  httpHeaders: []
+#    - name: Custom-Header
+#      value: abc
   tcp: false
   command: []
   initialDelaySeconds: 20
@@ -75,7 +75,7 @@ ReadinessProbe:
 
 ingress:
   enabled: false
-  ingressClassName: nginx
+  className: nginx
   annotations: {}
 #    nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
 #    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
@@ -101,7 +101,7 @@ ingress:
 
 ingressInternal:
   enabled: false
-  ingressClassName: nginx-internal
+  className: nginx-internal
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
  #    kubernetes.io/tls-acme: "true"
@@ -228,7 +228,7 @@ servicemonitor:
   additionalLabels: {}
 
 envoyproxy:
-  image: envoyproxy/envoy:v1.14.1
+  image: quay.io/devtron/envoy:v1.14.1
   configMapName: ""
   resources:
     limits:

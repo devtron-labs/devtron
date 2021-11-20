@@ -36,6 +36,9 @@ spec:
           spec:
             description: InstallerSpec defines the desired state of Installer
             properties:
+              reSync:
+                description: Rerun the installation script
+                type: boolean
               url:
                 description: URL of the BOM version to be installed
                 type: string

@@ -110,6 +110,9 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  httpHeaders: []
+#    - name: Custom-Header
+#      value: abc
 
 ReadinessProbe:
   Path: /
@@ -119,6 +122,9 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  httpHeaders: []
+#    - name: Custom-Header
+#      value: abc
 
 prometheus:
   release: monitoring
@@ -153,7 +159,7 @@ prometheusRule:
 
 ingress:
   enabled: false
-  ingressClassName: nginx
+  className: nginx
   annotations: {}
 #    nginx.ingress.kubernetes.io/rewrite-target: /
 #    nginx.ingress.kubernetes.io/ssl-redirect: "false"
@@ -179,7 +185,7 @@ ingress:
 
 ingressInternal:
   enabled: false
-  ingressClassName: nginx-internal
+  className: nginx-internal
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
  #    kubernetes.io/tls-acme: "true"
@@ -355,7 +361,7 @@ rawYaml: []
 #    type: ClusterIP
 
 envoyproxy:
- image: envoyproxy/envoy:v1.14.1
+ image: quay.io/devtron/envoy:v1.14.1
  configMapName: ""
  resources:
    limits:

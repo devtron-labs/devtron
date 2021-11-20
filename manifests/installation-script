@@ -9,7 +9,7 @@ webHookToken = jsonSelect(operatorSecret, "data.WEBHOOK_TOKEN");
 grafanaPassword = jsonSelect(operatorSecret, "data.GRAFANA_PASSWORD");
 azureAccountKey = jsonSelect(operatorSecret, "data.AZURE_ACCOUNT_KEY");
 postgresSecret = kubectl get secret -n devtroncd postgresql-postgresql;
-kubernetesVersion = jsonSelect(operatorConfigMap, "data.KUBERNETES_VERSION");
+enableLegacyApi = jsonSelect(operatorConfigMap, "data.ENABLE_LEGACY_API");
 
 baseURLScheme = jsonSelect(operatorConfigMap, "data.BASE_URL_SCHEME");
 baseURL = jsonSelect(operatorConfigMap, "data.BASE_URL");
@@ -88,9 +88,10 @@ natsStreaming_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-streaming.yaml"
 notifier_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/notifier.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
-if kubernetesVersion < 1.19 {
+if enableLegacyApi=="true" {
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress-legacy.yaml";
 }
+log(devtronIngress_raw);
 workflow_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/workflow.yaml";
 serviceAccount_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/serviceaccount.yaml";
 namespace_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/namespace.yaml";
@@ -596,6 +597,7 @@ if annotations {
 
 if setupDevtronIngress {
   log("setup ingress");
+  log(devtronIngress);
   devtronIngress = kubectl apply -n devtroncd devtronIngress -u devtronIngressOverride;
 }
 
