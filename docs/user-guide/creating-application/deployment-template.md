@@ -71,7 +71,9 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeader:
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
   scheme: ""
   tcp: true
 ```
@@ -124,7 +126,9 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeader:
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
   scheme: ""
   tcp: true
 ```
