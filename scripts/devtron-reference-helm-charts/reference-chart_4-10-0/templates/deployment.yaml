@@ -210,6 +210,13 @@ spec:
             httpGet:
               path: {{ $.Values.LivenessProbe.Path  }}
               port: {{ $.Values.LivenessProbe.port }}
+            {{- if $.Values.LivenessProbe.httpHeaders }}
+              httpHeaders:
+              {{- range $.Values.LivenessProbe.httpHeaders}}
+                - name: {{.name}}
+                  value: {{.value}}
+              {{- end}}
+	    {{- end }}
 {{- end }}
 {{- if $.Values.LivenessProbe.command }}
             exec:
@@ -232,6 +239,13 @@ spec:
             httpGet:
               path: {{ $.Values.ReadinessProbe.Path  }}
               port: {{ $.Values.ReadinessProbe.port }}
+            {{- if $.Values.ReadinessProbe.httpHeaders }}
+              httpHeaders:
+              {{- range $.Values.ReadinessProbe.httpHeaders}}
+                - name: {{.name}}
+                  value: {{.value}}
+              {{- end}}
+	    {{- end }}
 {{- end }}
 {{- if $.Values.ReadinessProbe.command }}
             exec:
