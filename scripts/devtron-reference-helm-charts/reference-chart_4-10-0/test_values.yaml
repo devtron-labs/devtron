@@ -117,6 +117,11 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  httpHeaders: []
+    - name: Custom-Header
+      value: abc
+    - name: Custom-Header2
+      value: xyz
 
 ReadinessProbe:
   Path: /
@@ -126,6 +131,9 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  httpHeaders: []
+    - name: Custom-Header
+      value: abc
 
 prometheus:
   release: monitoring

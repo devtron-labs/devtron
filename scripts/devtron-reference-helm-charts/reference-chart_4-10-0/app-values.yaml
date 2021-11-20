@@ -47,9 +47,9 @@ LivenessProbe:
   Path: ""
   port: 8080
   scheme: ""
-  httpHeader:
-    name: ""
-    value: ""
+  httpHeaders: []
+#    - name: Custom-Header
+#      value: abc
   tcp: false
   command: []
   initialDelaySeconds: 20
@@ -62,9 +62,9 @@ ReadinessProbe:
   Path: ""
   port: 8080
   scheme: ""
-  httpHeader:
-    name: ""
-    value: ""
+  httpHeaders: []
+#    - name: Custom-Header
+#      value: abc
   tcp: false
   command: []
   initialDelaySeconds: 20
