@@ -5,6 +5,7 @@ metadata:
   namespace:  devtroncd
 data:
   override: |
+#    apiVersion: extensions/v1beta1  #For k8s < 1.19
     apiVersion: networking.k8s.io/v1
     kind: Ingress
     metadata: 
