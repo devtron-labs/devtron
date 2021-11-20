@@ -12,8 +12,8 @@ ContainerPort:
     port: 8080
     servicePort: 80
     envoyPort: 8799
-    useHTTP2: false
-    supportStreaming: false
+    useHTTP2: true
+    supportStreaming: true
     idleTimeout: 1800s
 #    servicemonitor:
 #      enabled: true
@@ -52,23 +52,6 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
-  behavior: {}
-#    scaleDown:
-#      stabilizationWindowSeconds: 300
-#      policies:
-#      - type: Percent
-#        value: 100
-#        periodSeconds: 15
-#    scaleUp:
-#      stabilizationWindowSeconds: 0
-#      policies:
-#      - type: Percent
-#        value: 100
-#        periodSeconds: 15
-#      - type: Pods
-#        value: 4
-#        periodSeconds: 15
-#      selectPolicy: Max
   extraMetrics: []
 #    - external:
 #        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
@@ -94,13 +77,14 @@ server:
    image_tag: 1-95af053
    image: ""
 
-EnvVariablesFromFieldPath:
-- name: POD_NAME
-  fieldPath: metadata.name
 
 EnvVariables:
   - name: FLASK_ENV
     value: qa
+
+EnvVariablesFromFieldPath:
+- name: POD_NAME
+  fieldPath: metadata.name
 
 LivenessProbe:
   Path: /
@@ -153,7 +137,6 @@ prometheusRule:
 
 ingress:
   enabled: false
-  className: nginx
   annotations: {}
 #    nginx.ingress.kubernetes.io/rewrite-target: /
 #    nginx.ingress.kubernetes.io/ssl-redirect: "false"
@@ -164,14 +147,8 @@ ingress:
 
   hosts:
     - host: chart-example1.local
-      pathType: "ImplementationSpecific"
       paths:
         - /example1
-    - host: chart-example2.local
-      pathType: "ImplementationSpecific"
-      paths:
-        - /example2
-        - /example2/healthz
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
@@ -179,7 +156,6 @@ ingress:
 
 ingressInternal:
   enabled: false
-  className: nginx-internal
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
  #    kubernetes.io/tls-acme: "true"
@@ -188,14 +164,8 @@ ingressInternal:
 
   hosts:
     - host: chart-example1.internal
-      pathType: "ImplementationSpecific"
       paths:
         - /example1
-    - host: chart-example2.internal
-      pathType: "ImplementationSpecific"
-      paths:
-        - /example2
-        - /example2/healthz
   tls: []
  #  - secretName: chart-example-tls
  #    hosts:
@@ -355,7 +325,7 @@ rawYaml: []
 #    type: ClusterIP
 
 envoyproxy:
- image: quay.io/devtron/envoy:v1.14.1
+ image: envoyproxy/envoy:v1.14.1
  configMapName: ""
  resources:
    limits:
