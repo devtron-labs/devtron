@@ -49,6 +49,7 @@ type DeploymentTemplate struct {
 	ChartRefId     int                    `json:"chartRefId,notnull" validate:"required"`
 	Template       map[string]interface{} `json:"template,notnull" validate:"required"`
 	ShowAppMetrics bool                   `json:"showAppMetrics"`
+	IsOverride     bool					  `json:"isOverride"`
 }
 
 type AppWorkflow struct {
