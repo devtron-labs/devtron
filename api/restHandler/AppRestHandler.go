@@ -455,7 +455,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 			handler.logger.Errorw("service err, GetDeploymentTemplate in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return nil, true
-		}else{
+		} else {
 			handler.logger.Warnw("no charts configured for app, GetDeploymentTemplate in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
 			return nil, false
 		}
@@ -534,7 +534,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 		workflowResp := &appBean.AppWorkflow{
 			Name: workflow.Name,
 		}
-		var isExternalPipelineInWorkflow bool
+
 		var cdPipelinesResp []*appBean.CdPipelineDetails
 		for _, workflowMappingDto := range workflow.AppWorkflowMappingDto {
 			if workflowMappingDto.Type == appWorkflow2.CIPIPELINE {
@@ -544,10 +544,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, true
 				}
-				if ciPipeline != nil && ciPipeline.IsExternal {
-					isExternalPipelineInWorkflow = true
-					break
-				}
+
 				ciPipelineResp, err := handler.validateAndBuildCiPipelineResp(appId, ciPipeline)
 				if err != nil {
 					handler.logger.Errorw("service err, validateAndBuildCiPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
@@ -574,10 +571,10 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 				cdPipelinesResp = append(cdPipelinesResp, cdPipelineResp)
 			}
 		}
-		if !isExternalPipelineInWorkflow {
-			workflowResp.CdPipelines = cdPipelinesResp
-			appWorkflowsResp = append(appWorkflowsResp, workflowResp)
-		}
+
+		workflowResp.CdPipelines = cdPipelinesResp
+		appWorkflowsResp = append(appWorkflowsResp, workflowResp)
+
 	}
 
 	return appWorkflowsResp, false
@@ -586,14 +583,17 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 //build ci pipeline resp
 func (handler AppRestHandlerImpl) validateAndBuildCiPipelineResp(appId int, ciPipeline *bean.CiPipeline) (*appBean.CiPipelineDetails, error) {
 	handler.logger.Debugw("Getting app detail - build ci pipeline resp", "appId", appId)
+
 	if ciPipeline == nil {
 		return nil, nil
 	}
+
 	ciPipelineResp := &appBean.CiPipelineDetails{
 		Name:                     ciPipeline.Name,
 		IsManual:                 ciPipeline.IsManual,
 		DockerBuildArgs:          ciPipeline.DockerArgs,
 		VulnerabilityScanEnabled: ciPipeline.ScanEnabled,
+		IsExternal:               ciPipeline.IsExternal,
 	}
 
 	//build ciPipelineMaterial resp
@@ -646,9 +646,11 @@ func (handler AppRestHandlerImpl) validateAndBuildCiPipelineResp(appId int, ciPi
 //build cd pipeline resp
 func (handler AppRestHandlerImpl) validateAndBuildCdPipelineResp(appId int, cdPipeline *bean.CDPipelineConfigObject) (*appBean.CdPipelineDetails, error) {
 	handler.logger.Debugw("Getting app detail - build cd pipeline resp", "appId", appId)
+
 	if cdPipeline == nil {
 		return nil, nil
 	}
+
 	cdPipelineResp := &appBean.CdPipelineDetails{
 		Name:              cdPipeline.Name,
 		EnvironmentName:   cdPipeline.EnvironmentName,
@@ -755,18 +757,14 @@ func (handler AppRestHandlerImpl) validateAndBuildAppConfigMaps(w http.ResponseW
 				UsageType:  configMap.Type,
 			}
 
-			considerGlobalDefaultData := envId > 0 && configMap.Data == nil
-
 			//set data
-			var data json.RawMessage
-			var defaultData json.RawMessage
-			data = configMap.Data
-			defaultData = configMap.DefaultData
+			data := configMap.Data
+			defaultData := configMap.DefaultData
 			var dataObj map[string]interface{}
 			if data != nil {
 				err := json.Unmarshal([]byte(data), &dataObj)
 				if err != nil {
-					handler.logger.Errorw("service err, un-marshaling fail in config map", "err", err, "appId", appId)
+					handler.logger.Errorw("service err, un-marshaling of data fail in config map", "err", err, "appId", appId)
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, true
 				}
@@ -775,7 +773,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppConfigMaps(w http.ResponseW
 			if defaultData != nil {
 				err := json.Unmarshal([]byte(defaultData), &defaultDataObj)
 				if err != nil {
-					handler.logger.Errorw("service err, un-marshaling fail in config map", "err", err, "appId", appId)
+					handler.logger.Errorw("service err, un-marshaling of default data fail in config map", "err", err, "appId", appId)
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, true
 				}
@@ -789,6 +787,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppConfigMaps(w http.ResponseW
 					FilePermission: configMap.FilePermission,
 					SubPath:        configMap.SubPath,
 				}
+				considerGlobalDefaultData := envId > 0 && configMap.Data == nil
 				if considerGlobalDefaultData {
 					dataVolumeUsageConfig.MountPath = configMap.DefaultMountPath
 				} else {
@@ -856,26 +855,27 @@ func (handler AppRestHandlerImpl) validateAndBuildAppEnvironmentSecrets(w http.R
 	var secretsResp []*appBean.Secret
 	if secretData != nil && len(secretData.ConfigData) > 0 {
 
-		//for _, secretConfig := range secretData.ConfigData {
-		//	secretDataWithData, err := handler.configMapService.CSEnvironmentFetchForEdit(secretConfig.Name, secretData.Id, appId, envId)
-		//	if err != nil {
-		//		handler.logger.Errorw("service err, CSEnvironmentFetchForEdit in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
-		//		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		//		return nil, true
-		//	}
+		for _, secretConfig := range secretData.ConfigData {
+			secretDataWithData, err := handler.configMapService.CSEnvironmentFetchForEdit(secretConfig.Name, secretData.Id, appId, envId)
+			if err != nil {
+				handler.logger.Errorw("service err, CSEnvironmentFetchForEdit in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
+				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				return nil, true
+			}
+			secretDataWithData.ConfigData[0].DefaultData = secretConfig.DefaultData
 
-		secretRes, err := handler.validateAndBuildAppSecrets(w, appId, envId, secretData) //secretDataWithData)
-		if err != nil {
-			handler.logger.Errorw("service err, CSGlobalFetch-validateAndBuildAppSecrets in GetAppAllDetail", "err", err, "appId", appId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return nil, true
-		}
+			secretRes, err := handler.validateAndBuildAppSecrets(w, appId, envId, secretDataWithData)
+			if err != nil {
+				handler.logger.Errorw("service err, CSGlobalFetch-validateAndBuildAppSecrets in GetAppAllDetail", "err", err, "appId", appId)
+				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				return nil, true
+			}
 
-		for _, secret := range secretRes {
-			secretsResp = append(secretsResp, secret)
+			for _, secret := range secretRes {
+				secretsResp = append(secretsResp, secret)
+			}
 		}
 	}
-	//}
 
 	return secretsResp, false
 }
@@ -897,22 +897,15 @@ func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWrit
 				ExternalType: secret.ExternalSecretType,
 			}
 
-			considerGlobalDefaultData := envId > 0 && secret.Data == nil
-
 			//set data
-			var data json.RawMessage
-			var defaultData json.RawMessage
-			var externalSecrets []pipeline.ExternalSecret
-
-			data = secret.Data
-			defaultData = secret.DefaultData
-			externalSecrets = secret.ExternalSecret
+			data := secret.Data
+			defaultData := secret.DefaultData
 
 			var dataObj map[string]interface{}
 			if data != nil {
 				err := json.Unmarshal([]byte(data), &dataObj)
 				if err != nil {
-					handler.logger.Errorw("service err, un-marshaling fail in secret", "err", err, "appId", appId)
+					handler.logger.Errorw("service err, un-marshaling of data fail in secret", "err", err, "appId", appId)
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, err
 				}
@@ -921,7 +914,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWrit
 			if defaultData != nil {
 				err := json.Unmarshal([]byte(defaultData), &defaultDataObj)
 				if err != nil {
-					handler.logger.Errorw("service err, un-marshaling fail in secret", "err", err, "appId", appId)
+					handler.logger.Errorw("service err, un-marshaling of default data fail in secret", "err", err, "appId", appId)
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, err
 				}
@@ -930,6 +923,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWrit
 			globalSecret.DefaultData = defaultDataObj
 
 			//set external data
+			externalSecrets := secret.ExternalSecret
 			var externalSecretsResp []*appBean.ExternalSecret
 			if len(externalSecrets) > 0 {
 				for _, externalSecret := range externalSecrets {
@@ -949,6 +943,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWrit
 					SubPath:        secret.SubPath,
 					FilePermission: secret.FilePermission,
 				}
+				considerGlobalDefaultData := envId > 0 && secret.Data == nil
 				if considerGlobalDefaultData {
 					globalSecret.DataVolumeUsageConfig.MountPath = secret.DefaultMountPath
 				} else {

@@ -66,6 +66,7 @@ type CiPipelineDetails struct {
 	BeforeDockerBuildScripts  []*BuildScript              `json:"beforeDockerBuildScripts"`
 	AfterDockerBuildScripts   []*BuildScript              `json:"afterDockerBuildScripts"`
 	VulnerabilityScanEnabled  bool                        `json:"vulnerabilitiesScanEnabled"`
+	IsExternal                bool                        `json:"isExternal"` // true for linked and external
 }
 
 type CiPipelineMaterialConfig struct {
