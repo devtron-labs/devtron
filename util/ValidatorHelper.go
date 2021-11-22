@@ -248,7 +248,9 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 			if !okMin || !okMax{
 				return false, errors.New("autoscaling.MinReplicas and autoscaling.MaxReplicas are mandatory fields")
 			}
-			if minReplicas.(int) > maxReplicas.(int){
+			// see https://pkg.go.dev/encoding/json#Unmarshal for why conversion to float64 and not int
+			// Bug fix PR https://github.com/devtron-labs/devtron/pull/884
+			if minReplicas.(float64) > maxReplicas.(float64){
 				return false, errors.New("autoscaling.MinReplicas can not be greater than autoscaling.MaxReplicas")
 			}
 		}
