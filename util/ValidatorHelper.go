@@ -248,7 +248,7 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 			if !okMin || !okMax{
 				return false, errors.New("autoscaling.MinReplicas and autoscaling.MaxReplicas are mandatory fields")
 			}
-			if minReplicas.(int) > maxReplicas.(int){
+			if minReplicas.(float64) > maxReplicas.(float64){
 				return false, errors.New("autoscaling.MinReplicas can not be greater than autoscaling.MaxReplicas")
 			}
 		}
