@@ -587,7 +587,6 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 	// validate app metrics compatibility
 	if appMetricRequest.IsAppMetricsEnabled == true {
 		currentChart, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appMetricRequest.AppId, appMetricRequest.EnvironmentId)
-		impl.logger.Infow("latest env chart fetch response","chart",currentChart,"err",err)
 		if err != nil && !errors.IsNotFound(err) {
 			impl.logger.Error(err)
 			return nil, err
