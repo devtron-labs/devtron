@@ -245,6 +245,8 @@ kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/man
 
 Check out our [contributing guidelines](CONTRIBUTING.md). Included are directions for opening issues, coding standards, and notes on our development processes. We deeply appreciate your contributions.
 
+Also please checkout our [community contributions](COMMUNITY_CONTRIBUTIONS.md) and feel free to create a video or blog around Devtron and add your valuable contribution in the list.
+
 ### Our Contributors:
 
 We are deeply grateful for all our amazing contributors!    
