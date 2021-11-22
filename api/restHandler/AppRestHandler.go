@@ -400,14 +400,16 @@ func (handler AppRestHandlerImpl) validateAndBuildDockerConfig(w http.ResponseWr
 
 	ciConfig, err := handler.pipelineBuilder.GetCiPipeline(appId)
 	if errResponse, ok := err.(*util2.ApiError); ok && errResponse.UserMessage == "no ci pipeline exists" {
-		handler.logger.Errorw("docker config not available for app, GetCiPipeline in GetAppAllDetail", "err", err, "appId", appId)
+		handler.logger.Warnw("docker config not available for app, GetCiPipeline in GetAppAllDetail", "err", err, "appId", appId)
 		return nil, false
 	}
+
 	if err != nil {
 		handler.logger.Errorw("service err, GetCiPipeline in GetAppAllDetail", "err", err, "appId", appId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
+
 	//getting gitMaterialUrl by id
 	gitMaterial, err := handler.materialRepository.FindById(ciConfig.DockerBuildConfig.GitMaterialId)
 	if err != nil {
@@ -448,13 +450,15 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 	}
 
 	appDeploymentTemplate, err := handler.chartService.FindLatestChartForAppByAppId(appId)
-	if err != nil && err != pg.ErrNoRows {
-		handler.logger.Errorw("service err, GetDeploymentTemplate in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return nil, true
-	} else if err == pg.ErrNoRows {
-		handler.logger.Errorw("no charts configured for app, GetDeploymentTemplate in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
-		return nil, false
+	if err != nil {
+		if err != pg.ErrNoRows {
+			handler.logger.Errorw("service err, GetDeploymentTemplate in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return nil, true
+		}else{
+			handler.logger.Warnw("no charts configured for app, GetDeploymentTemplate in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
+			return nil, false
+		}
 	}
 
 	if appDeploymentTemplate == nil {
@@ -481,7 +485,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 		if env.EnvironmentConfig.IsOverride {
 			deploymentTemplateRaw = env.EnvironmentConfig.EnvOverrideValues
 			showAppMetrics = *env.AppMetrics
-			isOverride = env.EnvironmentConfig.IsOverride
+			isOverride = true
 		} else {
 			showAppMetrics = appDeploymentTemplate.IsAppMetricsEnabled
 			deploymentTemplateRaw = appDeploymentTemplate.DefaultAppOverride
@@ -544,7 +548,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 					isExternalPipelineInWorkflow = true
 					break
 				}
-				ciPipelineResp, err := handler.validateAndBuildCiPipelineResp(w, appId, ciPipeline)
+				ciPipelineResp, err := handler.validateAndBuildCiPipelineResp(appId, ciPipeline)
 				if err != nil {
 					handler.logger.Errorw("service err, validateAndBuildCiPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -561,7 +565,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 					return nil, true
 				}
 
-				cdPipelineResp, err := handler.validateAndBuildCdPipelineResp(w, appId, cdPipeline)
+				cdPipelineResp, err := handler.validateAndBuildCdPipelineResp(appId, cdPipeline)
 				if err != nil {
 					handler.logger.Errorw("service err, validateAndBuildCdPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
 					writeJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -580,7 +584,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 }
 
 //build ci pipeline resp
-func (handler AppRestHandlerImpl) validateAndBuildCiPipelineResp(w http.ResponseWriter, appId int, ciPipeline *bean.CiPipeline) (*appBean.CiPipelineDetails, error) {
+func (handler AppRestHandlerImpl) validateAndBuildCiPipelineResp(appId int, ciPipeline *bean.CiPipeline) (*appBean.CiPipelineDetails, error) {
 	handler.logger.Debugw("Getting app detail - build ci pipeline resp", "appId", appId)
 	if ciPipeline == nil {
 		return nil, nil
@@ -598,7 +602,6 @@ func (handler AppRestHandlerImpl) validateAndBuildCiPipelineResp(w http.Response
 		gitMaterial, err := handler.materialRepository.FindById(ciMaterial.GitMaterialId)
 		if err != nil {
 			handler.logger.Errorw("service err, GitMaterialById in GetAppAllDetail", "err", err, "appId", appId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return nil, err
 		}
 		ciPipelineMaterialConfig := &appBean.CiPipelineMaterialConfig{
@@ -641,7 +644,7 @@ func (handler AppRestHandlerImpl) validateAndBuildCiPipelineResp(w http.Response
 }
 
 //build cd pipeline resp
-func (handler AppRestHandlerImpl) validateAndBuildCdPipelineResp(w http.ResponseWriter, appId int, cdPipeline *bean.CDPipelineConfigObject) (*appBean.CdPipelineDetails, error) {
+func (handler AppRestHandlerImpl) validateAndBuildCdPipelineResp(appId int, cdPipeline *bean.CDPipelineConfigObject) (*appBean.CdPipelineDetails, error) {
 	handler.logger.Debugw("Getting app detail - build cd pipeline resp", "appId", appId)
 	if cdPipeline == nil {
 		return nil, nil
@@ -668,7 +671,6 @@ func (handler AppRestHandlerImpl) validateAndBuildCdPipelineResp(w http.Response
 			err := json.Unmarshal([]byte(strategy.Config), &configObj)
 			if err != nil {
 				handler.logger.Errorw("service err, un-marshaling fail in config object in cd", "err", err, "appId", appId)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
 				return nil, err
 			}
 		}

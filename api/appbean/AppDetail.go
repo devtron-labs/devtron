@@ -40,7 +40,7 @@ type DockerConfig struct {
 }
 
 type DockerBuildConfig struct {
-	GitCheckoutPath   string            `json:"GitCheckoutPath,omitempty" validate:"required"`
+	GitCheckoutPath        string            `json:"gitCheckoutPath,omitempty" validate:"required"`
 	DockerfileRelativePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
 	Args                   map[string]string `json:"args,omitempty"`
 }
@@ -49,7 +49,7 @@ type DeploymentTemplate struct {
 	ChartRefId     int                    `json:"chartRefId,notnull" validate:"required"`
 	Template       map[string]interface{} `json:"template,notnull" validate:"required"`
 	ShowAppMetrics bool                   `json:"showAppMetrics"`
-	IsOverride     bool					  `json:"isOverride"`
+	IsOverride     bool                   `json:"isOverride"`
 }
 
 type AppWorkflow struct {
@@ -69,10 +69,10 @@ type CiPipelineDetails struct {
 }
 
 type CiPipelineMaterialConfig struct {
-	Type       pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED WEBHOOK"`
-	Value      string                    `json:"value,omitempty" `
-	GitRepoUrl string                    `json:"gitRepoUrl"`
-	CheckoutPath string					 `json:"checkoutPath"`
+	Type         pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED WEBHOOK"`
+	Value        string                    `json:"value,omitempty" `
+	GitRepoUrl   string                    `json:"gitRepoUrl"`
+	CheckoutPath string                    `json:"checkoutPath"`
 }
 
 type BuildScript struct {

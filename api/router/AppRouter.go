@@ -36,6 +36,6 @@ func NewAppRouterImpl(restHandler restHandler.AppRestHandler) *AppRouterImpl {
 }
 
 func (router AppRouterImpl) init(configRouter *mux.Router) {
+	configRouter.Path("/").HandlerFunc(router.restHandler.CreateApp).Methods("POST")
 	configRouter.Path("/{appId}").HandlerFunc(router.restHandler.GetAppAllDetail).Methods("GET")
-	configRouter.Path("/create").HandlerFunc(router.restHandler.CreateApp).Methods("POST")
 }
