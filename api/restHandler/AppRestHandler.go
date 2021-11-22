@@ -23,6 +23,8 @@ import (
 	"errors"
 	"fmt"
 	appBean "github.com/devtron-labs/devtron/api/appbean"
+	"github.com/devtron-labs/devtron/pkg/team"
+
 	//bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -30,7 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	teamRepo "github.com/devtron-labs/devtron/internal/sql/repository/team"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
@@ -74,22 +75,22 @@ type AppRestHandlerImpl struct {
 	propertiesConfigService pipeline.PropertiesConfigService
 	appWorkflowService      appWorkflow.AppWorkflowService
 	materialRepository      pipelineConfig.MaterialRepository
-	teamRepository          teamRepo.TeamRepository
 	gitProviderRepo         repository.GitProviderRepository
 	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
 	environmentRepository   cluster.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
 	envConfigRepo           chartConfig.EnvConfigOverrideRepository
 	chartRepo               chartConfig.ChartRepository
+	teamService             team.TeamService
 }
 
 func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
 	enforcer rbac.Enforcer, appLabelService app.AppLabelService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
 	chartService pipeline.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
-	materialRepository pipelineConfig.MaterialRepository, teamRepository teamRepo.TeamRepository, gitProviderRepo repository.GitProviderRepository,
+	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository cluster.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
-	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartConfig.ChartRepository) *AppRestHandlerImpl {
+	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartConfig.ChartRepository, teamService team.TeamService) *AppRestHandlerImpl {
 	handler := &AppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -105,13 +106,13 @@ func NewAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserS
 		propertiesConfigService: propertiesConfigService,
 		appWorkflowService:      appWorkflowService,
 		materialRepository:      materialRepository,
-		teamRepository:          teamRepository,
 		gitProviderRepo:         gitProviderRepo,
 		appWorkflowRepository:   appWorkflowRepository,
 		environmentRepository:   environmentRepository,
 		configMapRepository:     configMapRepository,
 		envConfigRepo:           envConfigRepo,
 		chartRepo:               chartRepo,
+		teamService:             teamService,
 	}
 	return handler
 }
@@ -223,6 +224,7 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+
 	token := r.Header.Get("token")
 	ctx := context.WithValue(r.Context(), "token", token)
 	var createAppRequest appBean.AppDetail
@@ -232,6 +234,7 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
 	//to add more validations here
 	handler.logger.Infow("request payload, CreateApp by API", "CreateApp", createAppRequest)
 	err = handler.validator.Struct(createAppRequest)
@@ -241,8 +244,23 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	//TODO implement rbac
 	//rbac starts
+	team, err := handler.teamService.FindByTeamName(createAppRequest.Metadata.ProjectName)
+	if err != nil {
+		handler.logger.Errorw("Error in getting team", "err", err)
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if team == nil {
+		handler.logger.Errorw("no project found by name in CreateApp request by API")
+		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
 	//rbac ends
 
 	handler.logger.Infow("creating app v2", "createAppRequest", createAppRequest)
@@ -256,6 +274,15 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 
 	//declaring appId for creating other components of app
 	appId := createBlankAppResp.Id
+
+	// rbac after create blank app
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceObject); !ok {
+		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		handler.deleteApp(w, ctx, appId, userId)
+		return
+	}
+	// rbac end
 
 	//creating git material starts
 	if createAppRequest.GitMaterials != nil {
@@ -1008,7 +1035,7 @@ func (handler AppRestHandlerImpl) validateAndBuildEnvironmentOverrides(w http.Re
 	return environmentOverrides, false
 }
 
-//GetApp related methods starts
+//GetApp related methods ends
 
 //Create App related methods starts
 
@@ -1024,7 +1051,7 @@ func (handler AppRestHandlerImpl) createBlankApp(w http.ResponseWriter, appMetad
 		return nil, true
 	}
 
-	team, err := handler.teamRepository.FindByTeamName(appMetadata.ProjectName)
+	team, err := handler.teamService.FindByTeamName(appMetadata.ProjectName)
 	if err != nil {
 		handler.logger.Infow("no project found by name in CreateApp request by API")
 		writeJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1038,13 +1065,16 @@ func (handler AppRestHandlerImpl) createBlankApp(w http.ResponseWriter, appMetad
 		TeamId:  team.Id,
 		UserId:  userId,
 	}
+
+	var appLabels []*bean.Label
 	for _, requestLabel := range appMetadata.Labels {
 		appLabel := &bean.Label{
 			Key:   requestLabel.Key,
 			Value: requestLabel.Value,
 		}
-		createAppRequestDTO.AppLabels = append(createAppRequestDTO.AppLabels, appLabel)
+		appLabels = append(appLabels, appLabel)
 	}
+	createAppRequestDTO.AppLabels = appLabels
 
 	createAppResp, err := handler.pipelineBuilder.CreateApp(createAppRequestDTO)
 	if err != nil {
@@ -1052,6 +1082,7 @@ func (handler AppRestHandlerImpl) createBlankApp(w http.ResponseWriter, appMetad
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
+
 	return createAppResp, false
 }
 
@@ -1181,12 +1212,14 @@ func (handler AppRestHandlerImpl) createGitMaterials(w http.ResponseWriter, appI
 
 		createMaterialRequestDto.Material = append(createMaterialRequestDto.Material, gitMaterialRequest)
 	}
+
 	_, err := handler.pipelineBuilder.CreateMaterialsForApp(createMaterialRequestDto)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateMaterialsForApp in CreateGitMaterials", "err", err, "CreateMaterial", createMaterialRequestDto)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
+
 	return false
 }
 
@@ -1208,22 +1241,26 @@ func (handler AppRestHandlerImpl) createDockerConfig(w http.ResponseWriter, appI
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
+
 	dockerBuildArgs := make(map[string]string)
 	if dockerConfig.BuildConfig.Args != nil {
 		dockerBuildArgs = dockerConfig.BuildConfig.Args
 	}
+
 	dockerBuildConfigRequest := &bean.DockerBuildConfig{
 		GitMaterialId:  gitMaterial.Id,
 		DockerfilePath: dockerConfig.BuildConfig.DockerfileRelativePath,
 		Args:           dockerBuildArgs,
 	}
 	createDockerConfigRequest.DockerBuildConfig = dockerBuildConfigRequest
+
 	_, err = handler.pipelineBuilder.CreateCiPipeline(createDockerConfigRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateCiPipeline in CreateDockerConfig", "err", err, "createRequest", createDockerConfigRequest)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
+
 	return false
 }
 
@@ -1247,7 +1284,7 @@ func (handler AppRestHandlerImpl) createDeploymentTemplate(w http.ResponseWriter
 	}
 	templateRequest := json.RawMessage(template)
 	createDeploymentTemplateRequest.ValuesOverride = templateRequest
-	//TODO update context - token
+
 	//creating deployment template
 	_, err = handler.chartService.Create(createDeploymentTemplateRequest, ctx)
 	if err != nil {
@@ -1256,18 +1293,19 @@ func (handler AppRestHandlerImpl) createDeploymentTemplate(w http.ResponseWriter
 		return true
 	}
 
+	//updating app metrics
 	appMetricsRequest := pipeline.AppMetricEnableDisableRequest{
 		AppId:               appId,
 		UserId:              userId,
 		IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
 	}
-	//updating app metrics
 	_, err = handler.chartService.AppMetricsEnableDisable(appMetricsRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, AppMetricsEnableDisable in createDeploymentTemplate", "err", err, "appId", appId, "payload", appMetricsRequest)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
+
 	return false
 }
 
