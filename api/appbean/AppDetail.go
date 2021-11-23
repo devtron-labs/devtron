@@ -119,7 +119,6 @@ type ConfigMap struct {
 	IsExternal            bool                                  `json:"isExternal"`
 	UsageType             string                                `json:"usageType,omitempty" validate:"oneof=environment volume"`
 	Data                  map[string]interface{}                `json:"data"`
-	DefaultData           map[string]interface{}                `json:"defaultData"`
 	DataVolumeUsageConfig *ConfigMapSecretDataVolumeUsageConfig `json:"dataVolumeUsageConfig"`
 }
 
@@ -129,7 +128,6 @@ type Secret struct {
 	ExternalType          string                                `json:"externalType,omitempty"`
 	UsageType             string                                `json:"usageType,omitempty" validate:"oneof=environment volume"`
 	Data                  map[string]interface{}                `json:"data"`
-	DefaultData           map[string]interface{}                `json:"defaultData"`
 	DataVolumeUsageConfig *ConfigMapSecretDataVolumeUsageConfig `json:"dataVolumeUsageConfig"`
 	RoleArn               string                                `json:"roleArn"`
 	ExternalSecretData    []*ExternalSecret                     `json:"externalSecretData"`

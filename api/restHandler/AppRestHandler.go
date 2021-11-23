@@ -785,7 +785,6 @@ func (handler AppRestHandlerImpl) validateAndBuildAppConfigMaps(w http.ResponseW
 
 			//set data
 			data := configMap.Data
-			defaultData := configMap.DefaultData
 			var dataObj map[string]interface{}
 			if data != nil {
 				err := json.Unmarshal([]byte(data), &dataObj)
@@ -795,17 +794,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppConfigMaps(w http.ResponseW
 					return nil, true
 				}
 			}
-			var defaultDataObj map[string]interface{}
-			if defaultData != nil {
-				err := json.Unmarshal([]byte(defaultData), &defaultDataObj)
-				if err != nil {
-					handler.logger.Errorw("service err, un-marshaling of default data fail in config map", "err", err, "appId", appId)
-					writeJsonResp(w, err, nil, http.StatusInternalServerError)
-					return nil, true
-				}
-			}
 			configMapRes.Data = dataObj
-			configMapRes.DefaultData = defaultDataObj
 
 			//set data volume usage type
 			if configMap.Type == util.ConfigMapSecretUsageTypeVolume {
@@ -925,8 +914,6 @@ func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWrit
 
 			//set data
 			data := secret.Data
-			defaultData := secret.DefaultData
-
 			var dataObj map[string]interface{}
 			if data != nil {
 				err := json.Unmarshal([]byte(data), &dataObj)
@@ -936,17 +923,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWrit
 					return nil, err
 				}
 			}
-			var defaultDataObj map[string]interface{}
-			if defaultData != nil {
-				err := json.Unmarshal([]byte(defaultData), &defaultDataObj)
-				if err != nil {
-					handler.logger.Errorw("service err, un-marshaling of default data fail in secret", "err", err, "appId", appId)
-					writeJsonResp(w, err, nil, http.StatusInternalServerError)
-					return nil, err
-				}
-			}
 			globalSecret.Data = dataObj
-			globalSecret.DefaultData = defaultDataObj
 
 			//set external data
 			externalSecrets := secret.ExternalSecret
@@ -1673,6 +1650,7 @@ func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx 
 		}
 		// RBAC ends
 
+		envId := envModel.Id
 
 		//creating deployment template override
 		envDeploymentTemplate := envOverrideValues.DeploymentTemplate
@@ -1684,16 +1662,21 @@ func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx 
 		}
 
 		//creating configMap override
-		done := handler.createEnvCM(w, appId, userId, envModel, envOverrideValues.ConfigMaps)
-		if done {
-			return done
+		err = handler.createEnvCM(appId, userId, envId, envOverrideValues.ConfigMaps)
+		if err != nil {
+			handler.logger.Errorw("err in creating config map for env override", "appId", appId, "envName", envName)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return true
 		}
 
 		//creating secrets override
-		done = handler.createEnvSecret(w, appId, userId, envModel, envOverrideValues.Secrets)
-		if done {
-			return done
+		err = handler.createEnvSecret(appId, userId, envModel.Id, envOverrideValues.Secrets)
+		if err != nil {
+			handler.logger.Errorw("err in creating secret for env override", "appId", appId, "envName", envName)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return true
 		}
+
 	}
 	return false
 }
@@ -1772,38 +1755,36 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 }
 
 //create CM overrides
-func (handler AppRestHandlerImpl) createEnvCM(w http.ResponseWriter, appId int, userId int32, envModel *cluster.Environment, CmOverrides []*appBean.ConfigMap) bool {
-	handler.logger.Infow("Create App - creating CM override", "appId", appId, "CmOverrides", CmOverrides)
+func (handler AppRestHandlerImpl) createEnvCM(appId int, userId int32, envId int, CmOverrides []*appBean.ConfigMap) error {
+	handler.logger.Infow("Create App - creating CM override", "appId", appId, "envId", envId)
+
+	var envLevelId int
 
 	for _, cmOverride := range CmOverrides {
-		//getting env level by app id
-		envLevel, err := handler.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envModel.Id)
-		if err != nil && err != pg.ErrNoRows {
-			handler.logger.Errorw("error in getting app level by app id in createEnvCM", "appId", appId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		}
-		var envLevelId int
-		if envLevel != nil {
-			envLevelId = envLevel.Id
-		}
-		cmEnvRequest := &pipeline.ConfigDataRequest{
-			AppId:         appId,
-			UserId:        userId,
-			EnvironmentId: envModel.Id,
-			Id:            envLevelId,
+		//getting env level by app id and envId
+		if envLevelId == 0 {
+			envLevel, err := handler.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envId)
+			if err != nil && err != pg.ErrNoRows {
+				handler.logger.Errorw("error in getting app level by app id in createEnvCM", "appId", appId, "envId", envId)
+				return err
+			}
+			if envLevel != nil {
+				envLevelId = envLevel.Id
+			}
 		}
 
 		cmOverrideData, err := json.Marshal(cmOverride.Data)
 		if err != nil {
-			handler.logger.Errorw("service err, could not json marshal template in CreateEnvCM", "err", err, "appId", appId, "cmOverrideData", cmOverride.Data)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return true
+			handler.logger.Errorw("service err, could not json marshal template in CreateEnvCM", "err", err, "appId", appId, "envId", envId)
+			return err
 		}
+
+		// build
 		configData := &pipeline.ConfigData{
 			Name:     cmOverride.Name,
 			External: cmOverride.IsExternal,
 			Type:     cmOverride.UsageType,
-			Data:     cmOverrideData,
+			Data:     json.RawMessage(cmOverrideData),
 		}
 		cmOverrideDataVolumeUsageConfig := cmOverride.DataVolumeUsageConfig
 		if cmOverrideDataVolumeUsageConfig != nil {
@@ -1811,46 +1792,54 @@ func (handler AppRestHandlerImpl) createEnvCM(w http.ResponseWriter, appId int, 
 			configData.SubPath = cmOverrideDataVolumeUsageConfig.SubPath
 			configData.FilePermission = cmOverrideDataVolumeUsageConfig.FilePermission
 		}
+
 		var configDataRequest []*pipeline.ConfigData
 		configDataRequest = append(configDataRequest, configData)
-		cmEnvRequest.ConfigData = configDataRequest
+
+		// service call
+		cmEnvRequest := &pipeline.ConfigDataRequest{
+			AppId:         appId,
+			UserId:        userId,
+			EnvironmentId: envId,
+			Id:            envLevelId,
+			ConfigData:    configDataRequest,
+		}
+
 		_, err = handler.configMapService.CMEnvironmentAddUpdate(cmEnvRequest)
 		if err != nil {
 			handler.logger.Errorw("service err, CMEnvironmentAddUpdate in CreateEnvCM", "err", err, "payload", cmEnvRequest)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return true
+			return err
 		}
 	}
-	return false
+
+	return nil
 }
 
 //create secret overrides
-func (handler AppRestHandlerImpl) createEnvSecret(w http.ResponseWriter, appId int, userId int32, envModel *cluster.Environment, secretOverrides []*appBean.Secret) bool {
-	handler.logger.Infow("Create App - creating secret overrides", "appId", appId, "secretOverrides", secretOverrides)
+func (handler AppRestHandlerImpl) createEnvSecret(appId int, userId int32, envId int, secretOverrides []*appBean.Secret) error {
+	handler.logger.Infow("Create App - creating secret overrides", "appId", appId)
 
+	var envLevelId int
 	for _, secretOverride := range secretOverrides {
 		//getting env level by app id
-		envLevel, err := handler.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envModel.Id)
-		if err != nil && err != pg.ErrNoRows {
-			handler.logger.Errorw("error in getting app level by app id in createEnvSecret", "appId", appId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		if envLevelId == 0 {
+			envLevel, err := handler.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envId)
+			if err != nil && err != pg.ErrNoRows {
+				handler.logger.Errorw("error in getting app level by app id in createEnvSecret", "appId", appId, "envId", envId)
+				return err
+			}
+			if envLevel != nil {
+				envLevelId = envLevel.Id
+			}
 		}
-		var envLevelId int
-		if envLevel != nil {
-			envLevelId = envLevel.Id
-		}
-		secretEnvRequest := &pipeline.ConfigDataRequest{
-			AppId:         appId,
-			UserId:        userId,
-			EnvironmentId: envModel.Id,
-			Id:            envLevelId,
-		}
+
+		// build
 		secretOverrideData, err := json.Marshal(secretOverride.Data)
 		if err != nil {
-			handler.logger.Errorw("service err, could not json marshal secret data in CreateEnvSecret", "err", err, "appId", appId, "secretOverrideData", secretOverride.Data)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return true
+			handler.logger.Errorw("service err, could not json marshal secret data in CreateEnvSecret", "err", err, "appId", appId, "envId", envId)
+			return err
 		}
+
 		secretData := &pipeline.ConfigData{
 			Name:               secretOverride.Name,
 			External:           secretOverride.IsExternal,
@@ -1868,15 +1857,23 @@ func (handler AppRestHandlerImpl) createEnvSecret(w http.ResponseWriter, appId i
 		}
 		var secretDataRequest []*pipeline.ConfigData
 		secretDataRequest = append(secretDataRequest, secretData)
-		secretEnvRequest.ConfigData = secretDataRequest
+
+		// service call
+		secretEnvRequest := &pipeline.ConfigDataRequest{
+			AppId:         appId,
+			UserId:        userId,
+			EnvironmentId: envId,
+			Id:            envLevelId,
+			ConfigData:    secretDataRequest,
+		}
 		_, err = handler.configMapService.CSEnvironmentAddUpdate(secretEnvRequest)
 		if err != nil {
-			handler.logger.Errorw("service err, CSEnvironmentAddUpdate", "err", err, "payload", secretEnvRequest)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return true
+			handler.logger.Errorw("service err, CSEnvironmentAddUpdate", "err", err, "appId", appId, "envId", envId)
+			return err
 		}
 	}
-	return false
+
+	return nil
 }
 
 //Create App related methods ends
