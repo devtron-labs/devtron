@@ -346,7 +346,7 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 
 	//creating environment override starts
 	if createAppRequest.EnvironmentOverrides != nil {
-		done = handler.createEnvOverrides(w, ctx, appId, userId, createAppRequest.EnvironmentOverrides)
+		done = handler.createEnvOverrides(w, ctx, appId, userId, createAppRequest.EnvironmentOverrides, token)
 		if done {
 			handler.deleteApp(w, ctx, appId, userId)
 			return
@@ -1641,23 +1641,43 @@ func (handler AppRestHandlerImpl) createCdPipelines(ctx context.Context, appId i
 }
 
 //create environment overrides
-func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx context.Context, appId int, userId int32, environmentOverrides map[string]*appBean.EnvironmentOverride) bool {
-	handler.logger.Infow("Create App - creating env overrides", "appId", appId, "envOverrides", environmentOverrides)
+func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx context.Context, appId int, userId int32, environmentOverrides map[string]*appBean.EnvironmentOverride, token string) bool {
+	handler.logger.Infow("Create App - creating env overrides", "appId", appId)
+
 	for envName, envOverrideValues := range environmentOverrides {
 		envModel, err := handler.environmentRepository.FindByName(envName)
+
 		if err != nil {
 			handler.logger.Errorw("err in fetching environment details by name in CreateEnvOverrides", "appId", appId, "envName", envName)
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 
+		if envModel == nil {
+			err = errors.New("environment not found for name " + envName)
+			handler.logger.Errorw("environment not found for name", "envName", envName)
+			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			return true
+		}
+
+		// RBAC starts
+		object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envModel.Id)
+		if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
+			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return true
+		}
+		// RBAC ends
+
+
 		//creating deployment template override
-		if envOverrideValues.DeploymentTemplate.IsOverride {
+		envDeploymentTemplate := envOverrideValues.DeploymentTemplate
+		if envDeploymentTemplate != nil && envDeploymentTemplate.IsOverride {
 			done := handler.createEnvDeploymentTemplate(w, ctx, appId, userId, envOverrideValues.DeploymentTemplate, envModel)
 			if done {
 				return done
 			}
 		}
+
 		//creating configMap override
 		done := handler.createEnvCM(w, appId, userId, envModel, envOverrideValues.ConfigMaps)
 		if done {
