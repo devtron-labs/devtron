@@ -5,7 +5,7 @@ info:
 paths:
   /orchestrator/app/v2/{appId}:
     post:
-      description: Get app detail
+      description: Get app details
       operationId: GetAppAllDetail
       parameters:
         - name: appId
@@ -38,9 +38,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/app/v2/create:
+  /orchestrator/app/v2/:
     post:
-      description: create new app for the configurations provided
+      description: Creates a new app for the configurations provided
       operationId: CreateApp
       requestBody:
         description: A JSON object containing the app configuration
@@ -205,6 +205,8 @@ components:
           type: boolean
         VulnerabilityScanEnabled:
           type: boolean
+        IsExternal:
+          type: boolean
         CiPipelineMaterialsConfig:
           type: array
           items:
@@ -233,8 +235,6 @@ components:
         Type:
           type: string
         Value:
-          type: string
-        GitRepoUrl:
           type: string
         CheckoutPath:
           type: string
@@ -338,16 +338,6 @@ components:
               Values:
                 type: object
                 description: interface{}
-        DefaultData:
-          type: array
-          items:
-            type: object
-            properties:
-              Key:
-                type: string
-              Values:
-                type: object
-                description: interface{}
         DataVolumeUsageConfig:
           $ref: '#/components/schemas/ConfigMapSecretDataVolumeUsageConfig'
     Secret:
@@ -355,7 +345,7 @@ components:
       properties:
         Name:
           type: string
-        IsExtetrnal:
+        IsExternal:
           type: boolean
         ExternalType:
           type: string
@@ -364,16 +354,6 @@ components:
         UsageType:
           type: string
         Data:
-          type: array
-          items:
-            type: object
-            properties:
-              Key:
-                type: string
-              Values:
-                type: object
-                description: interface{}
-        DefaultData:
           type: array
           items:
             type: object
@@ -396,7 +376,7 @@ components:
           type: string
         SubPath:
           type: boolean
-        FileLocation:
+        FilePermission:
           type: string
     ExternalSecret:
       type: object
