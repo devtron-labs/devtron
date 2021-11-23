@@ -74,7 +74,7 @@ spec:
     matchLabels:
       app: devtron-stan
 
-  replicas: 3
+  replicas: 1
 
   # NATS Streaming service name
   serviceName: devtron-stan
@@ -143,7 +143,7 @@ spec:
           - name: STAN_SERVICE_NAME
             value: devtron-stan
           - name: STAN_REPLICAS
-            value: "3"
+            value: "1"
           ports:
           - containerPort: 8222
             name: monitor
