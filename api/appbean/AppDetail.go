@@ -72,7 +72,6 @@ type CiPipelineDetails struct {
 type CiPipelineMaterialConfig struct {
 	Type         pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED WEBHOOK"`
 	Value        string                    `json:"value,omitempty" `
-	GitRepoUrl   string                    `json:"gitRepoUrl"`
 	CheckoutPath string                    `json:"checkoutPath"`
 }
 

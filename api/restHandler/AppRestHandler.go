@@ -336,7 +336,7 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 
 	//creating workflow starts
 	if createAppRequest.AppWorkflows != nil {
-		done = handler.createWorkflows(w, ctx, appId, userId, createAppRequest.AppWorkflows)
+		done = handler.createWorkflows(w, ctx, appId, userId, createAppRequest.AppWorkflows, token, createAppRequest.Metadata.AppName)
 		if done {
 			handler.deleteApp(w, ctx, appId, userId)
 			return
@@ -634,7 +634,6 @@ func (handler AppRestHandlerImpl) validateAndBuildCiPipelineResp(appId int, ciPi
 		ciPipelineMaterialConfig := &appBean.CiPipelineMaterialConfig{
 			Type:         ciMaterial.Source.Type,
 			Value:        ciMaterial.Source.Value,
-			GitRepoUrl:   gitMaterial.Url,
 			CheckoutPath: gitMaterial.CheckoutPath,
 		}
 		ciPipelineMaterialsConfig = append(ciPipelineMaterialsConfig, ciPipelineMaterialConfig)
@@ -1352,14 +1351,13 @@ func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, 
 			configMapData.FilePermission = dataVolumeUsageConfig.FilePermission
 		}
 
-
 		// service call
 		var configMapDataRequest []*pipeline.ConfigData
 		configMapDataRequest = append(configMapDataRequest, configMapData)
 		configMapRequest := &pipeline.ConfigDataRequest{
-			AppId:  appId,
-			UserId: userId,
-			Id:     appLevelId,
+			AppId:      appId,
+			UserId:     userId,
+			Id:         appLevelId,
 			ConfigData: configMapDataRequest,
 		}
 		//using same var for every request, since appId and userID are same
@@ -1437,9 +1435,9 @@ func (handler AppRestHandlerImpl) createGlobalSecrets(w http.ResponseWriter, app
 		var secretDataRequest []*pipeline.ConfigData
 		secretDataRequest = append(secretDataRequest, secretData)
 		secretRequest := &pipeline.ConfigDataRequest{
-			AppId:  appId,
-			UserId: userId,
-			Id:     appLevelId,
+			AppId:      appId,
+			UserId:     userId,
+			Id:         appLevelId,
 			ConfigData: secretDataRequest,
 		}
 		//using same var for every request, since appId and userID are same
@@ -1455,148 +1453,191 @@ func (handler AppRestHandlerImpl) createGlobalSecrets(w http.ResponseWriter, app
 }
 
 //create app workflows
-func (handler AppRestHandlerImpl) createWorkflows(w http.ResponseWriter, ctx context.Context, appId int, userId int32, workflows []*appBean.AppWorkflow) bool {
+func (handler AppRestHandlerImpl) createWorkflows(w http.ResponseWriter, ctx context.Context, appId int, userId int32, workflows []*appBean.AppWorkflow, token string, appName string) bool {
 	handler.logger.Infow("Create App - creating workflows", "appId", appId, "workflows size", len(workflows))
 	for _, workflow := range workflows {
-		//Create workflow starts
-		wf := &appWorkflow2.AppWorkflow{
-			Name:   workflow.Name,
-			AppId:  appId,
-			Active: true,
-			AuditLog: models.AuditLog{
-				CreatedOn: time.Now(),
-				UpdatedOn: time.Now(),
-				CreatedBy: userId,
-				UpdatedBy: userId,
-			},
-		}
-		savedAppWf, err := handler.appWorkflowRepository.SaveAppWorkflow(wf)
+		//Create workflow starts (we need to create workflow with given name)
+		workflowId, err := handler.createWorkflowInDb(workflow.Name, appId, userId)
 		if err != nil {
 			handler.logger.Errorw("err in saving new workflow", err, "appId", appId)
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
-		workflowId := savedAppWf.Id
 		//Creating workflow ends
 
 		//Creating CI pipeline starts
-		ciPipelineRequest := &bean.CiPatchRequest{
-			AppId:         appId,
-			UserId:        userId,
-			AppWorkflowId: workflowId,
-			Action:        bean.CREATE,
-		}
-		ciPipelineData := workflow.CiPipeline
-		var ciMaterialsRequest []*bean.CiMaterial
-		for _, ciMaterial := range ciPipelineData.CiPipelineMaterialsConfig {
-			//finding gitMaterial by appId and checkoutPath
-			gitMaterial, err := handler.materialRepository.FindByAppIdAndCheckoutPath(appId, ciMaterial.CheckoutPath)
-			if err != nil {
-				handler.logger.Errorw("service err, FindByAppIdAndCheckoutPath in CreateWorkflows", "err", err, "appId", appId)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
-				return true
-			}
-			if ciMaterial.GitRepoUrl != gitMaterial.Url {
-				handler.logger.Errorw("error in finding git material for given ciMaterial config", "appId", appId, "ciMaterial", ciMaterial)
-				writeJsonResp(w, fmt.Errorf("no git material found"), nil, http.StatusInternalServerError)
-				return true
-			}
-			ciMaterialRequest := &bean.CiMaterial{
-				GitMaterialId:   gitMaterial.Id,
-				GitMaterialName: gitMaterial.Name,
-				Source: &bean.SourceTypeConfig{
-					Type:  ciMaterial.Type,
-					Value: ciMaterial.Value,
-				},
-				CheckoutPath: gitMaterial.CheckoutPath,
-			}
-			ciMaterialsRequest = append(ciMaterialsRequest, ciMaterialRequest)
-		}
-		ciPipelineRequestData := &bean.CiPipeline{
-			Name:                     ciPipelineData.Name,
-			IsManual:                 ciPipelineData.IsManual,
-			IsExternal:               false, //since app create api only supports internal pipelines currently
-			Active:                   true,
-			AfterDockerBuildScripts:  convertCiBuildScripts(ciPipelineData.AfterDockerBuildScripts),
-			BeforeDockerBuildScripts: convertCiBuildScripts(ciPipelineData.BeforeDockerBuildScripts),
-			DockerArgs:               ciPipelineData.DockerBuildArgs,
-			ScanEnabled:              ciPipelineData.VulnerabilityScanEnabled,
-			CiMaterial:               ciMaterialsRequest,
-		}
-		ciPipelineRequest.CiPipeline = ciPipelineRequestData
-		_, err = handler.pipelineBuilder.PatchCiPipeline(ciPipelineRequest)
+		ciPipelineId, err := handler.createCiPipeline(appId, userId, workflowId, workflow.CiPipeline)
 		if err != nil {
-			handler.logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", ciPipelineRequest)
+			handler.logger.Errorw("err in saving ci pipelines", err, "appId", appId)
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 		//Creating CI pipeline ends
 
 		//Creating CD pipeline starts
-		//getting app workflow mapping for finding ciPipeline ID
-		appWorkflowMapping, err := handler.appWorkflowRepository.FindByWorkflowId(workflowId)
-		if err != nil && err != pg.ErrNoRows {
-			handler.logger.Errorw("err in finding app workflow mapping", err, "appId", appId, "workflowId", workflowId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
-			return true
-		}
-		var ciPipelineId int
-		for _, workflowMapping := range appWorkflowMapping {
-			if workflowMapping.Type == appWorkflow2.CIPIPELINE {
-				ciPipelineId = workflowMapping.ComponentId
-				break
-			}
-		}
-
-		cdPipelinesRequest := &bean.CdPipelines{
-			AppId:  appId,
-			UserId: userId,
-		}
-		var cdPipelineRequestConfigs []*bean.CDPipelineConfigObject
-		for _, cdPipeline := range workflow.CdPipelines {
-			//getting environment ID by name
-			envModel, err := handler.environmentRepository.FindByName(cdPipeline.EnvironmentName)
-			if err != nil {
-				handler.logger.Errorw("err in fetching environment details by name", "appId", appId, "envName", cdPipeline.EnvironmentName)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
-				return true
-			}
-
-			cdPipelineRequestConfig := &bean.CDPipelineConfigObject{
-				Name:                          cdPipeline.Name,
-				EnvironmentId:                 envModel.Id,
-				AppWorkflowId:                 workflowId,
-				CiPipelineId:                  ciPipelineId,
-				DeploymentTemplate:            cdPipeline.DeploymentType,
-				TriggerType:                   cdPipeline.TriggerType,
-				CdArgoSetup:                   cdPipeline.IsClusterCdActive,
-				RunPreStageInEnv:              cdPipeline.RunPreStageInEnv,
-				RunPostStageInEnv:             cdPipeline.RunPostStageInEnv,
-				PreStage:                      convertCdStages(cdPipeline.PreStage),
-				PostStage:                     convertCdStages(cdPipeline.PostStage),
-				PreStageConfigMapSecretNames:  convertCdPreStageCMorCSNames(cdPipeline.PreStageConfigMapSecretNames),
-				PostStageConfigMapSecretNames: convertCdPostStageCMorCSNames(cdPipeline.PostStageConfigMapSecretNames),
-			}
-			convertedDeploymentStrategies, err := convertCdDeploymentStrategies(cdPipeline.DeploymentStrategies)
-			if err != nil {
-				handler.logger.Errorw("err in converting deployment strategies for creating cd pipeline", "appId", appId, "Strategies", cdPipeline.DeploymentStrategies)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
-				return true
-			}
-			cdPipelineRequestConfig.Strategies = convertedDeploymentStrategies
-			cdPipelineRequestConfigs = append(cdPipelineRequestConfigs, cdPipelineRequestConfig)
-		}
-		cdPipelinesRequest.Pipelines = cdPipelineRequestConfigs
-		//TODO update context - token
-		_, err = handler.pipelineBuilder.CreateCdPipelines(cdPipelinesRequest, ctx)
+		err = handler.createCdPipelines(ctx, appId, userId, workflowId, ciPipelineId, workflow.CdPipelines, token, appName)
 		if err != nil {
-			handler.logger.Errorw("service err, CreateCdPipeline", "err", err, "payload", cdPipelinesRequest)
+			handler.logger.Errorw("err in saving cd pipelines", err, "appId", appId)
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 		//Creating CD pipeline ends
 	}
 	return false
+}
+
+func (handler AppRestHandlerImpl) createWorkflowInDb(workflowName string, appId int, userId int32) (int, error) {
+	wf := &appWorkflow2.AppWorkflow{
+		Name:   workflowName,
+		AppId:  appId,
+		Active: true,
+		AuditLog: models.AuditLog{
+			CreatedOn: time.Now(),
+			UpdatedOn: time.Now(),
+			CreatedBy: userId,
+			UpdatedBy: userId,
+		},
+	}
+	savedAppWf, err := handler.appWorkflowRepository.SaveAppWorkflow(wf)
+	if err != nil {
+		handler.logger.Errorw("err in saving new workflow", err, "appId", appId)
+		return 0, err
+	}
+
+	return savedAppWf.Id, nil
+}
+
+func (handler AppRestHandlerImpl) createCiPipeline(appId int, userId int32, workflowId int, ciPipelineData *appBean.CiPipelineDetails) (int, error) {
+
+	// if ci pipeline is of external type, then throw error as we are not supporting it as of now
+	if ciPipelineData.IsExternal {
+		err := errors.New("external ci pipeline creation is not supported yet")
+		handler.logger.Error("external ci pipeline creation is not supported yet")
+		return 0, err
+	}
+
+	// build ci pipeline materials starts
+	var ciMaterialsRequest []*bean.CiMaterial
+	for _, ciMaterial := range ciPipelineData.CiPipelineMaterialsConfig {
+		//finding gitMaterial by appId and checkoutPath
+		gitMaterial, err := handler.materialRepository.FindByAppIdAndCheckoutPath(appId, ciMaterial.CheckoutPath)
+		if err != nil {
+			handler.logger.Errorw("service err, FindByAppIdAndCheckoutPath in CreateWorkflows", "err", err, "appId", appId)
+			return 0, err
+		}
+
+		if gitMaterial == nil {
+			err = errors.New("gitMaterial is nil")
+			handler.logger.Errorw("gitMaterial is nil", "checkoutPath", ciMaterial.CheckoutPath)
+			return 0, err
+		}
+
+		ciMaterialRequest := &bean.CiMaterial{
+			GitMaterialId:   gitMaterial.Id,
+			GitMaterialName: gitMaterial.Name,
+			Source: &bean.SourceTypeConfig{
+				Type:  ciMaterial.Type,
+				Value: ciMaterial.Value,
+			},
+			CheckoutPath: gitMaterial.CheckoutPath,
+		}
+		ciMaterialsRequest = append(ciMaterialsRequest, ciMaterialRequest)
+	}
+	// build ci pipeline materials ends
+
+	// build model
+	ciPipelineRequest := &bean.CiPatchRequest{
+		AppId:         appId,
+		UserId:        userId,
+		AppWorkflowId: workflowId,
+		Action:        bean.CREATE,
+		CiPipeline: &bean.CiPipeline{
+			Name:                     ciPipelineData.Name,
+			IsManual:                 ciPipelineData.IsManual,
+			IsExternal:               ciPipelineData.IsExternal,
+			Active:                   true,
+			BeforeDockerBuildScripts: convertCiBuildScripts(ciPipelineData.BeforeDockerBuildScripts),
+			AfterDockerBuildScripts:  convertCiBuildScripts(ciPipelineData.AfterDockerBuildScripts),
+			DockerArgs:               ciPipelineData.DockerBuildArgs,
+			ScanEnabled:              ciPipelineData.VulnerabilityScanEnabled,
+			CiMaterial:               ciMaterialsRequest,
+		},
+	}
+
+	// service call
+	res, err := handler.pipelineBuilder.PatchCiPipeline(ciPipelineRequest)
+	if err != nil {
+		handler.logger.Errorw("service err, PatchCiPipelines", "err", err, "appId", appId)
+		return 0, err
+	}
+
+	return res.CiPipelines[0].Id, nil
+}
+
+func (handler AppRestHandlerImpl) createCdPipelines(ctx context.Context, appId int, userId int32, workflowId int, ciPipelineId int, cdPipelines []*appBean.CdPipelineDetails, token string, appName string) error {
+
+	var cdPipelineRequestConfigs []*bean.CDPipelineConfigObject
+	for _, cdPipeline := range cdPipelines {
+		//getting environment ID by name
+		envName := cdPipeline.EnvironmentName
+		envModel, err := handler.environmentRepository.FindByName(envName)
+		if err != nil {
+			handler.logger.Errorw("err in fetching environment details by name", "appId", appId, "envName", envName)
+			return err
+		}
+
+		if envModel == nil {
+			err = errors.New("environment not found for name " + envName)
+			handler.logger.Errorw("environment not found for name", "envName", envName)
+			return err
+		}
+
+		// RBAC starts
+		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(appName, envModel.Id)
+		if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, object); !ok {
+			return errors.New("unauthorized User")
+		}
+		// RBAC ends
+
+		// build model
+		cdPipelineRequestConfig := &bean.CDPipelineConfigObject{
+			Name:                          cdPipeline.Name,
+			EnvironmentId:                 envModel.Id,
+			Namespace:                     envModel.Namespace,
+			AppWorkflowId:                 workflowId,
+			CiPipelineId:                  ciPipelineId,
+			DeploymentTemplate:            cdPipeline.DeploymentType,
+			TriggerType:                   cdPipeline.TriggerType,
+			CdArgoSetup:                   cdPipeline.IsClusterCdActive,
+			RunPreStageInEnv:              cdPipeline.RunPreStageInEnv,
+			RunPostStageInEnv:             cdPipeline.RunPostStageInEnv,
+			PreStage:                      convertCdStages(cdPipeline.PreStage),
+			PostStage:                     convertCdStages(cdPipeline.PostStage),
+			PreStageConfigMapSecretNames:  convertCdPreStageCMorCSNames(cdPipeline.PreStageConfigMapSecretNames),
+			PostStageConfigMapSecretNames: convertCdPostStageCMorCSNames(cdPipeline.PostStageConfigMapSecretNames),
+		}
+		convertedDeploymentStrategies, err := convertCdDeploymentStrategies(cdPipeline.DeploymentStrategies)
+		if err != nil {
+			handler.logger.Errorw("err in converting deployment strategies for creating cd pipeline", "appId", appId, "Strategies", cdPipeline.DeploymentStrategies)
+			return err
+		}
+		cdPipelineRequestConfig.Strategies = convertedDeploymentStrategies
+
+		cdPipelineRequestConfigs = append(cdPipelineRequestConfigs, cdPipelineRequestConfig)
+	}
+
+	// service call
+	cdPipelinesRequest := &bean.CdPipelines{
+		AppId:     appId,
+		UserId:    userId,
+		Pipelines: cdPipelineRequestConfigs,
+	}
+	_, err := handler.pipelineBuilder.CreateCdPipelines(cdPipelinesRequest, ctx)
+	if err != nil {
+		handler.logger.Errorw("service err, CreateCdPipeline", "err", err, "payload", cdPipelinesRequest)
+		return err
+	}
+	return nil
 }
 
 //create environment overrides
@@ -1845,28 +1886,37 @@ func convertCiBuildScripts(buildScripts []*appBean.BuildScript) []*bean.CiScript
 	return convertedBuildScripts
 }
 
-func convertCdStages(cdStages *appBean.CdStage) bean.CdStage {
-	convertedCdStage := bean.CdStage{
-		TriggerType: cdStages.TriggerType,
-		Name:        cdStages.Name,
-		Config:      cdStages.Config,
+func convertCdStages(cdStage *appBean.CdStage) bean.CdStage {
+
+	convertedCdStage := bean.CdStage{}
+
+	if cdStage != nil {
+		convertedCdStage.TriggerType = cdStage.TriggerType
+		convertedCdStage.Name = cdStage.Name
+		convertedCdStage.Config = cdStage.Config
 	}
+
 	return convertedCdStage
 }
 
 func convertCdPreStageCMorCSNames(preStageNames *appBean.CdStageConfigMapSecretNames) bean.PreStageConfigMapSecretNames {
-	convertPreStageNames := bean.PreStageConfigMapSecretNames{
-		ConfigMaps: preStageNames.ConfigMaps,
-		Secrets:    preStageNames.Secrets,
+
+	convertPreStageNames := bean.PreStageConfigMapSecretNames{}
+	if preStageNames != nil {
+		convertPreStageNames.ConfigMaps = preStageNames.ConfigMaps
+		convertPreStageNames.Secrets = preStageNames.Secrets
 	}
+
 	return convertPreStageNames
 }
 
 func convertCdPostStageCMorCSNames(postStageNames *appBean.CdStageConfigMapSecretNames) bean.PostStageConfigMapSecretNames {
-	convertPostStageNames := bean.PostStageConfigMapSecretNames{
-		ConfigMaps: postStageNames.ConfigMaps,
-		Secrets:    postStageNames.Secrets,
+	convertPostStageNames := bean.PostStageConfigMapSecretNames{}
+	if postStageNames != nil {
+		convertPostStageNames.ConfigMaps = postStageNames.ConfigMaps
+		convertPostStageNames.Secrets = postStageNames.Secrets
 	}
+
 	return convertPostStageNames
 }
 
