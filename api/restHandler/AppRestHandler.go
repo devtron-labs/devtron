@@ -1684,83 +1684,17 @@ func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx 
 //create template overrides
 func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWriter, ctx context.Context, appId int, userId int32, templateOverride *appBean.DeploymentTemplate, envModel *cluster.Environment) bool {
 	handler.logger.Infow("Create App - creating template override", "appId", appId, "templateOverride", templateOverride)
-
-	////finding charts for app and chartRefId
-	//_, err := handler.chartRepo.FindChartByAppIdAndRefId(appId, templateOverride.ChartRefId)
-	//if err != nil && pg.ErrNoRows != err {
-	//	handler.logger.Errorw("not able to find chart by app & ref id in createEnvDeploymentTemplate", "err", err)
-	//	writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//	return true
-	//}
-	//if pg.ErrNoRows == err {
-	//	templateRequest := pipeline.TemplateRequest{
-	//		AppId:          appId,
-	//		ChartRefId:     templateOverride.ChartRefId,
-	//		ValuesOverride: []byte("{}"),
-	//		UserId:         userId,
-	//	}
-	//	_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
-	//	if err != nil {
-	//		handler.logger.Errorw("err in creating chart from env override in createEnvDeploymentTemplate", "err", err, "payload", templateRequest)
-	//		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//		return true
-	//	}
-	//}
-	////finding env properties for appId & envId (this get created when cd pipeline is created)
-	//envProperties, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envModel.Id, templateOverride.ChartRefId)
-	//if err != nil {
-	//	handler.logger.Errorw("service err, GetEnvConfOverride in createEnvDeploymentTemplate", "err", err, "appId", appId, "envId", envModel.Id, "chartRefId", templateOverride.ChartRefId)
-	//	writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//	return true
-	//}
-	//envConfigPropertiesRequest, err := buildEnvTemplateOverrideRequest(templateOverride, envModel, envProperties, userId)
-	//if err != nil {
-	//	handler.logger.Errorw("err in converting template config for creating env override", "appId", appId, "templateOverride", templateOverride)
-	//	writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//	return true
-	//}
-	//if envConfigPropertiesRequest.Id == 0 {
-	//	//need to create environment properties since no properties found
-	//	//using new var so that override values don't get changed
-	//	var envConfigCreateRequest *pipeline.EnvironmentProperties
-	//	envConfigCreateRequest = envConfigPropertiesRequest
-	//	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigCreateRequest)
-	//	if err != nil {
-	//		handler.logger.Errorw("err in creating env properties in createEnvDeploymentTemplate", "err", err, "payload", envConfigPropertiesRequest)
-	//		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//		return true
-	//	}
-	//	envConfigPropertiesRequest.Id = createResp.Id
-	//}
-	//_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigPropertiesRequest, userId)
-	//if err != nil {
-	//	handler.logger.Errorw("err in updating env properties in createEnvDeploymentTemplate", "err", err, "payload", envConfigPropertiesRequest)
-	//	writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//	return true
-	//}
-	////updating app metrics
-	//appMetricsRequest := &pipeline.AppMetricEnableDisableRequest{
-	//	AppId:               appId,
-	//	UserId:              userId,
-	//	EnvironmentId:       envModel.Id,
-	//	IsAppMetricsEnabled: templateOverride.ShowAppMetrics,
-	//}
-	//_, err = handler.propertiesConfigService.EnvMetricsEnableDisable(appMetricsRequest)
-	//if err != nil {
-	//	handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "environmentId", envModel.Id, "payload", appMetricsRequest)
-	//	writeJsonResp(w, err, nil, http.StatusInternalServerError)
-	//	return false
-	//}
-	//return false
+	//getting environment properties for db table id(this properties get created when cd pipeline is created)
 	env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envModel.Id, templateOverride.ChartRefId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetEnvConfOverride", "err", err, "payload", appId, envModel.Id, templateOverride.ChartRefId)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
+	//updating env template override
 	template, err := json.Marshal(templateOverride.Template)
 	if err != nil {
-		handler.logger.Errorw("json marshaling error env override template")
+		handler.logger.Errorw("json marshaling error env override template in createEnvDeploymentTemplate","appId",appId,"template",templateOverride.Template)
 		writeJsonResp(w,err,nil,http.StatusInternalServerError)
 		return true
 	}
@@ -1778,6 +1712,19 @@ func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWri
 		handler.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		writeJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
+	}
+	//updating app metrics
+	appMetricsRequest := &pipeline.AppMetricEnableDisableRequest{
+		AppId:               appId,
+		UserId:              userId,
+		EnvironmentId:       envModel.Id,
+		IsAppMetricsEnabled: templateOverride.ShowAppMetrics,
+	}
+	_, err = handler.propertiesConfigService.EnvMetricsEnableDisable(appMetricsRequest)
+	if err != nil {
+		handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "environmentId", envModel.Id, "payload", appMetricsRequest)
+		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		return false
 	}
 	return false
 }
