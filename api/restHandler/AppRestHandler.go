@@ -1655,9 +1655,11 @@ func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx 
 		//creating deployment template override
 		envDeploymentTemplate := envOverrideValues.DeploymentTemplate
 		if envDeploymentTemplate != nil && envDeploymentTemplate.IsOverride {
-			done := handler.createEnvDeploymentTemplate(w, ctx, appId, userId, envOverrideValues.DeploymentTemplate, envModel)
-			if done {
-				return done
+			err := handler.createEnvDeploymentTemplate(appId, userId, envModel.Id, envOverrideValues.DeploymentTemplate)
+			if err != nil {
+				handler.logger.Errorw("err in creating deployment template for env override", "appId", appId, "envName", envName)
+				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				return true
 			}
 		}
 
@@ -1682,51 +1684,52 @@ func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx 
 }
 
 //create template overrides
-func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(w http.ResponseWriter, ctx context.Context, appId int, userId int32, templateOverride *appBean.DeploymentTemplate, envModel *cluster.Environment) bool {
-	handler.logger.Infow("Create App - creating template override", "appId", appId, "templateOverride", templateOverride)
+func (handler AppRestHandlerImpl) createEnvDeploymentTemplate(appId int, userId int32, envId int, deploymentTemplateOverride *appBean.DeploymentTemplate) error {
+	handler.logger.Infow("Create App - creating template override", "appId", appId)
+
 	//getting environment properties for db table id(this properties get created when cd pipeline is created)
-	env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envModel.Id, templateOverride.ChartRefId)
+	env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envId, deploymentTemplateOverride.ChartRefId)
 	if err != nil {
-		handler.logger.Errorw("service err, GetEnvConfOverride", "err", err, "payload", appId, envModel.Id, templateOverride.ChartRefId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return true
+		handler.logger.Errorw("service err, GetEnvConfOverride", "err", err, "appId", appId, "envId", envId, "chartRefId", deploymentTemplateOverride.ChartRefId)
+		return err
 	}
+
 	//updating env template override
-	template, err := json.Marshal(templateOverride.Template)
+	template, err := json.Marshal(deploymentTemplateOverride.Template)
 	if err != nil {
-		handler.logger.Errorw("json marshaling error env override template in createEnvDeploymentTemplate","appId",appId,"template",templateOverride.Template)
-		writeJsonResp(w,err,nil,http.StatusInternalServerError)
-		return true
+		handler.logger.Errorw("json marshaling error env override template in createEnvDeploymentTemplate", "appId", appId, "envId", envId)
+		return err
 	}
+
 	envConfigProperties := &pipeline.EnvironmentProperties{
-		Id: env.EnvironmentConfig.Id,
-		IsOverride: true,
-		Active: true,
-		ManualReviewed: true,
-		Namespace: env.Namespace,
-		Status: models.CHARTSTATUS_NEW,
+		Id:                env.EnvironmentConfig.Id,
+		IsOverride:        true,
+		Active:            true,
+		ManualReviewed:    true,
+		Namespace:         env.Namespace,
+		Status:            models.CHARTSTATUS_NEW,
 		EnvOverrideValues: template,
 	}
 	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
 	if err != nil {
-		handler.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return true
+		handler.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "appId", appId, "envId", envId)
+		return err
 	}
+
 	//updating app metrics
 	appMetricsRequest := &pipeline.AppMetricEnableDisableRequest{
 		AppId:               appId,
 		UserId:              userId,
-		EnvironmentId:       envModel.Id,
-		IsAppMetricsEnabled: templateOverride.ShowAppMetrics,
+		EnvironmentId:       envId,
+		IsAppMetricsEnabled: deploymentTemplateOverride.ShowAppMetrics,
 	}
 	_, err = handler.propertiesConfigService.EnvMetricsEnableDisable(appMetricsRequest)
 	if err != nil {
-		handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "environmentId", envModel.Id, "payload", appMetricsRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
-		return false
+		handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "envId", envId)
+		return err
 	}
-	return false
+
+	return nil
 }
 
 //create CM overrides
