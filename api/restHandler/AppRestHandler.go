@@ -1096,9 +1096,11 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 		writeJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 		return
 	}
-	if len(workflowsList) > 0 {
-		//deleting all ci, cd pipelines & workflows before deleting app
 
+	//deleting all ci, cd pipelines & workflows before deleting app
+	if len(workflowsList) > 0 {
+
+		// delete all CD pipelines for app starts
 		cdPipelines, err := handler.pipelineBuilder.GetCdPipelinesForApp(appId)
 		if err != nil {
 			handler.logger.Errorw("service err, GetCdPipelines in DeleteApp", "err", err, "appId", appId)
@@ -1114,7 +1116,6 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 				ForceDelete: true,
 				Pipeline:    cdPipeline,
 			}
-			//TODO update context - token
 			_, err = handler.pipelineBuilder.PatchCdPipelines(cdPipelineDeleteRequest, ctx)
 			if err != nil {
 				handler.logger.Errorw("err in deleting cd pipeline in DeleteApp", "err", err, "payload", cdPipelineDeleteRequest)
@@ -1122,7 +1123,9 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 				return
 			}
 		}
+		// delete all CD pipelines for app ends
 
+		// delete all CI pipelines for app starts
 		ciPipelines, err := handler.pipelineBuilder.GetCiPipeline(appId)
 		if err != nil {
 			handler.logger.Errorw("service err, GetCiPipelines in DeleteApp", "err", err, "appId", appId)
@@ -1130,23 +1133,22 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 			return
 		}
 		for _, ciPipeline := range ciPipelines.CiPipelines {
-			//only deleting ci pipeline when it's an internal pipeline(not external)
-			if !ciPipeline.IsExternal {
-				ciPipelineDeleteRequest := &bean.CiPatchRequest{
-					AppId:      appId,
-					UserId:     userId,
-					Action:     bean.DELETE,
-					CiPipeline: ciPipeline,
-				}
-
-				_, err := handler.pipelineBuilder.PatchCiPipeline(ciPipelineDeleteRequest)
-				if err != nil {
-					handler.logger.Errorw("err in deleting ci pipeline in DeleteApp", "err", err, "payload", ciPipelineDeleteRequest)
-					writeJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
-					return
-				}
+			ciPipelineDeleteRequest := &bean.CiPatchRequest{
+				AppId:      appId,
+				UserId:     userId,
+				Action:     bean.DELETE,
+				CiPipeline: ciPipeline,
+			}
+			_, err := handler.pipelineBuilder.PatchCiPipeline(ciPipelineDeleteRequest)
+			if err != nil {
+				handler.logger.Errorw("err in deleting ci pipeline in DeleteApp", "err", err, "payload", ciPipelineDeleteRequest)
+				writeJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+				return
 			}
 		}
+		// delete all CI pipelines for app ends
+
+		// delete all workflows for app starts
 		for _, workflow := range workflowsList {
 			err = handler.appWorkflowService.DeleteAppWorkflow(appId, workflow.Id, userId)
 			if err != nil {
@@ -1155,7 +1157,10 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 				return
 			}
 		}
+		// delete all workflows for app ends
 	}
+
+	// delete app
 	err = handler.pipelineBuilder.DeleteApp(appId, userId)
 	if err != nil {
 		handler.logger.Errorw("service error, DeleteApp", "err", err, "appId", appId)
