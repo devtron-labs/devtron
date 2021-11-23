@@ -1313,22 +1313,23 @@ func (handler AppRestHandlerImpl) createDeploymentTemplate(w http.ResponseWriter
 func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, appId int, userId int32, configMaps []*appBean.ConfigMap) bool {
 	handler.logger.Infow("Create App - creating global configMap", "appId", appId)
 
+	var appLevelId int
 	for _, configMap := range configMaps {
+
 		//getting app level by app id
-		appLevel, err := handler.configMapRepository.GetByAppIdAppLevel(appId)
-		if err != nil && err != pg.ErrNoRows {
-			handler.logger.Errorw("error in getting app level by app id in createGlobalConfigMaps", "appId", appId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		if appLevelId == 0 {
+			appLevel, err := handler.configMapRepository.GetByAppIdAppLevel(appId)
+			if err != nil && err != pg.ErrNoRows {
+				handler.logger.Errorw("error in getting app level by app id in createGlobalConfigMaps", "appId", appId)
+				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				return true
+			}
+
+			if appLevel != nil {
+				appLevelId = appLevel.Id
+			}
 		}
-		var appLevelId int
-		if appLevel != nil {
-			appLevelId = appLevel.Id
-		}
-		configMapRequest := &pipeline.ConfigDataRequest{
-			AppId:  appId,
-			UserId: userId,
-			Id:     appLevelId,
-		}
+
 		//marshalling configMap data, i.e. key-value pairs
 		configMapKeyValueData, err := json.Marshal(configMap.Data)
 		if err != nil {
@@ -1336,7 +1337,8 @@ func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, 
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
-		var configMapDataRequest []*pipeline.ConfigData
+
+		// build
 		configMapData := &pipeline.ConfigData{
 			Name:     configMap.Name,
 			External: configMap.IsExternal,
@@ -1349,8 +1351,17 @@ func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, 
 			configMapData.SubPath = dataVolumeUsageConfig.SubPath
 			configMapData.FilePermission = dataVolumeUsageConfig.FilePermission
 		}
+
+
+		// service call
+		var configMapDataRequest []*pipeline.ConfigData
 		configMapDataRequest = append(configMapDataRequest, configMapData)
-		configMapRequest.ConfigData = configMapDataRequest
+		configMapRequest := &pipeline.ConfigDataRequest{
+			AppId:  appId,
+			UserId: userId,
+			Id:     appLevelId,
+			ConfigData: configMapDataRequest,
+		}
 		//using same var for every request, since appId and userID are same
 		_, err = handler.configMapService.CMGlobalAddUpdate(configMapRequest)
 		if err != nil {
@@ -1359,6 +1370,7 @@ func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, 
 			return true
 		}
 	}
+
 	return false
 
 }
@@ -1367,23 +1379,23 @@ func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, 
 func (handler AppRestHandlerImpl) createGlobalSecrets(w http.ResponseWriter, appId int, userId int32, secrets []*appBean.Secret) bool {
 	handler.logger.Infow("Create App - creating global secrets", "appId", appId)
 
+	var appLevelId int
 	for _, secret := range secrets {
 		//getting app level by app id
-		appLevel, err := handler.configMapRepository.GetByAppIdAppLevel(appId)
-		if err != nil && err != pg.ErrNoRows {
-			handler.logger.Errorw("error in getting app level by app id in createGlobalSecrets", "appId", appId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		if appLevelId == 0 {
+			appLevel, err := handler.configMapRepository.GetByAppIdAppLevel(appId)
+			if err != nil && err != pg.ErrNoRows {
+				handler.logger.Errorw("error in getting app level by app id in createGlobalSecrets", "appId", appId)
+				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				return true
+			}
+
+			if appLevel != nil {
+				appLevelId = appLevel.Id
+			}
 		}
-		var appLevelId int
-		if appLevel != nil {
-			appLevelId = appLevel.Id
-		}
-		secretRequest := &pipeline.ConfigDataRequest{
-			AppId:  appId,
-			UserId: userId,
-			Id:     appLevelId,
-		}
-		var secretDataRequest []*pipeline.ConfigData
+
+		// build
 		secretData := &pipeline.ConfigData{
 			Name:               secret.Name,
 			External:           secret.IsExternal,
@@ -1391,12 +1403,14 @@ func (handler AppRestHandlerImpl) createGlobalSecrets(w http.ResponseWriter, app
 			ExternalSecretType: secret.ExternalType,
 			RoleARN:            secret.RoleArn,
 		}
+
 		dataVolumeUsageConfig := secret.DataVolumeUsageConfig
 		if dataVolumeUsageConfig != nil {
 			secretData.MountPath = dataVolumeUsageConfig.MountPath
 			secretData.SubPath = dataVolumeUsageConfig.SubPath
 			secretData.FilePermission = dataVolumeUsageConfig.FilePermission
 		}
+
 		if secret.IsExternal {
 			var externalDataRequests []pipeline.ExternalSecret
 			for _, externalData := range secret.ExternalSecretData {
@@ -1408,31 +1422,41 @@ func (handler AppRestHandlerImpl) createGlobalSecrets(w http.ResponseWriter, app
 				}
 				externalDataRequests = append(externalDataRequests, externalDataRequest)
 			}
+			secretData.ExternalSecret = externalDataRequests
 		} else {
 			secretKeyValueData, err := json.Marshal(secret.Data)
 			if err != nil {
-				handler.logger.Errorw("service err, could not json marshal secret data in CreateGlobalSecret", "err", err, "appId", appId, "secretData", secret.Data)
+				handler.logger.Errorw("service err, could not json marshal secret data in CreateGlobalSecret", "err", err, "appId", appId)
 				writeJsonResp(w, err, nil, http.StatusInternalServerError)
 				return true
 			}
 			secretData.Data = secretKeyValueData
 		}
+
+		// service call
+		var secretDataRequest []*pipeline.ConfigData
 		secretDataRequest = append(secretDataRequest, secretData)
-		secretRequest.ConfigData = secretDataRequest
+		secretRequest := &pipeline.ConfigDataRequest{
+			AppId:  appId,
+			UserId: userId,
+			Id:     appLevelId,
+			ConfigData: secretDataRequest,
+		}
 		//using same var for every request, since appId and userID are same
-		_, err = handler.configMapService.CSGlobalAddUpdate(secretRequest)
+		_, err := handler.configMapService.CSGlobalAddUpdate(secretRequest)
 		if err != nil {
-			handler.logger.Errorw("service err, CSGlobalAddUpdate in CreateGlobalSecret", "err", err, "appId", appId, "secretRequest", secretRequest)
+			handler.logger.Errorw("service err, CSGlobalAddUpdate in CreateGlobalSecret", "err", err, "appId", appId)
 			writeJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 	}
+
 	return false
 }
 
 //create app workflows
 func (handler AppRestHandlerImpl) createWorkflows(w http.ResponseWriter, ctx context.Context, appId int, userId int32, workflows []*appBean.AppWorkflow) bool {
-	handler.logger.Infow("Create App - creating workflows", "appId", appId, "workflows", workflows)
+	handler.logger.Infow("Create App - creating workflows", "appId", appId, "workflows size", len(workflows))
 	for _, workflow := range workflows {
 		//Create workflow starts
 		wf := &appWorkflow2.AppWorkflow{
