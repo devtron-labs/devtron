@@ -386,7 +386,10 @@ helmRepo = `- name: incubator
   url:  https://charts.jetstack.io
 - name: metrics-server
   type: helm
-  url:  https://kubernetes-sigs.github.io/metrics-server`;
+  url:  https://kubernetes-sigs.github.io/metrics-server
+- name: autoscaler
+  type: helm
+  url:  https://kubernetes.github.io/autoscaler`;
 
 
 kubeYamlEdit(argocd, `data.repositories`, helmRepo, `/ConfigMap//argocd-cm` );
