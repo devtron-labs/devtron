@@ -50,7 +50,7 @@ func validateAndBuildResourcesAssignment(dat map[string]interface{}, validationK
 
 func MemoryToNumber(memory string) (float64, error) {
 	if memoryParser == nil {
-		pattern := "(\\d*e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)"
+		pattern := "([0-9.]+)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)"
 		re, _ := regexp.Compile(pattern)
 		memoryParser = &resourceParser{
 			name:    "memory",
@@ -80,7 +80,7 @@ func CpuToNumber(cpu string) (float64, error) {
 		return strconv.ParseFloat(cpu, 64)
 	}
 	if cpuParser == nil {
-		pattern := "(\\d*e?\\d*)(m?)"
+		pattern := "^([0-9.]+)(m?)"
 		re, _ := regexp.Compile(pattern)
 		cpuParser = &resourceParser{
 			name:    "cpu",
@@ -262,11 +262,11 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 var (
 	CpuUnitChecker, _   = regexp.Compile("^([0-9.]+)m$")
 	NoCpuUnitChecker, _ = regexp.Compile("^([0-9.]+)$")
-	MiChecker, _        = regexp.Compile("^[0-9]+Mi$")
-	GiChecker, _        = regexp.Compile("^[0-9]+Gi$")
-	TiChecker, _        = regexp.Compile("^[0-9]+Ti$")
-	PiChecker, _        = regexp.Compile("^[0-9]+Pi$")
-	KiChecker, _        = regexp.Compile("^[0-9]+Ki$")
+	MiChecker, _        = regexp.Compile("^[0-9.]+Mi$")
+	GiChecker, _        = regexp.Compile("^[0-9.]+Gi$")
+	TiChecker, _        = regexp.Compile("^[0-9.]+Ti$")
+	PiChecker, _        = regexp.Compile("^[0-9.]+Pi$")
+	KiChecker, _        = regexp.Compile("^[0-9.]+Ki$")
 )
 
 func (f CpuChecker) IsFormat(input interface{}) bool {
