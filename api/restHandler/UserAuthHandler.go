@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"net/http"
 	"strings"
 
@@ -76,25 +77,25 @@ func (handler UserAuthHandlerImpl) LoginHandler(w http.ResponseWriter, r *http.R
 	err := decoder.Decode(up)
 	if err != nil {
 		handler.logger.Errorw("request err, LoginHandler", "err", err, "payload", up)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 
 	err = handler.validator.Struct(up)
 	if err != nil {
 		handler.logger.Errorw("validation err, LoginHandler", "err", err, "payload", up)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	token, err := handler.userAuthService.HandleLogin(up.Username, up.Password)
 	if err != nil {
-		writeJsonResp(w, fmt.Errorf("invalid username or password"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("invalid username or password"), nil, http.StatusForbidden)
 		return
 	}
 	response := make(map[string]interface{})
 	response["token"] = token
 	http.SetCookie(w, &http.Cookie{Name: "argocd.token", Value: token, Path: "/"})
-	writeJsonResp(w, nil, response, http.StatusOK)
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
 func (handler UserAuthHandlerImpl) CallbackHandler(w http.ResponseWriter, r *http.Request) {
@@ -169,7 +170,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	err := json.Unmarshal([]byte(adminPolicies), &policiesAdmin)
 	if err != nil {
 		handler.logger.Errorw("request err, AddDefaultPolicyAndRoles", "err", err, "payload", policiesAdmin)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesAdmin", policiesAdmin)
@@ -179,7 +180,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
 	if err != nil {
 		handler.logger.Errorw("request err, AddDefaultPolicyAndRoles", "err", err, "payload", policiesTrigger)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesTrigger", policiesTrigger)
@@ -189,7 +190,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	err = json.Unmarshal([]byte(viewPolicies), &policiesView)
 	if err != nil {
 		handler.logger.Errorw("request err, AddDefaultPolicyAndRoles", "err", err, "payload", policiesView)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.logger.Debugw("request payload, AddDefaultPolicyAndRoles", "policiesView", policiesView)
@@ -215,13 +216,13 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	err = json.Unmarshal([]byte(roleAdmin), &roleAdminData)
 	if err != nil {
 		handler.logger.Errorw("request err, AddDefaultPolicyAndRoles", "err", err, "payload", roleAdminData)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	_, err = handler.userAuthService.CreateRole(&roleAdminData)
 	if err != nil {
 		handler.logger.Errorw("service err, AddDefaultPolicyAndRoles", "err", err, "payload", roleAdminData)
-		writeJsonResp(w, err, "Role Creation Failed", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "Role Creation Failed", http.StatusInternalServerError)
 		return
 	}
 
@@ -229,13 +230,13 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	err = json.Unmarshal([]byte(roleTrigger), &roleTriggerData)
 	if err != nil {
 		handler.logger.Errorw("request err, AddDefaultPolicyAndRoles", "err", err, "payload", roleTriggerData)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	_, err = handler.userAuthService.CreateRole(&roleTriggerData)
 	if err != nil {
 		handler.logger.Errorw("service err, AddDefaultPolicyAndRoles", "err", err, "payload", roleTriggerData)
-		writeJsonResp(w, err, "Role Creation Failed", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "Role Creation Failed", http.StatusInternalServerError)
 		return
 	}
 
@@ -243,13 +244,13 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 	err = json.Unmarshal([]byte(roleView), &roleViewData)
 	if err != nil {
 		handler.logger.Errorw("request err, AddDefaultPolicyAndRoles", "err", err, "payload", roleViewData)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	_, err = handler.userAuthService.CreateRole(&roleViewData)
 	if err != nil {
 		handler.logger.Errorw("service err, AddDefaultPolicyAndRoles", "err", err, "payload", roleTriggerData)
-		writeJsonResp(w, err, "Role Creation Failed", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "Role Creation Failed", http.StatusInternalServerError)
 		return
 	}
 
@@ -259,8 +260,8 @@ func (handler UserAuthHandlerImpl) AuthVerification(w http.ResponseWriter, r *ht
 	res, err := handler.userAuthService.AuthVerification(r)
 	if err != nil {
 		handler.logger.Errorw("service err, AuthVerification", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }

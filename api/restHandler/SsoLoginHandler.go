@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -61,7 +62,7 @@ func NewSsoLoginRestHandlerImpl(userAuthService user.UserAuthService, validator 
 func (handler SsoLoginRestHandlerImpl) CreateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -69,13 +70,13 @@ func (handler SsoLoginRestHandlerImpl) CreateSSOLoginConfig(w http.ResponseWrite
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, CreateSSOLoginConfig", "err", err, "payload", dto)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
@@ -83,16 +84,16 @@ func (handler SsoLoginRestHandlerImpl) CreateSSOLoginConfig(w http.ResponseWrite
 	resp, err := handler.ssoLoginService.CreateSSOLogin(&dto)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateSSOLoginConfig", "err", err, "payload", dto)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, resp, http.StatusOK)
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -101,13 +102,13 @@ func (handler SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWrite
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateSSOLoginConfig", "err", err, "payload", dto)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionUpdate, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
@@ -115,26 +116,26 @@ func (handler SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWrite
 	resp, err := handler.ssoLoginService.UpdateSSOLogin(&dto)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateSSOLoginConfig", "err", err, "payload", dto)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, resp, http.StatusOK)
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler SsoLoginRestHandlerImpl) GetAllSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
 	res, err := handler.ssoLoginService.GetAll()
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllSSOLoginConfig", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
 func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
@@ -142,35 +143,35 @@ func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfig(w http.ResponseWriter, 
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.logger.Errorw("request err, GetSSOLoginConfig", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
 	res, err := handler.ssoLoginService.GetById(int32(id))
 	if err != nil {
 		handler.logger.Errorw("service err, GetSSOLoginConfig", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
 func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfigByName(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
@@ -179,8 +180,8 @@ func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfigByName(w http.ResponseWr
 	res, err := handler.ssoLoginService.GetByName(name)
 	if err != nil {
 		handler.logger.Errorw("service err, GetSSOLoginConfigByName", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }

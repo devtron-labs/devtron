@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1/validation"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
@@ -61,14 +62,14 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var data map[string]interface{}
 	err = decoder.Decode(&data)
 	if err != nil {
 		handler.logger.Errorw("request err, Operate", "err", err, "payload", data)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -80,24 +81,24 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 		wfd, err := json.Marshal(wf)
 		if err != nil {
 			handler.logger.Errorw("marshaling err, Operate", "err", err, "wf", wf)
-			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 		err = json.Unmarshal(wfd, &workflow)
 		if err != nil {
 			handler.logger.Errorw("marshaling err, Operate", "err", err, "workflow", workflow)
-			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 
 		if workflow.Destination.App == nil || len(*workflow.Destination.App) == 0 {
-			writeJsonResp(w, errors.New("app name cannot be empty"), nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, errors.New("app name cannot be empty"), nil, http.StatusBadRequest)
 		}
 
 		team, err := handler.teamService.FindActiveTeamByAppName(*workflow.Destination.App)
 
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
-			writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 
@@ -116,12 +117,12 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 
 		err = handler.workflowAction.Execute(&workflow, emptyProps, ctx)
 		if err != nil {
-			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 	}
 
-	writeJsonResp(w, nil, `{"result": "ok"}`, http.StatusOK)
+	common.WriteJsonResp(w, nil, `{"result": "ok"}`, http.StatusOK)
 	//panic("implement me")
 }
 

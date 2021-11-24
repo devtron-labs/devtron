@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -65,7 +66,7 @@ type ChartGroupRestHandler interface {
 func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -73,13 +74,13 @@ func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, CreateChartGroup", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	err = impl.validator.Struct(request)
 	if err != nil {
 		impl.Logger.Errorw("validate err, CreateChartGroup", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	request.UserId = userId
@@ -89,7 +90,7 @@ func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r
 	token := r.Header.Get("token")
 	rbacObject := request.Name
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionCreate, rbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC block ends here
@@ -97,16 +98,16 @@ func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r
 	res, err := impl.ChartGroupService.CreateChartGroup(&request)
 	if err != nil {
 		impl.Logger.Errorw("service err, CreateChartGroup", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl *ChartGroupRestHandlerImpl) UpdateChartGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -114,13 +115,13 @@ func (impl *ChartGroupRestHandlerImpl) UpdateChartGroup(w http.ResponseWriter, r
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, UpdateChartGroup", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	err = impl.validator.Struct(request)
 	if err != nil {
 		impl.Logger.Errorw("validate err, UpdateChartGroup", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	request.UserId = userId
@@ -130,7 +131,7 @@ func (impl *ChartGroupRestHandlerImpl) UpdateChartGroup(w http.ResponseWriter, r
 	token := r.Header.Get("token")
 	rbacObject := request.Name
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionUpdate, rbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC block ends here
@@ -138,16 +139,16 @@ func (impl *ChartGroupRestHandlerImpl) UpdateChartGroup(w http.ResponseWriter, r
 	res, err := impl.ChartGroupService.UpdateChartGroup(&request)
 	if err != nil {
 		impl.Logger.Errorw("service err, UpdateChartGroup", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl *ChartGroupRestHandlerImpl) SaveChartGroupEntries(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -155,7 +156,7 @@ func (impl *ChartGroupRestHandlerImpl) SaveChartGroupEntries(w http.ResponseWrit
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, SaveChartGroupEntries", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	request.UserId = userId
@@ -163,30 +164,30 @@ func (impl *ChartGroupRestHandlerImpl) SaveChartGroupEntries(w http.ResponseWrit
 	token := r.Header.Get("token")
 	rbacObject := request.Name
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionCreate, rbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC block ends here
 	res, err := impl.ChartGroupService.SaveChartGroupEntries(&request)
 	if err != nil {
 		impl.Logger.Errorw("service err, SaveChartGroupEntries", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl *ChartGroupRestHandlerImpl) GetChartGroupWithChartMetaData(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	chartGroupId, err := strconv.Atoi(vars["chartGroupId"])
 	if err != nil {
 		impl.Logger.Errorw("request err, GetChartGroupWithChartMetaData", "err", err, "chartGroupId", chartGroupId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -194,7 +195,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupWithChartMetaData(w http.Res
 	token := r.Header.Get("token")
 	rbacObject := ""
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionGet, rbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC block ends here
@@ -202,23 +203,23 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupWithChartMetaData(w http.Res
 	res, err := impl.ChartGroupService.GetChartGroupWithChartMetaData(chartGroupId)
 	if err != nil {
 		impl.Logger.Errorw("service err, GetChartGroupWithChartMetaData", "err", err, "chartGroupId", chartGroupId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl *ChartGroupRestHandlerImpl) GetChartGroupInstallationDetail(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	chartGroupId, err := strconv.Atoi(vars["chartGroupId"])
 	if err != nil {
 		impl.Logger.Errorw("request err, GetChartGroupInstallationDetail", "err", err, "chartGroupId", chartGroupId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -226,7 +227,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupInstallationDetail(w http.Re
 	token := r.Header.Get("token")
 	rbacObject := ""
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionGet, rbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC block ends here
@@ -234,16 +235,16 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupInstallationDetail(w http.Re
 	res, err := impl.ChartGroupService.GetChartGroupWithInstallationDetail(chartGroupId)
 	if err != nil {
 		impl.Logger.Errorw("service err, GetChartGroupInstallationDetail", "err", err, "chartGroupId", chartGroupId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl *ChartGroupRestHandlerImpl) GetChartGroupList(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -251,7 +252,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupList(w http.ResponseWriter, 
 	token := r.Header.Get("token")
 	rbacObject := ""
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionGet, rbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC block ends here
@@ -262,23 +263,23 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupList(w http.ResponseWriter, 
 		maxCount, err = strconv.Atoi(max)
 		if err != nil {
 			impl.Logger.Errorw("request err, GetChartGroupList", "err", err, "max", max)
-			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 	}
 	res, err := impl.ChartGroupService.ChartGroupList(maxCount)
 	if err != nil {
 		impl.Logger.Errorw("service err, GetChartGroupList", "err", err, "max", max)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl *ChartGroupRestHandlerImpl) GetChartGroupListMin(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -286,7 +287,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupListMin(w http.ResponseWrite
 	token := r.Header.Get("token")
 	rbacObject := ""
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionGet, rbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC block ends here
@@ -297,15 +298,15 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupListMin(w http.ResponseWrite
 		maxCount, err = strconv.Atoi(max)
 		if err != nil {
 			impl.Logger.Errorw("request err, GetChartGroupListMin", "err", err, "max", max)
-			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 	}
 	res, err := impl.ChartGroupService.ChartGroupListMin(maxCount)
 	if err != nil {
 		impl.Logger.Errorw("service err, GetChartGroupListMin", "err", err, "max", max)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
