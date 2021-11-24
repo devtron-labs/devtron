@@ -27,12 +27,12 @@ type PipelineConfigRouter interface {
 	initPipelineConfigRouter(configRouter *mux.Router)
 }
 type PipelineConfigRouterImpl struct {
-	restHandler            pipeline.PipelineConfigRestHandler
+	restHandler            app.PipelineConfigRestHandler
 	appWorkflowRestHandler restHandler.AppWorkflowRestHandler
 	webhookDataRestHandler restHandler.WebhookDataRestHandler
 }
 
-func NewPipelineRouterImpl(restHandler pipeline.PipelineConfigRestHandler, appWorkflowRestHandler restHandler.AppWorkflowRestHandler, webhookDataRestHandler restHandler.WebhookDataRestHandler) *PipelineConfigRouterImpl {
+func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler, appWorkflowRestHandler restHandler.AppWorkflowRestHandler, webhookDataRestHandler restHandler.WebhookDataRestHandler) *PipelineConfigRouterImpl {
 	return &PipelineConfigRouterImpl{restHandler: restHandler, appWorkflowRestHandler: appWorkflowRestHandler, webhookDataRestHandler: webhookDataRestHandler}
 
 }

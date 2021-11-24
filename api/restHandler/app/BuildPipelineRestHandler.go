@@ -1,4 +1,4 @@
-package pipeline
+package app
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -15,6 +17,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type DevtronAppBuildRestHandler interface {
@@ -796,5 +799,164 @@ func (handler PipelineConfigRestHandlerImpl) validForMultiMaterial(ciTriggerRequ
 		}
 	}
 	return true
+}
+
+func (handler PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool, error) {
+	gitProvider, err := handler.gitProviderRepo.FindOne(strconv.Itoa(gitProviderId))
+	if err != nil {
+		return false, err
+	}
+	if gitProvider.AuthMode == repository.AUTH_MODE_SSH {
+		hasPrefixResult := strings.HasPrefix(url, SSH_URL_PREFIX)
+		return hasPrefixResult, nil
+	}
+	hasPrefixResult := strings.HasPrefix(url, HTTPS_URL_PREFIX)
+	return hasPrefixResult, nil
+}
+
+func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	workflowId, err := strconv.Atoi(vars["workflowId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CancelWorkflow", "err", err, "workflowId", workflowId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, CancelWorkflow", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, CancelWorkflow", "workflowId", workflowId, "pipelineId", pipelineId)
+
+	ciPipeline, err := handler.ciPipelineRepository.FindById(pipelineId)
+	if err != nil {
+		handler.Logger.Errorw("service err, CancelWorkflow", "err", err, "workflowId", workflowId, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	//RBAC
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC
+
+	resp, err := handler.ciHandler.CancelBuild(workflowId)
+	if err != nil {
+		handler.Logger.Errorw("service err, CancelWorkflow", "err", err, "workflowId", workflowId, "pipelineId", pipelineId)
+		if util.IsErrNoRows(err) {
+			common.WriteJsonResp(w, err, nil, http.StatusNotFound)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+}
+
+// FetchChanges FIXME check if deprecated
+func (handler PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	ciMaterialId, err := strconv.Atoi(vars["ciMaterialId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, FetchChanges", "ciMaterialId", ciMaterialId, "pipelineId", pipelineId)
+	ciPipeline, err := handler.ciPipelineRepository.FindById(pipelineId)
+	if err != nil {
+		handler.Logger.Errorw("request err, FetchChanges", "err", err, "ciMaterialId", ciMaterialId, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	//RBAC
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC
+
+	changeRequest := &gitSensor.FetchScmChangesRequest{
+		PipelineMaterialId: ciMaterialId,
+	}
+	changes, err := handler.gitSensorClient.FetchChanges(changeRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchChanges", "err", err, "ciMaterialId", ciMaterialId, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, changes.Commits, http.StatusCreated)
+}
+
+func (handler PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	buildId, err := strconv.Atoi(vars["workflowId"])
+	if err != nil || buildId == 0 {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, FetchWorkflowDetails", "appId", appId, "pipelineId", pipelineId, "buildId", buildId, "buildId", buildId)
+	ciPipeline, err := handler.ciPipelineRepository.FindById(pipelineId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	//RBAC
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC
+	resp, err := handler.ciHandler.FetchWorkflowDetails(appId, pipelineId, buildId)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchWorkflowDetails", "err", err, "appId", appId, "pipelineId", pipelineId, "buildId", buildId, "buildId", buildId)
+		if util.IsErrNoRows(err) {
+			err = &util.ApiError{Code: "404", HttpStatusCode: http.StatusNotFound, UserMessage: "no workflow found"}
+			common.WriteJsonResp(w, err, nil, http.StatusOK)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 

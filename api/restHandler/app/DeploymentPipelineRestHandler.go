@@ -1,4 +1,4 @@
-package pipeline
+package app
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type DevtronAppDeploymentRestHandler interface {
@@ -50,6 +51,8 @@ type DevtronAppDeploymentConfigRestHandler interface {
 
 	AppMetricsEnableDisable(w http.ResponseWriter, r *http.Request)
 	EnvMetricsEnableDisable(w http.ResponseWriter, r *http.Request)
+
+	EnvConfigOverrideCreateNamespace(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppPrePostDeploymentRestHandler interface {
@@ -1415,7 +1418,7 @@ func (handler PipelineConfigRestHandlerImpl) GetConfigmapSecretsForDeploymentSta
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	//FIXME: add RBAC
 	resp, err := handler.pipelineBuilder.FetchConfigmapSecretsForCdStages(deploymentPipeline.AppId, deploymentPipeline.EnvironmentId, pipelineId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetConfigmapSecretsForDeploymentStages", "err", err, "pipelineId", pipelineId)
@@ -1458,3 +1461,272 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseWr
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
+func (handler PipelineConfigRestHandlerImpl) CancelStage(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	workflowRunnerId, err := strconv.Atoi(vars["workflowRunnerId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	cdPipeline, err := handler.pipelineRepository.FindById(pipelineId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	handler.Logger.Infow("request payload, CancelStage", "pipelineId", pipelineId, "workflowRunnerId", workflowRunnerId)
+
+	//RBAC
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(cdPipeline.AppId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC
+
+	resp, err := handler.cdHandler.CancelStage(workflowRunnerId)
+	if err != nil {
+		handler.Logger.Errorw("service err, CancelStage", "err", err, "pipelineId", pipelineId, "workflowRunnerId", workflowRunnerId)
+		if util.IsErrNoRows(err) {
+			common.WriteJsonResp(w, err, nil, http.StatusNotFound)
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		}
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetDeploymentPipelineStrategy(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, GetDeploymentPipelineStrategy", "appId", appId)
+	//RBAC
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC
+
+	result, err := handler.pipelineBuilder.FetchCDPipelineStrategy(appId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetDeploymentPipelineStrategy", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, result, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreateNamespace(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	environmentId, err := strconv.Atoi(vars["environmentId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var envConfigProperties pipeline.EnvironmentProperties
+	err = decoder.Decode(&envConfigProperties)
+	envConfigProperties.UserId = userId
+	envConfigProperties.EnvironmentId = environmentId
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, EnvConfigOverrideCreateNamespace", "appId", appId, "environmentId", environmentId, "payload", envConfigProperties)
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, environmentId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	createResp, err := handler.propertiesConfigService.CreateEnvironmentPropertiesWithNamespace(appId, &envConfigProperties)
+	if err != nil {
+		handler.Logger.Errorw("service err, EnvConfigOverrideCreateNamespace", "err", err, "appId", appId, "environmentId", environmentId, "payload", envConfigProperties)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) IsReadyToTrigger(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envId, err := strconv.Atoi(vars["envId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, IsReadyToTrigger", "appId", appId, "envId", envId, "pipelineId", pipelineId)
+	//RBAC
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionGet, strings.ToLower(object)); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC
+
+	result, err := handler.chartService.IsReadyToTrigger(appId, envId, pipelineId)
+	if err != nil {
+		handler.Logger.Errorw("service err, IsReadyToTrigger", "err", err, "appId", appId, "envId", envId, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, result, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	chartRefId, err := strconv.Atoi(vars["chartRefId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var chartUpgradeRequest pipeline.ChartUpgradeRequest
+	err = decoder.Decode(&chartUpgradeRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, UpgradeForAllApps", "err", err, "payload", chartUpgradeRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	chartUpgradeRequest.ChartRefId = chartRefId
+	chartUpgradeRequest.UserId = userId
+	handler.Logger.Infow("request payload, UpgradeForAllApps", "payload", chartUpgradeRequest)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, "*/*"); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, "*/*"); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	newAppOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartUpgradeRequest.ChartRefId)
+	if err != nil {
+		handler.Logger.Errorw("service err, UpgradeForAllApps", "err", err, "payload", chartUpgradeRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	ctx = context.WithValue(r.Context(), "token", token)
+
+	var appIds []int
+	if chartUpgradeRequest.All || len(chartUpgradeRequest.AppIds) == 0 {
+		apps, err := handler.pipelineBuilder.GetAppList()
+		if err != nil {
+			handler.Logger.Errorw("service err, UpgradeForAllApps", "err", err, "payload", chartUpgradeRequest)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		for _, app := range apps {
+			appIds = append(appIds, app.Id)
+		}
+	} else {
+		appIds = chartUpgradeRequest.AppIds
+	}
+	response := make(map[string][]map[string]string)
+	var failedIds []map[string]string
+	for _, appId := range appIds {
+		appResponse := make(map[string]string)
+		template, err := handler.chartService.GetByAppIdAndChartRefId(appId, chartRefId)
+		if err != nil && pg.ErrNoRows != err {
+			handler.Logger.Errorw("err in checking weather exist or not, skip for upgrade", "err", err, "payload", chartUpgradeRequest)
+			appResponse["appId"] = strconv.Itoa(appId)
+			appResponse["message"] = "err in checking weather exist or not, skip for upgrade"
+			failedIds = append(failedIds, appResponse)
+			continue
+		}
+		if template != nil && template.Id > 0 {
+			handler.Logger.Warnw("this ref chart already configured for this app, skip for upgrade", "payload", chartUpgradeRequest)
+			appResponse["appId"] = strconv.Itoa(appId)
+			appResponse["message"] = "this ref chart already configured for this app, skip for upgrade"
+			failedIds = append(failedIds, appResponse)
+			continue
+		}
+		flag, err := handler.chartService.UpgradeForApp(appId, chartRefId, newAppOverride, userId, ctx)
+		if err != nil {
+			handler.Logger.Errorw("service err, UpdateCiTemplate", "err", err, "payload", chartUpgradeRequest)
+			appResponse["appId"] = strconv.Itoa(appId)
+			appResponse["message"] = err.Error()
+			failedIds = append(failedIds, appResponse)
+		} else if flag == false {
+			handler.Logger.Debugw("unable to upgrade for app", "appId", appId, "payload", chartUpgradeRequest)
+			appResponse["appId"] = strconv.Itoa(appId)
+			appResponse["message"] = "no error found, but failed to upgrade"
+			failedIds = append(failedIds, appResponse)
+		}
+
+	}
+	response["failed"] = failedIds
+	common.WriteJsonResp(w, err, response, http.StatusOK)
+}

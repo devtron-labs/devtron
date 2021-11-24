@@ -29,13 +29,13 @@ type WebhookRouter interface {
 
 type WebhookRouterImpl struct {
 	gitWebhookRestHandler restHandler.GitWebhookRestHandler
-	pipelineRestHandler   pipeline.PipelineConfigRestHandler
+	pipelineRestHandler   app.PipelineConfigRestHandler
 	externalCiRestHandler restHandler.ExternalCiRestHandler
 	pubSubClientRestHandler restHandler.PubSubClientRestHandler
 }
 
 func NewWebhookRouterImpl(gitWebhookRestHandler restHandler.GitWebhookRestHandler,
-	pipelineRestHandler pipeline.PipelineConfigRestHandler, externalCiRestHandler restHandler.ExternalCiRestHandler,
+	pipelineRestHandler app.PipelineConfigRestHandler, externalCiRestHandler restHandler.ExternalCiRestHandler,
 	pubSubClientRestHandler restHandler.PubSubClientRestHandler) *WebhookRouterImpl {
 	return &WebhookRouterImpl{
 		gitWebhookRestHandler:   gitWebhookRestHandler,
