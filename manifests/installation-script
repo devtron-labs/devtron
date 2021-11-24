@@ -1,5 +1,5 @@
-LTAG="v0.3.1";
-REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
+LTAG="cluster-auto-scaler-chart";
+REPO_RAW_URL="https://raw.githubusercontent.com/arushi09-hub/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
 operatorConfigMap = kubectl get cm -n devtroncd devtron-operator-cm;
@@ -386,7 +386,10 @@ helmRepo = `- name: incubator
   url:  https://charts.jetstack.io
 - name: metrics-server
   type: helm
-  url:  https://kubernetes-sigs.github.io/metrics-server`;
+  url:  https://kubernetes-sigs.github.io/metrics-server
+- name: autoscaler
+  type: helm
+  url:  https://kubernetes.github.io/autoscaler`;
 
 
 kubeYamlEdit(argocd, `data.repositories`, helmRepo, `/ConfigMap//argocd-cm` );
