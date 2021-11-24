@@ -19,7 +19,7 @@ package router
 
 import (
 	"github.com/devtron-labs/devtron/api/restHandler"
-	"github.com/devtron-labs/devtron/api/restHandler/pipeline"
+	"github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/gorilla/mux"
 )
 

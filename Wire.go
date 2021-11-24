@@ -23,7 +23,7 @@ package main
 import (
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/restHandler"
-	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/pipeline"
+	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/sse"

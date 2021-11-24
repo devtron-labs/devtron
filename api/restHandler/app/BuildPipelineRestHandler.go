@@ -31,6 +31,7 @@ type DevtronAppBuildRestHandler interface {
 	GetCIPipelineById(w http.ResponseWriter, r *http.Request)
 	HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request)
 	GetBuildLogs(w http.ResponseWriter, r *http.Request)
+	FetchWorkflowDetails(w http.ResponseWriter, r *http.Request)
 	// CancelWorkflow CancelBuild
 	CancelWorkflow(w http.ResponseWriter, r *http.Request)
 }
