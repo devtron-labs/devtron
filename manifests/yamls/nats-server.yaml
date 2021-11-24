@@ -113,7 +113,7 @@ spec:
 
       app.kubernetes.io/name: nats
       app.kubernetes.io/instance: devtron-nats
-  replicas: 3
+  replicas: 1
   serviceName: devtron-nats
   template:
     metadata:

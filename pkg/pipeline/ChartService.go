@@ -1040,7 +1040,7 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 	return nil, err
 }
 
-const memoryPattern = `"100Mi" or "1Gi" or "1Ti"`
+const memoryPattern = `"1000Mi" or "1Gi"`
 const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
