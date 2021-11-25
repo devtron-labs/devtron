@@ -173,6 +173,15 @@ image:
 
 Image is used to access images in kubernetes, pullpolicy is used to define the instances calling the image, here the image is pulled when the image is not present,it can also be set as "Always".
 
+### imagePullSecrets
+
+`imagePullSecrets` contains the docker credentials that are used for accessing a registry. 
+
+```yaml
+imagePullSecrets:
+  - docker-credentials
+
+
 ### Ingress
 
 This allows public access to the url, please ensure you are using right nginx annotation for nginx class, its default value is nginx
