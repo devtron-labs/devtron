@@ -10,6 +10,16 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 )
 
+const (
+	CpuRegex ="(^\\d*.?\\d+e?\\d*)(m?)$"
+	MemoryRegex = "(^\\d*.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)$"
+)
+
+var (
+	CpuUnitChecker, _   = regexp.Compile(CpuRegex)
+	MemoryUnitChecker, _        = regexp.Compile(MemoryRegex)
+)
+
 type resourceParser struct {
 	name        string
 	pattern     string
@@ -50,7 +60,7 @@ func validateAndBuildResourcesAssignment(dat map[string]interface{}, validationK
 
 func MemoryToNumber(memory string) (float64, error) {
 	if memoryParser == nil {
-		pattern := "(^\\s*\\d*.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)"
+		pattern := MemoryRegex
 		re, _ := regexp.Compile(pattern)
 		memoryParser = &resourceParser{
 			name:    "memory",
@@ -76,7 +86,7 @@ func MemoryToNumber(memory string) (float64, error) {
 }
 func CpuToNumber(cpu string) (float64, error) {
 	if cpuParser == nil {
-		pattern := "(^\\s*\\d*.?\\d+e?\\d*)(m?)$"
+		pattern := CpuRegex
 		re, _ := regexp.Compile(pattern)
 		cpuParser = &resourceParser{
 			name:    "cpu",
@@ -254,10 +264,6 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 	return true,nil
 }
 
-var (
-	CpuUnitChecker, _   = regexp.Compile("(^\\d*.?\\d+e?\\d*)(m?)$")
-	MemoryUnitChecker, _        = regexp.Compile("(^\\d*.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)$")
-)
 
 func (f CpuChecker) IsFormat(input interface{}) bool {
 	if input == nil {
