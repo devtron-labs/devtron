@@ -192,6 +192,9 @@ Get updates on Devtron's development and chat with the project maintainers, cont
 </a>
  </p>
 
+## :muscle: Trusted By
+<br>
+<p align="center"><img width="660" height="216" src="./assets/banner-clients.png"></p>
 
 ## :sparkling_heart: Love What You See!
 
