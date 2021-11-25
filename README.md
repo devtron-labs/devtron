@@ -43,6 +43,7 @@
 - [Videos](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
+- [Trusted By](https://github.com/devtron-labs/devtron#muscle-Trusted-By)
 - [Love what you see!](https://github.com/devtron-labs/devtron#sparkling_heart-love-what-you-see)
 - [FAQ & Troubleshooting](https://github.com/devtron-labs/devtron#question-faq--troubleshooting)
 - [Contribute](https://github.com/devtron-labs/devtron#handshake-contribute)
@@ -79,7 +80,11 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
 </details>
 
 <details>
-<summary> <b> Multi-cloud/Multi-cluster deployment </b></summary>
+ <summary> <b> Multi-cloud/Multi-cluster deployment </b></summary>
+<br>
+
+- Devtron gives the ability to deploy your applications to multiple clusters/cloud just with the same dashboard.
+
 </details>
 
 
@@ -104,7 +109,12 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
 </details>
 
 <details>
-<summary> <b>Enterprise grade security and compliances </b></summary>
+ <summary> <b>Enterprise grade security and compliances </b></summary>
+<br>
+
+- Easy to control roles and permissions for users. 
+- Club the users of similar roles by giving the required permissions through the User Interface.
+
 </details>
 
 <details>
@@ -124,7 +134,7 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
 ### :blue_heart: We Support:
 In addition to the features, we love supporting platforms that devs find easy to work with.
 <br>
-<p align="center"><img width="960" height="316" src="./assets/we-support.jpg"></p>
+<p align="center"><img width="960" height="300" src="./assets/we-support.jpg"></p>
 
 ## :rocket: Getting Started
 
@@ -194,7 +204,7 @@ Get updates on Devtron's development and chat with the project maintainers, cont
 
 ## :muscle: Trusted By
 <br>
-<p align="center"><img width="960" height="316" src="./assets/banner-clients.png"></p>
+<p align="center"><img width="960" height="300" src="./assets/banner-clients.png"></p>
 
 ## :sparkling_heart: Love What You See!
 
