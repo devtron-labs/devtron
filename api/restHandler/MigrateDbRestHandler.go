@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -69,14 +70,14 @@ func (impl MigrateDbRestHandlerImpl) SaveDbConfig(w http.ResponseWriter, r *http
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var bean pipeline.DbConfigBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveDbConfig", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
@@ -84,14 +85,14 @@ func (impl MigrateDbRestHandlerImpl) SaveDbConfig(w http.ResponseWriter, r *http
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, SaveDbConfig", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceMigrate, rbac.ActionCreate, strings.ToLower(bean.Name)); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -99,17 +100,17 @@ func (impl MigrateDbRestHandlerImpl) SaveDbConfig(w http.ResponseWriter, r *http
 	res, err := impl.dbConfigService.Save(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, SaveDbConfig", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl MigrateDbRestHandlerImpl) FetchAllDbConfig(w http.ResponseWriter, r *http.Request) {
 	res, err := impl.dbConfigService.GetAll()
 	if err != nil {
 		impl.logger.Errorw("service err, FetchAllDbConfig", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -123,7 +124,7 @@ func (impl MigrateDbRestHandlerImpl) FetchAllDbConfig(w http.ResponseWriter, r *
 	}
 	//RBAC enforcer Ends
 
-	writeJsonResp(w, err, result, http.StatusOK)
+	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
 func (impl MigrateDbRestHandlerImpl) FetchOneDbConfig(w http.ResponseWriter, r *http.Request) {
@@ -131,32 +132,32 @@ func (impl MigrateDbRestHandlerImpl) FetchOneDbConfig(w http.ResponseWriter, r *
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
 		impl.logger.Errorw("request err, FetchOneDbConfig", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	res, err := impl.dbConfigService.GetById(id)
 	if err != nil {
 		impl.logger.Errorw("service err, FetchOneDbConfig", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceMigrate, rbac.ActionGet, strings.ToLower(res.Name)); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl MigrateDbRestHandlerImpl) UpdateDbConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var bean pipeline.DbConfigBean
@@ -164,7 +165,7 @@ func (impl MigrateDbRestHandlerImpl) UpdateDbConfig(w http.ResponseWriter, r *ht
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateDbConfig", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
@@ -172,14 +173,14 @@ func (impl MigrateDbRestHandlerImpl) UpdateDbConfig(w http.ResponseWriter, r *ht
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("service err, UpdateDbConfig", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceMigrate, rbac.ActionUpdate, strings.ToLower(bean.Name)); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -187,17 +188,17 @@ func (impl MigrateDbRestHandlerImpl) UpdateDbConfig(w http.ResponseWriter, r *ht
 	res, err := impl.dbConfigService.Update(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, UpdateDbConfig", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl MigrateDbRestHandlerImpl) FetchDbConfigForAutoComp(w http.ResponseWriter, r *http.Request) {
 	res, err := impl.dbConfigService.GetForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("service err, FetchDbConfigForAutoComp", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -211,5 +212,5 @@ func (impl MigrateDbRestHandlerImpl) FetchDbConfigForAutoComp(w http.ResponseWri
 	}
 	//RBAC enforcer Ends
 
-	writeJsonResp(w, err, result, http.StatusOK)
+	common.WriteJsonResp(w, err, result, http.StatusOK)
 }

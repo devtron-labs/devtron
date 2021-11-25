@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -57,7 +58,7 @@ func NewAttributesRestHandlerImpl(logger *zap.SugaredLogger, enforcer rbac.Enfor
 func (handler AttributesRestHandlerImpl) AddAttributes(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -65,13 +66,13 @@ func (handler AttributesRestHandlerImpl) AddAttributes(w http.ResponseWriter, r 
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, AddAttributes", "err", err, "payload", dto)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
@@ -79,16 +80,16 @@ func (handler AttributesRestHandlerImpl) AddAttributes(w http.ResponseWriter, r 
 	resp, err := handler.attributesService.AddAttributes(&dto)
 	if err != nil {
 		handler.logger.Errorw("service err, AddAttributes", "err", err, "payload", dto)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, resp, http.StatusOK)
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler AttributesRestHandlerImpl) UpdateAttributes(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -97,13 +98,13 @@ func (handler AttributesRestHandlerImpl) UpdateAttributes(w http.ResponseWriter,
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateAttributes", "err", err, "payload", dto)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionUpdate, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
@@ -111,72 +112,72 @@ func (handler AttributesRestHandlerImpl) UpdateAttributes(w http.ResponseWriter,
 	resp, err := handler.attributesService.UpdateAttributes(&dto)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateAttributes", "err", err, "payload", dto)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, resp, http.StatusOK)
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler AttributesRestHandlerImpl) GetAttributesById(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		writeJsonResp(w, err, "", http.StatusBadRequest)
+		common.WriteJsonResp(w, err, "", http.StatusBadRequest)
 		return
 	}
 	res, err := handler.attributesService.GetById(id)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAttributesById", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
 func (handler AttributesRestHandlerImpl) GetAttributesActiveList(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
 	res, err := handler.attributesService.GetActiveList()
 	if err != nil {
 		handler.logger.Errorw("service err, GetHostUrlActive", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
 func (handler AttributesRestHandlerImpl) GetAttributesByKey(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
 	/*token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}*/
 
@@ -185,8 +186,8 @@ func (handler AttributesRestHandlerImpl) GetAttributesByKey(w http.ResponseWrite
 	res, err := handler.attributesService.GetByKey(key)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAttributesById", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }

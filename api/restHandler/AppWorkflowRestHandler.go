@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
@@ -76,7 +77,7 @@ func (handler AppWorkflowRestHandlerImpl) CreateAppWorkflow(w http.ResponseWrite
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("decode err", "err", err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -84,7 +85,7 @@ func (handler AppWorkflowRestHandlerImpl) CreateAppWorkflow(w http.ResponseWrite
 	//rbac block starts from here
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceName); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//rback block ends here
@@ -93,10 +94,10 @@ func (handler AppWorkflowRestHandlerImpl) CreateAppWorkflow(w http.ResponseWrite
 	res, err := handler.appWorkflowService.CreateAppWorkflow(request)
 	if err != nil {
 		handler.Logger.Errorw("error on creating", "err", err)
-		writeJsonResp(w, err, []byte("Creation Failed"), http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, []byte("Creation Failed"), http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWriter, r *http.Request) {
@@ -109,14 +110,14 @@ func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWrite
 	appId, err := strconv.Atoi(vars["app-id"])
 	if err != nil {
 		handler.Logger.Errorw("bad request", "err", err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	appWorkflowId, err := strconv.Atoi(vars["app-wf-id"])
 	if err != nil {
 		handler.Logger.Errorw("bad request", "err", err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -124,7 +125,7 @@ func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWrite
 	//rbac block starts from here
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionDelete, resourceName); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//rback block ends here
@@ -136,10 +137,10 @@ func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWrite
 		} else {
 			handler.Logger.Errorw("error on deleting", "err", err)
 		}
-		writeJsonResp(w, err, []byte("Creation Failed"), http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, []byte("Creation Failed"), http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, nil, http.StatusOK)
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
 func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r *http.Request) {
@@ -147,14 +148,14 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	appId, err := strconv.Atoi(vars["app-id"])
 	if err != nil {
 		impl.Logger.Errorw("bad request", "err", err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
 	app, err := impl.pipelineBuilder.GetApp(appId)
 	if err != nil {
 		impl.Logger.Errorw("bad request", "err", err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -162,7 +163,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	object := impl.enforcerUtil.GetAppRBACName(app.AppName)
 	impl.Logger.Debugw("rbac object for other environment list", "object", object)
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
-		writeJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -170,7 +171,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	workflowsList, err := impl.appWorkflowService.FindAppWorkflows(appId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching workflows for app", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	workflows["appId"] = app.Id
@@ -180,5 +181,5 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	} else {
 		workflows["workflows"] = []appWorkflow.AppWorkflowDto{}
 	}
-	writeJsonResp(w, err, workflows, http.StatusOK)
+	common.WriteJsonResp(w, err, workflows, http.StatusOK)
 }

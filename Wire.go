@@ -23,6 +23,7 @@ package main
 import (
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/restHandler"
+	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/sse"
@@ -140,8 +141,8 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
-		restHandler.NewPipelineRestHandlerImpl,
-		wire.Bind(new(restHandler.PipelineConfigRestHandler), new(*restHandler.PipelineConfigRestHandlerImpl)),
+		pipeline2.NewPipelineRestHandlerImpl,
+		wire.Bind(new(pipeline2.PipelineConfigRestHandler), new(*pipeline2.PipelineConfigRestHandlerImpl)),
 		router.NewPipelineRouterImpl,
 		wire.Bind(new(router.PipelineConfigRouter), new(*router.PipelineConfigRouterImpl)),
 		pipeline.NewDbPipelineOrchestrator,
@@ -276,8 +277,8 @@ func InitializeApp() (*App, error) {
 		repository2.NewServiceClientImpl,
 		wire.Bind(new(repository2.ServiceClient), new(*repository2.ServiceClientImpl)),
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
-		restHandler.NewApplicationRestHandlerImpl,
-		wire.Bind(new(restHandler.ApplicationRestHandler), new(*restHandler.ApplicationRestHandlerImpl)),
+		restHandler.NewArgoApplicationRestHandlerImpl,
+		wire.Bind(new(restHandler.ArgoApplicationRestHandler), new(*restHandler.ArgoApplicationRestHandlerImpl)),
 		router.NewApplicationRouterImpl,
 		wire.Bind(new(router.ApplicationRouter), new(*router.ApplicationRouterImpl)),
 		//app.GetConfig,

@@ -29,11 +29,11 @@ type ApplicationRouter interface {
 }
 
 type ApplicationRouterImpl struct {
-	handler restHandler.ApplicationRestHandler
+	handler restHandler.ArgoApplicationRestHandler
 	logger  *zap.SugaredLogger
 }
 
-func NewApplicationRouterImpl(handler restHandler.ApplicationRestHandler, logger *zap.SugaredLogger) *ApplicationRouterImpl {
+func NewApplicationRouterImpl(handler restHandler.ArgoApplicationRestHandler, logger *zap.SugaredLogger) *ApplicationRouterImpl {
 	return &ApplicationRouterImpl{
 		handler: handler,
 		logger:  logger,

@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -62,7 +63,7 @@ func NewAppLabelRestHandlerImpl(logger *zap.SugaredLogger, appLabelService app.A
 func (handler AppLabelRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	token := r.Header.Get("token")
@@ -70,7 +71,7 @@ func (handler AppLabelRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *ht
 	labels, err := handler.appLabelService.FindAll()
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllLabels", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	objects := handler.enforcerUtil.GetRbacObjectsForAllApps()
@@ -80,20 +81,20 @@ func (handler AppLabelRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *ht
 			results = append(results, label)
 		}
 	}
-	writeJsonResp(w, nil, results, http.StatusOK)
+	common.WriteJsonResp(w, nil, results, http.StatusOK)
 }
 
 func (handler AppLabelRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.logger.Errorw("request err, GetAppMetaInfo", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -101,7 +102,7 @@ func (handler AppLabelRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//rback implementation ends here
@@ -109,16 +110,16 @@ func (handler AppLabelRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *
 	res, err := handler.appLabelService.GetAppMetaInfo(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
 func (handler AppLabelRestHandlerImpl) UpdateLabelsInApp(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -127,29 +128,29 @@ func (handler AppLabelRestHandlerImpl) UpdateLabelsInApp(w http.ResponseWriter, 
 	request.UserId = userId
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateLabelsInApp", "err", err, "request", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.logger.Infow("request payload, UpdateLabelsInApp", "request", request)
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.logger.Errorw("validation err, UpdateLabelsInApp", "err", err, "request", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	//rback implementation starts here
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, object); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//rback implementation ends here
 	res, err := handler.appLabelService.UpdateLabelsInApp(&request)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateLabelsInApp", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
