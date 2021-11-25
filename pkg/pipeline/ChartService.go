@@ -118,7 +118,7 @@ type ChartService interface {
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]json.RawMessage, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
-	DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error)
+	DeploymentTemplateValidate(templatejson json.RawMessage, chartRefId int) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
 }
 type ChartServiceImpl struct {
@@ -1045,7 +1045,7 @@ const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
 
-func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error) {
+func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson json.RawMessage, chartRefId int) (bool, error) {
 	schemajson, err := impl.JsonSchemaExtractFromFile(chartRefId)
 	if err != nil && chartRefId >= 9 {
 		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)

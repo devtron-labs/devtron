@@ -50,7 +50,7 @@ func validateAndBuildResourcesAssignment(dat map[string]interface{}, validationK
 
 func MemoryToNumber(memory string) (float64, error) {
 	if memoryParser == nil {
-		pattern := "([0-9.]+)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)"
+		pattern := "(^\\s*\\d*.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)"
 		re, _ := regexp.Compile(pattern)
 		memoryParser = &resourceParser{
 			name:    "memory",
@@ -75,12 +75,12 @@ func MemoryToNumber(memory string) (float64, error) {
 	return convertResource(memoryParser, memory)
 }
 func CpuToNumber(cpu string) (float64, error) {
-	demo := NoCpuUnitChecker.MatchString(cpu)
-	if demo {
-		return strconv.ParseFloat(cpu, 64)
-	}
+	//demo := NoCpuUnitChecker.MatchString(cpu)
+	//if demo {
+	//	return strconv.ParseFloat(cpu, 64)
+	//}
 	if cpuParser == nil {
-		pattern := "^([0-9.]+)(m?)"
+		pattern := "(^\\s*\\d*.?\\d+e?\\d*)(m?)$"
 		re, _ := regexp.Compile(pattern)
 		cpuParser = &resourceParser{
 			name:    "cpu",
@@ -258,15 +258,10 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 	return true,nil
 }
 
-
 var (
-	CpuUnitChecker, _   = regexp.Compile("^([0-9.]+)m$")
-	NoCpuUnitChecker, _ = regexp.Compile("^([0-9.]+)$")
-	MiChecker, _        = regexp.Compile("^[0-9.]+Mi$")
-	GiChecker, _        = regexp.Compile("^[0-9.]+Gi$")
-	TiChecker, _        = regexp.Compile("^[0-9.]+Ti$")
-	PiChecker, _        = regexp.Compile("^[0-9.]+Pi$")
-	KiChecker, _        = regexp.Compile("^[0-9.]+Ki$")
+	CpuUnitChecker, _   = regexp.Compile("(^\\d*.?\\d+e?\\d*)(m?)$")
+	//NoCpuUnitChecker, _ = regexp.Compile("(^\\d*.?\\d+e?\\d*)$")
+	MemoryUnitChecker, _        = regexp.Compile("(^\\d*.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)$")
 )
 
 func (f CpuChecker) IsFormat(input interface{}) bool {
@@ -280,8 +275,8 @@ func (f CpuChecker) IsFormat(input interface{}) bool {
 
 	if CpuUnitChecker.MatchString(asString) {
 		return true
-	} else if NoCpuUnitChecker.MatchString(asString) {
-		return true
+	//} else if NoCpuUnitChecker.MatchString(asString) {
+	//	return true
 	} else {
 		return false
 	}
@@ -296,16 +291,17 @@ func (f MemoryChecker) IsFormat(input interface{}) bool {
 		return false
 	}
 
-	if MiChecker.MatchString(asString) {
+	if MemoryUnitChecker.MatchString(asString) {
 		return true
-	} else if GiChecker.MatchString(asString) {
-		return true
-	} else if TiChecker.MatchString(asString) {
-		return true
-	} else if PiChecker.MatchString(asString) {
-		return true
-	} else if KiChecker.MatchString(asString) {
-		return true
+
+	//} else if GiChecker.MatchString(asString) {
+	//	return true
+	//} else if TiChecker.MatchString(asString) {
+	//	return true
+	//} else if PiChecker.MatchString(asString) {
+	//	return true
+	//} else if KiChecker.MatchString(asString) {
+	//	return true
 	} else {
 		return false
 	}
