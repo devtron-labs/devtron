@@ -37,25 +37,25 @@ func TestCompareLimitsRequests(t *testing.T) {
 		},
 		{
 			name: "non-empty resources limits object",
-			args: args{dat: map[string]interface{}{resources: map[string]interface{}{limits: map[string]interface{}{cpu: "10Gi", memory: ".1" }, requests: nil}}},
+			args: args{dat: map[string]interface{}{resources: map[string]interface{}{limits: map[string]interface{}{cpu: "10m", memory: "10Mi" }, requests: nil}}},
 			want: true,
 			wantErr: false,
 		},
 		{
 			name: "non-empty resources requests object",
-			args: args{dat: map[string]interface{}{resources: map[string]interface{}{limits: nil, requests: map[string]interface{}{cpu: "10Gi", memory: ".1" }}}},
+			args: args{dat: map[string]interface{}{resources: map[string]interface{}{limits: nil, requests: map[string]interface{}{cpu: "10m", memory: "12Gi" }}}},
 			want: true,
 			wantErr: false,
 		},
 		{
 			name: "non-empty  and equal resources limits and requests object",
-			args: args{dat: map[string]interface{}{resources: map[string]interface{}{limits: map[string]interface{}{cpu: "10Gi", memory: ".1" }, requests: map[string]interface{}{cpu: "10Gi", memory: ".1" }}}},
+			args: args{dat: map[string]interface{}{resources: map[string]interface{}{limits: map[string]interface{}{cpu: "0.11", memory: "10Gi" }, requests: map[string]interface{}{cpu: "11m", memory: "9Gi" }}}},
 			want: true,
 			wantErr: false,
 		},
 		{
 			name: "negative: non-empty  and not equal resources limits and requests object",
-			args: args{dat: map[string]interface{}{resources: map[string]interface{}{limits: map[string]interface{}{cpu: "10Gi", memory: ".1" }, requests: map[string]interface{}{cpu: "11Gi", memory: ".15" }}}},
+			args: args{dat: map[string]interface{}{resources: map[string]interface{}{limits: map[string]interface{}{cpu: "0.10", memory: "10Mi" }, requests: map[string]interface{}{cpu: "111m", memory: "15Gi" }}}},
 			want: false,
 			wantErr: true,
 		},
@@ -73,6 +73,7 @@ func TestCompareLimitsRequests(t *testing.T) {
 		})
 	}
 }
+
 
 func TestAutoScale(t *testing.T) {
 	autoScaling := "autoscaling"
@@ -140,6 +141,92 @@ func TestAutoScale(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("AutoScale() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_convertMemory(t *testing.T) {
+	type args struct {
+		memory string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    float64
+		wantErr bool
+	}{
+		{
+			name:    "base test",
+			args:    args{memory: "1Gi"},
+			want:    float64(1073741824),
+			wantErr: false,
+		},
+		{
+			name:    "base test - scientifc notation",
+			args:    args{memory: "1e2G"},
+			want:    float64(100 * 1000000000),
+			wantErr: false,
+		},
+		{
+			name:    "base test - scientifc notation",
+			args:    args{memory: "1e2"},
+			want:    float64(100),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := MemoryToNumber(tt.args.memory)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("memory() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("memory() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_convertCPU(t *testing.T) {
+	type args struct {
+		memory string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    float64
+		wantErr bool
+	}{
+		{
+			name:    "base test with unit",
+			args:    args{memory: "10m"},
+			want:    float64(0.01),
+			wantErr: false,
+		},
+		{
+			name:    "base test without unit",
+			args:    args{memory: "0.01"},
+			want:    float64(0.01),
+			wantErr: false,
+		},
+		{
+			name:    "base test - scientifc notation",
+			args:    args{memory: "1e2m"},
+			want:    float64(100 * 0.001),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := CpuToNumber(tt.args.memory)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("memory() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("memory() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
