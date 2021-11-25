@@ -34,7 +34,7 @@ This defines ports on which application services will be exposed to other servic
 ```yaml
 ContainerPort:
   - envoyPort: 8799
-    idleTimeout: 
+    idleTimeout:
     name: app
     port: 8080
     servicePort: 80
@@ -71,11 +71,12 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeader:
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
   scheme: ""
   tcp: true
-```
- 
+
 | Key | Description |
 | :--- | :--- |
 | `Path` | It define the path where the liveness needs to be checked. |
@@ -84,13 +85,13 @@ LivenessProbe:
 | `periodSeconds` | It defines the time to check a given container for liveness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
-| `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
 
 ### MaxUnavailable
- 
+
  ```yaml
   MaxUnavailable: 0
 ```
@@ -124,10 +125,12 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeader:
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
   scheme: ""
   tcp: true
-```
+
 
 | Key | Description |
 | :--- | :--- |
@@ -137,7 +140,7 @@ ReadinessProbe:
 | `periodSeconds` | It defines the time to check a given container for readiness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
-| `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
@@ -180,6 +183,26 @@ This allows public access to the url, please ensure you are using right nginx an
 ```yaml
 ingress:
   enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx
+  annotations: {}
+  hosts:
+      - host: example1.com
+        paths:
+            - /example
+      - host: example2.com
+        paths:
+            - /example2
+            - /example2/healthz
+  tls: []
+```
+Legacy deployment-template ingress format
+
+```yaml
+ingress:
+  enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx-internal
   annotations: {}
   path: ""
   host: ""
@@ -201,9 +224,17 @@ This allows private access to the url, please ensure you are using right nginx a
 ```yaml
 ingressInternal:
   enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx-internal
   annotations: {}
-  path: ""
-  host: ""
+  hosts:
+      - host: example1.com
+        paths:
+            - /example
+      - host: example2.com
+        paths:
+            - /example2
+            - /example2/healthz
   tls: []
 ```
 
@@ -240,11 +271,11 @@ These define minimum and maximum RAM and CPU available to the application.
 ```yaml
 resources:
   limits:
-    cpu: '1'
-    memory: 200Mi
+    cpu: "1"
+    memory: "200Mi"
   requests:
-    cpu: '0.10'
-    memory: 100Mi
+    cpu: "0.10"
+    memory: "100Mi"
 ```
 
 Resources are required to set CPU and memory usage.
@@ -310,17 +341,17 @@ Value part of the label for node selection, this should be same as that on node.
 
 ```yaml
 tolerations:
-  key: "key"
-  operator: "Equal"
-  value: "value"
-  effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
+ - key: "key"
+   operator: "Equal"
+   value: "value"
+   effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 ```
 
 Taints are the opposite, they allow a node to repel a set of pods.
 
 A given pod can access the given node and avoid the given taint only if the given pod satisfies a given taint.
 
-Taints and tolerations work together to ensure that pods are not scheduled onto the inappropriate nodes. One or more taints can be applied to a node, this marks that the node should not accept any pods that don't tolerate the taints.
+Taints and tolerations are a mechanism which work together that allows you to ensure that pods are not placed on inappropriate nodes. Taints are added to nodes, while tolerations are defined in the pod specification. When you taint a node, it will repel all the pods except those that have a toleration for that taint. A node can have one or many taints associated with it.
 
 ### Arguments
 
@@ -502,11 +533,11 @@ envoyproxy:
   configMapName: ""
   resources:
     limits:
-      cpu: 50m
-      memory: 50Mi
+      cpu: "50m"
+      memory: "50Mi"
     requests:
-      cpu: 50m
-      memory: 50Mi
+      cpu: "50m"
+      memory: "50Mi"
 ```
 
 Envoy is attached as a sidecar to the application container to collect metrics like 4XX, 5XX, Throughput and latency. You can now configure the envoy settings such as idleTimeout, resources etc.
@@ -557,6 +588,23 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
 ```
 
 HPA, by default is configured to work with CPU and Memory metrics. These metrics are useful for internal cluster sizing, but you might want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.
@@ -574,4 +622,26 @@ If you want to see application metrics like different HTTP status codes metrics,
 ![](../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
+
+### Helm Chart Json Schema Table
+
+Helm Chart json schema is used to validate the deployment template values.
+
+| Chart Version | Link |
+| :--- | :--- |
+| `reference-chart_3-12-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-12-0/schema.json) |
+| `reference-chart_3-11-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-11-0/schema.json) |
+| `reference-chart_3-10-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-10-0/schema.json) |
+| `reference-chart_3-9-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-9-0/schema.json) |
+
+
+### Other Validations in Json Schema
+
+The values of CPU and Memory in limits must be greater than or equal to in requests respectively. Similarly, In case of envoyproxy, the values of limits are greater than or equal to requests as mentioned below.
+```
+resources.limits.cpu >= resources.requests.cpu
+resources.limits.memory >= resources.requests.memory
+envoyproxy.resources.limits.cpu >= envoyproxy.resources.requests.cpu
+envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
+```
 

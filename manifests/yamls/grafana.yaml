@@ -274,7 +274,7 @@ spec:
     - "ReadWriteOnce"
   resources:
     requests:
-      storage: "20Gi"
+      storage: "2Gi"
 ---
 # Source: grafana/templates/clusterrole.yaml
 kind: ClusterRole
@@ -313,7 +313,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ---
 # Source: grafana/templates/role.yaml
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: devtron-grafana
@@ -349,7 +349,7 @@ rules:
   resourceNames:  [devtron-grafana-test]
 ---
 # Source: grafana/templates/rolebinding.yaml
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: devtron-grafana
@@ -582,7 +582,7 @@ spec:
           emptyDir: {}
 ---
 # Source: grafana/templates/ingress.yaml
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: devtron-grafana
@@ -601,9 +601,12 @@ spec:
       http:
         paths:
           - path: /grafana
+            pathType: ImplementationSpecific
             backend:
-              serviceName: devtron-grafana
-              servicePort: 80
+              service:
+                name: devtron-grafana
+                port:
+                  number: 80
 ---
 # Source: grafana/templates/tests/test.yaml
 apiVersion: v1

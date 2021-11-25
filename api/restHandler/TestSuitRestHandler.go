@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -76,7 +77,7 @@ func (impl TestSuitRestHandlerImpl) SuitesProxy(w http.ResponseWriter, r *http.R
 	userId, err := impl.userService.GetLoggedInUser(r)
 	impl.logger.Debugw("request for user", "userId", userId)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -84,7 +85,7 @@ func (impl TestSuitRestHandlerImpl) SuitesProxy(w http.ResponseWriter, r *http.R
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("decode err", "err", err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -93,14 +94,14 @@ func (impl TestSuitRestHandlerImpl) SuitesProxy(w http.ResponseWriter, r *http.R
 	if err != nil {
 		impl.logger.Error(err)
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl TestSuitRestHandlerImpl) GetTestSuites(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	impl.logger.Debugw("request for user", "userId", userId)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -109,14 +110,14 @@ func (impl TestSuitRestHandlerImpl) GetTestSuites(w http.ResponseWriter, r *http
 	if err != nil {
 		impl.logger.Error(err)
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl TestSuitRestHandlerImpl) DetailedTestSuites(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	impl.logger.Debugw("request for user", "userId", userId)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -125,21 +126,21 @@ func (impl TestSuitRestHandlerImpl) DetailedTestSuites(w http.ResponseWriter, r 
 	if err != nil {
 		impl.logger.Error(err)
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl TestSuitRestHandlerImpl) GetAllSuitByID(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	impl.logger.Debugw("request for user", "userId", userId)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
 		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	link := fmt.Sprintf("%s/%s/%d", impl.config.TestSuitURL, "testsuite", id)
@@ -147,14 +148,14 @@ func (impl TestSuitRestHandlerImpl) GetAllSuitByID(w http.ResponseWriter, r *htt
 	if err != nil {
 		impl.logger.Error(err)
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl TestSuitRestHandlerImpl) GetAllTestCases(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	impl.logger.Debugw("request for user", "userId", userId)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -163,21 +164,21 @@ func (impl TestSuitRestHandlerImpl) GetAllTestCases(w http.ResponseWriter, r *ht
 	if err != nil {
 		impl.logger.Error(err)
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl TestSuitRestHandlerImpl) GetTestCaseByID(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	impl.logger.Debugw("request for user", "userId", userId)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
 		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	link := fmt.Sprintf("%s/%s/%d", impl.config.TestSuitURL, "testcase", id)
@@ -185,21 +186,21 @@ func (impl TestSuitRestHandlerImpl) GetTestCaseByID(w http.ResponseWriter, r *ht
 	if err != nil {
 		impl.logger.Error(err)
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl TestSuitRestHandlerImpl) RedirectTriggerForApp(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	impl.logger.Debugw("request for user", "userId", userId)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
 		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	link := fmt.Sprintf("%s/%s/%d", impl.config.TestSuitURL, "triggers", appId)
@@ -208,14 +209,14 @@ func (impl TestSuitRestHandlerImpl) RedirectTriggerForApp(w http.ResponseWriter,
 	if err != nil {
 		impl.logger.Error(err)
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl TestSuitRestHandlerImpl) RedirectTriggerForEnv(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	impl.logger.Debugw("request for user", "userId", userId)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -223,13 +224,13 @@ func (impl TestSuitRestHandlerImpl) RedirectTriggerForEnv(w http.ResponseWriter,
 	appId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
 		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	envId, err := strconv.Atoi(vars["triggerId"])
 	if err != nil {
 		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -238,7 +239,7 @@ func (impl TestSuitRestHandlerImpl) RedirectTriggerForEnv(w http.ResponseWriter,
 	if err != nil {
 		impl.logger.Error(err)
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl TestSuitRestHandlerImpl) HttpGet(url string) (map[string]interface{}, error) {

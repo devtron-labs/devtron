@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
@@ -86,7 +87,7 @@ func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.
 func (handler *AppStoreRestHandlerImpl) FindAllApps(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 
@@ -132,39 +133,39 @@ func (handler *AppStoreRestHandlerImpl) FindAllApps(w http.ResponseWriter, r *ht
 	res, err := handler.appStoreService.FindAllApps(filter)
 	if err != nil {
 		handler.Logger.Errorw("service err, FindAllApps, app store", "err", err, "userId", userId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *AppStoreRestHandlerImpl) GetChartDetailsForVersion(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.Logger.Errorw("request err, GetChartDetailsForVersion", "err", err, "appStoreApplicationVersionId", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, GetChartDetailsForVersion, app store", "appStoreApplicationVersionId", id)
 	res, err := handler.appStoreService.FindChartDetailsById(id)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetChartDetailsForVersion, app store", "err", err, "appStoreApplicationVersionId", id)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *AppStoreRestHandlerImpl) GetChartVersions(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 
@@ -172,23 +173,23 @@ func (handler *AppStoreRestHandlerImpl) GetChartVersions(w http.ResponseWriter, 
 	id, err := strconv.Atoi(vars["appStoreId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, GetChartVersions", "err", err, "appStoreId", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, GetChartVersions, app store", "appStoreId", id)
 	res, err := handler.appStoreService.FindChartVersionsByAppStoreId(id)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetChartVersions, app store", "err", err, "appStoreId", id)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *AppStoreRestHandlerImpl) FetchAppDetailsForInstalledApp(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 
@@ -196,14 +197,14 @@ func (handler *AppStoreRestHandlerImpl) FetchAppDetailsForInstalledApp(w http.Re
 	installedAppId, err := strconv.Atoi(vars["installed-app-id"])
 	if err != nil {
 		handler.Logger.Errorw("request err, FetchAppDetailsForInstalledApp", "err", err, "installedAppId", installedAppId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
 	envId, err := strconv.Atoi(vars["env-id"])
 	if err != nil {
 		handler.Logger.Errorw("request err, FetchAppDetailsForInstalledApp", "err", err, "installedAppId", installedAppId, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, FetchAppDetailsForInstalledApp, app store", "installedAppId", installedAppId, "envId", envId)
@@ -211,19 +212,19 @@ func (handler *AppStoreRestHandlerImpl) FetchAppDetailsForInstalledApp(w http.Re
 	appDetail, err := handler.appStoreService.FindAppDetailsForAppstoreApplication(installedAppId, envId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppDetailsForInstalledApp, app store", "err", err, "installedAppId", installedAppId, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	//rbac block starts from here
 	object := handler.enforcerUtil.GetAppRBACName(appDetail.AppName)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(appDetail.AppName, appDetail.EnvironmentId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionGet, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	//rback block ends here
@@ -257,7 +258,7 @@ func (handler *AppStoreRestHandlerImpl) FetchAppDetailsForInstalledApp(w http.Re
 				UserMessage:     "app detail fetched, failed to get resource tree from acd",
 			}
 			appDetail.ResourceTree = &application.ResourceTreeResponse{}
-			writeJsonResp(w, nil, appDetail, http.StatusOK)
+			common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 			return
 		}
 		appDetail.ResourceTree = resp
@@ -265,13 +266,13 @@ func (handler *AppStoreRestHandlerImpl) FetchAppDetailsForInstalledApp(w http.Re
 	} else {
 		handler.Logger.Infow("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
-	writeJsonResp(w, err, appDetail, http.StatusOK)
+	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
 func (handler *AppStoreRestHandlerImpl) GetReadme(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 
@@ -279,23 +280,23 @@ func (handler *AppStoreRestHandlerImpl) GetReadme(w http.ResponseWriter, r *http
 	id, err := strconv.Atoi(vars["appStoreApplicationVersionId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, GetReadme", "err", err, "appStoreApplicationVersionId", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, GetReadme, app store", "appStoreApplicationVersionId", id)
 	res, err := handler.appStoreService.GetReadMeByAppStoreApplicationVersionId(id)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetReadme, fetching resource tree", "err", err, "appStoreApplicationVersionId", id)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *AppStoreRestHandlerImpl) SearchAppStoreChartByName(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
@@ -304,76 +305,76 @@ func (handler *AppStoreRestHandlerImpl) SearchAppStoreChartByName(w http.Respons
 	res, err := handler.appStoreService.SearchAppStoreChartByName(chartName)
 	if err != nil {
 		handler.Logger.Errorw("service err, SearchAppStoreChartByName, app store", "err", err, "userId", userId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *AppStoreRestHandlerImpl) GetChartRepoById(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.Logger.Errorw("request err, GetChartRepoById", "err", err, "chart repo id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, GetChartRepoById, app store", "chart repo id", id)
 	res, err := handler.appStoreService.GetChartRepoById(id)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetChartRepoById, app store", "err", err, "userId", userId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *AppStoreRestHandlerImpl) GetChartRepoList(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 	handler.Logger.Infow("request payload, GetChartRepoList, app store")
 	res, err := handler.appStoreService.GetChartRepoList()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetChartRepoList, app store", "err", err, "userId", userId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var request *appstore.ChartRepoDto
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, CreateChartRepo", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.Logger.Errorw("validation err, CreateChartRepo", "err", err, "payload", request)
 		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
@@ -382,42 +383,42 @@ func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r
 	handler.Logger.Infow("request payload, CreateChartRepo", "payload", request)
 	res, err, validationResult := handler.appStoreService.ValidateAndCreateChartRepo(request)
 	if validationResult.CustomErrMsg != appstore.ValidationSuccessMsg {
-		writeJsonResp(w, nil, validationResult, http.StatusOK)
+		common.WriteJsonResp(w, nil, validationResult, http.StatusOK)
 		return
 	}
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateChartRepo", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var request *appstore.ChartRepoDto
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, UpdateChartRepo", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.Logger.Errorw("validation err, UpdateChartRepo", "err", err, "payload", request)
 		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionUpdate, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
@@ -426,45 +427,45 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 	handler.Logger.Infow("request payload, UpdateChartRepo", "payload", request)
 	res, err, validationResult := handler.appStoreService.ValidateAndUpdateChartRepo(request)
 	if validationResult.CustomErrMsg != appstore.ValidationSuccessMsg {
-		writeJsonResp(w, nil, validationResult, http.StatusOK)
+		common.WriteJsonResp(w, nil, validationResult, http.StatusOK)
 		return
 	}
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateChartRepo", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *AppStoreRestHandlerImpl) ValidateChartRepo(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var request *appstore.ChartRepoDto
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, ValidateChartRepo", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.Logger.Errorw("validation err, ValidateChartRepo", "err", err, "payload", request)
 		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionUpdate, "*"); !ok {
-		writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	request.UserId = userId
 	handler.Logger.Infow("request payload, ValidateChartRepo", "payload", request)
 	validationResult := handler.appStoreService.ValidateChartRepo(request)
-	writeJsonResp(w, nil, validationResult, http.StatusOK)
+	common.WriteJsonResp(w, nil, validationResult, http.StatusOK)
 }

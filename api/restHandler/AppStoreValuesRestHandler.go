@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -80,14 +81,14 @@ func (handler AppStoreValuesRestHandlerImpl) CreateAppStoreVersionValues(w http.
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var request appstore.AppStoreVersionValuesDTO
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, CreateAppStoreVersionValues", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	request.UserId = userId
@@ -95,76 +96,76 @@ func (handler AppStoreValuesRestHandlerImpl) CreateAppStoreVersionValues(w http.
 	res, err := handler.appStoreValuesService.CreateAppStoreVersionValues(&request)
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateAppStoreVersionValues", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler AppStoreValuesRestHandlerImpl) UpdateAppStoreVersionValues(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var request appstore.AppStoreVersionValuesDTO
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, UpdateAppStoreVersionValues", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, UpdateAppStoreVersionValues", "payload", request)
 	res, err := handler.appStoreValuesService.UpdateAppStoreVersionValues(&request)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateAppStoreVersionValues", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler AppStoreValuesRestHandlerImpl) FindValuesById(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	referenceId, err := strconv.Atoi(vars["referenceId"])
 	if err != nil || referenceId == 0 {
 		handler.Logger.Errorw("request err, FindValuesById", "err", err, "referenceId", referenceId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	kind := vars["kind"]
 	if len(kind) == 0 || (kind != appstore.REFERENCE_TYPE_DEPLOYED && kind != appstore.REFERENCE_TYPE_DEFAULT && kind != appstore.REFERENCE_TYPE_TEMPLATE && kind != appstore.REFERENCE_TYPE_EXISTING) {
 		handler.Logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, FindValuesById", "referenceId", referenceId, "kind", kind)
 	res, err := handler.appStoreValuesService.FindValuesByIdAndKind(referenceId, kind)
 	if err != nil {
 		handler.Logger.Errorw("service err, FindValuesById", "err", err, "payload", referenceId, "kind", kind)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler AppStoreValuesRestHandlerImpl) DeleteAppStoreVersionValues(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appStoreValueId, err := strconv.Atoi(vars["appStoreValueId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, DeleteAppStoreVersionValues", "err", err, "appStoreValueId", appStoreValueId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, DeleteAppStoreVersionValues", "appStoreValueId", appStoreValueId)
@@ -172,16 +173,16 @@ func (handler AppStoreValuesRestHandlerImpl) DeleteAppStoreVersionValues(w http.
 	res, err := handler.appStoreValuesService.DeleteAppStoreVersionValues(appStoreValueId)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteAppStoreVersionValues", "err", err, "appStoreValueId", appStoreValueId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler AppStoreValuesRestHandlerImpl) FindValuesByAppStoreIdAndReferenceType(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -189,30 +190,30 @@ func (handler AppStoreValuesRestHandlerImpl) FindValuesByAppStoreIdAndReferenceT
 	appStoreVersionId, err := strconv.Atoi(vars["appStoreId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, FindValuesByAppStoreIdAndReferenceType", "err", err, "appStoreVersionId", appStoreVersionId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, FindValuesByAppStoreIdAndReferenceType", "appStoreVersionId", appStoreVersionId)
 	res, err := handler.appStoreValuesService.FindValuesByAppStoreIdAndReferenceType(appStoreVersionId, appstore.REFERENCE_TYPE_TEMPLATE)
 	if err != nil {
 		handler.Logger.Errorw("service err, FindValuesByAppStoreIdAndReferenceType", "err", err, "appStoreVersionId", appStoreVersionId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler AppStoreValuesRestHandlerImpl) FetchTemplateValuesByAppStoreId(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appStoreId, err := strconv.Atoi(vars["appStoreId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, FetchTemplateValuesByAppStoreId", "err", err, "appStoreId", appStoreId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -223,7 +224,7 @@ func (handler AppStoreValuesRestHandlerImpl) FetchTemplateValuesByAppStoreId(w h
 		installedAppVersionId, err = strconv.Atoi(installedAppVersionIds)
 		if err != nil {
 			handler.Logger.Errorw("request err, FetchTemplateValuesByAppStoreId", "err", err, "installedAppVersionIds", installedAppVersionIds)
-			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 	}
@@ -232,16 +233,16 @@ func (handler AppStoreValuesRestHandlerImpl) FetchTemplateValuesByAppStoreId(w h
 	res, err := handler.appStoreValuesService.FindValuesByAppStoreId(appStoreId, installedAppVersionId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchTemplateValuesByAppStoreId", "err", err, "appStoreId", appStoreId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler AppStoreValuesRestHandlerImpl) GetSelectedChartMetadata(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -249,15 +250,15 @@ func (handler AppStoreValuesRestHandlerImpl) GetSelectedChartMetadata(w http.Res
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, GetSelectedChartMetadata", "err", err, "request", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, GetSelectedChartMetadata", "request", request)
 	res, err := handler.appStoreValuesService.GetSelectedChartMetaData(&request)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetSelectedChartMetadata", "err", err, "request", request)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }

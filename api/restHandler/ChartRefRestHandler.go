@@ -18,6 +18,7 @@
 package restHandler
 
 import (
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -45,11 +46,11 @@ func (handler ChartRefRestHandlerImpl) ChartRefAutocomplete(w http.ResponseWrite
 	result, err := handler.chartService.ChartRefAutocomplete()
 	if err != nil {
 		handler.logger.Errorw("service err, ChartRefAutocomplete", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, result, http.StatusOK)
+	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
 func (handler ChartRefRestHandlerImpl) ChartRefAutocompleteForApp(w http.ResponseWriter, r *http.Request) {
@@ -57,17 +58,17 @@ func (handler ChartRefRestHandlerImpl) ChartRefAutocompleteForApp(w http.Respons
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.logger.Errorw("request err, ChartRefAutocompleteForApp", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	result, err := handler.chartService.ChartRefAutocompleteForAppOrEnv(appId, 0)
 	if err != nil {
 		handler.logger.Errorw("service err, ChartRefAutocompleteForApp", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, result, http.StatusOK)
+	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
 func (handler ChartRefRestHandlerImpl) ChartRefAutocompleteForEnv(w http.ResponseWriter, r *http.Request) {
@@ -75,21 +76,21 @@ func (handler ChartRefRestHandlerImpl) ChartRefAutocompleteForEnv(w http.Respons
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.logger.Errorw("request err, ChartRefAutocompleteForEnv", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	environmentId, err := strconv.Atoi(vars["environmentId"])
 	if err != nil {
 		handler.logger.Errorw("request err, ChartRefAutocompleteForEnv", "err", err, "appId", appId, "environmentId", environmentId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	result, err := handler.chartService.ChartRefAutocompleteForAppOrEnv(appId, environmentId)
 	if err != nil {
 		handler.logger.Errorw("service err, ChartRefAutocompleteForEnv", "err", err, "appId", appId, "environmentId", environmentId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, result, http.StatusOK)
+	common.WriteJsonResp(w, err, result, http.StatusOK)
 }

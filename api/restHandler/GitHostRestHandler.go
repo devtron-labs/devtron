@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -69,14 +70,14 @@ func (impl GitHostRestHandlerImpl) GetGitHosts(w http.ResponseWriter, r *http.Re
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
 	res, err := impl.gitHostConfig.GetAll()
 	if err != nil {
 		impl.logger.Errorw("service err, GetGitHosts", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -90,7 +91,7 @@ func (impl GitHostRestHandlerImpl) GetGitHosts(w http.ResponseWriter, r *http.Re
 	}
 	//RBAC enforcer Ends
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 // Need to make this call RBAC free as this API is called from the create app flow (configuring ci)
@@ -99,7 +100,7 @@ func (impl GitHostRestHandlerImpl) GetGitHostById(w http.ResponseWriter, r *http
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -108,7 +109,7 @@ func (impl GitHostRestHandlerImpl) GetGitHostById(w http.ResponseWriter, r *http
 
 	if err != nil {
 		impl.logger.Errorw("service err in parsing Id , GetGitHostById", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -116,11 +117,11 @@ func (impl GitHostRestHandlerImpl) GetGitHostById(w http.ResponseWriter, r *http
 
 	if err != nil {
 		impl.logger.Errorw("service err, GetGitHostById", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl GitHostRestHandlerImpl) CreateGitHost(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +129,7 @@ func (impl GitHostRestHandlerImpl) CreateGitHost(w http.ResponseWriter, r *http.
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -138,7 +139,7 @@ func (impl GitHostRestHandlerImpl) CreateGitHost(w http.ResponseWriter, r *http.
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, CreateGitHost", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -147,14 +148,14 @@ func (impl GitHostRestHandlerImpl) CreateGitHost(w http.ResponseWriter, r *http.
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, CreateGitHost", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceGit, rbac.ActionCreate, strings.ToLower(bean.Name)); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -162,10 +163,10 @@ func (impl GitHostRestHandlerImpl) CreateGitHost(w http.ResponseWriter, r *http.
 	res, err := impl.gitHostConfig.Create(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, CreateGitHost", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 // Need to make this call RBAC free as this API is called from the create app flow (configuring ci)
@@ -174,7 +175,7 @@ func (impl GitHostRestHandlerImpl) GetAllWebhookEventConfig(w http.ResponseWrite
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -183,7 +184,7 @@ func (impl GitHostRestHandlerImpl) GetAllWebhookEventConfig(w http.ResponseWrite
 
 	if err != nil {
 		impl.logger.Errorw("service err in parsing Id , GetAllWebhookEventConfig", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -195,11 +196,11 @@ func (impl GitHostRestHandlerImpl) GetAllWebhookEventConfig(w http.ResponseWrite
 
 	if err != nil {
 		impl.logger.Errorw("service err, GetAllWebhookEventConfig", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 // Need to make this call RBAC free as this API is called from the create app flow (configuring ci)
@@ -208,7 +209,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookEventConfig(w http.ResponseWriter, 
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -217,7 +218,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookEventConfig(w http.ResponseWriter, 
 
 	if err != nil {
 		impl.logger.Errorw("service err in parsing eventId , GetWebhookEventConfig", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -229,11 +230,11 @@ func (impl GitHostRestHandlerImpl) GetWebhookEventConfig(w http.ResponseWriter, 
 
 	if err != nil {
 		impl.logger.Errorw("service err, GetWebhookEventConfig", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 // Need to make this call RBAC free as this API is called from the create app flow (configuring ci)
@@ -242,7 +243,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 	// check if user is logged in or not
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -253,7 +254,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 
 	if err != nil {
 		impl.logger.Errorw("service err FetchOneGitProvider, GetWebhookDataMetaConfig", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -267,7 +268,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 		gitHost, err := impl.gitHostConfig.GetById(gitHostId)
 		if err != nil {
 			impl.logger.Errorw("service err, GetGitHostById", "err", err)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 		webhookDataMetaConfigResponse.GitHost = gitHost
@@ -278,13 +279,13 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 		webhookEvents, err := impl.gitSensorClient.GetAllWebhookEventConfigForHost(webhookEventRequest)
 		if err != nil {
 			impl.logger.Errorw("service err, GetAllWebhookEventConfig", "err", err)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 		webhookDataMetaConfigResponse.WebhookEvents = webhookEvents
 	}
 
-	writeJsonResp(w, err, webhookDataMetaConfigResponse, http.StatusOK)
+	common.WriteJsonResp(w, err, webhookDataMetaConfigResponse, http.StatusOK)
 }
 
 type WebhookDataMetaConfigResponse struct {

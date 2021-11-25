@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
@@ -58,23 +59,23 @@ func (impl ClusterAccountsRestHandlerImpl) Save(w http.ResponseWriter, r *http.R
 	userId, err := impl.userService.GetLoggedInUser(r)
 	impl.logger.Debugf("request by user %s \n", userId)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var bean request.ClusterAccountsBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	err = impl.clusterAccountsService.Save(&bean, userId)
 	if err != nil {
 		impl.logger.Errorw("error in saving cluster account details", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, nil, http.StatusCreated)
+	common.WriteJsonResp(w, err, nil, http.StatusCreated)
 }
 
 func (impl ClusterAccountsRestHandlerImpl) Get(w http.ResponseWriter, r *http.Request) {
@@ -82,10 +83,10 @@ func (impl ClusterAccountsRestHandlerImpl) Get(w http.ResponseWriter, r *http.Re
 	clusterName := vars["clusterName"]
 	bean, err := impl.clusterAccountsService.FindOne(clusterName)
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, bean, http.StatusOK)
+	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
 func (impl ClusterAccountsRestHandlerImpl) GetByEnvironment(w http.ResponseWriter, r *http.Request) {
@@ -93,10 +94,10 @@ func (impl ClusterAccountsRestHandlerImpl) GetByEnvironment(w http.ResponseWrite
 	environment := vars["environment"]
 	bean, err := impl.clusterAccountsService.FindOneByEnvironment(environment)
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, bean, http.StatusOK)
+	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
 func (impl ClusterAccountsRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {
@@ -105,23 +106,23 @@ func (impl ClusterAccountsRestHandlerImpl) Update(w http.ResponseWriter, r *http
 	userId, err := impl.userService.GetLoggedInUser(r)
 	impl.logger.Debugf("request by user %s \n", userId)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var bean request.ClusterAccountsBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	err = impl.clusterAccountsService.Update(&bean, userId)
 	if err != nil {
 		impl.logger.Errorw("error in updating cluster account details", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, nil, http.StatusCreated)
+	common.WriteJsonResp(w, err, nil, http.StatusCreated)
 }
 
 func (impl ClusterAccountsRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Request) {
@@ -129,17 +130,17 @@ func (impl ClusterAccountsRestHandlerImpl) FindById(w http.ResponseWriter, r *ht
 	id, _ := strconv.Atoi(vars["id"])
 	bean, err := impl.clusterAccountsService.FindById(id)
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, bean, http.StatusOK)
+	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
 func (impl ClusterAccountsRestHandlerImpl) FindAll(w http.ResponseWriter, r *http.Request) {
 	beans, err := impl.clusterAccountsService.FindAll()
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, beans, http.StatusOK)
+	common.WriteJsonResp(w, err, beans, http.StatusOK)
 }

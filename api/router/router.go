@@ -19,7 +19,7 @@ package router
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
@@ -165,7 +165,7 @@ func (r MuxRouter) Init() {
 	r.Router.Path("/health").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(200)
-		response := restHandler.Response{}
+		response := common.Response{}
 		response.Code = 200
 		response.Result = "OK"
 		b, err := json.Marshal(response)

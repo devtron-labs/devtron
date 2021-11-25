@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"go.uber.org/zap"
@@ -47,16 +48,16 @@ func (impl GitWebhookRestHandlerImpl) HandleGitWebhook(w http.ResponseWriter, r 
 	err := decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, HandleGitWebhook", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	impl.logger.Infow("request payload, HandleGitWebhook", "payload", bean)
 	resp, err := impl.gitWebhookService.HandleGitWebhook(bean)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleGitWebhook", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	res := map[string]int{"id": resp}
-	writeJsonResp(w, err, res, http.StatusCreated)
+	common.WriteJsonResp(w, err, res, http.StatusCreated)
 }

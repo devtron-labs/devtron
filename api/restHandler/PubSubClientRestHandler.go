@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"
@@ -50,7 +51,7 @@ func (impl *PubSubClientRestHandlerImpl) PublishEventsToNats(w http.ResponseWrit
 	err := decoder.Decode(&publishRequest)
 	if err != nil {
 		impl.logger.Errorw("request err, HandleExternalCiWebhook", "err", err, "payload", publishRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -58,22 +59,22 @@ func (impl *PubSubClientRestHandlerImpl) PublishEventsToNats(w http.ResponseWrit
 	splitToken := strings.Split(reqToken, "Bearer")
 	if len(splitToken) != 2 {
 		impl.logger.Debugw("request err, HandleExternalCiWebhook", "payload", publishRequest, "token", reqToken)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	reqToken = strings.TrimSpace(splitToken[1])
 	if impl.cdConfig.OrchestratorToken != reqToken {
-		writeJsonResp(w, err, "Unauthorized req", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized req", http.StatusUnauthorized)
 		return
 	}
 
 	id, err := impl.natsPublishClient.Publish(&publishRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", publishRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	result := make(map[string]string)
 	result["id"] = id
-	writeJsonResp(w, err, result, http.StatusAccepted)
+	common.WriteJsonResp(w, err, result, http.StatusAccepted)
 }

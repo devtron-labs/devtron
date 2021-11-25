@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -68,14 +69,14 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var req bean.CreateVulnerabilityPolicyRequest
 	err = decoder.Decode(&req)
 	if err != nil {
 		impl.logger.Errorw("request err, SavePolicy", "err", err, "payload", req)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	impl.logger.Infow("request payload, SavePolicy", "payload", req)
@@ -84,26 +85,26 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 	if req.AppId > 0 && req.EnvId > 0 {
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(req.AppId)
 		if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, object); !ok {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 		object = impl.enforcerUtil.GetEnvRBACNameByAppId(req.AppId, req.EnvId)
 		if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, object); !ok {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else if req.AppId == 0 && req.EnvId > 0 {
 		// for env level access check env level access.
 		token := r.Header.Get("token")
 		if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionCreate, "*"); !ok {
-			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	} else {
 		// for global and cluster level check super admin access only
 		roles, err := impl.userService.CheckUserRoles(userId)
 		if err != nil {
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 		superAdmin := false
@@ -113,7 +114,7 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 			}
 		}
 		if superAdmin == false {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 			return
 		}
 	}
@@ -122,17 +123,17 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 	res, err := impl.policyService.SavePolicy(req, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, SavePolicy", "err", err, "payload", req)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var req bean.UpdatePolicyParams
@@ -140,13 +141,13 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 	err = decoder.Decode(&req)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdatePolicy", "err", err, "payload", req)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	impl.logger.Infow("request payload, UpdatePolicy", "err", err, "payload", req)
 	policy, err := impl.policyService.GetCvePolicy(req.Id, userId)
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	token := r.Header.Get("token")
@@ -154,26 +155,26 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 	if policy.AppId > 0 && policy.EnvironmentId > 0 {
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(policy.AppId)
 		if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, object); !ok {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 		object = impl.enforcerUtil.GetEnvRBACNameByAppId(policy.AppId, policy.EnvironmentId)
 		if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else if policy.AppId == 0 && policy.EnvironmentId > 0 {
 		// for env level access check env level access.
 		token := r.Header.Get("token")
 		if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionUpdate, "*"); !ok {
-			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	} else {
 		// for global and cluster level check super admin access only
 		roles, err := impl.userService.CheckUserRoles(userId)
 		if err != nil {
-			writeJsonResp(w, err, "Failed to get user by id", http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, "Failed to get user by id", http.StatusInternalServerError)
 			return
 		}
 		superAdmin := false
@@ -183,7 +184,7 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 			}
 		}
 		if superAdmin == false {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 			return
 		}
 	}
@@ -192,16 +193,16 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 	res, err := impl.policyService.UpdatePolicy(req, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, UpdatePolicy", "err", err, "payload", req)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	req := bean.FetchPolicyParams{}
@@ -214,7 +215,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 		ids, err := strconv.Atoi(id)
 		if err != nil {
 			impl.logger.Errorw("request err, GetPolicy", "err", err, "id", id)
-			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
 		req.Id = ids
 	}
@@ -238,7 +239,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 	res, err := impl.policyService.GetPolicies(policyLevel, clusterId, environmentId, appId)
 	if err != nil {
 		impl.logger.Errorw("service err, GetPolicy", "err", err, "policyLevel", policyLevel, "clusterId", clusterId, "environmentId", environmentId, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -264,7 +265,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 			// for env level access check env level access.
 			environment, err := impl.environmentService.FindById(policy.EnvId)
 			if err != nil {
-				writeJsonResp(w, err, "Failed to get environment by id", http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, "Failed to get environment by id", http.StatusInternalServerError)
 				return
 			}
 			if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, environment.Environment); ok {
@@ -275,7 +276,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 			environments, err := impl.environmentService.GetByClusterId(clusterId)
 			if err != nil {
 				impl.logger.Errorw("service err, GetPolicy", "err", err, "clusterId", clusterId)
-				writeJsonResp(w, err, "Failed to get cluster by id", http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, "Failed to get cluster by id", http.StatusInternalServerError)
 				return
 			}
 			for _, environment := range environments {
@@ -293,7 +294,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 		}
 	}
 	res.Policies = vulnerabilityPolicy
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 //TODO - move to image-scanner
@@ -305,15 +306,15 @@ func (impl PolicyRestHandlerImpl) VerifyImage(w http.ResponseWriter, r *http.Req
 	err := decoder.Decode(&req)
 	if err != nil {
 		impl.logger.Errorw("request err, VerifyImage", "err", err, "payload", req)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	impl.logger.Infow("request payload, VerifyImage", "req", req)
 	res, err := impl.policyService.VerifyImage(&req)
 	if err != nil {
 		impl.logger.Errorw("request err, VerifyImage", "err", err, "payload", req)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }

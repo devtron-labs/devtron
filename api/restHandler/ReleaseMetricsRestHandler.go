@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -74,14 +75,14 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAppEnvironment(w http.Res
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var req MetricsRequest
 	err = decoder.Decode(&req)
 	if err != nil {
 		impl.logger.Errorw("request err, ResetDataForAppEnvironment", "err", err, "payload", req)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	impl.logger.Infow("request payload, ResetDataForAppEnvironment", "err", err, "payload", req)
@@ -89,20 +90,20 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAppEnvironment(w http.Res
 	token := r.Header.Get("token")
 	appRbacObject := impl.enforcerUtil.GetAppRBACNameByAppId(req.AppId)
 	if appRbacObject == "" {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	envRbacObject := impl.enforcerUtil.GetEnvRBACNameByAppId(req.AppId, req.EnvironmentId)
 	if envRbacObject == "" {
-		writeJsonResp(w, fmt.Errorf("envId is incorrect"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, fmt.Errorf("envId is incorrect"), nil, http.StatusBadRequest)
 		return
 	}
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, appRbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, envRbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC end
@@ -110,10 +111,10 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAppEnvironment(w http.Res
 	err = impl.ReleaseDataService.TriggerEventForAllRelease(req.AppId, req.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("service err, ResetDataForAppEnvironment", "err", err, "payload", req)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, true, http.StatusOK)
+	common.WriteJsonResp(w, err, true, http.StatusOK)
 }
 
 func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAllAppEnvironment(w http.ResponseWriter, r *http.Request) {
@@ -121,7 +122,7 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAllAppEnvironment(w http.
 	pipelines, err := impl.pipelineRepository.UniqueAppEnvironmentPipelines()
 	if err != nil {
 		impl.logger.Errorw("service err, ResetDataForAllAppEnvironment", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
 	for _, pipeline := range pipelines {
 		appRbacObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
@@ -155,23 +156,23 @@ func (impl *ReleaseMetricsRestHandlerImpl) GetDeploymentMetrics(w http.ResponseW
 	err := decoder.Decode(metricRequest, r.URL.Query())
 	if err != nil {
 		impl.logger.Errorw("request err, GetDeploymentMetrics", "err", err, "payload", metricRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
 	appRbacObject := impl.enforcerUtil.GetAppRBACNameByAppId(metricRequest.AppId)
 	if appRbacObject == "" {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, appRbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	resBody, resCode, err := impl.ReleaseDataService.GetDeploymentMetrics(metricRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, GetDeploymentMetrics", "err", err, "payload", metricRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

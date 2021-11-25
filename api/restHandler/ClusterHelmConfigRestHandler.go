@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
@@ -49,24 +50,24 @@ func (impl ClusterHelmConfigRestHandlerImpl) Save(w http.ResponseWriter, r *http
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var bean cluster.ClusterHelmConfigBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Save", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	impl.logger.Errorw("request payload, Save", "err", err, "payload", bean)
 	err = impl.clusterHelmConfigService.Save(&bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Save", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, nil, http.StatusCreated)
+	common.WriteJsonResp(w, err, nil, http.StatusCreated)
 }
 
 func (impl ClusterHelmConfigRestHandlerImpl) GetByEnvironment(w http.ResponseWriter, r *http.Request) {
@@ -75,8 +76,8 @@ func (impl ClusterHelmConfigRestHandlerImpl) GetByEnvironment(w http.ResponseWri
 	bean, err := impl.clusterHelmConfigService.FindOneByEnvironment(environment)
 	if err != nil {
 		impl.logger.Errorw("service err, GetByEnvironment", "err", err, "environment", environment)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, bean, http.StatusOK)
+	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }

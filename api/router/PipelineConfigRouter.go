@@ -19,6 +19,7 @@ package router
 
 import (
 	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/gorilla/mux"
 )
 
@@ -26,12 +27,12 @@ type PipelineConfigRouter interface {
 	initPipelineConfigRouter(configRouter *mux.Router)
 }
 type PipelineConfigRouterImpl struct {
-	restHandler            restHandler.PipelineConfigRestHandler
+	restHandler            app.PipelineConfigRestHandler
 	appWorkflowRestHandler restHandler.AppWorkflowRestHandler
 	webhookDataRestHandler restHandler.WebhookDataRestHandler
 }
 
-func NewPipelineRouterImpl(restHandler restHandler.PipelineConfigRestHandler, appWorkflowRestHandler restHandler.AppWorkflowRestHandler, webhookDataRestHandler restHandler.WebhookDataRestHandler) *PipelineConfigRouterImpl {
+func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler, appWorkflowRestHandler restHandler.AppWorkflowRestHandler, webhookDataRestHandler restHandler.WebhookDataRestHandler) *PipelineConfigRouterImpl {
 	return &PipelineConfigRouterImpl{restHandler: restHandler, appWorkflowRestHandler: appWorkflowRestHandler, webhookDataRestHandler: webhookDataRestHandler}
 
 }
@@ -60,7 +61,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	//save environment specific override
 	configRouter.Path("/env/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvConfigOverrideCreate).Methods("POST")
 	configRouter.Path("/env").HandlerFunc(router.restHandler.EnvConfigOverrideUpdate).Methods("PUT")
-	configRouter.Path("/env/{appId}/{environmentId}/{chartRefId}").HandlerFunc(router.restHandler.GetEnvConfOverride).Methods("GET")
+	configRouter.Path("/env/{appId}/{environmentId}/{chartRefId}").HandlerFunc(router.restHandler.GetEnvConfigOverride).Methods("GET")
 
 	configRouter.Path("/ci-pipeline").HandlerFunc(router.restHandler.CreateCiConfig).Methods("POST")
 	configRouter.Path("/ci-pipeline/{appId}").HandlerFunc(router.restHandler.GetCiPipeline).Methods("GET")
@@ -68,7 +69,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/ci-pipeline/patch").HandlerFunc(router.restHandler.PatchCiPipelines).Methods("POST")
 
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material").HandlerFunc(router.restHandler.GetArtifactsByCDPipeline).Methods("GET")
-	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.FetchArtifactForRollback).Methods("GET")
+	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.GetArtifactForRollback).Methods("GET")
 
 	configRouter.Path("/migrate/db").HandlerFunc(router.restHandler.CreateMigrationConfig).Methods("POST")
 	configRouter.Path("/migrate/db/update").HandlerFunc(router.restHandler.UpdateMigrationConfig).Methods("POST")
@@ -99,7 +100,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/{appId}/autocomplete/team").HandlerFunc(router.restHandler.TeamListAutocomplete).Methods("GET")
 
 	configRouter.Path("/cd-pipeline/{appId}/{envId}/{pipelineId}").HandlerFunc(router.restHandler.IsReadyToTrigger).Methods("GET")
-	configRouter.Path("/cd-pipeline/strategies/{appId}").HandlerFunc(router.restHandler.FetchCDPipelineStrategy).Methods("GET")
+	configRouter.Path("/cd-pipeline/strategies/{appId}").HandlerFunc(router.restHandler.GetDeploymentPipelineStrategy).Methods("GET")
 
 	configRouter.Path("/upgrade/all/{chartRefId}").HandlerFunc(router.restHandler.UpgradeForAllApps).Methods("POST")
 
@@ -118,14 +119,14 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/app-wf/{app-id}/{app-wf-id}").
 		HandlerFunc(router.appWorkflowRestHandler.DeleteAppWorkflow).Methods("DELETE")
 
-	configRouter.Path("/cd-pipeline/workflow/history/{appId}/{environmentId}/{pipelineId}").HandlerFunc(router.restHandler.GetCdBuildHistory).Methods("GET")
-	configRouter.Path("/cd-pipeline/workflow/logs/{appId}/{environmentId}/{pipelineId}/{workflowId}").HandlerFunc(router.restHandler.GetCdBuildLogs).Methods("GET")
+	configRouter.Path("/cd-pipeline/workflow/history/{appId}/{environmentId}/{pipelineId}").HandlerFunc(router.restHandler.ListDeploymentHistory).Methods("GET")
+	configRouter.Path("/cd-pipeline/workflow/logs/{appId}/{environmentId}/{pipelineId}/{workflowId}").HandlerFunc(router.restHandler.GetPrePostDeploymentLogs).Methods("GET")
 	configRouter.Path("/cd-pipeline/workflow/trigger-info/{appId}/{environmentId}/{pipelineId}/{workflowRunnerId}").HandlerFunc(router.restHandler.FetchCdWorkflowDetails).Methods("GET")
-	configRouter.Path("/cd-pipeline/workflow/download/{appId}/{environmentId}/{pipelineId}/{workflowRunnerId}").HandlerFunc(router.restHandler.DownloadCdWorkflowArtifacts).Methods("GET")
-	configRouter.Path("/cd-pipeline/workflow/status/{appId}/{environmentId}/{pipelineId}").HandlerFunc(router.restHandler.FetchCdPrePostStageStatus).Methods("GET")
+	configRouter.Path("/cd-pipeline/workflow/download/{appId}/{environmentId}/{pipelineId}/{workflowRunnerId}").HandlerFunc(router.restHandler.DownloadArtifacts).Methods("GET")
+	configRouter.Path("/cd-pipeline/workflow/status/{appId}/{environmentId}/{pipelineId}").HandlerFunc(router.restHandler.GetStageStatus).Methods("GET")
 
 	configRouter.Path("/cd-pipeline/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetCdPipelineById).Methods("GET")
-	configRouter.Path("/cd/configmap-secrets/{pipelineId}").HandlerFunc(router.restHandler.FetchConfigmapSecretsForCdStages).Methods("GET")
+	configRouter.Path("/cd/configmap-secrets/{pipelineId}").HandlerFunc(router.restHandler.GetConfigmapSecretsForDeploymentStages).Methods("GET")
 
 	configRouter.Path("/workflow/status/{appId}").HandlerFunc(router.restHandler.FetchAppWorkflowStatusForTriggerView).Methods("GET")
 

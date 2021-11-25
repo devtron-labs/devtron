@@ -15,7 +15,7 @@
  *
  */
 
-package restHandler
+package common
 
 import (
 	"encoding/json"
@@ -28,7 +28,7 @@ import (
 
 //use of writeJsonRespStructured is preferable. it api exists due to historical reason
 // err.message is used as internal message for ApiError object in resp
-func writeJsonResp(w http.ResponseWriter, err error, respBody interface{}, status int) {
+func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, status int) {
 	response := Response{}
 	if err == nil {
 		response.Result = respBody
