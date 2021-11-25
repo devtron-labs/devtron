@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"testing"
 
@@ -108,7 +107,6 @@ func TestChartServiceImpl_DeploymentTemplateValidate(t *testing.T) {
 				appLevelMetricsRepository: tt.fields.appLevelMetricsRepository,
 				client:                    tt.fields.client,
 			}
-			fmt.Printf("%T%s\n\n\n", tt.args.templatejson,tt.args.templatejson)
 			got, err := impl.DeploymentTemplateValidate(tt.args.templatejson, tt.args.chartRefId)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeploymentTemplateValidate() error = %v, wantErr %v", err, tt.wantErr)
