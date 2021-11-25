@@ -509,12 +509,12 @@ github.com/src-d/gcfg/types
 # github.com/stretchr/testify v1.6.1
 ## explicit
 github.com/stretchr/testify/assert
-# github.com/tidwall/gjson v1.8.1
+# github.com/tidwall/gjson v1.11.0
 ## explicit
 github.com/tidwall/gjson
-# github.com/tidwall/match v1.0.3
+# github.com/tidwall/match v1.1.1
 github.com/tidwall/match
-# github.com/tidwall/pretty v1.1.0
+# github.com/tidwall/pretty v1.2.0
 github.com/tidwall/pretty
 # github.com/tidwall/sjson v1.1.7
 ## explicit
