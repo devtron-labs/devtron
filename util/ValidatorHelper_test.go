@@ -61,7 +61,7 @@ func TestCompareLimitsRequests(t *testing.T) {
 		},
 		{
 			name: "negative test cases - 1",
-			args: args{dat: map[string]interface{}{resources: map[string]interface{}{limits: map[string]interface{}{cpu: "0.1.0", memory: "10Mi" }, requests: map[string]interface{}{cpu: "111.0.1m", memory: "15Gi" }}}},
+			args: args{dat: map[string]interface{}{resources: map[string]interface{}{limits: map[string]interface{}{cpu: "0.1.0", memory: "10Mi" }, requests: map[string]interface{}{cpu: "111m", memory: "15Gi" }}}},
 			want: false,
 			wantErr: true,
 		},
@@ -186,13 +186,24 @@ func Test_convertMemory(t *testing.T) {
 			want:    float64(100),
 			wantErr: false,
 		},
+		{
+			name:    "negative test case - Memory1",
+			args:    args{memory: "1.0.1Mi"},
+			want:    float64(0),
+			wantErr: true,
+		},
+		{
+			name:    "negative test case - Memory2",
+			args:    args{memory: "-10Mi"},
+			want:    float64(0),
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := MemoryToNumber(tt.args.memory)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("memory() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if (err != nil) != tt.wantErr{
+				t.Errorf("memory() error = %v", err)
 			}
 			if got != tt.want {
 				t.Errorf("memory() got = %v, want %v", got, tt.want)
@@ -203,7 +214,7 @@ func Test_convertMemory(t *testing.T) {
 
 func Test_convertCPU(t *testing.T) {
 	type args struct {
-		memory string
+		cpu string
 	}
 	tests := []struct {
 		name    string
@@ -213,29 +224,40 @@ func Test_convertCPU(t *testing.T) {
 	}{
 		{
 			name:    "base test with unit",
-			args:    args{memory: "10m"},
+			args:    args{cpu: "10m"},
 			want:    float64(0.01),
 			wantErr: false,
 		},
 		{
 			name:    "base test without unit",
-			args:    args{memory: "0.01"},
+			args:    args{cpu: "0.01"},
 			want:    float64(0.01),
 			wantErr: false,
 		},
 		{
 			name:    "base test - scientifc notation",
-			args:    args{memory: "1e2m"},
+			args:    args{cpu: "1e2m"},
 			want:    float64(100 * 0.001),
 			wantErr: false,
+		},
+		{
+			name:    "negative test case - Cpu1",
+			args:    args{cpu: "1.0.1"},
+			want:    float64(0),
+			wantErr: true,
+		},
+		{
+			name:    "negative test case - Cpu2",
+			args:    args{cpu: "-10m"},
+			want:    float64(0),
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CpuToNumber(tt.args.memory)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("memory() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			got, err := CpuToNumber(tt.args.cpu)
+			if (err != nil) != tt.wantErr{
+				t.Errorf("cpu() error = %v", err)
 			}
 			if got != tt.want {
 				t.Errorf("memory() got = %v, want %v", got, tt.want)

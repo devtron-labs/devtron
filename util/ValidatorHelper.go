@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	CpuRegex ="(^\\d*.?\\d+e?\\d*)(m?)$"
-	MemoryRegex = "(^\\d*.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)$"
+	CpuRegex ="(^\\d*\\.?\\d+e?\\d*)(m?)$"
+	MemoryRegex = "(^\\d*\\.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)$"
 )
 
 var (
@@ -99,6 +99,9 @@ func CpuToNumber(cpu string) (float64, error) {
 }
 func convertResource(rp *resourceParser, resource string) (float64, error) {
 	matches := rp.regex.FindAllStringSubmatch(resource, -1)
+	if len(matches)==0{
+		return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
+	}
 	if len(matches[0]) < 2 {
 		return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
 	}
