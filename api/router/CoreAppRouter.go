@@ -22,20 +22,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type AppRouter interface {
-	init(configRouter *mux.Router)
+type CoreAppRouter interface {
+	initCoreAppRouter(configRouter *mux.Router)
 }
 
-type AppRouterImpl struct {
-	restHandler restHandler.AppRestHandler
+type CoreAppRouterImpl struct {
+	restHandler restHandler.CoreAppRestHandler
 }
 
-func NewAppRouterImpl(restHandler restHandler.AppRestHandler) *AppRouterImpl {
-	return &AppRouterImpl{restHandler: restHandler}
+func NewCoreAppRouterImpl(restHandler restHandler.CoreAppRestHandler) *CoreAppRouterImpl {
+	return &CoreAppRouterImpl{restHandler: restHandler}
 
 }
 
-func (router AppRouterImpl) init(configRouter *mux.Router) {
-	configRouter.Path("/").HandlerFunc(router.restHandler.CreateApp).Methods("POST")
-	configRouter.Path("/{appId}").HandlerFunc(router.restHandler.GetAppAllDetail).Methods("GET")
+func (router CoreAppRouterImpl) initCoreAppRouter(configRouter *mux.Router) {
+	configRouter.Path("/v1beta1/application").HandlerFunc(router.restHandler.CreateApp).Methods("POST")
+	configRouter.Path("/v1beta1/application/{appId}").HandlerFunc(router.restHandler.GetAppAllDetail).Methods("GET")
 }

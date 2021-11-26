@@ -3,8 +3,8 @@ info:
   version: 1.0.0
   title: Create App Api
 paths:
-  /orchestrator/app/v2/{appId}:
-    post:
+  /orchestrator/core/v1beta1/application/{appId}:
+    get:
       description: Get app details
       operationId: GetAppAllDetail
       parameters:
@@ -38,7 +38,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/app/v2/:
+  /orchestrator/core/v1beta1/application:
     post:
       description: Creates a new app for the configurations provided
       operationId: CreateApp
@@ -80,29 +80,29 @@ components:
     AppDetail:
       type: object
       properties:
-        Metadata:
+        metadata:
           $ref : '#/components/schemas/AppMetadata'
-        GitMaterial:
+        gitMaterials:
           type: array
           items:
             $ref: '#/components/schemas/GitMaterial'
-        DockerConfig:
+        dockerConfig:
           $ref: '#/components/schemas/DockerConfig'
-        GlobalDeploymentTemplate:
+        globalDeploymentTemplate:
           $ref: '#/components/schemas/DeploymentTemplate'
-        AppWorkflows:
+        appWorkflows:
           type: array
           items:
             $ref: '#/components/schemas/AppWorkflow'
-        GlobalConfigMaps:
+        globalConfigMaps:
           type: array
           items:
             $ref: '#/components/schemas/ConfigMap'
-        GlobalSecrets:
+        globalSecrets:
           type: array
           items:
             $ref: '#/components/schemas/Secret'
-        EnvironmentOverrides:
+        environmentOverrides:
           type: object
           properties:
             Name:
@@ -113,11 +113,11 @@ components:
     AppMetadata:
       type: object
       properties:
-        AppName:
+        appName:
           type: string
-        ProjectName:
+        projectName:
           type: string
-        Labels:
+        labels:
           type: array
           items:
             $ref: '#/components/schemas/AppLabel'
@@ -131,31 +131,31 @@ components:
     GitMaterial:
       type: object
       properties:
-        GitProviderUrl:
+        gitProviderUrl:
           type: string
-        GitRepoUrl:
+        gitRepoUrl:
           type: string
-        CheckoutPath:
+        checkoutPath:
           type: string
-        FetchSubmodules:
+        fetchSubmodules:
           type: boolean
     DockerConfig:
       type: object
       properties:
-        DockerRegistry:
+        dockerRegistry:
           type: string
-        DockerRepository:
+        dockerRepository:
           type: string
-        BuildConfig:
+        dockerBuildConfig:
           $ref: '#/components/schemas/DockerBuildConfig'
     DockerBuildConfig:
       type: object
       properties:
-        GitCheckoutPath:
+        gitCheckoutPath:
           type: string
-        DockerfileRelativePath:
+        dockerfileRelativePath:
           type: string
-        Args:
+        args:
           type: array
           items:
             type: object
@@ -168,13 +168,13 @@ components:
     DeploymentTemplate:
       type: object
       properties:
-        ChartRefId:
+        chartRefId:
           type: integer
-        ShowAppMetrics:
+        showAppMetrics:
           type: boolean
-        IsOverride:
+        isOverride:
           type: boolean
-        Template:
+        template:
           type: array
           items:
             type: object
@@ -188,30 +188,30 @@ components:
     AppWorkflow:
       type: object
       properties:
-        Name:
+        name:
           type: string
-        CiPipeline:
+        ciPipeline:
           $ref: '#/components/schemas/CiPipelineDetails'
-        CdPipelines:
+        cdPipelines:
           type: array
           items:
             $ref: '#/components/schemas/CdPipelineDetails'
     CiPipelineDetails:
       type: object
       properties:
-        Name:
+        name:
           type: string
-        IsManual:
+        isManual:
           type: boolean
-        VulnerabilityScanEnabled:
+        vulnerabilityScanEnabled:
           type: boolean
-        IsExternal:
+        isExternal:
           type: boolean
-        CiPipelineMaterialsConfig:
+        ciPipelineMaterialsConfig:
           type: array
           items:
             $ref: '#/components/schemas/CiPipelineMaterialConfig'
-        DockerBuildArgs:
+        dockerBuildArgs:
           type: array
           items:
             type: object
@@ -221,71 +221,71 @@ components:
               Value:
                 type: string
           description: map of docker arguments, i.e. key-value pairs
-        BeforeDockerBuildScripts:
+        beforeDockerBuildScripts:
           type: array
           items:
             $ref: '#/components/schemas/BuildScript'
-        AfterDockerbuildScripts:
+        afterDockerbuildScripts:
           type: array
           items:
             $ref: '#/components/schemas/BuildScript'
     CiPipelineMaterialConfig:
       type: object
       properties:
-        Type:
+        type:
           type: string
-        Value:
+        value:
           type: string
-        CheckoutPath:
+        checkoutPath:
           type: string
     BuildScript:
       type: object
       properties:
-        Index:
+        index:
           type: integer
-        Name:
+        name:
           type: string
-        Script:
+        script:
           type: string
-        ReportDirectoryPath:
+        reportDirectoryPath:
           type: string
     CdPipelineDetails:
       type: object
       properties:
-        Name:
+        name:
           type: string
-        EnvironmentName:
+        environmentName:
           type: string
-        TriggerType:
+        triggerType:
           type: string
-        DeploymentType:
+        deploymentType:
           type: string
-        DeploymentStrategies:
+        deploymentStrategies:
           type: array
           items:
             $ref: '#/components/schemas/DeploymentStrategy'
-        PreStage:
+        preStage:
           $ref: '#/components/schemas/CdStage'
-        PostStage:
+        postStage:
           $ref: '#/components/schemas/CdStage'
-        PreStageConfigMapSecretNames:
+        preStageConfigMapSecretNames:
           $ref: '#/components/schemas/CdStageConfigMapSecretNames'
-        PostStageConfigMapSecretNames:
+        postStageConfigMapSecretNames:
           $ref: '#/components/schemas/CdStageConfigMapSecretNames'
-        RunPreStageInEnv:
+        runPreStageInEnv:
           type: boolean
-        RunPostStageInEnv:
+        runPostStageInEnv:
           type: boolean
-        IsClusterCdActive:
+        isClusterCdActive:
           type: boolean
     DeploymentStrategy:
       type: object
       properties:
-        DeploymentType:
+        deploymentType:
           type: string
-        IsDefault:
+        isDefault:
           type: boolean
-        Config:
+        config:
           type: array
           items:
             type: object
@@ -298,22 +298,22 @@ components:
     CdStage:
       type: object
       properties:
-        Name:
+        name:
           type: string
-        TriggerType:
+        triggerType:
           type: string
-        Config:
+        config:
           type: string
     CdStageConfigMapSecretNames:
       type: object
       properties:
-        ConfigMaps:
+        configMaps:
           type: array
           items:
             properties:
               ConfigMap:
                 type: string
-        Secrets:
+        secrets:
           type: array
           items:
             properties:
@@ -322,13 +322,13 @@ components:
     ConfigMap:
       type: object
       properties:
-        Name:
+        name:
           type: string
-        IsExtetrnal:
+        isExtetrnal:
           type: boolean
-        UsageType:
+        usageType:
           type: string
-        Data:
+        data:
           type: array
           items:
             type: object
@@ -338,22 +338,22 @@ components:
               Values:
                 type: object
                 description: interface{}
-        DataVolumeUsageConfig:
+        dataVolumeUsageConfig:
           $ref: '#/components/schemas/ConfigMapSecretDataVolumeUsageConfig'
     Secret:
       type: object
       properties:
-        Name:
+        name:
           type: string
-        IsExternal:
+        isExternal:
           type: boolean
-        ExternalType:
+        externalType:
           type: string
-        RoleArn:
+        roleArn:
           type: string
-        UsageType:
+        usageType:
           type: string
-        Data:
+        data:
           type: array
           items:
             type: object
@@ -363,42 +363,42 @@ components:
               Values:
                 type: object
                 description: interface{}
-        DataVolumeUsageConfig:
+        dataVolumeUsageConfig:
           $ref: '#/components/schemas/ConfigMapSecretDataVolumeUsageConfig'
-        ExternalSecretData:
+        externalSecretData:
           type: array
           items:
             $ref: '#/components/schemas/ExternalSecret'
     ConfigMapSecretDataVolumeUsageConfig:
       type: object
       properties:
-        MountPath:
+        mountPath:
           type: string
-        SubPath:
+        subPath:
           type: boolean
-        FilePermission:
+        filePermission:
           type: string
     ExternalSecret:
       type: object
       properties:
-        Key:
+        key:
           type: string
-        Name:
+        name:
           type: string
-        Property:
+        property:
           type: string
-        IsBinary:
+        isBinary:
           type: boolean
     EnvironmentOverride:
       type: object
       properties:
-        DeploymentTemplate:
+        deploymentTemplate:
           $ref: '#/components/schemas/DeploymentTemplate'
-        ConfigMaps:
+        configMaps:
           type: array
           items:
             $ref: '#/components/schemas/ConfigMap'
-        Secrets:
+        secrets:
           type: array
           items:
             $ref: '#/components/schemas/Secret'
