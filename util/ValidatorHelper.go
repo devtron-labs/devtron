@@ -11,13 +11,13 @@ import (
 )
 
 const (
-	CpuRegex ="(^\\d*\\.?\\d+e?\\d*)(m?)$"
+	CpuRegex    = "(^\\d*\\.?\\d+e?\\d*)(m?)$"
 	MemoryRegex = "(^\\d*\\.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)$"
 )
 
 var (
-	CpuUnitChecker, _   = regexp.Compile(CpuRegex)
-	MemoryUnitChecker, _        = regexp.Compile(MemoryRegex)
+	CpuUnitChecker, _    = regexp.Compile(CpuRegex)
+	MemoryUnitChecker, _ = regexp.Compile(MemoryRegex)
 )
 
 type resourceParser struct {
@@ -99,7 +99,7 @@ func CpuToNumber(cpu string) (float64, error) {
 }
 func convertResource(rp *resourceParser, resource string) (float64, error) {
 	matches := rp.regex.FindAllStringSubmatch(resource, -1)
-	if len(matches)==0{
+	if len(matches) == 0 {
 		return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
 	}
 	if len(matches[0]) < 2 {
@@ -244,7 +244,7 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 	if dat == nil {
 		return true, nil
 	}
-	if dat["autoscaling"]!=nil {
+	if dat["autoscaling"] != nil {
 		autoScaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
 		if !ok {
 			return true, nil
@@ -252,19 +252,18 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 		if autoScaleEnabled.(bool) {
 			minReplicas, okMin := dat["autoscaling"].(map[string]interface{})["MinReplicas"]
 			maxReplicas, okMax := dat["autoscaling"].(map[string]interface{})["MaxReplicas"]
-			if !okMin || !okMax{
+			if !okMin || !okMax {
 				return false, errors.New("autoscaling.MinReplicas and autoscaling.MaxReplicas are mandatory fields")
 			}
 			// see https://pkg.go.dev/encoding/json#Unmarshal for why conversion to float64 and not int
 			// Bug fix PR https://github.com/devtron-labs/devtron/pull/884
-			if minReplicas.(float64) > maxReplicas.(float64){
+			if minReplicas.(float64) > maxReplicas.(float64) {
 				return false, errors.New("autoscaling.MinReplicas can not be greater than autoscaling.MaxReplicas")
 			}
 		}
 	}
-	return true,nil
+	return true, nil
 }
-
 
 func (f CpuChecker) IsFormat(input interface{}) bool {
 	if input == nil {
