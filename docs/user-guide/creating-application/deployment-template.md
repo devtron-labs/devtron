@@ -181,7 +181,7 @@ Image is used to access images in kubernetes, pullpolicy is used to define the i
 imagePullSecrets:
   - regcred
 ```
-regcred is the secret that contains the docker credentials that are used for accessing a registry. Devtron will not create this secret automatically, you'll have to create this secret using dt-secrets helm chart in the App store or create one using kubectl. You can follow this documentation Pull an Image from a Private Registry https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/ .
+regcred is the secret that contains the docker credentials that are used for accessing a registry. Devtron will not create this secret automatically, you'll have to create this secret using dt-secrets helm chart in the App store or create one using kubectl. You can follow this documentation Pull an Image from a Private Registry [https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) .
 
 ### Ingress
 
