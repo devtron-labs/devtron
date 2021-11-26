@@ -1071,7 +1071,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 	workflowsList, err := handler.appWorkflowService.FindAppWorkflows(appId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching workflows for app in DeleteApp", "err", err)
-		common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+		common.WriteJsonResp(w, nil, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 		return
 	}
 
@@ -1082,7 +1082,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 		cdPipelines, err := handler.pipelineBuilder.GetCdPipelinesForApp(appId)
 		if err != nil {
 			handler.logger.Errorw("service err, GetCdPipelines in DeleteApp", "err", err, "appId", appId)
-			common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+			common.WriteJsonResp(w, nil, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 			return
 		}
 
@@ -1097,7 +1097,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 			_, err = handler.pipelineBuilder.PatchCdPipelines(cdPipelineDeleteRequest, ctx)
 			if err != nil {
 				handler.logger.Errorw("err in deleting cd pipeline in DeleteApp", "err", err, "payload", cdPipelineDeleteRequest)
-				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+				common.WriteJsonResp(w, nil, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -1107,7 +1107,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 		ciPipelines, err := handler.pipelineBuilder.GetCiPipeline(appId)
 		if err != nil {
 			handler.logger.Errorw("service err, GetCiPipelines in DeleteApp", "err", err, "appId", appId)
-			common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+			common.WriteJsonResp(w, nil, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 			return
 		}
 		for _, ciPipeline := range ciPipelines.CiPipelines {
@@ -1120,7 +1120,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 			_, err := handler.pipelineBuilder.PatchCiPipeline(ciPipelineDeleteRequest)
 			if err != nil {
 				handler.logger.Errorw("err in deleting ci pipeline in DeleteApp", "err", err, "payload", ciPipelineDeleteRequest)
-				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+				common.WriteJsonResp(w, nil, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -1131,7 +1131,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 			err = handler.appWorkflowService.DeleteAppWorkflow(appId, workflow.Id, userId)
 			if err != nil {
 				handler.logger.Errorw("service err, DeleteAppWorkflow ")
-				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+				common.WriteJsonResp(w, nil, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -1142,7 +1142,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 	err = handler.pipelineBuilder.DeleteApp(appId, userId)
 	if err != nil {
 		handler.logger.Errorw("service error, DeleteApp", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+		common.WriteJsonResp(w, nil, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 		return
 	}
 }
