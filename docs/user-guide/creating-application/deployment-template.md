@@ -179,8 +179,9 @@ Image is used to access images in kubernetes, pullpolicy is used to define the i
 
 ```yaml
 imagePullSecrets:
-  - docker-credentials
-
+  - regcred
+```
+Since, `regcred` is the secret name where docker credentials exist. So, `regcred` should exist in the namespace.
 
 ### Ingress
 
