@@ -146,7 +146,7 @@ Devtron has been trusted by the Enterprises and community all across the globe.
 ### :blue_heart: We Support:
 In addition to the features, we love supporting platforms that devs find easy to work with.
 <br>
-<p align="center"><img width="960" height="300" src="./assets/we-support.jpg"></p>
+<p align="center"><img src="./assets/we-support.jpg"></p>
 
 ## :rocket: Getting Started
 
@@ -214,6 +214,13 @@ Get updates on Devtron's development and chat with the project maintainers, cont
 </a>
  </p>
 
+<<<<<<< HEAD
+=======
+## :muscle: Trusted By
+<br>
+<p align="center"><img src="./assets/trusted-by.jpg"></p>
+
+>>>>>>> 5b9e6e76d52a5099ffc587c4f64c4c90fbfde25f
 ## :sparkling_heart: Love What You See!
 
 If you are loving what we are doing, please consider giving us a star.
