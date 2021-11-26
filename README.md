@@ -41,7 +41,7 @@
 - [Devtron?](https://github.com/devtron-labs/devtron#bulb-devtron)
 - [Features](https://github.com/devtron-labs/devtron#tada-features)
 - [Trusted By](https://github.com/devtron-labs/devtron#muscle-Trusted-By)
-- [Architecture] (https://github.com/devtron-labs/devtron#globe_with_meridians-Architecture)
+- [Architecture](https://github.com/devtron-labs/devtron#globe_with_meridians-Architecture)
 - [Getting Started](https://github.com/devtron-labs/devtron#rocket-getting-started)
 - [Documentation](https://docs.devtron.ai/)
 - [Videos](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
@@ -214,13 +214,6 @@ Get updates on Devtron's development and chat with the project maintainers, cont
 </a>
  </p>
 
-<<<<<<< HEAD
-=======
-## :muscle: Trusted By
-<br>
-<p align="center"><img src="./assets/trusted-by.jpg"></p>
-
->>>>>>> 5b9e6e76d52a5099ffc587c4f64c4c90fbfde25f
 ## :sparkling_heart: Love What You See!
 
 If you are loving what we are doing, please consider giving us a star.
