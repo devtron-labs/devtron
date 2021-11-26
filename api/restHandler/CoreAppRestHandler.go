@@ -52,7 +52,7 @@ import (
 )
 
 const (
-	APP_DELETE_FAILED_RESP     = "Devtron was unable to delete the app by itself, please try deleting the app manually."
+	APP_DELETE_FAILED_RESP     = "App deletion failed, please try deleting from Devtron UI."
 	APP_CREATE_SUCCESSFUL_RESP = "App created successfully."
 )
 
