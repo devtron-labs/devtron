@@ -23,8 +23,9 @@ import (
 	"errors"
 	"fmt"
 	appBean "github.com/devtron-labs/devtron/api/appbean"
+	app2 "github.com/devtron-labs/devtron/api/restHandler/app"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/team"
-
 	//bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -121,7 +122,7 @@ func (handler AppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *http
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -129,7 +130,7 @@ func (handler AppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *http
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.logger.Errorw("request err, GetAppAllDetail", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -138,7 +139,7 @@ func (handler AppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *http
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, object); !ok {
 		handler.logger.Errorw("Unauthorized User for app update action", "err", err, "appId", appId)
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//rbac implementation ends here for app
@@ -214,14 +215,14 @@ func (handler AppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *http
 	}
 	//end
 
-	writeJsonResp(w, nil, appDetail, http.StatusOK)
+	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 }
 
 func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -231,7 +232,7 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 	err = decoder.Decode(&createAppRequest)
 	if err != nil {
 		handler.logger.Errorw("request err, CreateApp by API", "err", err, "CreateApp", createAppRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -240,7 +241,7 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 	err = handler.validator.Struct(createAppRequest)
 	if err != nil {
 		handler.logger.Errorw("validation err, CreateApp by API", "err", err, "CreateApp", createAppRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -248,17 +249,17 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 	team, err := handler.teamService.FindByTeamName(createAppRequest.Metadata.ProjectName)
 	if err != nil {
 		handler.logger.Errorw("Error in getting team", "err", err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	if team == nil {
 		handler.logger.Errorw("no project found by name in CreateApp request by API")
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//rbac ends
@@ -278,7 +279,7 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 	// rbac after create blank app
 	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceObject); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		handler.deleteApp(w, ctx, appId, userId)
 		return
 	}
@@ -354,7 +355,7 @@ func (handler AppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Reque
 	}
 	//creating environment override ends
 
-	writeJsonResp(w, nil, APP_CREATE_SUCCESSFUL_RESP, http.StatusOK)
+	common.WriteJsonResp(w, nil, APP_CREATE_SUCCESSFUL_RESP, http.StatusOK)
 }
 
 //GetApp related methods starts
@@ -366,14 +367,14 @@ func (handler AppRestHandlerImpl) validateAndBuildAppMetadata(w http.ResponseWri
 	appMetaInfo, err := handler.appLabelService.GetAppMetaInfo(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppAllDetail", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
 	if appMetaInfo == nil {
 		err = errors.New("invalid appId - appMetaInfo is null")
 		handler.logger.Errorw("Validation error ", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, true
 	}
 
@@ -406,7 +407,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppGitMaterials(w http.Respons
 			gitRegistry, err := handler.gitRegistryService.FetchOneGitProvider(strconv.Itoa(gitMaterial.GitProviderId))
 			if err != nil {
 				handler.logger.Errorw("service err, getGitProvider in GetAppAllDetail", "err", err, "appId", appId)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return nil, true
 			}
 
@@ -433,7 +434,7 @@ func (handler AppRestHandlerImpl) validateAndBuildDockerConfig(w http.ResponseWr
 
 	if err != nil {
 		handler.logger.Errorw("service err, GetCiPipeline in GetAppAllDetail", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
@@ -441,7 +442,7 @@ func (handler AppRestHandlerImpl) validateAndBuildDockerConfig(w http.ResponseWr
 	gitMaterial, err := handler.materialRepository.FindById(ciConfig.DockerBuildConfig.GitMaterialId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching materialUrl by ID in GetAppAllDetail", "err", err, "gitMaterialId", ciConfig.DockerBuildConfig.GitMaterialId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
@@ -465,14 +466,14 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 	chartRefData, err := handler.chartService.ChartRefAutocompleteForAppOrEnv(appId, envId)
 	if err != nil {
 		handler.logger.Errorw("service err, ChartRefAutocompleteForAppOrEnv in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
 	if chartRefData == nil {
 		err = errors.New("invalid appId/envId - chartRefData is null")
 		handler.logger.Errorw("Validation error ", "err", err, "appId", appId, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, true
 	}
 
@@ -480,7 +481,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 	if err != nil {
 		if err != pg.ErrNoRows {
 			handler.logger.Errorw("service err, GetDeploymentTemplate in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return nil, true
 		} else {
 			handler.logger.Warnw("no charts configured for app, GetDeploymentTemplate in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
@@ -491,7 +492,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 	if appDeploymentTemplate == nil {
 		err = errors.New("invalid appId - deploymentTemplate is null")
 		handler.logger.Errorw("Validation error ", "err", err, "appId", appId, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, true
 	}
 
@@ -505,7 +506,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 		env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envId, chartRefData.LatestEnvChartRef)
 		if err != nil {
 			handler.logger.Errorw("service err, GetEnvironmentProperties in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return nil, true
 		}
 		chartRefId = chartRefData.LatestEnvChartRef
@@ -529,7 +530,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(w http.R
 		err = json.Unmarshal([]byte(deploymentTemplateRaw), &deploymentTemplateObj)
 		if err != nil {
 			handler.logger.Errorw("service err, un-marshaling fail in deploymentTemplate", "err", err, "appId", appId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return nil, true
 		}
 	}
@@ -551,7 +552,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 	workflowsList, err := handler.appWorkflowService.FindAppWorkflows(appId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching workflows for app in GetAppAllDetail", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
@@ -568,14 +569,14 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 				ciPipeline, err := handler.pipelineBuilder.GetCiPipelineById(workflowMappingDto.ComponentId)
 				if err != nil {
 					handler.logger.Errorw("service err, GetCiPipelineById in GetAppAllDetail", "err", err, "appId", appId)
-					writeJsonResp(w, err, nil, http.StatusInternalServerError)
+					common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, true
 				}
 
 				ciPipelineResp, err := handler.validateAndBuildCiPipelineResp(appId, ciPipeline)
 				if err != nil {
 					handler.logger.Errorw("service err, validateAndBuildCiPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
-					writeJsonResp(w, err, nil, http.StatusInternalServerError)
+					common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, true
 				}
 				workflowResp.CiPipeline = ciPipelineResp
@@ -585,14 +586,14 @@ func (handler AppRestHandlerImpl) validateAndBuildAppWorkflows(w http.ResponseWr
 				cdPipeline, err := handler.pipelineBuilder.GetCdPipelineById(workflowMappingDto.ComponentId)
 				if err != nil {
 					handler.logger.Errorw("service err, GetCdPipelineById in GetAppAllDetail", "err", err, "appId", appId)
-					writeJsonResp(w, err, nil, http.StatusInternalServerError)
+					common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, true
 				}
 
 				cdPipelineResp, err := handler.validateAndBuildCdPipelineResp(appId, cdPipeline)
 				if err != nil {
 					handler.logger.Errorw("service err, validateAndBuildCdPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
-					writeJsonResp(w, err, nil, http.StatusInternalServerError)
+					common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, true
 				}
 				cdPipelinesResp = append(cdPipelinesResp, cdPipelineResp)
@@ -747,7 +748,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppGlobalConfigMaps(w http.Res
 	configMapData, err := handler.configMapService.CMGlobalFetch(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, CMGlobalFetch in GetAppAllDetail", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
@@ -761,7 +762,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppEnvironmentConfigMaps(w htt
 	configMapData, err := handler.configMapService.CMEnvironmentFetch(appId, envId)
 	if err != nil {
 		handler.logger.Errorw("service err, CMGlobalFetch in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
@@ -790,7 +791,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppConfigMaps(w http.ResponseW
 				err := json.Unmarshal([]byte(data), &dataObj)
 				if err != nil {
 					handler.logger.Errorw("service err, un-marshaling of data fail in config map", "err", err, "appId", appId)
-					writeJsonResp(w, err, nil, http.StatusInternalServerError)
+					common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, true
 				}
 			}
@@ -825,7 +826,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppGlobalSecrets(w http.Respon
 	secretData, err := handler.configMapService.CSGlobalFetch(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, CSGlobalFetch in GetAppAllDetail", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
@@ -836,14 +837,14 @@ func (handler AppRestHandlerImpl) validateAndBuildAppGlobalSecrets(w http.Respon
 			secretDataWithData, err := handler.configMapService.CSGlobalFetchForEdit(secretConfig.Name, secretData.Id)
 			if err != nil {
 				handler.logger.Errorw("service err, CSGlobalFetch-CSGlobalFetchForEdit in GetAppAllDetail", "err", err, "appId", appId)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return nil, true
 			}
 
 			secretRes, err := handler.validateAndBuildAppSecrets(w, appId, 0, secretDataWithData)
 			if err != nil {
 				handler.logger.Errorw("service err, CSGlobalFetch-validateAndBuildAppSecrets in GetAppAllDetail", "err", err, "appId", appId)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return nil, true
 			}
 
@@ -863,7 +864,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppEnvironmentSecrets(w http.R
 	secretData, err := handler.configMapService.CSEnvironmentFetch(appId, envId)
 	if err != nil {
 		handler.logger.Errorw("service err, CSEnvironmentFetch in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
@@ -874,7 +875,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppEnvironmentSecrets(w http.R
 			secretDataWithData, err := handler.configMapService.CSEnvironmentFetchForEdit(secretConfig.Name, secretData.Id, appId, envId)
 			if err != nil {
 				handler.logger.Errorw("service err, CSEnvironmentFetchForEdit in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return nil, true
 			}
 			secretDataWithData.ConfigData[0].DefaultData = secretConfig.DefaultData
@@ -882,7 +883,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppEnvironmentSecrets(w http.R
 			secretRes, err := handler.validateAndBuildAppSecrets(w, appId, envId, secretDataWithData)
 			if err != nil {
 				handler.logger.Errorw("service err, CSGlobalFetch-validateAndBuildAppSecrets in GetAppAllDetail", "err", err, "appId", appId)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return nil, true
 			}
 
@@ -919,7 +920,7 @@ func (handler AppRestHandlerImpl) validateAndBuildAppSecrets(w http.ResponseWrit
 				err := json.Unmarshal([]byte(data), &dataObj)
 				if err != nil {
 					handler.logger.Errorw("service err, un-marshaling of data fail in secret", "err", err, "appId", appId)
-					writeJsonResp(w, err, nil, http.StatusInternalServerError)
+					common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 					return nil, err
 				}
 			}
@@ -967,7 +968,7 @@ func (handler AppRestHandlerImpl) validateAndBuildEnvironmentOverrides(w http.Re
 	appEnvironments, err := handler.appListingService.FetchOtherEnvironment(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, Fetch app environments in GetAppAllDetail", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
@@ -981,7 +982,7 @@ func (handler AppRestHandlerImpl) validateAndBuildEnvironmentOverrides(w http.Re
 			object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
 			if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
 				handler.logger.Errorw("Unauthorized User for env update action", "err", err, "appId", appId, "envId", envId)
-				writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 				return nil, true
 			}
 			//RBAC end
@@ -1023,14 +1024,14 @@ func (handler AppRestHandlerImpl) createBlankApp(w http.ResponseWriter, appMetad
 	err := handler.validator.Struct(appMetadata)
 	if err != nil {
 		handler.logger.Errorw("validation err, AppMetadata in create app by API", "err", err, "AppMetadata", appMetadata)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, true
 	}
 
 	team, err := handler.teamService.FindByTeamName(appMetadata.ProjectName)
 	if err != nil {
 		handler.logger.Infow("no project found by name in CreateApp request by API")
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, true
 	}
 
@@ -1055,7 +1056,7 @@ func (handler AppRestHandlerImpl) createBlankApp(w http.ResponseWriter, appMetad
 	createAppResp, err := handler.pipelineBuilder.CreateApp(createAppRequestDTO)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateApp in CreateBlankApp", "err", err, "CreateApp", createAppRequestDTO)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return nil, true
 	}
 
@@ -1070,7 +1071,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 	workflowsList, err := handler.appWorkflowService.FindAppWorkflows(appId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching workflows for app in DeleteApp", "err", err)
-		writeJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 		return
 	}
 
@@ -1081,7 +1082,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 		cdPipelines, err := handler.pipelineBuilder.GetCdPipelinesForApp(appId)
 		if err != nil {
 			handler.logger.Errorw("service err, GetCdPipelines in DeleteApp", "err", err, "appId", appId)
-			writeJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 			return
 		}
 
@@ -1096,7 +1097,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 			_, err = handler.pipelineBuilder.PatchCdPipelines(cdPipelineDeleteRequest, ctx)
 			if err != nil {
 				handler.logger.Errorw("err in deleting cd pipeline in DeleteApp", "err", err, "payload", cdPipelineDeleteRequest)
-				writeJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -1106,7 +1107,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 		ciPipelines, err := handler.pipelineBuilder.GetCiPipeline(appId)
 		if err != nil {
 			handler.logger.Errorw("service err, GetCiPipelines in DeleteApp", "err", err, "appId", appId)
-			writeJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 			return
 		}
 		for _, ciPipeline := range ciPipelines.CiPipelines {
@@ -1119,7 +1120,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 			_, err := handler.pipelineBuilder.PatchCiPipeline(ciPipelineDeleteRequest)
 			if err != nil {
 				handler.logger.Errorw("err in deleting ci pipeline in DeleteApp", "err", err, "payload", ciPipelineDeleteRequest)
-				writeJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -1130,7 +1131,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 			err = handler.appWorkflowService.DeleteAppWorkflow(appId, workflow.Id, userId)
 			if err != nil {
 				handler.logger.Errorw("service err, DeleteAppWorkflow ")
-				writeJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -1141,7 +1142,7 @@ func (handler AppRestHandlerImpl) deleteApp(w http.ResponseWriter, ctx context.C
 	err = handler.pipelineBuilder.DeleteApp(appId, userId)
 	if err != nil {
 		handler.logger.Errorw("service error, DeleteApp", "err", err, "appId", appId)
-		writeJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
 		return
 	}
 }
@@ -1159,7 +1160,7 @@ func (handler AppRestHandlerImpl) createGitMaterials(w http.ResponseWriter, appI
 		err := handler.validator.Struct(material)
 		if err != nil {
 			handler.logger.Errorw("validation err, gitMaterial in CreateGitMaterials", "err", err, "GitMaterial", material)
-			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return true
 		}
 
@@ -1167,20 +1168,20 @@ func (handler AppRestHandlerImpl) createGitMaterials(w http.ResponseWriter, appI
 		gitProvider, err := handler.gitProviderRepo.FindByUrl(material.GitProviderUrl)
 		if err != nil {
 			handler.logger.Errorw("service err, FindByUrl in CreateGitMaterials", "err", err, "gitProviderUrl", material.GitProviderUrl)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 
 		//validating git material by git provider auth mode
 		var hasPrefixResult bool
 		if gitProvider.AuthMode == repository.AUTH_MODE_SSH {
-			hasPrefixResult = strings.HasPrefix(material.GitRepoUrl, SSH_URL_PREFIX)
+			hasPrefixResult = strings.HasPrefix(material.GitRepoUrl, app2.SSH_URL_PREFIX)
 		} else {
-			hasPrefixResult = strings.HasPrefix(material.GitRepoUrl, HTTPS_URL_PREFIX)
+			hasPrefixResult = strings.HasPrefix(material.GitRepoUrl, app2.HTTPS_URL_PREFIX)
 		}
 		if !hasPrefixResult {
 			handler.logger.Errorw("validation err, CreateGitMaterials : invalid git material url", "err", err, "gitMaterialUrl", material.GitRepoUrl)
-			writeJsonResp(w, fmt.Errorf("validation for url failed"), nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, fmt.Errorf("validation for url failed"), nil, http.StatusBadRequest)
 			return true
 		}
 
@@ -1197,7 +1198,7 @@ func (handler AppRestHandlerImpl) createGitMaterials(w http.ResponseWriter, appI
 	_, err := handler.pipelineBuilder.CreateMaterialsForApp(createMaterialRequestDto)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateMaterialsForApp in CreateGitMaterials", "err", err, "CreateMaterial", createMaterialRequestDto)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
 
@@ -1219,7 +1220,7 @@ func (handler AppRestHandlerImpl) createDockerConfig(w http.ResponseWriter, appI
 	gitMaterial, err := handler.materialRepository.FindByAppIdAndCheckoutPath(appId, dockerConfig.BuildConfig.GitCheckoutPath)
 	if err != nil {
 		handler.logger.Errorw("service err, FindByAppIdAndCheckoutPath in CreateDockerConfig", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
 
@@ -1238,7 +1239,7 @@ func (handler AppRestHandlerImpl) createDockerConfig(w http.ResponseWriter, appI
 	_, err = handler.pipelineBuilder.CreateCiPipeline(createDockerConfigRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateCiPipeline in CreateDockerConfig", "err", err, "createRequest", createDockerConfigRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
 
@@ -1260,7 +1261,7 @@ func (handler AppRestHandlerImpl) createDeploymentTemplate(w http.ResponseWriter
 	template, err := json.Marshal(deploymentTemplate.Template)
 	if err != nil {
 		handler.logger.Errorw("service err, could not json marshal template in CreateDeploymentTemplate", "err", err, "appId", appId, "template", deploymentTemplate.Template)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
 	templateRequest := json.RawMessage(template)
@@ -1270,7 +1271,7 @@ func (handler AppRestHandlerImpl) createDeploymentTemplate(w http.ResponseWriter
 	_, err = handler.chartService.Create(createDeploymentTemplateRequest, ctx)
 	if err != nil {
 		handler.logger.Errorw("service err, Create in CreateDeploymentTemplate", "err", err, "createRequest", createDeploymentTemplateRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
 
@@ -1283,7 +1284,7 @@ func (handler AppRestHandlerImpl) createDeploymentTemplate(w http.ResponseWriter
 	_, err = handler.chartService.AppMetricsEnableDisable(appMetricsRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, AppMetricsEnableDisable in createDeploymentTemplate", "err", err, "appId", appId, "payload", appMetricsRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
 
@@ -1302,7 +1303,7 @@ func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, 
 			appLevel, err := handler.configMapRepository.GetByAppIdAppLevel(appId)
 			if err != nil && err != pg.ErrNoRows {
 				handler.logger.Errorw("error in getting app level by app id in createGlobalConfigMaps", "appId", appId)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return true
 			}
 
@@ -1315,7 +1316,7 @@ func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, 
 		configMapKeyValueData, err := json.Marshal(configMap.Data)
 		if err != nil {
 			handler.logger.Errorw("service err, could not json marshal configMap data in CreateGlobalConfigMap", "err", err, "appId", appId, "configMapData", configMap.Data)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 
@@ -1346,7 +1347,7 @@ func (handler AppRestHandlerImpl) createGlobalConfigMaps(w http.ResponseWriter, 
 		_, err = handler.configMapService.CMGlobalAddUpdate(configMapRequest)
 		if err != nil {
 			handler.logger.Errorw("service err, CMGlobalAddUpdate in CreateGlobalConfigMap", "err", err, "appId", appId, "configMapRequest", configMapRequest)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 	}
@@ -1366,7 +1367,7 @@ func (handler AppRestHandlerImpl) createGlobalSecrets(w http.ResponseWriter, app
 			appLevel, err := handler.configMapRepository.GetByAppIdAppLevel(appId)
 			if err != nil && err != pg.ErrNoRows {
 				handler.logger.Errorw("error in getting app level by app id in createGlobalSecrets", "appId", appId)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return true
 			}
 
@@ -1407,7 +1408,7 @@ func (handler AppRestHandlerImpl) createGlobalSecrets(w http.ResponseWriter, app
 			secretKeyValueData, err := json.Marshal(secret.Data)
 			if err != nil {
 				handler.logger.Errorw("service err, could not json marshal secret data in CreateGlobalSecret", "err", err, "appId", appId)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return true
 			}
 			secretData.Data = secretKeyValueData
@@ -1426,7 +1427,7 @@ func (handler AppRestHandlerImpl) createGlobalSecrets(w http.ResponseWriter, app
 		_, err := handler.configMapService.CSGlobalAddUpdate(secretRequest)
 		if err != nil {
 			handler.logger.Errorw("service err, CSGlobalAddUpdate in CreateGlobalSecret", "err", err, "appId", appId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 	}
@@ -1442,7 +1443,7 @@ func (handler AppRestHandlerImpl) createWorkflows(w http.ResponseWriter, ctx con
 		workflowId, err := handler.createWorkflowInDb(workflow.Name, appId, userId)
 		if err != nil {
 			handler.logger.Errorw("err in saving new workflow", err, "appId", appId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 		//Creating workflow ends
@@ -1451,7 +1452,7 @@ func (handler AppRestHandlerImpl) createWorkflows(w http.ResponseWriter, ctx con
 		ciPipelineId, err := handler.createCiPipeline(appId, userId, workflowId, workflow.CiPipeline)
 		if err != nil {
 			handler.logger.Errorw("err in saving ci pipelines", err, "appId", appId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 		//Creating CI pipeline ends
@@ -1460,7 +1461,7 @@ func (handler AppRestHandlerImpl) createWorkflows(w http.ResponseWriter, ctx con
 		err = handler.createCdPipelines(ctx, appId, userId, workflowId, ciPipelineId, workflow.CdPipelines, token, appName)
 		if err != nil {
 			handler.logger.Errorw("err in saving cd pipelines", err, "appId", appId)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 		//Creating CD pipeline ends
@@ -1631,21 +1632,21 @@ func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx 
 
 		if err != nil {
 			handler.logger.Errorw("err in fetching environment details by name in CreateEnvOverrides", "appId", appId, "envName", envName)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 
 		if envModel == nil {
 			err = errors.New("environment not found for name " + envName)
 			handler.logger.Errorw("environment not found for name", "envName", envName)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 
 		// RBAC starts
 		object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envModel.Id)
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return true
 		}
 		// RBAC ends
@@ -1658,7 +1659,7 @@ func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx 
 			err := handler.createEnvDeploymentTemplate(appId, userId, envModel.Id, envOverrideValues.DeploymentTemplate)
 			if err != nil {
 				handler.logger.Errorw("err in creating deployment template for env override", "appId", appId, "envName", envName)
-				writeJsonResp(w, err, nil, http.StatusInternalServerError)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return true
 			}
 		}
@@ -1667,7 +1668,7 @@ func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx 
 		err = handler.createEnvCM(appId, userId, envId, envOverrideValues.ConfigMaps)
 		if err != nil {
 			handler.logger.Errorw("err in creating config map for env override", "appId", appId, "envName", envName)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 
@@ -1675,7 +1676,7 @@ func (handler AppRestHandlerImpl) createEnvOverrides(w http.ResponseWriter, ctx 
 		err = handler.createEnvSecret(appId, userId, envModel.Id, envOverrideValues.Secrets)
 		if err != nil {
 			handler.logger.Errorw("err in creating secret for env override", "appId", appId, "envName", envName)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return true
 		}
 
