@@ -60,11 +60,10 @@ func validateAndBuildResourcesAssignment(dat map[string]interface{}, validationK
 
 func MemoryToNumber(memory string) (float64, error) {
 	if memoryParser == nil {
-		pattern := MemoryRegex
-		re, _ := regexp.Compile(pattern)
+		re, _ := regexp.Compile(MemoryRegex)
 		memoryParser = &resourceParser{
 			name:    "memory",
-			pattern: pattern,
+			pattern: MemoryRegex,
 			regex:   re,
 			conversions: map[string]float64{
 				"E":  float64(1000000000000000000),
@@ -86,11 +85,10 @@ func MemoryToNumber(memory string) (float64, error) {
 }
 func CpuToNumber(cpu string) (float64, error) {
 	if cpuParser == nil {
-		pattern := CpuRegex
-		re, _ := regexp.Compile(pattern)
+		re, _ := regexp.Compile(CpuRegex)
 		cpuParser = &resourceParser{
 			name:    "cpu",
-			pattern: pattern,
+			pattern: CpuRegex,
 			regex:   re,
 			conversions: map[string]float64{
 				"m": .001,

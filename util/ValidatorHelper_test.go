@@ -59,6 +59,18 @@ func TestCompareLimitsRequests(t *testing.T) {
 			want: false,
 			wantErr: true,
 		},
+		{
+			name: "negative test cases - 1",
+			args: args{dat: map[string]interface{}{resources: map[string]interface{}{limits: map[string]interface{}{cpu: "0.1.0", memory: "10Mi" }, requests: map[string]interface{}{cpu: "111.0.1m", memory: "15Gi" }}}},
+			want: false,
+			wantErr: true,
+		},
+		{
+			name: "negative test cases - 2",
+			args: args{dat: map[string]interface{}{resources: map[string]interface{}{limits: map[string]interface{}{cpu: "-0.10", memory: "10Mi" }, requests: map[string]interface{}{cpu: "111m", memory: "15Gi" }}}},
+			want: false,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
