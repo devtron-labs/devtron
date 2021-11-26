@@ -33,17 +33,20 @@
 <a href="https://github.com/devtron-labs/devtron"><img src="https://github-readme-stats-one-bice.vercel.app/api?username=Abhinav-26&show_icons=true&include_all_commits=true&count_private=true&role=OWNER,ORGANIZATION_MEMBER,COLLABORATOR" alt="Devtron's GitHub stats"></a>
 </p>-->
 
+<p align="center">
+<a href="https://devtron.ai/support.html">🔥 Want to accelerate K8s adoption? Our core team would love to help 30 companies do it the Devtron way! 🔥 Apply Now 👋</a></p>
 
 ## :book: Menu
 
 - [Devtron?](https://github.com/devtron-labs/devtron#bulb-devtron)
 - [Features](https://github.com/devtron-labs/devtron#tada-features)
+- [Trusted By](https://github.com/devtron-labs/devtron#muscle-Trusted-By)
+- [Architecture] (https://github.com/devtron-labs/devtron#globe_with_meridians-Architecture)
 - [Getting Started](https://github.com/devtron-labs/devtron#rocket-getting-started)
 - [Documentation](https://docs.devtron.ai/)
 - [Videos](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
-- [Trusted By](https://github.com/devtron-labs/devtron#muscle-Trusted-By)
 - [Love what you see!](https://github.com/devtron-labs/devtron#sparkling_heart-love-what-you-see)
 - [FAQ & Troubleshooting](https://github.com/devtron-labs/devtron#question-faq--troubleshooting)
 - [Contribute](https://github.com/devtron-labs/devtron#handshake-contribute)
@@ -127,6 +130,15 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
 
 </details>
 
+## :muscle: Trusted By
+Devtron has been trusted by the Enterprises and community all across the globe.
+
+- [Delhivery:](https://www.delhivery.com/) Delhivery Limited is one the largest and most profitable logistics company in India
+- [BharatPe:](https://bharatpe.com/) Bharatpe is a business utility app to accept payments transactions in settlements.
+- [Livspace:](https://www.livspace.com/in) Livspace is one-stop shop for all things home interiors and renovation services.
+- [Moglix:](https://www.moglix.com/) It is an Asia-based B2B commerce company intensively inclined towards B2B procurement of industrial supplies
+- [Xoxoday:](https://www.xoxoday.com/) Xoxoday helps to send rewards, perks & incentives to employees, customers and partners.<br>
+
 ## :globe_with_meridians: Architecture:
 <br>
 <img src="./assets/Architecture.jpg">
@@ -201,10 +213,6 @@ Get updates on Devtron's development and chat with the project maintainers, cont
     >
 </a>
  </p>
-
-## :muscle: Trusted By
-<br>
-<p align="center"><img width="960" height="300" src="./assets/trusted-by.jpg"></p>
 
 ## :sparkling_heart: Love What You See!
 
