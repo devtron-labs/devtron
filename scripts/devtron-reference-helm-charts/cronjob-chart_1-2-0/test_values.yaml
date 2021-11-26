@@ -1,6 +1,16 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+kind: Cronjob
+
+jobConfigs:
+  backoffLimit: 5
+  activeDeadlineSeconds: 100
+  parallelism: 1
+  completions: 2
+  suspend: false
+  ttlSecondsAfterFinished: 100
+
 cronjobConfigs:
   schedule: "* * * * *"
   startingDeadlineSeconds: 100

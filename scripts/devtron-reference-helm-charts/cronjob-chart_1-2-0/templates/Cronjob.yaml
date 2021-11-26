@@ -24,8 +24,9 @@
   {{- end }}
   {{- end }}
 
+{{ if eq .Values.kind "Cronjob" }}
 apiVersion: batch/v1beta1
-kind: CronJob
+kind: {{ $.Values.kind }}
 metadata:
   name: {{ include ".Chart.Name .fullname" $ }}
   labels:
@@ -347,3 +348,4 @@ spec:
           {{- end }}
           {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) (eq (.Values.appMetrics) false) }} []{{- end }}
           {{- if and (eq (len .Values.volumes) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) (eq (.Values.appMetrics) false) }} []{{- end }}
+{{ end }}
