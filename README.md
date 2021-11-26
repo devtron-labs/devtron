@@ -134,7 +134,7 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
 ### :blue_heart: We Support:
 In addition to the features, we love supporting platforms that devs find easy to work with.
 <br>
-<p align="center"><img width="960" height="300" src="./assets/we-support.jpg"></p>
+<p align="center"><img src="./assets/we-support.jpg"></p>
 
 ## :rocket: Getting Started
 
@@ -204,7 +204,7 @@ Get updates on Devtron's development and chat with the project maintainers, cont
 
 ## :muscle: Trusted By
 <br>
-<p align="center"><img width="960" height="300" src="./assets/trusted-by.jpg"></p>
+<p align="center"><img src="./assets/trusted-by.jpg"></p>
 
 ## :sparkling_heart: Love What You See!
 
