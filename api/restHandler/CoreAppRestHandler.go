@@ -118,18 +118,6 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	return handler
 }
 
-func ExtractErrorType(err error) int {
-	switch err.(type) {
-	case *util2.InternalServerError:
-		return http.StatusInternalServerError
-	case *util2.ForbiddenError:
-		return http.StatusForbidden
-	case *util2.BadRequestError:
-		return http.StatusBadRequest
-	default:
-		return 0
-	}
-}
 func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -1984,25 +1972,16 @@ func convertCdDeploymentStrategies(deploymentStrategies []*appBean.DeploymentStr
 	return convertedStrategies, nil
 }
 
-func buildEnvTemplateOverrideRequest(templateOverride *appBean.DeploymentTemplate, envModel *cluster.Environment, envProperties *pipeline.EnvironmentPropertiesResponse, userId int32) (*pipeline.EnvironmentProperties, error) {
-	template, err := json.Marshal(templateOverride.Template)
-	if err != nil {
-		return nil, err
+func ExtractErrorType(err error) int {
+	switch err.(type) {
+	case *util2.InternalServerError:
+		return http.StatusInternalServerError
+	case *util2.ForbiddenError:
+		return http.StatusForbidden
+	case *util2.BadRequestError:
+		return http.StatusBadRequest
+	default:
+		//TODO : ask and update response for this case
+		return 0
 	}
-	envTemplateOverrideRequest := &pipeline.EnvironmentProperties{
-		ChartRefId:        templateOverride.ChartRefId,
-		AppMetrics:        &templateOverride.ShowAppMetrics,
-		EnvOverrideValues: template,
-		EnvironmentId:     envModel.Id,
-		EnvironmentName:   envModel.Name,
-		Id:                envProperties.EnvironmentConfig.Id,
-		Namespace:         envModel.Namespace,
-		Status:            models.CHARTSTATUS_NEW,
-		ManualReviewed:    envProperties.EnvironmentConfig.ManualReviewed,
-		Active:            true,
-		IsOverride:        true,
-		UserId:            userId,
-		Latest:            true,
-	}
-	return envTemplateOverrideRequest, nil
 }
