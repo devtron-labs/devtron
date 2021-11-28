@@ -20,6 +20,7 @@ package router
 import (
 	"fmt"
 	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/dex"
@@ -83,14 +84,28 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandle
 }
 
 func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) {
+	dexServerAddress := fmt.Sprintf("%s:%s", "http://127.0.0.1", "5556")
+	settings := &oidc.Settings{
+		URL: "https://127.0.0.1:8000/",
+		OIDCConfig: oidc.OIDCConfig{CLIClientID: "argo-cd",
+			ClientSecret: "RmCryx_nTtzUcKzp0Vg0Uh4XsyM3YBdagWMgzmNJ",
+			Issuer:       "https://127.0.0.1:8000/api/dex"},
+	}
+	oidcClient, dexProxy, err := oidc.GetOidcClient(dexServerAddress, settings)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	//sesionManager := middleware.NewSessionManager(settings, dexServerAddress)
+
 	userAuthRouter.Path("/").
 		HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			router.writeSuccess("Welcome @Devtron", writer)
 		}).Methods("GET")
 
-	userAuthRouter.PathPrefix("/api/dex").HandlerFunc(router.dexProxy)
-	userAuthRouter.Path("/login").HandlerFunc(router.cdProxy)
-	userAuthRouter.Path("/auth/login").HandlerFunc(router.cdProxy)
+	userAuthRouter.PathPrefix("/api/dex").HandlerFunc(dexProxy)
+	userAuthRouter.Path("/login").HandlerFunc(oidcClient.HandleLogin)
+	userAuthRouter.Path("/auth/login").HandlerFunc(oidcClient.HandleCallback)
 	userAuthRouter.PathPrefix("/auth/callback").HandlerFunc(router.cdProxy)
 
 	userAuthRouter.Path("/api/v1/session").HandlerFunc(router.userAuthHandler.LoginHandler)
