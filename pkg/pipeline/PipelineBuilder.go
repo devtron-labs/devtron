@@ -972,6 +972,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines,
 		argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
 		_, err = impl.application.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName})
 		appStatus, _ := status.FromError(err)
+		//TODO: check deletionTimeStamp to confirm its being deleted
 		if appStatus.Code() == codes.OK {
 			impl.logger.Infow("argo app already exists", "app", argoAppName, "pipeline", pipeline.Name)
 			return nil, fmt.Errorf("argo app already exists, or delete in progress for previous pipeline")
@@ -1153,6 +1154,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 		ChartLocation:  chart.ChartLocation,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
 	}
+	//FIXME: why only bitbucket?
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {
 		if err == pg.ErrNoRows {
@@ -1162,6 +1164,8 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 			return 0, err
 		}
 	}
+	//TODO: other providers dont need this workspaceId
+	//FIXME: change method signature
 	_, err = impl.GitFactory.Client.CommitValues(chartGitAttr, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
@@ -1177,7 +1181,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 	impl.logger.Debugw("argocd application created", "name", name)
 
 	// Get pipeline override based on Deployment strategy
-	//TODO mark as created in our db
+	//TODO: mark as created in our db
 	pipelineId, err := impl.dbPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userID, tx)
 	if err != nil {
 		impl.logger.Errorw("error in ")
@@ -1212,6 +1216,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 			defaultCount = defaultCount + 1
 			if defaultCount > 1 {
 				impl.logger.Warnw("already have one strategy is default in this pipeline, skip this", "strategy", item.DeploymentTemplate)
+				//FIXME: this should not be skipped but inserted with default false
 				continue
 			}
 		}
@@ -1429,6 +1434,7 @@ func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context
 	impl.logger.Infow("testing cd pipeline acd check", "appStatus", appStatus)
 
 	// if no error found it means argo app already exists
+	//FIXME: check different from pipelinebuilder line 976
 	if err == nil && appResponse != nil {
 		impl.logger.Infow("argo app already exists", "app", argoAppName, "pipeline", pipeline.Name)
 		return argoAppName, nil
