@@ -26,6 +26,8 @@ import (
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"google.golang.org/appengine"
+
 	//bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -52,7 +54,7 @@ import (
 )
 
 const (
-	APP_DELETE_FAILED_RESP     = "App deletion failed, please try deleting from Devtron UI."
+	APP_DELETE_FAILED_RESP     = "App deletion failed, please try deleting from Devtron UI"
 	APP_CREATE_SUCCESSFUL_RESP = "App created successfully."
 )
 
@@ -147,7 +149,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	handler.logger.Debugw("Getting app detail v2", "appId", appId)
 
 	//get/build app metadata starts
-	appMetadataResp, err := handler.validateAndBuildAppMetadata(appId)
+	appMetadataResp, err := handler.buildAppMetadata(appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
 		return
@@ -155,7 +157,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build app metadata ends
 
 	//get/build git materials starts
-	gitMaterialsResp, err := handler.validateAndBuildAppGitMaterials(appId)
+	gitMaterialsResp, err := handler.buildAppGitMaterials(appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
 		return
@@ -163,7 +165,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build git materials ends
 
 	//get/build docker config starts
-	dockerConfig, err := handler.validateAndBuildDockerConfig(appId)
+	dockerConfig, err := handler.buildDockerConfig(appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
 		return
@@ -171,7 +173,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build docker config ends
 
 	//get/build global deployment template starts
-	globalDeploymentTemplateResp, err := handler.validateAndBuildAppDeploymentTemplate(appId, 0)
+	globalDeploymentTemplateResp, err := handler.buildAppDeploymentTemplate(appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
 		return
@@ -179,7 +181,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build global deployment template ends
 
 	//get/build app workflows starts
-	appWorkflows, err := handler.validateAndBuildAppWorkflows(appId)
+	appWorkflows, err := handler.buildAppWorkflows(appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
 		return
@@ -187,7 +189,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build app workflows ends
 
 	//get/build global config maps starts
-	globalConfigMapsResp, err := handler.validateAndBuildAppGlobalConfigMaps(appId)
+	globalConfigMapsResp, err := handler.buildAppGlobalConfigMaps(appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
 		return
@@ -195,7 +197,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build global config maps ends
 
 	//get/build global secrets starts
-	globalSecretsResp, err := handler.validateAndBuildAppGlobalSecrets(appId)
+	globalSecretsResp, err := handler.buildAppGlobalSecrets(appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
 		return
@@ -203,7 +205,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build global secrets ends
 
 	//get/build environment override starts
-	environmentOverrides, err := handler.validateAndBuildEnvironmentOverrides(appId, token)
+	environmentOverrides, err := handler.buildEnvironmentOverrides(appId, token)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
 		return
@@ -285,14 +287,17 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	//declaring appId for creating other components of app
 	appId := createBlankAppResp.Id
 
+	var errResp appengine.MultiError
+
 	// rbac after create blank app
 	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceObject); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		errResp = append(errResp, fmt.Errorf("Unauthorized User"))
 		errInAppDelete := handler.deleteApp(ctx, appId, userId)
-		if errInAppDelete!=nil{
-			common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+		if errInAppDelete != nil {
+			errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 		}
+		common.WriteJsonResp(w, errResp, nil, http.StatusForbidden)
 		return
 	}
 	// rbac end
@@ -301,11 +306,12 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.GitMaterials != nil {
 		err = handler.createGitMaterials(appId, createAppRequest.GitMaterials, userId)
 		if err != nil {
-			common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
+			errResp = append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
-			if errInAppDelete!=nil{
-				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+			if errInAppDelete != nil {
+				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
+			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
 		}
 	}
@@ -315,11 +321,12 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.DockerConfig != nil {
 		err = handler.createDockerConfig(appId, createAppRequest.DockerConfig, userId)
 		if err != nil {
-			common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
+			errResp = append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
-			if errInAppDelete!=nil{
-				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+			if errInAppDelete != nil {
+				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
+			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
 		}
 	}
@@ -329,11 +336,12 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.GlobalDeploymentTemplate != nil {
 		err = handler.createDeploymentTemplate(ctx, appId, createAppRequest.GlobalDeploymentTemplate, userId)
 		if err != nil {
-			common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
+			errResp = append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
-			if errInAppDelete!=nil{
-				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+			if errInAppDelete != nil {
+				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
+			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
 		}
 	}
@@ -343,11 +351,12 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.GlobalConfigMaps != nil {
 		err = handler.createGlobalConfigMaps(appId, userId, createAppRequest.GlobalConfigMaps)
 		if err != nil {
-			common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
+			errResp = append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
-			if errInAppDelete!=nil{
-				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+			if errInAppDelete != nil {
+				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
+			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
 		}
 	}
@@ -357,11 +366,12 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.GlobalSecrets != nil {
 		err = handler.createGlobalSecrets(appId, userId, createAppRequest.GlobalSecrets)
 		if err != nil {
-			common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
+			errResp = append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
-			if errInAppDelete!=nil{
-				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+			if errInAppDelete != nil {
+				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
+			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
 		}
 	}
@@ -371,11 +381,12 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.AppWorkflows != nil {
 		err = handler.createWorkflows(ctx, appId, userId, createAppRequest.AppWorkflows, token, createAppRequest.Metadata.AppName)
 		if err != nil {
-			common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
+			errResp = append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
-			if errInAppDelete!=nil{
-				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+			if errInAppDelete != nil {
+				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
+			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
 		}
 	}
@@ -385,11 +396,12 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.EnvironmentOverrides != nil {
 		err = handler.createEnvOverrides(ctx, appId, userId, createAppRequest.EnvironmentOverrides, token)
 		if err != nil {
-			common.WriteJsonResp(w, err, nil, ExtractErrorType(err))
+			errResp = append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
-			if errInAppDelete!=nil{
-				common.WriteJsonResp(w, err, APP_DELETE_FAILED_RESP, http.StatusInternalServerError)
+			if errInAppDelete != nil {
+				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
+			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
 		}
 	}
@@ -401,7 +413,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 //GetApp related methods starts
 
 //get/build app metadata
-func (handler CoreAppRestHandlerImpl) validateAndBuildAppMetadata(appId int) (*appBean.AppMetadata, error) {
+func (handler CoreAppRestHandlerImpl) buildAppMetadata(appId int) (*appBean.AppMetadata, error) {
 	handler.logger.Debugw("Getting app detail - meta data", "appId", appId)
 
 	appMetaInfo, err := handler.appLabelService.GetAppMetaInfo(appId)
@@ -437,7 +449,7 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildAppMetadata(appId int) (*a
 }
 
 //get/build git materials
-func (handler CoreAppRestHandlerImpl) validateAndBuildAppGitMaterials(appId int) ([]*appBean.GitMaterial, error) {
+func (handler CoreAppRestHandlerImpl) buildAppGitMaterials(appId int) ([]*appBean.GitMaterial, error) {
 	handler.logger.Debugw("Getting app detail - git materials", "appId", appId)
 
 	gitMaterials := handler.pipelineBuilder.GetMaterialsForAppId(appId)
@@ -463,7 +475,7 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildAppGitMaterials(appId int)
 }
 
 //get/build docker build config
-func (handler CoreAppRestHandlerImpl) validateAndBuildDockerConfig(appId int) (*appBean.DockerConfig, error) {
+func (handler CoreAppRestHandlerImpl) buildDockerConfig(appId int) (*appBean.DockerConfig, error) {
 	handler.logger.Debugw("Getting app detail - docker build", "appId", appId)
 
 	ciConfig, err := handler.pipelineBuilder.GetCiPipeline(appId)
@@ -499,9 +511,18 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildDockerConfig(appId int) (*
 	return dockerConfig, nil
 }
 
-//get/build deployment template
-func (handler CoreAppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(appId int, envId int) (*appBean.DeploymentTemplate, error) {
-	handler.logger.Debugw("Getting app detail - deployment template", "appId", appId, "envId", envId)
+//get/build global deployment template
+func (handler CoreAppRestHandlerImpl) buildAppDeploymentTemplate(appId int) (*appBean.DeploymentTemplate, error) {
+	handler.logger.Debugw("Getting app detail - deployment template", "appId", appId)
+
+	//for global template, to bypass env overrides using envId = 0
+	return handler.buildAppEnvironmentDeploymentTemplate(appId, 0)
+}
+
+//get/build environment deployment template
+//using this method for global as well, for global pass envId = 0
+func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appId int, envId int) (*appBean.DeploymentTemplate, error) {
+	handler.logger.Debugw("Getting app detail - environment deployment template", "appId", appId, "envId", envId)
 
 	chartRefData, err := handler.chartService.ChartRefAutocompleteForAppOrEnv(appId, envId)
 	if err != nil {
@@ -586,7 +607,7 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildAppDeploymentTemplate(appI
 }
 
 //validate and build workflows
-func (handler CoreAppRestHandlerImpl) validateAndBuildAppWorkflows(appId int) ([]*appBean.AppWorkflow, error) {
+func (handler CoreAppRestHandlerImpl) buildAppWorkflows(appId int) ([]*appBean.AppWorkflow, error) {
 	handler.logger.Debugw("Getting app detail - workflows", "appId", appId)
 
 	workflowsList, err := handler.appWorkflowService.FindAppWorkflows(appId)
@@ -604,35 +625,35 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildAppWorkflows(appId int) ([
 		}
 
 		var cdPipelinesResp []*appBean.CdPipelineDetails
-		for _, workflowMappingDto := range workflow.AppWorkflowMappingDto {
-			if workflowMappingDto.Type == appWorkflow2.CIPIPELINE {
-				ciPipeline, err := handler.pipelineBuilder.GetCiPipelineById(workflowMappingDto.ComponentId)
+		for _, workflowMapping := range workflow.AppWorkflowMappingDto {
+			if workflowMapping.Type == appWorkflow2.CIPIPELINE {
+				ciPipeline, err := handler.pipelineBuilder.GetCiPipelineById(workflowMapping.ComponentId)
 				if err != nil {
 					handler.logger.Errorw("service err, GetCiPipelineById in GetAppAllDetail", "err", err, "appId", appId)
 					errResponse := &util2.InternalServerError{E: err}
 					return nil, errResponse
 				}
 
-				ciPipelineResp, err := handler.validateAndBuildCiPipelineResp(appId, ciPipeline)
+				ciPipelineResp, err := handler.buildCiPipelineResp(appId, ciPipeline)
 				if err != nil {
-					handler.logger.Errorw("service err, validateAndBuildCiPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
+					handler.logger.Errorw("service err, buildCiPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
 					errResponse := &util2.InternalServerError{E: err}
 					return nil, errResponse
 				}
 				workflowResp.CiPipeline = ciPipelineResp
 			}
 
-			if workflowMappingDto.Type == appWorkflow2.CDPIPELINE {
-				cdPipeline, err := handler.pipelineBuilder.GetCdPipelineById(workflowMappingDto.ComponentId)
+			if workflowMapping.Type == appWorkflow2.CDPIPELINE {
+				cdPipeline, err := handler.pipelineBuilder.GetCdPipelineById(workflowMapping.ComponentId)
 				if err != nil {
 					handler.logger.Errorw("service err, GetCdPipelineById in GetAppAllDetail", "err", err, "appId", appId)
 					errResponse := &util2.InternalServerError{E: err}
 					return nil, errResponse
 				}
 
-				cdPipelineResp, err := handler.validateAndBuildCdPipelineResp(appId, cdPipeline)
+				cdPipelineResp, err := handler.buildCdPipelineResp(appId, cdPipeline)
 				if err != nil {
-					handler.logger.Errorw("service err, validateAndBuildCdPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
+					handler.logger.Errorw("service err, buildCdPipelineResp in GetAppAllDetail", "err", err, "appId", appId)
 					errResponse := &util2.InternalServerError{E: err}
 					return nil, errResponse
 				}
@@ -649,7 +670,7 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildAppWorkflows(appId int) ([
 }
 
 //build ci pipeline resp
-func (handler CoreAppRestHandlerImpl) validateAndBuildCiPipelineResp(appId int, ciPipeline *bean.CiPipeline) (*appBean.CiPipelineDetails, error) {
+func (handler CoreAppRestHandlerImpl) buildCiPipelineResp(appId int, ciPipeline *bean.CiPipeline) (*appBean.CiPipelineDetails, error) {
 	handler.logger.Debugw("Getting app detail - build ci pipeline resp", "appId", appId)
 
 	if ciPipeline == nil {
@@ -711,7 +732,7 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildCiPipelineResp(appId int, 
 }
 
 //build cd pipeline resp
-func (handler CoreAppRestHandlerImpl) validateAndBuildCdPipelineResp(appId int, cdPipeline *bean.CDPipelineConfigObject) (*appBean.CdPipelineDetails, error) {
+func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline *bean.CDPipelineConfigObject) (*appBean.CdPipelineDetails, error) {
 	handler.logger.Debugw("Getting app detail - build cd pipeline resp", "appId", appId)
 
 	if cdPipeline == nil {
@@ -782,7 +803,7 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildCdPipelineResp(appId int, 
 }
 
 //get/build global config maps
-func (handler CoreAppRestHandlerImpl) validateAndBuildAppGlobalConfigMaps(appId int) ([]*appBean.ConfigMap, error) {
+func (handler CoreAppRestHandlerImpl) buildAppGlobalConfigMaps(appId int) ([]*appBean.ConfigMap, error) {
 	handler.logger.Debugw("Getting app detail - global config maps", "appId", appId)
 
 	configMapData, err := handler.configMapService.CMGlobalFetch(appId)
@@ -792,25 +813,25 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildAppGlobalConfigMaps(appId 
 		return nil, errResponse
 	}
 
-	return handler.validateAndBuildAppConfigMaps(appId, 0, configMapData)
+	return handler.buildAppConfigMaps(appId, 0, configMapData)
 }
 
 //get/build environment config maps
-func (handler CoreAppRestHandlerImpl) validateAndBuildAppEnvironmentConfigMaps(appId int, envId int) ([]*appBean.ConfigMap, error) {
+func (handler CoreAppRestHandlerImpl) buildAppEnvironmentConfigMaps(appId int, envId int) ([]*appBean.ConfigMap, error) {
 	handler.logger.Debugw("Getting app detail - environment config maps", "appId", appId, "envId", envId)
 
 	configMapData, err := handler.configMapService.CMEnvironmentFetch(appId, envId)
 	if err != nil {
-		handler.logger.Errorw("service err, CMGlobalFetch in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
+		handler.logger.Errorw("service err, CMEnvironmentFetch in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
 		errResponse := &util2.InternalServerError{E: err}
 		return nil, errResponse
 	}
 
-	return handler.validateAndBuildAppConfigMaps(appId, envId, configMapData)
+	return handler.buildAppConfigMaps(appId, envId, configMapData)
 }
 
 //get/build config maps
-func (handler CoreAppRestHandlerImpl) validateAndBuildAppConfigMaps(appId int, envId int, configMapData *pipeline.ConfigDataRequest) ([]*appBean.ConfigMap, error) {
+func (handler CoreAppRestHandlerImpl) buildAppConfigMaps(appId int, envId int, configMapData *pipeline.ConfigDataRequest) ([]*appBean.ConfigMap, error) {
 	handler.logger.Debugw("Getting app detail - config maps", "appId", appId, "envId", envId)
 
 	var configMapsResp []*appBean.ConfigMap
@@ -860,7 +881,7 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildAppConfigMaps(appId int, e
 }
 
 //get/build global secrets
-func (handler CoreAppRestHandlerImpl) validateAndBuildAppGlobalSecrets(appId int) ([]*appBean.Secret, error) {
+func (handler CoreAppRestHandlerImpl) buildAppGlobalSecrets(appId int) ([]*appBean.Secret, error) {
 	handler.logger.Debugw("Getting app detail - global secret", "appId", appId)
 
 	secretData, err := handler.configMapService.CSGlobalFetch(appId)
@@ -881,9 +902,9 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildAppGlobalSecrets(appId int
 				return nil, errResponse
 			}
 
-			secretRes, err := handler.validateAndBuildAppSecrets(appId, 0, secretDataWithData)
+			secretRes, err := handler.buildAppSecrets(appId, 0, secretDataWithData)
 			if err != nil {
-				handler.logger.Errorw("service err, CSGlobalFetch-validateAndBuildAppSecrets in GetAppAllDetail", "err", err, "appId", appId)
+				handler.logger.Errorw("service err, CSGlobalFetch-buildAppSecrets in GetAppAllDetail", "err", err, "appId", appId)
 				errResponse := &util2.InternalServerError{E: err}
 				return nil, errResponse
 			}
@@ -898,7 +919,7 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildAppGlobalSecrets(appId int
 }
 
 //get/build environment secrets
-func (handler CoreAppRestHandlerImpl) validateAndBuildAppEnvironmentSecrets(appId int, envId int) ([]*appBean.Secret, error) {
+func (handler CoreAppRestHandlerImpl) buildAppEnvironmentSecrets(appId int, envId int) ([]*appBean.Secret, error) {
 	handler.logger.Debugw("Getting app detail - env secrets", "appId", appId, "envId", envId)
 
 	secretData, err := handler.configMapService.CSEnvironmentFetch(appId, envId)
@@ -920,9 +941,9 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildAppEnvironmentSecrets(appI
 			}
 			secretDataWithData.ConfigData[0].DefaultData = secretConfig.DefaultData
 
-			secretRes, err := handler.validateAndBuildAppSecrets(appId, envId, secretDataWithData)
+			secretRes, err := handler.buildAppSecrets(appId, envId, secretDataWithData)
 			if err != nil {
-				handler.logger.Errorw("service err, CSGlobalFetch-validateAndBuildAppSecrets in GetAppAllDetail", "err", err, "appId", appId)
+				handler.logger.Errorw("service err, CSGlobalFetch-buildAppSecrets in GetAppAllDetail", "err", err, "appId", appId)
 				errResponse := &util2.InternalServerError{E: err}
 				return nil, errResponse
 			}
@@ -937,7 +958,7 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildAppEnvironmentSecrets(appI
 }
 
 //get/build secrets
-func (handler CoreAppRestHandlerImpl) validateAndBuildAppSecrets(appId int, envId int, secretData *pipeline.ConfigDataRequest) ([]*appBean.Secret, error) {
+func (handler CoreAppRestHandlerImpl) buildAppSecrets(appId int, envId int, secretData *pipeline.ConfigDataRequest) ([]*appBean.Secret, error) {
 	handler.logger.Debugw("Getting app detail - secrets", "appId", appId, "envId", envId)
 
 	var secretsResp []*appBean.Secret
@@ -1002,7 +1023,7 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildAppSecrets(appId int, envI
 }
 
 //get/build environment overrides
-func (handler CoreAppRestHandlerImpl) validateAndBuildEnvironmentOverrides(appId int, token string) (map[string]*appBean.EnvironmentOverride, error) {
+func (handler CoreAppRestHandlerImpl) buildEnvironmentOverrides(appId int, token string) (map[string]*appBean.EnvironmentOverride, error) {
 	handler.logger.Debugw("Getting app detail - env override", "appId", appId)
 
 	appEnvironments, err := handler.appListingService.FetchOtherEnvironment(appId)
@@ -1027,17 +1048,17 @@ func (handler CoreAppRestHandlerImpl) validateAndBuildEnvironmentOverrides(appId
 			}
 			//RBAC end
 
-			envDeploymentTemplateResp, err := handler.validateAndBuildAppDeploymentTemplate(appId, envId)
+			envDeploymentTemplateResp, err := handler.buildAppEnvironmentDeploymentTemplate(appId, envId)
 			if err != nil {
 				return nil, err
 			}
 
-			envSecretsResp, err := handler.validateAndBuildAppEnvironmentSecrets(appId, envId)
+			envSecretsResp, err := handler.buildAppEnvironmentSecrets(appId, envId)
 			if err != nil {
 				return nil, err
 			}
 
-			envConfigMapsResp, err := handler.validateAndBuildAppEnvironmentConfigMaps(appId, envId)
+			envConfigMapsResp, err := handler.buildAppEnvironmentConfigMaps(appId, envId)
 			if err != nil {
 				return nil, err
 			}
@@ -1077,7 +1098,7 @@ func (handler CoreAppRestHandlerImpl) createBlankApp(appMetadata *appBean.AppMet
 
 	handler.logger.Infow("Create App - creating blank app with metadata", "appMetadata", appMetadata)
 
-	createAppRequestDTO := &bean.CreateAppDTO{
+	createAppRequest := &bean.CreateAppDTO{
 		AppName: appMetadata.AppName,
 		TeamId:  team.Id,
 		UserId:  userId,
@@ -1091,11 +1112,11 @@ func (handler CoreAppRestHandlerImpl) createBlankApp(appMetadata *appBean.AppMet
 		}
 		appLabels = append(appLabels, appLabel)
 	}
-	createAppRequestDTO.AppLabels = appLabels
+	createAppRequest.AppLabels = appLabels
 
-	createAppResp, err := handler.pipelineBuilder.CreateApp(createAppRequestDTO)
+	createAppResp, err := handler.pipelineBuilder.CreateApp(createAppRequest)
 	if err != nil {
-		handler.logger.Errorw("service err, CreateApp in CreateBlankApp", "err", err, "CreateApp", createAppRequestDTO)
+		handler.logger.Errorw("service err, CreateApp in CreateBlankApp", "err", err, "CreateApp", createAppRequest)
 		errResponse := &util2.InternalServerError{E: err}
 		return nil, errResponse
 	}
@@ -1185,7 +1206,7 @@ func (handler CoreAppRestHandlerImpl) deleteApp(ctx context.Context, appId int, 
 func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials []*appBean.GitMaterial, userId int32) error {
 	handler.logger.Infow("Create App - creating git materials", "appId", appId, "GitMaterials", gitMaterials)
 
-	createMaterialRequestDto := &bean.CreateMaterialDTO{
+	createMaterialRequest := &bean.CreateMaterialDTO{
 		AppId:  appId,
 		UserId: userId,
 	}
@@ -1208,14 +1229,17 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 
 		//validating git material by git provider auth mode
 		var hasPrefixResult bool
+		var expectedUrlPrefix string
 		if gitProvider.AuthMode == repository.AUTH_MODE_SSH {
 			hasPrefixResult = strings.HasPrefix(material.GitRepoUrl, app2.SSH_URL_PREFIX)
+			expectedUrlPrefix = app2.SSH_URL_PREFIX
 		} else {
 			hasPrefixResult = strings.HasPrefix(material.GitRepoUrl, app2.HTTPS_URL_PREFIX)
+			expectedUrlPrefix = app2.HTTPS_URL_PREFIX
 		}
 		if !hasPrefixResult {
 			handler.logger.Errorw("validation err, CreateGitMaterials : invalid git material url", "err", err, "gitMaterialUrl", material.GitRepoUrl)
-			errResponse := &util2.BadRequestError{E: fmt.Errorf("validation for url failed")}
+			errResponse := &util2.BadRequestError{E: fmt.Errorf("validation for url failed, expected url prefix : %s", expectedUrlPrefix)}
 			return errResponse
 		}
 
@@ -1226,12 +1250,12 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 			FetchSubmodules: material.FetchSubmodules,
 		}
 
-		createMaterialRequestDto.Material = append(createMaterialRequestDto.Material, gitMaterialRequest)
+		createMaterialRequest.Material = append(createMaterialRequest.Material, gitMaterialRequest)
 	}
 
-	_, err := handler.pipelineBuilder.CreateMaterialsForApp(createMaterialRequestDto)
+	_, err := handler.pipelineBuilder.CreateMaterialsForApp(createMaterialRequest)
 	if err != nil {
-		handler.logger.Errorw("service err, CreateMaterialsForApp in CreateGitMaterials", "err", err, "CreateMaterial", createMaterialRequestDto)
+		handler.logger.Errorw("service err, CreateMaterialsForApp in CreateGitMaterials", "err", err, "CreateMaterial", createMaterialRequest)
 		errResponse := &util2.InternalServerError{E: err}
 		return errResponse
 	}
