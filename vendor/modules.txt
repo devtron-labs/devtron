@@ -32,8 +32,6 @@ github.com/Pallinder/go-randomdata
 github.com/PuerkitoBio/purell
 # github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578
 github.com/PuerkitoBio/urlesc
-# github.com/ThreeDotsLabs/watermill v1.0.2
-## explicit
 # github.com/argoproj/argo v2.4.1+incompatible
 ## explicit
 github.com/argoproj/argo
@@ -169,7 +167,7 @@ github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/devtron-labs/authenticator v0.0.0-00010101000000-000000000000 => /Users/nishant/go/src/github.com/devtron-labs/authenticator
+# github.com/devtron-labs/authenticator v0.1.0 => github.com/nishant-d/authenticator v0.1.0
 ## explicit
 github.com/devtron-labs/authenticator/oidc
 # github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -468,7 +466,6 @@ github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promauto
 github.com/prometheus/client_golang/prometheus/promhttp
 # github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
-## explicit
 github.com/prometheus/client_model/go
 # github.com/prometheus/common v0.7.0
 ## explicit
@@ -1014,4 +1011,4 @@ xorm.io/builder
 # xorm.io/core v0.7.2
 ## explicit
 xorm.io/core
-# github.com/devtron-labs/authenticator => /Users/nishant/go/src/github.com/devtron-labs/authenticator
+# github.com/devtron-labs/authenticator => github.com/nishant-d/authenticator v0.1.0

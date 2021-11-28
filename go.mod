@@ -8,7 +8,6 @@ require (
 	github.com/Azure/go-autorest/autorest/adal v0.9.13
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/ThreeDotsLabs/watermill v1.0.2 // indirect
 	github.com/argoproj/argo v2.4.1+incompatible
 	github.com/argoproj/argo-cd v1.2.3
 	github.com/argoproj/pkg v0.0.0-20190830164810-036726ef3c78 // indirect
@@ -20,7 +19,7 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/cyphar/filepath-securejoin v0.2.2 // indirect
 	github.com/davecgh/go-spew v1.1.1
-	github.com/devtron-labs/authenticator v0.0.0-00010101000000-000000000000
+	github.com/devtron-labs/authenticator v0.1.0
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/elazarl/goproxy v0.0.0-20210110162100-a92cc753f88e // indirect
 	github.com/emicklei/go-restful v2.11.0+incompatible // indirect
@@ -76,7 +75,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/posthog/posthog-go v0.0.0-20210610161230-cd4408afb35a
 	github.com/prometheus/client_golang v1.1.0
-	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4 // indirect
 	github.com/prometheus/common v0.7.0 // indirect
 	github.com/prometheus/procfs v0.0.5 // indirect
 	github.com/robfig/cron/v3 v3.0.1
@@ -110,7 +108,6 @@ require (
 	k8s.io/utils v0.0.0-20191010214722-8d271d903fe4 // indirect
 	mellium.im/sasl v0.2.1 // indirect
 	xorm.io/core v0.7.2 // indirect
-
 )
 
-replace github.com/devtron-labs/authenticator => /Users/nishant/go/src/github.com/devtron-labs/authenticator
+replace github.com/devtron-labs/authenticator => github.com/nishant-d/authenticator v0.1.0
