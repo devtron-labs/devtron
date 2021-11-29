@@ -679,6 +679,16 @@ func (impl *AppStoreServiceImpl) ValidateAndCreateChartRepo(request *ChartRepoDt
 		return nil, nil, validationResult
 	}
 	chartRepo, err := impl.CreateChartRepo(request)
+	if err==nil{
+		defaultclusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+		if err != nil {
+			return nil, err, validationResult
+		}
+		cfg, err := impl.clusterService.GetClusterConfig(defaultclusterBean)
+		if err != nil {
+			return nil, err, validationResult
+		}
+	}
 	return chartRepo, err, validationResult
 }
 func (impl *AppStoreServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
@@ -687,6 +697,16 @@ func (impl *AppStoreServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDt
 		return nil, nil, validationResult
 	}
 	chartRepo, err := impl.UpdateChartRepo(request)
+	if err==nil{
+		defaultclusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+		if err != nil {
+			return nil, err, validationResult
+		}
+		cfg, err := impl.clusterService.GetClusterConfig(defaultclusterBean)
+		if err != nil {
+			return nil, err, validationResult
+		}
+	}
 	return chartRepo, err, validationResult
 }
 
