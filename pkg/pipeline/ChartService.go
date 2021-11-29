@@ -1084,7 +1084,6 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}
 			return false, err
 		}
 
-
 		return true, nil
 	} else {
 		var stringerror string

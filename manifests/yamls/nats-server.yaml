@@ -81,7 +81,7 @@ spec:
       volumes:
       containers:
       - name: nats-box
-        image: natsio/nats-box:0.7.0
+        image: quay.io/devtron/nats-box:0.7.0
         imagePullPolicy: IfNotPresent
         resources:
           null
@@ -158,7 +158,7 @@ spec:
       terminationGracePeriodSeconds: 120
       containers:
       - name: nats
-        image: nats:2.6.3-alpine
+        image: quay.io/devtron/nats:2.6.3-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -239,7 +239,7 @@ spec:
       #################################
 
       - name: reloader
-        image: natsio/nats-server-config-reloader:0.6.2
+        image: quay.io/devtron/nats-server-config-reloader:0.6.2
         imagePullPolicy: IfNotPresent
         resources:
           null
@@ -263,7 +263,7 @@ spec:
       ##############################
 
       - name: metrics
-        image: natsio/prometheus-nats-exporter:0.9.0
+        image: quay.io/devtron/prometheus-nats-exporter:0.9.0
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -299,7 +299,7 @@ metadata:
 spec:
   containers:
     - name: nats-box
-      image: synadia/nats-box
+      image: quay.io/devtron/nats-box
       env:
         - name: NATS_HOST
           value: devtron-nats

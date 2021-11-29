@@ -10,6 +10,16 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 )
 
+const (
+	CpuRegex    = "(^\\d*\\.?\\d+e?\\d*)(m?)$"
+	MemoryRegex = "(^\\d*\\.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)$"
+)
+
+var (
+	CpuUnitChecker, _    = regexp.Compile(CpuRegex)
+	MemoryUnitChecker, _ = regexp.Compile(MemoryRegex)
+)
+
 type resourceParser struct {
 	name        string
 	pattern     string
@@ -50,11 +60,10 @@ func validateAndBuildResourcesAssignment(dat map[string]interface{}, validationK
 
 func MemoryToNumber(memory string) (float64, error) {
 	if memoryParser == nil {
-		pattern := "([0-9.]+)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)"
-		re, _ := regexp.Compile(pattern)
+		re, _ := regexp.Compile(MemoryRegex)
 		memoryParser = &resourceParser{
 			name:    "memory",
-			pattern: pattern,
+			pattern: MemoryRegex,
 			regex:   re,
 			conversions: map[string]float64{
 				"E":  float64(1000000000000000000),
@@ -75,16 +84,11 @@ func MemoryToNumber(memory string) (float64, error) {
 	return convertResource(memoryParser, memory)
 }
 func CpuToNumber(cpu string) (float64, error) {
-	demo := NoCpuUnitChecker.MatchString(cpu)
-	if demo {
-		return strconv.ParseFloat(cpu, 64)
-	}
 	if cpuParser == nil {
-		pattern := "^([0-9.]+)(m?)"
-		re, _ := regexp.Compile(pattern)
+		re, _ := regexp.Compile(CpuRegex)
 		cpuParser = &resourceParser{
 			name:    "cpu",
-			pattern: pattern,
+			pattern: CpuRegex,
 			regex:   re,
 			conversions: map[string]float64{
 				"m": .001,
@@ -95,6 +99,9 @@ func CpuToNumber(cpu string) (float64, error) {
 }
 func convertResource(rp *resourceParser, resource string) (float64, error) {
 	matches := rp.regex.FindAllStringSubmatch(resource, -1)
+	if len(matches) == 0 {
+		return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
+	}
 	if len(matches[0]) < 2 {
 		return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
 	}
@@ -237,7 +244,7 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 	if dat == nil {
 		return true, nil
 	}
-	if dat["autoscaling"]!=nil {
+	if dat["autoscaling"] != nil {
 		autoScaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
 		if !ok {
 			return true, nil
@@ -245,29 +252,18 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 		if autoScaleEnabled.(bool) {
 			minReplicas, okMin := dat["autoscaling"].(map[string]interface{})["MinReplicas"]
 			maxReplicas, okMax := dat["autoscaling"].(map[string]interface{})["MaxReplicas"]
-			if !okMin || !okMax{
+			if !okMin || !okMax {
 				return false, errors.New("autoscaling.MinReplicas and autoscaling.MaxReplicas are mandatory fields")
 			}
 			// see https://pkg.go.dev/encoding/json#Unmarshal for why conversion to float64 and not int
 			// Bug fix PR https://github.com/devtron-labs/devtron/pull/884
-			if minReplicas.(float64) > maxReplicas.(float64){
+			if minReplicas.(float64) > maxReplicas.(float64) {
 				return false, errors.New("autoscaling.MinReplicas can not be greater than autoscaling.MaxReplicas")
 			}
 		}
 	}
-	return true,nil
+	return true, nil
 }
-
-
-var (
-	CpuUnitChecker, _   = regexp.Compile("^([0-9.]+)m$")
-	NoCpuUnitChecker, _ = regexp.Compile("^([0-9.]+)$")
-	MiChecker, _        = regexp.Compile("^[0-9.]+Mi$")
-	GiChecker, _        = regexp.Compile("^[0-9.]+Gi$")
-	TiChecker, _        = regexp.Compile("^[0-9.]+Ti$")
-	PiChecker, _        = regexp.Compile("^[0-9.]+Pi$")
-	KiChecker, _        = regexp.Compile("^[0-9.]+Ki$")
-)
 
 func (f CpuChecker) IsFormat(input interface{}) bool {
 	if input == nil {
@@ -279,8 +275,6 @@ func (f CpuChecker) IsFormat(input interface{}) bool {
 	}
 
 	if CpuUnitChecker.MatchString(asString) {
-		return true
-	} else if NoCpuUnitChecker.MatchString(asString) {
 		return true
 	} else {
 		return false
@@ -296,15 +290,7 @@ func (f MemoryChecker) IsFormat(input interface{}) bool {
 		return false
 	}
 
-	if MiChecker.MatchString(asString) {
-		return true
-	} else if GiChecker.MatchString(asString) {
-		return true
-	} else if TiChecker.MatchString(asString) {
-		return true
-	} else if PiChecker.MatchString(asString) {
-		return true
-	} else if KiChecker.MatchString(asString) {
+	if MemoryUnitChecker.MatchString(asString) {
 		return true
 	} else {
 		return false
