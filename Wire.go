@@ -21,6 +21,7 @@
 package main
 
 import (
+	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
@@ -703,6 +704,7 @@ func InitializeApp() (*App, error) {
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
+		oidc.DexConfigConfigFromEnv,
 	)
 	return &App{}, nil
 }

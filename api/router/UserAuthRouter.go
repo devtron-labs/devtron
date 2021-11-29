@@ -18,18 +18,13 @@
 package router
 
 import (
-	"fmt"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/api/restHandler"
-	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net"
 	"net/http"
-	"time"
 )
 
 type UserAuthRouter interface {
@@ -41,14 +36,15 @@ type UserAuthRouterImpl struct {
 	userAuthHandler restHandler.UserAuthHandler
 	cdProxy         func(writer http.ResponseWriter, request *http.Request)
 	dexProxy        func(writer http.ResponseWriter, request *http.Request)
+	clientApp       *oidc.ClientApp
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandler.UserAuthHandler, cdCfg *argocdServer.Config, dexCfg *dex.Config, settings *settings.ArgoCDSettings, userService user.UserService) *UserAuthRouterImpl {
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandler.UserAuthHandler, settings *settings.ArgoCDSettings, userService user.UserService, dexConfig *oidc.DexConfig) (*UserAuthRouterImpl, error) {
 	tlsConfig := settings.TLSConfig()
 	if tlsConfig != nil {
 		tlsConfig.InsecureSkipVerify = true
 	}
-	client := &http.Client{
+	/*client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
 			Proxy:           http.ProxyFromEnvironment,
@@ -71,41 +67,33 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandle
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
+	}*/
+	//dexProxy := argocdServer.NewDexHTTPReverseProxy(fmt.Sprintf("%s:%s", dexCfg.Host, dexCfg.Port), dexClient.Transport)
+	//dProxy := argocdServer.NewCDHTTPReverseProxy(fmt.Sprintf("https://%s:%s", cdCfg.Host, cdCfg.Port), client.Transport, userService.GetUserByToken)
+	logger.Infow("auth starting with dex conf", "conf", dexConfig)
+	oidcClient, dexProxy, err := oidc.GetOidcClient(dexConfig)
+	if err != nil {
+		return nil, err
 	}
-	dexProxy := argocdServer.NewDexHTTPReverseProxy(fmt.Sprintf("%s:%s", dexCfg.Host, dexCfg.Port), dexClient.Transport)
-	cdProxy := argocdServer.NewCDHTTPReverseProxy(fmt.Sprintf("https://%s:%s", cdCfg.Host, cdCfg.Port), client.Transport, userService.GetUserByToken)
 	router := &UserAuthRouterImpl{
 		userAuthHandler: userAuthHandler,
-		cdProxy:         cdProxy,
 		dexProxy:        dexProxy,
 		logger:          logger,
+		clientApp:       oidcClient,
 	}
-	return router
+
+	return router, nil
 }
 
 func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) {
-	dexServerAddress := fmt.Sprintf("%s:%s", "http://127.0.0.1", "5556")
-	settings := &oidc.Settings{
-		URL: "https://127.0.0.1:8000/",
-		OIDCConfig: oidc.OIDCConfig{CLIClientID: "argo-cd",
-			ClientSecret: "RmCryx_nTtzUcKzp0Vg0Uh4XsyM3YBdagWMgzmNJ",
-			Issuer:       "https://127.0.0.1:8000/api/dex"},
-	}
-	oidcClient, dexProxy, err := oidc.GetOidcClient(dexServerAddress, settings)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	//sesionManager := middleware.NewSessionManager(settings, dexServerAddress)
-
 	userAuthRouter.Path("/").
 		HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			router.writeSuccess("Welcome @Devtron", writer)
 		}).Methods("GET")
 
-	userAuthRouter.PathPrefix("/api/dex").HandlerFunc(dexProxy)
-	userAuthRouter.Path("/login").HandlerFunc(oidcClient.HandleLogin)
-	userAuthRouter.Path("/auth/login").HandlerFunc(oidcClient.HandleCallback)
+	userAuthRouter.PathPrefix("/api/dex").HandlerFunc(router.dexProxy)
+	userAuthRouter.Path("/login").HandlerFunc(router.clientApp.HandleLogin)
+	userAuthRouter.Path("/auth/login").HandlerFunc(router.clientApp.HandleCallback)
 	userAuthRouter.PathPrefix("/auth/callback").HandlerFunc(router.cdProxy)
 
 	userAuthRouter.Path("/api/v1/session").HandlerFunc(router.userAuthHandler.LoginHandler)

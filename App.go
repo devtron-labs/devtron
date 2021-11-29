@@ -22,12 +22,13 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/casbin/casbin"
+	middleware2 "github.com/devtron-labs/authenticator/middleware"
+	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
@@ -46,6 +47,7 @@ type App struct {
 	server         *http.Server
 	db             *pg.DB
 	pubsubClient   *pubsub.PubSubClient
+	dexConfig      *oidc.DexConfig
 }
 
 func NewApp(router *router.MuxRouter,
@@ -55,13 +57,22 @@ func NewApp(router *router.MuxRouter,
 	versionService argocdServer.VersionService,
 	enforcer *casbin.Enforcer,
 	db *pg.DB,
-	pubsubClient *pubsub.PubSubClient) *App {
+	pubsubClient *pubsub.PubSubClient, dexConfig *oidc.DexConfig) *App {
 	//check argo connection
 	err := versionService.CheckVersion()
 	if err != nil {
 		log.Panic(err)
 	}
-	app := &App{MuxRouter: router, Logger: Logger, SSE: sse, Enforcer: enforcer, sessionManager: manager, db: db, pubsubClient: pubsubClient}
+	app := &App{
+		MuxRouter:      router,
+		Logger:         Logger,
+		SSE:            sse,
+		Enforcer:       enforcer,
+		sessionManager: manager,
+		db:             db,
+		pubsubClient:   pubsubClient,
+		dexConfig:      dexConfig,
+	}
 	return app
 }
 
@@ -82,12 +93,18 @@ func (app *App) Start() {
 	app.Logger.Infow("starting server on ", "port", port)
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
+	settings, err := oidc.GetSettings(app.dexConfig)
+	if err != nil {
+		app.Logger.Errorw("error in startup", "err", err)
+		os.Exit(2)
+	}
+	sessionManager := middleware2.NewSessionManager(settings, app.dexConfig.DexServerAddress)
 
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: user.Authorizer(app.Enforcer, app.sessionManager)(app.MuxRouter.Router)}
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: middleware2.Authorizer(sessionManager)(app.MuxRouter.Router)}
 
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.server = server
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	//err := http.ListenAndServe(fmt.Sprintf(":%d", port), auth.Authorizer(app.Enforcer, app.sessionManager)(app.MuxRouter.Router))
 	if err != nil {
 		app.Logger.Errorw("error in startup", "err", err)
