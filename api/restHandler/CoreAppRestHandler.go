@@ -900,6 +900,9 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentSecrets(appId int, envI
 				handler.logger.Errorw("service err, CSEnvironmentFetchForEdit in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
 				return nil, err, http.StatusInternalServerError
 			}
+			if secretConfig.Data == nil{
+				secretDataWithData.ConfigData[0].Data = secretConfig.Data
+			}
 			secretDataWithData.ConfigData[0].DefaultData = secretConfig.DefaultData
 
 			secretRes, err, statusCode := handler.buildAppSecrets(appId, envId, secretDataWithData)
