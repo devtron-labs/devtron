@@ -26,9 +26,6 @@ import (
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"google.golang.org/appengine"
-
-	//bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -51,6 +48,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"github.com/hashicorp/go-multierror"
 )
 
 const (
@@ -287,29 +285,16 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	//declaring appId for creating other components of app
 	appId := createBlankAppResp.Id
 
-	var errResp appengine.MultiError
-
-	// rbac after create blank app
-	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceObject); !ok {
-		errResp = append(errResp, fmt.Errorf("Unauthorized User"))
-		errInAppDelete := handler.deleteApp(ctx, appId, userId)
-		if errInAppDelete != nil {
-			errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
-		}
-		common.WriteJsonResp(w, errResp, nil, http.StatusForbidden)
-		return
-	}
-	// rbac end
+	var errResp *multierror.Error
 
 	//creating git material starts
 	if createAppRequest.GitMaterials != nil {
 		err = handler.createGitMaterials(appId, createAppRequest.GitMaterials, userId)
 		if err != nil {
-			errResp = append(errResp, err)
+			errResp = multierror.Append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
 			if errInAppDelete != nil {
-				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
+				errResp = multierror.Append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
 			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
@@ -321,10 +306,10 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.DockerConfig != nil {
 		err = handler.createDockerConfig(appId, createAppRequest.DockerConfig, userId)
 		if err != nil {
-			errResp = append(errResp, err)
+			errResp = multierror.Append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
 			if errInAppDelete != nil {
-				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
+				errResp = multierror.Append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
 			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
@@ -336,10 +321,10 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.GlobalDeploymentTemplate != nil {
 		err = handler.createDeploymentTemplate(ctx, appId, createAppRequest.GlobalDeploymentTemplate, userId)
 		if err != nil {
-			errResp = append(errResp, err)
+			errResp = multierror.Append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
 			if errInAppDelete != nil {
-				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
+				errResp = multierror.Append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
 			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
@@ -351,10 +336,10 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.GlobalConfigMaps != nil {
 		err = handler.createGlobalConfigMaps(appId, userId, createAppRequest.GlobalConfigMaps)
 		if err != nil {
-			errResp = append(errResp, err)
+			errResp = multierror.Append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
 			if errInAppDelete != nil {
-				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
+				errResp = multierror.Append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
 			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
@@ -366,10 +351,10 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.GlobalSecrets != nil {
 		err = handler.createGlobalSecrets(appId, userId, createAppRequest.GlobalSecrets)
 		if err != nil {
-			errResp = append(errResp, err)
+			errResp = multierror.Append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
 			if errInAppDelete != nil {
-				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
+				errResp = multierror.Append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
 			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
@@ -381,10 +366,10 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.AppWorkflows != nil {
 		err = handler.createWorkflows(ctx, appId, userId, createAppRequest.AppWorkflows, token, createAppRequest.Metadata.AppName)
 		if err != nil {
-			errResp = append(errResp, err)
+			errResp = multierror.Append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
 			if errInAppDelete != nil {
-				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
+				errResp = multierror.Append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
 			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
@@ -396,10 +381,10 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	if createAppRequest.EnvironmentOverrides != nil {
 		err = handler.createEnvOverrides(ctx, appId, userId, createAppRequest.EnvironmentOverrides, token)
 		if err != nil {
-			errResp = append(errResp, err)
+			errResp = multierror.Append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
 			if errInAppDelete != nil {
-				errResp = append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
+				errResp = multierror.Append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
 			}
 			common.WriteJsonResp(w, errResp, nil, ExtractErrorType(err))
 			return
