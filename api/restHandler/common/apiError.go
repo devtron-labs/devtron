@@ -64,8 +64,8 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 		var errorsResp []*util.ApiError
 		for _, e := range multiErr.Errors {
 			errorResp := &util.ApiError{
-				UserMessage:     fmt.Sprint(e),
-				InternalMessage: fmt.Sprint(e),
+				UserMessage:     e.Error(),
+				InternalMessage: e.Error(),
 			}
 			errorsResp = append(errorsResp, errorResp)
 		}
