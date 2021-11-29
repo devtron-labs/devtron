@@ -366,7 +366,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 			config := auth.GetConfig()
 			authEnabled = config.AuthEnabled
 
-			if token != "" && authEnabled && !contains(r.URL.Path) {
+			if token != "" && authEnabled && !WhitelistChecker(r.URL.Path) {
 				_, err := sessionManager.VerifyToken(token)
 				if err != nil {
 					log.Printf("Error verifying token: %+v\n", err)
@@ -379,7 +379,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 			}
 			if pass {
 				next.ServeHTTP(w, r)
-			} else if contains(r.URL.Path) {
+			} else if WhitelistChecker(r.URL.Path) {
 				if r.URL.Path == "/app/ci-pipeline/github-webhook/trigger" {
 					apiKey := r.Header.Get("api-key")
 					t, err := GetWebhookToken()
@@ -403,7 +403,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 	}
 }
 
-func contains(url string) bool {
+func WhitelistChecker(url string) bool {
 	urls := []string{
 		"/health",
 		"/metrics",

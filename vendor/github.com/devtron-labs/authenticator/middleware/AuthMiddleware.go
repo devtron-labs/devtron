@@ -9,11 +9,11 @@ import (
 )
 
 // Authorizer is a middleware for authorization
-func Authorizer(sessionManager *SessionManager) func(next http.Handler) http.Handler {
+func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string) bool) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			//var users []string
-			fmt.Println("requestUrl: "+ r.URL.Path)
+			fmt.Println("requestUrl: " + r.URL.Path)
 			cookie, _ := r.Cookie("argocd.token")
 			token := ""
 			if cookie != nil {
@@ -32,7 +32,7 @@ func Authorizer(sessionManager *SessionManager) func(next http.Handler) http.Han
 			config := GetConfig()
 			authEnabled = config.AuthEnabled
 
-			if token != "" && authEnabled && !contains(r.URL.Path) {
+			if token != "" && authEnabled && !whitelistChecker(r.URL.Path) {
 				_, err := sessionManager.VerifyToken(token)
 				if err != nil {
 					log.Printf("Error verifying token: %+v\n", err)
@@ -45,7 +45,7 @@ func Authorizer(sessionManager *SessionManager) func(next http.Handler) http.Han
 			}
 			if pass {
 				next.ServeHTTP(w, r)
-			} else if contains(r.URL.Path) {
+			} else if whitelistChecker(r.URL.Path) {
 				next.ServeHTTP(w, r)
 			} else if token == "" {
 				writeResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, fmt.Errorf("unauthenticated"))
@@ -60,7 +60,7 @@ func Authorizer(sessionManager *SessionManager) func(next http.Handler) http.Han
 	}
 }
 
-func contains(url string) bool {
+func WhitelistChecker(url string) bool {
 	urls := []string{
 		"/auth/login",
 		"/auth/callback",

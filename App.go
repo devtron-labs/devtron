@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
@@ -99,9 +100,7 @@ func (app *App) Start() {
 		os.Exit(2)
 	}
 	sessionManager := middleware2.NewSessionManager(settings, app.dexConfig.DexServerAddress)
-
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: middleware2.Authorizer(sessionManager)(app.MuxRouter.Router)}
-
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: middleware2.Authorizer(sessionManager, user.WhitelistChecker)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.server = server
 	err = server.ListenAndServe()
