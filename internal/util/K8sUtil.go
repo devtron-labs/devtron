@@ -19,12 +19,16 @@ package util
 
 import (
 	"encoding/json"
+	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
+	batchV1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 )
@@ -48,6 +52,15 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
 	client, err := v12.NewForConfig(cfg)
+	return client, err
+}
+
+func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clientset, error) {
+	cfg := &rest.Config{}
+	cfg.Host = clusterConfig.Host
+	cfg.BearerToken = clusterConfig.BearerToken
+	cfg.Insecure = true
+	client, err := kubernetes.NewForConfig(cfg)
 	return client, err
 }
 
@@ -251,3 +264,64 @@ func (impl K8sUtil) UpdateSecret(namespace string, secret *v1.Secret, client *v1
 		return secret, nil
 	}
 }
+
+func (impl K8sUtil) DeleteJobIfExists(namespace string, name string, clusterConfig *ClusterConfig) error {
+	clientSet, err := impl.GetClientSet(clusterConfig)
+	if err != nil {
+		return err
+	}
+	jobs := clientSet.BatchV1().Jobs(namespace)
+
+	job, err := jobs.Get(name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if job != nil {
+		return jobs.Delete(name, &metav1.DeleteOptions{})
+	}
+
+	return nil
+}
+
+func (impl K8sUtil) CreateJob(clusterConfig *ClusterConfig, namespace string, job *batchV1.Job) error {
+	clientSet, err := impl.GetClientSet(clusterConfig)
+	if err != nil {
+		return err
+	}
+	_, err = clientSet.BatchV1().Jobs(namespace).Create(job)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (impl K8sUtil) CreateJobSafely(content []byte, namespace string, clusterConfig *ClusterConfig) error {
+	// Job object from content
+	objectMap := map[string]interface{}{}
+	err := yaml.Unmarshal(content, &objectMap)
+	if err != nil {
+		return err
+	}
+	var job batchV1.Job
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(objectMap, &job)
+	if err != nil {
+		return err
+	}
+
+	// delete job if exists
+	jobName := job.Name
+	err = impl.DeleteJobIfExists(namespace, jobName, clusterConfig)
+	if err != nil {
+		return err
+	}
+
+	// create job
+	err = impl.CreateJob(clusterConfig, namespace, &job)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+

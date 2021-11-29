@@ -41,6 +41,7 @@ import (
 	"k8s.io/helm/pkg/version"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -676,6 +677,16 @@ func (impl *AppStoreServiceImpl) ValidateAndCreateChartRepo(request *ChartRepoDt
 		return nil, nil, validationResult
 	}
 	chartRepo, err := impl.CreateChartRepo(request)
+	if err != nil {
+		return nil, err, validationResult
+	}
+
+	// Trigger chart sync job, ignore error
+	err = impl.TriggerChartSyncManual()
+	if err != nil {
+		impl.logger.Errorw("Error in triggering chart sync job manually", "err", err)
+	}
+	
 	return chartRepo, err, validationResult
 }
 func (impl *AppStoreServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
@@ -684,6 +695,16 @@ func (impl *AppStoreServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDt
 		return nil, nil, validationResult
 	}
 	chartRepo, err := impl.UpdateChartRepo(request)
+	if err != nil {
+		return nil, err, validationResult
+	}
+
+	// Trigger chart sync job, ignore error
+	err = impl.TriggerChartSyncManual()
+	if err != nil {
+		impl.logger.Errorw("Error in triggering chart sync job manually", "err", err)
+	}
+
 	return chartRepo, err, validationResult
 }
 
@@ -735,4 +756,28 @@ func (impl *AppStoreServiceImpl) get(href string, chartRepository *repo.ChartRep
 	_, err = io.Copy(buf, resp.Body)
 	resp.Body.Close()
 	return buf, err, http.StatusOK
+}
+
+func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
+	defaultClusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return err
+	}
+
+	defaultClusterConfig, err := impl.clusterService.GetClusterConfig(defaultClusterBean)
+	if err != nil {
+		return err
+	}
+
+	manualAppSyncJobByteArr, err := ioutil.ReadFile(filepath.Clean("./manifests/yamls/app-manual-sync-job.yaml"))
+	if err != nil {
+		return err
+	}
+
+	err = impl.K8sUtil.CreateJobSafely(manualAppSyncJobByteArr, argocdServer.DevtronInstalationNs, defaultClusterConfig)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
