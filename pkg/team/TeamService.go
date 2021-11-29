@@ -39,6 +39,7 @@ type TeamService interface {
 	FindActiveTeamByAppName(appName string) (*TeamBean, error)
 	FetchForAutocomplete() ([]TeamRequest, error)
 	FindByIds(ids []*int) ([]*TeamBean, error)
+	FindByTeamName(teamName string) (*TeamRequest, error)
 }
 type TeamServiceImpl struct {
 	logger          *zap.SugaredLogger
@@ -232,6 +233,24 @@ func (impl TeamServiceImpl) FindByIds(ids []*int) ([]*TeamBean, error) {
 		teamRequests = append(teamRequests, team)
 	}
 	return teamRequests, err
+}
+
+func (impl TeamServiceImpl) FindByTeamName(teamName string) (*TeamRequest, error) {
+	impl.logger.Debug("fetch team by name from db")
+	team, err := impl.teamRepository.FindByTeamName(teamName)
+	if err != nil {
+		impl.logger.Errorw("error in fetch team", "err", err)
+		return nil, err
+	}
+
+	teamRes := &TeamRequest{
+		Id:     team.Id,
+		Name:   team.Name,
+		Active: team.Active,
+		UserId: team.CreatedBy,
+	}
+
+	return teamRes, err
 }
 
 type TeamBean struct {

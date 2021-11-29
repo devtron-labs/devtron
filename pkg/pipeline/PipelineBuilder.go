@@ -93,6 +93,8 @@ type PipelineBuilder interface {
 	FetchConfigmapSecretsForCdStages(appId, envId, cdPipelineId int) (ConfigMapSecretsResponse, error)
 	FindByIds(ids []*int) ([]*AppBean, error)
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
+
+	GetMaterialsForAppId(appId int) []*bean.GitMaterial
 }
 
 type PipelineBuilderImpl struct {
@@ -225,6 +227,18 @@ func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDT
 		impl.logger.Errorw("error in fetching app", "id", appId, "err", err)
 		return nil, err
 	}
+	gitMaterials := impl.GetMaterialsForAppId(appId)
+
+	application = &bean.CreateAppDTO{
+		Id:       app.Id,
+		AppName:  app.AppName,
+		Material: gitMaterials,
+		TeamId:   app.TeamId,
+	}
+	return application, nil
+}
+
+func (impl PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMaterial {
 	materials, err := impl.materialRepo.FindByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching materials", "appId", appId, "err", err)
@@ -241,13 +255,7 @@ func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDT
 		}
 		gitMaterials = append(gitMaterials, gitMaterial)
 	}
-	application = &bean.CreateAppDTO{
-		Id:       app.Id,
-		AppName:  app.AppName,
-		Material: gitMaterials,
-		TeamId:   app.TeamId,
-	}
-	return application, nil
+	return gitMaterials
 }
 
 /*
@@ -274,7 +282,7 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		return nil, err
 	}
 	if errors.IsNotFound(err) {
-		impl.logger.Debugw(" no ci pipeline exists", "appId", appId, "err", err)
+		impl.logger.Debugw("no ci pipeline exists", "appId", appId, "err", err)
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline exists"}
 		return nil, err
 	}

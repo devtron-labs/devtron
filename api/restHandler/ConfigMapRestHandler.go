@@ -589,7 +589,7 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalFetchForEdit(w http.ResponseWrit
 	}
 	//RBAC END
 
-	res, err := handler.configMapService.CSGlobalFetchForEdit(name, id, userId)
+	res, err := handler.configMapService.CSGlobalFetchForEdit(name, id)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSGlobalFetchForEdit", "err", err, "appId", appId, "id", id, "name", name)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -640,7 +640,7 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentFetchForEdit(w http.Respons
 	}
 	//RBAC END
 
-	res, err := handler.configMapService.CSEnvironmentFetchForEdit(name, id, appId, envId, userId)
+	res, err := handler.configMapService.CSEnvironmentFetchForEdit(name, id, appId, envId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSEnvironmentFetchForEdit", "err", err, "appId", appId, "envId", envId, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
