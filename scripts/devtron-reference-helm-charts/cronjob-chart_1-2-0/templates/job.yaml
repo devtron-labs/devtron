@@ -60,7 +60,7 @@ spec:
 {{- end }}
     spec:
       terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
-      restartPolicy: Always
+      restartPolicy: OnFailure
 {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
       affinity:
         nodeAffinity:
