@@ -435,6 +435,7 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	handler.appStoreService.ChartsTrigger()
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 

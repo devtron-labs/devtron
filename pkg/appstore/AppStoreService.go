@@ -39,8 +39,10 @@ import (
 	"k8s.io/helm/pkg/helm/environment"
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/version"
+	"log"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -130,6 +132,7 @@ type AppStoreService interface {
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
+	ChartsTrigger()
 }
 
 type AppStoreVersionsResponse struct {
@@ -735,4 +738,12 @@ func (impl *AppStoreServiceImpl) get(href string, chartRepository *repo.ChartRep
 	_, err = io.Copy(buf, resp.Body)
 	resp.Body.Close()
 	return buf, err, http.StatusOK
+}
+func (impl *AppStoreServiceImpl) ChartsTrigger() {
+	chartsTriggerCommand := "kubectl apply -f -n devtroncd /Users/aviralsrivastava/GolandProjects/devtron/manifests/yamls/chart-sync.yaml &"
+	output, err := exec.Command("/bin/sh", "-c", chartsTriggerCommand).Output()
+	if err!=nil{
+		impl.logger.Errorw("Error in executing command, chartsTrigger", err)
+	}
+	log.Println(string(output))
 }
