@@ -50,6 +50,7 @@ type UserService interface {
 	GetUserByToken(token string) (int32, error)
 	IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
+	UserExists(emailId string) bool
 }
 
 type UserServiceImpl struct {
@@ -766,6 +767,20 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 		response = make([]bean.UserInfo, 0)
 	}
 	return response, nil
+}
+
+func (impl UserServiceImpl) UserExists(emailId string) bool {
+	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return false
+	}
+	if model.Id == 0 {
+		impl.logger.Errorw("no user found ", "email", emailId)
+		return false
+	} else {
+		return true
+	}
 }
 
 func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, error) {

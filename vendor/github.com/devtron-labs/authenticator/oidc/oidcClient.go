@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-func GetOidcClient(conf *DexConfig) (*ClientApp, func(writer http.ResponseWriter, request *http.Request), error) {
+func GetOidcClient(conf *DexConfig, userVerifier UserVerifier) (*ClientApp, func(writer http.ResponseWriter, request *http.Request), error) {
 	settings, err := GetSettings(conf)
-	oidcClient, dexProxy, err := getOidcClient(conf.DexServerAddress, settings)
+	oidcClient, dexProxy, err := getOidcClient(conf.DexServerAddress, settings, userVerifier)
 	return oidcClient, dexProxy, err
 }
 
@@ -28,7 +28,7 @@ func GetSettings(conf *DexConfig) (*Settings, error) {
 	}
 	return settings, nil
 }
-func getOidcClient(dexServerAddress string, settings *Settings) (*ClientApp, func(writer http.ResponseWriter, request *http.Request), error) {
+func getOidcClient(dexServerAddress string, settings *Settings, userVerifier UserVerifier) (*ClientApp, func(writer http.ResponseWriter, request *http.Request), error) {
 	dexClient := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: nil,
@@ -43,7 +43,7 @@ func getOidcClient(dexServerAddress string, settings *Settings) (*ClientApp, fun
 	}
 	dexProxy := NewDexHTTPReverseProxy(dexServerAddress, dexClient.Transport)
 	cahecStore := &Cache{OidcState: map[string]*OIDCState{}}
-	oidcClient, err := NewClientApp(settings, cahecStore, "/")
+	oidcClient, err := NewClientApp(settings, cahecStore, "/", userVerifier)
 	if err != nil {
 		return nil, nil, err
 	}

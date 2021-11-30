@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	jwt2 "github.com/devtron-labs/authenticator/jwt"
 	"github.com/golang-jwt/jwt/v4"
 	"html"
 	"html/template"
@@ -27,6 +28,7 @@ const (
 	GrantTypeAuthorizationCode = "authorization_code"
 	GrantTypeImplicit          = "implicit"
 	ResponseTypeCode           = "code"
+	NoUserLocation             = "/dashboard/login?err=NO_USER"
 )
 
 // OIDCConfiguration holds a subset of interested fields from the OIDC configuration spec
@@ -88,7 +90,11 @@ type ClientApp struct {
 	// cache holds temporary nonce tokens to which hold application state values
 	// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
 	cache OIDCStateStorage
+	//used to verify user by email before setting cookie
+	userVerifier UserVerifier
 }
+
+type UserVerifier func(email string) bool
 
 func GetScopesOrDefault(scopes []string) []string {
 	if len(scopes) == 0 {
@@ -142,7 +148,7 @@ type OIDCConfig struct {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *Settings, cache OIDCStateStorage, baseHRef string) (*ClientApp, error) {
+func NewClientApp(settings *Settings, cache OIDCStateStorage, baseHRef string, userVerifier UserVerifier) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -154,6 +160,7 @@ func NewClientApp(settings *Settings, cache OIDCStateStorage, baseHRef string) (
 		issuerURL:    settings.IssuerURL(),
 		baseHRef:     baseHRef,
 		cache:        cache,
+		userVerifier: userVerifier,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -398,26 +405,36 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if idTokenRAW != "" {
-		cookies, err := MakeCookieMetadata(AuthCookieName, idTokenRAW, flags...)
-		if err != nil {
-			claimsJSON, _ := json.Marshal(claims)
-			http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
-			return
-		}
-
-		for _, cookie := range cookies {
-			w.Header().Add("Set-Cookie", cookie)
+	returnUrl := appState.ReturnURL
+	// verify user in system
+	email := jwt2.GetField(claims, "email")
+	sub := jwt2.GetField(claims, "sub")
+	if email == "" && sub == "admin" {
+		email = sub
+	}
+	valid := a.userVerifier(email)
+	//  end verify user in system
+	if !valid {
+		w.Header().Add("Set-Cookie", "")
+		returnUrl = NoUserLocation
+	} else {
+		if idTokenRAW != "" {
+			cookies, err := MakeCookieMetadata(AuthCookieName, idTokenRAW, flags...)
+			if err != nil {
+				claimsJSON, _ := json.Marshal(claims)
+				http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
+				return
+			}
+			for _, cookie := range cookies {
+				w.Header().Add("Set-Cookie", cookie)
+			}
 		}
 	}
-
-	claimsJSON, _ := json.Marshal(claims)
-	log.Infof("Web login successful. Claims: %s", claimsJSON)
 	if os.Getenv(EnvVarSSODebug) == "1" {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
 		renderToken(w, a.redirectURI, idTokenRAW, token.RefreshToken, claimsJSON)
 	} else {
-		http.Redirect(w, r, appState.ReturnURL, http.StatusSeeOther)
+		http.Redirect(w, r, returnUrl, http.StatusSeeOther)
 	}
 }
 

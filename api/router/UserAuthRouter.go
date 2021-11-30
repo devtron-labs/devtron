@@ -71,7 +71,7 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandle
 	//dexProxy := argocdServer.NewDexHTTPReverseProxy(fmt.Sprintf("%s:%s", dexCfg.Host, dexCfg.Port), dexClient.Transport)
 	//dProxy := argocdServer.NewCDHTTPReverseProxy(fmt.Sprintf("https://%s:%s", cdCfg.Host, cdCfg.Port), client.Transport, userService.GetUserByToken)
 	logger.Infow("auth starting with dex conf", "conf", dexConfig)
-	oidcClient, dexProxy, err := oidc.GetOidcClient(dexConfig)
+	oidcClient, dexProxy, err := oidc.GetOidcClient(dexConfig, userService.UserExists)
 	if err != nil {
 		return nil, err
 	}
