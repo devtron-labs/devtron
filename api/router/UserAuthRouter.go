@@ -21,10 +21,12 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
+	"strings"
 )
 
 type UserAuthRouter interface {
@@ -44,45 +46,26 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandle
 	if tlsConfig != nil {
 		tlsConfig.InsecureSkipVerify = true
 	}
-	/*client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
+	router := &UserAuthRouterImpl{
+		userAuthHandler: userAuthHandler,
+		logger:          logger,
 	}
-	dexClient := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-	}*/
-	//dexProxy := argocdServer.NewDexHTTPReverseProxy(fmt.Sprintf("%s:%s", dexCfg.Host, dexCfg.Port), dexClient.Transport)
-	//dProxy := argocdServer.NewCDHTTPReverseProxy(fmt.Sprintf("https://%s:%s", cdCfg.Host, cdCfg.Port), client.Transport, userService.GetUserByToken)
 	logger.Infow("auth starting with dex conf", "conf", dexConfig)
-	oidcClient, dexProxy, err := oidc.GetOidcClient(dexConfig, userService.UserExists)
+	oidcClient, dexProxy, err := oidc.GetOidcClient(dexConfig, userService.UserExists, router.RedirectUrlSanitiser)
 	if err != nil {
 		return nil, err
 	}
-	router := &UserAuthRouterImpl{
-		userAuthHandler: userAuthHandler,
-		dexProxy:        dexProxy,
-		logger:          logger,
-		clientApp:       oidcClient,
-	}
-
+	router.dexProxy = dexProxy
+	router.clientApp = oidcClient
 	return router, nil
+}
+
+// RedirectUrlSanitiser replaces initial "/orchestrator" from url
+func (router UserAuthRouterImpl) RedirectUrlSanitiser(redirectUrl string) string {
+	if strings.Contains(redirectUrl, argocdServer.Dashboard) {
+		redirectUrl = strings.ReplaceAll(redirectUrl, argocdServer.Orchestrator, "")
+	}
+	return redirectUrl
 }
 
 func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) {

@@ -92,8 +92,11 @@ type ClientApp struct {
 	cache OIDCStateStorage
 	//used to verify user by email before setting cookie
 	userVerifier UserVerifier
+
+	RedirectUrlSanitiser RedirectUrlSanitiser
 }
 
+type RedirectUrlSanitiser func(url string) string
 type UserVerifier func(email string) bool
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -148,19 +151,20 @@ type OIDCConfig struct {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *Settings, cache OIDCStateStorage, baseHRef string, userVerifier UserVerifier) (*ClientApp, error) {
+func NewClientApp(settings *Settings, cache OIDCStateStorage, baseHRef string, userVerifier UserVerifier, RedirectUrlSanitiser RedirectUrlSanitiser) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
 	}
 	a := ClientApp{
-		clientID:     settings.OAuth2ClientID(),
-		clientSecret: settings.OAuth2ClientSecret(),
-		redirectURI:  redirectURL,
-		issuerURL:    settings.IssuerURL(),
-		baseHRef:     baseHRef,
-		cache:        cache,
-		userVerifier: userVerifier,
+		clientID:             settings.OAuth2ClientID(),
+		clientSecret:         settings.OAuth2ClientSecret(),
+		redirectURI:          redirectURL,
+		issuerURL:            settings.IssuerURL(),
+		baseHRef:             baseHRef,
+		cache:                cache,
+		userVerifier:         userVerifier,
+		RedirectUrlSanitiser: RedirectUrlSanitiser,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -434,6 +438,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
 		renderToken(w, a.redirectURI, idTokenRAW, token.RefreshToken, claimsJSON)
 	} else {
+		returnUrl = a.RedirectUrlSanitiser(returnUrl)
 		http.Redirect(w, r, returnUrl, http.StatusSeeOther)
 	}
 }
