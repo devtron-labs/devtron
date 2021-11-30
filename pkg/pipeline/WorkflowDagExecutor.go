@@ -47,6 +47,8 @@ import (
 )
 
 type WorkflowDagExecutor interface {
+
+	//TODO: handle post stage success event
 	HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error
 	HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(gitHash string) error
@@ -205,6 +207,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 	//1. get cd pipelines
 	//2. get config
 	//3. trigger wf/ deployment
+	//TODO : filter cd pipelines by parent ci(use workflow mapping)
 	pipelines, err := impl.pipelineRepository.FindByCiPipelineId(artifact.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
@@ -589,6 +592,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 	if err != nil {
 		return err
 	}
+	//TODO : handle next pre/cd
 	if len(pipelineOverride.Pipeline.PostStageConfig) > 0 {
 		if pipelineOverride.Pipeline.PostTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC &&
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_STOP &&
@@ -600,6 +604,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 			}
 		}
 	}
+	//TODO : add else to above if, for next pre/cd
 	return nil
 }
 

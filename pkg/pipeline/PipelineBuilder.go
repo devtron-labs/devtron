@@ -1540,169 +1540,32 @@ func (impl PipelineBuilderImpl) FetchConfigmapSecretsForCdStages(appId, envId, c
 }
 
 func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.CdWorkflowType) (bean.CiArtifactResponse, error) {
-	var ciArtifacts []bean.CiArtifactBean
 	var ciArtifactsResponse bean.CiArtifactResponse
-	if stage == bean2.CD_WORKFLOW_TYPE_PRE {
-		artifacts, err := impl.ciArtifactRepository.GetArtifactsByCDPipeline(cdPipelineId)
-		if err != nil {
-			return ciArtifactsResponse, err
-		}
-
-		for _, artifact := range artifacts {
-			mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
-			if err != nil {
-				mInfo = []byte("[]")
-				impl.logger.Errorw("Error", err)
-			}
-
-			ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
-				Id:           artifact.Id,
-				Image:        artifact.Image,
-				ImageDigest:  artifact.ImageDigest,
-				MaterialInfo: mInfo,
-				DeployedTime: formatDate(artifact.DeployedTime, bean.LayoutRFC3339),
-				Deployed:     artifact.Deployed,
-				Latest:       artifact.Latest,
-			})
-		}
-
-		ciArtifactsResponse.CdPipelineId = cdPipelineId
-		if ciArtifacts == nil {
-			ciArtifacts = []bean.CiArtifactBean{}
-		}
-		ciArtifactsResponse.CiArtifacts = ciArtifacts
-	} else if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY {
-		pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("Error", err)
-		}
-		var artifacts []repository.CiArtifact
-		if len(pipeline.PreStageConfig) > 0 {
-			artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipelineAndRunnerType(cdPipelineId, bean2.CD_WORKFLOW_TYPE_PRE)
-			if err != nil {
-				return ciArtifactsResponse, err
-			}
-		} else {
-			artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipeline(cdPipelineId)
-			if err != nil {
-				return ciArtifactsResponse, err
-			}
-		}
-		latestFound := false
-		artifactMap := make(map[int]int)
-		for _, artifact := range artifacts {
-			artifactMap[artifact.Id] = artifact.Id
-			mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
-			if err != nil {
-				mInfo = []byte("[]")
-				impl.logger.Errorw("Error", "err", err)
-			}
-
-			ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
-				Id:           artifact.Id,
-				Image:        artifact.Image,
-				ImageDigest:  artifact.ImageDigest,
-				MaterialInfo: mInfo,
-				DeployedTime: formatDate(artifact.DeployedTime, bean.LayoutRFC3339),
-				Deployed:     artifact.Deployed,
-				Latest:       artifact.Latest,
-			})
-			if artifact.Latest == true {
-				latestFound = true
-			}
-		}
-
-		//start adding deployed items
-		latestCiArtifactId, err := impl.ciArtifactRepository.GetLatest(cdPipelineId)
-		if err != nil {
-			return ciArtifactsResponse, err
-		}
-		wfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY, 10)
-		if err != nil {
-			return ciArtifactsResponse, err
-		}
-		for _, wfr := range wfrList {
-			if _, ok := artifactMap[wfr.CdWorkflow.CiArtifact.Id]; !ok {
-				mInfo, err := parseMaterialInfo([]byte(wfr.CdWorkflow.CiArtifact.MaterialInfo), wfr.CdWorkflow.CiArtifact.DataSource)
-				if err != nil {
-					mInfo = []byte("[]")
-					impl.logger.Errorw("Error", "err", err)
-				}
-
-				deployed := false
-				latest := false
-				if wfr.Status == application.Healthy || wfr.Status == application.Degraded {
-					deployed = true
-				}
-				if latestFound == false && (latestCiArtifactId == wfr.CdWorkflow.CiArtifactId) {
-					latest = true
-					latestFound = true
-				}
-				ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
-					Id:           wfr.CdWorkflow.CiArtifact.Id,
-					Image:        wfr.CdWorkflow.CiArtifact.Image,
-					ImageDigest:  wfr.CdWorkflow.CiArtifact.ImageDigest,
-					MaterialInfo: mInfo,
-					DeployedTime: formatDate(wfr.StartedOn, bean.LayoutRFC3339),
-					Deployed:     deployed,
-					Latest:       latest,
-				})
-				artifactMap[wfr.CdWorkflow.CiArtifact.Id] = wfr.CdWorkflow.CiArtifact.Id
-			}
-		}
-		//end
-
-		ciArtifactsResponse.CdPipelineId = cdPipelineId
-		if ciArtifacts == nil {
-			ciArtifacts = []bean.CiArtifactBean{}
-		}
-		ciArtifactsResponse.CiArtifacts = ciArtifacts
-	} else if stage == bean2.CD_WORKFLOW_TYPE_POST {
-		artifactMap := make(map[int]int)
-		latestFound := false
-		latestCiArtifactId, err := impl.ciArtifactRepository.GetLatest(cdPipelineId)
-		if err != nil {
-			return ciArtifactsResponse, err
-		}
-		wfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY, 10)
-		if err != nil {
-			return ciArtifactsResponse, err
-		}
-		for _, wfr := range wfrList {
-			if _, ok := artifactMap[wfr.CdWorkflow.CiArtifact.Id]; !ok {
-				mInfo, err := parseMaterialInfo([]byte(wfr.CdWorkflow.CiArtifact.MaterialInfo), wfr.CdWorkflow.CiArtifact.DataSource)
-				if err != nil {
-					mInfo = []byte("[]")
-					impl.logger.Errorw("Error", "err", err)
-				}
-				deployed := false
-				latest := false
-				if wfr.Status == application.Healthy || wfr.Status == application.Degraded {
-					deployed = true
-				}
-				if latestFound == false && (latestCiArtifactId == wfr.CdWorkflow.CiArtifactId) {
-					latest = true
-					latestFound = true
-				}
-				ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
-					Id:           wfr.CdWorkflow.CiArtifact.Id,
-					Image:        wfr.CdWorkflow.CiArtifact.Image,
-					MaterialInfo: mInfo,
-					DeployedTime: formatDate(wfr.StartedOn, bean.LayoutRFC3339),
-					Deployed:     deployed,
-					Latest:       latest,
-				})
-				artifactMap[wfr.CdWorkflow.CiArtifact.Id] = wfr.CdWorkflow.CiArtifact.Id
-			}
-		}
-
-		ciArtifactsResponse.CdPipelineId = cdPipelineId
-		if ciArtifacts == nil {
-			ciArtifacts = []bean.CiArtifactBean{}
-		}
-		ciArtifactsResponse.CiArtifacts = ciArtifacts
+	var err error
+	parentId, parentType, err := impl.GetCdParentDetails(cdPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cd parent details", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
+		return ciArtifactsResponse, err
 	}
-
+	if stage == bean2.CD_WORKFLOW_TYPE_PRE {
+		ciArtifactsResponse, err = impl.GetArtifactsForPreCdStage(cdPipelineId, parentId, parentType)
+		if err != nil {
+			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "stage", stage, "cdPipelineId", cdPipelineId)
+			return ciArtifactsResponse, err
+		}
+	} else if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY {
+		ciArtifactsResponse, err = impl.GetArtifactsForDeployCdStage(cdPipelineId, parentId, parentType)
+		if err != nil {
+			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "stage", stage, "cdPipelineId", cdPipelineId)
+			return ciArtifactsResponse, err
+		}
+	} else if stage == bean2.CD_WORKFLOW_TYPE_POST {
+		ciArtifactsResponse, err = impl.GetArtifactsForPostCdStage(cdPipelineId, false)
+		if err != nil {
+			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "stage", stage, "cdPipelineId", cdPipelineId)
+			return ciArtifactsResponse, err
+		}
+	}
 	if len(ciArtifactsResponse.CiArtifacts) > 0 {
 		var ids []int
 		for _, item := range ciArtifactsResponse.CiArtifacts {
@@ -1710,6 +1573,7 @@ func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage
 		}
 		artifacts, err := impl.ciArtifactRepository.GetByIds(ids)
 		if err != nil {
+			impl.logger.Errorw("error in getting ci artifacts")
 			return ciArtifactsResponse, err
 		}
 		artifactMap := make(map[int]*repository.CiArtifact)
@@ -1726,6 +1590,204 @@ func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage
 		}
 		ciArtifactsResponse.CiArtifacts = ciArtifactsFinal
 	}
+	return ciArtifactsResponse, nil
+}
+func (impl PipelineBuilderImpl) GetCdParentDetails(cdPipelineId int) (parentId int, parentType bean2.CdWorkflowType, err error) {
+	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(cdPipelineId)
+	if err != nil {
+		return 0, "", err
+	}
+	if len(appWorkflowMapping) > 1 || appWorkflowMapping == nil {
+		return 0, "", fmt.Errorf("improper mapping found for cd pipeline")
+	}
+	parentId = appWorkflowMapping[0].ParentId
+	if appWorkflowMapping[0].ParentType == appWorkflow.CDPIPELINE {
+		pipeline, err := impl.pipelineRepository.FindById(parentId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("Error in fetching cd pipeline details", err, "pipelineId", parentId)
+			return 0, "", err
+		}
+		if len(pipeline.PostStageConfig) > 0 {
+			return parentId, bean2.CD_WORKFLOW_TYPE_POST, nil
+		} else {
+			return parentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, nil
+		}
+	}
+	// empty string used to denote CI pipeline
+	return parentId, "", nil
+}
+func (impl PipelineBuilderImpl) GetArtifactsForPreCdStage(cdPipelineId int, parentId int, parentType bean2.CdWorkflowType) (bean.CiArtifactResponse, error) {
+	var ciArtifacts []bean.CiArtifactBean
+	var ciArtifactsResponse bean.CiArtifactResponse
+	var artifacts []repository.CiArtifact
+	var err error
+	if parentType == bean2.CD_WORKFLOW_TYPE_POST {
+		artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipelineAndRunnerType(parentId, bean2.CD_WORKFLOW_TYPE_POST)
+		if err != nil {
+			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentCdId", parentId, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_PRE)
+			return ciArtifactsResponse, err
+		}
+	} else if parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
+		artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipelineAndRunnerType(parentId, bean2.CD_WORKFLOW_TYPE_DEPLOY)
+		if err != nil {
+			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentCdId", parentId, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_PRE)
+			return ciArtifactsResponse, err
+		}
+	} else { //Parent is CI pipeline
+		artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipeline(cdPipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentCdId", parentId, "parentStage", appWorkflow.CIPIPELINE, "childStage", bean2.CD_WORKFLOW_TYPE_PRE)
+			return ciArtifactsResponse, err
+		}
+	}
+	for _, artifact := range artifacts {
+		mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
+		if err != nil {
+			mInfo = []byte("[]")
+			impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
+		}
+
+		ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
+			Id:           artifact.Id,
+			Image:        artifact.Image,
+			ImageDigest:  artifact.ImageDigest,
+			MaterialInfo: mInfo,
+			DeployedTime: formatDate(artifact.DeployedTime, bean.LayoutRFC3339),
+			Deployed:     artifact.Deployed,
+			Latest:       artifact.Latest,
+		})
+	}
+
+	ciArtifactsResponse.CdPipelineId = cdPipelineId
+	if ciArtifacts == nil {
+		ciArtifacts = []bean.CiArtifactBean{}
+	}
+	ciArtifactsResponse.CiArtifacts = ciArtifacts
+	return ciArtifactsResponse, nil
+}
+
+func (impl PipelineBuilderImpl) GetArtifactsForDeployCdStage(cdPipelineId int, parentId int, parentType bean2.CdWorkflowType) (bean.CiArtifactResponse, error) {
+	var ciArtifacts []bean.CiArtifactBean
+	var ciArtifactsResponse bean.CiArtifactResponse
+	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("Error in getting cd pipeline details", err, "cdPipelineId", cdPipelineId)
+	}
+	var artifacts []repository.CiArtifact
+	if len(pipeline.PreStageConfig) > 0 {
+		artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipelineAndRunnerType(cdPipelineId, bean2.CD_WORKFLOW_TYPE_PRE)
+		if err != nil {
+			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", bean2.CD_WORKFLOW_TYPE_PRE, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
+			return ciArtifactsResponse, err
+		}
+	} else if parentType == bean2.CD_WORKFLOW_TYPE_POST {
+		artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipelineAndRunnerType(parentId, bean2.CD_WORKFLOW_TYPE_POST)
+		if err != nil {
+			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentCdId", parentId, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
+			return ciArtifactsResponse, err
+		}
+	} else if parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
+		artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipelineAndRunnerType(parentId, bean2.CD_WORKFLOW_TYPE_DEPLOY)
+		if err != nil {
+			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentCdId", parentId, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
+			return ciArtifactsResponse, err
+		}
+	} else {
+		artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipeline(cdPipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", appWorkflow.CIPIPELINE, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
+			return ciArtifactsResponse, err
+		}
+	}
+	latestFound := false
+	artifactMap := make(map[int]int)
+	for _, artifact := range artifacts {
+		artifactMap[artifact.Id] = artifact.Id
+		mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
+		if err != nil {
+			mInfo = []byte("[]")
+			impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
+		}
+
+		ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
+			Id:           artifact.Id,
+			Image:        artifact.Image,
+			ImageDigest:  artifact.ImageDigest,
+			MaterialInfo: mInfo,
+			DeployedTime: formatDate(artifact.DeployedTime, bean.LayoutRFC3339),
+			Deployed:     artifact.Deployed,
+			Latest:       artifact.Latest,
+		})
+		if artifact.Latest == true {
+			latestFound = true
+		}
+	}
+
+	//start adding deployed items
+	deployedItemsCiArtifactResponse, err := impl.GetArtifactsForPostCdStage(cdPipelineId, latestFound)
+	if err != nil {
+		impl.logger.Errorw("error in getting ci artifacts for deployed items", "err", err)
+	}
+	for _, deployedItemCiArtifact := range deployedItemsCiArtifactResponse.CiArtifacts {
+		ciArtifacts = append(ciArtifacts, deployedItemCiArtifact)
+	}
+	//end
+	ciArtifactsResponse.CdPipelineId = cdPipelineId
+	if ciArtifacts == nil {
+		ciArtifacts = []bean.CiArtifactBean{}
+	}
+	ciArtifactsResponse.CiArtifacts = ciArtifacts
+	return ciArtifactsResponse, nil
+}
+
+func (impl PipelineBuilderImpl) GetArtifactsForPostCdStage(cdPipelineId int, latestFound bool) (bean.CiArtifactResponse, error) {
+	var ciArtifacts []bean.CiArtifactBean
+	var ciArtifactsResponse bean.CiArtifactResponse
+	artifactMap := make(map[int]int)
+	latestCiArtifactId, err := impl.ciArtifactRepository.GetLatest(cdPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting latest ci artifact id for cd pipeline", "cdPipelineId", cdPipelineId)
+		return ciArtifactsResponse, err
+	}
+	wfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY, 10)
+	if err != nil {
+		impl.logger.Errorw("error in getting artifact for deployed items", "cdPipelineId", cdPipelineId)
+		return ciArtifactsResponse, err
+	}
+	for _, wfr := range wfrList {
+		if _, ok := artifactMap[wfr.CdWorkflow.CiArtifact.Id]; !ok {
+			mInfo, err := parseMaterialInfo([]byte(wfr.CdWorkflow.CiArtifact.MaterialInfo), wfr.CdWorkflow.CiArtifact.DataSource)
+			if err != nil {
+				mInfo = []byte("[]")
+				impl.logger.Errorw("Error in parsing artifact material info", "err", err)
+			}
+			deployed := false
+			latest := false
+			if wfr.Status == application.Healthy || wfr.Status == application.Degraded {
+				deployed = true
+			}
+			if latestFound == false && (latestCiArtifactId == wfr.CdWorkflow.CiArtifactId) {
+				latest = true
+				latestFound = true
+			}
+			ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
+				Id:           wfr.CdWorkflow.CiArtifact.Id,
+				Image:        wfr.CdWorkflow.CiArtifact.Image,
+				ImageDigest:  wfr.CdWorkflow.CiArtifact.ImageDigest,
+				MaterialInfo: mInfo,
+				DeployedTime: formatDate(wfr.StartedOn, bean.LayoutRFC3339),
+				Deployed:     deployed,
+				Latest:       latest,
+			})
+			artifactMap[wfr.CdWorkflow.CiArtifact.Id] = wfr.CdWorkflow.CiArtifact.Id
+		}
+	}
+
+	ciArtifactsResponse.CdPipelineId = cdPipelineId
+	if ciArtifacts == nil {
+		ciArtifacts = []bean.CiArtifactBean{}
+	}
+	ciArtifactsResponse.CiArtifacts = ciArtifacts
 	return ciArtifactsResponse, nil
 }
 

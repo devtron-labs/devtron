@@ -24,9 +24,11 @@ import (
 
 type CdWorkflowType string
 
-const CD_WORKFLOW_TYPE_PRE CdWorkflowType = "PRE"
-const CD_WORKFLOW_TYPE_POST CdWorkflowType = "POST"
-const CD_WORKFLOW_TYPE_DEPLOY CdWorkflowType = "DEPLOY"
+const (
+	CD_WORKFLOW_TYPE_PRE CdWorkflowType = "PRE"
+	CD_WORKFLOW_TYPE_POST   CdWorkflowType = "POST"
+	CD_WORKFLOW_TYPE_DEPLOY CdWorkflowType = "DEPLOY"
+)
 
 type ValuesOverrideRequest struct {
 	PipelineId         int                   `json:"pipelineId" validate:"required"`
