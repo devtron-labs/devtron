@@ -50,6 +50,8 @@ type App struct {
 	db             *pg.DB
 	pubsubClient   *pubsub.PubSubClient
 	dexConfig      *oidc.DexConfig
+	// used for local dev only
+	serveTls bool
 }
 
 func NewApp(router *router.MuxRouter,
@@ -74,6 +76,7 @@ func NewApp(router *router.MuxRouter,
 		db:             db,
 		pubsubClient:   pubsubClient,
 		dexConfig:      dexConfig,
+		serveTls:       false,
 	}
 	return app
 }
@@ -102,21 +105,23 @@ func (app *App) Start() {
 	}
 	sessionManager := middleware2.NewSessionManager(settings, app.dexConfig.DexServerAddress)
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: middleware2.Authorizer(sessionManager, user.WhitelistChecker)(app.MuxRouter.Router)}
-	cert, err := tls.LoadX509KeyPair(
-		"/Users/nishant/go/src/github.com/devtron-labs/authenticator/localhost.crt",
-		"/Users/nishant/go/src/github.com/devtron-labs/authenticator/localhost.key",
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	server.TLSConfig = &tls.Config{
-		Certificates: []tls.Certificate{cert},
-	}
-
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.server = server
-	//err = server.ListenAndServe()
-	err = server.ListenAndServeTLS("", "")
+	if app.serveTls {
+		cert, err := tls.LoadX509KeyPair(
+			"localhost.crt",
+			"localhost.key",
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+		server.TLSConfig = &tls.Config{
+			Certificates: []tls.Certificate{cert},
+		}
+		err = server.ListenAndServeTLS("", "")
+	} else {
+		err = server.ListenAndServe()
+	}
 	//err := http.ListenAndServe(fmt.Sprintf(":%d", port), auth.Authorizer(app.Enforcer, app.sessionManager)(app.MuxRouter.Router))
 	if err != nil {
 		app.Logger.Errorw("error in startup", "err", err)
