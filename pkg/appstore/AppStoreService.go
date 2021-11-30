@@ -382,7 +382,7 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
-
+	chartRepo.Name = request.Name
 	chartRepo.Url = request.Url
 	chartRepo.AuthMode = request.AuthMode
 	chartRepo.UserName = request.UserName

@@ -2,9 +2,11 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: app-manual-sync-job
+  namespace: devtroncd
 spec:
   template:
     spec:
+      serviceAccountName: cluster-admin
       containers:
         - name: chart-sync
           image: quay.io/devtron/chart-sync:1227622d-132-3775
