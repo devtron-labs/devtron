@@ -774,7 +774,7 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 		return err
 	}
 
-	err = impl.K8sUtil.CreateJobSafely(manualAppSyncJobByteArr, argocdServer.DevtronInstalationNs, defaultClusterConfig)
+	err = impl.K8sUtil.CreateJobSafely(manualAppSyncJobByteArr, "demo3", defaultClusterConfig)
 	if err != nil {
 		return err
 	}

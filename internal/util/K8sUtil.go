@@ -19,7 +19,6 @@ package util
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	batchV1 "k8s.io/api/batch/v1"
@@ -275,7 +274,7 @@ func (impl K8sUtil) DeleteJobIfExists(namespace string, name string, clusterConf
 
 	job, err := jobs.Get(name, metav1.GetOptions{})
 	if err != nil {
-		return nil
+		return err
 	}
 
 	if job != nil {
@@ -283,7 +282,6 @@ func (impl K8sUtil) DeleteJobIfExists(namespace string, name string, clusterConf
 		if err!=nil && errors.IsNotFound(err){
 			return nil
 		}
-
 	}
 
 	return nil
@@ -294,11 +292,10 @@ func (impl K8sUtil) CreateJob(clusterConfig *ClusterConfig, namespace string, jo
 	if err != nil {
 		return err
 	}
-	a, err := clientSet.BatchV1().Jobs(namespace).Create(job)
+	_, err = clientSet.BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
 		return err
 	}
-	fmt.Println(a)
 	return nil
 }
 
