@@ -93,8 +93,8 @@ func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) 
 
 	userAuthRouter.PathPrefix("/api/dex").HandlerFunc(router.dexProxy)
 	userAuthRouter.Path("/login").HandlerFunc(router.clientApp.HandleLogin)
-	userAuthRouter.Path("/auth/login").HandlerFunc(router.clientApp.HandleCallback)
-	userAuthRouter.PathPrefix("/auth/callback").HandlerFunc(router.cdProxy)
+	userAuthRouter.Path("/auth/login").HandlerFunc(router.clientApp.HandleLogin)
+	userAuthRouter.PathPrefix("/auth/callback").HandlerFunc(router.clientApp.HandleCallback)
 
 	userAuthRouter.Path("/api/v1/session").HandlerFunc(router.userAuthHandler.LoginHandler)
 	userAuthRouter.Path("/refresh").HandlerFunc(router.userAuthHandler.RefreshTokenHandler)
