@@ -24,9 +24,13 @@
   {{- end }}
   {{- end }}
 
-{{ if eq .Values.kind "Cronjob" }}
+{{ if eq .Values.kind "CronJob" }}
+{{ if semverCompare "<=1.20" .Capabilities.KubeVersion.GitVersion -}}
 apiVersion: batch/v1beta1
-kind: {{ $.Values.kind }}
+{{- else -}}
+apiVersion: batch/v1
+{{- end }}
+kind: CronJob
 metadata:
   name: {{ include ".Chart.Name .fullname" $ }}
   labels:

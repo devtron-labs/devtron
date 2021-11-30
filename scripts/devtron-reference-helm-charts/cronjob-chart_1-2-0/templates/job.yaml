@@ -25,8 +25,12 @@
   {{- end }}
 
 {{ if eq .Values.kind "Job" }}
+{{ if semverCompare "<=1.20" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: batch/v1beta1
+{{- else -}}
 apiVersion: batch/v1
-kind: {{ $.Values.kind }}
+{{- end }}
+kind: Job
 metadata:
   name: {{ include ".Chart.Name .fullname" $ }}
   labels:
@@ -40,7 +44,9 @@ spec:
   activeDeadlineSeconds: {{ .Values.jobConfigs.activeDeadlineSeconds }}
   parallelism: {{ .Values.jobConfigs.parallelism }}
   completions: {{ .Values.jobConfigs.completions }}
+  {{ if semverCompare ">1.20" .Capabilities.KubeVersion.GitVersion -}}
   suspend: {{ .Values.jobConfigs.suspend }}
+  {{- end }}
   ttlSecondsAfterFinished: {{ .Values.jobConfigs.ttlSecondsAfterFinished }}
   template:
     metadata:
