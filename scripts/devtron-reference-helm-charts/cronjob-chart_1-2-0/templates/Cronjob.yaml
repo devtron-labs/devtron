@@ -42,7 +42,9 @@ spec:
   schedule: {{ $.Values.cronjobConfigs.schedule | quote }}
   startingDeadlineSeconds: {{ $.Values.cronjobConfigs.startingDeadlineSeconds }}
   concurrencyPolicy: {{ $.Values.cronjobConfigs.concurrencyPolicy }}
+  {{ if semverCompare ">1.20" .Capabilities.KubeVersion.GitVersion -}}
   suspend: {{ $.Values.cronjobConfigs.suspend }}
+  {{- end }}
   successfulJobsHistoryLimit: {{ $.Values.cronjobConfigs.successfulJobsHistoryLimit }}
   failedJobsHistoryLimit: {{ $.Values.cronjobConfigs.failedJobsHistoryLimit }}
   jobTemplate:
