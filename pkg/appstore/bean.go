@@ -18,10 +18,11 @@
 package appstore
 
 import (
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
-	"time"
 )
 
 //v1
@@ -73,6 +74,7 @@ type ChartGroupInstallAppRes struct {
 
 ///
 type RefChartProxyDir string
+type ChartSyncManual string
 
 var CHART_PROXY_TEMPLATE = "reference-chart-proxy"
 var REQUIREMENTS_YAML_FILE = "requirements.yaml"

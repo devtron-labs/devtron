@@ -155,13 +155,14 @@ type AppStoreServiceImpl struct {
 	versionService                argocdServer.VersionService
 	aCDAuthConfig                 *user.ACDAuthConfig
 	client                        *http.Client
+	chartSyncManual				  ChartSyncManual
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client, chartSyncManual ChartSyncManual) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -175,6 +176,7 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		versionService:                versionService,
 		aCDAuthConfig:                 aCDAuthConfig,
 		client:                        client,
+		chartSyncManual: 			   chartSyncManual,
 	}
 }
 
@@ -769,7 +771,7 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 		return err
 	}
 
-	manualAppSyncJobByteArr, err := ioutil.ReadFile(filepath.Clean(filepath.Join("manifests/yamls", "app-manual-sync-job.yaml")))
+	manualAppSyncJobByteArr, err := ioutil.ReadFile(filepath.Clean(filepath.Join(string(impl.chartSyncManual), "app-manual-sync-job.yaml")))
 	if err != nil {
 		return err
 	}
