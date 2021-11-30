@@ -769,7 +769,7 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 		return err
 	}
 
-	manualAppSyncJobByteArr, err := ioutil.ReadFile(filepath.Clean("./manifests/yamls/app-manual-sync-job.yaml"))
+	manualAppSyncJobByteArr, err := ioutil.ReadFile(filepath.Clean(filepath.Join("manifests/yamls", "app-manual-sync-job.yaml")))
 	if err != nil {
 		return err
 	}
