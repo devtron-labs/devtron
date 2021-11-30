@@ -1215,9 +1215,8 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 		if item.Default {
 			defaultCount = defaultCount + 1
 			if defaultCount > 1 {
-				impl.logger.Warnw("already have one strategy is default in this pipeline, skip this", "strategy", item.DeploymentTemplate)
-				//FIXME: this should not be skipped but inserted with default false
-				continue
+				impl.logger.Warnw("already have one strategy is default in this pipeline", "strategy", item.DeploymentTemplate)
+				item.Default = false
 			}
 		}
 		strategy := &chartConfig.PipelineStrategy{

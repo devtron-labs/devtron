@@ -63,6 +63,7 @@ type CiArtifactRepository interface {
 	GetLatest(cdPipelineId int) (int, error)
 	GetByImageDigest(imageDigest string) (artifact *CiArtifact, err error)
 	GetByIds(ids []int) ([]*CiArtifact, error)
+	GetArtifactByCIPipelineIdAndPipelineId(ciPipelineId int, pipelineId int) (artifact *CiArtifact, err error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -517,6 +518,17 @@ func (impl CiArtifactRepositoryImpl) GetByIds(ids []int) ([]*CiArtifact, error) 
 	err := impl.dbConnection.Model(&artifact).
 		Column("ci_artifact.*").
 		Where("ci_artifact.id in (?) ", pg.In(ids)).
+		Select()
+	return artifact, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetArtifactByCIPipelineIdAndPipelineId(ciPipelineId int, pipelineId int) (artifact *CiArtifact, err error) {
+	artifact = &CiArtifact{}
+	err = impl.dbConnection.Model(artifact).
+		Column("ci_artifact.*").
+		Join("INNER JOIN ci_workflow cwf on cwf.id = ci_artifact.ci_workflow_id").
+		Where("cwf.ci_pipeline_id = ? ", ciPipelineId).
+		Where("ci_artifact.pipeline_id = ?", pipelineId).
 		Select()
 	return artifact, err
 }

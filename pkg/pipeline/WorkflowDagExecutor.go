@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"strconv"
 	"strings"
 	"time"
@@ -48,10 +49,10 @@ import (
 
 type WorkflowDagExecutor interface {
 
-	//TODO: handle post stage success event
 	HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error
 	HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(gitHash string) error
+	HandlePostStageSuccessEvent() error
 	Subscribe() error
 	TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) error
 	TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, async bool, triggeredBy int32) error
@@ -84,6 +85,7 @@ type WorkflowDagExecutorImpl struct {
 	eventClient                client.EventClient
 	cvePolicyRepository        security.CvePolicyRepository
 	scanResultRepository       security.ImageScanResultRepository
+	appWorkflowRepository      appWorkflow.AppWorkflowRepository
 }
 
 type CiArtifactDTO struct {
@@ -135,7 +137,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *user.TokenCache,
 	acdAuthConfig *user.ACDAuthConfig, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
-	scanResultRepository security.ImageScanResultRepository) *WorkflowDagExecutorImpl {
+	scanResultRepository security.ImageScanResultRepository,
+	appWorkflowRepository appWorkflow.AppWorkflowRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:         pipelineRepository,
 		cdWorkflowRepository:       cdWorkflowRepository,
@@ -158,6 +161,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		eventClient:                eventClient,
 		cvePolicyRepository:        cvePolicyRepository,
 		scanResultRepository:       scanResultRepository,
+		appWorkflowRepository:      appWorkflowRepository,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -207,8 +211,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 	//1. get cd pipelines
 	//2. get config
 	//3. trigger wf/ deployment
-	//TODO : filter cd pipelines by parent ci(use workflow mapping)
-	pipelines, err := impl.pipelineRepository.FindByCiPipelineId(artifact.PipelineId)
+	pipelines, err := impl.pipelineRepository.FindByParentCiPipelineId(artifact.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
 		return err
@@ -225,7 +228,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error {
 	var err error
 	if len(pipeline.PreStageConfig) > 0 {
-		//pre stage exists
+		// pre stage exists
 		if pipeline.PreTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 			impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", artifact.Id, "pipelineId", pipeline.Id)
 			err = impl.TriggerPreStage(cdWf, artifact, pipeline, artifact.UpdatedBy, applyAuth) //TODO handle error here
@@ -592,7 +595,6 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 	if err != nil {
 		return err
 	}
-	//TODO : handle next pre/cd
 	if len(pipelineOverride.Pipeline.PostStageConfig) > 0 {
 		if pipelineOverride.Pipeline.PostTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC &&
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_STOP &&
@@ -600,14 +602,47 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 
 			err := impl.TriggerPostStage(cdWorkflow, pipelineOverride.Pipeline, 1)
 			if err != nil {
+				impl.logger.Errorw("error in triggering post stage after successful deployment event","cdWorkflow",cdWorkflow)
 				return err
 			}
 		}
+	}else{
+		// to trigger next pre/cd, if any
+		// finding children cd by pipeline id
+		err := impl.HandlePostStageSuccessEvent(pipelineOverride.PipelineId)
+		if err!=nil{
+			impl.logger.Errorw("error in triggering children cd after successful deployment event","parentCdPipelineId",pipelineOverride.PipelineId)
+			return err
+		}
 	}
-	//TODO : add else to above if, for next pre/cd
 	return nil
 }
 
+func (impl *WorkflowDagExecutorImpl)HandlePostStageSuccessEvent(cdPipelineId int) error{
+	// finding children cd by pipeline id
+	cdPipelinesMapping, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(cdPipelineId)
+	if err!=nil{
+		impl.logger.Errorw("error in getting mapping of cd pipelines by parent cd pipeline id","err",err,"parentCdPipelineId",cdPipelineId)
+		return err
+	}
+	for _, cdPipelineMapping := range cdPipelinesMapping{
+		//find pipeline by cdPipeline ID
+		pipeline, err := impl.pipelineRepository.FindById(cdPipelineMapping.ComponentId)
+		if err!=nil{
+			impl.logger.Errorw("error in getting cd pipeline by id","err",err,"pipelineId",cdPipelineMapping.ComponentId)
+			return err
+		}
+		//finding ci artifact by ciPipelineID and pipelineId
+		ciArtifact, err := impl.ciArtifactRepository.GetArtifactByCIPipelineIdAndPipelineId(pipeline.CiPipelineId,pipeline.Id)
+		//TODO : confirm values for applyAuth, async & triggeredBy
+		err = impl.triggerStage(nil,pipeline,ciArtifact,false,false,1)
+		if err!=nil{
+			impl.logger.Errorw("error in triggering cd pipeline after successful post stage","err",err,"pipelineId",pipeline.Id)
+			return err
+		}
+	}
+	return nil
+}
 //Only used for auto trigger
 func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, async bool, triggeredBy int32) error {
 	//in case of manual ci RBAC need to apply, this method used for auto cd deployment
