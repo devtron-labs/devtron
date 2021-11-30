@@ -434,5 +434,5 @@ var (
 	_wireRefChartDirValue      = pipeline.RefChartDir("scripts/devtron-reference-helm-charts")
 	_wireDefaultChartValue     = pipeline.DefaultChart("reference-app-rolling")
 	_wireRefChartProxyDirValue = appstore2.RefChartProxyDir("scripts/devtron-reference-helm-charts")
-	_wireChartSyncManualValue  = appstore2.ChartSyncManual("manifests/yamls/")
+	_wireChartSyncManualValue  = appstore2.ChartSyncManual("manifests/yamls")
 )

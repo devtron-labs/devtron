@@ -41,6 +41,7 @@ import (
 	"k8s.io/helm/pkg/version"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -763,22 +764,36 @@ func (impl *AppStoreServiceImpl) get(href string, chartRepository *repo.ChartRep
 func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 	defaultClusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
+		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", err)
 		return err
 	}
 
 	defaultClusterConfig, err := impl.clusterService.GetClusterConfig(defaultClusterBean)
 	if err != nil {
+		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual", err)
 		return err
 	}
 
-	manualAppSyncJobByteArr, err := ioutil.ReadFile(filepath.Clean(filepath.Join(string(impl.chartSyncManual), "app-manual-sync-job.yaml")))
-	if err != nil {
+	manualAppSyncFileStatus := filepath.Join(string(impl.chartSyncManual), "app-manual-sync-job.yaml")
+	if _, err := os.Stat(manualAppSyncFileStatus); os.IsNotExist(err) {
+		impl.logger.Errorw("manualAppSync File Not Found err, TriggerChartSyncManual", err)
 		return err
-	}
-
-	err = impl.K8sUtil.CreateJobSafely(manualAppSyncJobByteArr, "demo3", defaultClusterConfig)
-	if err != nil {
-		return err
+	} else {
+		manualAppSyncJobJsonFile, err := os.Open(manualAppSyncFileStatus)
+		if err != nil {
+			impl.logger.Errorw("manualAppSync File Open err, TriggerChartSyncManual", err)
+			return err
+		}
+		manualAppSyncJobByteArr, err := ioutil.ReadAll(manualAppSyncJobJsonFile)
+		if err != nil {
+			impl.logger.Errorw("manualAppSync Byte read err, TriggerChartSyncManual", err)
+			return err
+		}
+		err = impl.K8sUtil.CreateJobSafely(manualAppSyncJobByteArr, "demo3", defaultClusterConfig)
+		if err != nil {
+			impl.logger.Errorw("CreateJobSafely err, TriggerChartSyncManual", err)
+			return err
+		}
 	}
 
 	return nil
