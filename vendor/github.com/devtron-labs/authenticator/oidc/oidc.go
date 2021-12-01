@@ -401,7 +401,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	basePath = path.Join("/", basePath)
 	cookiePath := fmt.Sprintf("path=%s", basePath)
-	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
+	flags := []string{cookiePath, "SameSite=lax"}
 	if a.secureCookie {
 		flags = append(flags, "Secure")
 	}
