@@ -76,7 +76,7 @@ func NewApp(router *router.MuxRouter,
 		db:              db,
 		pubsubClient:    pubsubClient,
 		dexConfig:       dexConfig,
-		serveTls:        true,
+		serveTls:        false,
 		sessionManager2: sessionManager2,
 	}
 	return app
