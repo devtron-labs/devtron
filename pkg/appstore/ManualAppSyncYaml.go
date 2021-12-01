@@ -1,7 +1,19 @@
 package appstore
 
+import (
+	"bytes"
+	"github.com/devtron-labs/devtron/internal/sql/models"
+	"text/template"
+)
+
+
+
 func manualAppSyncJobByteArr() []byte{
-	return []byte(`apiVersion: batch/v1
+	cfg, _ := models.GetConfig()
+	configValues := models.Config{Addr: cfg.Addr,Database: cfg.Database, User: cfg.User, Password: cfg.Password}
+
+	temp := template.New("manualAppSyncJobByteArr")
+	temp, _ = temp.Parse(`apiVersion: batch/v1
 kind: Job
 metadata:
   name: app-manual-sync-job
@@ -14,15 +26,20 @@ spec:
           image: quay.io/devtron/chart-sync:1227622d-132-3775
           env:
             - name: PG_ADDR
-              value: postgresql-postgresql.devtroncd
+              value: {{.Addr}}
             - name: PG_DATABASE
-              value: orchestrator
+              value: {{.Database}}
             - name: PG_USER
-              value: postgres
-          envFrom:
-            - secretRef:
-                name: devtron-secret
+              value: {{.User}}
+			- name: PG_PASSWORD
+			  value: {{.Password}}
       restartPolicy: OnFailure
   backoffLimit: 4
   activeDeadlineSeconds: 15000`)
+	var manualAppSyncJobBytes  bytes.Buffer
+	if err := temp.Execute(&manualAppSyncJobBytes, configValues); err != nil {
+		return nil
+	}
+	manualAppSyncJobByteArr := []byte(manualAppSyncJobBytes.String())
+	return manualAppSyncJobByteArr
 }

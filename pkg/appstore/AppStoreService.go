@@ -381,7 +381,7 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
-	chartRepo.Name = request.Name
+
 	chartRepo.Url = request.Url
 	chartRepo.AuthMode = request.AuthMode
 	chartRepo.UserName = request.UserName
@@ -772,7 +772,7 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 
 	manualAppSyncJobByteArr := manualAppSyncJobByteArr()
 
-	err = impl.K8sUtil.CreateJobSafely(manualAppSyncJobByteArr, argocdServer.DevtronInstalationNs, defaultClusterConfig)
+	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, argocdServer.DevtronInstalationNs, defaultClusterConfig)
 	if err != nil {
 		impl.logger.Errorw("CreateJobSafely err, TriggerChartSyncManual", "err", err)
 		return err

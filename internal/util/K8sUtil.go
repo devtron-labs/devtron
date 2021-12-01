@@ -20,13 +20,12 @@ package util
 import (
 	"encoding/json"
 	error2 "errors"
-	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	batchV1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
@@ -267,7 +266,7 @@ func (impl K8sUtil) UpdateSecret(namespace string, secret *v1.Secret, client *v1
 	}
 }
 
-func (impl K8sUtil) DeleteJobIfExists(namespace string, name string, clusterConfig *ClusterConfig) error {
+func (impl K8sUtil) DeleteJob(namespace string, name string, clusterConfig *ClusterConfig) error {
 	clientSet, err := impl.GetClientSet(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("clientSet err, DeleteJobIfExists","err", err)
@@ -276,14 +275,14 @@ func (impl K8sUtil) DeleteJobIfExists(namespace string, name string, clusterConf
 	jobs := clientSet.BatchV1().Jobs(namespace)
 
 	job, err := jobs.Get(name, metav1.GetOptions{})
-	if err != nil {
+	if err != nil && errors.IsNotFound(err){
 		impl.logger.Errorw("get job err, DeleteJobIfExists","err", err)
 		return nil
 	}
 
 	if job != nil {
 		err := jobs.Delete(name, &metav1.DeleteOptions{})
-		if err!=nil && errors.IsNotFound(err){
+		if err!=nil && !errors.IsNotFound(err){
 			impl.logger.Errorw("delete err, DeleteJobIfExists","err", err)
 			return err
 		}
@@ -292,7 +291,7 @@ func (impl K8sUtil) DeleteJobIfExists(namespace string, name string, clusterConf
 	return nil
 }
 
-func (impl K8sUtil) CreateJob(clusterConfig *ClusterConfig, namespace string, job *batchV1.Job, name string) error {
+func (impl K8sUtil) CreateJob(namespace string, name string, clusterConfig *ClusterConfig, job *batchV1.Job) error {
 	clientSet, err := impl.GetClientSet(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("clientSet err, CreateJob","err", err)
@@ -302,11 +301,11 @@ func (impl K8sUtil) CreateJob(clusterConfig *ClusterConfig, namespace string, jo
 	jobs := clientSet.BatchV1().Jobs(namespace)
 	_, err = jobs.Get(name, metav1.GetOptions{})
 	if err == nil {
-		impl.logger.Errorw("get job err, DeleteJobIfExists","err", err)
+		impl.logger.Errorw("get job err, CreateJob","err", err)
 		time.Sleep(5 * time.Second)
 		_, err = jobs.Get(name, metav1.GetOptions{})
 		if err == nil{
-			return error2.New("Job deletion takes more time than expected, please try after sometime")
+			return error2.New("job deletion takes more time than expected, please try after sometime")
 		}
 	}
 
@@ -318,31 +317,26 @@ func (impl K8sUtil) CreateJob(clusterConfig *ClusterConfig, namespace string, jo
 	return nil
 }
 
-func (impl K8sUtil) CreateJobSafely(content []byte, namespace string, clusterConfig *ClusterConfig) error {
+// DeleteAndCreateJob Deletes and recreates if job exists else creates the job
+func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, clusterConfig *ClusterConfig) error {
 	// Job object from content
-	objectMap := map[string]interface{}{}
-	err := yaml.Unmarshal(content, &objectMap)
+	uns := unstructured.Unstructured{}
+	var job batchV1.Job
+	err := uns.UnmarshalJSON(content)
 	if err != nil {
 		impl.logger.Errorw("Unmarshal err, CreateJobSafely","err", err)
 		return err
 	}
-	var job batchV1.Job
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(objectMap, &job)
-	if err != nil {
-		impl.logger.Errorw("DefaultUnstructuredConverter err, CreateJobSafely","err", err)
-		return err
-	}
 
 	// delete job if exists
-	jobName := job.Name
-	err = impl.DeleteJobIfExists(namespace, jobName, clusterConfig)
+	err = impl.DeleteJob(namespace, uns.GetName(), clusterConfig)
 	if err != nil{
 		impl.logger.Errorw("DeleteJobIfExists err, CreateJobSafely","err", err)
 		return err
 	}
 
 	// create job
-	err = impl.CreateJob(clusterConfig, namespace, &job, jobName)
+	err = impl.CreateJob( namespace, uns.GetName(), clusterConfig, &job)
 	if err != nil {
 		impl.logger.Errorw("CreateJob err, CreateJobSafely","err", err)
 		return err
