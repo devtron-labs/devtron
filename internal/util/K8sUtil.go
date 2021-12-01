@@ -268,18 +268,21 @@ func (impl K8sUtil) UpdateSecret(namespace string, secret *v1.Secret, client *v1
 func (impl K8sUtil) DeleteJobIfExists(namespace string, name string, clusterConfig *ClusterConfig) error {
 	clientSet, err := impl.GetClientSet(clusterConfig)
 	if err != nil {
+		impl.logger.Errorw("clientSet err, DeleteJobIfExists","err", err)
 		return err
 	}
 	jobs := clientSet.BatchV1().Jobs(namespace)
 
 	job, err := jobs.Get(name, metav1.GetOptions{})
 	if err != nil {
+		impl.logger.Errorw("get job err, DeleteJobIfExists","err", err)
 		return nil
 	}
 
 	if job != nil {
 		err := jobs.Delete(name, &metav1.DeleteOptions{})
 		if err!=nil && errors.IsNotFound(err){
+			impl.logger.Errorw("delete err, DeleteJobIfExists","err", err)
 			return err
 		}
 	}
@@ -290,10 +293,12 @@ func (impl K8sUtil) DeleteJobIfExists(namespace string, name string, clusterConf
 func (impl K8sUtil) CreateJob(clusterConfig *ClusterConfig, namespace string, job *batchV1.Job) error {
 	clientSet, err := impl.GetClientSet(clusterConfig)
 	if err != nil {
+		impl.logger.Errorw("clientSet err, CreateJob","err", err)
 		return err
 	}
 	_, err = clientSet.BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
+		impl.logger.Errorw("create err, CreateJob","err", err)
 		return err
 	}
 	return nil
@@ -304,11 +309,13 @@ func (impl K8sUtil) CreateJobSafely(content []byte, namespace string, clusterCon
 	objectMap := map[string]interface{}{}
 	err := yaml.Unmarshal(content, &objectMap)
 	if err != nil {
+		impl.logger.Errorw("Unmarshal err, CreateJobSafely","err", err)
 		return err
 	}
 	var job batchV1.Job
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(objectMap, &job)
 	if err != nil {
+		impl.logger.Errorw("DefaultUnstructuredConverter err, CreateJobSafely","err", err)
 		return err
 	}
 
@@ -316,12 +323,14 @@ func (impl K8sUtil) CreateJobSafely(content []byte, namespace string, clusterCon
 	jobName := job.Name
 	err = impl.DeleteJobIfExists(namespace, jobName, clusterConfig)
 	if err != nil{
+		impl.logger.Errorw("DeleteJobIfExists err, CreateJobSafely","err", err)
 		return err
 	}
 
 	// create job
 	err = impl.CreateJob(clusterConfig, namespace, &job)
 	if err != nil {
+		impl.logger.Errorw("CreateJob err, CreateJobSafely","err", err)
 		return err
 	}
 
