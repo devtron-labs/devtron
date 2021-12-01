@@ -101,7 +101,7 @@ func InitializeApp() (*App, error) {
 		wire.Value(appstore.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(pipeline.DefaultChart("reference-app-rolling")),
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
-		wire.Value(appstore.ChartSyncManual("manifests/yamls")),
+		wire.Value(appstore.ChartSyncManual("scripts/yaml")),
 		session.SettingsManager,
 		session.CDSettingsManager,
 		session.SessionManager,
