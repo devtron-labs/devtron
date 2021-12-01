@@ -53,7 +53,7 @@ Latency metrics shows the latency for an application. Latency measures the delay
 
 ## Checklist for enabling Advanced Application metrics in Production
 
-- []  Have adjusted resources to the envoy sidecar container, by default Devtron allocates 50m CPU and 50Mi Memory as both limits as well as requests. This should be enough for handling traffic upto 3000rpm per pod, if each replica of your pod is expected to handle more than 3000rpm, please adjust the resources accordingly.
-- [] If you are not leveraging http2 / streaming protocols, make sure to set supportStreaming and useHTTP2 in ContainerPort as false.
-- []  Use envoy image as "quay.io/devtron/envoy:v1.14.1" instead of default "envoyproxy/envoy:v1.14.1" if your cluster occasionally hit dockerhub pull rate limit or if you are running too many replicas/micro-services in a cluster.
-- [] Enabled and tested extensively in non-production environment including load testing till highest rpm capacity per pod.
+* [ ]  Have adjusted resources to the envoy sidecar container, by default Devtron allocates 50m CPU and 50Mi Memory as both limits as well as requests. This should be enough for handling traffic upto 3000rpm per pod, if each replica of your pod is expected to handle more than 3000rpm, please adjust the resources accordingly.
+* [ ] If you are not leveraging http2 / streaming protocols, make sure to set supportStreaming and useHTTP2 in ContainerPort as false.
+* [ ]  Use envoy image as "quay.io/devtron/envoy:v1.14.1" instead of default "envoyproxy/envoy:v1.14.1" if your cluster occasionally hit dockerhub pull rate limit or if you are running too many replicas/micro-services in a cluster.
+* [ ] Enabled and tested extensively in non-production environment including load testing till highest rpm capacity per pod.
