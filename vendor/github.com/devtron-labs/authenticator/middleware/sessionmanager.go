@@ -39,7 +39,7 @@ var (
 )
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settings *oidc.Settings, dexServerAddr string) *SessionManager {
+func NewSessionManager(settings *oidc.Settings, config *oidc.DexConfig) *SessionManager {
 	s := SessionManager{
 		settings: settings,
 	}
@@ -55,7 +55,7 @@ func NewSessionManager(settings *oidc.Settings, dexServerAddr string) *SessionMa
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
-	s.client.Transport = oidc.NewDexRewriteURLRoundTripper(dexServerAddr, s.client.Transport)
+	s.client.Transport = oidc.NewDexRewriteURLRoundTripper(config.DexServerAddress, s.client.Transport)
 	return &s
 }
 

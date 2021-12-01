@@ -21,7 +21,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/argoproj/argo-cd/util/session"
 	"github.com/casbin/casbin"
 	middleware2 "github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/authenticator/oidc"
@@ -41,42 +40,44 @@ import (
 )
 
 type App struct {
-	MuxRouter      *router.MuxRouter
-	Logger         *zap.SugaredLogger
-	SSE            *sse.SSE
-	Enforcer       *casbin.Enforcer
-	sessionManager *session.SessionManager
-	server         *http.Server
-	db             *pg.DB
-	pubsubClient   *pubsub.PubSubClient
-	dexConfig      *oidc.DexConfig
+	MuxRouter    *router.MuxRouter
+	Logger       *zap.SugaredLogger
+	SSE          *sse.SSE
+	Enforcer     *casbin.Enforcer
+	server       *http.Server
+	db           *pg.DB
+	pubsubClient *pubsub.PubSubClient
+	dexConfig    *oidc.DexConfig
 	// used for local dev only
-	serveTls bool
+	serveTls        bool
+	sessionManager2 *middleware2.SessionManager
 }
 
 func NewApp(router *router.MuxRouter,
 	Logger *zap.SugaredLogger,
 	sse *sse.SSE,
-	manager *session.SessionManager,
 	versionService argocdServer.VersionService,
 	enforcer *casbin.Enforcer,
 	db *pg.DB,
-	pubsubClient *pubsub.PubSubClient, dexConfig *oidc.DexConfig) *App {
+	pubsubClient *pubsub.PubSubClient,
+	dexConfig *oidc.DexConfig,
+	sessionManager2 *middleware2.SessionManager,
+) *App {
 	//check argo connection
 	err := versionService.CheckVersion()
 	if err != nil {
 		log.Panic(err)
 	}
 	app := &App{
-		MuxRouter:      router,
-		Logger:         Logger,
-		SSE:            sse,
-		Enforcer:       enforcer,
-		sessionManager: manager,
-		db:             db,
-		pubsubClient:   pubsubClient,
-		dexConfig:      dexConfig,
-		serveTls:       false,
+		MuxRouter:       router,
+		Logger:          Logger,
+		SSE:             sse,
+		Enforcer:        enforcer,
+		db:              db,
+		pubsubClient:    pubsubClient,
+		dexConfig:       dexConfig,
+		serveTls:        true,
+		sessionManager2: sessionManager2,
 	}
 	return app
 }
@@ -98,15 +99,11 @@ func (app *App) Start() {
 	app.Logger.Infow("starting server on ", "port", port)
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
-	settings, err := oidc.GetSettings(app.dexConfig)
-	if err != nil {
-		app.Logger.Errorw("error in startup", "err", err)
-		os.Exit(2)
-	}
-	sessionManager := middleware2.NewSessionManager(settings, app.dexConfig.DexServerAddress)
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: middleware2.Authorizer(sessionManager, user.WhitelistChecker)(app.MuxRouter.Router)}
+
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: middleware2.Authorizer(app.sessionManager2, user.WhitelistChecker)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.server = server
+	var err error
 	if app.serveTls {
 		cert, err := tls.LoadX509KeyPair(
 			"localhost.crt",

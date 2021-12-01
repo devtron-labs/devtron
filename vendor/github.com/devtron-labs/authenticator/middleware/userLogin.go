@@ -23,10 +23,22 @@ import (
 
 type LoginService struct {
 	sessionManager *SessionManager
+	kubeconfig     *rest.Config
+	devMode        LocalDevMode
 }
 
-func NewUserLogin(sessionManager *SessionManager) *LoginService {
-	return &LoginService{sessionManager: sessionManager}
+type LocalDevMode bool
+
+func NewUserLogin(sessionManager *SessionManager, devMode LocalDevMode) (*LoginService, error) {
+	cfg, err := getKubeConfig()
+	if err != nil {
+		return nil, err
+	}
+	return &LoginService{
+		sessionManager: sessionManager,
+		kubeconfig:     cfg,
+		devMode:        devMode,
+	}, nil
 }
 func (impl LoginService) CreateLoginSession(username string, password string) (string, error) {
 	if username == "" || password == "" {
@@ -42,7 +54,7 @@ func (impl LoginService) CreateLoginSession(username string, password string) (s
 	}
 	impl.sessionManager.GetUserSessionDuration().Seconds()
 	jwtToken, err := impl.sessionManager.Create(
-		fmt.Sprintf("%s:%s", username, AccountCapabilityLogin),
+		fmt.Sprintf("%s", username),
 		int64(impl.sessionManager.GetUserSessionDuration().Seconds()),
 		uniqueId.String())
 	return jwtToken, err
@@ -57,7 +69,7 @@ func (impl LoginService) verifyUsernamePassword(username string, password string
 	if len(username) > maxUsernameLength {
 		return status.Errorf(codes.InvalidArgument, usernameTooLongError, maxUsernameLength)
 	}
-	account, err := GetAccount(username)
+	account, err := impl.GetAccount(username)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			err = InvalidLoginErr
@@ -133,15 +145,11 @@ func (a *Account) HasCapability(capability AccountCapability) bool {
 	return false
 }
 
-func GetAccount(name string) (*Account, error) {
+func (impl LoginService) GetAccount(name string) (*Account, error) {
 	if name != "admin" {
 		return nil, fmt.Errorf("no account supported: %s", name)
 	}
-	restConfig, err := getKubeConfig()
-	if err != nil {
-		return nil, err
-	}
-	secret, cm, err := getArgoConfig(restConfig)
+	secret, cm, err := impl.getArgoConfig(impl.kubeconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -192,6 +200,7 @@ func parseAdminAccount(secret *v1.Secret, cm *v1.ConfigMap) (*Account, error) {
 	return adminAccount, nil
 }
 
+//TODO use it as generic function across system
 func getKubeConfig() (*rest.Config, error) {
 	devMode := true
 	if devMode {
@@ -199,7 +208,7 @@ func getKubeConfig() (*rest.Config, error) {
 		if err != nil {
 			return nil, err
 		}
-		kubeconfig := flag.String("kubeconfig", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		kubeconfig := flag.String("kubeconfig-authenticator", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 		flag.Parse()
 		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 		if err != nil {
@@ -215,7 +224,7 @@ func getKubeConfig() (*rest.Config, error) {
 	}
 }
 
-func getArgoConfig(config *rest.Config) (secret *v1.Secret, cm *v1.ConfigMap, err error) {
+func (impl LoginService) getArgoConfig(config *rest.Config) (secret *v1.Secret, cm *v1.ConfigMap, err error) {
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, nil, err
