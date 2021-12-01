@@ -19,7 +19,7 @@ package util
 
 import (
 	"encoding/json"
-	"fmt"
+	error2 "errors"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	batchV1 "k8s.io/api/batch/v1"
@@ -278,7 +278,6 @@ func (impl K8sUtil) DeleteJobIfExists(namespace string, name string, clusterConf
 	job, err := jobs.Get(name, metav1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("get job err, DeleteJobIfExists","err", err)
-		return nil
 	}
 
 	if job != nil {
@@ -292,19 +291,29 @@ func (impl K8sUtil) DeleteJobIfExists(namespace string, name string, clusterConf
 	return nil
 }
 
-func (impl K8sUtil) CreateJob(clusterConfig *ClusterConfig, namespace string, job *batchV1.Job) error {
+func (impl K8sUtil) CreateJob(clusterConfig *ClusterConfig, namespace string, job *batchV1.Job, name string) error {
 	clientSet, err := impl.GetClientSet(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("clientSet err, CreateJob","err", err)
-		return err
+	}
+	time.Sleep(5 * time.Second)
+
+	jobs := clientSet.BatchV1().Jobs(namespace)
+	_, err = jobs.Get(name, metav1.GetOptions{})
+	if err == nil {
+		impl.logger.Errorw("get job err, DeleteJobIfExists","err", err)
+		time.Sleep(5 * time.Second)
+		_, err = jobs.Get(name, metav1.GetOptions{})
+		if err == nil{
+			return error2.New("Job deletion takes more time than expected, please try after sometime")
+		}
 	}
 
-	job1 , err := clientSet.BatchV1().Jobs(namespace).Create(job)
+	_ , err = jobs.Create(job)
 	if err != nil {
 		impl.logger.Errorw("create err, CreateJob","err", err)
 		return err
 	}
-	fmt.Println(job1)
 	return nil
 }
 
@@ -331,11 +340,8 @@ func (impl K8sUtil) CreateJobSafely(content []byte, namespace string, clusterCon
 		return err
 	}
 
-	//time to delete job
-	time.Sleep(5 * time.Second)
-
 	// create job
-	err = impl.CreateJob(clusterConfig, namespace, &job)
+	err = impl.CreateJob(clusterConfig, namespace, &job, jobName)
 	if err != nil {
 		impl.logger.Errorw("CreateJob err, CreateJobSafely","err", err)
 		return err
