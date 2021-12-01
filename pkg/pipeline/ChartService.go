@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -1109,6 +1110,7 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 		return nil, err
 	}
 	fileStatus := filepath.Join(refChartDir, "schema.json")
+	log.Println(fileStatus,"test-aviral")
 	if _, err := os.Stat(fileStatus); os.IsNotExist(err) {
 		impl.logger.Errorw("Schema File Not Found err, JsonSchemaExtractFromFile", err)
 		return nil, err

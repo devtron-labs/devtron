@@ -776,7 +776,7 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 
 	manualAppSyncFileStatus := filepath.Join(string(impl.chartSyncManual), "app-manual-sync-job.yaml")
 	if _, err := os.Stat(manualAppSyncFileStatus); os.IsNotExist(err) {
-		impl.logger.Errorw("manualAppSync File Not Found err, TriggerChartSyncManual", err)
+		impl.logger.Errorw("manualAppSync File Not Found err, TriggerChartSyncManual",manualAppSyncFileStatus,"err", err)
 		return err
 	} else {
 		manualAppSyncJobJsonFile, err := os.Open(manualAppSyncFileStatus)
