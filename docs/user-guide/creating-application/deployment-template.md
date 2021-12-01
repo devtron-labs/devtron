@@ -213,7 +213,7 @@ Legacy deployment-template ingress format
 ingress:
   enabled: false
   # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
-  ingressClassName: nginx-internal
+  className: nginx-internal
   annotations: {}
   path: ""
   host: ""
