@@ -274,13 +274,13 @@ func (impl K8sUtil) DeleteJobIfExists(namespace string, name string, clusterConf
 
 	job, err := jobs.Get(name, metav1.GetOptions{})
 	if err != nil {
-		return err
+		return nil
 	}
 
 	if job != nil {
 		err := jobs.Delete(name, &metav1.DeleteOptions{})
 		if err!=nil && errors.IsNotFound(err){
-			return nil
+			return err
 		}
 	}
 
