@@ -41,8 +41,6 @@ import (
 	"k8s.io/helm/pkg/version"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -156,14 +154,13 @@ type AppStoreServiceImpl struct {
 	versionService                argocdServer.VersionService
 	aCDAuthConfig                 *user.ACDAuthConfig
 	client                        *http.Client
-	chartSyncManual				  ChartSyncManual
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client, chartSyncManual ChartSyncManual) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -177,7 +174,6 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		versionService:                versionService,
 		aCDAuthConfig:                 aCDAuthConfig,
 		client:                        client,
-		chartSyncManual: 			   chartSyncManual,
 	}
 }
 
@@ -774,27 +770,14 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 		return err
 	}
 
-	manualAppSyncFileStatus := filepath.Join(string(impl.chartSyncManual), "app-manual-sync-job.yaml")
-	if _, err := os.Stat(manualAppSyncFileStatus); os.IsNotExist(err) {
-		impl.logger.Errorw("manualAppSync File Not Found err, TriggerChartSyncManual",manualAppSyncFileStatus,"err", err)
+	manualAppSyncJobByteArr := manualAppSyncJobByteArr()
+
+	err = impl.K8sUtil.CreateJobSafely(manualAppSyncJobByteArr, "demo3", defaultClusterConfig)
+	if err != nil {
+		impl.logger.Errorw("CreateJobSafely err, TriggerChartSyncManual", err)
 		return err
-	} else {
-		manualAppSyncJobJsonFile, err := os.Open(manualAppSyncFileStatus)
-		if err != nil {
-			impl.logger.Errorw("manualAppSync File Open err, TriggerChartSyncManual", err)
-			return err
-		}
-		manualAppSyncJobByteArr, err := ioutil.ReadAll(manualAppSyncJobJsonFile)
-		if err != nil {
-			impl.logger.Errorw("manualAppSync Byte read err, TriggerChartSyncManual", err)
-			return err
-		}
-		err = impl.K8sUtil.CreateJobSafely(manualAppSyncJobByteArr, "demo3", defaultClusterConfig)
-		if err != nil {
-			impl.logger.Errorw("CreateJobSafely err, TriggerChartSyncManual", err)
-			return err
-		}
 	}
+
 
 	return nil
 }

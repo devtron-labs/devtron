@@ -102,7 +102,6 @@ type InstalledAppServiceImpl struct {
 	installedAppRepository               appstore.InstalledAppRepository
 	chartTemplateService                 util.ChartTemplateService
 	refChartDir                          RefChartProxyDir
-	chartSyncManual                      ChartSyncManual
 	repositoryService                    repository.ServiceClient
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository
 	environmentRepository                cluster.EnvironmentRepository
@@ -128,7 +127,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	installedAppRepository appstore.InstalledAppRepository,
-	chartTemplateService util.ChartTemplateService, refChartDir RefChartProxyDir, chartSyncManual ChartSyncManual,
+	chartTemplateService util.ChartTemplateService, refChartDir RefChartProxyDir,
 	repositoryService repository.ServiceClient,
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository,
 	environmentRepository cluster.EnvironmentRepository, teamRepository team.TeamRepository,

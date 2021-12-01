@@ -74,7 +74,6 @@ type ChartGroupInstallAppRes struct {
 
 ///
 type RefChartProxyDir string
-type ChartSyncManual string
 
 var CHART_PROXY_TEMPLATE = "reference-chart-proxy"
 var REQUIREMENTS_YAML_FILE = "requirements.yaml"
