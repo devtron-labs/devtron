@@ -195,7 +195,7 @@ This allows public access to the url, please ensure you are using right nginx an
 ingress:
   enabled: false
   # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
-  ingressClassName: nginx
+  className: nginx
   annotations: {}
   hosts:
       - host: example1.com
@@ -213,7 +213,7 @@ Legacy deployment-template ingress format
 ingress:
   enabled: false
   # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
-  ingressClassName: nginx-internal
+  className: nginx-internal
   annotations: {}
   path: ""
   host: ""
