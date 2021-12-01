@@ -1,6 +1,6 @@
 # Application Metrics
 
-
+Application metrics can be enabled to see your application's metrics- CPU usage,Memory Usage,Status,Throughput and Latency.
 
 ## CPU Usage Metrics
 
