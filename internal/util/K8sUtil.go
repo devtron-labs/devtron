@@ -19,6 +19,7 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	batchV1 "k8s.io/api/batch/v1"
@@ -31,6 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"time"
 )
 
 type K8sUtil struct {
@@ -296,11 +298,13 @@ func (impl K8sUtil) CreateJob(clusterConfig *ClusterConfig, namespace string, jo
 		impl.logger.Errorw("clientSet err, CreateJob","err", err)
 		return err
 	}
-	_, err = clientSet.BatchV1().Jobs(namespace).Create(job)
+
+	job1 , err := clientSet.BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
 		impl.logger.Errorw("create err, CreateJob","err", err)
 		return err
 	}
+	fmt.Println(job1)
 	return nil
 }
 
@@ -326,21 +330,9 @@ func (impl K8sUtil) CreateJobSafely(content []byte, namespace string, clusterCon
 		impl.logger.Errorw("DeleteJobIfExists err, CreateJobSafely","err", err)
 		return err
 	}
-
+	time.Sleep(5 * time.Second)
 	// create job
-	objectMap1 := map[string]interface{}{}
-	err = yaml.Unmarshal(content, &objectMap1)
-	if err != nil {
-		impl.logger.Errorw("Unmarshal err, CreateJobSafely","err", err)
-		return err
-	}
-	var job1 batchV1.Job
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(objectMap, &job1)
-	if err != nil {
-		impl.logger.Errorw("DefaultUnstructuredConverter err, CreateJobSafely","err", err)
-		return err
-	}
-	err = impl.CreateJob(clusterConfig, namespace, &job1)
+	err = impl.CreateJob(clusterConfig, namespace, &job)
 	if err != nil {
 		impl.logger.Errorw("CreateJob err, CreateJobSafely","err", err)
 		return err
