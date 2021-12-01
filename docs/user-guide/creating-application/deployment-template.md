@@ -76,7 +76,7 @@ LivenessProbe:
       value: abc
   scheme: ""
   tcp: true
-
+```
 | Key | Description |
 | :--- | :--- |
 | `Path` | It define the path where the liveness needs to be checked. |
@@ -89,6 +89,38 @@ LivenessProbe:
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
+
+### Readiness Probe
+
+If this check fails, kubernetes stops sending traffic to the application. This should return error code in case of errors which can be recovered from if traffic is stopped.
+
+```yaml
+ReadinessProbe:
+  Path: ""
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
+  scheme: ""
+  tcp: true
+```
+
+| Key | Description |
+| :--- | :--- |
+| `Path` | It define the path where the readiness needs to be checked. |
+| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
+| `initialDelaySeconds` | It defines the time to wait before a given container is checked for readiness. |
+| `periodSeconds` | It defines the time to check a given container for readiness. |
+| `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
+| `timeoutSeconds` | It defines the time for checking timeout. |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
+| `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
 ### MaxUnavailable
 
@@ -112,37 +144,6 @@ MinReadySeconds: 60
 ```
 This specifies the minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available. This defaults to 0 (the Pod will be considered available as soon as it is ready).
 
-### Readiness Probe
-
-If this check fails, kubernetes stops sending traffic to the application. This should return error code in case of errors which can be recovered from if traffic is stopped.
-
-```yaml
-ReadinessProbe:
-  Path: ""
-  port: 8080
-  initialDelaySeconds: 20
-  periodSeconds: 10
-  successThreshold: 1
-  timeoutSeconds: 5
-  failureThreshold: 3
-  httpHeaders:
-    - name: Custom-Header
-      value: abc
-  scheme: ""
-  tcp: true
-
-
-| Key | Description |
-| :--- | :--- |
-| `Path` | It define the path where the readiness needs to be checked. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
-| `initialDelaySeconds` | It defines the time to wait before a given container is checked for readiness. |
-| `periodSeconds` | It defines the time to check a given container for readiness. |
-| `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
-| `timeoutSeconds` | It defines the time for checking timeout. |
-| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
-| `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
-| `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
 ### Autoscaling
 
