@@ -328,7 +328,19 @@ func (impl K8sUtil) CreateJobSafely(content []byte, namespace string, clusterCon
 	}
 
 	// create job
-	err = impl.CreateJob(clusterConfig, namespace, &job)
+	objectMap1 := map[string]interface{}{}
+	err = yaml.Unmarshal(content, &objectMap1)
+	if err != nil {
+		impl.logger.Errorw("Unmarshal err, CreateJobSafely","err", err)
+		return err
+	}
+	var job1 batchV1.Job
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(objectMap, &job1)
+	if err != nil {
+		impl.logger.Errorw("DefaultUnstructuredConverter err, CreateJobSafely","err", err)
+		return err
+	}
+	err = impl.CreateJob(clusterConfig, namespace, &job1)
 	if err != nil {
 		impl.logger.Errorw("CreateJob err, CreateJobSafely","err", err)
 		return err
