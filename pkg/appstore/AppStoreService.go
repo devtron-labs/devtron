@@ -760,13 +760,13 @@ func (impl *AppStoreServiceImpl) get(href string, chartRepository *repo.ChartRep
 func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 	defaultClusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
-		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", err)
+		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual","err", err)
 		return err
 	}
 
 	defaultClusterConfig, err := impl.clusterService.GetClusterConfig(defaultClusterBean)
 	if err != nil {
-		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual", err)
+		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual","err", err)
 		return err
 	}
 
@@ -774,7 +774,7 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 
 	err = impl.K8sUtil.CreateJobSafely(manualAppSyncJobByteArr, argocdServer.DevtronInstalationNs, defaultClusterConfig)
 	if err != nil {
-		impl.logger.Errorw("CreateJobSafely err, TriggerChartSyncManual", err)
+		impl.logger.Errorw("CreateJobSafely err, TriggerChartSyncManual", "err", err)
 		return err
 	}
 
