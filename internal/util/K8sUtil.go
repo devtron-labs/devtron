@@ -20,12 +20,12 @@ package util
 import (
 	"encoding/json"
 	error2 "errors"
+	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	batchV1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
@@ -320,23 +320,22 @@ func (impl K8sUtil) CreateJob(namespace string, name string, clusterConfig *Clus
 // DeleteAndCreateJob Deletes and recreates if job exists else creates the job
 func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, clusterConfig *ClusterConfig) error {
 	// Job object from content
-	uns := unstructured.Unstructured{}
 	var job batchV1.Job
-	err := uns.UnmarshalJSON(content)
+	err := yaml.Unmarshal(content,&job)
 	if err != nil {
 		impl.logger.Errorw("Unmarshal err, CreateJobSafely","err", err)
 		return err
 	}
 
 	// delete job if exists
-	err = impl.DeleteJob(namespace, uns.GetName(), clusterConfig)
+	err = impl.DeleteJob(namespace, job.Name, clusterConfig)
 	if err != nil{
 		impl.logger.Errorw("DeleteJobIfExists err, CreateJobSafely","err", err)
 		return err
 	}
 
 	// create job
-	err = impl.CreateJob( namespace, uns.GetName(), clusterConfig, &job)
+	err = impl.CreateJob( namespace, job.Name, clusterConfig, &job)
 	if err != nil {
 		impl.logger.Errorw("CreateJob err, CreateJobSafely","err", err)
 		return err
