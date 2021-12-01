@@ -330,7 +330,10 @@ func (impl K8sUtil) CreateJobSafely(content []byte, namespace string, clusterCon
 		impl.logger.Errorw("DeleteJobIfExists err, CreateJobSafely","err", err)
 		return err
 	}
+
+	//time to delete job
 	time.Sleep(5 * time.Second)
+
 	// create job
 	err = impl.CreateJob(clusterConfig, namespace, &job)
 	if err != nil {
