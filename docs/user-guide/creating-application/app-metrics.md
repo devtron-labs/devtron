@@ -18,8 +18,6 @@ CPU usage is a utilization metric that shows the overall utilization of cpu by a
 
  ## Status Code Metrics
 
- Status Code Metrics
-
 This metrics indicates the  application’s response to client’s request with a specific status code i.e 1xx(Communicate transfer protocol leve information), 2xx(Client’s request was accepted successfully), 3xx(Client must take some additional action to complete their request), 4xx(Client side error) or 5xx(Server side error).  To get this metric, you have to select the status code from drop-down in the throughput metric and you’ll get the metrics for that specific status code.
 
 ## Latency Metrics
