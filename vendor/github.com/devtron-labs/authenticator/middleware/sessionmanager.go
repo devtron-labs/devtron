@@ -6,7 +6,8 @@ import (
 	jwt2 "github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/oidc"
 	jwt "github.com/golang-jwt/jwt/v4"
-	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"net"
 	"net/http"
 	"time"
@@ -24,9 +25,17 @@ const (
 	SessionManagerClaimsIssuer = "argocd"
 
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
-	invalidLoginError  = "Invalid username or password"
-	blankPasswordError = "Blank passwords are not allowed"
-	badUserError       = "Bad local superuser username"
+	invalidLoginError         = "Invalid username or password"
+	blankPasswordError        = "Blank passwords are not allowed"
+	badUserError              = "Bad local superuser username"
+	usernameTooLongError      = "Username is too long (%d bytes max)"
+	accountDisabled           = "Account %s is disabled"
+	maxUsernameLength         = 32
+	userDoesNotHaveCapability = "Account %s does not have %s capability"
+)
+
+var (
+	InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
 )
 
 // NewSessionManager creates a new session manager from Argo CD settings
@@ -50,9 +59,13 @@ func NewSessionManager(settings *oidc.Settings, dexServerAddr string) *SessionMa
 	return &s
 }
 
+func (mgr *SessionManager) GetUserSessionDuration() time.Duration {
+	return mgr.settings.UserSessionDuration
+}
+
 // Create creates a new token for a given subject (user) and returns it as a string.
 // Passing a value of `0` for secondsBeforeExpiry creates a token that never expires.
-func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64) (string, error) {
+func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id string) (string, error) {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().UTC()
@@ -61,6 +74,7 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64) (st
 		Issuer:    SessionManagerClaimsIssuer,
 		NotBefore: now.Unix(),
 		Subject:   subject,
+		Id:        id,
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
@@ -71,10 +85,39 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64) (st
 }
 
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
+	// log.Infof("Issuing claims: %v", claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(mgr.settings.OIDCConfig.ClientSecret))
+	return tokenString, err
+	/*settings, err := mgr.settingsMgr.GetSettings()
+	if err != nil {
+		return "", err
+	}*/
+	// workaround for https://github.com/argoproj/argo-cd/issues/5217
+	// According to https://tools.ietf.org/html/rfc7519#section-4.1.6 "iat" and other time fields must contain
+	// number of seconds from 1970-01-01T00:00:00Z UTC until the specified UTC date/time.
+	// The https://github.com/dgrijalva/jwt-go marshals time as non integer.
+	/*	return token.SignedString("", jwt.WithMarshaller(func(ctx jwt.CodingContext, v interface{}) ([]byte, error) {
+		if std, ok := v.(jwt.StandardClaims); ok {
+			return json.Marshal(standardClaims{
+				Audience:  std.Audience,
+				ExpiresAt: unixTimeOrZero(std.ExpiresAt),
+				ID:        std.ID,
+				IssuedAt:  unixTimeOrZero(std.IssuedAt),
+				Issuer:    std.Issuer,
+				NotBefore: unixTimeOrZero(std.NotBefore),
+				Subject:   std.Subject,
+			})
+		}
+		return json.Marshal(v)
+	}))*/
+}
+
+/*func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	log.Infof("Issuing claims: %v", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(mgr.settings.OIDCConfig.ClientSecret)
-}
+}*/
 
 // Parse tries to parse the provided string and returns the token claims for local superuser login.
 func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
@@ -90,7 +133,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-		return settings.OIDCConfig.ClientSecret, nil
+		return []byte(settings.OIDCConfig.ClientSecret), nil
 	})
 	if err != nil {
 		return nil, err

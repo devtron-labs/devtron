@@ -111,6 +111,8 @@ type Settings struct {
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL        string `json:"url,omitempty"`
 	OIDCConfig OIDCConfig
+	// Specifies token expiration duration
+	UserSessionDuration time.Duration `json:"userSessionDuration,omitempty"`
 }
 
 func appendURLPath(inputURL string, inputPath string) (string, error) {

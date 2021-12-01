@@ -19,7 +19,7 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/cyphar/filepath-securejoin v0.2.2 // indirect
 	github.com/davecgh/go-spew v1.1.1
-	github.com/devtron-labs/authenticator v0.4.4
+	github.com/devtron-labs/authenticator v0.4.5
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/elazarl/goproxy v0.0.0-20210110162100-a92cc753f88e // indirect
 	github.com/emicklei/go-restful v2.11.0+incompatible // indirect
@@ -36,13 +36,12 @@ require (
 	github.com/gobuffalo/envy v1.7.1 // indirect
 	github.com/gobuffalo/packr v1.30.1 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/gogo/protobuf v1.3.1
+	github.com/gogo/protobuf v1.3.2
 	github.com/golang-jwt/jwt/v4 v4.1.0
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.4.2
 	github.com/google/go-cmp v0.5.1
 	github.com/google/go-github v17.0.0+incompatible
-	github.com/google/uuid v1.1.5 // indirect
 	github.com/google/wire v0.3.0
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/gorilla/mux v1.8.0
@@ -55,7 +54,6 @@ require (
 	github.com/hashicorp/go-uuid v1.0.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/igm/sockjs-go v3.0.0+incompatible // indirect
-	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/jcmturner/gofork v1.0.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.8 // indirect
@@ -95,7 +93,6 @@ require (
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/go-playground/validator.v9 v9.30.0
 	gopkg.in/igm/sockjs-go.v3 v3.0.0
-	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/jcmturner/goidentity.v2 v2.0.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.4.0
@@ -103,11 +100,9 @@ require (
 	k8s.io/apimachinery v0.0.0-20190816221834-a9f1d8a9c101
 	k8s.io/client-go v11.0.1-0.20190820062731-7e43eff7c80a+incompatible
 	k8s.io/helm v2.12.3+incompatible
-	k8s.io/klog v1.0.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20190918143330-0270cf2f1c1d // indirect
-	k8s.io/utils v0.0.0-20191010214722-8d271d903fe4 // indirect
 	mellium.im/sasl v0.2.1 // indirect
 	xorm.io/core v0.7.2 // indirect
 )
 
-replace github.com/devtron-labs/authenticator => github.com/nishant-d/authenticator v0.4.4
+replace github.com/devtron-labs/authenticator => github.com/nishant-d/authenticator v0.4.5

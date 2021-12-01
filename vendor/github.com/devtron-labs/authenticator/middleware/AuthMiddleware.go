@@ -64,7 +64,7 @@ func WhitelistChecker(url string) bool {
 	urls := []string{
 		"/auth/login",
 		"/auth/callback",
-
+		"/user/login",
 		"/",
 	}
 	for _, a := range urls {

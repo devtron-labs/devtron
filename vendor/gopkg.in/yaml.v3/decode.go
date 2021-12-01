@@ -35,7 +35,6 @@ type parser struct {
 	doc      *Node
 	anchors  map[string]*Node
 	doneInit bool
-	textless bool
 }
 
 func newParser(b []byte) *parser {
@@ -109,18 +108,14 @@ func (p *parser) peek() yaml_event_type_t {
 func (p *parser) fail() {
 	var where string
 	var line int
-	if p.parser.context_mark.line != 0 {
-		line = p.parser.context_mark.line
-		// Scanner errors don't iterate line before returning error
-		if p.parser.error == yaml_SCANNER_ERROR {
-			line++
-		}
-	} else if p.parser.problem_mark.line != 0 {
+	if p.parser.problem_mark.line != 0 {
 		line = p.parser.problem_mark.line
 		// Scanner errors don't iterate line before returning error
 		if p.parser.error == yaml_SCANNER_ERROR {
 			line++
 		}
+	} else if p.parser.context_mark.line != 0 {
+		line = p.parser.context_mark.line
 	}
 	if line != 0 {
 		where = "line " + strconv.Itoa(line) + ": "
@@ -174,20 +169,17 @@ func (p *parser) node(kind Kind, defaultTag, tag, value string) *Node {
 	} else if kind == ScalarNode {
 		tag, _ = resolve("", value)
 	}
-	n := &Node{
-		Kind:  kind,
-		Tag:   tag,
-		Value: value,
-		Style: style,
+	return &Node{
+		Kind:        kind,
+		Tag:         tag,
+		Value:       value,
+		Style:       style,
+		Line:        p.event.start_mark.line + 1,
+		Column:      p.event.start_mark.column + 1,
+		HeadComment: string(p.event.head_comment),
+		LineComment: string(p.event.line_comment),
+		FootComment: string(p.event.foot_comment),
 	}
-	if !p.textless {
-		n.Line = p.event.start_mark.line + 1
-		n.Column = p.event.start_mark.column + 1
-		n.HeadComment = string(p.event.head_comment)
-		n.LineComment = string(p.event.line_comment)
-		n.FootComment = string(p.event.foot_comment)
-	}
-	return n
 }
 
 func (p *parser) parseChild(parent *Node) *Node {
@@ -505,13 +497,8 @@ func (d *decoder) unmarshal(n *Node, out reflect.Value) (good bool) {
 		good = d.mapping(n, out)
 	case SequenceNode:
 		good = d.sequence(n, out)
-	case 0:
-		if n.IsZero() {
-			return d.null(out)
-		}
-		fallthrough
 	default:
-		failf("cannot decode node with unknown kind %d", n.Kind)
+		panic("internal error: unknown node kind: " + strconv.Itoa(int(n.Kind)))
 	}
 	return good
 }
@@ -546,17 +533,6 @@ func resetMap(out reflect.Value) {
 	}
 }
 
-func (d *decoder) null(out reflect.Value) bool {
-	if out.CanAddr() {
-		switch out.Kind() {
-		case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
-			out.Set(reflect.Zero(out.Type()))
-			return true
-		}
-	}
-	return false
-}
-
 func (d *decoder) scalar(n *Node, out reflect.Value) bool {
 	var tag string
 	var resolved interface{}
@@ -574,7 +550,14 @@ func (d *decoder) scalar(n *Node, out reflect.Value) bool {
 		}
 	}
 	if resolved == nil {
-		return d.null(out)
+		if out.CanAddr() {
+			switch out.Kind() {
+			case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
+				out.Set(reflect.Zero(out.Type()))
+				return true
+			}
+		}
+		return false
 	}
 	if resolvedv := reflect.ValueOf(resolved); out.Type() == resolvedv.Type() {
 		// We've resolved to exactly the type we want, so use that.
@@ -808,10 +791,8 @@ func (d *decoder) mapping(n *Node, out reflect.Value) (good bool) {
 		}
 	}
 
-	mapIsNew := false
 	if out.IsNil() {
 		out.Set(reflect.MakeMap(outt))
-		mapIsNew = true
 	}
 	for i := 0; i < l; i += 2 {
 		if isMerge(n.Content[i]) {
@@ -828,7 +809,7 @@ func (d *decoder) mapping(n *Node, out reflect.Value) (good bool) {
 				failf("invalid map key: %#v", k.Interface())
 			}
 			e := reflect.New(et).Elem()
-			if d.unmarshal(n.Content[i+1], e) || n.Content[i+1].ShortTag() == nullTag && (mapIsNew || !out.MapIndex(k).IsValid()) {
+			if d.unmarshal(n.Content[i+1], e) {
 				out.SetMapIndex(k, e)
 			}
 		}

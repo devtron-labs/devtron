@@ -25,6 +25,7 @@ func GetSettings(conf *DexConfig) (*Settings, error) {
 		OIDCConfig: OIDCConfig{CLIClientID: conf.DexClientID,
 			ClientSecret: conf.DexClientSecret,
 			Issuer:       proxyUrl},
+		UserSessionDuration: time.Duration(conf.UserSessionDurationSeconds) * time.Second,
 	}
 	return settings, nil
 }
@@ -57,6 +58,8 @@ type DexConfig struct {
 	Url              string `env:"AUTHENTICATOR_URL" envDefault:"https://demo.devtron.info:32443/authenticator/"`
 	DexClientSecret  string `env:"DEX_CLIENT_SECRET" envDefault:""`
 	DexClientID      string `env:"DEX_CLIENT_ID" envDefault:"argo-cd"`
+	// Specifies token expiration duration
+	UserSessionDurationSeconds int `env:"USER_SESSION_DURATION_SECONDS" envDefault:"300"`
 }
 
 func (c *DexConfig) getDexProxyUrl() (string, error) {
