@@ -24,20 +24,18 @@ import (
 type LoginService struct {
 	sessionManager *SessionManager
 	kubeconfig     *rest.Config
-	devMode        LocalDevMode
 }
 
 type LocalDevMode bool
 
 func NewUserLogin(sessionManager *SessionManager, devMode LocalDevMode) (*LoginService, error) {
-	cfg, err := getKubeConfig()
+	cfg, err := getKubeConfig(devMode)
 	if err != nil {
 		return nil, err
 	}
 	return &LoginService{
 		sessionManager: sessionManager,
 		kubeconfig:     cfg,
-		devMode:        devMode,
 	}, nil
 }
 func (impl LoginService) CreateLoginSession(username string, password string) (string, error) {
@@ -201,8 +199,7 @@ func parseAdminAccount(secret *v1.Secret, cm *v1.ConfigMap) (*Account, error) {
 }
 
 //TODO use it as generic function across system
-func getKubeConfig() (*rest.Config, error) {
-	devMode := true
+func getKubeConfig(devMode LocalDevMode) (*rest.Config, error) {
 	if devMode {
 		usr, err := user.Current()
 		if err != nil {

@@ -451,5 +451,5 @@ var (
 	_wireRefChartDirValue      = pipeline.RefChartDir("scripts/devtron-reference-helm-charts")
 	_wireDefaultChartValue     = pipeline.DefaultChart("reference-app-rolling")
 	_wireRefChartProxyDirValue = appstore2.RefChartProxyDir("scripts/devtron-reference-helm-charts")
-	_wireLocalDevModeValue     = middleware.LocalDevMode(true)
+	_wireLocalDevModeValue     = middleware.LocalDevMode(false)
 )
