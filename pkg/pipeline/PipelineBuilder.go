@@ -1196,11 +1196,11 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 	if appWorkflowModel.Id > 0 {
 		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
 			AppWorkflowId: appWorkflowModel.Id,
-			ParentId:      pipeline.CiPipelineId,
+			ParentId:      pipeline.ParentPipelineId,
+			ParentType:    pipeline.ParentPipelineType,
 			ComponentId:   pipelineId,
 			Type:          "CD_PIPELINE",
 			Active:        true,
-			ParentType:    "CI_PIPELINE",
 			AuditLog:      models.AuditLog{CreatedBy: userID, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userID},
 		}
 		_, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)

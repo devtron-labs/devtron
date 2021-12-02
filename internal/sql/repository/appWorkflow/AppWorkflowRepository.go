@@ -253,7 +253,7 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCDPipelineId(cdPipelineId
 	return appWorkflowsMapping, err
 }
 
-func (impl AppWorkflowRepositoryImpl) FindWFCDMappingForByParentCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error) {
+func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByParentCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error) {
 	var appWorkflowsMapping []*AppWorkflowMapping
 
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
