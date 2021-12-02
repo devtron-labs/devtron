@@ -20,6 +20,7 @@ package util
 import (
 	"encoding/json"
 	error2 "errors"
+	"fmt"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	batchV1 "k8s.io/api/batch/v1"
@@ -269,21 +270,21 @@ func (impl K8sUtil) UpdateSecret(namespace string, secret *v1.Secret, client *v1
 func (impl K8sUtil) DeleteJob(namespace string, name string, clusterConfig *ClusterConfig) error {
 	clientSet, err := impl.GetClientSet(clusterConfig)
 	if err != nil {
-		impl.logger.Errorw("clientSet err, DeleteJobIfExists","err", err)
+		impl.logger.Errorw("clientSet err, DeleteJob","err", err)
 		return err
 	}
 	jobs := clientSet.BatchV1().Jobs(namespace)
 
 	job, err := jobs.Get(name, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err){
-		impl.logger.Errorw("get job err, DeleteJobIfExists","err", err)
+		impl.logger.Errorw("get job err, DeleteJob","err", err)
 		return nil
 	}
 
 	if job != nil {
 		err := jobs.Delete(name, &metav1.DeleteOptions{})
 		if err!=nil && !errors.IsNotFound(err){
-			impl.logger.Errorw("delete err, DeleteJobIfExists","err", err)
+			impl.logger.Errorw("delete err, DeleteJob","err", err)
 			return err
 		}
 	}
@@ -317,6 +318,37 @@ func (impl K8sUtil) CreateJob(namespace string, name string, clusterConfig *Clus
 	return nil
 }
 
+// DeletePod delete pods with label job-name
+
+const Running = "Running"
+func (impl K8sUtil) DeletePod(namespace string, name string, clusterConfig *ClusterConfig) error {
+	clientSet, err := impl.GetClientSet(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("clientSet err, DeletePod","err", err)
+		return err
+	}
+
+	time.Sleep(2 * time.Second)
+
+	pods := clientSet.CoreV1().Pods(namespace)
+	pod, err := pods.Get(name, metav1.GetOptions{})
+	fmt.Println(pod.Status)
+	if err != nil && errors.IsNotFound(err){
+		impl.logger.Errorw("get pod err, DeletePod","err", err)
+		return nil
+	}
+
+	if pod.Status.Phase != Running {
+		err := pods.Delete(name, &metav1.DeleteOptions{})
+		if err!=nil && !errors.IsNotFound(err){
+			impl.logger.Errorw("delete err, DeletePod","err", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
 // DeleteAndCreateJob Deletes and recreates if job exists else creates the job
 func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, clusterConfig *ClusterConfig) error {
 	// Job object from content
@@ -334,6 +366,11 @@ func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, cluster
 		return err
 	}
 
+	err = impl.DeletePod(namespace, job.Name, clusterConfig)
+	if err != nil{
+		impl.logger.Errorw("DeleteJobIfExists err, CreateJobSafely","err", err)
+		return err
+	}
 	// create job
 	err = impl.CreateJob( namespace, job.Name, clusterConfig, &job)
 	if err != nil {

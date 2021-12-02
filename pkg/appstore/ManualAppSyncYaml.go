@@ -15,7 +15,7 @@ func manualAppSyncJobByteArr() []byte{
   "kind": "Job",
   "metadata": {
     "name": "app-manual-sync-job",
-    "namespace": "devtroncd"
+    "namespace": "demo3"
   },
   "spec": {
     "template": {
