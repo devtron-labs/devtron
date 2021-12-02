@@ -2,20 +2,15 @@ package middleware
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
+	"github.com/devtron-labs/authenticator/client"
+
 	passwordutil "github.com/devtron-labs/authenticator/password"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	"os/user"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -23,20 +18,14 @@ import (
 
 type LoginService struct {
 	sessionManager *SessionManager
-	kubeconfig     *rest.Config
+	k8sClient      *client.K8sClient
 }
 
-type LocalDevMode bool
-
-func NewUserLogin(sessionManager *SessionManager, devMode LocalDevMode) (*LoginService, error) {
-	cfg, err := getKubeConfig(devMode)
-	if err != nil {
-		return nil, err
-	}
+func NewUserLogin(sessionManager *SessionManager, k8sClient *client.K8sClient) *LoginService {
 	return &LoginService{
 		sessionManager: sessionManager,
-		kubeconfig:     cfg,
-	}, nil
+		k8sClient:      k8sClient,
+	}
 }
 func (impl LoginService) CreateLoginSession(username string, password string) (string, error) {
 	if username == "" || password == "" {
@@ -147,7 +136,7 @@ func (impl LoginService) GetAccount(name string) (*Account, error) {
 	if name != "admin" {
 		return nil, fmt.Errorf("no account supported: %s", name)
 	}
-	secret, cm, err := impl.getArgoConfig(impl.kubeconfig)
+	secret, cm, err := impl.k8sClient.GetArgoConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -158,81 +147,30 @@ func (impl LoginService) GetAccount(name string) (*Account, error) {
 	return account, nil
 }
 
-const (
-	settingAdminPasswordHashKey = "admin.password"
-	// settingAdminPasswordMtimeKey designates the key for a root password mtime inside a Kubernetes secret.
-	settingAdminPasswordMtimeKey = "admin.passwordMtime"
-	settingAdminEnabledKey       = "admin.enabled"
-	settingAdminTokensKey        = "admin.tokens"
-
-	ArgoCDConfigMapName = "argocd-cm"
-	ArgoCDSecretName    = "argocd-secret"
-	ArgocdNamespaceName = "devtroncd"
-)
-
 func parseAdminAccount(secret *v1.Secret, cm *v1.ConfigMap) (*Account, error) {
 	adminAccount := &Account{Enabled: true, Capabilities: []AccountCapability{AccountCapabilityLogin}}
-	if adminPasswordHash, ok := secret.Data[settingAdminPasswordHashKey]; ok {
+	if adminPasswordHash, ok := secret.Data[client.SettingAdminPasswordHashKey]; ok {
 		adminAccount.PasswordHash = string(adminPasswordHash)
 	}
-	if adminPasswordMtimeBytes, ok := secret.Data[settingAdminPasswordMtimeKey]; ok {
+	if adminPasswordMtimeBytes, ok := secret.Data[client.SettingAdminPasswordMtimeKey]; ok {
 		if mTime, err := time.Parse(time.RFC3339, string(adminPasswordMtimeBytes)); err == nil {
 			adminAccount.PasswordMtime = &mTime
 		}
 	}
 
 	adminAccount.Tokens = make([]Token, 0)
-	if tokensStr, ok := secret.Data[settingAdminTokensKey]; ok && string(tokensStr) != "" {
+	if tokensStr, ok := secret.Data[client.SettingAdminTokensKey]; ok && string(tokensStr) != "" {
 		if err := json.Unmarshal(tokensStr, &adminAccount.Tokens); err != nil {
 			return nil, err
 		}
 	}
-	if enabledStr, ok := cm.Data[settingAdminEnabledKey]; ok {
+	if enabledStr, ok := cm.Data[client.SettingAdminEnabledKey]; ok {
 		if enabled, err := strconv.ParseBool(enabledStr); err == nil {
 			adminAccount.Enabled = enabled
 		} else {
-			log.Warnf("ConfigMap has invalid key %s: %v", settingAdminTokensKey, err)
+			log.Warnf("ConfigMap has invalid key %s: %v", client.SettingAdminTokensKey, err)
 		}
 	}
 
 	return adminAccount, nil
-}
-
-//TODO use it as generic function across system
-func getKubeConfig(devMode LocalDevMode) (*rest.Config, error) {
-	if devMode {
-		usr, err := user.Current()
-		if err != nil {
-			return nil, err
-		}
-		kubeconfig := flag.String("kubeconfig-authenticator", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
-		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-		if err != nil {
-			return nil, err
-		}
-		return restConfig, nil
-	} else {
-		restConfig, err := rest.InClusterConfig()
-		if err != nil {
-			return nil, err
-		}
-		return restConfig, nil
-	}
-}
-
-func (impl LoginService) getArgoConfig(config *rest.Config) (secret *v1.Secret, cm *v1.ConfigMap, err error) {
-	clientSet, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, nil, err
-	}
-	secret, err = clientSet.CoreV1().Secrets(ArgocdNamespaceName).Get(ArgoCDSecretName, v12.GetOptions{})
-	if err != nil {
-		return nil, nil, err
-	}
-	cm, err = clientSet.CoreV1().ConfigMaps(ArgocdNamespaceName).Get(ArgoCDConfigMapName, v12.GetOptions{})
-	if err != nil {
-		return nil, nil, err
-	}
-	return secret, cm, nil
 }

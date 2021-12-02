@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/casbin/casbin"
 	middleware2 "github.com/devtron-labs/authenticator/middleware"
-	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -47,7 +46,6 @@ type App struct {
 	server       *http.Server
 	db           *pg.DB
 	pubsubClient *pubsub.PubSubClient
-	dexConfig    *oidc.DexConfig
 	// used for local dev only
 	serveTls        bool
 	sessionManager2 *middleware2.SessionManager
@@ -60,7 +58,6 @@ func NewApp(router *router.MuxRouter,
 	enforcer *casbin.Enforcer,
 	db *pg.DB,
 	pubsubClient *pubsub.PubSubClient,
-	dexConfig *oidc.DexConfig,
 	sessionManager2 *middleware2.SessionManager,
 ) *App {
 	//check argo connection
@@ -75,7 +72,6 @@ func NewApp(router *router.MuxRouter,
 		Enforcer:        enforcer,
 		db:              db,
 		pubsubClient:    pubsubClient,
-		dexConfig:       dexConfig,
 		serveTls:        false,
 		sessionManager2: sessionManager2,
 	}

@@ -21,8 +21,8 @@
 package main
 
 import (
+	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/middleware"
-	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
@@ -706,9 +706,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
 
-		wire.Value(middleware.LocalDevMode(false)),
-		oidc.DexConfigConfigFromEnv,
-		oidc.GetSettings,
+		wire.Value(client.LocalDevMode(false)),
+		client.NewK8sClient,
+		client.BuildDexConfig,
+		client.GetSettings,
 		middleware.NewSessionManager,
 		middleware.NewUserLogin,
 	)

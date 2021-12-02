@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/authenticator/client"
 	jwt2 "github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/oidc"
 	jwt "github.com/golang-jwt/jwt/v4"
@@ -39,7 +40,7 @@ var (
 )
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settings *oidc.Settings, config *oidc.DexConfig) *SessionManager {
+func NewSessionManager(settings *oidc.Settings, config *client.DexConfig) *SessionManager {
 	s := SessionManager{
 		settings: settings,
 	}

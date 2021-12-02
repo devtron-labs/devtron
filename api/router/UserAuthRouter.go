@@ -19,6 +19,7 @@ package router
 
 import (
 	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -41,7 +42,7 @@ type UserAuthRouterImpl struct {
 	clientApp       *oidc.ClientApp
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandler.UserAuthHandler, settings *settings.ArgoCDSettings, userService user.UserService, dexConfig *oidc.DexConfig) (*UserAuthRouterImpl, error) {
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandler.UserAuthHandler, settings *settings.ArgoCDSettings, userService user.UserService, dexConfig *client.DexConfig) (*UserAuthRouterImpl, error) {
 	tlsConfig := settings.TLSConfig()
 	if tlsConfig != nil {
 		tlsConfig.InsecureSkipVerify = true
@@ -51,7 +52,7 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandle
 		logger:          logger,
 	}
 	logger.Infow("auth starting with dex conf", "conf", dexConfig)
-	oidcClient, dexProxy, err := oidc.GetOidcClient(dexConfig, userService.UserExists, router.RedirectUrlSanitiser)
+	oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, userService.UserExists, router.RedirectUrlSanitiser)
 	if err != nil {
 		return nil, err
 	}
