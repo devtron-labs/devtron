@@ -1627,10 +1627,16 @@ func (impl PipelineBuilderImpl) GetArtifactsForPreCdStage(cdPipelineId int, pare
 			return ciArtifactsResponse, err
 		}
 	} else if parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
-		artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipelineAndRunnerType(parentId, bean2.CD_WORKFLOW_TYPE_DEPLOY)
+		wfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(parentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, 10)
 		if err != nil {
-			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentCdId", parentId, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_PRE)
+			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentCdId", parentId, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
 			return ciArtifactsResponse, err
+		}
+		for _, wfr := range wfrList{
+			//filtering all the artifacts for healthy deployment
+			if wfr.Status == application.Healthy{
+				artifacts = append(artifacts,*wfr.CdWorkflow.CiArtifact)
+			}
 		}
 	} else { //Parent is CI pipeline
 		artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipeline(cdPipelineId)
@@ -1686,10 +1692,16 @@ func (impl PipelineBuilderImpl) GetArtifactsForDeployCdStage(cdPipelineId int, p
 			return ciArtifactsResponse, err
 		}
 	} else if parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
-		artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipelineAndRunnerType(parentId, bean2.CD_WORKFLOW_TYPE_DEPLOY)
+		wfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(parentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, 10)
 		if err != nil {
 			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentCdId", parentId, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
 			return ciArtifactsResponse, err
+		}
+		for _, wfr := range wfrList{
+			//filtering all the artifacts for healthy deployment
+			if wfr.Status == application.Healthy{
+				artifacts = append(artifacts,*wfr.CdWorkflow.CiArtifact)
+			}
 		}
 	} else {
 		artifacts, err = impl.ciArtifactRepository.GetArtifactsByCDPipeline(cdPipelineId)
