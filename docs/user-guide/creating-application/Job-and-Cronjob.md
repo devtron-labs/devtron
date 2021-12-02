@@ -8,7 +8,7 @@
 A CronJob creates Jobs on a repeating schedule , One CronJob object is like one line of a crontab (cron table) file. It runs a job periodically on a given schedule, written in Cron format.
  CronJobs are meant for performing regular scheduled actions such as backups, report generation, and so on. Each of those tasks should be configured to recur indefinitely (for example: once a day / week / month); you can define the point in time within that interval when the job should start.
 
- ## ** Example:-**
+ ## **Example:**
 
 ```yaml
  cronjobConfigs:
@@ -37,7 +37,7 @@ The restartPolicy applies to all containers in the Pod. restartPolicy only refer
 
 A Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate. As pods successfully complete, the Job tracks the successful completions. When a specified number of successful completions is reached, the task (ie, Job) is complete. Deleting a Job will clean up the Pods it created. Suspending a Job will delete its active Pods until the Job is resumed again.
 
-## **Example:-**
+## **Example:**
 
 ```yaml
 jobConfigs:
