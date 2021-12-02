@@ -149,6 +149,7 @@ type OIDCConfig struct {
 	RequestedScopes        []string          `json:"requestedScopes,omitempty"`
 	RequestedIDTokenClaims map[string]*Claim `json:"requestedIDTokenClaims,omitempty"`
 	LogoutURL              string            `json:"logoutURL,omitempty"`
+	ServerSecret           string            `json:"serverSecret"`
 }
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an

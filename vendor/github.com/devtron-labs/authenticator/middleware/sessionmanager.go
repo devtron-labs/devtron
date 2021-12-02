@@ -87,7 +87,7 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	// log.Infof("Issuing claims: %v", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(mgr.settings.OIDCConfig.ClientSecret))
+	tokenString, err := token.SignedString([]byte(mgr.settings.OIDCConfig.ServerSecret))
 	return tokenString, err
 	/*settings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
@@ -133,7 +133,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(settings.OIDCConfig.ClientSecret), nil
+		return []byte(settings.OIDCConfig.ServerSecret), nil
 	})
 	if err != nil {
 		return nil, err

@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/authenticator/middleware"
 	"log"
 	"math/rand"
 	"net/http"
@@ -55,11 +56,11 @@ type UserAuthService interface {
 }
 
 type UserAuthServiceImpl struct {
-	sessionManager     *session.SessionManager
 	userAuthRepository repository.UserAuthRepository
 	sessionClient      session2.ServiceClient
 	logger             *zap.SugaredLogger
 	userRepository     repository.UserRepository
+	sessionManager     *middleware.SessionManager
 }
 
 var (
@@ -102,7 +103,7 @@ type WebhookToken struct {
 	WebhookToken string `env:"WEBHOOK_TOKEN" envDefault:""`
 }
 
-func NewUserAuthServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
+func NewUserAuthServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager     *middleware.SessionManager,
 	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
 ) *UserAuthServiceImpl {
 	serviceImpl := &UserAuthServiceImpl{

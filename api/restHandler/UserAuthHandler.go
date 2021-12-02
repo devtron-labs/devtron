@@ -103,8 +103,8 @@ func (handler UserAuthHandlerImpl) LoginHandler(w http.ResponseWriter, r *http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	token, err := handler.loginService.CreateLoginSession(up.Username, up.Password)
-	//token, err := handler.userAuthService.HandleLogin(up.Username, up.Password)
+	//token, err := handler.loginService.CreateLoginSession(up.Username, up.Password)
+	token, err := handler.userAuthService.HandleLogin(up.Username, up.Password)
 	if err != nil {
 		common.WriteJsonResp(w, fmt.Errorf("invalid username or password"), nil, http.StatusForbidden)
 		return
