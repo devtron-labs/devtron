@@ -124,7 +124,7 @@ func appendURLPath(inputURL string, inputPath string) (string, error) {
 	return u.String(), nil
 }
 
-const CallbackEndpoint = "/api/dex/callback"
+const CallbackEndpoint = "/auth/callback"
 
 func (a *Settings) RedirectURL() (string, error) {
 	return appendURLPath(a.URL, CallbackEndpoint)

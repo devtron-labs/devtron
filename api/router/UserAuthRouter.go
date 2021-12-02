@@ -77,8 +77,7 @@ func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) 
 	userAuthRouter.PathPrefix("/api/dex").HandlerFunc(router.dexProxy)
 	userAuthRouter.Path("/login").HandlerFunc(router.clientApp.HandleLogin)
 	userAuthRouter.Path("/auth/login").HandlerFunc(router.clientApp.HandleLogin)
-	userAuthRouter.Path("/api/dex/callback").HandlerFunc(router.clientApp.HandleCallback)
-
+	userAuthRouter.Path("/auth/callback").HandlerFunc(router.clientApp.HandleCallback)
 	userAuthRouter.Path("/api/v1/session").HandlerFunc(router.userAuthHandler.LoginHandler)
 	userAuthRouter.Path("/refresh").HandlerFunc(router.userAuthHandler.RefreshTokenHandler)
 	// Policies mapping in orchestrator
