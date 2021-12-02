@@ -53,6 +53,7 @@ type AppStoreRestHandler interface {
 	CreateChartRepo(w http.ResponseWriter, r *http.Request)
 	UpdateChartRepo(w http.ResponseWriter, r *http.Request)
 	ValidateChartRepo(w http.ResponseWriter, r *http.Request)
+	TriggerChartSyncManual(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreRestHandlerImpl struct {
@@ -468,4 +469,14 @@ func (handler *AppStoreRestHandlerImpl) ValidateChartRepo(w http.ResponseWriter,
 	handler.Logger.Infow("request payload, ValidateChartRepo", "payload", request)
 	validationResult := handler.appStoreService.ValidateChartRepo(request)
 	common.WriteJsonResp(w, nil, validationResult, http.StatusOK)
+}
+
+func (handler *AppStoreRestHandlerImpl) TriggerChartSyncManual(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+	TriggerResult := handler.appStoreService.TriggerChartSyncManual()
+	common.WriteJsonResp(w, nil, TriggerResult, http.StatusOK)
 }
