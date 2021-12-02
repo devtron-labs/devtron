@@ -321,7 +321,7 @@ func (impl K8sUtil) CreateJob(namespace string, name string, clusterConfig *Clus
 
 const Running = "Running"
 
-func (impl K8sUtil) DeletePod(namespace string, name string, clusterConfig *ClusterConfig) error {
+func (impl K8sUtil) DeletePodByLabel(namespace string, labels string, clusterConfig *ClusterConfig) error {
 	clientSet, err := impl.GetClientSet(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("clientSet err, DeletePod", "err", err)
@@ -331,7 +331,7 @@ func (impl K8sUtil) DeletePod(namespace string, name string, clusterConfig *Clus
 	time.Sleep(2 * time.Second)
 
 	pods := clientSet.CoreV1().Pods(namespace)
-	podList, err := pods.List(metav1.ListOptions{LabelSelector: "job-name=" + name})
+	podList, err := pods.List(metav1.ListOptions{LabelSelector: labels})
 	if err != nil && errors.IsNotFound(err) {
 		impl.logger.Errorw("get pod err, DeletePod", "err", err)
 		return nil
@@ -367,7 +367,8 @@ func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, cluster
 		return err
 	}
 
-	err = impl.DeletePod(namespace, job.Name, clusterConfig)
+	labels := "job-name=" + job.Name
+	err = impl.DeletePodByLabel(namespace, labels, clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("DeleteJobIfExists err, CreateJobSafely", "err", err)
 		return err
