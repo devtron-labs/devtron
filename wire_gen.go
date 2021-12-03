@@ -6,6 +6,8 @@
 package main
 
 import (
+	client2 "github.com/devtron-labs/authenticator/client"
+	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app"
@@ -21,7 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/grafana"
-	client2 "github.com/devtron-labs/devtron/client/jira"
+	client3 "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
@@ -123,22 +125,36 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	userAuthRepositoryImpl := repository.NewUserAuthRepositoryImpl(db, sugaredLogger)
-	dexConfig, err := dex.GetConfig()
+	localDevMode := _wireLocalDevModeValue
+	k8sClient, err := client2.NewK8sClient(localDevMode)
 	if err != nil {
 		return nil, err
 	}
-	sessionManager := session.SessionManager(settingsManager, dexConfig)
+	dexConfig, err := client2.BuildDexConfig(k8sClient)
+	if err != nil {
+		return nil, err
+	}
+	settings, err := client2.GetSettings(dexConfig)
+	if err != nil {
+		return nil, err
+	}
+	sessionManager := middleware.NewSessionManager(settings, dexConfig)
 	sessionServiceClientImpl := session2.NewSessionServiceClient(argoCDSettings)
 	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl)
 	tokenCache := user.NewTokenCache(sugaredLogger, acdAuthConfig, userAuthServiceImpl)
 	enforcer := casbin.Create()
-	enforcerImpl := rbac.NewEnforcerImpl(enforcer, sessionManager, sugaredLogger)
+	config2, err := dex.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	sessionSessionManager := session.SessionManager(settingsManager, config2)
+	enforcerImpl := rbac.NewEnforcerImpl(enforcer, sessionSessionManager, sugaredLogger)
 	teamRepositoryImpl := team.NewTeamRepositoryImpl(db)
 	appRepositoryImpl := pipelineConfig.NewAppRepositoryImpl(db)
 	environmentRepositoryImpl := cluster.NewEnvironmentRepositoryImpl(db)
 	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl)
 	roleGroupRepositoryImpl := repository.NewRoleGroupRepositoryImpl(db, sugaredLogger)
-	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl)
+	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager)
 	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(sugaredLogger)
 	appListingRepositoryImpl := repository.NewAppListingRepositoryImpl(sugaredLogger, db, appListingRepositoryQueryBuilder)
 	pipelineConfigRepositoryImpl := chartConfig.NewPipelineConfigRepository(db)
@@ -177,7 +193,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	appWorkflowRepositoryImpl := appWorkflow.NewAppWorkflowRepositoryImpl(sugaredLogger, db)
-	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, sessionManager, attributesRepositoryImpl)
+	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, sessionSessionManager, attributesRepositoryImpl)
 	appLabelRepositoryImpl := pipelineConfig.NewAppLabelRepositoryImpl(db)
 	appLabelServiceImpl := app.NewAppLabelServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl)
 	dbPipelineOrchestratorImpl := pipeline.NewDbPipelineOrchestrator(appRepositoryImpl, sugaredLogger, materialRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, ciPipelineMaterialRepositoryImpl, gitSensorClientImpl, ciConfig, appWorkflowRepositoryImpl, environmentRepositoryImpl, attributesServiceImpl, appListingRepositoryImpl, appLabelServiceImpl)
@@ -288,9 +304,13 @@ func InitializeApp() (*App, error) {
 	pubSubClientRestHandlerImpl := restHandler.NewPubSubClientRestHandlerImpl(natsPublishClientImpl, sugaredLogger, cdConfig)
 	webhookRouterImpl := router.NewWebhookRouterImpl(gitWebhookRestHandlerImpl, pipelineConfigRestHandlerImpl, externalCiRestHandlerImpl, pubSubClientRestHandlerImpl)
 	ssoLoginRepositoryImpl := repository.NewSSOLoginRepositoryImpl(db)
-	ssoLoginServiceImpl := sso.NewSSOLoginServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, ssoLoginRepositoryImpl, k8sUtil, clusterServiceImpl, environmentServiceImpl, acdAuthConfig)
-	userAuthHandlerImpl := restHandler.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, userServiceImpl, ssoLoginServiceImpl)
-	userAuthRouterImpl := router.NewUserAuthRouterImpl(sugaredLogger, userAuthHandlerImpl, argocdServerConfig, dexConfig, argoCDSettings, userServiceImpl)
+	ssoLoginServiceImpl := sso.NewSSOLoginServiceImpl(userAuthRepositoryImpl, sessionSessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, ssoLoginRepositoryImpl, k8sUtil, clusterServiceImpl, environmentServiceImpl, acdAuthConfig)
+	loginService := middleware.NewUserLogin(sessionManager, k8sClient)
+	userAuthHandlerImpl := restHandler.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, userServiceImpl, ssoLoginServiceImpl, loginService)
+	userAuthRouterImpl, err := router.NewUserAuthRouterImpl(sugaredLogger, userAuthHandlerImpl, argoCDSettings, userServiceImpl, dexConfig)
+	if err != nil {
+		return nil, err
+	}
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger)
 	argoApplicationRestHandlerImpl := restHandler.NewArgoApplicationRestHandlerImpl(serviceClientImpl, pumpImpl, enforcerImpl, teamServiceImpl, environmentServiceImpl, sugaredLogger, enforcerUtilImpl, terminalSessionHandlerImpl)
@@ -307,7 +327,7 @@ func InitializeApp() (*App, error) {
 	cdRestHandlerImpl := restHandler.NewCDRestHandlerImpl(sugaredLogger, resourceServiceImpl)
 	cdRouterImpl := router.NewCDRouterImpl(sugaredLogger, cdRestHandlerImpl)
 	jiraAccountRepositoryImpl := repository.NewJiraAccountRepositoryImpl(db)
-	jiraClientImpl := client2.NewJiraClientImpl(sugaredLogger, httpClient)
+	jiraClientImpl := client3.NewJiraClientImpl(sugaredLogger, httpClient)
 	accountServiceImpl := jira.NewAccountServiceImpl(sugaredLogger, jiraAccountRepositoryImpl, jiraClientImpl)
 	accountValidatorImpl := jira.NewAccountValidatorImpl(sugaredLogger, jiraClientImpl)
 	projectManagementServiceImpl := jira2.NewProjectManagementServiceImpl(sugaredLogger, accountServiceImpl, jiraAccountRepositoryImpl, accountValidatorImpl)
@@ -335,9 +355,9 @@ func InitializeApp() (*App, error) {
 	gitWebhookHandlerImpl := pubsub2.NewGitWebhookHandler(sugaredLogger, pubSubClient, gitWebhookServiceImpl)
 	workflowStatusUpdateHandlerImpl := pubsub2.NewWorkflowStatusUpdateHandlerImpl(sugaredLogger, pubSubClient, ciHandlerImpl, cdHandlerImpl, eventSimpleFactoryImpl, eventRESTClientImpl, cdWorkflowRepositoryImpl)
 	applicationStatusUpdateHandlerImpl := pubsub2.NewApplicationStatusUpdateHandlerImpl(sugaredLogger, pubSubClient, appServiceImpl, workflowDagExecutorImpl)
-	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl)
+	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sessionSessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl)
 	userRestHandlerImpl := restHandler.NewUserRestHandlerImpl(userServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, roleGroupServiceImpl)
-	userRouterImpl := router.NewUserRouterImpl(userRestHandlerImpl, dexConfig, argocdServerConfig, argoCDSettings)
+	userRouterImpl := router.NewUserRouterImpl(userRestHandlerImpl, config2, argocdServerConfig, argoCDSettings)
 	eventRepositoryImpl := repository.NewEventRepositoryImpl(sugaredLogger, db)
 	deploymentFailureHandlerImpl := app.NewDeploymentFailureHandlerImpl(sugaredLogger, appListingServiceImpl, eventRESTClientImpl, eventSimpleFactoryImpl)
 	eventServiceImpl := event.NewEventServiceImpl(sugaredLogger, eventRepositoryImpl, deploymentFailureHandlerImpl)
@@ -402,7 +422,7 @@ func InitializeApp() (*App, error) {
 	}
 	grafanaRouterImpl := router.NewGrafanaRouterImpl(sugaredLogger, grafanaConfig)
 	ssoLoginRestHandlerImpl := restHandler.NewSsoLoginRestHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl, pubSubClient, userServiceImpl, ssoLoginServiceImpl)
-	ssoLoginRouterImpl := router.NewSsoLoginRouterImpl(sugaredLogger, ssoLoginRestHandlerImpl, argocdServerConfig, dexConfig, argoCDSettings, userServiceImpl)
+	ssoLoginRouterImpl := router.NewSsoLoginRouterImpl(sugaredLogger, ssoLoginRestHandlerImpl, argocdServerConfig, config2, argoCDSettings, userServiceImpl)
 	posthogClient, err := telemetry.NewPosthogClient(sugaredLogger)
 	if err != nil {
 		return nil, err
@@ -425,11 +445,12 @@ func InitializeApp() (*App, error) {
 	coreAppRestHandlerImpl := restHandler.NewCoreAppRestHandlerImpl(sugaredLogger, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, appLabelServiceImpl, pipelineBuilderImpl, gitRegistryConfigImpl, chartServiceImpl, configMapServiceImpl, appListingServiceImpl, propertiesConfigServiceImpl, appWorkflowServiceImpl, materialRepositoryImpl, gitProviderRepositoryImpl, appWorkflowRepositoryImpl, environmentRepositoryImpl, configMapRepositoryImpl, envConfigOverrideRepositoryImpl, chartRepositoryImpl, teamServiceImpl)
 	coreAppRouterImpl := router.NewCoreAppRouterImpl(coreAppRestHandlerImpl)
 	muxRouter := router.NewMuxRouter(sugaredLogger, helmRouterImpl, pipelineConfigRouterImpl, migrateDbRouterImpl, clusterAccountsRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, clusterHelmConfigRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, projectManagementRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusUpdateHandlerImpl, ciEventHandlerImpl, pubSubClient, userRouterImpl, cronBasedEventReceiverImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, testSuitRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImpl, bulkUpdateRouterImpl, webhookListenerRouterImpl, appLabelRouterImpl, coreAppRouterImpl)
-	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, sessionManager, versionServiceImpl, enforcer, db, pubSubClient)
+	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, versionServiceImpl, enforcer, db, pubSubClient, sessionManager)
 	return mainApp, nil
 }
 
 var (
+	_wireLocalDevModeValue     = client2.LocalDevMode(false)
 	_wireChartWorkingDirValue  = util.ChartWorkingDir("/tmp/charts/")
 	_wireRefChartDirValue      = pipeline.RefChartDir("scripts/devtron-reference-helm-charts")
 	_wireDefaultChartValue     = pipeline.DefaultChart("reference-app-rolling")
