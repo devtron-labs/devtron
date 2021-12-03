@@ -811,7 +811,6 @@ type chartRef struct {
 	Id      	int    		`json:"id"`
 	Version	 	string 		`json:"version"`
 	Name 		string 		`json:"name"`
-	ChartData	[]byte   	`json:"chart_data"`
 }
 
 type chartRefResponse struct {
