@@ -808,9 +808,9 @@ func (impl ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId i
 }
 
 type chartRef struct {
-	Id      	int    		`json:"id"`
-	Version	 	string 		`json:"version"`
-	Name 		string 		`json:"name"`
+	Id      int    `json:"id"`
+	Version string `json:"version"`
+	Name    string `json:"name"`
 }
 
 type chartRefResponse struct {
@@ -859,7 +859,6 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 		impl.logger.Errorw("error in fetching latest chart", "err", err)
 		return chartRefResponse, err
 	}
-
 
 	if envId > 0 {
 		envOverride, err := impl.envOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
