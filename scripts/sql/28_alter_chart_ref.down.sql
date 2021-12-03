@@ -1,3 +1,3 @@
-ALTER TABLE "public"."chart_ref" DROP COLUMN "name" varchar(250);
+ALTER TABLE "public"."chart_ref" DROP COLUMN "name";
 
-ALTER TABLE "public"."chart_ref" DROP COLUMN "chart_data" BLOB;
+ALTER TABLE "public"."chart_ref" DROP COLUMN "chart_data";
