@@ -264,8 +264,6 @@ func (impl ChartRepoRepositoryImpl) FindAll() ([]*ChartRepo, error) {
 
 // ------------------------ CHART REF REPOSITORY ---------------
 
-type BLOB struct{}
-
 type ChartRef struct {
 	tableName struct{} `sql:"chart_ref" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id,pk"`
@@ -274,7 +272,7 @@ type ChartRef struct {
 	Active    bool     `sql:"active"`
 	Default   bool     `sql:"is_default"`
 	Name 	  string   `sql:"name"`
-	ChartData BLOB  `sql:"chart_data"`
+	ChartData []byte  `sql:"chart_data"`
 	models.AuditLog
 }
 

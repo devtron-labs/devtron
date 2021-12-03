@@ -807,13 +807,11 @@ func (impl ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId i
 	return isReady, nil
 }
 
-type BLOB struct{}
-
 type chartRef struct {
 	Id      	int    		`json:"id"`
 	Version	 	string 		`json:"version"`
 	Name 		string 		`json:"name"`
-	ChartData	BLOB   	`json:"chart_data"`
+	ChartData	[]byte   	`json:"chart_data"`
 }
 
 type chartRefResponse struct {
@@ -849,10 +847,10 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 
 	var LatestAppChartRef int
 	for _, result := range results {
-		if result.Name == ""{
+		if len(result.Name) == 0{
 			result.Name = "Rollout"
 		}
-		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name, ChartData: BLOB(result.ChartData)})
+		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name})
 		if result.Default == true {
 			LatestAppChartRef = result.Id
 		}
