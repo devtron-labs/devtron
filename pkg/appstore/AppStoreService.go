@@ -130,6 +130,7 @@ type AppStoreService interface {
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
+	TriggerChartSyncManual() error
 }
 
 type AppStoreVersionsResponse struct {
@@ -676,6 +677,16 @@ func (impl *AppStoreServiceImpl) ValidateAndCreateChartRepo(request *ChartRepoDt
 		return nil, nil, validationResult
 	}
 	chartRepo, err := impl.CreateChartRepo(request)
+	if err != nil {
+		return nil, err, validationResult
+	}
+
+	// Trigger chart sync job, ignore error
+	err = impl.TriggerChartSyncManual()
+	if err != nil {
+		impl.logger.Errorw("Error in triggering chart sync job manually", "err", err)
+	}
+	
 	return chartRepo, err, validationResult
 }
 func (impl *AppStoreServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
@@ -684,6 +695,16 @@ func (impl *AppStoreServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDt
 		return nil, nil, validationResult
 	}
 	chartRepo, err := impl.UpdateChartRepo(request)
+	if err != nil {
+		return nil, err, validationResult
+	}
+
+	// Trigger chart sync job, ignore error
+	err = impl.TriggerChartSyncManual()
+	if err != nil {
+		impl.logger.Errorw("Error in triggering chart sync job manually", "err", err)
+	}
+
 	return chartRepo, err, validationResult
 }
 
@@ -735,4 +756,29 @@ func (impl *AppStoreServiceImpl) get(href string, chartRepository *repo.ChartRep
 	_, err = io.Copy(buf, resp.Body)
 	resp.Body.Close()
 	return buf, err, http.StatusOK
+}
+
+func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
+	defaultClusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual","err", err)
+		return err
+	}
+
+	defaultClusterConfig, err := impl.clusterService.GetClusterConfig(defaultClusterBean)
+	if err != nil {
+		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual","err", err)
+		return err
+	}
+
+	manualAppSyncJobByteArr := manualAppSyncJobByteArr()
+
+	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, argocdServer.DevtronInstalationNs, defaultClusterConfig)
+	if err != nil {
+		impl.logger.Errorw("DeleteAndCreateJob err, TriggerChartSyncManual", "err", err)
+		return err
+	}
+
+
+	return nil
 }
