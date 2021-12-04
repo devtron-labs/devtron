@@ -36,6 +36,7 @@ type TeamRepository interface {
 	FindOne(id int) (Team, error)
 	FindByTeamName(name string) (Team, error)
 	Update(team *Team) error
+	Delete(team *Team) error
 
 	FindTeamByAppId(appId int) (*Team, error)
 	FindActiveTeamByAppName(appName string) (*Team, error)
@@ -63,18 +64,26 @@ func (impl TeamRepositoryImpl) FindAllActive() ([]Team, error) {
 func (impl TeamRepositoryImpl) FindOne(id int) (Team, error) {
 	var team Team
 	err := impl.dbConnection.Model(&team).
-		Where("id = ?", id).Select()
+		Where("id = ?", id).
+		Where("active = ?", true).Select()
 	return team, err
 }
 
 func (impl TeamRepositoryImpl) FindByTeamName(name string) (Team, error) {
 	var team Team
 	err := impl.dbConnection.Model(&team).
-		Where("name = ?", name).Select()
+		Where("name = ?", name).
+		Where("active = ?", true).Select()
 	return team, err
 }
 
 func (impl TeamRepositoryImpl) Update(team *Team) error {
+	err := impl.dbConnection.Update(team)
+	return err
+}
+
+func (impl TeamRepositoryImpl) Delete(team *Team) error {
+	team.Active = false
 	err := impl.dbConnection.Update(team)
 	return err
 }

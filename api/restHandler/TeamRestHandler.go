@@ -33,11 +33,14 @@ import (
 	"strings"
 )
 
+const PROJECT_DELETE_SUCCESS_RESP = "Project deleted successfully."
+
 type TeamRestHandler interface {
 	SaveTeam(w http.ResponseWriter, r *http.Request)
 	FetchAll(w http.ResponseWriter, r *http.Request)
 	FetchOne(w http.ResponseWriter, r *http.Request)
 	UpdateTeam(w http.ResponseWriter, r *http.Request)
+	DeleteTeam(w http.ResponseWriter, r *http.Request)
 
 	FindTeamByAppId(w http.ResponseWriter, r *http.Request)
 	FetchForUser(w http.ResponseWriter, r *http.Request)
@@ -191,6 +194,39 @@ func (impl TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func(impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Request){
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var deleteRequest team.TeamRequest
+	err = decoder.Decode(&deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("request err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	deleteRequest.UserId = userId
+	impl.logger.Infow("request payload, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+	err = impl.validator.Struct(deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("validation err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//TODO : add rbac
+
+	err = impl.teamService.Delete(&deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("service err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, PROJECT_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
 func (impl TeamRestHandlerImpl) FindTeamByAppId(w http.ResponseWriter, r *http.Request) {

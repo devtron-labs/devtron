@@ -20,7 +20,9 @@ package cluster
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/client/grafana"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
@@ -46,6 +48,7 @@ type EnvironmentService interface {
 	Create(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
 	GetAll() ([]EnvironmentBean, error)
 	GetAllActive() ([]EnvironmentBean, error)
+	Delete(deleteReq *EnvironmentBean, userId int32) error
 
 	FindById(id int) (*EnvironmentBean, error)
 	Update(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
@@ -63,13 +66,14 @@ type EnvironmentServiceImpl struct {
 	K8sUtil                 *util.K8sUtil
 	propertiesConfigService pipeline.PropertiesConfigService
 	grafanaClient           grafana.GrafanaClient
+	pipelineRepository		pipelineConfig.PipelineRepository
 }
 
 func NewEnvironmentServiceImpl(environmentRepository cluster.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	grafanaClient grafana.GrafanaClient,
+	grafanaClient grafana.GrafanaClient, pipelineRepository	pipelineConfig.PipelineRepository,
 ) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository:   environmentRepository,
@@ -78,6 +82,7 @@ func NewEnvironmentServiceImpl(environmentRepository cluster.EnvironmentReposito
 		K8sUtil:                 K8sUtil,
 		propertiesConfigService: propertiesConfigService,
 		grafanaClient:           grafanaClient,
+		pipelineRepository: 	 pipelineRepository,
 	}
 }
 
@@ -390,4 +395,35 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 		})
 	}
 	return beans, nil
+}
+
+func(impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int32) error{
+	//finding if this env is used in any cd pipelines, if yes then will not delete
+	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(deleteReq.Id)
+	if !(pipelines == nil && err == pg.ErrNoRows){
+		impl.logger.Errorw("err in deleting team, found pipelines in this env","envName",deleteReq.Environment,"err",err)
+		return fmt.Errorf(" Please delete all related pipeline before deleting this env : %w",err)
+	}
+	existingTeam, err := impl.environmentRepository.FindById(deleteReq.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", deleteReq.Id)
+		return err
+	}
+	deleteRequest := &cluster.Environment{
+		Name:     deleteReq.Environment,
+		Id:       deleteReq.Id,
+		Active:   deleteReq.Active,
+		ClusterId: deleteReq.ClusterId,
+		Default: deleteReq.Default,
+		AuditLog: models.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: userId},
+	}
+	err = impl.environmentRepository.Delete(deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("error in deleting environment", "envId", deleteReq.Id, "envName", deleteReq.Environment)
+		return err
+	}
+
+	return nil
+
+
 }

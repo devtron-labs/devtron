@@ -143,7 +143,8 @@ func (repo AppRepositoryImpl) FindAppsByTeamIds(teamId []int) ([]App, error) {
 func (repo AppRepositoryImpl) FindAppsByTeamName(teamName string) ([]App, error) {
 	var apps []App
 	err := repo.dbConnection.Model(&apps).Column("app.*").
-		Join("inner join team t on t.id = app.team_id").Where("t.name = ?", teamName).
+		Join("inner join team t on t.id = app.team_id").
+		Where("t.name = ?", teamName).Where("t.active = ?", true).
 		Select()
 	return apps, err
 }

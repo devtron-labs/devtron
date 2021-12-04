@@ -18,13 +18,16 @@
 package team
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
@@ -35,6 +38,7 @@ type TeamService interface {
 	FetchOne(id int) (*TeamRequest, error)
 	FindTeamsByUser(userId int32) ([]team.Team, error)
 	Update(request *TeamRequest) (*TeamRequest, error)
+	Delete(request *TeamRequest) error
 	FindTeamByAppId(appId int) (*TeamBean, error)
 	FindActiveTeamByAppName(appName string) (*TeamBean, error)
 	FetchForAutocomplete() ([]TeamRequest, error)
@@ -47,6 +51,7 @@ type TeamServiceImpl struct {
 	teamRepository  team.TeamRepository
 	pipelineBuilder pipeline.PipelineBuilder
 	envService      cluster.EnvironmentService
+	appRepository   pipelineConfig.AppRepository
 }
 
 type TeamRequest struct {
@@ -57,13 +62,15 @@ type TeamRequest struct {
 }
 
 func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
-	pipelineBuilder pipeline.PipelineBuilder, envService cluster.EnvironmentService, userService user.UserService) *TeamServiceImpl {
+	pipelineBuilder pipeline.PipelineBuilder, envService cluster.EnvironmentService,
+	userService user.UserService, appRepository pipelineConfig.AppRepository) *TeamServiceImpl {
 	return &TeamServiceImpl{
 		logger:          logger,
 		userService:     userService,
 		teamRepository:  teamRepository,
 		pipelineBuilder: pipelineBuilder,
 		envService:      envService,
+		appRepository: appRepository,
 	}
 }
 
@@ -156,6 +163,33 @@ func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
 	}
 	request.Id = team.Id
 	return request, nil
+}
+
+func(impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error{
+	//finding if this project is used in some app; if yes, will not perform delete operation
+	apps, err := impl.appRepository.FindAppsByTeamName(deleteRequest.Name)
+	if !(apps == nil && err == pg.ErrNoRows){
+		impl.logger.Errorw("err in deleting team, found apps in team","teamName",deleteRequest.Name,"err",err)
+		return fmt.Errorf(" Please delete all apps in this project before deleting this project : %w",err)
+	}
+		existingTeam, err := impl.teamRepository.FindOne(deleteRequest.Id)
+		if err != nil {
+			impl.logger.Errorw("No matching entry found for delete.", "id", deleteRequest.Id)
+			return err
+		}
+		deleteReq := &team.Team{
+			Name:     deleteRequest.Name,
+			Id:       deleteRequest.Id,
+			Active:   deleteRequest.Active,
+			AuditLog: models.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: deleteRequest.UserId},
+		}
+		err = impl.teamRepository.Delete(deleteReq)
+		if err != nil {
+			impl.logger.Errorw("error in deleting team", "teamId", deleteReq.Id, "teamName", deleteReq.Name)
+			return err
+		}
+
+	return nil
 }
 
 func (impl TeamServiceImpl) FindTeamByAppId(appId int) (*TeamBean, error) {

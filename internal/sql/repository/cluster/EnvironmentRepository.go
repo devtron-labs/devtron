@@ -40,6 +40,7 @@ type EnvironmentRepository interface {
 	Create(mappings *Environment) error
 	FindAll() ([]Environment, error)
 	FindAllActive() ([]Environment, error)
+	Delete(mappings *Environment) error
 
 	FindById(id int) (*Environment, error)
 	Update(mappings *Environment) error
@@ -154,4 +155,9 @@ func (repo EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Environment, err
 	var apps []*Environment
 	err := repo.dbConnection.Model(&apps).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
 	return apps, err
+}
+
+func (repo EnvironmentRepositoryImpl) Delete(deleteReq *Environment) error {
+	deleteReq.Active = false
+	return repo.dbConnection.Update(deleteReq)
 }

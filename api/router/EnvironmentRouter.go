@@ -63,5 +63,8 @@ func (impl EnvironmentRouterImpl) InitEnvironmentClusterMappingsRouter(environme
 	environmentClusterMappingsRouter.Path("/autocomplete").
 		Methods("GET").
 		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetEnvironmentListForAutocomplete)
+	environmentClusterMappingsRouter.Path("/delete").
+		Methods("POST").
+		HandlerFunc(impl.environmentClusterMappingsRestHandler.Delete)
 
 }
