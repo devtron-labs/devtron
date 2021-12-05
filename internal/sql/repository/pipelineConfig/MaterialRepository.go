@@ -59,6 +59,7 @@ type MaterialRepository interface {
 	UpdateMaterialScmId(material *GitMaterial) error
 	FindByAppIdAndCheckoutPath(appId int, checkoutPath string) (*GitMaterial, error)
 	FindByGitProviderId(gitProviderId int) (materials []*GitMaterial,err error)
+	Delete(material *GitMaterial) error
 }
 type MaterialRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -146,4 +147,9 @@ func(repo MaterialRepositoryImpl) FindByGitProviderId(gitProviderId int) (materi
 		Where("active =? ", true).
 		Select()
 	return materials, err
+}
+
+func(repo MaterialRepositoryImpl) Delete(material *GitMaterial) error{
+	material.Active = false
+	return repo.dbConnection.Update(material)
 }

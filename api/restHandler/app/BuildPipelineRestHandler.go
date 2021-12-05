@@ -20,6 +20,8 @@ import (
 	"strings"
 )
 
+const GIT_MATERIAL_DELETE_SUCCESS_RESP = "Git material deleted successfully."
+
 type DevtronAppBuildRestHandler interface {
 	CreateCiConfig(w http.ResponseWriter, r *http.Request)
 	UpdateCiTemplate(w http.ResponseWriter, r *http.Request)
@@ -43,6 +45,7 @@ type DevtronAppBuildMaterialRestHandler interface {
 	RefreshMaterials(w http.ResponseWriter, r *http.Request)
 	FetchMaterialInfo(w http.ResponseWriter, r *http.Request)
 	FetchChanges(w http.ResponseWriter, r *http.Request)
+	DeleteMaterial(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildHistoryRestHandler interface {
@@ -770,6 +773,39 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWriter, r *http.Request){
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var deleteMaterial bean.UpdateMaterialDTO
+	err = decoder.Decode(&deleteMaterial)
+	deleteMaterial.UserId = userId
+	if err != nil {
+		handler.Logger.Errorw("request err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, DeleteMaterial", "DeleteMaterial", deleteMaterial)
+	err = handler.validator.Struct(deleteMaterial)
+	if err != nil {
+		handler.Logger.Errorw("validation err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//TODO : add rbac
+
+	err = handler.pipelineBuilder.DeleteMaterial(&deleteMaterial)
+	if err != nil {
+		handler.Logger.Errorw("service err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, GIT_MATERIAL_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request) {

@@ -130,6 +130,7 @@ type AppStoreService interface {
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
+	DeleteChartRepo(request *ChartRepoDto) error
 }
 
 type AppStoreVersionsResponse struct {
@@ -735,4 +736,40 @@ func (impl *AppStoreServiceImpl) get(href string, chartRepository *repo.ChartRep
 	_, err = io.Copy(buf, resp.Body)
 	resp.Body.Close()
 	return buf, err, http.StatusOK
+}
+
+func (impl *AppStoreServiceImpl) DeleteChartRepo(request *ChartRepoDto) error{
+	dbConnection := impl.repoRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing db connection, DeleteChartRepo","err",err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	chartRepo, err := impl.repoRepository.FindById(request.Id)
+	if err != nil && !util.IsErrNoRows(err) {
+		return err
+	}
+
+	chartRepo.Url = request.Url
+	chartRepo.AuthMode = request.AuthMode
+	chartRepo.UserName = request.UserName
+	chartRepo.Password = request.Password
+	chartRepo.Active = request.Active
+	chartRepo.AccessToken = request.AccessToken
+	chartRepo.SshKey = request.SshKey
+	chartRepo.Active = request.Active
+	chartRepo.UpdatedBy = request.UserId
+	chartRepo.UpdatedOn = time.Now()
+	err = impl.repoRepository.Delete(chartRepo, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting chart repo","err",err)
+		return err
+	}
+
+	//TODO : update in cluster ( as done in create and update service)
+
+	return nil
 }

@@ -41,6 +41,8 @@ import (
 	"time"
 )
 
+const CHART_REPO_DELETE_SUCCESS_RESP = "Chart repo deleted successfully."
+
 type AppStoreRestHandler interface {
 	FindAllApps(w http.ResponseWriter, r *http.Request)
 	GetChartDetailsForVersion(w http.ResponseWriter, r *http.Request)
@@ -53,6 +55,7 @@ type AppStoreRestHandler interface {
 	CreateChartRepo(w http.ResponseWriter, r *http.Request)
 	UpdateChartRepo(w http.ResponseWriter, r *http.Request)
 	ValidateChartRepo(w http.ResponseWriter, r *http.Request)
+	DeleteChartRepo(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreRestHandlerImpl struct {
@@ -468,4 +471,37 @@ func (handler *AppStoreRestHandlerImpl) ValidateChartRepo(w http.ResponseWriter,
 	handler.Logger.Infow("request payload, ValidateChartRepo", "payload", request)
 	validationResult := handler.appStoreService.ValidateChartRepo(request)
 	common.WriteJsonResp(w, nil, validationResult, http.StatusOK)
+}
+
+func(handler *AppStoreRestHandlerImpl)DeleteChartRepo(w http.ResponseWriter, r *http.Request){
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var request *appstore.ChartRepoDto
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, DeleteChartRepo", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, DeleteChartRepo", "err", err, "payload", request)
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//TODO : add rbac
+	request.UserId = userId
+	handler.Logger.Infow("request payload, DeleteChartRepo", "payload", request)
+	err = handler.appStoreService.DeleteChartRepo(request)
+	if err != nil {
+		handler.Logger.Errorw("err in deleting chart repo", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil,CHART_REPO_DELETE_SUCCESS_RESP , http.StatusOK)
 }

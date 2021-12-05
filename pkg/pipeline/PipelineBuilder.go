@@ -68,6 +68,7 @@ type PipelineBuilder interface {
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	CreateMaterialsForApp(request *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error)
 	UpdateMaterialsForApp(request *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
+	DeleteMaterial(request *bean.UpdateMaterialDTO) error
 	DeleteApp(appId int, userId int32) error
 	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
 	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
@@ -219,6 +220,28 @@ func (impl PipelineBuilderImpl) UpdateMaterialsForApp(request *bean.UpdateMateri
 		impl.logger.Errorw("error in updating materials req", "req", request, "err", err)
 	}
 	return res, err
+}
+
+func (impl PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO) error{
+	//finding ci pipelines for this app; if found any, will not delete git material
+	pipelines, err := impl.ciPipelineRepository.FindByAppId(request.AppId)
+	if !(pipelines == nil && err == pg.ErrNoRows) {
+		impl.logger.Errorw("err in deleting git material, found pipelines in app","gitMaterial",request.Material,"err",err)
+		return fmt.Errorf(" Please delete all pipelines in this project before deleting git material : %w",err)
+	}
+	existingMaterial, err := impl.materialRepo.FindById(request.Material.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete", "gitMaterial",request.Material )
+		return err
+	}
+	existingMaterial.UpdatedOn = time.Now()
+	existingMaterial.UpdatedBy = request.UserId
+	err = impl.materialRepo.Delete(existingMaterial)
+	if err!=nil{
+		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
+		return err
+	}
+	return nil
 }
 
 func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDTO, err error) {
