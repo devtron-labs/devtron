@@ -54,4 +54,7 @@ func (impl DockerRegRouterImpl) InitDockerRegRouter(configRouter *mux.Router) {
 	configRouter.Path("/registry/configure/status").
 		HandlerFunc(impl.dockerRestHandler.IsDockerRegConfigured).
 		Methods("GET")
+	configRouter.Path("/registry/delete").
+		HandlerFunc(impl.dockerRestHandler.DeleteDockerRegistryConfig).
+		Methods("POST")
 }

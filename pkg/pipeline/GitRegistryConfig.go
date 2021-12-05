@@ -274,12 +274,12 @@ func (impl GitRegistryConfigImpl) Delete(request *GitRegistry) error{
 	materials, err := impl.gitMaterialRepository.FindByGitProviderId(request.Id)
 	if !(materials==nil && err == pg.ErrNoRows){
 		impl.logger.Errorw("err in deleting git provider, found git materials using provider","gitProvider",request.Name,"err",err)
-		return fmt.Errorf(" Please delete all related pipelines before deleting this environment : %w",err)
+		return fmt.Errorf(" Please delete all related git materials before deleting this git account : %w",err)
 	}
 	providerId := strconv.Itoa(request.Id)
 	gitProviderConfig, err := impl.gitProviderRepo.FindOne(providerId)
 	if err != nil{
-		impl.logger.Errorw("No matching entry found for delete.", "id", request.Id)
+		impl.logger.Errorw("No matching entry found for delete.", "id", request.Id, "err",err)
 		return err
 	}
 	deleteReq := gitProviderConfig
@@ -287,7 +287,7 @@ func (impl GitRegistryConfigImpl) Delete(request *GitRegistry) error{
 	deleteReq.UpdatedBy = request.UserId
 	err = impl.gitProviderRepo.Delete(&deleteReq)
 	if err != nil{
-		impl.logger.Errorw("No matching entry found for delete.", "id", request.Id)
+		impl.logger.Errorw("err in deleting git account", "id", request.Id,"err",err)
 		return err
 	}
 	return nil

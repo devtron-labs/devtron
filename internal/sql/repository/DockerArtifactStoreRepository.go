@@ -66,6 +66,7 @@ type DockerArtifactStoreRepository interface {
 	FindOne(storeId string) (*DockerArtifactStore, error)
 	Update(artifactStore *DockerArtifactStore) error
 	Delete(storeId string) error
+	DeleteReg(artifactStore *DockerArtifactStore) error
 }
 type DockerArtifactStoreRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -120,6 +121,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerAr
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
 		Where("id = ?", storeId).
+		Where("active = ?", true).
 		//Column("id", "plugin_id","registry_url", "registry_type","aws_accesskey_id","aws_secret_accesskey","aws_region","username","password","is_default","active").
 		Select()
 	return &provider, err
@@ -149,4 +151,12 @@ func (impl DockerArtifactStoreRepositoryImpl) Delete(storeId string) error {
 		return errors.New("default registry can't be delete")
 	}
 	return impl.dbConnection.Delete(artifactStore)
+}
+
+func (impl DockerArtifactStoreRepositoryImpl) DeleteReg(deleteReq *DockerArtifactStore) error{
+	if deleteReq.IsDefault {
+		return errors.New("default registry can't be delete")
+	}
+	deleteReq.Active = false
+	return impl.dbConnection.Update(deleteReq)
 }
