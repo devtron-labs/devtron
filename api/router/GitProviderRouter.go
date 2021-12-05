@@ -48,4 +48,7 @@ func (impl GitProviderRouterImpl) InitGitProviderRouter(configRouter *mux.Router
 	configRouter.Path("/provider").
 		HandlerFunc(impl.gitRestHandler.UpdateGitRepoConfig).
 		Methods("PUT")
+	configRouter.Path("/provider/delete").
+		HandlerFunc(impl.gitRestHandler.DeleteGitRepoConfig).
+		Methods("POST")
 }

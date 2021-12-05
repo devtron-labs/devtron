@@ -54,6 +54,7 @@ type GitProviderRepository interface {
 	FindOne(providerId string) (GitProvider, error)
 	FindByUrl(providerUrl string) (GitProvider, error)
 	Update(gitProvider *GitProvider) error
+	Delete(gitProvider *GitProvider) error
 }
 
 type GitProviderRepositoryImpl struct {
@@ -94,7 +95,9 @@ func (impl GitProviderRepositoryImpl) FindAll() ([]GitProvider, error) {
 func (impl GitProviderRepositoryImpl) FindOne(providerId string) (GitProvider, error) {
 	var provider GitProvider
 	err := impl.dbConnection.Model(&provider).
-		Where("id = ?", providerId).Select()
+		Where("id = ?", providerId).
+		Where("active = ?", true).
+		Select()
 	return provider, err
 }
 
@@ -108,4 +111,9 @@ func (impl GitProviderRepositoryImpl) FindByUrl(providerUrl string) (GitProvider
 func (impl GitProviderRepositoryImpl) Update(gitProvider *GitProvider) error {
 	err := impl.dbConnection.Update(gitProvider)
 	return err
+}
+
+func (impl GitProviderRepositoryImpl) Delete(gitProvider *GitProvider) error {
+	gitProvider.Active = false
+	return impl.dbConnection.Update(gitProvider)
 }

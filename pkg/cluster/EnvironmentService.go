@@ -401,8 +401,8 @@ func(impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int3
 	//finding if this env is used in any cd pipelines, if yes then will not delete
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(deleteReq.Id)
 	if !(pipelines == nil && err == pg.ErrNoRows){
-		impl.logger.Errorw("err in deleting team, found pipelines in this env","envName",deleteReq.Environment,"err",err)
-		return fmt.Errorf(" Please delete all related pipeline before deleting this env : %w",err)
+		impl.logger.Errorw("err in deleting env, found pipelines in this env","envName",deleteReq.Environment,"err",err)
+		return fmt.Errorf(" Please delete all related pipelines before deleting this environment : %w",err)
 	}
 	existingTeam, err := impl.environmentRepository.FindById(deleteReq.Id)
 	if err != nil {
@@ -422,8 +422,5 @@ func(impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int3
 		impl.logger.Errorw("error in deleting environment", "envId", deleteReq.Id, "envName", deleteReq.Environment)
 		return err
 	}
-
 	return nil
-
-
 }

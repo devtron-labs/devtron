@@ -41,10 +41,13 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 )
 
+const CLUSTER_DELETE_SUCCESS_RESP = "Cluster deleted successfully."
+
 type ClusterRestHandler interface {
 	Save(w http.ResponseWriter, r *http.Request)
 	FindOne(w http.ResponseWriter, r *http.Request)
 	FindAll(w http.ResponseWriter, r *http.Request)
+	DeleteFromDb(w http.ResponseWriter, r *http.Request)
 
 	FindById(w http.ResponseWriter, r *http.Request)
 	FindByEnvId(w http.ResponseWriter, r *http.Request)
@@ -558,4 +561,38 @@ func (impl ClusterRestHandlerImpl) DefaultComponentInstallation(w http.ResponseW
 		return
 	}
 	common.WriteJsonResp(w, err, isTriggered, http.StatusOK)
+}
+
+func (impl ClusterRestHandlerImpl)DeleteFromDb(w http.ResponseWriter, r *http.Request){
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		impl.logger.Errorw("service err, Delete", "error", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var bean cluster.ClusterBean
+	err = decoder.Decode(&bean)
+	if err != nil {
+		impl.logger.Errorw("request err, Delete", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	impl.logger.Errorw("request payload, Update", "payload", bean)
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validate err, Delete", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	//TODO : add rbac
+
+	err = impl.clusterService.DeleteFromDb(&bean, userId)
+	if err!= nil{
+		impl.logger.Errorw("error in deleting cluster","err",err,"id",bean.Id,"name",bean.ClusterName)
+		common.WriteJsonResp(w, err, nil, http.StatusOK)
+		return
+	}
+	common.WriteJsonResp(w, err, CLUSTER_DELETE_SUCCESS_RESP, http.StatusOK)
 }

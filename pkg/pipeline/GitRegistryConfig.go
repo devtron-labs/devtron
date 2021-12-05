@@ -18,11 +18,14 @@
 package pipeline
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"strconv"
@@ -36,11 +39,13 @@ type GitRegistryConfig interface {
 	FetchAllGitProviders() ([]GitRegistry, error)
 	FetchOneGitProvider(id string) (*GitRegistry, error)
 	Update(request *GitRegistry) (*GitRegistry, error)
+	Delete(request *GitRegistry) error
 }
 type GitRegistryConfigImpl struct {
 	logger          *zap.SugaredLogger
 	gitProviderRepo repository.GitProviderRepository
 	GitSensorClient gitSensor.GitSensorClient
+	gitMaterialRepository pipelineConfig.MaterialRepository
 }
 
 type GitRegistry struct {
@@ -57,11 +62,13 @@ type GitRegistry struct {
 	GitHostId     int                 `json:"gitHostId"`
 }
 
-func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo repository.GitProviderRepository, GitSensorClient gitSensor.GitSensorClient) *GitRegistryConfigImpl {
+func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo repository.GitProviderRepository,
+	GitSensorClient gitSensor.GitSensorClient, gitMaterialRepository pipelineConfig.MaterialRepository) *GitRegistryConfigImpl {
 	return &GitRegistryConfigImpl{
 		logger:          logger,
 		gitProviderRepo: gitProviderRepo,
 		GitSensorClient: GitSensorClient,
+		gitMaterialRepository: gitMaterialRepository,
 	}
 }
 
@@ -260,6 +267,30 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, er
 		return nil, err
 	}
 	return request, nil
+}
+
+func (impl GitRegistryConfigImpl) Delete(request *GitRegistry) error{
+	//finding if this git account is used in any git material, if yes then will not delete
+	materials, err := impl.gitMaterialRepository.FindByGitProviderId(request.Id)
+	if !(materials==nil && err == pg.ErrNoRows){
+		impl.logger.Errorw("err in deleting git provider, found git materials using provider","gitProvider",request.Name,"err",err)
+		return fmt.Errorf(" Please delete all related pipelines before deleting this environment : %w",err)
+	}
+	providerId := strconv.Itoa(request.Id)
+	gitProviderConfig, err := impl.gitProviderRepo.FindOne(providerId)
+	if err != nil{
+		impl.logger.Errorw("No matching entry found for delete.", "id", request.Id)
+		return err
+	}
+	deleteReq := gitProviderConfig
+	deleteReq.UpdatedOn = time.Now()
+	deleteReq.UpdatedBy = request.UserId
+	err = impl.gitProviderRepo.Delete(&deleteReq)
+	if err != nil{
+		impl.logger.Errorw("No matching entry found for delete.", "id", request.Id)
+		return err
+	}
+	return nil
 }
 
 func (impl GitRegistryConfigImpl) UpdateGitSensor(provider *repository.GitProvider) error {

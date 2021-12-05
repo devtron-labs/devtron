@@ -33,6 +33,8 @@ import (
 	"strings"
 )
 
+const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
+
 type EnvironmentRestHandler interface {
 	Create(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
@@ -313,13 +315,7 @@ func (impl EnvironmentRestHandlerImpl) Delete(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionCreate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
+	//TODO : add rbac
 
 	err = impl.environmentClusterMappingsService.Delete(&bean, userId)
 	if err != nil {
@@ -327,5 +323,5 @@ func (impl EnvironmentRestHandlerImpl) Delete(w http.ResponseWriter, r *http.Req
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, nil, http.StatusOK)
+	common.WriteJsonResp(w, err, ENV_DELETE_SUCCESS_RESP, http.StatusOK)
 }

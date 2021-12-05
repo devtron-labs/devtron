@@ -74,4 +74,8 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 	clusterRouter.Path("/component/install/{clusterId}").
 		Methods("POST").
 		HandlerFunc(impl.clusterRestHandler.DefaultComponentInstallation)
+
+	clusterRouter.Path("/delete").
+		Methods("POST").
+		HandlerFunc(impl.clusterRestHandler.DeleteFromDb)
 }

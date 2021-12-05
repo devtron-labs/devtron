@@ -68,6 +68,7 @@ type ClusterService interface {
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
 	FindAllActive() ([]ClusterBean, error)
+	DeleteFromDb(bean *ClusterBean, userId int32) error
 
 	FindById(id int) (*ClusterBean, error)
 	FindByIds(id []int) ([]ClusterBean, error)
@@ -565,4 +566,27 @@ func (impl ClusterServiceImpl) CreateGrafanaDataSource(clusterBean *ClusterBean,
 		return 0, err
 	}
 	return grafanaDatasourceId, nil
+}
+
+func (impl ClusterServiceImpl)DeleteFromDb(bean *ClusterBean, userId int32) error{
+	//finding if there are env in this cluster or not, if yes then will not delete
+	env, err:=impl.environmentRepository.FindByClusterId(bean.Id)
+	if !(env == nil && err == pg.ErrNoRows){
+		impl.logger.Errorw("err in deleting cluster, found env in this cluster","clusterName",bean.ClusterName,"err",err)
+		return fmt.Errorf(" Please delete all related pipelines before deleting this environment : %w",err)
+	}
+	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
+		return err
+	}
+	deleteReq := existingCluster
+	deleteReq.UpdatedOn = time.Now()
+	deleteReq.UpdatedBy = userId
+	err  = impl.clusterRepository.DeleteInDb(deleteReq)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err",err)
+		return err
+	}
+	return nil
 }
