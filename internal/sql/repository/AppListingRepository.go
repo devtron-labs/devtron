@@ -135,7 +135,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 
 		if len(item.DataSource) > 0 {
 			mInfo, err := parseMaterialInfo([]byte(item.MaterialInfoJson), item.DataSource)
-			if err == nil || len(mInfo) > 0 {
+			if err == nil && len(mInfo) > 0 {
 				item.MaterialInfo = mInfo
 			} else {
 				item.MaterialInfo = []byte("[]")
@@ -176,7 +176,7 @@ func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int,
 	}
 
 	mInfo, err := parseMaterialInfo(deploymentDetail.MaterialInfo, deploymentDetail.DataSource)
-	if err == nil || len(mInfo) > 0 {
+	if err == nil && len(mInfo) > 0 {
 		deploymentDetail.MaterialInfo = mInfo
 	} else {
 		deploymentDetail.MaterialInfo = []byte("[]")
@@ -347,7 +347,7 @@ func (impl AppListingRepositoryImpl) FetchAppTriggerView(appId int) ([]bean.Trig
 				item.DataSource = tView.DataSource
 				item.MaterialInfo = tView.MaterialInfo
 				mInfo, err := parseMaterialInfo(tView.MaterialInfo, tView.DataSource)
-				if err == nil || len(mInfo) > 0 {
+				if err == nil && len(mInfo) > 0 {
 					item.MaterialInfo = mInfo
 				} else {
 					item.MaterialInfo = []byte("[]")
