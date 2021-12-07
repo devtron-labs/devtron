@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -57,7 +57,7 @@ type RoleGroup struct {
 	CasbinName  string   `sql:"casbin_name,notnull"`
 	Description string   `sql:"description"`
 	Active      bool     `sql:"active,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type RoleGroupRoleMapping struct {
@@ -65,7 +65,7 @@ type RoleGroupRoleMapping struct {
 	Id          int      `sql:"id,pk"`
 	RoleGroupId int32    `sql:"role_group_id,notnull"`
 	RoleId      int      `sql:"role_id,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl *RoleGroupRepositoryImpl) GetConnection() (dbConnection *pg.DB) {

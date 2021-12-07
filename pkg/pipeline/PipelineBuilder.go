@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
 	"net/url"
 	"strings"
@@ -640,7 +641,7 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 		AppId:             createRequest.AppId,
 		AfterDockerBuild:  string(afterByte),
 		BeforeDockerBuild: string(beforeByte),
-		AuditLog:          models.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now(), CreatedBy: createRequest.UserId, UpdatedBy: createRequest.UserId},
+		AuditLog:          sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now(), CreatedBy: createRequest.UserId, UpdatedBy: createRequest.UserId},
 	}
 
 	err = impl.ciTemplateRepository.Save(ciTemplate)
@@ -732,7 +733,7 @@ func (impl PipelineBuilderImpl) addpipelineToTemplate(createRequest *bean.CiConf
 			Name:   fmt.Sprintf("wf-%d-%s", createRequest.AppId, util2.Generate(4)),
 			AppId:  createRequest.AppId,
 			Active: true,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 				CreatedBy: createRequest.UserId,
@@ -1205,7 +1206,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 			Type:          "CD_PIPELINE",
 			Active:        true,
 			ParentType:    "CI_PIPELINE",
-			AuditLog:      models.AuditLog{CreatedBy: userID, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userID},
+			AuditLog:      sql.AuditLog{CreatedBy: userID, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userID},
 		}
 		_, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
 		if err != nil {
@@ -1229,7 +1230,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipel
 			Config:     string(item.Config),
 			Default:    item.Default,
 			Deleted:    false,
-			AuditLog:   models.AuditLog{UpdatedBy: userID, CreatedBy: userID, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+			AuditLog:   sql.AuditLog{UpdatedBy: userID, CreatedBy: userID, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 		}
 		err = impl.pipelineConfigRepository.Save(strategy, tx)
 		if err != nil {
@@ -1333,7 +1334,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				Config:     string(item.Config),
 				Default:    item.Default,
 				Deleted:    false,
-				AuditLog:   models.AuditLog{UpdatedBy: userID, CreatedBy: userID, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+				AuditLog:   sql.AuditLog{UpdatedBy: userID, CreatedBy: userID, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 			}
 			err = impl.pipelineConfigRepository.Save(strategy, tx)
 			if err != nil {

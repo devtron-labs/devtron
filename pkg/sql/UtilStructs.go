@@ -15,7 +15,7 @@
  *
  */
 
-package models
+package sql
 
 import (
 	"time"

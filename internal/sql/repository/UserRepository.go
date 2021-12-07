@@ -22,7 +22,7 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -56,7 +56,7 @@ type UserModel struct {
 	EmailId     string   `sql:"email_id,notnull"`
 	AccessToken string   `sql:"access_token"`
 	Active      bool     `sql:"active,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 type UserRoleModel struct {
 	TableName struct{} `sql:"user_roles"`
@@ -64,7 +64,7 @@ type UserRoleModel struct {
 	UserId    int32    `sql:"user_id,notnull"`
 	RoleId    int      `sql:"role_id,notnull"`
 	User      UserModel
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl UserRepositoryImpl) CreateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error) {

@@ -17,16 +17,9 @@
 
 // +build unit
 
-package models
+package sql
 
-import (
-	"testing"
-
-	// "devtron.io/front/internal/sql/models"
-	"github.com/go-pg/pg"
-	"github.com/stretchr/testify/assert"
-)
-
+/*
 func TestConnection(t *testing.T) {
 	var n int
 	_, err := dbConnection.QueryOne(pg.Scan(&n), "SELECT 1")
@@ -37,3 +30,4 @@ func TestCloseConnection(t *testing.T) {
 	err := closeConnection()
 	assert.NoError(t, err, "error in closing connection")
 }
+*/

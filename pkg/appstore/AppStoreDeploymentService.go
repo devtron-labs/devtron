@@ -20,6 +20,7 @@ package appstore
 import (
 	"bytes"
 	"context"
+	"github.com/devtron-labs/devtron/pkg/sql"
 
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/ktrysmt/go-bitbucket"
@@ -45,7 +46,6 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
@@ -696,7 +696,7 @@ func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.Cre
 		AppName:  createRequest.AppName,
 		TeamId:   createRequest.TeamId,
 		AppStore: true,
-		AuditLog: models.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+		AuditLog: sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.appRepository.SaveWithTxn(pg, tx)
 	if err != nil {
@@ -944,7 +944,7 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 		InstalledAppId:      installAppVersionDTO.InstalledAppId,
 		Deleted:             false,
 		GroupInstallationId: groupINstallationId,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: installAppVersionDTO.UserId,
 			UpdatedOn: time.Now(),
@@ -1495,7 +1495,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 		t := &team.Team{
 			Name:     DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT,
 			Active:   true,
-			AuditLog: models.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
 		err = impl.teamRepository.Save(t)
 		if err != nil {

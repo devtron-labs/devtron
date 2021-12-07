@@ -18,7 +18,7 @@
 package cluster
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -38,7 +38,7 @@ type Cluster struct {
 	PTlsClientKey          string            `sql:"p_tls_client_key"`
 	AgentInstallationStage int               `sql:"agent_installation_stage"`
 	K8sVersion             string            `sql:"k8s_version"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type ClusterRepository interface {

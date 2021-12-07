@@ -26,7 +26,6 @@ import (
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/casbin"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
@@ -58,6 +57,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	security2 "github.com/devtron-labs/devtron/pkg/security"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	team2 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
@@ -75,11 +75,11 @@ import (
 
 func InitializeApp() (*App, error) {
 	sugaredLogger := util.NewSugardLogger()
-	config, err := models.GetConfig()
+	config, err := sql.GetConfig()
 	if err != nil {
 		return nil, err
 	}
-	db, err := models.NewDbConnection(config, sugaredLogger)
+	db, err := sql.NewDbConnection(config, sugaredLogger)
 	if err != nil {
 		return nil, err
 	}

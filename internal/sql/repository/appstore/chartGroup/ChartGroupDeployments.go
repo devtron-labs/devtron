@@ -18,7 +18,7 @@
 package chartGroup
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -31,7 +31,7 @@ type ChartGroupDeployment struct {
 	InstalledAppId      int      `sql:"installed_app_id"`
 	GroupInstallationId string   `sql:"group_installation_id"`
 	Deleted             bool     `sql:"deleted,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type ChartGroupDeploymentRepository interface {

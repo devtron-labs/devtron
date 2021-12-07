@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -329,17 +330,17 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ImageDescriptorTemplate: chartValues.ImageDescriptorTemplate,
 		ChartName:               chartMeta.Name,
 		ChartRepo:               chartRepo.Name,
-		ChartRepoUrl:            chartRepo.Url,
-		ChartVersion:            chartMeta.Version,
-		Status:                  models.CHARTSTATUS_NEW,
-		Active:                  true,
-		ChartLocation:           chartGitAttr.ChartLocation,
-		GitRepoUrl:              chartGitAttr.RepoUrl,
-		ReferenceTemplate:       templateName,
-		ChartRefId:              templateRequest.ChartRefId,
-		Latest:                  true,
-		Previous:                false,
-		AuditLog:                models.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
+		ChartRepoUrl:      chartRepo.Url,
+		ChartVersion:      chartMeta.Version,
+		Status:            models.CHARTSTATUS_NEW,
+		Active:            true,
+		ChartLocation:     chartGitAttr.ChartLocation,
+		GitRepoUrl:        chartGitAttr.RepoUrl,
+		ReferenceTemplate: templateName,
+		ChartRefId:        templateRequest.ChartRefId,
+		Latest:            true,
+		Previous:          false,
+		AuditLog:          sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
 	err = impl.chartRepository.Save(chart)
@@ -447,17 +448,17 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		ImageDescriptorTemplate: chartValues.ImageDescriptorTemplate,
 		ChartName:               chartMeta.Name,
 		ChartRepo:               chartRepo.Name,
-		ChartRepoUrl:            chartRepo.Url,
-		ChartVersion:            chartMeta.Version,
-		Status:                  models.CHARTSTATUS_NEW,
-		Active:                  true,
-		ChartLocation:           chartGitAttr.ChartLocation,
-		GitRepoUrl:              chartGitAttr.RepoUrl,
-		ReferenceTemplate:       templateName,
-		ChartRefId:              templateRequest.ChartRefId,
-		Latest:                  false,
-		Previous:                false,
-		AuditLog:                models.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
+		ChartRepoUrl:      chartRepo.Url,
+		ChartVersion:      chartMeta.Version,
+		Status:            models.CHARTSTATUS_NEW,
+		Active:            true,
+		ChartLocation:     chartGitAttr.ChartLocation,
+		GitRepoUrl:        chartGitAttr.RepoUrl,
+		ReferenceTemplate: templateName,
+		ChartRefId:        templateRequest.ChartRefId,
+		Latest:            false,
+		Previous:          false,
+		AuditLog:          sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
 	err = impl.chartRepository.Save(chart)
@@ -755,7 +756,7 @@ func (impl ChartServiceImpl) updateAppLevelMetrics(appMetricRequest *AppMetricEn
 			AppId:        appMetricRequest.AppId,
 			AppMetrics:   appMetricRequest.IsAppMetricsEnabled,
 			InfraMetrics: true,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 				CreatedBy: appMetricRequest.UserId,
@@ -939,7 +940,7 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 			EnvOverrideValues: string(envOverride.EnvOverrideValues),
 			TargetEnvironment: envOverride.TargetEnvironment,
 			ChartId:           updatedChart.Id,
-			AuditLog:          models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
+			AuditLog:          sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
 			Namespace:         env.Namespace,
 			Latest:            true,
 			Previous:          false,

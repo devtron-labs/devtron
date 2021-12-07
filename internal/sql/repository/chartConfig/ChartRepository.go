@@ -20,6 +20,7 @@ package chartConfig
 import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -45,7 +46,7 @@ type Chart struct {
 	ChartRefId              int                `sql:"chart_ref_id"`
 	Latest                  bool               `sql:"latest,notnull"`
 	Previous                bool               `sql:"previous,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type ChartRepository interface {
@@ -208,7 +209,7 @@ type ChartRepo struct {
 	AccessToken string              `sql:"access_token"`
 	AuthMode    repository.AuthMode `sql:"auth_mode,notnull"`
 	External    bool                `sql:"external,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type ChartRepoRepository interface {
@@ -271,7 +272,7 @@ type ChartRef struct {
 	Version   string   `sql:"version"`
 	Active    bool     `sql:"active"`
 	Default   bool     `sql:"is_default"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type ChartRefRepository interface {

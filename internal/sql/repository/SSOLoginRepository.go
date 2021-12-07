@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -56,7 +56,7 @@ type SSOLoginModel struct {
 	Url       string   `sql:"url"`
 	Config    string   `sql:"config"`
 	Active    bool     `sql:"active,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl SSOLoginRepositoryImpl) Create(userModel *SSOLoginModel, tx *pg.Tx) (*SSOLoginModel, error) {

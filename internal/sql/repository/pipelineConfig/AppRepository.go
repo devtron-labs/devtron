@@ -18,8 +18,8 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/team"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -31,7 +31,7 @@ type App struct {
 	TeamId    int      `sql:"team_id"`
 	AppStore  bool     `sql:"app_store, notnull"`
 	Team      team.Team
-	models.AuditLog
+	sql.AuditLog
 }
 
 type AppRepository interface {

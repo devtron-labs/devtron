@@ -18,7 +18,7 @@
 package cluster
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -32,7 +32,7 @@ type Environment struct {
 	Default             bool   `sql:"default,notnull"`
 	GrafanaDatasourceId int    `sql:"grafana_datasource_id"`
 	Namespace           string `sql:"namespace"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type EnvironmentRepository interface {

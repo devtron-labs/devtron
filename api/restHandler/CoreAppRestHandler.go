@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util"
@@ -1471,7 +1472,7 @@ func (handler CoreAppRestHandlerImpl) createWorkflowInDb(workflowName string, ap
 		Name:   workflowName,
 		AppId:  appId,
 		Active: true,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			UpdatedOn: time.Now(),
 			CreatedBy: userId,

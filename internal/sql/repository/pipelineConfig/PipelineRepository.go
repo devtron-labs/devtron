@@ -18,9 +18,9 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -57,7 +57,7 @@ type Pipeline struct {
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
 	Environment                   cluster.Environment
-	models.AuditLog
+	sql.AuditLog
 }
 
 type PipelineRepository interface {

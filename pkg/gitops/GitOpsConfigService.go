@@ -20,6 +20,7 @@ package gitops
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -31,7 +32,6 @@ import (
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -180,7 +180,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		AzureProject:         request.AzureProjectName,
 		BitBucketWorkspaceId: request.BitBucketWorkspaceId,
 		BitBucketProjectKey:  request.BitBucketProjectKey,
-		AuditLog:             models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		AuditLog:             sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model, tx)
 	if err != nil {

@@ -2,13 +2,13 @@ package appstore
 
 import (
 	"bytes"
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"text/template"
 )
 
 func manualAppSyncJobByteArr() []byte{
-	cfg, _ := models.GetConfig()
-	configValues := models.Config{Addr: cfg.Addr,Database: cfg.Database, User: cfg.User, Password: cfg.Password}
+	cfg, _ := sql.GetConfig()
+	configValues := sql.Config{Addr: cfg.Addr,Database: cfg.Database, User: cfg.User, Password: cfg.Password}
 
 	temp := template.New("manualAppSyncJobByteArr")
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",

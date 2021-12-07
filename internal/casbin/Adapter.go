@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"github.com/casbin/casbin"
 	"github.com/casbin/xorm-adapter"
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
 	"strings"
@@ -45,7 +45,7 @@ type Policy struct {
 
 func Create() *casbin.Enforcer {
 	metav1.Now()
-	config, err := models.GetConfig()
+	config, err := sql.GetConfig()
 	if err != nil {
 		log.Fatal(err)
 	}

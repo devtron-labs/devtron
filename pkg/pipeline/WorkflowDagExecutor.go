@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"strconv"
 	"strings"
 	"time"
@@ -306,7 +307,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
 			PipelineId:   pipeline.Id,
-			AuditLog:     models.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
+			AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 		if err != nil {
@@ -624,7 +625,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
 			PipelineId:   pipeline.Id,
-			AuditLog:     models.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
+			AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 		if err != nil {
@@ -846,7 +847,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			cdWf := &pipelineConfig.CdWorkflow{
 				CiArtifactId: overrideRequest.CiArtifactId,
 				PipelineId:   overrideRequest.PipelineId,
-				AuditLog:     models.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+				AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 			if err != nil {
@@ -940,7 +941,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			cdWf := &pipelineConfig.CdWorkflow{
 				CiArtifactId: overrideRequest.CiArtifactId,
 				PipelineId:   overrideRequest.PipelineId,
-				AuditLog:     models.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+				AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 			if err != nil {
@@ -971,7 +972,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkDeploymentAsync(requests []*Bulk
 		cdWf := &pipelineConfig.CdWorkflow{
 			CiArtifactId:   request.CiArtifactId,
 			PipelineId:     request.PipelineId,
-			AuditLog:       models.AuditLog{CreatedOn: time.Now(), CreatedBy: UserId, UpdatedOn: time.Now(), UpdatedBy: UserId},
+			AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: UserId, UpdatedOn: time.Now(), UpdatedBy: UserId},
 			WorkflowStatus: pipelineConfig.REQUEST_ACCEPTED,
 		}
 		cdWorkflows = append(cdWorkflows, cdWf)
@@ -1065,7 +1066,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 			Id:           cdWorkflow.Id,
 			CiArtifactId: cdWorkflow.CiArtifactId,
 			PipelineId:   cdWorkflow.PipelineId,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				UpdatedOn: time.Now(),
 			},
 		}

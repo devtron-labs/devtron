@@ -18,7 +18,7 @@
 package cluster
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -31,7 +31,7 @@ type ClusterHelmConfig struct {
 	TillerCert string `sql:"tiller_cert"`
 	TillerKey  string `sql:"tiller_key"`
 	Active     bool   `sql:"active"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type ClusterHelmConfigRepository interface {

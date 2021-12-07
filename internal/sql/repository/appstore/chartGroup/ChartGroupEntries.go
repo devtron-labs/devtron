@@ -18,8 +18,8 @@
 package chartGroup
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -31,7 +31,7 @@ type ChartGroupEntry struct {
 	AppStoreApplicationVersionId int      `sql:"app_store_application_version_id"` //AppStoreApplicationVersionId
 	ChartGroupId                 int      `sql:"chart_group_id"`
 	Deleted                      bool     `sql:"deleted,notnull"`
-	models.AuditLog
+	sql.AuditLog
 	AppStoreApplicationVersion *appstore.AppStoreApplicationVersion
 	AppStoreValuesVersion      *appstore.AppStoreVersionValues
 }

@@ -41,7 +41,6 @@ import (
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/casbin"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
@@ -73,6 +72,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
@@ -86,15 +86,17 @@ import (
 func InitializeApp() (*App, error) {
 
 	wire.Build(
-		//-----------------
+		// ----- wireset start
+		sql.PgSqlWireSet,
+		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
 		wire.Bind(new(gitSensor.GitSensorClient), new(*gitSensor.GitSensorClientImpl)),
 		//--------
 		helper.NewAppListingRepositoryQueryBuilder,
-		models.GetConfig,
+		//sql.GetConfig,
 		eClient.GetEventClientConfig,
-		models.NewDbConnection,
+		//sql.NewDbConnection,
 		//app.GetACDAuthConfig,
 		user2.GetACDAuthConfig,
 		wire.Value(pipeline.RefChartDir("scripts/devtron-reference-helm-charts")),
@@ -672,7 +674,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.BulkUpdateRestHandler), new(*restHandler.BulkUpdateRestHandlerImpl)),
 
 		router.NewCoreAppRouterImpl,
-		wire.Bind(new(router.CoreAppRouter),new(*router.CoreAppRouterImpl)),
+		wire.Bind(new(router.CoreAppRouter), new(*router.CoreAppRouterImpl)),
 		restHandler.NewCoreAppRestHandlerImpl,
 		wire.Bind(new(restHandler.CoreAppRestHandler), new(*restHandler.CoreAppRestHandlerImpl)),
 

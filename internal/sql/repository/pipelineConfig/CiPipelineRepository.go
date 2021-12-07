@@ -18,7 +18,7 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -41,7 +41,7 @@ type CiPipeline struct {
 	IsExternal       bool   `sql:"external,notnull"`
 	ParentCiPipeline int    `sql:"parent_ci_pipeline"`
 	ScanEnabled      bool   `sql:"scan_enabled,notnull"`
-	models.AuditLog
+	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate
 	ExternalCiPipeline  *ExternalCiPipeline
@@ -53,7 +53,7 @@ type ExternalCiPipeline struct {
 	CiPipelineId int      `sql:"ci_pipeline_id"`
 	Active       bool     `sql:"active,notnull"`
 	AccessToken  string   `sql:"access_token,notnull"`
-	models.AuditLog
+	sql.AuditLog
 	CiPipeline *CiPipeline
 }
 
@@ -67,7 +67,7 @@ type CiPipelineScript struct {
 	Stage          string   `sql:"stage"`
 	OutputLocation string   `sql:"output_location"`
 	Active         bool     `sql:"active,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type CiPipelineRepository interface {

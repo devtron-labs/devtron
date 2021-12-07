@@ -19,11 +19,11 @@ package team
 
 import (
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 	"time"
@@ -73,7 +73,7 @@ func (impl TeamServiceImpl) Create(request *TeamRequest) (*TeamRequest, error) {
 		Name:     request.Name,
 		Id:       request.Id,
 		Active:   request.Active,
-		AuditLog: models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		AuditLog: sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	err := impl.teamRepository.Save(t)
 	if err != nil {
@@ -142,7 +142,7 @@ func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
 		Name:     request.Name,
 		Id:       request.Id,
 		Active:   request.Active,
-		AuditLog: models.AuditLog{CreatedBy: existingProvider.CreatedBy, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		AuditLog: sql.AuditLog{CreatedBy: existingProvider.CreatedBy, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	err := impl.teamRepository.Update(team)
 	if err != nil {

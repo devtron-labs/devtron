@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/url"
 	"strconv"
 	"strings"
@@ -470,7 +471,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 				Status:            models.CHARTSTATUS_SUCCESS,
 				TargetEnvironment: pipeline.EnvironmentId,
 				ChartId:           chart.Id,
-				AuditLog:          models.AuditLog{UpdatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId},
+				AuditLog:          sql.AuditLog{UpdatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId},
 				Namespace:         environment.Namespace,
 				IsOverride:        false,
 				EnvOverrideValues: "{}",
@@ -630,7 +631,7 @@ func (impl AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDige
 			ObjectType:                  security.ScanObjectType_APP,
 			EnvId:                       envId,
 			ClusterId:                   clusterId,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: 1,
 				UpdatedOn: time.Now(),
@@ -1106,7 +1107,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		PipelineId:             overrideRequest.PipelineId,
 		CiArtifactId:           overrideRequest.CiArtifactId,
 		PipelineMergedValues:   string(merged),
-		AuditLog:               models.AuditLog{UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+		AuditLog:               sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
 	}
 	err = impl.pipelineOverrideRepository.Update(pipelineOverride)
 	if err != nil {
@@ -1127,7 +1128,7 @@ func (impl AppServiceImpl) savePipelineOverride(overrideRequest *bean.ValuesOver
 		CiArtifactId:           overrideRequest.CiArtifactId,
 		PipelineReleaseCounter: currentReleaseNo + 1,
 		CdWorkflowId:           overrideRequest.CdWorkflowId,
-		AuditLog:               models.AuditLog{CreatedBy: overrideRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+		AuditLog:               sql.AuditLog{CreatedBy: overrideRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
 		DeploymentType:         overrideRequest.DeploymentType,
 	}
 

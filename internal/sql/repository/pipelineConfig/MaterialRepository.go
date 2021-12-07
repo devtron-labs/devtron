@@ -18,9 +18,8 @@
 package pipelineConfig
 
 import (
-	//"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -44,7 +43,7 @@ type GitMaterial struct {
 	Name            string   `sql:"name, omitempty"`
 	CheckoutPath    string   `sql:"checkout_path, omitempty"`
 	FetchSubmodules bool     `sql:"fetch_submodules,notnull"`
-	models.AuditLog
+	sql.AuditLog
 	App         *App
 	GitProvider *repository.GitProvider
 }

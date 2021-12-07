@@ -18,7 +18,7 @@
 package team
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -27,7 +27,7 @@ type Team struct {
 	Id        int      `sql:"id,pk"`
 	Name      string   `sql:"name,notnull"`
 	Active    bool     `sql:"active,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type TeamRepository interface {

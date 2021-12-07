@@ -22,11 +22,11 @@ package repository
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"strings"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/casbin"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -66,7 +66,7 @@ type RoleModel struct {
 	EntityName  string   `sql:"entity_name"`
 	Environment string   `sql:"environment"`
 	Action      string   `sql:"action"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl UserAuthRepositoryImpl) CreateRole(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error) {

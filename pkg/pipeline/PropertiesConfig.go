@@ -20,6 +20,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -313,7 +314,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		Status:            propertiesRequest.Status,
 		ManualReviewed:    propertiesRequest.ManualReviewed,
 		Namespace:         propertiesRequest.Namespace,
-		AuditLog:          models.AuditLog{UpdatedBy: propertiesRequest.UserId, UpdatedOn: time.Now()},
+		AuditLog:          sql.AuditLog{UpdatedBy: propertiesRequest.UserId, UpdatedOn: time.Now()},
 	}
 
 	override.Latest = true
@@ -401,7 +402,7 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Char
 			Status:            chartStatus,
 			TargetEnvironment: environmentId,
 			ChartId:           chart.Id,
-			AuditLog:          models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
+			AuditLog:          sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
 			Namespace:         namespace,
 			IsOverride:        isOverride,
 		}
@@ -626,7 +627,7 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 			EnvId:        appMetricRequest.EnvironmentId,
 			AppMetrics:   &appMetricRequest.IsAppMetricsEnabled,
 			InfraMetrics: &infraMetrics,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 				CreatedBy: appMetricRequest.UserId,

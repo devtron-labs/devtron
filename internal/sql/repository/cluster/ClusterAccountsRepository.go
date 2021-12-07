@@ -18,7 +18,7 @@
 package cluster
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -32,7 +32,7 @@ type ClusterAccounts struct {
 	//Namespace string `sql:"namespace"`
 	Active  bool `sql:"active"`
 	Default bool `sql:"is_default"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type ClusterAccountsRepository interface {

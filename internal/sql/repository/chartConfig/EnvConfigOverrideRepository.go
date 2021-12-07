@@ -20,6 +20,7 @@ package chartConfig
 import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 )
@@ -39,7 +40,7 @@ type EnvConfigOverride struct {
 	Latest            bool                 `sql:"latest,notnull"`
 	Previous          bool                 `sql:"previous,notnull"`
 	IsOverride        bool                 `sql:"is_override,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type EnvConfigOverrideRepository interface {
