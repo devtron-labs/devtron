@@ -23,7 +23,7 @@ You will see below the input fields to configure the container registry.
 * Registry URL
 * Set as default
 
-![](../../docs/user-guide/global-configurations/images/Container_Registry.jpg)
+![](../../user-guide/global-configurations/images/Container_Registry.jpg)
 
 ### Name
 
@@ -53,7 +53,7 @@ Inside the Access key ID box, provide your AWS access key.
 
 Provide your AWS secret access key ID.
 
-![](../../docs/user-guide/global-configurations/images/Container_Registry_ecr.jpg)
+![](../../user-guide/global-configurations/images/Container_Registry_ecr.jpg)
 
 ### Registry Type- Docker Hub 
 
@@ -67,7 +67,7 @@ Give the username of the docker hub account you used for creating your registry 
 
 Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) corresponding to your docker hub account.
 
-![](../../docs/user-guide/global-configurations/images/Container_Registry_DockerHub.jpg)
+![](../../user-guide/global-configurations/images/Container_Registry_DockerHub.jpg)
 
 ### Registry Type Others:
 
@@ -81,7 +81,7 @@ Give the username of your account, where you have created your registry in.
 
 Give the password corresponding to the username of your registry.
 
-![](../../docs/user-guide/global-configurations/images/Container_Registry_others.jpg)
+![](../../user-guide/global-configurations/images/Container_Registry_others.jpg)
 
 ### Set as default:
 
