@@ -1596,7 +1596,7 @@ func (impl PipelineBuilderImpl) GetCdParentDetails(cdPipelineId int) (parentId i
 	if err != nil {
 		return 0, "", err
 	}
-	if len(appWorkflowMapping) > 1 || appWorkflowMapping == nil {
+	if len(appWorkflowMapping) != 1 || appWorkflowMapping == nil {
 		return 0, "", fmt.Errorf("improper mapping found for cd pipeline")
 	}
 	parentId = appWorkflowMapping[0].ParentId
@@ -1710,7 +1710,7 @@ func (impl PipelineBuilderImpl) GetArtifactsForDeployCdStage(cdPipelineId int, p
 			return ciArtifactsResponse, err
 		}
 	}
-	latestFound := false
+	//latestFound := false
 	artifactMap := make(map[int]int)
 	for _, artifact := range artifacts {
 		artifactMap[artifact.Id] = artifact.Id
@@ -1729,19 +1729,19 @@ func (impl PipelineBuilderImpl) GetArtifactsForDeployCdStage(cdPipelineId int, p
 			Deployed:     artifact.Deployed,
 			Latest:       artifact.Latest,
 		})
-		if artifact.Latest == true {
-			latestFound = true
-		}
+		//if artifact.Latest == true {
+		//	latestFound = true
+		//}
 	}
-
+	//TODO : code cleanup here after complete testing
 	//start adding deployed items
-	deployedItemsCiArtifactResponse, err := impl.GetArtifactsForPostCdStage(cdPipelineId, latestFound)
-	if err != nil {
-		impl.logger.Errorw("error in getting ci artifacts for deployed items", "err", err)
-	}
-	for _, deployedItemCiArtifact := range deployedItemsCiArtifactResponse.CiArtifacts {
-		ciArtifacts = append(ciArtifacts, deployedItemCiArtifact)
-	}
+	//deployedItemsCiArtifactResponse, err := impl.GetArtifactsForPostCdStage(cdPipelineId, latestFound)
+	//if err != nil {
+	//	impl.logger.Errorw("error in getting ci artifacts for deployed items", "err", err)
+	//}
+	//for _, deployedItemCiArtifact := range deployedItemsCiArtifactResponse.CiArtifacts {
+	//	ciArtifacts = append(ciArtifacts, deployedItemCiArtifact)
+	//}
 	//end
 	ciArtifactsResponse.CdPipelineId = cdPipelineId
 	if ciArtifacts == nil {
