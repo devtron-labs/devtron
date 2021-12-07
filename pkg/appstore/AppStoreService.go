@@ -35,6 +35,7 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/helm/pkg/getter"
 	"k8s.io/helm/pkg/helm/environment"
 	"k8s.io/helm/pkg/repo"
@@ -131,6 +132,7 @@ type AppStoreService interface {
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
+	WatchConfigMap() (watch.Interface,error)
 }
 
 type AppStoreVersionsResponse struct {
@@ -780,4 +782,25 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 	}
 
 	return nil
+}
+func (impl *AppStoreServiceImpl)WatchConfigMap() (watch.Interface,error){
+	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return nil, err
+	}
+	client, err := impl.K8sUtil.GetClientSet(cfg)
+	if err != nil {
+		return nil, err
+	}
+	cm, err := impl.K8sUtil.WatchConfigMap( argocdServer.DevtronInstalationNs,client)
+	if err != nil {
+		impl.logger.Errorw("DeleteAndCreateJob err, TriggerChartSyncManual", "err", err)
+		return nil, err
+	}
+
+	return cm, nil
 }

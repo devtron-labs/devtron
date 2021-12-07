@@ -18,24 +18,37 @@
 package util
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	error2 "errors"
+	"fmt"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
+	"io"
+	"io/ioutil"
 	batchV1 "k8s.io/api/batch/v1"
+	coreV1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/helm/pkg/chartutil"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
 type K8sUtil struct {
-	logger *zap.SugaredLogger
+	logger 			*zap.SugaredLogger
 }
 
 type ClusterConfig struct {
@@ -163,6 +176,54 @@ func (impl K8sUtil) GetConfigMap(namespace string, name string, client *v12.Core
 	} else {
 		return cm, nil
 	}
+}
+
+func (impl K8sUtil) WatchConfigMap(namespace string, client kubernetes.Interface) ( watch.Interface, error) {
+	api := client.CoreV1().ConfigMaps(namespace)
+	configMaps, err := api.List(metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	resourceVersion := configMaps.ListMeta.ResourceVersion
+	watcher, err := api.Watch(metav1.ListOptions{ResourceVersion: resourceVersion})
+	if err != nil {
+		return nil, err
+	}
+	ch := watcher.ResultChan()
+
+	for {
+		event := <-ch
+		configMaps, ok := event.Object.(*coreV1.ConfigMap)
+		if !ok {
+			panic("Could not cast to Endpoint")
+		}
+		annotations ,ok := configMaps.Annotations["charts.devtron.ai/data"]
+		if !ok{
+			continue
+		}
+		if annotations == "mount"{
+			for filename, binaryData := range configMaps.BinaryData{
+				binaryDataReader := bytes.NewReader(binaryData)
+				tempDirectory := "tmp/configmap/"
+				impl.ExtractTarGz(binaryDataReader, tempDirectory)
+				configmapDirectoryName := strings.Split(filename, ".")
+				readFile, err := ioutil.ReadFile(filepath.Join(tempDirectory,configmapDirectoryName[0],"Chart.Yaml"))
+				if err != nil{
+					return nil, err
+				}
+				chartContent, err := chartutil.UnmarshalChartfile(readFile)
+				if err != nil{
+					return nil, err
+				}
+				name := chartContent.Name
+				version := chartContent.Version
+				fmt.Println(name,version)
+			}
+
+		}
+	}
+	return watcher, nil
 }
 
 func (impl K8sUtil) CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
@@ -381,4 +442,51 @@ func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, cluster
 	}
 
 	return nil
+}
+
+func (impl K8sUtil) ExtractTarGz(gzipStream io.Reader, configMapsDir string) {
+	uncompressedStream, err := gzip.NewReader(gzipStream)
+	if err != nil {
+		log.Fatal("ExtractTarGz: NewReader failed")
+	}
+
+	tarReader := tar.NewReader(uncompressedStream)
+	for true {
+		header, err := tarReader.Next()
+
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			log.Fatalf("ExtractTarGz: Next() failed: %s", err.Error())
+		}
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if _, err := os.Stat(filepath.Join(configMapsDir,header.Name)); os.IsNotExist(err) {
+				if err := os.Mkdir(filepath.Join(configMapsDir,header.Name), 0755); err != nil {
+					log.Fatalf("ExtractTarGz: Mkdir() failed: %s", err.Error())
+				}
+			} else {
+				break
+			}
+
+		case tar.TypeReg:
+			outFile, err := os.Create(filepath.Join(configMapsDir,header.Name))
+			if err != nil {
+				log.Fatalf("ExtractTarGz: Create() failed: %s", err.Error())
+			}
+			if _, err := io.Copy(outFile, tarReader); err != nil {
+				log.Fatalf("ExtractTarGz: Copy() failed: %s", err.Error())
+			}
+			outFile.Close()
+
+		default:
+			log.Fatalf(
+				"ExtractTarGz: uknown type: %s in %s",
+				header.Typeflag,
+				header.Name)
+		}
+
+	}
 }

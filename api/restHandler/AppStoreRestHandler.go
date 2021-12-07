@@ -54,6 +54,7 @@ type AppStoreRestHandler interface {
 	UpdateChartRepo(w http.ResponseWriter, r *http.Request)
 	ValidateChartRepo(w http.ResponseWriter, r *http.Request)
 	TriggerChartSyncManual(w http.ResponseWriter, r *http.Request)
+	GetAndCreateConfigMap(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreRestHandlerImpl struct {
@@ -479,4 +480,40 @@ func (handler *AppStoreRestHandlerImpl) TriggerChartSyncManual(w http.ResponseWr
 	}
 	TriggerResult := handler.appStoreService.TriggerChartSyncManual()
 	common.WriteJsonResp(w, nil, TriggerResult, http.StatusOK)
+}
+
+func (handler *AppStoreRestHandlerImpl) GetAndCreateConfigMap(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	//rback block ends here
+	var request *appstore.ChartRepoDto
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, CreateChartRepo", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, CreateChartRepo", "err", err, "payload", request)
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	request.UserId = userId
+	handler.Logger.Infow("request payload, CreateChartRepo", "payload", request)
+
+	TriggerResult, err := handler.appStoreService.WatchConfigMap()
+	common.WriteJsonResp(w, err, TriggerResult, http.StatusOK)
 }
