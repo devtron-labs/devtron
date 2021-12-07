@@ -31,6 +31,8 @@ import (
 	"strconv"
 )
 
+const CHART_GROUP_DELETE_SUCCESS_RESP = "Chart group deleted successfully."
+
 type ChartGroupRestHandlerImpl struct {
 	ChartGroupService appstore.ChartGroupService
 	Logger            *zap.SugaredLogger
@@ -61,6 +63,7 @@ type ChartGroupRestHandler interface {
 	GetChartGroupList(w http.ResponseWriter, r *http.Request)
 	GetChartGroupInstallationDetail(w http.ResponseWriter, r *http.Request)
 	GetChartGroupListMin(w http.ResponseWriter, r *http.Request)
+	DeleteChartGroup(w http.ResponseWriter, r *http.Request)
 }
 
 func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r *http.Request) {
@@ -309,4 +312,38 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupListMin(w http.ResponseWrite
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func(impl *ChartGroupRestHandlerImpl) DeleteChartGroup(w http.ResponseWriter, r *http.Request){
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var request appstore.ChartGroupBean
+	err = decoder.Decode(&request)
+	if err != nil {
+		impl.Logger.Errorw("request err, DeleteChartGroup", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = impl.validator.Struct(request)
+	if err != nil {
+		impl.Logger.Errorw("validate err, DeleteChartGroup", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	request.UserId = userId
+	impl.Logger.Infow("request payload, DeleteChartGroup", "payload", request)
+
+	//TODO : add rbac
+
+	err = impl.ChartGroupService.DeleteChartGroup(&request)
+	if err != nil {
+		impl.Logger.Errorw("service err, DeleteChartGroup", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, CHART_GROUP_DELETE_SUCCESS_RESP, http.StatusOK)
 }

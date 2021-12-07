@@ -18,6 +18,7 @@
 package appstore
 
 import (
+	"github.com/go-pg/pg"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -57,6 +58,7 @@ type ChartGroupService interface {
 	ChartGroupList(max int) (*ChartGroupList, error)
 	GetChartGroupWithInstallationDetail(chartGroupId int) (*ChartGroupBean, error)
 	ChartGroupListMin(max int) ([]*ChartGroupBean, error)
+	DeleteChartGroup(req *ChartGroupBean) error
 }
 
 type ChartGroupList struct {
@@ -384,4 +386,36 @@ func (impl *ChartGroupServiceImpl) ChartGroupListMin(max int) ([]*ChartGroupBean
 		chartGroupList = make([]*ChartGroupBean, 0)
 	}
 	return chartGroupList, nil
+}
+
+func(impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error{
+	//finding existing
+	existingChartGroup, err := impl.chartGroupRepository.FindById(req.Id)
+	if err!=nil{
+		impl.Logger.Errorw("No matching entry found for delete.", "err",err,"id", req.Id)
+		return err
+	}
+	//finding chart mappings by group id
+	chartGroupMappings, err := impl.chartGroupEntriesRepository.FindEntriesWithChartMetaByChartGroupId([]int{req.Id})
+	if err!=nil && err!=pg.ErrNoRows {
+		impl.Logger.Errorw("error in getting chart group entries, DeleteChartGroup","err",err,"chartGroupId",req.Id)
+		return err
+	}
+	var chartGroupMappingIds []int
+	for _, chartGroupMapping := range chartGroupMappings{
+		chartGroupMappingIds = append(chartGroupMappingIds, chartGroupMapping.Id)
+	}
+	//deleting chart mappings in group
+	_, err = impl.chartGroupEntriesRepository.DeleteChartGroupEntries(chartGroupMappingIds)
+	if err!=nil{
+		impl.Logger.Errorw("error in deleting chart group mappings","err",err)
+		return err
+	}
+	//deleting chart group
+	err = impl.chartGroupRepository.Delete(existingChartGroup.Id)
+	if err!=nil{
+		impl.Logger.Errorw("error in deleting chart group","err",err,"chartGroupId",existingChartGroup.Id)
+		return err
+	}
+	return nil
 }

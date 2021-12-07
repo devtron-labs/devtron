@@ -1,0 +1,1 @@
+ALTER TABLE chart_group ADD COLUMN active bool NOT NULL DEFAULT TRUE;

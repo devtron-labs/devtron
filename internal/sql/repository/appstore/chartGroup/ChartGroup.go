@@ -51,6 +51,7 @@ type ChartGroupReposotory interface {
 	FindByIdWithEntries(chertGroupId int) (*ChartGroup, error)
 	FindById(chartGroupId int) (*ChartGroup, error)
 	GetAll(max int) ([]*ChartGroup, error)
+	Delete(chartGroupId int) error
 }
 
 func (impl *ChartGroupReposotoryImpl) Save(model *ChartGroup) (*ChartGroup, error) {
@@ -73,13 +74,15 @@ func (impl *ChartGroupReposotoryImpl) FindByIdWithEntries(chertGroupId int) (*Ch
 			return q.Where("deleted IS false"), nil
 		}).
 		Where("id = ?", chertGroupId).
+		Where("active = ?", true).
 		Select()
 	return &ChartGroup, err
 }
 
 func (impl *ChartGroupReposotoryImpl) FindById(chartGroupId int) (*ChartGroup, error) {
 	var ChartGroup ChartGroup
-	err := impl.dbConnection.Model(&ChartGroup).Where("id = ?", chartGroupId).Select()
+	err := impl.dbConnection.Model(&ChartGroup).Where("id = ?", chartGroupId).
+		Where("active = ?", true).Select()
 	return &ChartGroup, err
 }
 
@@ -91,4 +94,12 @@ func (impl *ChartGroupReposotoryImpl) GetAll(max int) ([]*ChartGroup, error) {
 	}
 	err := query.Select()
 	return chartGroups, err
+}
+
+func (impl *ChartGroupReposotoryImpl) Delete(chartGroupId int) error {
+	var ChartGroup ChartGroup
+	err := impl.dbConnection.Model(&ChartGroup).
+		Where("id = ?",chartGroupId).
+		Set("active = ?",false).Select()
+	return err
 }
