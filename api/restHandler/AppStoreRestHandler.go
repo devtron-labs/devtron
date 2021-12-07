@@ -480,10 +480,5 @@ func (handler *AppStoreRestHandlerImpl) TriggerChartSyncManual(w http.ResponseWr
 
 	//Chart repo sync error handling
 	TriggerResult := handler.appStoreService.TriggerChartSyncManual()
-	if TriggerResult != nil {
-		common.WriteJsonResp(w, nil, TriggerResult, http.StatusOK)
-	} else {
-		common.WriteJsonResp(w, TriggerResult, nil, http.StatusInternalServerError)
-	}
-
+	common.WriteJsonResp(w, nil, TriggerResult, http.StatusOK)
 }
