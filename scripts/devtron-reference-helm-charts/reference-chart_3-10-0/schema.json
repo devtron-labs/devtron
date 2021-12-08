@@ -8,11 +8,7 @@
         "type": "object",
         "properties": {
           "envoyPort": {
-            "type": "integer",
-            "enum": [
-              8799,
-              8800
-            ]
+            "type": "integer"
           },
           "idleTimeout": {
             "type": "string"
