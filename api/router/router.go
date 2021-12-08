@@ -36,7 +36,6 @@ type MuxRouter struct {
 	Router                           *mux.Router
 	HelmRouter                       HelmRouter
 	PipelineConfigRouter             PipelineConfigRouter
-	ClusterAccountsRouter            ClusterAccountsRouter
 	MigrateDbRouter                  MigrateDbRouter
 	EnvironmentClusterMappingsRouter EnvironmentRouter
 	AppListingRouter                 AppListingRouter
@@ -50,9 +49,9 @@ type MuxRouter struct {
 	GitProviderRouter                GitProviderRouter
 	GitHostRouter                    GitHostRouter
 	DockerRegRouter                  DockerRegRouter
-	NotificationRouter NotificationRouter
-	TeamRouter         team.TeamRouter
-	pubsubClient       *pubsub2.PubSubClient
+	NotificationRouter               NotificationRouter
+	TeamRouter                       team.TeamRouter
+	pubsubClient                     *pubsub2.PubSubClient
 	UserRouter                       UserRouter
 	gitWebhookHandler                pubsub.GitWebhookHandler
 	workflowUpdateHandler            pubsub.WorkflowStatusUpdateHandler
@@ -80,11 +79,11 @@ type MuxRouter struct {
 	bulkUpdateRouter                 BulkUpdateRouter
 	WebhookListenerRouter            WebhookListenerRouter
 	appLabelsRouter                  AppLabelRouter
-	coreAppRouter                  CoreAppRouter
+	coreAppRouter                    CoreAppRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
-	MigrateDbRouter MigrateDbRouter, ClusterAccountsRouter ClusterAccountsRouter, AppListingRouter AppListingRouter,
+	MigrateDbRouter MigrateDbRouter, AppListingRouter AppListingRouter,
 	EnvironmentClusterMappingsRouter EnvironmentRouter, ClusterRouter ClusterRouter, ClusterHelmConfigRouter ClusterHelmConfigRouter,
 	WebHookRouter WebhookRouter, UserAuthRouter UserAuthRouter, ApplicationRouter ApplicationRouter,
 	CDRouter CDRouter, ProjectManagementRouter ProjectManagementRouter,
@@ -105,7 +104,6 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
 		PipelineConfigRouter:             PipelineConfigRouter,
-		ClusterAccountsRouter:            ClusterAccountsRouter,
 		MigrateDbRouter:                  MigrateDbRouter,
 		EnvironmentClusterMappingsRouter: EnvironmentClusterMappingsRouter,
 		AppListingRouter:                 AppListingRouter,
@@ -188,9 +186,6 @@ func (r MuxRouter) Init() {
 
 	migrateRouter := r.Router.PathPrefix("/orchestrator/migrate").Subrouter()
 	r.MigrateDbRouter.InitMigrateDbRouter(migrateRouter)
-
-	accountRouter := r.Router.PathPrefix("/orchestrator/account").Subrouter()
-	r.ClusterAccountsRouter.InitClusterAccountsRouter(accountRouter)
 
 	environmentClusterMappingsRouter := r.Router.PathPrefix("/orchestrator/env").Subrouter()
 	r.EnvironmentClusterMappingsRouter.InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter)

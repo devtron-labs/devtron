@@ -201,15 +201,6 @@ func InitializeApp() (*App, error) {
 		router.NewClusterRouterImpl,
 		wire.Bind(new(router.ClusterRouter), new(*router.ClusterRouterImpl)),
 
-		cluster.NewClusterAccountsRepositoryImpl,
-		wire.Bind(new(cluster.ClusterAccountsRepository), new(*cluster.ClusterAccountsRepositoryImpl)),
-		clusterAccounts2.NewClusterAccountsServiceImpl,
-		wire.Bind(new(clusterAccounts2.ClusterAccountsService), new(*clusterAccounts2.ClusterAccountsServiceImpl)),
-		restHandler.NewClusterAccountsRestHandlerImpl,
-		wire.Bind(new(restHandler.ClusterAccountsRestHandler), new(*restHandler.ClusterAccountsRestHandlerImpl)),
-		router.NewClusterAccountsRouterImpl,
-		wire.Bind(new(router.ClusterAccountsRouter), new(*router.ClusterAccountsRouterImpl)),
-
 		cluster.NewEnvironmentRepositoryImpl,
 		wire.Bind(new(cluster.EnvironmentRepository), new(*cluster.EnvironmentRepositoryImpl)),
 		clusterAccounts2.NewEnvironmentServiceImpl,

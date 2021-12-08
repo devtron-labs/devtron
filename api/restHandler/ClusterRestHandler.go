@@ -58,35 +58,32 @@ type ClusterRestHandler interface {
 }
 
 type ClusterRestHandlerImpl struct {
-	clusterService         cluster.ClusterService
-	clusterServiceCD       cluster2.ServiceClient
-	logger                 *zap.SugaredLogger
-	envService             cluster.EnvironmentService
-	clusterAccountsService cluster.ClusterAccountsService
-	userService            user.UserService
-	validator              *validator.Validate
-	enforcer               rbac.Enforcer
-	installedAppService    appstore.InstalledAppService
+	clusterService      cluster.ClusterService
+	clusterServiceCD    cluster2.ServiceClient
+	logger              *zap.SugaredLogger
+	envService          cluster.EnvironmentService
+	userService         user.UserService
+	validator           *validator.Validate
+	enforcer            rbac.Enforcer
+	installedAppService appstore.InstalledAppService
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	logger *zap.SugaredLogger,
 	clusterServiceCD cluster2.ServiceClient,
 	envService cluster.EnvironmentService,
-	clusterAccountsService cluster.ClusterAccountsService,
 	userService user.UserService,
 	validator *validator.Validate,
 	enforcer rbac.Enforcer, installedAppService appstore.InstalledAppService) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
-		clusterService:         clusterService,
-		logger:                 logger,
-		clusterServiceCD:       clusterServiceCD,
-		envService:             envService,
-		clusterAccountsService: clusterAccountsService,
-		userService:            userService,
-		validator:              validator,
-		enforcer:               enforcer,
-		installedAppService:    installedAppService,
+		clusterService:      clusterService,
+		logger:              logger,
+		clusterServiceCD:    clusterServiceCD,
+		envService:          envService,
+		userService:         userService,
+		validator:           validator,
+		enforcer:            enforcer,
+		installedAppService: installedAppService,
 	}
 }
 

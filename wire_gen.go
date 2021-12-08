@@ -254,10 +254,6 @@ func InitializeApp() (*App, error) {
 	dbConfigServiceImpl := pipeline.NewDbConfigService(dbConfigRepositoryImpl, sugaredLogger)
 	migrateDbRestHandlerImpl := restHandler.NewMigrateDbRestHandlerImpl(dockerRegistryConfigImpl, sugaredLogger, gitRegistryConfigImpl, dbConfigServiceImpl, userServiceImpl, validate, dbMigrationServiceImpl, enforcerImpl)
 	migrateDbRouterImpl := router.NewMigrateDbRouterImpl(migrateDbRestHandlerImpl)
-	clusterAccountsRepositoryImpl := cluster.NewClusterAccountsRepositoryImpl(db)
-	clusterAccountsServiceImpl := cluster2.NewClusterAccountsServiceImpl(clusterAccountsRepositoryImpl, environmentRepositoryImpl, clusterServiceImpl, sugaredLogger)
-	clusterAccountsRestHandlerImpl := restHandler.NewClusterAccountsRestHandlerImpl(clusterAccountsServiceImpl, sugaredLogger, userServiceImpl)
-	clusterAccountsRouterImpl := router.NewClusterAccountsRouterImpl(clusterAccountsRestHandlerImpl)
 	appListingRestHandlerImpl := restHandler.NewAppListingRestHandlerImpl(serviceClientImpl, appListingServiceImpl, teamServiceImpl, enforcerImpl, pipelineBuilderImpl, sugaredLogger, enforcerUtilImpl, deploymentGroupServiceImpl, userServiceImpl)
 	appListingRouterImpl := router.NewAppListingRouterImpl(appListingRestHandlerImpl)
 	environmentRestHandlerImpl := restHandler.NewEnvironmentRestHandlerImpl(environmentServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, enforcerUtilImpl, userAuthServiceImpl)
@@ -273,7 +269,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	clusterRestHandlerImpl := restHandler.NewClusterRestHandlerImpl(clusterServiceImpl, sugaredLogger, clusterServiceClientImpl, environmentServiceImpl, clusterAccountsServiceImpl, userServiceImpl, validate, enforcerImpl, installedAppServiceImpl)
+	clusterRestHandlerImpl := restHandler.NewClusterRestHandlerImpl(clusterServiceImpl, sugaredLogger, clusterServiceClientImpl, environmentServiceImpl, userServiceImpl, validate, enforcerImpl, installedAppServiceImpl)
 	clusterRouterImpl := router.NewClusterRouterImpl(clusterRestHandlerImpl)
 	clusterHelmConfigRepositoryImpl := cluster.NewClusterHelmConfigRepositoryImpl(db)
 	clusterHelmConfigServiceImpl := cluster2.NewClusterHelmConfigServiceImpl(clusterHelmConfigRepositoryImpl, clusterServiceImpl, sugaredLogger)
@@ -425,7 +421,7 @@ func InitializeApp() (*App, error) {
 	appLabelRouterImpl := router.NewAppLabelRouterImpl(sugaredLogger, appLabelRestHandlerImpl)
 	coreAppRestHandlerImpl := restHandler.NewCoreAppRestHandlerImpl(sugaredLogger, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, appLabelServiceImpl, pipelineBuilderImpl, gitRegistryConfigImpl, chartServiceImpl, configMapServiceImpl, appListingServiceImpl, propertiesConfigServiceImpl, appWorkflowServiceImpl, materialRepositoryImpl, gitProviderRepositoryImpl, appWorkflowRepositoryImpl, environmentRepositoryImpl, configMapRepositoryImpl, envConfigOverrideRepositoryImpl, chartRepositoryImpl, teamServiceImpl)
 	coreAppRouterImpl := router.NewCoreAppRouterImpl(coreAppRestHandlerImpl)
-	muxRouter := router.NewMuxRouter(sugaredLogger, helmRouterImpl, pipelineConfigRouterImpl, migrateDbRouterImpl, clusterAccountsRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, clusterHelmConfigRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, projectManagementRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusUpdateHandlerImpl, ciEventHandlerImpl, pubSubClient, userRouterImpl, cronBasedEventReceiverImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, testSuitRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImpl, bulkUpdateRouterImpl, webhookListenerRouterImpl, appLabelRouterImpl, coreAppRouterImpl)
+	muxRouter := router.NewMuxRouter(sugaredLogger, helmRouterImpl, pipelineConfigRouterImpl, migrateDbRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, clusterHelmConfigRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, projectManagementRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusUpdateHandlerImpl, ciEventHandlerImpl, pubSubClient, userRouterImpl, cronBasedEventReceiverImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, testSuitRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImpl, bulkUpdateRouterImpl, webhookListenerRouterImpl, appLabelRouterImpl, coreAppRouterImpl)
 	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, sessionManager, versionServiceImpl, enforcer, db, pubSubClient)
 	return mainApp, nil
 }
