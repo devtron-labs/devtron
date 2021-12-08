@@ -157,15 +157,13 @@ type AppStoreServiceImpl struct {
 	versionService                argocdServer.VersionService
 	aCDAuthConfig                 *user.ACDAuthConfig
 	client                        *http.Client
-	appStoreDeploymentRepository  appstore.InstalledAppRepository
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client,
-	appStoreDeploymentRepository appstore.InstalledAppRepository) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -179,7 +177,6 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		versionService:                versionService,
 		aCDAuthConfig:                 aCDAuthConfig,
 		client:                        client,
-		appStoreDeploymentRepository:  appStoreDeploymentRepository,
 	}
 }
 
@@ -798,7 +795,7 @@ func (impl *AppStoreServiceImpl) DeleteChartRepo(request *ChartRepoDto) error {
 	defer tx.Rollback()
 
 	//finding if any charts is deployed using this repo, if yes then will not delete
-	deployedCharts, err := impl.appStoreDeploymentRepository.GetAllInstalledAppsByChartRepoId(request.Id)
+	deployedCharts, err := impl.installedAppRepository.GetAllInstalledAppsByChartRepoId(request.Id)
 	if !(deployedCharts == nil && err == pg.ErrNoRows) {
 		impl.logger.Errorw("err in deleting repo, found charts deployed using this repo", "chartRepo", request)
 		return fmt.Errorf("cannot delete repo, found charts deployed in this repo: %w", err)
