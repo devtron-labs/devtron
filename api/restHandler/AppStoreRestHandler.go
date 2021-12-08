@@ -56,6 +56,7 @@ type AppStoreRestHandler interface {
 	UpdateChartRepo(w http.ResponseWriter, r *http.Request)
 	ValidateChartRepo(w http.ResponseWriter, r *http.Request)
 	DeleteChartRepo(w http.ResponseWriter, r *http.Request)
+	TriggerChartSyncManual(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreRestHandlerImpl struct {
@@ -510,4 +511,24 @@ func(handler *AppStoreRestHandlerImpl)DeleteChartRepo(w http.ResponseWriter, r *
 		return
 	}
 	common.WriteJsonResp(w, nil,CHART_REPO_DELETE_SUCCESS_RESP , http.StatusOK)
+}
+func (handler *AppStoreRestHandlerImpl) TriggerChartSyncManual(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	err2 := handler.appStoreService.TriggerChartSyncManual()
+	if err2 != nil {
+		common.WriteJsonResp(w, err2, nil, http.StatusInternalServerError)
+	} else {
+		common.WriteJsonResp(w, nil, map[string]string{"status": "ok"}, http.StatusOK)
+	}
 }

@@ -19,14 +19,19 @@ package util
 
 import (
 	"encoding/json"
+	error2 "errors"
+	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
+	batchV1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"time"
 )
 
 type K8sUtil struct {
@@ -48,6 +53,15 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
 	client, err := v12.NewForConfig(cfg)
+	return client, err
+}
+
+func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clientset, error) {
+	cfg := &rest.Config{}
+	cfg.Host = clusterConfig.Host
+	cfg.BearerToken = clusterConfig.BearerToken
+	cfg.Insecure = true
+	client, err := kubernetes.NewForConfig(cfg)
 	return client, err
 }
 
@@ -250,4 +264,121 @@ func (impl K8sUtil) UpdateSecret(namespace string, secret *v1.Secret, client *v1
 	} else {
 		return secret, nil
 	}
+}
+
+func (impl K8sUtil) DeleteJob(namespace string, name string, clusterConfig *ClusterConfig) error {
+	clientSet, err := impl.GetClientSet(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("clientSet err, DeleteJob", "err", err)
+		return err
+	}
+	jobs := clientSet.BatchV1().Jobs(namespace)
+
+	job, err := jobs.Get(name, metav1.GetOptions{})
+	if err != nil && errors.IsNotFound(err) {
+		impl.logger.Errorw("get job err, DeleteJob", "err", err)
+		return nil
+	}
+
+	if job != nil {
+		err := jobs.Delete(name, &metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			impl.logger.Errorw("delete err, DeleteJob", "err", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (impl K8sUtil) CreateJob(namespace string, name string, clusterConfig *ClusterConfig, job *batchV1.Job) error {
+	clientSet, err := impl.GetClientSet(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("clientSet err, CreateJob", "err", err)
+	}
+	time.Sleep(5 * time.Second)
+
+	jobs := clientSet.BatchV1().Jobs(namespace)
+	_, err = jobs.Get(name, metav1.GetOptions{})
+	if err == nil {
+		impl.logger.Errorw("get job err, CreateJob", "err", err)
+		time.Sleep(5 * time.Second)
+		_, err = jobs.Get(name, metav1.GetOptions{})
+		if err == nil {
+			return error2.New("job deletion takes more time than expected, please try after sometime")
+		}
+	}
+
+	_, err = jobs.Create(job)
+	if err != nil {
+		impl.logger.Errorw("create err, CreateJob", "err", err)
+		return err
+	}
+	return nil
+}
+
+// DeletePod delete pods with label job-name
+
+const Running = "Running"
+
+func (impl K8sUtil) DeletePodByLabel(namespace string, labels string, clusterConfig *ClusterConfig) error {
+	clientSet, err := impl.GetClientSet(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("clientSet err, DeletePod", "err", err)
+		return err
+	}
+
+	time.Sleep(2 * time.Second)
+
+	pods := clientSet.CoreV1().Pods(namespace)
+	podList, err := pods.List(metav1.ListOptions{LabelSelector: labels})
+	if err != nil && errors.IsNotFound(err) {
+		impl.logger.Errorw("get pod err, DeletePod", "err", err)
+		return nil
+	}
+
+	for _, pod := range (*podList).Items {
+		if pod.Status.Phase != Running {
+			podName := pod.ObjectMeta.Name
+			err := pods.Delete(podName, &metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				impl.logger.Errorw("delete err, DeletePod", "err", err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// DeleteAndCreateJob Deletes and recreates if job exists else creates the job
+func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, clusterConfig *ClusterConfig) error {
+	// Job object from content
+	var job batchV1.Job
+	err := yaml.Unmarshal(content, &job)
+	if err != nil {
+		impl.logger.Errorw("Unmarshal err, CreateJobSafely", "err", err)
+		return err
+	}
+
+	// delete job if exists
+	err = impl.DeleteJob(namespace, job.Name, clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("DeleteJobIfExists err, CreateJobSafely", "err", err)
+		return err
+	}
+
+	labels := "job-name=" + job.Name
+	err = impl.DeletePodByLabel(namespace, labels, clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("DeleteJobIfExists err, CreateJobSafely", "err", err)
+		return err
+	}
+	// create job
+	err = impl.CreateJob(namespace, job.Name, clusterConfig, &job)
+	if err != nil {
+		impl.logger.Errorw("CreateJob err, CreateJobSafely", "err", err)
+		return err
+	}
+
+	return nil
 }

@@ -95,6 +95,8 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 		HandlerFunc(router.appStoreRestHandler.SearchAppStoreChartByName).Queries("chartName", "{chartName}").
 		Methods("GET")
 
+	configRouter.Path("/repo/sync-charts").
+		HandlerFunc(router.appStoreRestHandler.TriggerChartSyncManual).Methods("POST")
 	configRouter.Path("/repo/list").
 		HandlerFunc(router.appStoreRestHandler.GetChartRepoList).Methods("GET")
 	configRouter.Path("/repo/{id}").
@@ -107,4 +109,5 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 		HandlerFunc(router.appStoreRestHandler.ValidateChartRepo).Methods("POST")
 	configRouter.Path("/repo/delete").
 		HandlerFunc(router.appStoreRestHandler.DeleteChartRepo).Methods("POST")
+
 }
