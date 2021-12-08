@@ -478,7 +478,16 @@ func (handler *AppStoreRestHandlerImpl) TriggerChartSyncManual(w http.ResponseWr
 		return
 	}
 
-	//Chart repo sync error handling
-	TriggerResult := handler.appStoreService.TriggerChartSyncManual()
-	common.WriteJsonResp(w, nil, TriggerResult, http.StatusOK)
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	err2 := handler.appStoreService.TriggerChartSyncManual()
+	if err2 != nil {
+		common.WriteJsonResp(w, err2, nil, http.StatusInternalServerError)
+	} else {
+		common.WriteJsonResp(w, nil, map[string]string{"status": "ok"}, http.StatusOK)
+	}
 }
