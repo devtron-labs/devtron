@@ -847,7 +847,7 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 	var LatestAppChartRef int
 	for _, result := range results {
 		if len(result.Name) == 0 {
-			result.Name = "Rollout"
+			result.Name = "Rollout Deployment"
 		}
 		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name})
 		if result.Default == true {
