@@ -315,8 +315,13 @@ func (impl EnvironmentRestHandlerImpl) Delete(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	//TODO : add rbac
-
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
 	err = impl.environmentClusterMappingsService.Delete(&bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Delete", "err", err, "payload", bean)

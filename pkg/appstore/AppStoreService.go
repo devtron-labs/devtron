@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -155,13 +156,15 @@ type AppStoreServiceImpl struct {
 	versionService                argocdServer.VersionService
 	aCDAuthConfig                 *user.ACDAuthConfig
 	client                        *http.Client
+	appStoreDeploymentRepository  appstore.InstalledAppRepository
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client,
+	appStoreDeploymentRepository appstore.InstalledAppRepository) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -175,6 +178,7 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		versionService:                versionService,
 		aCDAuthConfig:                 aCDAuthConfig,
 		client:                        client,
+		appStoreDeploymentRepository:  appStoreDeploymentRepository,
 	}
 }
 
@@ -738,15 +742,22 @@ func (impl *AppStoreServiceImpl) get(href string, chartRepository *repo.ChartRep
 	return buf, err, http.StatusOK
 }
 
-func (impl *AppStoreServiceImpl) DeleteChartRepo(request *ChartRepoDto) error{
+func (impl *AppStoreServiceImpl) DeleteChartRepo(request *ChartRepoDto) error {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
-		impl.logger.Errorw("error in establishing db connection, DeleteChartRepo","err",err)
+		impl.logger.Errorw("error in establishing db connection, DeleteChartRepo", "err", err)
 		return err
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
+
+	//finding if any charts is deployed using this repo, if yes then will not delete
+	deployedCharts, err := impl.appStoreDeploymentRepository.GetAllInstalledAppsByChartRepoId(request.Id)
+	if !(deployedCharts == nil && err == pg.ErrNoRows) {
+		impl.logger.Errorw("err in deleting repo, found charts deployed using this repo", "chartRepo", request)
+		return fmt.Errorf("cannot delete repo, found charts deployed in this repo: %w", err)
+	}
 
 	chartRepo, err := impl.repoRepository.FindById(request.Id)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -763,13 +774,10 @@ func (impl *AppStoreServiceImpl) DeleteChartRepo(request *ChartRepoDto) error{
 	chartRepo.Active = request.Active
 	chartRepo.UpdatedBy = request.UserId
 	chartRepo.UpdatedOn = time.Now()
-	err = impl.repoRepository.Delete(chartRepo, tx)
+	err = impl.repoRepository.MarkChartRepoDeleted(chartRepo, tx)
 	if err != nil {
-		impl.logger.Errorw("error in deleting chart repo","err",err)
+		impl.logger.Errorw("error in deleting chart repo", "err", err)
 		return err
 	}
-
-	//TODO : update in cluster ( as done in create and update service)
-
 	return nil
 }

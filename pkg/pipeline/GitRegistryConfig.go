@@ -285,7 +285,7 @@ func (impl GitRegistryConfigImpl) Delete(request *GitRegistry) error{
 	deleteReq := gitProviderConfig
 	deleteReq.UpdatedOn = time.Now()
 	deleteReq.UpdatedBy = request.UserId
-	err = impl.gitProviderRepo.Delete(&deleteReq)
+	err = impl.gitProviderRepo.MarkProviderDeleted(&deleteReq)
 	if err != nil{
 		impl.logger.Errorw("err in deleting git account", "id", request.Id,"err",err)
 		return err

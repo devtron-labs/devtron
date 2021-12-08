@@ -417,7 +417,7 @@ func(impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int3
 		Default: deleteReq.Default,
 		AuditLog: models.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: userId},
 	}
-	err = impl.environmentRepository.Delete(deleteRequest)
+	err = impl.environmentRepository.MarkEnvironmentDeleted(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting environment", "envId", deleteReq.Id, "envName", deleteReq.Environment)
 		return err

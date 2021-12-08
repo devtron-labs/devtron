@@ -218,8 +218,13 @@ func(impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Request
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//TODO : add rbac
-
+	//rbac starts
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceTeam, rbac.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//rbac ends
 	err = impl.teamService.Delete(&deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)

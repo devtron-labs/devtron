@@ -261,7 +261,7 @@ func (impl DockerRegistryConfigImpl) DeleteReg(bean *DockerArtifactStoreBean) er
 	deleteReq := dockerReg
 	deleteReq.UpdatedOn = time.Now()
 	deleteReq.UpdatedBy = bean.User
-	err = impl.dockerArtifactStoreRepository.DeleteReg(deleteReq)
+	err = impl.dockerArtifactStoreRepository.MarkRegistryDeleted(deleteReq)
 	if err != nil {
 		impl.logger.Errorw("err in deleting docker registry", "id", bean.Id, "err", err)
 		return err

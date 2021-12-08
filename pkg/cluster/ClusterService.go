@@ -583,7 +583,7 @@ func (impl ClusterServiceImpl)DeleteFromDb(bean *ClusterBean, userId int32) erro
 	deleteReq := existingCluster
 	deleteReq.UpdatedOn = time.Now()
 	deleteReq.UpdatedBy = userId
-	err  = impl.clusterRepository.DeleteInDb(deleteReq)
+	err  = impl.clusterRepository.MarkClusterDeleted(deleteReq)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err",err)
 		return err

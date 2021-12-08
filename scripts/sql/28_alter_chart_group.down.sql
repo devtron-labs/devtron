@@ -1,1 +1,0 @@
-ALTER TABLE chart_group DROP COLUMN IF EXISTS active;

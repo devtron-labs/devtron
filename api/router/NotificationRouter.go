@@ -60,6 +60,9 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 	configRouter.Path("/channel/slack/{id}").
 		HandlerFunc(impl.notificationRestHandler.FindSlackConfig).
 		Methods("GET")
+	configRouter.Path("/channel/delete").
+		HandlerFunc(impl.notificationRestHandler.DeleteNotificationChannelConfig).
+		Methods("POST")
 
 	configRouter.Path("/recipient").
 		Queries("value", "{value}").

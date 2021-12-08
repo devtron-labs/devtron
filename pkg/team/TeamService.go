@@ -183,7 +183,7 @@ func(impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error{
 			Active:   deleteRequest.Active,
 			AuditLog: models.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: deleteRequest.UserId},
 		}
-		err = impl.teamRepository.Delete(deleteReq)
+		err = impl.teamRepository.MarkTeamDeleted(deleteReq)
 		if err != nil {
 			impl.logger.Errorw("error in deleting team", "teamId", deleteReq.Id, "teamName", deleteReq.Name)
 			return err

@@ -282,8 +282,13 @@ func (impl DockerRegRestHandlerImpl) DeleteDockerRegistryConfig(w http.ResponseW
 			return
 		}
 
-		//TODO : add rbac
-
+		// RBAC enforcer applying
+		token := r.Header.Get("token")
+		if ok := impl.enforcer.Enforce(token, rbac.ResourceDocker, rbac.ActionUpdate, strings.ToLower(bean.Id)); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		//RBAC enforcer Ends
 		err = impl.dockerRegistryConfig.DeleteReg(&bean)
 		if err != nil {
 			impl.logger.Errorw("service err, DeleteDockerRegistryConfig", "err", err, "payload", bean)

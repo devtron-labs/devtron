@@ -586,8 +586,13 @@ func (impl ClusterRestHandlerImpl)DeleteFromDb(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	//TODO : add rbac
-
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceCluster, rbac.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
 	err = impl.clusterService.DeleteFromDb(&bean, userId)
 	if err!= nil{
 		impl.logger.Errorw("error in deleting cluster","err",err,"id",bean.Id,"name",bean.ClusterName)

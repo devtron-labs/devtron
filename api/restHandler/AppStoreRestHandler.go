@@ -494,7 +494,13 @@ func(handler *AppStoreRestHandlerImpl)DeleteChartRepo(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//TODO : add rbac
+	//rbac starts here
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//rbac ends here
 	request.UserId = userId
 	handler.Logger.Infow("request payload, DeleteChartRepo", "payload", request)
 	err = handler.appStoreService.DeleteChartRepo(request)

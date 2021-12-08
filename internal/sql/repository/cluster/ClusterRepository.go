@@ -52,7 +52,7 @@ type ClusterRepository interface {
 	FindByIds(id []int) ([]Cluster, error)
 	Update(model *Cluster) error
 	Delete(model *Cluster) error
-	DeleteInDb(model *Cluster) error
+	MarkClusterDeleted(model *Cluster) error
 }
 
 func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterRepositoryImpl {
@@ -137,7 +137,7 @@ func (impl ClusterRepositoryImpl) Delete(model *Cluster) error {
 	return impl.dbConnection.Delete(model)
 }
 
-func (impl ClusterRepositoryImpl) DeleteInDb(model *Cluster) error {
+func (impl ClusterRepositoryImpl) MarkClusterDeleted(model *Cluster) error {
 	model.Active = false
 	return impl.dbConnection.Update(model)
 }

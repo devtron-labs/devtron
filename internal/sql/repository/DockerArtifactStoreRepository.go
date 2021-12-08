@@ -66,7 +66,7 @@ type DockerArtifactStoreRepository interface {
 	FindOne(storeId string) (*DockerArtifactStore, error)
 	Update(artifactStore *DockerArtifactStore) error
 	Delete(storeId string) error
-	DeleteReg(artifactStore *DockerArtifactStore) error
+	MarkRegistryDeleted(artifactStore *DockerArtifactStore) error
 }
 type DockerArtifactStoreRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -153,9 +153,9 @@ func (impl DockerArtifactStoreRepositoryImpl) Delete(storeId string) error {
 	return impl.dbConnection.Delete(artifactStore)
 }
 
-func (impl DockerArtifactStoreRepositoryImpl) DeleteReg(deleteReq *DockerArtifactStore) error{
+func (impl DockerArtifactStoreRepositoryImpl) MarkRegistryDeleted(deleteReq *DockerArtifactStore) error{
 	if deleteReq.IsDefault {
-		return errors.New("default registry can't be delete")
+		return errors.New("default registry can't be deleted")
 	}
 	deleteReq.Active = false
 	return impl.dbConnection.Update(deleteReq)

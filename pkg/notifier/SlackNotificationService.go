@@ -19,15 +19,19 @@ package notifier
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util/event"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
 	"time"
 )
+
+const SLACK_CONFIG_TYPE = "slack"
 
 type SlackNotificationService interface {
 	SaveOrEditNotificationConfig(channelReq []SlackConfigDto, userId int32) ([]int, error)
@@ -35,6 +39,7 @@ type SlackNotificationService interface {
 	FetchAllSlackNotificationConfig() ([]*SlackConfigDto, error)
 	FetchAllSlackNotificationConfigAutocomplete() ([]*NotificationChannelAutoResponse, error)
 	RecipientListingSuggestion(value string) ([]*NotificationRecipientListingResponse, error)
+	DeleteNotificationConfig(deleteReq *SlackConfigDto, userId int32) error
 }
 
 type SlackNotificationServiceImpl struct {
@@ -258,4 +263,27 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 		}
 	}
 	return results, nil
+}
+
+func (impl *SlackNotificationServiceImpl) DeleteNotificationConfig(deleteReq *SlackConfigDto, userId int32) error {
+	existingConfig, err := impl.slackRepository.FindOne(deleteReq.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete", "err", err, "id", deleteReq.Id)
+		return err
+	}
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, SLACK_CONFIG_TYPE)
+	if !(notifications == nil && err == pg.ErrNoRows) {
+		impl.logger.Errorw("found notifications using this config, cannot delete", "config", deleteReq)
+		return fmt.Errorf(" Please delete all notifications using this config before deleting")
+	}
+
+	existingConfig.UpdatedOn = time.Now()
+	existingConfig.UpdatedBy = userId
+	//deleting slack config
+	err = impl.slackRepository.MarkSlackConfigDeleted(existingConfig)
+	if err != nil {
+		impl.logger.Errorw("error in deleting slack config", "err", err, "id", existingConfig.Id)
+		return err
+	}
+	return nil
 }

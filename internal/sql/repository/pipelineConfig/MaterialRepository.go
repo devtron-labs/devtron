@@ -59,7 +59,7 @@ type MaterialRepository interface {
 	UpdateMaterialScmId(material *GitMaterial) error
 	FindByAppIdAndCheckoutPath(appId int, checkoutPath string) (*GitMaterial, error)
 	FindByGitProviderId(gitProviderId int) (materials []*GitMaterial,err error)
-	Delete(material *GitMaterial) error
+	MarkMaterialDeleted(material *GitMaterial) error
 }
 type MaterialRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -149,7 +149,7 @@ func(repo MaterialRepositoryImpl) FindByGitProviderId(gitProviderId int) (materi
 	return materials, err
 }
 
-func(repo MaterialRepositoryImpl) Delete(material *GitMaterial) error{
+func(repo MaterialRepositoryImpl) MarkMaterialDeleted(material *GitMaterial) error{
 	material.Active = false
 	return repo.dbConnection.Update(material)
 }

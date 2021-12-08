@@ -337,8 +337,14 @@ func(impl *ChartGroupRestHandlerImpl) DeleteChartGroup(w http.ResponseWriter, r 
 	request.UserId = userId
 	impl.Logger.Infow("request payload, DeleteChartGroup", "payload", request)
 
-	//TODO : add rbac
-
+	//RBAC block starts from here
+	token := r.Header.Get("token")
+	rbacObject := request.Name
+	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionCreate, rbacObject); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC block ends here
 	err = impl.ChartGroupService.DeleteChartGroup(&request)
 	if err != nil {
 		impl.Logger.Errorw("service err, DeleteChartGroup", "err", err, "payload", request)

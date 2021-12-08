@@ -36,7 +36,7 @@ type TeamRepository interface {
 	FindOne(id int) (Team, error)
 	FindByTeamName(name string) (Team, error)
 	Update(team *Team) error
-	Delete(team *Team) error
+	MarkTeamDeleted(team *Team) error
 
 	FindTeamByAppId(appId int) (*Team, error)
 	FindActiveTeamByAppName(appName string) (*Team, error)
@@ -82,7 +82,7 @@ func (impl TeamRepositoryImpl) Update(team *Team) error {
 	return err
 }
 
-func (impl TeamRepositoryImpl) Delete(team *Team) error {
+func (impl TeamRepositoryImpl) MarkTeamDeleted(team *Team) error {
 	team.Active = false
 	err := impl.dbConnection.Update(team)
 	return err

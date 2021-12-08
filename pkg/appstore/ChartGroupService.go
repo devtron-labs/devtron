@@ -406,13 +406,13 @@ func(impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error{
 		chartGroupMappingIds = append(chartGroupMappingIds, chartGroupMapping.Id)
 	}
 	//deleting chart mappings in group
-	_, err = impl.chartGroupEntriesRepository.DeleteChartGroupEntries(chartGroupMappingIds)
+	_, err = impl.chartGroupEntriesRepository.MarkChartGroupEntriesDeleted(chartGroupMappingIds)
 	if err!=nil{
 		impl.Logger.Errorw("error in deleting chart group mappings","err",err)
 		return err
 	}
 	//deleting chart group
-	err = impl.chartGroupRepository.Delete(existingChartGroup.Id)
+	err = impl.chartGroupRepository.MarkChartGroupDeleted(existingChartGroup.Id)
 	if err!=nil{
 		impl.Logger.Errorw("error in deleting chart group","err",err,"chartGroupId",existingChartGroup.Id)
 		return err

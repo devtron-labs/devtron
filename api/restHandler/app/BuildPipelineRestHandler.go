@@ -797,8 +797,14 @@ func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//TODO : add rbac
-
+	//rbac starts
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(deleteMaterial.AppId)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceObject); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//rbac ends
 	err = handler.pipelineBuilder.DeleteMaterial(&deleteMaterial)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)

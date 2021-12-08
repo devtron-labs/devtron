@@ -54,7 +54,7 @@ type GitProviderRepository interface {
 	FindOne(providerId string) (GitProvider, error)
 	FindByUrl(providerUrl string) (GitProvider, error)
 	Update(gitProvider *GitProvider) error
-	Delete(gitProvider *GitProvider) error
+	MarkProviderDeleted(gitProvider *GitProvider) error
 }
 
 type GitProviderRepositoryImpl struct {
@@ -113,7 +113,7 @@ func (impl GitProviderRepositoryImpl) Update(gitProvider *GitProvider) error {
 	return err
 }
 
-func (impl GitProviderRepositoryImpl) Delete(gitProvider *GitProvider) error {
+func (impl GitProviderRepositoryImpl) MarkProviderDeleted(gitProvider *GitProvider) error {
 	gitProvider.Active = false
 	return impl.dbConnection.Update(gitProvider)
 }
