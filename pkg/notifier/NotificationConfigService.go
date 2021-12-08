@@ -20,7 +20,7 @@ package notifier
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	repository2 "github.com/devtron-labs/devtron/pkg/team/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/team"
 	"strings"
 	"time"
 

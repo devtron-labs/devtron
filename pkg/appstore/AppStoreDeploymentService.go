@@ -23,7 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	repository4 "github.com/devtron-labs/devtron/pkg/team/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/ktrysmt/go-bitbucket"
 
 	/* #nosec */

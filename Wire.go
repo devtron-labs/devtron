@@ -75,7 +75,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/team"
-	team2 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	user2 "github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -360,8 +359,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.TeamRestHandler), new(*restHandler.TeamRestHandlerImpl)),
 		team.NewTeamServiceImpl,
 		wire.Bind(new(team.TeamService), new(*team.TeamServiceImpl)),
-		team2.NewTeamRepositoryImpl,
-		wire.Bind(new(team2.TeamRepository), new(*team2.TeamRepositoryImpl)),
+		team.NewTeamRepositoryImpl,
+		wire.Bind(new(team.TeamRepository), new(*team.TeamRepositoryImpl)),
 
 		pipeline.GetCiConfig,
 

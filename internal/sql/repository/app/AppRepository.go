@@ -19,7 +19,7 @@ package app
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/team/repository"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 )
 
@@ -30,7 +30,7 @@ type App struct {
 	Active    bool     `sql:"active, notnull"`
 	TeamId    int      `sql:"team_id"`
 	AppStore bool     `sql:"app_store, notnull"`
-	Team     repository.Team
+	Team     team.Team
 	sql.AuditLog
 }
 

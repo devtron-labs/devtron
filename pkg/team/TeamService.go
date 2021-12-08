@@ -21,7 +21,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/team/repository"
 	"go.uber.org/zap"
 	"time"
 )
@@ -37,7 +36,7 @@ type TeamService interface {
 }
 type TeamServiceImpl struct {
 	logger         *zap.SugaredLogger
-	teamRepository repository.TeamRepository
+	teamRepository TeamRepository
 }
 
 type TeamRequest struct {
@@ -47,7 +46,7 @@ type TeamRequest struct {
 	UserId int32  `json:"-"`
 }
 
-func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository repository.TeamRepository,
+func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository TeamRepository,
 ) *TeamServiceImpl {
 	return &TeamServiceImpl{
 		logger:         logger,
@@ -57,7 +56,7 @@ func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository repository.Tea
 
 func (impl TeamServiceImpl) Create(request *TeamRequest) (*TeamRequest, error) {
 	impl.logger.Debugw("team create request", "req", request)
-	t := &repository.Team{
+	t := &Team{
 		Name:     request.Name,
 		Id:       request.Id,
 		Active:   request.Active,
@@ -126,7 +125,7 @@ func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
 		}
 		return nil, err0
 	}
-	team := &repository.Team{
+	team := &Team{
 		Name:     request.Name,
 		Id:       request.Id,
 		Active:   request.Active,
