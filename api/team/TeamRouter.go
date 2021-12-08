@@ -15,10 +15,9 @@
  *
  */
 
-package router
+package team
 
 import (
-	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
 
@@ -26,10 +25,10 @@ type TeamRouter interface {
 	InitTeamRouter(gocdRouter *mux.Router)
 }
 type TeamRouterImpl struct {
-	teamRestHandler restHandler.TeamRestHandler
+	teamRestHandler TeamRestHandler
 }
 
-func NewTeamRouterImpl(teamRestHandler restHandler.TeamRestHandler) *TeamRouterImpl {
+func NewTeamRouterImpl(teamRestHandler TeamRestHandler) *TeamRouterImpl {
 	return &TeamRouterImpl{teamRestHandler: teamRestHandler}
 }
 

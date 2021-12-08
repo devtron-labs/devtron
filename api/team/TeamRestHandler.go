@@ -15,7 +15,7 @@
  *
  */
 
-package restHandler
+package team
 
 import (
 	"encoding/json"

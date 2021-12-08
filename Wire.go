@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/sse"
+	team2 "github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -353,10 +354,10 @@ func InitializeApp() (*App, error) {
 
 		util.IntValidator,
 
-		router.NewTeamRouterImpl,
-		wire.Bind(new(router.TeamRouter), new(*router.TeamRouterImpl)),
-		restHandler.NewTeamRestHandlerImpl,
-		wire.Bind(new(restHandler.TeamRestHandler), new(*restHandler.TeamRestHandlerImpl)),
+		team2.NewTeamRouterImpl,
+		wire.Bind(new(team2.TeamRouter), new(*team2.TeamRouterImpl)),
+		team2.NewTeamRestHandlerImpl,
+		wire.Bind(new(team2.TeamRestHandler), new(*team2.TeamRestHandlerImpl)),
 		team.NewTeamServiceImpl,
 		wire.Bind(new(team.TeamService), new(*team.TeamServiceImpl)),
 		team.NewTeamRepositoryImpl,

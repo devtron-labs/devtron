@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/api/router"
 	pubsub2 "github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/sse"
+	team2 "github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	cluster3 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -330,8 +331,8 @@ func InitializeApp() (*App, error) {
 	sesNotificationServiceImpl := notifier.NewSESNotificationServiceImpl(sugaredLogger, sesNotificationRepositoryImpl, teamServiceImpl)
 	notificationRestHandlerImpl := restHandler.NewNotificationRestHandlerImpl(dockerRegistryConfigImpl, sugaredLogger, gitRegistryConfigImpl, dbConfigServiceImpl, userServiceImpl, validate, notificationConfigServiceImpl, slackNotificationServiceImpl, sesNotificationServiceImpl, enforcerImpl, teamServiceImpl, environmentServiceImpl, pipelineBuilderImpl, enforcerUtilImpl)
 	notificationRouterImpl := router.NewNotificationRouterImpl(notificationRestHandlerImpl)
-	teamRestHandlerImpl := restHandler.NewTeamRestHandlerImpl(sugaredLogger, teamServiceImpl, dbConfigServiceImpl, userServiceImpl, enforcerImpl, validate, enforcerUtilImpl, userAuthServiceImpl)
-	teamRouterImpl := router.NewTeamRouterImpl(teamRestHandlerImpl)
+	teamRestHandlerImpl := team2.NewTeamRestHandlerImpl(sugaredLogger, teamServiceImpl, userServiceImpl, enforcerImpl, validate, enforcerUtilImpl, userAuthServiceImpl)
+	teamRouterImpl := team2.NewTeamRouterImpl(teamRestHandlerImpl)
 	gitWebhookHandlerImpl := pubsub2.NewGitWebhookHandler(sugaredLogger, pubSubClient, gitWebhookServiceImpl)
 	workflowStatusUpdateHandlerImpl := pubsub2.NewWorkflowStatusUpdateHandlerImpl(sugaredLogger, pubSubClient, ciHandlerImpl, cdHandlerImpl, eventSimpleFactoryImpl, eventRESTClientImpl, cdWorkflowRepositoryImpl)
 	applicationStatusUpdateHandlerImpl := pubsub2.NewApplicationStatusUpdateHandlerImpl(sugaredLogger, pubSubClient, appServiceImpl, workflowDagExecutorImpl)

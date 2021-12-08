@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
+	"github.com/devtron-labs/devtron/api/team"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/terminal"
@@ -49,9 +50,9 @@ type MuxRouter struct {
 	GitProviderRouter                GitProviderRouter
 	GitHostRouter                    GitHostRouter
 	DockerRegRouter                  DockerRegRouter
-	NotificationRouter               NotificationRouter
-	TeamRouter                       TeamRouter
-	pubsubClient                     *pubsub2.PubSubClient
+	NotificationRouter NotificationRouter
+	TeamRouter         team.TeamRouter
+	pubsubClient       *pubsub2.PubSubClient
 	UserRouter                       UserRouter
 	gitWebhookHandler                pubsub.GitWebhookHandler
 	workflowUpdateHandler            pubsub.WorkflowStatusUpdateHandler
@@ -90,7 +91,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	GitProviderRouter GitProviderRouter, GitHostRouter GitHostRouter,
 	DockerRegRouter DockerRegRouter,
 	NotificationRouter NotificationRouter,
-	TeamRouter TeamRouter,
+	TeamRouter team.TeamRouter,
 	gitWebhookHandler pubsub.GitWebhookHandler,
 	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
 	appUpdateHandler pubsub.ApplicationStatusUpdateHandler,
