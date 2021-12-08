@@ -19,11 +19,11 @@ package team
 
 import (
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 	"time"
@@ -33,7 +33,7 @@ type TeamService interface {
 	Create(request *TeamRequest) (*TeamRequest, error)
 	FetchAllActive() ([]TeamRequest, error)
 	FetchOne(id int) (*TeamRequest, error)
-	FindTeamsByUser(userId int32) ([]team.Team, error)
+	FindTeamsByUser(userId int32) ([]repository.Team, error)
 	Update(request *TeamRequest) (*TeamRequest, error)
 	FetchForAutocomplete() ([]TeamRequest, error)
 	FindByIds(ids []*int) ([]*TeamBean, error)
@@ -42,7 +42,7 @@ type TeamService interface {
 type TeamServiceImpl struct {
 	logger          *zap.SugaredLogger
 	userService     user.UserService
-	teamRepository  team.TeamRepository
+	teamRepository  repository.TeamRepository
 	pipelineBuilder pipeline.PipelineBuilder
 	envService      cluster.EnvironmentService
 }
@@ -54,7 +54,7 @@ type TeamRequest struct {
 	UserId int32  `json:"-"`
 }
 
-func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
+func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository repository.TeamRepository,
 	pipelineBuilder pipeline.PipelineBuilder, envService cluster.EnvironmentService, userService user.UserService) *TeamServiceImpl {
 	return &TeamServiceImpl{
 		logger:          logger,
@@ -67,7 +67,7 @@ func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepos
 
 func (impl TeamServiceImpl) Create(request *TeamRequest) (*TeamRequest, error) {
 	impl.logger.Debugw("team create request", "req", request)
-	t := &team.Team{
+	t := &repository.Team{
 		Name:     request.Name,
 		Id:       request.Id,
 		Active:   request.Active,
@@ -136,7 +136,7 @@ func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
 		}
 		return nil, err0
 	}
-	team := &team.Team{
+	team := &repository.Team{
 		Name:     request.Name,
 		Id:       request.Id,
 		Active:   request.Active,
@@ -174,7 +174,7 @@ func (impl TeamServiceImpl) FetchForAutocomplete() ([]TeamRequest, error) {
 	return teamRequests, err
 }
 
-func (impl TeamServiceImpl) FindTeamsByUser(userId int32) ([]team.Team, error) {
+func (impl TeamServiceImpl) FindTeamsByUser(userId int32) ([]repository.Team, error) {
 	teamsForUser := make(map[string]bool)
 	activeUser, err := impl.userService.GetById(int32(userId))
 	for _, r := range activeUser.RoleFilters {
@@ -182,7 +182,7 @@ func (impl TeamServiceImpl) FindTeamsByUser(userId int32) ([]team.Team, error) {
 			teamsForUser[r.Team] = true
 		}
 	}
-	var teams []team.Team
+	var teams []repository.Team
 	for t := range teamsForUser {
 		// TODO: Get team id for current team
 		team, err := impl.teamRepository.FindByTeamName(t)

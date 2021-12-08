@@ -52,7 +52,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
-	teamRepo "github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/internal/util/ArgoUtil"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -76,6 +75,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/team"
+	team2 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	user2 "github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -360,8 +360,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.TeamRestHandler), new(*restHandler.TeamRestHandlerImpl)),
 		team.NewTeamServiceImpl,
 		wire.Bind(new(team.TeamService), new(*team.TeamServiceImpl)),
-		teamRepo.NewTeamRepositoryImpl,
-		wire.Bind(new(teamRepo.TeamRepository), new(*teamRepo.TeamRepositoryImpl)),
+		team2.NewTeamRepositoryImpl,
+		wire.Bind(new(team2.TeamRepository), new(*team2.TeamRepositoryImpl)),
 
 		pipeline.GetCiConfig,
 

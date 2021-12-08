@@ -20,10 +20,10 @@ package appstore
 import (
 	"bytes"
 	"context"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
-
-	"github.com/devtron-labs/devtron/client/argocdServer"
+	repository4 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/ktrysmt/go-bitbucket"
 
 	/* #nosec */
@@ -52,7 +52,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
-	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
@@ -104,9 +103,9 @@ type InstalledAppServiceImpl struct {
 	refChartDir                          RefChartProxyDir
 	repositoryService                    repository.ServiceClient
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository
-	environmentRepository                cluster.EnvironmentRepository
-	teamRepository team.TeamRepository
-	appRepository  app.AppRepository
+	environmentRepository cluster.EnvironmentRepository
+	teamRepository        repository4.TeamRepository
+	appRepository         app.AppRepository
 	acdClient      application2.ServiceClient
 	appStoreValuesService                AppStoreValuesService
 	pubsubClient                         *pubsub.PubSubClient
@@ -130,7 +129,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	chartTemplateService util.ChartTemplateService, refChartDir RefChartProxyDir,
 	repositoryService repository.ServiceClient,
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository,
-	environmentRepository cluster.EnvironmentRepository, teamRepository team.TeamRepository,
+	environmentRepository cluster.EnvironmentRepository, teamRepository repository4.TeamRepository,
 	appRepository app.AppRepository,
 	acdClient application2.ServiceClient,
 	appStoreValuesService AppStoreValuesService,
@@ -1492,7 +1491,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 		return false, err
 	}
 	if err == pg.ErrNoRows {
-		t := &team.Team{
+		t := &repository4.Team{
 			Name:     DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT,
 			Active:   true,
 			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},

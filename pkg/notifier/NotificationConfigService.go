@@ -20,13 +20,13 @@ package notifier
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
@@ -51,8 +51,8 @@ type NotificationConfigServiceImpl struct {
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	pipelineRepository             pipelineConfig.PipelineRepository
 	slackRepository                repository.SlackNotificationRepository
-	sesRepository                  repository.SESNotificationRepository
-	teamRepository                 team.TeamRepository
+	sesRepository         repository.SESNotificationRepository
+	teamRepository        repository2.TeamRepository
 	environmentRepository cluster.EnvironmentRepository
 	appRepository         app.AppRepository
 	userRepository        repository.UserRepository
@@ -163,7 +163,7 @@ type ProvidersConfig struct {
 
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository,
-	sesRepository repository.SESNotificationRepository, teamRepository team.TeamRepository,
+	sesRepository repository.SESNotificationRepository, teamRepository repository2.TeamRepository,
 	environmentRepository cluster.EnvironmentRepository, appRepository app.AppRepository,
 	userRepository repository.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{

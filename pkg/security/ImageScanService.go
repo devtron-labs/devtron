@@ -19,13 +19,13 @@ package security
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
-	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
@@ -47,8 +47,8 @@ type ImageScanServiceImpl struct {
 	scanObjectMetaRepository      security.ImageScanObjectMetaRepository
 	cveStoreRepository            security.CveStoreRepository
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
-	userService                   user.UserService
-	teamRepository team.TeamRepository
+	userService    user.UserService
+	teamRepository repository2.TeamRepository
 	appRepository  app.AppRepository
 	envService     cluster.EnvironmentService
 	ciArtifactRepository          repository.CiArtifactRepository
@@ -124,7 +124,7 @@ type SeverityCount struct {
 func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository security.ImageScanHistoryRepository,
 	scanResultRepository security.ImageScanResultRepository, scanObjectMetaRepository security.ImageScanObjectMetaRepository,
 	cveStoreRepository security.CveStoreRepository, imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
-	userService user.UserService, teamRepository team.TeamRepository,
+	userService user.UserService, teamRepository repository2.TeamRepository,
 	appRepository app.AppRepository,
 	envService cluster.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
 	pipelineRepository pipelineConfig.PipelineRepository,

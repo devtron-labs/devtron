@@ -22,7 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/team"
+	"github.com/devtron-labs/devtron/pkg/team/repository"
 	"go.uber.org/zap"
 	"strings"
 )
@@ -43,15 +43,15 @@ type EnforcerUtil interface {
 	GetProjectAdminRBACNameBYAppName(appName string) string
 }
 type EnforcerUtilImpl struct {
-	logger                *zap.SugaredLogger
-	teamRepository        team.TeamRepository
-	appRepo               app.AppRepository
+	logger         *zap.SugaredLogger
+	teamRepository repository.TeamRepository
+	appRepo        app.AppRepository
 	environmentRepository cluster.EnvironmentRepository
 	pipelineRepository    pipelineConfig.PipelineRepository
 	ciPipelineRepository  pipelineConfig.CiPipelineRepository
 }
 
-func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
+func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository repository.TeamRepository,
 	appRepo app.AppRepository, environmentRepository cluster.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository) *EnforcerUtilImpl {
 	return &EnforcerUtilImpl{
