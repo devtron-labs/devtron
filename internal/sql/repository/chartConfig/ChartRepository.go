@@ -296,6 +296,7 @@ func (impl ChartRefRepositoryImpl) Save(chartRepo *ChartRef) error {
 	return impl.dbConnection.Insert(chartRepo)
 }
 
+
 func (impl ChartRefRepositoryImpl) GetDefault() (*ChartRef, error) {
 	repo := &ChartRef{}
 	err := impl.dbConnection.Model(repo).

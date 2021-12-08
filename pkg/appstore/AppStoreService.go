@@ -132,7 +132,7 @@ type AppStoreService interface {
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
-	WatchConfigMap() (watch.Interface,error)
+	WatchConfigMap(UserId int32) (watch.Interface,error)
 }
 
 type AppStoreVersionsResponse struct {
@@ -157,13 +157,14 @@ type AppStoreServiceImpl struct {
 	versionService                argocdServer.VersionService
 	aCDAuthConfig                 *user.ACDAuthConfig
 	client                        *http.Client
+	refRepository				  chartConfig.ChartRefRepository
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client, refRepository chartConfig.ChartRefRepository) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -177,6 +178,7 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		versionService:                versionService,
 		aCDAuthConfig:                 aCDAuthConfig,
 		client:                        client,
+		refRepository:				   refRepository,
 	}
 }
 
@@ -783,7 +785,7 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 
 	return nil
 }
-func (impl *AppStoreServiceImpl)WatchConfigMap() (watch.Interface,error){
+func (impl *AppStoreServiceImpl)WatchConfigMap(UserId int32) (watch.Interface,error){
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
 		return nil, err
@@ -796,11 +798,40 @@ func (impl *AppStoreServiceImpl)WatchConfigMap() (watch.Interface,error){
 	if err != nil {
 		return nil, err
 	}
-	cm, err := impl.K8sUtil.WatchConfigMap( argocdServer.DevtronInstalationNs,client)
+	configMapName, configMapVersion, err := impl.K8sUtil.WatchConfigMap( argocdServer.DevtronInstalationNs,client)
 	if err != nil {
 		impl.logger.Errorw("DeleteAndCreateJob err, TriggerChartSyncManual", "err", err)
 		return nil, err
 	}
+	var dirName string
+	if !strings.Contains(configMapName, strings.ReplaceAll(configMapVersion, ".", "-")) {
+		dirName = configMapName + "_" + strings.ReplaceAll(configMapVersion, ".", "-")
+	} else {
+		dirName = configMapName
+	}
 
-	return cm, nil
+	chartRefs := &chartConfig.ChartRef{
+		Name: configMapName,
+		Version: configMapVersion,
+		Location: dirName,
+		Active: true,
+		Default: false,
+		ChartData: "",
+		AuditLog: models.AuditLog{
+			CreatedBy: UserId,
+			CreatedOn: time.Now(),
+			UpdatedOn: time.Now(),
+			UpdatedBy: UserId,
+		},
+	}
+
+	err = impl.refRepository.Save(chartRefs)
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart config", "err", err)
+		return nil, err
+	}
+
+
+
+	return nil, nil
 }
