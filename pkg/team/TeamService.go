@@ -20,11 +20,8 @@ package team
 import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team/repository"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 	"time"
 )
@@ -33,18 +30,14 @@ type TeamService interface {
 	Create(request *TeamRequest) (*TeamRequest, error)
 	FetchAllActive() ([]TeamRequest, error)
 	FetchOne(id int) (*TeamRequest, error)
-	FindTeamsByUser(userId int32) ([]repository.Team, error)
 	Update(request *TeamRequest) (*TeamRequest, error)
 	FetchForAutocomplete() ([]TeamRequest, error)
 	FindByIds(ids []*int) ([]*TeamBean, error)
 	FindByTeamName(teamName string) (*TeamRequest, error)
 }
 type TeamServiceImpl struct {
-	logger          *zap.SugaredLogger
-	userService     user.UserService
-	teamRepository  repository.TeamRepository
-	pipelineBuilder pipeline.PipelineBuilder
-	envService      cluster.EnvironmentService
+	logger         *zap.SugaredLogger
+	teamRepository repository.TeamRepository
 }
 
 type TeamRequest struct {
@@ -55,13 +48,10 @@ type TeamRequest struct {
 }
 
 func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository repository.TeamRepository,
-	pipelineBuilder pipeline.PipelineBuilder, envService cluster.EnvironmentService, userService user.UserService) *TeamServiceImpl {
+) *TeamServiceImpl {
 	return &TeamServiceImpl{
-		logger:          logger,
-		userService:     userService,
-		teamRepository:  teamRepository,
-		pipelineBuilder: pipelineBuilder,
-		envService:      envService,
+		logger:         logger,
+		teamRepository: teamRepository,
 	}
 }
 
@@ -172,27 +162,6 @@ func (impl TeamServiceImpl) FetchForAutocomplete() ([]TeamRequest, error) {
 		teamRequests = append(teamRequests, providerRes)
 	}
 	return teamRequests, err
-}
-
-func (impl TeamServiceImpl) FindTeamsByUser(userId int32) ([]repository.Team, error) {
-	teamsForUser := make(map[string]bool)
-	activeUser, err := impl.userService.GetById(int32(userId))
-	for _, r := range activeUser.RoleFilters {
-		if r.Team != "" {
-			teamsForUser[r.Team] = true
-		}
-	}
-	var teams []repository.Team
-	for t := range teamsForUser {
-		// TODO: Get team id for current team
-		team, err := impl.teamRepository.FindByTeamName(t)
-		if err != nil {
-			impl.logger.Errorw("err", err)
-			return nil, err
-		}
-		teams = append(teams, team)
-	}
-	return teams, err
 }
 
 func (impl TeamServiceImpl) FindByIds(ids []*int) ([]*TeamBean, error) {
