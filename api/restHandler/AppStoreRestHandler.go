@@ -477,6 +477,8 @@ func (handler *AppStoreRestHandlerImpl) TriggerChartSyncManual(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
+
+	//Chart repo sync error handling
 	TriggerResult := handler.appStoreService.TriggerChartSyncManual()
 	common.WriteJsonResp(w, nil, TriggerResult, http.StatusOK)
 }

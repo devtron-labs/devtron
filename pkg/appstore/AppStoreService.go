@@ -686,7 +686,7 @@ func (impl *AppStoreServiceImpl) ValidateAndCreateChartRepo(request *ChartRepoDt
 	if err != nil {
 		impl.logger.Errorw("Error in triggering chart sync job manually", "err", err)
 	}
-	
+
 	return chartRepo, err, validationResult
 }
 func (impl *AppStoreServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
@@ -761,13 +761,13 @@ func (impl *AppStoreServiceImpl) get(href string, chartRepository *repo.ChartRep
 func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 	defaultClusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
-		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual","err", err)
+		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", "err", err)
 		return err
 	}
 
 	defaultClusterConfig, err := impl.clusterService.GetClusterConfig(defaultClusterBean)
 	if err != nil {
-		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual","err", err)
+		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual", "err", err)
 		return err
 	}
 
@@ -778,7 +778,6 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 		impl.logger.Errorw("DeleteAndCreateJob err, TriggerChartSyncManual", "err", err)
 		return err
 	}
-
 
 	return nil
 }
