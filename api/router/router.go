@@ -40,7 +40,6 @@ type MuxRouter struct {
 	EnvironmentClusterMappingsRouter EnvironmentRouter
 	AppListingRouter                 AppListingRouter
 	ClusterRouter                    ClusterRouter
-	ClusterHelmConfigRouter          ClusterHelmConfigRouter
 	WebHookRouter                    WebhookRouter
 	UserAuthRouter                   UserAuthRouter
 	ApplicationRouter                ApplicationRouter
@@ -84,7 +83,7 @@ type MuxRouter struct {
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
 	MigrateDbRouter MigrateDbRouter, AppListingRouter AppListingRouter,
-	EnvironmentClusterMappingsRouter EnvironmentRouter, ClusterRouter ClusterRouter, ClusterHelmConfigRouter ClusterHelmConfigRouter,
+	EnvironmentClusterMappingsRouter EnvironmentRouter, ClusterRouter ClusterRouter,
 	WebHookRouter WebhookRouter, UserAuthRouter UserAuthRouter, ApplicationRouter ApplicationRouter,
 	CDRouter CDRouter, ProjectManagementRouter ProjectManagementRouter,
 	GitProviderRouter GitProviderRouter, GitHostRouter GitHostRouter,
@@ -108,7 +107,6 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		EnvironmentClusterMappingsRouter: EnvironmentClusterMappingsRouter,
 		AppListingRouter:                 AppListingRouter,
 		ClusterRouter:                    ClusterRouter,
-		ClusterHelmConfigRouter:          ClusterHelmConfigRouter,
 		WebHookRouter:                    WebHookRouter,
 		UserAuthRouter:                   UserAuthRouter,
 		ApplicationRouter:                ApplicationRouter,
@@ -192,9 +190,6 @@ func (r MuxRouter) Init() {
 
 	clusterRouter := r.Router.PathPrefix("/orchestrator/cluster").Subrouter()
 	r.ClusterRouter.InitClusterRouter(clusterRouter)
-
-	clusterHelmConfigRouter := r.Router.PathPrefix("/orchestrator/helm").Subrouter()
-	r.ClusterHelmConfigRouter.InitClusterHelmConfigRouter(clusterHelmConfigRouter)
 
 	webHookRouter := r.Router.PathPrefix("/orchestrator/webhook").Subrouter()
 	r.WebHookRouter.intWebhookRouter(webHookRouter)

@@ -210,15 +210,6 @@ func InitializeApp() (*App, error) {
 		router.NewEnvironmentRouterImpl,
 		wire.Bind(new(router.EnvironmentRouter), new(*router.EnvironmentRouterImpl)),
 
-		cluster.NewClusterHelmConfigRepositoryImpl,
-		wire.Bind(new(cluster.ClusterHelmConfigRepository), new(*cluster.ClusterHelmConfigRepositoryImpl)),
-		clusterAccounts2.NewClusterHelmConfigServiceImpl,
-		wire.Bind(new(clusterAccounts2.ClusterHelmConfigService), new(*clusterAccounts2.ClusterHelmConfigServiceImpl)),
-		restHandler.NewClusterHelmConfigRestHandlerImpl,
-		wire.Bind(new(restHandler.ClusterHelmConfigRestHandler), new(*restHandler.ClusterHelmConfigRestHandlerImpl)),
-		router.NewClusterHelmConfigRouterImpl,
-		wire.Bind(new(router.ClusterHelmConfigRouter), new(*router.ClusterHelmConfigRouterImpl)),
-
 		router.NewProjectManagementRouterImpl,
 		wire.Bind(new(router.ProjectManagementRouter), new(*router.ProjectManagementRouterImpl)),
 
