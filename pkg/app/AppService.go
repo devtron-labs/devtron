@@ -101,6 +101,7 @@ type AppService interface {
 	UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application, cdWorkflowId int) error
 	GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
+
 }
 
 func NewAppService(

@@ -40,6 +40,7 @@ type EnforcerUtil interface {
 	GetTeamRbacObjectByCiPipelineId(ciPipelineId int) string
 	GetTeamAndEnvironmentRbacObjectByCDPipelineId(pipelineId int) (string, string)
 	GetRbacObjectsForAllAppsAndEnvironments() (map[int]string, map[string]string)
+	GetProjectAdminRBACNameBYAppName(appName string) string
 }
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
@@ -64,11 +65,19 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 }
 
 func (impl EnforcerUtilImpl) GetAppRBACName(appName string) string {
-	team, err := impl.teamRepository.FindActiveTeamByAppName(appName)
+	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
 	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(application.Team.Name), strings.ToLower(appName))
+}
+
+func (impl EnforcerUtilImpl) GetProjectAdminRBACNameBYAppName(appName string) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
+	}
+	return fmt.Sprintf("%s/%s", strings.ToLower(application.Team.Name), "*")
 }
 
 func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps() map[int]string {
@@ -86,21 +95,11 @@ func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps() map[int]string {
 }
 
 func (impl EnforcerUtilImpl) GetAppRBACNameByAppId(appId int) string {
-	team, err := impl.teamRepository.FindTeamByAppId(appId)
+	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", "")
 	}
-	apps, err := impl.appRepo.FindAppsByTeamId(team.Id)
-	if err != nil {
-		return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "")
-	}
-	var appName = ""
-	for _, item := range apps {
-		if item.Id == appId {
-			appName = item.AppName
-		}
-	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(application.Team.Name), strings.ToLower(application.AppName))
 }
 
 func (impl EnforcerUtilImpl) GetAppRBACByAppNameAndEnvId(appName string, envId int) string {
@@ -112,51 +111,32 @@ func (impl EnforcerUtilImpl) GetAppRBACByAppNameAndEnvId(appName string, envId i
 }
 
 func (impl EnforcerUtilImpl) GetAppRBACByAppIdAndPipelineId(appId int, pipelineId int) string {
-	team, err := impl.teamRepository.FindTeamByAppId(appId)
+	application, err := impl.appRepo.FindById(appId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", "")
-	}
-	apps, err := impl.appRepo.FindAppsByTeamId(team.Id)
-	if err != nil {
-		return fmt.Sprintf("%s/%s", "", "")
-	}
-	var appName = ""
-	for _, item := range apps {
-		if item.Id == appId {
-			appName = item.AppName
-		}
 	}
 	pipeline, err := impl.pipelineRepository.FindById(pipelineId)
 	if err != nil {
-		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
+		return fmt.Sprintf("%s/%s", "", strings.ToLower(application.AppName))
 	}
 	env, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
 	if err != nil {
-		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
+		return fmt.Sprintf("%s/%s", "", strings.ToLower(application.AppName))
 	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(application.AppName))
 }
 
 func (impl EnforcerUtilImpl) GetEnvRBACNameByAppId(appId int, envId int) string {
-	team, err := impl.teamRepository.FindTeamByAppId(appId)
+	//team, err := impl.teamRepository.FindTeamByAppId(appId)
+	application, err := impl.appRepo.FindById(appId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", "")
 	}
-	apps, err := impl.appRepo.FindAppsByTeamId(team.Id)
-	if err != nil {
-		return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "")
-	}
-	var appName = ""
-	for _, item := range apps {
-		if item.Id == appId {
-			appName = item.AppName
-		}
-	}
+	var appName = application.AppName
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
 	}
-
 	return fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(appName))
 }
 
@@ -189,25 +169,15 @@ func (impl EnforcerUtilImpl) GetEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId i
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", "")
 	}
-	team, err := impl.teamRepository.FindTeamByAppId(ciPipeline.AppId)
+	application, err := impl.appRepo.FindById(ciPipeline.AppId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", "")
 	}
-	apps, err := impl.appRepo.FindAppsByTeamId(team.Id)
-	if err != nil {
-		return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "")
-	}
-	var appName = ""
-	for _, item := range apps {
-		if item.Id == ciPipeline.AppId {
-			appName = item.AppName
-		}
-	}
+	appName := application.AppName
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
 	}
-
 	return fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(appName))
 }
 
@@ -216,11 +186,11 @@ func (impl EnforcerUtilImpl) GetTeamRbacObjectByCiPipelineId(ciPipelineId int) s
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", "")
 	}
-	team, err := impl.teamRepository.FindTeamByAppId(ciPipeline.AppId)
+	application, err := impl.appRepo.FindAppAndProjectByAppId(ciPipeline.AppId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", "")
 	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(ciPipeline.App.AppName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(application.Team.Name), strings.ToLower(ciPipeline.App.AppName))
 }
 
 func (impl EnforcerUtilImpl) GetTeamAndEnvironmentRbacObjectByCDPipelineId(pipelineId int) (string, string) {
@@ -229,11 +199,11 @@ func (impl EnforcerUtilImpl) GetTeamAndEnvironmentRbacObjectByCDPipelineId(pipel
 		impl.logger.Error(err)
 		return "", ""
 	}
-	team, err := impl.teamRepository.FindTeamByAppId(pipeline.AppId)
+	application, err := impl.appRepo.FindAppAndProjectByAppId(pipeline.AppId)
 	if err != nil {
 		return "", ""
 	}
-	teamRbac := fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(pipeline.App.AppName))
+	teamRbac := fmt.Sprintf("%s/%s", strings.ToLower(application.Team.Name), strings.ToLower(pipeline.App.AppName))
 	envRbac := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.Environment.Name), strings.ToLower(pipeline.App.AppName))
 	return teamRbac, envRbac
 }

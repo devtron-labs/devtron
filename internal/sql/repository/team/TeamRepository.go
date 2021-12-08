@@ -37,8 +37,6 @@ type TeamRepository interface {
 	FindByTeamName(name string) (Team, error)
 	Update(team *Team) error
 
-	FindTeamByAppId(appId int) (*Team, error)
-	FindActiveTeamByAppName(appName string) (*Team, error)
 	FindByIds(ids []*int) ([]*Team, error)
 }
 type TeamRepositoryImpl struct {
@@ -77,22 +75,6 @@ func (impl TeamRepositoryImpl) FindByTeamName(name string) (Team, error) {
 func (impl TeamRepositoryImpl) Update(team *Team) error {
 	err := impl.dbConnection.Update(team)
 	return err
-}
-
-func (repo TeamRepositoryImpl) FindTeamByAppId(appId int) (*Team, error) {
-	team := &Team{}
-	err := repo.dbConnection.Model(team).Column("team.*").
-		Join("inner join app a on a.team_id = team.id").Where("a.id = ?", appId).
-		Select()
-	return team, err
-}
-
-func (repo TeamRepositoryImpl) FindActiveTeamByAppName(appName string) (*Team, error) {
-	team := &Team{}
-	err := repo.dbConnection.Model(team).Column("team.*").
-		Join("inner join app a on a.team_id = team.id").Where("a.app_name = ?", appName).
-		Where("team.active = ?", true).Where("a.active = ?", true).Select()
-	return team, err
 }
 
 func (repo TeamRepositoryImpl) FindByIds(ids []*int) ([]*Team, error) {

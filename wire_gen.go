@@ -371,7 +371,7 @@ func InitializeApp() (*App, error) {
 	deploymentTemplateActionImpl := batch.NewDeploymentTemplateActionImpl(sugaredLogger, appRepositoryImpl, chartServiceImpl)
 	deploymentActionImpl := batch.NewDeploymentActionImpl(pipelineBuilderImpl, sugaredLogger, appRepositoryImpl, environmentServiceImpl, appWorkflowRepositoryImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, dataHolderActionImpl, deploymentTemplateActionImpl)
 	workflowActionImpl := batch.NewWorkflowActionImpl(sugaredLogger, appRepositoryImpl, appWorkflowServiceImpl, buildActionImpl, deploymentActionImpl)
-	batchOperationRestHandlerImpl := restHandler.NewBatchOperationRestHandlerImpl(userServiceImpl, enforcerImpl, workflowActionImpl, teamServiceImpl, sugaredLogger)
+	batchOperationRestHandlerImpl := restHandler.NewBatchOperationRestHandlerImpl(userServiceImpl, enforcerImpl, workflowActionImpl, teamServiceImpl, sugaredLogger, enforcerUtilImpl)
 	batchOperationRouterImpl := router.NewBatchOperationRouterImpl(batchOperationRestHandlerImpl, sugaredLogger)
 	chartGroupEntriesRepositoryImpl := chartGroup.NewChartGroupEntriesRepositoryImpl(db, sugaredLogger)
 	chartGroupReposotoryImpl := chartGroup.NewChartGroupReposotoryImpl(db, sugaredLogger)

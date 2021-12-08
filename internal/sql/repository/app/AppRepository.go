@@ -53,6 +53,7 @@ type AppRepository interface {
 	FindByIds(ids []*int) ([]*App, error)
 	FetchAppsByFilterV2(appNameIncludes string, appNameExcludes string, environmentId int) ([]*App, error)
 	FindAppAndProjectByAppId(appId int) (*App, error)
+	FindAppAndProjectByAppName(appName string) (*App, error)
 	GetConnection() *pg.DB
 }
 
@@ -209,6 +210,18 @@ func (repo AppRepositoryImpl) FetchAppsByFilterV2(appNameIncludes string, appNam
 
 func (repo AppRepositoryImpl) FindAppAndProjectByAppId(appId int) (*App, error) {
 	app := &App{}
-	err := repo.dbConnection.Model(app).Column("Team").Where("app.id = ?", appId).Select()
+	err := repo.dbConnection.Model(app).Column("Team").
+		Where("app.id = ?", appId).
+		Where("app.active=?", true).
+		Select()
+	return app, err
+}
+
+func (repo AppRepositoryImpl) FindAppAndProjectByAppName(appName string) (*App, error) {
+	app := &App{}
+	err := repo.dbConnection.Model(app).Column("Team").
+		Where("app.app_name = ?", appName).
+		Where("app.active=?", true).
+		Select()
 	return app, err
 }
