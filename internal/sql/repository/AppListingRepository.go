@@ -135,7 +135,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 
 		if len(item.DataSource) > 0 {
 			mInfo, err := parseMaterialInfo([]byte(item.MaterialInfoJson), item.DataSource)
-			if err == nil {
+			if err == nil && len(mInfo) > 0 {
 				item.MaterialInfo = mInfo
 			} else {
 				item.MaterialInfo = []byte("[]")
@@ -176,7 +176,7 @@ func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int,
 	}
 
 	mInfo, err := parseMaterialInfo(deploymentDetail.MaterialInfo, deploymentDetail.DataSource)
-	if err == nil {
+	if err == nil && len(mInfo) > 0 {
 		deploymentDetail.MaterialInfo = mInfo
 	} else {
 		deploymentDetail.MaterialInfo = []byte("[]")
@@ -186,6 +186,11 @@ func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int,
 }
 
 func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMessage, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("PARSEMATERIALINFO_MATERIAL_RECOVER,  materialInfo: %s,  source: %s, err: %s \n", materialInfo, source, r)
+		}
+	}()
 	if source != "GOCD" && source != "CI-RUNNER" && source != "EXTERNAL" {
 		return nil, fmt.Errorf("datasource: %s not supported", source)
 	}
@@ -342,7 +347,7 @@ func (impl AppListingRepositoryImpl) FetchAppTriggerView(appId int) ([]bean.Trig
 				item.DataSource = tView.DataSource
 				item.MaterialInfo = tView.MaterialInfo
 				mInfo, err := parseMaterialInfo(tView.MaterialInfo, tView.DataSource)
-				if err == nil {
+				if err == nil && len(mInfo) > 0 {
 					item.MaterialInfo = mInfo
 				} else {
 					item.MaterialInfo = []byte("[]")
