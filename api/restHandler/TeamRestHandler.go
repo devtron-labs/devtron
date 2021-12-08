@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -45,7 +44,6 @@ type TeamRestHandler interface {
 type TeamRestHandlerImpl struct {
 	logger          *zap.SugaredLogger
 	teamService     team.TeamService
-	dbConfigService pipeline.DbConfigService
 	userService     user.UserService
 	validator       *validator.Validate
 	enforcer        rbac.Enforcer
@@ -55,13 +53,12 @@ type TeamRestHandlerImpl struct {
 
 func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
-	dbConfigService pipeline.DbConfigService, userService user.UserService,
+	userService user.UserService,
 	enforcer rbac.Enforcer,
 	validator *validator.Validate, enforcerUtil rbac.EnforcerUtil, userAuthService user.UserAuthService) *TeamRestHandlerImpl {
 	return &TeamRestHandlerImpl{
 		logger:          logger,
 		teamService:     teamService,
-		dbConfigService: dbConfigService,
 		userService:     userService,
 		validator:       validator,
 		enforcer:        enforcer,
