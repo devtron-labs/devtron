@@ -29,12 +29,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -78,9 +78,9 @@ type CoreAppRestHandlerImpl struct {
 	appWorkflowService      appWorkflow.AppWorkflowService
 	materialRepository      pipelineConfig.MaterialRepository
 	gitProviderRepo         repository.GitProviderRepository
-	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
-	environmentRepository   cluster.EnvironmentRepository
-	configMapRepository     chartConfig.ConfigMapRepository
+	appWorkflowRepository appWorkflow2.AppWorkflowRepository
+	environmentRepository repository2.EnvironmentRepository
+	configMapRepository   chartConfig.ConfigMapRepository
 	envConfigRepo           chartConfig.EnvConfigOverrideRepository
 	chartRepo               chartConfig.ChartRepository
 	teamService             team.TeamService
@@ -91,7 +91,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	chartService pipeline.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
-	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository cluster.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
+	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartConfig.ChartRepository, teamService team.TeamService) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,

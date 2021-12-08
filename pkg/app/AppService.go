@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/url"
 	"strconv"
@@ -40,7 +41,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	. "github.com/devtron-labs/devtron/internal/util"
@@ -75,9 +75,9 @@ type AppServiceImpl struct {
 	enforcerUtil                  rbac.EnforcerUtil
 	user                          user.UserService
 	appListingRepository      repository.AppListingRepository
-	appRepository             app.AppRepository
-	envRepository             cluster.EnvironmentRepository
-	pipelineConfigRepository      chartConfig.PipelineConfigRepository
+	appRepository            app.AppRepository
+	envRepository            repository2.EnvironmentRepository
+	pipelineConfigRepository chartConfig.PipelineConfigRepository
 	configMapRepository           chartConfig.ConfigMapRepository
 	chartRepository           chartConfig.ChartRepository
 	appRepo                   app.AppRepository
@@ -118,7 +118,7 @@ func NewAppService(
 	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, user user.UserService,
 	appListingRepository repository.AppListingRepository,
 	appRepository app.AppRepository,
-	envRepository cluster.EnvironmentRepository,
+	envRepository repository2.EnvironmentRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository, configMapRepository chartConfig.ConfigMapRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository, envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
 	chartRepository chartConfig.ChartRepository,

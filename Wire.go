@@ -49,7 +49,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
@@ -62,6 +61,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	clusterAccounts2 "github.com/devtron-labs/devtron/pkg/cluster"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dex"
@@ -192,8 +192,8 @@ func InitializeApp() (*App, error) {
 		pipeline.NewPropertiesConfigServiceImpl,
 		wire.Bind(new(pipeline.PropertiesConfigService), new(*pipeline.PropertiesConfigServiceImpl)),
 
-		cluster.NewClusterRepositoryImpl,
-		wire.Bind(new(cluster.ClusterRepository), new(*cluster.ClusterRepositoryImpl)),
+		repository3.NewClusterRepositoryImpl,
+		wire.Bind(new(repository3.ClusterRepository), new(*repository3.ClusterRepositoryImpl)),
 		clusterAccounts2.NewClusterServiceImpl,
 		wire.Bind(new(clusterAccounts2.ClusterService), new(*clusterAccounts2.ClusterServiceImpl)),
 		restHandler.NewClusterRestHandlerImpl,
@@ -201,8 +201,8 @@ func InitializeApp() (*App, error) {
 		router.NewClusterRouterImpl,
 		wire.Bind(new(router.ClusterRouter), new(*router.ClusterRouterImpl)),
 
-		cluster.NewEnvironmentRepositoryImpl,
-		wire.Bind(new(cluster.EnvironmentRepository), new(*cluster.EnvironmentRepositoryImpl)),
+		repository3.NewEnvironmentRepositoryImpl,
+		wire.Bind(new(repository3.EnvironmentRepository), new(*repository3.EnvironmentRepositoryImpl)),
 		clusterAccounts2.NewEnvironmentServiceImpl,
 		wire.Bind(new(clusterAccounts2.EnvironmentService), new(*clusterAccounts2.EnvironmentServiceImpl)),
 		restHandler.NewEnvironmentRestHandlerImpl,

@@ -20,8 +20,8 @@ package cluster
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/client/grafana"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
@@ -52,20 +52,20 @@ type EnvironmentService interface {
 	FindClusterByEnvId(id int) (*ClusterBean, error)
 	GetEnvironmentListForAutocomplete() ([]EnvironmentBean, error)
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
-	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*cluster.Environment, error)
+	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
 }
 
 type EnvironmentServiceImpl struct {
-	environmentRepository   cluster.EnvironmentRepository
-	logger                  *zap.SugaredLogger
+	environmentRepository repository.EnvironmentRepository
+	logger                *zap.SugaredLogger
 	clusterService          ClusterService
 	K8sUtil                 *util.K8sUtil
 	propertiesConfigService pipeline.PropertiesConfigService
 	grafanaClient           grafana.GrafanaClient
 }
 
-func NewEnvironmentServiceImpl(environmentRepository cluster.EnvironmentRepository,
+func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil,
 	propertiesConfigService pipeline.PropertiesConfigService,
@@ -107,7 +107,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		return mappings, fmt.Errorf("environment already exists")
 	}
 
-	model = &cluster.Environment{
+	model = &repository.Environment{
 		Name:      mappings.Environment,
 		ClusterId: mappings.ClusterId,
 		Active:    mappings.Active,
@@ -333,7 +333,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) validateNamespaces(namespace string, envs []*cluster.Environment) error {
+func (impl EnvironmentServiceImpl) validateNamespaces(namespace string, envs []*repository.Environment) error {
 	if len(envs) >= 1 {
 		if namespace == "" {
 			impl.logger.Errorw("namespace cannot be empty")
@@ -371,7 +371,7 @@ func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*EnvironmentBean, er
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) FindByNamespaceAndClusterName(namespaces string, clusterName string) (*cluster.Environment, error) {
+func (impl EnvironmentServiceImpl) FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error) {
 	env, err := impl.environmentRepository.FindByNamespaceAndClusterName(namespaces, clusterName)
 	return env, err
 }

@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"path"
 	"strconv"
@@ -36,7 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -72,9 +72,9 @@ type DbPipelineOrchestratorImpl struct {
 	CiPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	GitSensorClient              gitSensor.GitSensorClient
 	ciConfig                     *CiConfig
-	appWorkflowRepository        appWorkflow.AppWorkflowRepository
-	envRepository                cluster.EnvironmentRepository
-	attributesService            attributes.AttributesService
+	appWorkflowRepository appWorkflow.AppWorkflowRepository
+	envRepository         repository2.EnvironmentRepository
+	attributesService     attributes.AttributesService
 	appListingRepository         repository.AppListingRepository
 	appLabelsService             app.AppLabelService
 }
@@ -88,7 +88,7 @@ func NewDbPipelineOrchestrator(
 	CiPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	GitSensorClient gitSensor.GitSensorClient, ciConfig *CiConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	envRepository cluster.EnvironmentRepository,
+	envRepository repository2.EnvironmentRepository,
 	attributesService attributes.AttributesService,
 	appListingRepository repository.AppListingRepository,
 	appLabelsService app.AppLabelService,

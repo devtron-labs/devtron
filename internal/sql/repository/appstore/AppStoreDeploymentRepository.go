@@ -19,11 +19,11 @@ package appstore
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"strconv"
 	"time"
 
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -91,7 +91,7 @@ type InstalledApps struct {
 	Active        bool                     `sql:"active, notnull"`
 	Status      AppstoreDeploymentStatus `sql:"status"`
 	App         app.App
-	Environment cluster.Environment
+	Environment repository.Environment
 	sql.AuditLog
 }
 

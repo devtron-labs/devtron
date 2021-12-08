@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
 	"net/url"
@@ -37,7 +38,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -113,9 +113,9 @@ type PipelineBuilderImpl struct {
 	chartRepository               chartConfig.ChartRepository
 	ciArtifactRepository          repository.CiArtifactRepository
 	ecrConfig                     *EcrConfig
-	envConfigOverrideRepository   chartConfig.EnvConfigOverrideRepository
-	environmentRepository         cluster.EnvironmentRepository
-	pipelineConfigRepository      chartConfig.PipelineConfigRepository
+	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository
+	environmentRepository       repository2.EnvironmentRepository
+	pipelineConfigRepository    chartConfig.PipelineConfigRepository
 	mergeUtil                     util.MergeUtil
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	ciConfig                      *CiConfig
@@ -143,7 +143,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciArtifactRepository repository.CiArtifactRepository,
 	ecrConfig *EcrConfig,
 	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository,
-	environmentRepository cluster.EnvironmentRepository,
+	environmentRepository repository2.EnvironmentRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	mergeUtil util.MergeUtil,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,

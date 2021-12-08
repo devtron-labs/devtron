@@ -20,12 +20,12 @@ package notifier
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	util "github.com/devtron-labs/devtron/util/event"
@@ -53,7 +53,7 @@ type NotificationConfigServiceImpl struct {
 	slackRepository                repository.SlackNotificationRepository
 	sesRepository         repository.SESNotificationRepository
 	teamRepository        repository2.TeamRepository
-	environmentRepository cluster.EnvironmentRepository
+	environmentRepository repository3.EnvironmentRepository
 	appRepository         app.AppRepository
 	userRepository        repository.UserRepository
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
@@ -164,7 +164,7 @@ type ProvidersConfig struct {
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository,
 	sesRepository repository.SESNotificationRepository, teamRepository repository2.TeamRepository,
-	environmentRepository cluster.EnvironmentRepository, appRepository app.AppRepository,
+	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository,
 	userRepository repository.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,

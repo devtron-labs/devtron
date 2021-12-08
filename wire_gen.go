@@ -15,8 +15,8 @@ import (
 	team2 "github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	cluster3 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
-	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
+	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
+	repository3 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/events"
@@ -34,7 +34,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
@@ -46,7 +45,8 @@ import (
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	appstore2 "github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/attributes"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dex"
@@ -136,7 +136,7 @@ func InitializeApp() (*App, error) {
 	enforcerImpl := rbac.NewEnforcerImpl(enforcer, sessionManager, sugaredLogger)
 	teamRepositoryImpl := team.NewTeamRepositoryImpl(db)
 	appRepositoryImpl := app.NewAppRepositoryImpl(db)
-	environmentRepositoryImpl := cluster.NewEnvironmentRepositoryImpl(db)
+	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db)
 	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl)
 	roleGroupRepositoryImpl := repository.NewRoleGroupRepositoryImpl(db, sugaredLogger)
 	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl)
@@ -212,7 +212,7 @@ func InitializeApp() (*App, error) {
 	chartRepoRepositoryImpl := chartConfig.NewChartRepoRepositoryImpl(db)
 	refChartDir := _wireRefChartDirValue
 	defaultChart := _wireDefaultChartValue
-	repositoryServiceClientImpl := repository2.NewServiceClientImpl(argoCDSettings, sugaredLogger)
+	repositoryServiceClientImpl := repository3.NewServiceClientImpl(argoCDSettings, sugaredLogger)
 	chartRefRepositoryImpl := chartConfig.NewChartRefRepositoryImpl(db)
 	customFormatCheckers := util2.NewGoJsonSchemaCustomFormatChecker()
 	chartServiceImpl := pipeline.NewChartServiceImpl(chartRepositoryImpl, sugaredLogger, chartTemplateServiceImpl, chartRepoRepositoryImpl, appRepositoryImpl, refChartDir, defaultChart, utilMergeUtil, repositoryServiceClientImpl, chartRefRepositoryImpl, envConfigOverrideRepositoryImpl, pipelineConfigRepositoryImpl, configMapRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, appLevelMetricsRepositoryImpl, httpClient, customFormatCheckers)
@@ -221,7 +221,7 @@ func InitializeApp() (*App, error) {
 	ciServiceImpl := pipeline.NewCiServiceImpl(sugaredLogger, workflowServiceImpl, ciPipelineMaterialRepositoryImpl, ciWorkflowRepositoryImpl, ciConfig, eventRESTClientImpl, eventSimpleFactoryImpl, mergeUtil, ciPipelineRepositoryImpl)
 	ciLogServiceImpl := pipeline.NewCiLogServiceImpl(sugaredLogger, ciServiceImpl, ciConfig)
 	ciHandlerImpl := pipeline.NewCiHandlerImpl(sugaredLogger, ciServiceImpl, ciPipelineMaterialRepositoryImpl, gitSensorClientImpl, ciWorkflowRepositoryImpl, workflowServiceImpl, ciLogServiceImpl, ciConfig, ciArtifactRepositoryImpl, userServiceImpl, eventRESTClientImpl, eventSimpleFactoryImpl, ciPipelineRepositoryImpl, appListingRepositoryImpl)
-	clusterRepositoryImpl := cluster.NewClusterRepositoryImpl(db, sugaredLogger)
+	clusterRepositoryImpl := repository2.NewClusterRepositoryImpl(db, sugaredLogger)
 	grafanaClientConfig, err := grafana.GetGrafanaClientConfig()
 	if err != nil {
 		return nil, err
@@ -230,8 +230,8 @@ func InitializeApp() (*App, error) {
 	installedAppRepositoryImpl := appstore.NewInstalledAppRepositoryImpl(sugaredLogger, db)
 	clusterInstalledAppsRepositoryImpl := appstore.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
 	k8sUtil := util.NewK8sUtil(sugaredLogger)
-	clusterServiceImpl := cluster2.NewClusterServiceImpl(clusterRepositoryImpl, environmentRepositoryImpl, grafanaClientImpl, sugaredLogger, installedAppRepositoryImpl, clusterInstalledAppsRepositoryImpl, k8sUtil)
-	environmentServiceImpl := cluster2.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sUtil, propertiesConfigServiceImpl, grafanaClientImpl)
+	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, environmentRepositoryImpl, grafanaClientImpl, sugaredLogger, installedAppRepositoryImpl, clusterInstalledAppsRepositoryImpl, k8sUtil)
+	environmentServiceImpl := cluster.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sUtil, propertiesConfigServiceImpl, grafanaClientImpl)
 	gitRegistryConfigImpl := pipeline.NewGitRegistryConfigImpl(sugaredLogger, gitProviderRepositoryImpl, gitSensorClientImpl)
 	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(dockerArtifactStoreRepositoryImpl, sugaredLogger)
 	cdHandlerImpl := pipeline.NewCdHandlerImpl(sugaredLogger, cdConfig, userServiceImpl, cdWorkflowRepositoryImpl, cdWorkflowServiceImpl, ciLogServiceImpl, ciArtifactRepositoryImpl, ciPipelineMaterialRepositoryImpl, pipelineRepositoryImpl, environmentRepositoryImpl, ciWorkflowRepositoryImpl, ciConfig)
@@ -258,7 +258,7 @@ func InitializeApp() (*App, error) {
 	appListingRouterImpl := router.NewAppListingRouterImpl(appListingRestHandlerImpl)
 	environmentRestHandlerImpl := restHandler.NewEnvironmentRestHandlerImpl(environmentServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, enforcerUtilImpl, userAuthServiceImpl)
 	environmentRouterImpl := router.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
-	clusterServiceClientImpl := cluster3.NewServiceClientImpl(argoCDSettings, sugaredLogger)
+	clusterServiceClientImpl := cluster2.NewServiceClientImpl(argoCDSettings, sugaredLogger)
 	refChartProxyDir := _wireRefChartProxyDirValue
 	appStoreApplicationVersionRepositoryImpl := appstore.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	appStoreRepositoryImpl := appstore.NewAppStoreRepositoryImpl(sugaredLogger, db)

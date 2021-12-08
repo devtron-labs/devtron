@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,7 +36,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -113,7 +113,7 @@ type AppListingServiceImpl struct {
 	appLevelMetricsRepository  repository.AppLevelMetricsRepository
 	envLevelMetricsRepository  repository.EnvLevelAppMetricsRepository
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
-	environmentRepository      cluster.EnvironmentRepository
+	environmentRepository      repository2.EnvironmentRepository
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -121,7 +121,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
 	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository cluster.EnvironmentRepository) *AppListingServiceImpl {
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                     Logger,
 		appListingRepository:       appListingRepository,

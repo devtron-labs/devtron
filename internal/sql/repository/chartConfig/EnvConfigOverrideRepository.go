@@ -19,7 +19,7 @@ package chartConfig
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -36,8 +36,8 @@ type EnvConfigOverride struct {
 	Active            bool               `sql:"active,notnull"`
 	Namespace         string             `sql:"namespace,notnull"`
 	Chart             *Chart
-	Environment       *cluster.Environment `sql:"-"`
-	Latest            bool                 `sql:"latest,notnull"`
+	Environment       *repository.Environment `sql:"-"`
+	Latest            bool                    `sql:"latest,notnull"`
 	Previous          bool                 `sql:"previous,notnull"`
 	IsOverride        bool                 `sql:"is_override,notnull"`
 	sql.AuditLog
@@ -128,7 +128,7 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 		ChartVersion:            environmentConfig.ChartVersion,
 		GitRepoUrl:              environmentConfig.GitRepoUrl,
 	}
-	env := &cluster.Environment{
+	env := &repository.Environment{
 		Name: environmentConfig.EnvironmentName,
 	}
 	eco := &EnvConfigOverride{

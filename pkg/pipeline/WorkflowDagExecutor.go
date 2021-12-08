@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"strconv"
 	"strings"
@@ -33,7 +34,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -77,9 +77,9 @@ type WorkflowDagExecutorImpl struct {
 	enforcerUtil               rbac.EnforcerUtil
 	groupRepository            repository.DeploymentGroupRepository
 	tokenCache                 *user.TokenCache
-	acdAuthConfig              *user.ACDAuthConfig
-	envRepository              cluster.EnvironmentRepository
-	eventFactory               client.EventFactory
+	acdAuthConfig *user.ACDAuthConfig
+	envRepository repository2.EnvironmentRepository
+	eventFactory  client.EventFactory
 	eventClient                client.EventClient
 	cvePolicyRepository        security.CvePolicyRepository
 	scanResultRepository       security.ImageScanResultRepository
@@ -130,7 +130,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	user user.UserService,
 	groupRepository repository.DeploymentGroupRepository,
-	envRepository cluster.EnvironmentRepository,
+	envRepository repository2.EnvironmentRepository,
 	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *user.TokenCache,
 	acdAuthConfig *user.ACDAuthConfig, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
@@ -324,7 +324,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
-	var env *cluster.Environment
+	var env *repository2.Environment
 	var err error
 	if pipeline.RunPreStageInEnv {
 		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
@@ -383,7 +383,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
-	var env *cluster.Environment
+	var env *repository2.Environment
 	var err error
 	if cpipeline.RunPostStageInEnv {
 		env, err = impl.envRepository.FindById(cpipeline.EnvironmentId)

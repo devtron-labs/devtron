@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"io/ioutil"
 	"net/http"
@@ -39,7 +40,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -136,9 +136,9 @@ type ChartServiceImpl struct {
 	chartRefRepository        chartConfig.ChartRefRepository
 	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository  chartConfig.PipelineConfigRepository
-	configMapRepository       chartConfig.ConfigMapRepository
-	environmentRepository     cluster.EnvironmentRepository
-	pipelineRepository        pipelineConfig.PipelineRepository
+	configMapRepository   chartConfig.ConfigMapRepository
+	environmentRepository repository4.EnvironmentRepository
+	pipelineRepository    pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
 	client                    *http.Client
 }
@@ -156,7 +156,7 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
-	environmentRepository cluster.EnvironmentRepository,
+	environmentRepository repository4.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
 	client *http.Client,

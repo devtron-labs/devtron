@@ -20,6 +20,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 
@@ -27,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -80,9 +80,9 @@ type PropertiesConfigServiceImpl struct {
 	logger                       *zap.SugaredLogger
 	envConfigRepo                chartConfig.EnvConfigOverrideRepository
 	chartRepo                    chartConfig.ChartRepository
-	mergeUtil                    util.MergeUtil
-	environmentRepository        cluster.EnvironmentRepository
-	dbPipelineOrchestrator       DbPipelineOrchestrator
+	mergeUtil              util.MergeUtil
+	environmentRepository  repository2.EnvironmentRepository
+	dbPipelineOrchestrator DbPipelineOrchestrator
 	application                  application.ServiceClient
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository
 	appLevelMetricsRepository    repository.AppLevelMetricsRepository
@@ -92,7 +92,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
 	chartRepo chartConfig.ChartRepository,
 	mergeUtil util.MergeUtil,
-	environmentRepository cluster.EnvironmentRepository,
+	environmentRepository repository2.EnvironmentRepository,
 	dbPipelineOrchestrator DbPipelineOrchestrator,
 	application application.ServiceClient,
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,

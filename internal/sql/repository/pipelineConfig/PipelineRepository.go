@@ -19,8 +19,8 @@ package pipelineConfig
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -57,7 +57,7 @@ type Pipeline struct {
 	PostStageConfigMapSecretNames string      `sql:"post_stage_config_map_secret_names"` // secret names
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
-	Environment                   cluster.Environment
+	Environment repository.Environment
 	sql.AuditLog
 }
 

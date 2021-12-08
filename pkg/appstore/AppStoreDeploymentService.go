@@ -22,6 +22,7 @@ import (
 	"context"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/ktrysmt/go-bitbucket"
@@ -51,7 +52,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
@@ -103,8 +103,8 @@ type InstalledAppServiceImpl struct {
 	refChartDir                          RefChartProxyDir
 	repositoryService                    repository.ServiceClient
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository
-	environmentRepository cluster.EnvironmentRepository
-	teamRepository        repository4.TeamRepository
+	environmentRepository                repository5.EnvironmentRepository
+	teamRepository                       repository4.TeamRepository
 	appRepository         app.AppRepository
 	acdClient      application2.ServiceClient
 	appStoreValuesService                AppStoreValuesService
@@ -129,7 +129,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	chartTemplateService util.ChartTemplateService, refChartDir RefChartProxyDir,
 	repositoryService repository.ServiceClient,
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository,
-	environmentRepository cluster.EnvironmentRepository, teamRepository repository4.TeamRepository,
+	environmentRepository repository5.EnvironmentRepository, teamRepository repository4.TeamRepository,
 	appRepository app.AppRepository,
 	acdClient application2.ServiceClient,
 	appStoreValuesService AppStoreValuesService,
@@ -297,7 +297,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	return installAppVersionRequest, nil
 }
 
-func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *cluster.Environment, installedAppVersion *appstore.InstalledAppVersions,
+func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *repository5.Environment, installedAppVersion *appstore.InstalledAppVersions,
 	installAppVersionRequest *InstallAppVersionDTO, appStoreAppVersion *appstore.AppStoreApplicationVersion) error {
 
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
@@ -343,7 +343,7 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *c
 	return nil
 }
 
-func (impl InstalledAppServiceImpl) updateValuesYaml(environment *cluster.Environment, installedAppVersion *appstore.InstalledAppVersions,
+func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.Environment, installedAppVersion *appstore.InstalledAppVersions,
 	installAppVersionRequest *InstallAppVersionDTO) error {
 
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
@@ -624,7 +624,7 @@ func (impl InstalledAppServiceImpl) registerInArgo(chartGitAttribute *util.Chart
 	return err
 }
 
-func (impl InstalledAppServiceImpl) createInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, envModel cluster.Environment, argocdAppName string) error {
+func (impl InstalledAppServiceImpl) createInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, envModel repository5.Environment, argocdAppName string) error {
 	appNamespace := envModel.Namespace
 	if appNamespace == "" {
 		appNamespace = "default"

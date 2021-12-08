@@ -19,6 +19,7 @@ package cluster
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -27,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -75,21 +75,21 @@ type ClusterService interface {
 	Delete(bean *ClusterBean, userId int32) error
 
 	FindAllForAutoComplete() ([]ClusterBean, error)
-	CreateGrafanaDataSource(clusterBean *ClusterBean, env *cluster.Environment) (int, error)
+	CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error)
 	GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error)
 }
 
 type ClusterServiceImpl struct {
-	clusterRepository              cluster.ClusterRepository
-	environmentRepository          cluster.EnvironmentRepository
-	grafanaClient                  grafana.GrafanaClient
+	clusterRepository     repository.ClusterRepository
+	environmentRepository repository.EnvironmentRepository
+	grafanaClient         grafana.GrafanaClient
 	logger                         *zap.SugaredLogger
 	installedAppRepository         appstore.InstalledAppRepository
 	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository
 	K8sUtil                        *util.K8sUtil
 }
 
-func NewClusterServiceImpl(repository cluster.ClusterRepository, environmentRepository cluster.EnvironmentRepository,
+func NewClusterServiceImpl(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository appstore.InstalledAppRepository,
 	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository, K8sUtil *util.K8sUtil) *ClusterServiceImpl {
 	return &ClusterServiceImpl{
@@ -139,7 +139,7 @@ func (impl ClusterServiceImpl) Save(bean *ClusterBean, userId int32) (*ClusterBe
 		return nil, fmt.Errorf("cluster already exists")
 	}
 
-	model := &cluster.Cluster{
+	model := &repository.Cluster{
 		ClusterName:        bean.ClusterName,
 		Active:             bean.Active,
 		ServerUrl:          bean.ServerUrl,
@@ -518,7 +518,7 @@ func (impl ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) {
 	return beans, nil
 }
 
-func (impl ClusterServiceImpl) CreateGrafanaDataSource(clusterBean *ClusterBean, env *cluster.Environment) (int, error) {
+func (impl ClusterServiceImpl) CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error) {
 	grafanaDatasourceId := env.GrafanaDatasourceId
 	if grafanaDatasourceId == 0 {
 		//starts grafana creation
