@@ -19,9 +19,9 @@ package commonService
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/go-pg/pg"
@@ -42,8 +42,8 @@ type CommonServiceImpl struct {
 	attributeRepo               repository.AttributesRepository
 	gitProviderRepository       repository.GitProviderRepository
 	environmentRepository       cluster.EnvironmentRepository
-	teamRepository              team.TeamRepository
-	appRepository               pipelineConfig.AppRepository
+	teamRepository team.TeamRepository
+	appRepository  app.AppRepository
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
@@ -54,7 +54,7 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	attributeRepo repository.AttributesRepository,
 	gitProviderRepository repository.GitProviderRepository,
 	environmentRepository cluster.EnvironmentRepository, teamRepository team.TeamRepository,
-	appRepository pipelineConfig.AppRepository) *CommonServiceImpl {
+	appRepository app.AppRepository) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
 		logger:                      logger,
 		chartRepository:             chartRepository,

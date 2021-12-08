@@ -15,7 +15,7 @@
  *
  */
 
-package pipelineConfig
+package app
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/team"

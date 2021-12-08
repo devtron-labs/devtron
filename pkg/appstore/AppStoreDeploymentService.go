@@ -20,6 +20,7 @@ package appstore
 import (
 	"bytes"
 	"context"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -51,7 +52,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -105,9 +105,9 @@ type InstalledAppServiceImpl struct {
 	repositoryService                    repository.ServiceClient
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository
 	environmentRepository                cluster.EnvironmentRepository
-	teamRepository                       team.TeamRepository
-	appRepository                        pipelineConfig.AppRepository
-	acdClient                            application2.ServiceClient
+	teamRepository team.TeamRepository
+	appRepository  app.AppRepository
+	acdClient      application2.ServiceClient
 	appStoreValuesService                AppStoreValuesService
 	pubsubClient                         *pubsub.PubSubClient
 	tokenCache                           *user.TokenCache
@@ -131,7 +131,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	repositoryService repository.ServiceClient,
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository,
 	environmentRepository cluster.EnvironmentRepository, teamRepository team.TeamRepository,
-	appRepository pipelineConfig.AppRepository,
+	appRepository app.AppRepository,
 	acdClient application2.ServiceClient,
 	appStoreValuesService AppStoreValuesService,
 	pubsubClient *pubsub.PubSubClient,
@@ -678,11 +678,11 @@ func (impl InstalledAppServiceImpl) CheckAppExists(appNames []*AppNames) ([]*App
 }
 
 func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx) (*bean.CreateAppDTO, error) {
-	app, err := impl.appRepository.FindActiveByName(createRequest.AppName)
+	app1, err := impl.appRepository.FindActiveByName(createRequest.AppName)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if app != nil && app.Id > 0 {
+	if app1 != nil && app1.Id > 0 {
 		impl.logger.Infow(" app already exists", "name", createRequest.AppName)
 		err = &util.ApiError{
 			Code:            constants.AppAlreadyExists.Code,
@@ -691,7 +691,7 @@ func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.Cre
 		}
 		return nil, err
 	}
-	pg := &pipelineConfig.App{
+	pg := &app.App{
 		Active:   true,
 		AppName:  createRequest.AppName,
 		TeamId:   createRequest.TeamId,

@@ -18,6 +18,7 @@
 package pipelineConfig
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -41,9 +42,9 @@ const DEPLOYMENT_TEMPLATE_RECREATE DeploymentTemplate = "RECREATE"
 type Pipeline struct {
 	tableName                     struct{} `sql:"pipeline" pg:",discard_unknown_columns"`
 	Id                            int      `sql:"id,pk"`
-	AppId                         int      `sql:"app_id,notnull"`
-	App                           App
-	CiPipelineId                  int         `sql:"ci_pipeline_id"`
+	AppId        int      `sql:"app_id,notnull"`
+	App          app.App
+	CiPipelineId int         `sql:"ci_pipeline_id"`
 	TriggerType                   TriggerType `sql:"trigger_type,notnull"` // automatic, manual
 	EnvironmentId                 int         `sql:"environment_id"`
 	Name                          string      `sql:"pipeline_name,notnull"`

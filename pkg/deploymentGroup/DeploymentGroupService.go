@@ -20,6 +20,7 @@ package deploymentGroup
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"strings"
 	"time"
 
@@ -99,8 +100,8 @@ type CiMaterialDTO struct {
 }
 
 type DeploymentGroupServiceImpl struct {
-	appRepository                pipelineConfig.AppRepository
-	logger                       *zap.SugaredLogger
+	appRepository app.AppRepository
+	logger        *zap.SugaredLogger
 	pipelineRepository           pipelineConfig.PipelineRepository
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	deploymentGroupRepository    repository.DeploymentGroupRepository
@@ -111,7 +112,7 @@ type DeploymentGroupServiceImpl struct {
 	workflowDagExecutor          pipeline.WorkflowDagExecutor
 }
 
-func NewDeploymentGroupServiceImpl(appRepository pipelineConfig.AppRepository, logger *zap.SugaredLogger,
+func NewDeploymentGroupServiceImpl(appRepository app.AppRepository, logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	deploymentGroupRepository repository.DeploymentGroupRepository, environmentRepository cluster.EnvironmentRepository,
 	deploymentGroupAppRepository repository.DeploymentGroupAppRepository,

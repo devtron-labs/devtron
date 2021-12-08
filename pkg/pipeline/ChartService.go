@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"io/ioutil"
 	"net/http"
@@ -126,9 +127,9 @@ type ChartServiceImpl struct {
 	chartRepository           chartConfig.ChartRepository
 	logger                    *zap.SugaredLogger
 	repoRepository            chartConfig.ChartRepoRepository
-	chartTemplateService      util.ChartTemplateService
-	pipelineGroupRepository   pipelineConfig.AppRepository
-	mergeUtil                 util.MergeUtil
+	chartTemplateService    util.ChartTemplateService
+	pipelineGroupRepository app.AppRepository
+	mergeUtil               util.MergeUtil
 	repositoryService         repository.ServiceClient
 	refChartDir               RefChartDir
 	defaultChart              DefaultChart
@@ -146,7 +147,7 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 	logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
 	repoRepository chartConfig.ChartRepoRepository,
-	pipelineGroupRepository pipelineConfig.AppRepository,
+	pipelineGroupRepository app.AppRepository,
 	refChartDir RefChartDir,
 	defaultChart DefaultChart,
 	mergeUtil util.MergeUtil,

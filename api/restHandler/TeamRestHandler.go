@@ -39,10 +39,6 @@ type TeamRestHandler interface {
 	FetchOne(w http.ResponseWriter, r *http.Request)
 	UpdateTeam(w http.ResponseWriter, r *http.Request)
 
-	FindTeamByAppId(w http.ResponseWriter, r *http.Request)
-	FetchForUser(w http.ResponseWriter, r *http.Request)
-	FindActiveTeamByAppName(w http.ResponseWriter, r *http.Request)
-
 	FetchForAutocomplete(w http.ResponseWriter, r *http.Request)
 }
 
@@ -193,38 +189,6 @@ func (impl TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Reques
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl TeamRestHandlerImpl) FindTeamByAppId(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
-	if err != nil {
-		impl.logger.Errorw("request err, FindTeamByAppId", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	team, err := impl.teamService.FindTeamByAppId(appId)
-	if err != nil {
-		impl.logger.Errorw("service err, FindTeamByAppId", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	common.WriteJsonResp(w, err, team, http.StatusOK)
-}
-
-func (impl TeamRestHandlerImpl) FindActiveTeamByAppName(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	appName := vars["appName"]
-	team, err := impl.teamService.FindActiveTeamByAppName(appName)
-	if err != nil {
-		impl.logger.Errorw("service err, FindActiveTeamByAppName", "err", err, "appName", appName)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	common.WriteJsonResp(w, err, team, http.StatusOK)
-}
-
 func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -250,19 +214,4 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 		grantedTeams = make([]team.TeamRequest, 0)
 	}
 	common.WriteJsonResp(w, err, grantedTeams, http.StatusOK)
-}
-
-func (impl TeamRestHandlerImpl) FetchForUser(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	teams, err := impl.teamService.FindTeamsByUser(int32(userId))
-	if err != nil {
-		impl.logger.Errorw("service err, FetchForUser", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, teams, http.StatusOK)
 }

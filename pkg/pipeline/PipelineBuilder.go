@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
 	"net/url"
@@ -102,9 +103,9 @@ type PipelineBuilderImpl struct {
 	logger                        *zap.SugaredLogger
 	dbPipelineOrchestrator        DbPipelineOrchestrator
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
-	materialRepo                  pipelineConfig.MaterialRepository
-	appRepo                       pipelineConfig.AppRepository
-	pipelineRepository            pipelineConfig.PipelineRepository
+	materialRepo       pipelineConfig.MaterialRepository
+	appRepo            app2.AppRepository
+	pipelineRepository pipelineConfig.PipelineRepository
 	propertiesConfigService       PropertiesConfigService
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
@@ -132,7 +133,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	dbPipelineOrchestrator DbPipelineOrchestrator,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
 	materialRepo pipelineConfig.MaterialRepository,
-	pipelineGroupRepo pipelineConfig.AppRepository,
+	pipelineGroupRepo app2.AppRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	propertiesConfigService PropertiesConfigService,
 	ciTemplateRepository pipelineConfig.CiTemplateRepository,
@@ -1137,7 +1138,7 @@ type Rolling struct {
 	MaxUnavailable int    `json:"maxUnavailable"`
 }
 
-func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *pipelineConfig.App, pipeline *bean.CDPipelineConfigObject, userID int32) (pipelineRes int, err error) {
+func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.App, pipeline *bean.CDPipelineConfigObject, userID int32) (pipelineRes int, err error) {
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -1417,7 +1418,7 @@ func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate pipe
 	return pipelineOverride, nil
 }
 
-func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context, app *pipelineConfig.App, pipeline *bean.CDPipelineConfigObject, envConfigOverride *chartConfig.EnvConfigOverride) (string, error) {
+func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context, app *app2.App, pipeline *bean.CDPipelineConfigObject, envConfigOverride *chartConfig.EnvConfigOverride) (string, error) {
 	//repo has been registered while helm create
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 	if err != nil {

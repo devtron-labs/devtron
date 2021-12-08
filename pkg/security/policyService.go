@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
 	"strings"
@@ -48,9 +49,9 @@ type PolicyService interface {
 }
 type PolicyServiceImpl struct {
 	environmentService            cluster.EnvironmentService
-	logger                        *zap.SugaredLogger
-	apRepository                  pipelineConfig.AppRepository
-	pipelineOverride              chartConfig.PipelineOverrideRepository
+	logger           *zap.SugaredLogger
+	apRepository     app.AppRepository
+	pipelineOverride chartConfig.PipelineOverrideRepository
 	cvePolicyRepository           security.CvePolicyRepository
 	clusterService                cluster.ClusterService
 	PipelineRepository            pipelineConfig.PipelineRepository
@@ -67,7 +68,7 @@ type PolicyServiceImpl struct {
 
 func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 	logger *zap.SugaredLogger,
-	apRepository pipelineConfig.AppRepository,
+	apRepository app.AppRepository,
 	pipelineOverride chartConfig.PipelineOverrideRepository,
 	cvePolicyRepository security.CvePolicyRepository,
 	clusterService cluster.ClusterService,

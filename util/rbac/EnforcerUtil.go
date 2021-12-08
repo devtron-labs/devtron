@@ -19,6 +19,7 @@ package rbac
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/team"
@@ -43,14 +44,14 @@ type EnforcerUtil interface {
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
 	teamRepository        team.TeamRepository
-	appRepo               pipelineConfig.AppRepository
+	appRepo               app.AppRepository
 	environmentRepository cluster.EnvironmentRepository
 	pipelineRepository    pipelineConfig.PipelineRepository
 	ciPipelineRepository  pipelineConfig.CiPipelineRepository
 }
 
 func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
-	appRepo pipelineConfig.AppRepository, environmentRepository cluster.EnvironmentRepository,
+	appRepo app.AppRepository, environmentRepository cluster.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository) *EnforcerUtilImpl {
 	return &EnforcerUtilImpl{
 		logger:                logger,

@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 
 	"github.com/go-pg/pg"
@@ -29,8 +30,8 @@ type AppLabel struct {
 	Id        int      `sql:"id,pk"`
 	AppId     int      `sql:"app_id,notnull"`
 	Key       string   `sql:"key,notnull"`
-	Value     string   `sql:"value,notnull"`
-	App       App
+	Value string   `sql:"value,notnull"`
+	App   app.App
 	sql.AuditLog
 }
 

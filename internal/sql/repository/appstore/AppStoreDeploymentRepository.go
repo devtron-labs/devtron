@@ -18,12 +18,12 @@
 package appstore
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"strconv"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -89,9 +89,9 @@ type InstalledApps struct {
 	AppId         int                      `sql:"app_id,notnull"`
 	EnvironmentId int                      `sql:"environment_id,notnull"`
 	Active        bool                     `sql:"active, notnull"`
-	Status        AppstoreDeploymentStatus `sql:"status"`
-	App           pipelineConfig.App
-	Environment   cluster.Environment
+	Status      AppstoreDeploymentStatus `sql:"status"`
+	App         app.App
+	Environment cluster.Environment
 	sql.AuditLog
 }
 

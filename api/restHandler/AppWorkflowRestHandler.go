@@ -20,7 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -45,14 +45,14 @@ type AppWorkflowRestHandlerImpl struct {
 	userAuthService    user.UserService
 	teamService        team.TeamService
 	enforcer           rbac.Enforcer
-	pipelineBuilder    pipeline.PipelineBuilder
-	appRepository      pipelineConfig.AppRepository
-	enforcerUtil       rbac.EnforcerUtil
+	pipelineBuilder pipeline.PipelineBuilder
+	appRepository   app.AppRepository
+	enforcerUtil    rbac.EnforcerUtil
 }
 
 func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appWorkflowService appWorkflow.AppWorkflowService,
 	teamService team.TeamService, enforcer rbac.Enforcer, pipelineBuilder pipeline.PipelineBuilder,
-	appRepository pipelineConfig.AppRepository, enforcerUtil rbac.EnforcerUtil) *AppWorkflowRestHandlerImpl {
+	appRepository app.AppRepository, enforcerUtil rbac.EnforcerUtil) *AppWorkflowRestHandlerImpl {
 	return &AppWorkflowRestHandlerImpl{
 		Logger:             Logger,
 		appWorkflowService: appWorkflowService,

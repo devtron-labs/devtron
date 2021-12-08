@@ -3,6 +3,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"net/http"
 
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
@@ -124,8 +125,8 @@ type BulkUpdateServiceImpl struct {
 	environmentRepository     cluster.EnvironmentRepository
 	pipelineRepository        pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
-	client                    *http.Client
-	appRepository             pipelineConfig.AppRepository
+	client        *http.Client
+	appRepository app.AppRepository
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -145,7 +146,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
 	client *http.Client,
-	appRepository pipelineConfig.AppRepository,
+	appRepository app.AppRepository,
 ) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
 		bulkUpdateRepository:      bulkUpdateRepository,

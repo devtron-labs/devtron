@@ -18,6 +18,7 @@
 package security
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -47,9 +48,9 @@ type ImageScanServiceImpl struct {
 	cveStoreRepository            security.CveStoreRepository
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
 	userService                   user.UserService
-	teamRepository                team.TeamRepository
-	appRepository                 pipelineConfig.AppRepository
-	envService                    cluster.EnvironmentService
+	teamRepository team.TeamRepository
+	appRepository  app.AppRepository
+	envService     cluster.EnvironmentService
 	ciArtifactRepository          repository.CiArtifactRepository
 	policyService                 PolicyService
 	pipelineRepository            pipelineConfig.PipelineRepository
@@ -124,7 +125,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 	scanResultRepository security.ImageScanResultRepository, scanObjectMetaRepository security.ImageScanObjectMetaRepository,
 	cveStoreRepository security.CveStoreRepository, imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
 	userService user.UserService, teamRepository team.TeamRepository,
-	appRepository pipelineConfig.AppRepository,
+	appRepository app.AppRepository,
 	envService cluster.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository appstore.InstalledAppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository) *ImageScanServiceImpl {

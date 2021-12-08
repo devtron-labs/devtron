@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	pc "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
@@ -40,9 +41,9 @@ type DeploymentAction interface {
 
 type DeploymentActionImpl struct {
 	logger                   *zap.SugaredLogger
-	pipelineBuilder          pipeline.PipelineBuilder
-	appRepo                  pc.AppRepository
-	envService               cluster.EnvironmentService
+	pipelineBuilder pipeline.PipelineBuilder
+	appRepo         app.AppRepository
+	envService      cluster.EnvironmentService
 	appWorkflowRepo          appWorkflow.AppWorkflowRepository
 	ciPipelineRepository     pc.CiPipelineRepository
 	cdPipelineRepository     pc.PipelineRepository
@@ -51,7 +52,7 @@ type DeploymentActionImpl struct {
 }
 
 func NewDeploymentActionImpl(pipelineBuilder pipeline.PipelineBuilder, logger *zap.SugaredLogger,
-	appRepo pc.AppRepository, envService cluster.EnvironmentService, appWorkflowRepo appWorkflow.AppWorkflowRepository,
+	appRepo app.AppRepository, envService cluster.EnvironmentService, appWorkflowRepo appWorkflow.AppWorkflowRepository,
 	ciPipelineRepository pc.CiPipelineRepository, cdPipelineRepository pc.PipelineRepository, dataHolderAction DataHolderAction, deploymentTemplateAction DeploymentTemplateAction) *DeploymentActionImpl {
 	return &DeploymentActionImpl{
 		pipelineBuilder:          pipelineBuilder,

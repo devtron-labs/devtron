@@ -18,6 +18,7 @@
 package pipelineConfig
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -30,7 +31,7 @@ type CiPipeline struct {
 	tableName        struct{} `sql:"ci_pipeline" pg:",discard_unknown_columns"`
 	Id               int      `sql:"id,pk"`
 	AppId            int      `sql:"app_id"`
-	App              *App
+	App              *app.App
 	CiTemplateId     int    `sql:"ci_template_id"`
 	DockerArgs       string `sql:"docker_args"`
 	Name             string `sql:"name"`

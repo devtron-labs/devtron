@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"net/http"
 	"strconv"
 	"strings"
@@ -102,9 +103,9 @@ type FetchAppListingRequest struct {
 
 type AppListingServiceImpl struct {
 	Logger                     *zap.SugaredLogger
-	application                application2.ServiceClient
-	appRepository              pipelineConfig.AppRepository
-	appListingRepository       repository.AppListingRepository
+	application          application2.ServiceClient
+	appRepository        app.AppRepository
+	appListingRepository repository.AppListingRepository
 	appListingViewBuilder      AppListingViewBuilder
 	pipelineRepository         pipelineConfig.PipelineRepository
 	cdWorkflowRepository       pipelineConfig.CdWorkflowRepository
@@ -116,7 +117,7 @@ type AppListingServiceImpl struct {
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
-	application application2.ServiceClient, appRepository pipelineConfig.AppRepository,
+	application application2.ServiceClient, appRepository app.AppRepository,
 	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
 	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,

@@ -42,6 +42,7 @@ import (
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
@@ -138,8 +139,8 @@ func InitializeApp() (*App, error) {
 		util.NewSugardLogger,
 		router.NewMuxRouter,
 
-		pipelineConfig.NewAppRepositoryImpl,
-		wire.Bind(new(pipelineConfig.AppRepository), new(*pipelineConfig.AppRepositoryImpl)),
+		app2.NewAppRepositoryImpl,
+		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
 
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),

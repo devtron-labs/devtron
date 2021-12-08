@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/url"
 	"strconv"
@@ -73,14 +74,14 @@ type AppServiceImpl struct {
 	enforcer                      rbac.Enforcer
 	enforcerUtil                  rbac.EnforcerUtil
 	user                          user.UserService
-	appListingRepository          repository.AppListingRepository
-	appRepository                 pipelineConfig.AppRepository
-	envRepository                 cluster.EnvironmentRepository
+	appListingRepository      repository.AppListingRepository
+	appRepository             app.AppRepository
+	envRepository             cluster.EnvironmentRepository
 	pipelineConfigRepository      chartConfig.PipelineConfigRepository
 	configMapRepository           chartConfig.ConfigMapRepository
-	chartRepository               chartConfig.ChartRepository
-	appRepo                       pipelineConfig.AppRepository
-	appLevelMetricsRepository     repository.AppLevelMetricsRepository
+	chartRepository           chartConfig.ChartRepository
+	appRepo                   app.AppRepository
+	appLevelMetricsRepository repository.AppLevelMetricsRepository
 	envLevelMetricsRepository     repository.EnvLevelAppMetricsRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
@@ -115,7 +116,7 @@ func NewAppService(
 	cache *user.TokenCache, authConfig *user.ACDAuthConfig,
 	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, user user.UserService,
 	appListingRepository repository.AppListingRepository,
-	appRepository pipelineConfig.AppRepository,
+	appRepository app.AppRepository,
 	envRepository cluster.EnvironmentRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository, configMapRepository chartConfig.ConfigMapRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository, envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,

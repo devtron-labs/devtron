@@ -19,6 +19,7 @@ package batch
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	pc "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
@@ -35,15 +36,15 @@ type BuildAction interface {
 
 type BuildActionImpl struct {
 	logger               *zap.SugaredLogger
-	pipelineBuilder      pipeline.PipelineBuilder
-	appRepo              pc.AppRepository
-	appWorkflowRepo      appWorkflow.AppWorkflowRepository
+	pipelineBuilder pipeline.PipelineBuilder
+	appRepo         app.AppRepository
+	appWorkflowRepo appWorkflow.AppWorkflowRepository
 	ciPipelineRepository pc.CiPipelineRepository
 	materialRepo         pc.MaterialRepository
 }
 
 func NewBuildActionImpl(pipelineBuilder pipeline.PipelineBuilder, logger *zap.SugaredLogger,
-	appRepo pc.AppRepository, appWorkflowRepo appWorkflow.AppWorkflowRepository,
+	appRepo app.AppRepository, appWorkflowRepo appWorkflow.AppWorkflowRepository,
 	ciPipelineRepository pc.CiPipelineRepository, materialRepo pc.MaterialRepository) *BuildActionImpl {
 	return &BuildActionImpl{
 		pipelineBuilder:      pipelineBuilder,

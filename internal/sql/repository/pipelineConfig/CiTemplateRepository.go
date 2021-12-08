@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -40,7 +41,7 @@ type CiTemplate struct {
 	Active            bool     `sql:"active,notnull"`
 	GitMaterialId     int      `sql:"git_material_id"`
 	sql.AuditLog
-	App            *App
+	App            *app.App
 	DockerRegistry *repository.DockerArtifactStore
 	GitMaterial    *GitMaterial
 }

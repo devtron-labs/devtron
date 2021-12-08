@@ -35,7 +35,6 @@ type TeamService interface {
 	FetchOne(id int) (*TeamRequest, error)
 	FindTeamsByUser(userId int32) ([]team.Team, error)
 	Update(request *TeamRequest) (*TeamRequest, error)
-	FindTeamByAppId(appId int) (*TeamBean, error)
 	FindActiveTeamByAppName(appName string) (*TeamBean, error)
 	FetchForAutocomplete() ([]TeamRequest, error)
 	FindByIds(ids []*int) ([]*TeamBean, error)
@@ -156,17 +155,6 @@ func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
 	}
 	request.Id = team.Id
 	return request, nil
-}
-
-func (impl TeamServiceImpl) FindTeamByAppId(appId int) (*TeamBean, error) {
-	team, err := impl.teamRepository.FindTeamByAppId(appId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching team", "err", err)
-		return nil, err
-	}
-	teamBean := &TeamBean{Id: team.Id, Name: team.Name}
-
-	return teamBean, err
 }
 
 func (impl TeamServiceImpl) FindActiveTeamByAppName(appName string) (*TeamBean, error) {

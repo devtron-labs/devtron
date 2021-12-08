@@ -19,6 +19,7 @@ package notifier
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"strings"
 	"time"
 
@@ -52,9 +53,9 @@ type NotificationConfigServiceImpl struct {
 	slackRepository                repository.SlackNotificationRepository
 	sesRepository                  repository.SESNotificationRepository
 	teamRepository                 team.TeamRepository
-	environmentRepository          cluster.EnvironmentRepository
-	appRepository                  pipelineConfig.AppRepository
-	userRepository                 repository.UserRepository
+	environmentRepository cluster.EnvironmentRepository
+	appRepository         app.AppRepository
+	userRepository        repository.UserRepository
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
 }
 
@@ -163,7 +164,7 @@ type ProvidersConfig struct {
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository,
 	sesRepository repository.SESNotificationRepository, teamRepository team.TeamRepository,
-	environmentRepository cluster.EnvironmentRepository, appRepository pipelineConfig.AppRepository,
+	environmentRepository cluster.EnvironmentRepository, appRepository app.AppRepository,
 	userRepository repository.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,

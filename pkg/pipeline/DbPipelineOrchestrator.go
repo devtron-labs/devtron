@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"path"
 	"strconv"
@@ -63,8 +64,8 @@ type DbPipelineOrchestrator interface {
 }
 
 type DbPipelineOrchestratorImpl struct {
-	appRepository                pipelineConfig.AppRepository
-	logger                       *zap.SugaredLogger
+	appRepository app2.AppRepository
+	logger        *zap.SugaredLogger
 	materialRepository           pipelineConfig.MaterialRepository
 	pipelineRepository           pipelineConfig.PipelineRepository
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
@@ -79,7 +80,7 @@ type DbPipelineOrchestratorImpl struct {
 }
 
 func NewDbPipelineOrchestrator(
-	pipelineGroupRepository pipelineConfig.AppRepository,
+	pipelineGroupRepository app2.AppRepository,
 	logger *zap.SugaredLogger,
 	materialRepository pipelineConfig.MaterialRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -820,7 +821,7 @@ func (impl DbPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bea
 }
 
 //FIXME: not thread safe
-func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, tx *pg.Tx) (*pipelineConfig.App, error) {
+func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, tx *pg.Tx) (*app2.App, error) {
 	app, err := impl.appRepository.FindActiveByName(name)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -834,7 +835,7 @@ func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32,
 		}
 		return nil, err
 	}
-	pg := &pipelineConfig.App{
+	pg := &app2.App{
 		Active:   true,
 		AppName:  name,
 		TeamId:   teamId,
