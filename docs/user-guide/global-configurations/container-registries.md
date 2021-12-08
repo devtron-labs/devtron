@@ -93,7 +93,7 @@ If you enable the `Set as default` option, then this registry name will be set a
 
 * If you enable the `Allow Secure Connection With CA Certificate` option, then you have to upload/provide private CA certificate (ca.crt).
 
-* If the docker registry is insecure (for eg : SSL certificate is expired), then you enable the `Allow Insecure Connection` option.
+* If the container registry is insecure (for eg : SSL certificate is expired), then you enable the `Allow Insecure Connection` option.
 
 Now click on `Save` to save the configuration of the `Container registry`.
 
@@ -104,7 +104,8 @@ Some popular registries which can be used using username and password mechanism:
 
 * **Google Container Registry (GCR)** : JSON key file authentication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) for getting username and password for this registry. Please remove all the white spaces from json key and wrap it in single quote while putting in password field.  
 
-![](../../.gitbook/assets/gc-docker-configure-gcr.png)
+
+![](../../user-guide/global-configurations/images/Container_Registry_gcr.jpg)
 
 * **Google Artifact Registry (GAR)** : JSON key file authentication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key) for getting username and password for this registry. Please remove all the white spaces from json key and wrap it in single quote while putting in password field.
 * **Azure Container Registry (ACR)** : Service principal authentication method can be used to authenticate with username and password. Please follow [link](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) for getting username and password for this registry.
