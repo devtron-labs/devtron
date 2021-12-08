@@ -477,6 +477,7 @@ func (handler *AppStoreRestHandlerImpl) TriggerChartSyncManual(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
+
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
