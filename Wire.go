@@ -27,7 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/sse"
-	team2 "github.com/devtron-labs/devtron/api/team"
+	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -75,7 +75,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/sso"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	user2 "github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -89,6 +88,8 @@ func InitializeApp() (*App, error) {
 	wire.Build(
 		// ----- wireset start
 		sql.PgSqlWireSet,
+		team.TeamsWireSet,
+
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -351,18 +352,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppListingViewBuilder), new(*app.AppListingViewBuilderImpl)),
 		repository.NewNotificationSettingsRepositoryImpl,
 		wire.Bind(new(repository.NotificationSettingsRepository), new(*repository.NotificationSettingsRepositoryImpl)),
-
 		util.IntValidator,
-
-		team2.NewTeamRouterImpl,
-		wire.Bind(new(team2.TeamRouter), new(*team2.TeamRouterImpl)),
-		team2.NewTeamRestHandlerImpl,
-		wire.Bind(new(team2.TeamRestHandler), new(*team2.TeamRestHandlerImpl)),
-		team.NewTeamServiceImpl,
-		wire.Bind(new(team.TeamService), new(*team.TeamServiceImpl)),
-		team.NewTeamRepositoryImpl,
-		wire.Bind(new(team.TeamRepository), new(*team.TeamRepositoryImpl)),
-
 		pipeline.GetCiConfig,
 
 		pipeline.NewWorkflowServiceImpl,
