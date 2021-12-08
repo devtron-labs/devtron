@@ -89,12 +89,6 @@
         }
       }
     },
-    "MaxSurge": {
-      "type": "integer"
-    },
-    "MaxUnavailable": {
-      "type": "integer"
-    },
     "MinReadySeconds": {
       "type": "integer"
     },
@@ -146,23 +140,7 @@
       }
     },
     "Spec": {
-      "type": "object",
-      "properties": {
-        "Affinity": {
-          "type": "object",
-          "properties": {
-            "Key": {
-              "type": "null"
-            },
-            "Values": {
-              "type": "string"
-            },
-            "key": {
-              "type": "string"
-            }
-          }
-        }
-      }
+      "type": "object"
     },
     "args": {
       "type": "object",
@@ -423,7 +401,13 @@
           "type": "object"
         },
         "type": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "ClusterIP",
+            "LoadBalancer",
+            "NodePort",
+            "ExternalName"
+          ]
         }
       }
     },
