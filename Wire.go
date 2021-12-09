@@ -89,6 +89,7 @@ func InitializeApp() (*App, error) {
 		// ----- wireset start
 		sql.PgSqlWireSet,
 		team.TeamsWireSet,
+		AuthWireSet,
 
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
@@ -683,8 +684,6 @@ func InitializeApp() (*App, error) {
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
-
-		AuthWireSet,
 	)
 	return &App{}, nil
 }
