@@ -22,7 +22,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/casbin/casbin"
-	middleware2 "github.com/devtron-labs/authenticator/middleware"
+	authMiddleware "github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -48,7 +48,7 @@ type App struct {
 	pubsubClient *pubsub.PubSubClient
 	// used for local dev only
 	serveTls        bool
-	sessionManager2 *middleware2.SessionManager
+	sessionManager2 *authMiddleware.SessionManager
 }
 
 func NewApp(router *router.MuxRouter,
@@ -58,7 +58,7 @@ func NewApp(router *router.MuxRouter,
 	enforcer *casbin.Enforcer,
 	db *pg.DB,
 	pubsubClient *pubsub.PubSubClient,
-	sessionManager2 *middleware2.SessionManager,
+	sessionManager2 *authMiddleware.SessionManager,
 ) *App {
 	//check argo connection
 	err := versionService.CheckVersion()
@@ -96,7 +96,7 @@ func (app *App) Start() {
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
 
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: middleware2.Authorizer(app.sessionManager2, user.WhitelistChecker)(app.MuxRouter.Router)}
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.server = server
 	var err error
