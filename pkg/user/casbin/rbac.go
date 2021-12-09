@@ -15,7 +15,7 @@
  *
  */
 
-package rbac
+package casbin
 
 import (
 	"fmt"

@@ -25,7 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -44,15 +44,15 @@ type SsoLoginRestHandler interface {
 type SsoLoginRestHandlerImpl struct {
 	userAuthService user.UserAuthService
 	validator       *validator.Validate
-	logger          *zap.SugaredLogger
-	enforcer        rbac.Enforcer
-	natsClient      *pubsub.PubSubClient
+	logger     *zap.SugaredLogger
+	enforcer   casbin.Enforcer
+	natsClient *pubsub.PubSubClient
 	userService     user.UserService
 	ssoLoginService sso.SSOLoginService
 }
 
 func NewSsoLoginRestHandlerImpl(userAuthService user.UserAuthService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService,
+	logger *zap.SugaredLogger, enforcer casbin.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService,
 	ssoLoginService sso.SSOLoginService) *SsoLoginRestHandlerImpl {
 	handler := &SsoLoginRestHandlerImpl{userAuthService: userAuthService, validator: validator, logger: logger,
 		enforcer: enforcer, natsClient: natsClient, userService: userService, ssoLoginService: ssoLoginService}
@@ -75,7 +75,7 @@ func (handler SsoLoginRestHandlerImpl) CreateSSOLoginConfig(w http.ResponseWrite
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -107,7 +107,7 @@ func (handler SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWrite
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -148,7 +148,7 @@ func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfig(w http.ResponseWriter, 
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -170,7 +170,7 @@ func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfigByName(w http.ResponseWr
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}

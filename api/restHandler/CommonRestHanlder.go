@@ -22,7 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -36,15 +36,15 @@ type CommonRestHanlderImpl struct {
 	logger              *zap.SugaredLogger
 	gitOpsConfigService gitops.GitOpsConfigService
 	userAuthService     user.UserService
-	validator           *validator.Validate
-	enforcer            rbac.Enforcer
-	commonService       commonService.CommonService
+	validator     *validator.Validate
+	enforcer      casbin.Enforcer
+	commonService commonService.CommonService
 }
 
 func NewCommonRestHanlderImpl(
 	logger *zap.SugaredLogger,
 	gitOpsConfigService gitops.GitOpsConfigService, userAuthService user.UserService,
-	validator *validator.Validate, enforcer rbac.Enforcer, commonService commonService.CommonService) *CommonRestHanlderImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, commonService commonService.CommonService) *CommonRestHanlderImpl {
 	return &CommonRestHanlderImpl{
 		logger:              logger,
 		gitOpsConfigService: gitOpsConfigService,

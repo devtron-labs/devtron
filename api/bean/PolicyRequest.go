@@ -17,7 +17,7 @@
 
 package bean
 
-import "github.com/devtron-labs/devtron/internal/casbin"
+import "github.com/devtron-labs/devtron/pkg/user/casbin"
 
 type PolicyRequest struct {
 	Data []casbin.Policy

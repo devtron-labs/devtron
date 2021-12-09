@@ -45,7 +45,7 @@ type Policy struct {
 
 func Create() *casbin.Enforcer {
 	metav1.Now()
-	config, err := sql.GetConfig()
+	config, err := sql.GetConfig() //FIXME: use this from wire
 	if err != nil {
 		log.Fatal(err)
 	}

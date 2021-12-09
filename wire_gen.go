@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -66,6 +65,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -152,7 +152,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	sessionSessionManager := session.SessionManager(settingsManager, config2)
-	enforcerImpl := rbac.NewEnforcerImpl(enforcer, sessionSessionManager, sugaredLogger)
+	enforcerImpl := casbin.NewEnforcerImpl(enforcer, sessionSessionManager, sugaredLogger)
 	teamRepositoryImpl := team.NewTeamRepositoryImpl(db)
 	appRepositoryImpl := app.NewAppRepositoryImpl(db)
 	environmentRepositoryImpl := repository3.NewEnvironmentRepositoryImpl(db)

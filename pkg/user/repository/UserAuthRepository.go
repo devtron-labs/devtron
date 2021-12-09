@@ -26,7 +26,7 @@ import (
 	"strings"
 
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/casbin"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )

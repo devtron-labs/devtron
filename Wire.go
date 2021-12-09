@@ -42,7 +42,6 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -77,8 +76,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/terminal"
-	user2 "github.com/devtron-labs/devtron/pkg/user"
-	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -93,6 +91,7 @@ func InitializeApp() (*App, error) {
 		sql.PgSqlWireSet,
 		team.TeamsWireSet,
 		AuthWireSet,
+		user.UserWireSet,
 
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
@@ -114,8 +113,8 @@ func InitializeApp() (*App, error) {
 		session.SessionManager,
 		//auth.GetConfig,
 		casbin.Create,
-		rbac.NewEnforcerImpl,
-		wire.Bind(new(rbac.Enforcer), new(*rbac.EnforcerImpl)),
+		casbin.NewEnforcerImpl,
+		wire.Bind(new(casbin.Enforcer), new(*casbin.EnforcerImpl)),
 		dex.GetConfig,
 		argocdServer.GetConfig,
 		session2.NewSessionServiceClient,
@@ -272,14 +271,6 @@ func InitializeApp() (*App, error) {
 		router.NewApplicationRouterImpl,
 		wire.Bind(new(router.ApplicationRouter), new(*router.ApplicationRouterImpl)),
 		//app.GetConfig,
-		user.NewUserAuthRouterImpl,
-		wire.Bind(new(user.UserAuthRouter), new(*user.UserAuthRouterImpl)),
-		user.NewUserAuthHandlerImpl,
-		wire.Bind(new(user.UserAuthHandler), new(*user.UserAuthHandlerImpl)),
-		user2.NewUserAuthServiceImpl,
-		wire.Bind(new(user2.UserAuthService), new(*user2.UserAuthServiceImpl)),
-		repository4.NewUserAuthRepositoryImpl,
-		wire.Bind(new(repository4.UserAuthRepository), new(*repository4.UserAuthRepositoryImpl)),
 
 		router.NewCDRouterImpl,
 		wire.Bind(new(router.CDRouter), new(*router.CDRouterImpl)),
@@ -378,15 +369,6 @@ func InitializeApp() (*App, error) {
 
 		pubsub.NewCiEventHandlerImpl,
 		wire.Bind(new(pubsub.CiEventHandler), new(*pubsub.CiEventHandlerImpl)),
-
-		user.NewUserRouterImpl,
-		wire.Bind(new(user.UserRouter), new(*user.UserRouterImpl)),
-		user.NewUserRestHandlerImpl,
-		wire.Bind(new(user.UserRestHandler), new(*user.UserRestHandlerImpl)),
-		user2.NewUserServiceImpl,
-		wire.Bind(new(user2.UserService), new(*user2.UserServiceImpl)),
-		repository4.NewUserRepositoryImpl,
-		wire.Bind(new(repository4.UserRepository), new(*repository4.UserRepositoryImpl)),
 
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
@@ -550,11 +532,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.ChartGroupRouter), new(*router.ChartGroupRouterImpl)),
 		chartGroup.NewChartGroupDeploymentRepositoryImpl,
 		wire.Bind(new(chartGroup.ChartGroupDeploymentRepository), new(*chartGroup.ChartGroupDeploymentRepositoryImpl)),
-
-		user2.NewRoleGroupServiceImpl,
-		wire.Bind(new(user2.RoleGroupService), new(*user2.RoleGroupServiceImpl)),
-		repository4.NewRoleGroupRepositoryImpl,
-		wire.Bind(new(repository4.RoleGroupRepository), new(*repository4.RoleGroupRepositoryImpl)),
 
 		commonService.NewCommonServiceImpl,
 		wire.Bind(new(commonService.CommonService), new(*commonService.CommonServiceImpl)),

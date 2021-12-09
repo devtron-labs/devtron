@@ -27,9 +27,9 @@ import (
 
 	jwt2 "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/devtron-labs/devtron/api/bean"
-	casbin2 "github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
+	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
