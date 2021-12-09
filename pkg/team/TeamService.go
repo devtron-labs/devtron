@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -52,6 +53,7 @@ type TeamServiceImpl struct {
 	pipelineBuilder pipeline.PipelineBuilder
 	envService      cluster.EnvironmentService
 	appRepository   pipelineConfig.AppRepository
+	userAuthService user.UserAuthService
 }
 
 type TeamRequest struct {
@@ -63,14 +65,16 @@ type TeamRequest struct {
 
 func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
 	pipelineBuilder pipeline.PipelineBuilder, envService cluster.EnvironmentService,
-	userService user.UserService, appRepository pipelineConfig.AppRepository) *TeamServiceImpl {
+	userService user.UserService, appRepository pipelineConfig.AppRepository,
+	userAuthService user.UserAuthService) *TeamServiceImpl {
 	return &TeamServiceImpl{
 		logger:          logger,
 		userService:     userService,
 		teamRepository:  teamRepository,
 		pipelineBuilder: pipelineBuilder,
 		envService:      envService,
-		appRepository: appRepository,
+		appRepository:   appRepository,
+		userAuthService: userAuthService,
 	}
 }
 
@@ -165,30 +169,35 @@ func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
 	return request, nil
 }
 
-func(impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error{
+func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
 	//finding if this project is used in some app; if yes, will not perform delete operation
 	apps, err := impl.appRepository.FindAppsByTeamName(deleteRequest.Name)
-	if !(apps == nil && err == pg.ErrNoRows){
-		impl.logger.Errorw("err in deleting team, found apps in team","teamName",deleteRequest.Name,"err",err)
-		return fmt.Errorf(" Please delete all apps in this project before deleting this project : %w",err)
+	if !(apps == nil && err == pg.ErrNoRows) {
+		impl.logger.Errorw("err in deleting team, found apps in team", "teamName", deleteRequest.Name, "err", err)
+		return fmt.Errorf(" Please delete all apps in this project before deleting this project : %w", err)
 	}
-		existingTeam, err := impl.teamRepository.FindOne(deleteRequest.Id)
-		if err != nil {
-			impl.logger.Errorw("No matching entry found for delete.", "id", deleteRequest.Id)
-			return err
-		}
-		deleteReq := &team.Team{
-			Name:     deleteRequest.Name,
-			Id:       deleteRequest.Id,
-			Active:   deleteRequest.Active,
-			AuditLog: models.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: deleteRequest.UserId},
-		}
-		err = impl.teamRepository.MarkTeamDeleted(deleteReq)
-		if err != nil {
-			impl.logger.Errorw("error in deleting team", "teamId", deleteReq.Id, "teamName", deleteReq.Name)
-			return err
-		}
-
+	existingTeam, err := impl.teamRepository.FindOne(deleteRequest.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", deleteRequest.Id)
+		return err
+	}
+	deleteReq := &team.Team{
+		Name:     deleteRequest.Name,
+		Id:       deleteRequest.Id,
+		Active:   deleteRequest.Active,
+		AuditLog: models.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: deleteRequest.UserId},
+	}
+	err = impl.teamRepository.MarkTeamDeleted(deleteReq)
+	if err != nil {
+		impl.logger.Errorw("error in deleting team", "teamId", deleteReq.Id, "teamName", deleteReq.Name)
+		return err
+	}
+	//deleting auth roles entries for this project
+	err = impl.userAuthService.DeleteRoles(repository.PROJECT_TYPE, deleteRequest.Name)
+	if err != nil {
+		impl.logger.Errorw("error in deleting auth roles", "err", err)
+		//TODO : confirm if error is to returned or not
+	}
 	return nil
 }
 

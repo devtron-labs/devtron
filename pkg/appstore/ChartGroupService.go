@@ -18,6 +18,8 @@
 package appstore
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"time"
 
@@ -34,12 +36,14 @@ type ChartGroupServiceImpl struct {
 	chartGroupDeploymentRepository  chartGroup.ChartGroupDeploymentRepository
 	installedAppRepository          appstore.InstalledAppRepository
 	appStoreVersionValuesRepository appstore.AppStoreVersionValuesRepository
+	userAuthService                 user.UserAuthService
 }
 
 func NewChartGroupServiceImpl(chartGroupEntriesRepository chartGroup.ChartGroupEntriesRepository,
 	chartGroupRepository chartGroup.ChartGroupReposotory,
 	Logger *zap.SugaredLogger, chartGroupDeploymentRepository chartGroup.ChartGroupDeploymentRepository,
-	installedAppRepository appstore.InstalledAppRepository, appStoreVersionValuesRepository appstore.AppStoreVersionValuesRepository) *ChartGroupServiceImpl {
+	installedAppRepository appstore.InstalledAppRepository, appStoreVersionValuesRepository appstore.AppStoreVersionValuesRepository,
+	userAuthService user.UserAuthService) *ChartGroupServiceImpl {
 	return &ChartGroupServiceImpl{
 		chartGroupEntriesRepository:     chartGroupEntriesRepository,
 		chartGroupRepository:            chartGroupRepository,
@@ -47,6 +51,7 @@ func NewChartGroupServiceImpl(chartGroupEntriesRepository chartGroup.ChartGroupE
 		chartGroupDeploymentRepository:  chartGroupDeploymentRepository,
 		installedAppRepository:          installedAppRepository,
 		appStoreVersionValuesRepository: appStoreVersionValuesRepository,
+		userAuthService:                 userAuthService,
 	}
 }
 
@@ -388,34 +393,40 @@ func (impl *ChartGroupServiceImpl) ChartGroupListMin(max int) ([]*ChartGroupBean
 	return chartGroupList, nil
 }
 
-func(impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error{
+func (impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error {
 	//finding existing
 	existingChartGroup, err := impl.chartGroupRepository.FindById(req.Id)
-	if err!=nil{
-		impl.Logger.Errorw("No matching entry found for delete.", "err",err,"id", req.Id)
+	if err != nil {
+		impl.Logger.Errorw("No matching entry found for delete.", "err", err, "id", req.Id)
 		return err
 	}
 	//finding chart mappings by group id
 	chartGroupMappings, err := impl.chartGroupEntriesRepository.FindEntriesWithChartMetaByChartGroupId([]int{req.Id})
-	if err!=nil && err!=pg.ErrNoRows {
-		impl.Logger.Errorw("error in getting chart group entries, DeleteChartGroup","err",err,"chartGroupId",req.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in getting chart group entries, DeleteChartGroup", "err", err, "chartGroupId", req.Id)
 		return err
 	}
 	var chartGroupMappingIds []int
-	for _, chartGroupMapping := range chartGroupMappings{
+	for _, chartGroupMapping := range chartGroupMappings {
 		chartGroupMappingIds = append(chartGroupMappingIds, chartGroupMapping.Id)
 	}
-	//deleting chart mappings in group
+	//deleting chart mapping in group
 	_, err = impl.chartGroupEntriesRepository.MarkChartGroupEntriesDeleted(chartGroupMappingIds)
-	if err!=nil{
-		impl.Logger.Errorw("error in deleting chart group mappings","err",err)
+	if err != nil {
+		impl.Logger.Errorw("error in deleting chart group mappings", "err", err)
 		return err
 	}
 	//deleting chart group
 	err = impl.chartGroupRepository.MarkChartGroupDeleted(existingChartGroup.Id)
-	if err!=nil{
-		impl.Logger.Errorw("error in deleting chart group","err",err,"chartGroupId",existingChartGroup.Id)
+	if err != nil {
+		impl.Logger.Errorw("error in deleting chart group", "err", err, "chartGroupId", existingChartGroup.Id)
 		return err
+	}
+	//deleting auth roles entries for this chart group
+	err = impl.userAuthService.DeleteRoles(repository.CHART_GROUP_TYPE, req.Name)
+	if err != nil {
+		impl.Logger.Errorw("error in deleting auth roles", "err", err)
+		//TODO : confirm if error is to returned or not
 	}
 	return nil
 }

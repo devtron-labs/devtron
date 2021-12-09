@@ -22,6 +22,7 @@ package repository
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/devtron-labs/devtron/api/bean"
@@ -29,6 +30,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+)
+
+const (
+	PROJECT_TYPE     = "team"
+	ENV_TYPE         = "environment"
+	APP_TYPE         = "app"
+	CHART_GROUP_TYPE = "chart-group"
 )
 
 type UserAuthRepository interface {
@@ -46,6 +54,10 @@ type UserAuthRepository interface {
 	CreateDefaultPoliciesForGlobalEntity(entity string, entityName string, action string, tx *pg.Tx) (bool, error)
 	CreateUpdateDefaultPoliciesForSuperAdmin(tx *pg.Tx) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
+	DeleteRolesByEnvironment(envName string, tx *pg.Tx) error
+	DeleteRolesByProject(teamName string, tx *pg.Tx) error
+	DeleteRolesByApp(appName string, tx *pg.Tx) error
+	DeleteRolesByChartGroup(chartGroupName string, tx *pg.Tx) error
 }
 
 type UserAuthRepositoryImpl struct {
@@ -589,4 +601,46 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 	casbin.AddPolicy(policiesView.Data)
 
 	return true, nil
+}
+
+func (impl UserAuthRepositoryImpl) DeleteRolesByEnvironment(envName string, tx *pg.Tx) error {
+	var role *RoleModel
+	_, err := tx.Model(role).Where("environment = ?", envName).Delete()
+	if err != nil {
+		impl.Logger.Errorw("error in deleting roles by environment", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl UserAuthRepositoryImpl) DeleteRolesByProject(teamName string, tx *pg.Tx) error {
+	var role *RoleModel
+	_, err := tx.Model(role).Where("team = ?", teamName).Delete()
+	if err != nil {
+		impl.Logger.Errorw("error in deleting roles by team", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl UserAuthRepositoryImpl) DeleteRolesByApp(appName string, tx *pg.Tx) error {
+	var role *RoleModel
+	_, err := tx.Model(role).Where("role not like ?", fmt.Sprintf("role:"+CHART_GROUP_TYPE+"%")).
+		Where("entity_name = ?", appName).Delete()
+	if err != nil {
+		impl.Logger.Errorw("error in deleting roles by team", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl UserAuthRepositoryImpl) DeleteRolesByChartGroup(chartGroupName string, tx *pg.Tx) error {
+	var role *RoleModel
+	_, err := tx.Model(role).Where("role like ?", fmt.Sprintf("role:"+CHART_GROUP_TYPE+"%")).
+		Where("entity_name = ?", chartGroupName).Delete()
+	if err != nil {
+		impl.Logger.Errorw("error in deleting roles by team", "err", err)
+		return err
+	}
+	return nil
 }

@@ -52,6 +52,7 @@ type UserAuthService interface {
 
 	CreateRole(roleData *bean.RoleData) (bool, error)
 	AuthVerification(r *http.Request) (bool, error)
+	DeleteRoles(entityType string, entityName string) error
 }
 
 type UserAuthServiceImpl struct {
@@ -519,4 +520,30 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 
 	//TODO - extends for other purpose
 	return true, nil
+}
+func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string) error {
+	dbConnection := impl.userRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing connection", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	switch entityType {
+	case repository.PROJECT_TYPE:
+		err = impl.userAuthRepository.DeleteRolesByProject(entityName, tx)
+	case repository.ENV_TYPE:
+		err = impl.userAuthRepository.DeleteRolesByEnvironment(entityName, tx)
+	case repository.APP_TYPE:
+		err = impl.userAuthRepository.DeleteRolesByApp(entityName, tx)
+	case repository.CHART_GROUP_TYPE:
+		err = impl.userAuthRepository.DeleteRolesByChartGroup(entityName, tx)
+	}
+	if err != nil {
+		impl.logger.Errorw(fmt.Sprintf("error in deleting roles by %s", entityType), "err", err, "name", entityName)
+		return err
+	}
+	return nil
 }

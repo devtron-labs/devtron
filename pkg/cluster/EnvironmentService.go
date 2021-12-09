@@ -21,10 +21,12 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -66,15 +68,16 @@ type EnvironmentServiceImpl struct {
 	K8sUtil                 *util.K8sUtil
 	propertiesConfigService pipeline.PropertiesConfigService
 	grafanaClient           grafana.GrafanaClient
-	pipelineRepository		pipelineConfig.PipelineRepository
+	pipelineRepository      pipelineConfig.PipelineRepository
+	userAuthService         user.UserAuthService
 }
 
 func NewEnvironmentServiceImpl(environmentRepository cluster.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	grafanaClient grafana.GrafanaClient, pipelineRepository	pipelineConfig.PipelineRepository,
-) *EnvironmentServiceImpl {
+	grafanaClient grafana.GrafanaClient, pipelineRepository pipelineConfig.PipelineRepository,
+	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository:   environmentRepository,
 		logger:                  logger,
@@ -82,7 +85,8 @@ func NewEnvironmentServiceImpl(environmentRepository cluster.EnvironmentReposito
 		K8sUtil:                 K8sUtil,
 		propertiesConfigService: propertiesConfigService,
 		grafanaClient:           grafanaClient,
-		pipelineRepository: 	 pipelineRepository,
+		pipelineRepository:      pipelineRepository,
+		userAuthService:         userAuthService,
 	}
 }
 
@@ -397,12 +401,12 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 	return beans, nil
 }
 
-func(impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int32) error{
+func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int32) error {
 	//finding if this env is used in any cd pipelines, if yes then will not delete
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(deleteReq.Id)
-	if !(pipelines == nil && err == pg.ErrNoRows){
-		impl.logger.Errorw("err in deleting env, found pipelines in this env","envName",deleteReq.Environment,"err",err)
-		return fmt.Errorf(" Please delete all related pipelines before deleting this environment : %w",err)
+	if !(pipelines == nil && err == pg.ErrNoRows) {
+		impl.logger.Errorw("err in deleting env, found pipelines in this env", "envName", deleteReq.Environment, "err", err)
+		return fmt.Errorf(" Please delete all related pipelines before deleting this environment : %w", err)
 	}
 	existingTeam, err := impl.environmentRepository.FindById(deleteReq.Id)
 	if err != nil {
@@ -410,17 +414,23 @@ func(impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int3
 		return err
 	}
 	deleteRequest := &cluster.Environment{
-		Name:     deleteReq.Environment,
-		Id:       deleteReq.Id,
-		Active:   deleteReq.Active,
+		Name:      deleteReq.Environment,
+		Id:        deleteReq.Id,
+		Active:    deleteReq.Active,
 		ClusterId: deleteReq.ClusterId,
-		Default: deleteReq.Default,
-		AuditLog: models.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: userId},
+		Default:   deleteReq.Default,
+		AuditLog:  models.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: userId},
 	}
 	err = impl.environmentRepository.MarkEnvironmentDeleted(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting environment", "envId", deleteReq.Id, "envName", deleteReq.Environment)
 		return err
+	}
+	//deleting auth roles entries for this environment
+	err = impl.userAuthService.DeleteRoles(repository.ENV_TYPE, deleteRequest.Name)
+	if err != nil {
+		impl.logger.Errorw("error in deleting auth roles", "err", err)
+		//TODO : confirm if error is to returned or not
 	}
 	return nil
 }
