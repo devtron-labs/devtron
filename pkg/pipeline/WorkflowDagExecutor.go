@@ -23,6 +23,7 @@ import (
 	"fmt"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"strconv"
 	"strings"
 	"time"
@@ -76,8 +77,8 @@ type WorkflowDagExecutorImpl struct {
 	enforcer                   rbac.Enforcer
 	enforcerUtil               rbac.EnforcerUtil
 	groupRepository            repository.DeploymentGroupRepository
-	tokenCache                 *user.TokenCache
-	acdAuthConfig *user.ACDAuthConfig
+	tokenCache                 *util3.TokenCache
+	acdAuthConfig *util3.ACDAuthConfig
 	envRepository repository2.EnvironmentRepository
 	eventFactory  client.EventFactory
 	eventClient                client.EventClient
@@ -131,8 +132,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	user user.UserService,
 	groupRepository repository.DeploymentGroupRepository,
 	envRepository repository2.EnvironmentRepository,
-	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *user.TokenCache,
-	acdAuthConfig *user.ACDAuthConfig, eventFactory client.EventFactory,
+	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *util3.TokenCache,
+	acdAuthConfig *util3.ACDAuthConfig, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,

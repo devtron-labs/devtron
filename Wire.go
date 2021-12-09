@@ -77,6 +77,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	user2 "github.com/devtron-labs/devtron/pkg/user"
+	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/session"
@@ -101,7 +103,7 @@ func InitializeApp() (*App, error) {
 		eClient.GetEventClientConfig,
 		//sql.NewDbConnection,
 		//app.GetACDAuthConfig,
-		user2.GetACDAuthConfig,
+		util3.GetACDAuthConfig,
 		wire.Value(pipeline.RefChartDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(appstore.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(pipeline.DefaultChart("reference-app-rolling")),
@@ -231,7 +233,7 @@ func InitializeApp() (*App, error) {
 		eClient.NewEventRESTClientImpl,
 		wire.Bind(new(eClient.EventClient), new(*eClient.EventRESTClientImpl)),
 
-		user2.NewTokenCache,
+		util3.NewTokenCache,
 
 		eClient.NewEventSimpleFactoryImpl,
 		wire.Bind(new(eClient.EventFactory), new(*eClient.EventSimpleFactoryImpl)),
@@ -275,8 +277,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.UserAuthHandler), new(*restHandler.UserAuthHandlerImpl)),
 		user2.NewUserAuthServiceImpl,
 		wire.Bind(new(user2.UserAuthService), new(*user2.UserAuthServiceImpl)),
-		repository.NewUserAuthRepositoryImpl,
-		wire.Bind(new(repository.UserAuthRepository), new(*repository.UserAuthRepositoryImpl)),
+		repository4.NewUserAuthRepositoryImpl,
+		wire.Bind(new(repository4.UserAuthRepository), new(*repository4.UserAuthRepositoryImpl)),
 
 		router.NewCDRouterImpl,
 		wire.Bind(new(router.CDRouter), new(*router.CDRouterImpl)),
@@ -382,8 +384,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.UserRestHandler), new(*restHandler.UserRestHandlerImpl)),
 		user2.NewUserServiceImpl,
 		wire.Bind(new(user2.UserService), new(*user2.UserServiceImpl)),
-		repository.NewUserRepositoryImpl,
-		wire.Bind(new(repository.UserRepository), new(*repository.UserRepositoryImpl)),
+		repository4.NewUserRepositoryImpl,
+		wire.Bind(new(repository4.UserRepository), new(*repository4.UserRepositoryImpl)),
 
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
@@ -550,8 +552,8 @@ func InitializeApp() (*App, error) {
 
 		user2.NewRoleGroupServiceImpl,
 		wire.Bind(new(user2.RoleGroupService), new(*user2.RoleGroupServiceImpl)),
-		repository.NewRoleGroupRepositoryImpl,
-		wire.Bind(new(repository.RoleGroupRepository), new(*repository.RoleGroupRepositoryImpl)),
+		repository4.NewRoleGroupRepositoryImpl,
+		wire.Bind(new(repository4.RoleGroupRepository), new(*repository4.RoleGroupRepositoryImpl)),
 
 		commonService.NewCommonServiceImpl,
 		wire.Bind(new(commonService.CommonService), new(*commonService.CommonServiceImpl)),

@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	"io"
@@ -153,7 +154,7 @@ type AppStoreServiceImpl struct {
 	clusterService                cluster.ClusterService
 	envService                    cluster.EnvironmentService
 	versionService                argocdServer.VersionService
-	aCDAuthConfig                 *user.ACDAuthConfig
+	aCDAuthConfig                 *util2.ACDAuthConfig
 	client                        *http.Client
 }
 
@@ -161,7 +162,7 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *util2.ACDAuthConfig, client *http.Client) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
