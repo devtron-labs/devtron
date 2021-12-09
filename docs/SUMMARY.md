@@ -51,6 +51,7 @@
   * [User Access](user-guide/global-configurations/user-access.md)
   * [Manage Notification](user-guide/global-configurations/manage-notification.md)
 * [Bulk Update](user-guide/bulk-update.md)
+* [Application Metrics](user-guide/creating-application/app-metrics.md)
 * [Command Bar](user-guide/command-bar.md)
 * [Use Cases](user-guide/use-cases/README.md)
   * [Devtron Generic Helm Chart To Run Cron Job Or One Time Job](user-guide/use-cases/devtron-generic-helm-chart-to-run-cron-job-or-one-time-job.md)
