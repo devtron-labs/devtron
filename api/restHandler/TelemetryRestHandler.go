@@ -18,6 +18,7 @@
 package restHandler
 
 import (
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"go.uber.org/zap"
 	"net/http"
@@ -42,8 +43,8 @@ func (handler TelemetryRestHandlerImpl) GetTelemetryMetaInfo(w http.ResponseWrit
 	res, err := handler.telemetryEventClient.GetTelemetryMetaInfo()
 	if err != nil {
 		handler.logger.Errorw("service err, GetTelemetryMetaInfo", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, nil, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }

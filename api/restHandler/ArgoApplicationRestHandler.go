@@ -23,6 +23,7 @@ import (
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/api/connector"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -39,7 +40,7 @@ import (
 	"strings"
 )
 
-type ApplicationRestHandler interface {
+type ArgoApplicationRestHandler interface {
 	GetPodLogs(w http.ResponseWriter, r *http.Request)
 	GetResourceTree(w http.ResponseWriter, r *http.Request)
 	ListResourceEvents(w http.ResponseWriter, r *http.Request)
@@ -60,7 +61,7 @@ type ApplicationRestHandler interface {
 	GetTerminalSession(w http.ResponseWriter, r *http.Request)
 }
 
-type ApplicationRestHandlerImpl struct {
+type ArgoApplicationRestHandlerImpl struct {
 	client                 application.ServiceClient
 	logger                 *zap.SugaredLogger
 	pump                   connector.Pump
@@ -71,15 +72,15 @@ type ApplicationRestHandlerImpl struct {
 	terminalSessionHandler terminal.TerminalSessionHandler
 }
 
-func NewApplicationRestHandlerImpl(client application.ServiceClient,
+func NewArgoApplicationRestHandlerImpl(client application.ServiceClient,
 	pump connector.Pump,
 	enforcer rbac.Enforcer,
 	teamService team.TeamService,
 	environmentService cluster.EnvironmentService,
 	logger *zap.SugaredLogger,
 	enforcerUtil rbac.EnforcerUtil,
-	terminalSessionHandler terminal.TerminalSessionHandler) *ApplicationRestHandlerImpl {
-	return &ApplicationRestHandlerImpl{
+	terminalSessionHandler terminal.TerminalSessionHandler) *ArgoApplicationRestHandlerImpl {
+	return &ArgoApplicationRestHandlerImpl{
 		client:                 client,
 		logger:                 logger,
 		pump:                   pump,
@@ -91,7 +92,7 @@ func NewApplicationRestHandlerImpl(client application.ServiceClient,
 	}
 }
 
-func (impl ApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	request := &terminal.TerminalSessionRequest{}
 	vars := mux.Vars(r)
@@ -104,41 +105,41 @@ func (impl ApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter,
 	//---------auth
 	id, err := strconv.Atoi(appId)
 	if err != nil {
-		writeJsonResp(w, fmt.Errorf("appId is not integer"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, fmt.Errorf("appId is not integer"), nil, http.StatusBadRequest)
 		return
 	}
 	eId, err := strconv.Atoi(envId)
 	if err != nil {
-		writeJsonResp(w, fmt.Errorf("envId is not integer"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, fmt.Errorf("envId is not integer"), nil, http.StatusBadRequest)
 		return
 	}
 	request.AppId = id
 	appRbacObject := impl.enforcerUtil.GetAppRBACNameByAppId(id)
 	if appRbacObject == "" {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	envRbacObject := impl.enforcerUtil.GetEnvRBACNameByAppId(id, eId)
 	if envRbacObject == "" {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusBadRequest)
 		return
 	}
 	request.EnvironmentId = eId
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, appRbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, envRbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//---------auth end
 	//TODO apply validation
 	status, message, err := impl.terminalSessionHandler.GetTerminalSession(request)
-	writeJsonResp(w, err, message, status)
+	common.WriteJsonResp(w, err, message, status)
 }
 
-func (impl ApplicationRestHandlerImpl) Watch(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) Watch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	token := r.Header.Get("token")
@@ -160,7 +161,7 @@ func (impl ApplicationRestHandlerImpl) Watch(w http.ResponseWriter, r *http.Requ
 	impl.pump.StartStream(w, func() (proto.Message, error) { return app.Recv() }, err)
 }
 
-func (impl ApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	vars := mux.Vars(r)
 	name := vars["name"]
@@ -194,7 +195,7 @@ func (impl ApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *http
 	if len(lastEventId) > 0 {
 		lastSeenMsgId, err := strconv.ParseInt(lastEventId, 10, 64)
 		if err != nil {
-			writeJsonResp(w, err, nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 		lastSeenMsgId = lastSeenMsgId + 1 //increased by one ns to avoid duplicate //FIXME still not fixed
@@ -220,7 +221,7 @@ func (impl ApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *http
 	impl.pump.StartStreamWithHeartBeat(w, isReconnect, func() (*application2.LogEntry, error) { return logs.Recv() }, err)
 }
 
-func (impl ApplicationRestHandlerImpl) GetResourceTree(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) GetResourceTree(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	token := r.Header.Get("token")
@@ -243,7 +244,7 @@ func (impl ApplicationRestHandlerImpl) GetResourceTree(w http.ResponseWriter, r 
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) ListResourceEvents(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) ListResourceEvents(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	v := r.URL.Query()
@@ -273,7 +274,7 @@ func (impl ApplicationRestHandlerImpl) ListResourceEvents(w http.ResponseWriter,
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	v := r.URL.Query()
@@ -307,7 +308,7 @@ func (impl ApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *htt
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) List(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) List(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	name := v.Get("name")
 	refresh := v.Get("refresh")
@@ -338,7 +339,7 @@ func (impl ApplicationRestHandlerImpl) List(w http.ResponseWriter, r *http.Reque
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) ManagedResources(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) ManagedResources(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	applicationName := vars["applicationName"]
 	query := &application2.ResourcesQuery{
@@ -361,7 +362,7 @@ func (impl ApplicationRestHandlerImpl) ManagedResources(w http.ResponseWriter, r
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) Rollback(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) Rollback(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	decoder := json.NewDecoder(r.Body)
@@ -369,7 +370,7 @@ func (impl ApplicationRestHandlerImpl) Rollback(w http.ResponseWriter, r *http.R
 	err := decoder.Decode(query)
 	if err != nil {
 		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	query.Name = &name
@@ -390,7 +391,7 @@ func (impl ApplicationRestHandlerImpl) Rollback(w http.ResponseWriter, r *http.R
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) GetManifests(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) GetManifests(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	v := r.URL.Query()
@@ -416,7 +417,7 @@ func (impl ApplicationRestHandlerImpl) GetManifests(w http.ResponseWriter, r *ht
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) Get(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) Get(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	v := r.URL.Query()
@@ -448,7 +449,7 @@ func (impl ApplicationRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) Sync(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) Sync(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	decoder := json.NewDecoder(r.Body)
@@ -457,7 +458,7 @@ func (impl ApplicationRestHandlerImpl) Sync(w http.ResponseWriter, r *http.Reque
 	query.Name = &name
 	if err != nil {
 		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
@@ -477,7 +478,7 @@ func (impl ApplicationRestHandlerImpl) Sync(w http.ResponseWriter, r *http.Reque
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) TerminateOperation(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) TerminateOperation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	query := application2.OperationTerminateRequest{
@@ -500,23 +501,23 @@ func (impl ApplicationRestHandlerImpl) TerminateOperation(w http.ResponseWriter,
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) PatchResource(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) PatchResource(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	token := r.Header.Get("token")
 	appId := vars["appId"]
 	id, err := strconv.Atoi(appId)
 	if err != nil {
-		writeJsonResp(w, fmt.Errorf("appId is not integer"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, fmt.Errorf("appId is not integer"), nil, http.StatusBadRequest)
 		return
 	}
 	app := impl.enforcerUtil.GetAppRBACNameByAppId(id)
 	if app == "" {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionTrigger, app); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -524,7 +525,7 @@ func (impl ApplicationRestHandlerImpl) PatchResource(w http.ResponseWriter, r *h
 	err = decoder.Decode(query.Patch)
 	if err != nil {
 		impl.logger.Error(err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	query.Name = &name
@@ -544,7 +545,7 @@ func (impl ApplicationRestHandlerImpl) PatchResource(w http.ResponseWriter, r *h
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appNameACD := vars["appNameACD"]
 	name := vars["name"]
@@ -558,7 +559,7 @@ func (impl ApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *
 		force = false
 	}
 	if name == "" || namespace == "" || resourceName == "" || version == "" || kind == "" {
-		writeJsonResp(w, fmt.Errorf("missing mandatory field (name | namespace | resourceName | kind)"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, fmt.Errorf("missing mandatory field (name | namespace | resourceName | kind)"), nil, http.StatusBadRequest)
 	}
 	query := new(application2.ApplicationResourceDeleteRequest)
 	query.Name = &appNameACD
@@ -573,30 +574,30 @@ func (impl ApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *
 	envId := vars["envId"]
 	id, err := strconv.Atoi(appId)
 	if err != nil {
-		writeJsonResp(w, fmt.Errorf("appId is not integer"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, fmt.Errorf("appId is not integer"), nil, http.StatusBadRequest)
 		return
 	}
 	eId, err := strconv.Atoi(envId)
 	if err != nil {
-		writeJsonResp(w, fmt.Errorf("envId is not integer"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, fmt.Errorf("envId is not integer"), nil, http.StatusBadRequest)
 		return
 	}
 	appRbacObject := impl.enforcerUtil.GetAppRBACNameByAppId(id)
 	if appRbacObject == "" {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	envRbacObject := impl.enforcerUtil.GetEnvRBACNameByAppId(id, eId)
 	if envRbacObject == "" {
-		writeJsonResp(w, fmt.Errorf("envId is incorrect"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, fmt.Errorf("envId is incorrect"), nil, http.StatusBadRequest)
 		return
 	}
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionTrigger, appRbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionTrigger, envRbacObject); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	ctx, cancel := context.WithCancel(r.Context())
@@ -615,7 +616,7 @@ func (impl ApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *
 	impl.pump.StartMessage(w, recv, err)
 }
 
-func (impl ApplicationRestHandlerImpl) GetServiceLink(w http.ResponseWriter, r *http.Request) {
+func (impl ArgoApplicationRestHandlerImpl) GetServiceLink(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 	v := r.URL.Query()
@@ -706,5 +707,5 @@ func (impl ApplicationRestHandlerImpl) GetServiceLink(w http.ResponseWriter, r *
 			}
 		}
 	}
-	writeJsonResp(w, err, serviceLink, 200)
+	common.WriteJsonResp(w, err, serviceLink, 200)
 }

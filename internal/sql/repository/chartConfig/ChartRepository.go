@@ -271,6 +271,8 @@ type ChartRef struct {
 	Version   string   `sql:"version"`
 	Active    bool     `sql:"active"`
 	Default   bool     `sql:"is_default"`
+	Name      string   `sql:"name"`
+	ChartData []byte   `sql:"chart_data"`
 	models.AuditLog
 }
 

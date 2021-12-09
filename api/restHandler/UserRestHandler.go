@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"net/http"
 	"strconv"
 	"strings"
@@ -78,14 +79,14 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var userInfo bean.UserInfo
 	err = decoder.Decode(&userInfo)
 	if err != nil {
 		handler.logger.Errorw("request err, CreateUser", "err", err, "payload", userInfo)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	userInfo.UserId = userId
@@ -114,7 +115,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 		groupRoles, err := handler.roleGroupService.FetchRolesForGroups(userInfo.Groups)
 		if err != nil && err != pg.ErrNoRows {
 			handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
-			writeJsonResp(w, err, "", http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 			return
 		}
 
@@ -140,7 +141,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	err = handler.validator.Struct(userInfo)
 	if err != nil {
 		handler.logger.Errorw("validation err, CreateUser", "err", err, "payload", userInfo)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -148,29 +149,29 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		handler.logger.Errorw("service err, CreateUser", "err", err, "payload", userInfo)
 		if _, ok := err.(*util.ApiError); ok {
-			writeJsonResp(w, err, "User Creation Failed", http.StatusOK)
+			common.WriteJsonResp(w, err, "User Creation Failed", http.StatusOK)
 		} else {
 			handler.logger.Errorw("error on creating new user", "err", err)
-			writeJsonResp(w, err, "", http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		}
 		return
 	}
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var userInfo bean.UserInfo
 	err = decoder.Decode(&userInfo)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateUser", "err", err, "payload", userInfo)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	userInfo.UserId = userId
@@ -182,14 +183,14 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 		for _, filter := range userInfo.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
-					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, "*"); !ok {
-			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}
@@ -199,7 +200,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 		groupRoles, err := handler.roleGroupService.FetchRolesForGroups(userInfo.Groups)
 		if err != nil && err != pg.ErrNoRows {
 			handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
-			writeJsonResp(w, err, "", http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 			return
 		}
 
@@ -227,7 +228,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	err = handler.validator.Struct(userInfo)
 	if err != nil {
 		handler.logger.Errorw("validation err, UpdateUser", "err", err, "payload", userInfo)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -237,16 +238,16 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	res, err := handler.userService.UpdateUser(&userInfo)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
-		writeJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
@@ -254,13 +255,13 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.logger.Errorw("request err, GetById", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	res, err := handler.userService.GetById(int32(id))
 	if err != nil {
 		handler.logger.Errorw("service err, GetById", "err", err, "id", id)
-		writeJsonResp(w, err, "Failed to get by id", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "Failed to get by id", http.StatusInternalServerError)
 		return
 	}
 
@@ -288,30 +289,30 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 			authPass = true
 		}
 		if authPass == false {
-			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}
 	//RBAC enforcer Ends
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
 	res, err := handler.userService.GetAll()
 	if err != nil {
 		handler.logger.Errorw("service err, GetAll", "err", err)
-		writeJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
@@ -319,13 +320,13 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.logger.Errorw("request err, DeleteUser", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.logger.Infow("request payload, DeleteUser", "err", err, "id", id)
 	user, err := handler.userService.GetById(int32(id))
 	if err != nil {
-		writeJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
 
@@ -335,14 +336,14 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 		for _, filter := range user.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionDelete, strings.ToLower(filter.Team)); !ok {
-					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionDelete, ""); !ok {
-			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}
@@ -351,11 +352,11 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	res, err := handler.userService.DeleteUser(user)
 	if err != nil {
 		handler.logger.Errorw("service err, DeleteUser", "err", err, "id", id)
-		writeJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *http.Request) {
@@ -364,13 +365,13 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.logger.Errorw("request err, FetchRoleGroupById", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	res, err := handler.roleGroupService.FetchRoleGroupsById(int32(id))
 	if err != nil {
 		handler.logger.Errorw("service err, FetchRoleGroupById", "err", err, "id", id)
-		writeJsonResp(w, err, "Failed to get by id", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "Failed to get by id", http.StatusInternalServerError)
 		return
 	}
 
@@ -381,7 +382,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 		for _, filter := range res.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionGet, strings.ToLower(filter.Team)); !ok {
-					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
@@ -389,21 +390,21 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 	}
 	//RBAC enforcer Ends
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var request bean.RoleGroup
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, CreateRoleGroup", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	request.UserId = userId
@@ -415,14 +416,14 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 		for _, filter := range request.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionCreate, strings.ToLower(filter.Team)); !ok {
-					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionCreate, "*"); !ok {
-			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}
@@ -430,7 +431,7 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.logger.Errorw("validation err, CreateRoleGroup", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -438,28 +439,28 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 	if err != nil {
 		handler.logger.Errorw("service err, CreateRoleGroup", "err", err, "payload", request)
 		if _, ok := err.(*util.ApiError); ok {
-			writeJsonResp(w, err, nil, http.StatusOK)
+			common.WriteJsonResp(w, err, nil, http.StatusOK)
 		} else {
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}
 		return
 	}
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var request bean.RoleGroup
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateRoleGroup", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	request.UserId = userId
@@ -470,14 +471,14 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 		for _, filter := range request.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, strings.ToLower(filter.Team)); !ok {
-					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionUpdate, "*"); !ok {
-			writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}
@@ -486,39 +487,39 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.logger.Errorw("validation err, UpdateRoleGroup", "err", err, "payload", request)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	res, err := handler.roleGroupService.UpdateRoleGroup(&request)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateRoleGroup", "err", err, "payload", request)
-		writeJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	res, err := handler.roleGroupService.FetchRoleGroups()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchRoleGroups", "err", err)
-		writeJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) FetchRoleGroupsByName(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
@@ -526,17 +527,17 @@ func (handler UserRestHandlerImpl) FetchRoleGroupsByName(w http.ResponseWriter, 
 	res, err := handler.roleGroupService.FetchRoleGroupsByName(userGroupName)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchRoleGroupsByName", "err", err, "userGroupName", userGroupName)
-		writeJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
@@ -544,14 +545,14 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.logger.Errorw("request err, DeleteRoleGroup", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.logger.Infow("request payload, DeleteRoleGroup", "id", id)
 	userGroup, err := handler.roleGroupService.FetchRoleGroupsById(int32(id))
 	if err != nil {
 		handler.logger.Errorw("service err, DeleteRoleGroup", "err", err, "id", id)
-		writeJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
 
@@ -560,7 +561,7 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 		for _, filter := range userGroup.RoleFilters {
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, rbac.ResourceUser, rbac.ActionDelete, strings.ToLower(filter.Team)); !ok {
-					writeJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
 			}
@@ -571,23 +572,23 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 	res, err := handler.roleGroupService.DeleteRoleGroup(userGroup)
 	if err != nil {
 		handler.logger.Errorw("service err, DeleteRoleGroup", "err", err, "id", id)
-		writeJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	roles, err := handler.userService.CheckUserRoles(userId)
 	if err != nil {
 		handler.logger.Errorw("service err, CheckUserRoles", "err", err, "userId", userId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	result := make(map[string]interface{})
@@ -598,30 +599,30 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 			result["superAdmin"] = true
 		}
 	}
-	writeJsonResp(w, err, result, http.StatusOK)
+	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) SyncOrchestratorToCasbin(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	user, err := handler.userService.GetById(userId)
 	if err != nil {
 		handler.logger.Errorw("service err, SyncOrchestratorToCasbin", "err", err, "userId", userId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	if user.EmailId != "admin" {
-		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 	flag, err := handler.userService.SyncOrchestratorToCasbin()
 	if err != nil {
 		handler.logger.Errorw("service err, SyncOrchestratorToCasbin", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, flag, http.StatusOK)
+	common.WriteJsonResp(w, err, flag, http.StatusOK)
 }

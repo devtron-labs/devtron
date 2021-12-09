@@ -3,6 +3,7 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -111,13 +112,13 @@ func (handler BulkUpdateRestHandlerImpl) FindBulkUpdateReadme(w http.ResponseWri
 	operation = fmt.Sprintf("%s/%s", apiVersion, kind)
 	response, err := handler.bulkUpdateService.FindBulkUpdateReadme(operation)
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	//auth free, only login required
 	var responseArr []*pipeline.BulkUpdateSeeExampleResponse
 	responseArr = append(responseArr, response)
-	writeJsonResp(w, nil, responseArr, http.StatusOK)
+	common.WriteJsonResp(w, nil, responseArr, http.StatusOK)
 }
 
 func (handler BulkUpdateRestHandlerImpl) CheckAuthForImpactedObjects(AppId int, EnvId int, appResourceObjects map[int]string, envResourceObjects map[string]string, token string) bool {
@@ -140,41 +141,41 @@ func (handler BulkUpdateRestHandlerImpl) GetImpactedAppsName(w http.ResponseWrit
 	var script pipeline.BulkUpdateScript
 	err := decoder.Decode(&script)
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	err = handler.validator.Struct(script)
 	if err != nil {
 		handler.logger.Errorw("validation err, Script", "err", err, "BulkUpdateScript", script)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
 	impactedApps, err := handler.bulkUpdateService.GetBulkAppName(script.Spec)
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	appResourceObjects, envResourceObjects := handler.enforcerUtil.GetRbacObjectsForAllAppsAndEnvironments()
 	for _, deploymentTemplateImpactedApp := range impactedApps.DeploymentTemplate {
 		ok := handler.CheckAuthForImpactedObjects(deploymentTemplateImpactedApp.AppId, deploymentTemplateImpactedApp.EnvId, appResourceObjects, envResourceObjects, token)
 		if !ok {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
 	}
 	for _, configMapImpactedApp := range impactedApps.ConfigMap {
 		ok := handler.CheckAuthForImpactedObjects(configMapImpactedApp.AppId, configMapImpactedApp.EnvId, appResourceObjects, envResourceObjects, token)
 		if !ok {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
 	}
 	for _, secretImpactedApp := range impactedApps.Secret {
 		ok := handler.CheckAuthForImpactedObjects(secretImpactedApp.AppId, secretImpactedApp.EnvId, appResourceObjects, envResourceObjects, token)
 		if !ok {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
 	}
-	writeJsonResp(w, err, impactedApps, http.StatusOK)
+	common.WriteJsonResp(w, err, impactedApps, http.StatusOK)
 }
 func (handler BulkUpdateRestHandlerImpl) CheckAuthForBulkUpdate(AppId int, EnvId int, AppName string, rbacObjects map[int]string, token string) bool {
 	resourceName := rbacObjects[AppId]
@@ -195,41 +196,41 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *ht
 	var script pipeline.BulkUpdateScript
 	err := decoder.Decode(&script)
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	err = handler.validator.Struct(script)
 	if err != nil {
 		handler.logger.Errorw("validation err, Script", "err", err, "BulkUpdateScript", script)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
 	impactedApps, err := handler.bulkUpdateService.GetBulkAppName(script.Spec)
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, deploymentTemplateImpactedApp := range impactedApps.DeploymentTemplate {
 		ok := handler.CheckAuthForBulkUpdate(deploymentTemplateImpactedApp.AppId, deploymentTemplateImpactedApp.EnvId, deploymentTemplateImpactedApp.AppName, rbacObjects, token)
 		if !ok {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
 	}
 	for _, configMapImpactedApp := range impactedApps.ConfigMap {
 		ok := handler.CheckAuthForBulkUpdate(configMapImpactedApp.AppId, configMapImpactedApp.EnvId, configMapImpactedApp.AppName, rbacObjects, token)
 		if !ok {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
 	}
 	for _, secretImpactedApp := range impactedApps.Secret {
 		ok := handler.CheckAuthForBulkUpdate(secretImpactedApp.AppId, secretImpactedApp.EnvId, secretImpactedApp.AppName, rbacObjects, token)
 		if !ok {
-			writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		}
 	}
 
 	response := handler.bulkUpdateService.BulkUpdate(script.Spec)
-	writeJsonResp(w, nil, response, http.StatusOK)
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }

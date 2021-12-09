@@ -19,6 +19,7 @@ package router
 
 import (
 	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/gorilla/mux"
 )
 
@@ -27,14 +28,14 @@ type WebhookRouter interface {
 }
 
 type WebhookRouterImpl struct {
-	gitWebhookRestHandler   restHandler.GitWebhookRestHandler
-	pipelineRestHandler     restHandler.PipelineConfigRestHandler
-	externalCiRestHandler   restHandler.ExternalCiRestHandler
+	gitWebhookRestHandler restHandler.GitWebhookRestHandler
+	pipelineRestHandler   app.PipelineConfigRestHandler
+	externalCiRestHandler restHandler.ExternalCiRestHandler
 	pubSubClientRestHandler restHandler.PubSubClientRestHandler
 }
 
 func NewWebhookRouterImpl(gitWebhookRestHandler restHandler.GitWebhookRestHandler,
-	pipelineRestHandler restHandler.PipelineConfigRestHandler, externalCiRestHandler restHandler.ExternalCiRestHandler,
+	pipelineRestHandler app.PipelineConfigRestHandler, externalCiRestHandler restHandler.ExternalCiRestHandler,
 	pubSubClientRestHandler restHandler.PubSubClientRestHandler) *WebhookRouterImpl {
 	return &WebhookRouterImpl{
 		gitWebhookRestHandler:   gitWebhookRestHandler,

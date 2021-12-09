@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -77,14 +78,14 @@ func (impl TeamRestHandlerImpl) SaveTeam(w http.ResponseWriter, r *http.Request)
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var bean team.TeamRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveTeam", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
@@ -92,22 +93,22 @@ func (impl TeamRestHandlerImpl) SaveTeam(w http.ResponseWriter, r *http.Request)
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, SaveTeam", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceTeam, rbac.ActionCreate, "*"); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
 	res, err := impl.teamService.Create(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, SaveTeam", "err", err, "payload", bean)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request) {
@@ -115,7 +116,7 @@ func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request)
 	res, err := impl.teamService.FetchAllActive()
 	if err != nil {
 		impl.logger.Errorw("service err, FetchAllActive", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	// RBAC enforcer applying
@@ -127,7 +128,7 @@ func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request)
 	}
 	//RBAC enforcer Ends
 
-	writeJsonResp(w, err, result, http.StatusOK)
+	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
 func (impl TeamRestHandlerImpl) FetchOne(w http.ResponseWriter, r *http.Request) {
@@ -136,38 +137,38 @@ func (impl TeamRestHandlerImpl) FetchOne(w http.ResponseWriter, r *http.Request)
 	idi, err := strconv.Atoi(id)
 	if err != nil {
 		impl.logger.Errorw("request err, FetchOne", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	res, err := impl.teamService.FetchOne(idi)
 	if err != nil {
 		impl.logger.Errorw("service err, FetchOne", "err", err, "id", idi)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceTeam, rbac.ActionGet, strings.ToLower(res.Name)); !ok {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var bean team.TeamRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateTeam", "err", err, "bean", bean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
@@ -175,21 +176,21 @@ func (impl TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Reques
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, UpdateTeam", "err", err, "bean", bean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, rbac.ResourceTeam, rbac.ActionUpdate, strings.ToLower(bean.Name)); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	res, err := impl.teamService.Update(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, UpdateTeam", "err", err, "bean", bean)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (impl TeamRestHandlerImpl) FindTeamByAppId(w http.ResponseWriter, r *http.Request) {
@@ -197,18 +198,18 @@ func (impl TeamRestHandlerImpl) FindTeamByAppId(w http.ResponseWriter, r *http.R
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		impl.logger.Errorw("request err, FindTeamByAppId", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	team, err := impl.teamService.FindTeamByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("service err, FindTeamByAppId", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, team, http.StatusOK)
+	common.WriteJsonResp(w, err, team, http.StatusOK)
 }
 
 func (impl TeamRestHandlerImpl) FindActiveTeamByAppName(w http.ResponseWriter, r *http.Request) {
@@ -217,23 +218,23 @@ func (impl TeamRestHandlerImpl) FindActiveTeamByAppName(w http.ResponseWriter, r
 	team, err := impl.teamService.FindActiveTeamByAppName(appName)
 	if err != nil {
 		impl.logger.Errorw("service err, FindActiveTeamByAppName", "err", err, "appName", appName)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, team, http.StatusOK)
+	common.WriteJsonResp(w, err, team, http.StatusOK)
 }
 
 func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	teams, err := impl.teamService.FetchForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("service err, FetchForAutocomplete", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	token := r.Header.Get("token")
@@ -248,20 +249,20 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 	if len(grantedTeams) == 0 {
 		grantedTeams = make([]team.TeamRequest, 0)
 	}
-	writeJsonResp(w, err, grantedTeams, http.StatusOK)
+	common.WriteJsonResp(w, err, grantedTeams, http.StatusOK)
 }
 
 func (impl TeamRestHandlerImpl) FetchForUser(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	teams, err := impl.teamService.FindTeamsByUser(int32(userId))
 	if err != nil {
 		impl.logger.Errorw("service err, FetchForUser", "err", err, "userId", userId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, teams, http.StatusOK)
+	common.WriteJsonResp(w, err, teams, http.StatusOK)
 }
