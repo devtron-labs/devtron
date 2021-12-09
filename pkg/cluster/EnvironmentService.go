@@ -57,8 +57,8 @@ type EnvironmentService interface {
 }
 
 type EnvironmentServiceImpl struct {
-	environmentRepository repository.EnvironmentRepository
-	logger                *zap.SugaredLogger
+	environmentRepository   repository.EnvironmentRepository
+	logger                  *zap.SugaredLogger
 	clusterService          ClusterService
 	K8sUtil                 *util.K8sUtil
 	propertiesConfigService pipeline.PropertiesConfigService
