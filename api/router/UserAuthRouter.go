@@ -18,17 +18,16 @@
 package router
 
 import (
-	"fmt"
 	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/devtron-labs/authenticator/client"
+	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net"
 	"net/http"
-	"time"
+	"strings"
 )
 
 type UserAuthRouter interface {
@@ -40,46 +39,34 @@ type UserAuthRouterImpl struct {
 	userAuthHandler restHandler.UserAuthHandler
 	cdProxy         func(writer http.ResponseWriter, request *http.Request)
 	dexProxy        func(writer http.ResponseWriter, request *http.Request)
+	clientApp       *oidc.ClientApp
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandler.UserAuthHandler, cdCfg *argocdServer.Config, dexCfg *dex.Config, settings *settings.ArgoCDSettings, userService user.UserService) *UserAuthRouterImpl {
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandler.UserAuthHandler, settings *settings.ArgoCDSettings, userService user.UserService, dexConfig *client.DexConfig) (*UserAuthRouterImpl, error) {
 	tlsConfig := settings.TLSConfig()
 	if tlsConfig != nil {
 		tlsConfig.InsecureSkipVerify = true
 	}
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-	}
-	dexClient := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-	}
-	dexProxy := argocdServer.NewDexHTTPReverseProxy(fmt.Sprintf("%s:%s", dexCfg.Host, dexCfg.Port), dexClient.Transport)
-	cdProxy := argocdServer.NewCDHTTPReverseProxy(fmt.Sprintf("https://%s:%s", cdCfg.Host, cdCfg.Port), client.Transport, userService.GetUserByToken)
 	router := &UserAuthRouterImpl{
 		userAuthHandler: userAuthHandler,
-		cdProxy:         cdProxy,
-		dexProxy:        dexProxy,
 		logger:          logger,
 	}
-	return router
+	logger.Infow("auth starting with dex conf", "conf", dexConfig)
+	oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, userService.UserExists, router.RedirectUrlSanitiser)
+	if err != nil {
+		return nil, err
+	}
+	router.dexProxy = dexProxy
+	router.clientApp = oidcClient
+	return router, nil
+}
+
+// RedirectUrlSanitiser replaces initial "/orchestrator" from url
+func (router UserAuthRouterImpl) RedirectUrlSanitiser(redirectUrl string) string {
+	if strings.Contains(redirectUrl, argocdServer.Dashboard) {
+		redirectUrl = strings.ReplaceAll(redirectUrl, argocdServer.Orchestrator, "")
+	}
+	return redirectUrl
 }
 
 func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) {
@@ -89,10 +76,9 @@ func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) 
 		}).Methods("GET")
 
 	userAuthRouter.PathPrefix("/api/dex").HandlerFunc(router.dexProxy)
-	userAuthRouter.Path("/login").HandlerFunc(router.cdProxy)
-	userAuthRouter.Path("/auth/login").HandlerFunc(router.cdProxy)
-	userAuthRouter.PathPrefix("/auth/callback").HandlerFunc(router.cdProxy)
-
+	userAuthRouter.Path("/login").HandlerFunc(router.clientApp.HandleLogin)
+	userAuthRouter.Path("/auth/login").HandlerFunc(router.clientApp.HandleLogin)
+	userAuthRouter.Path("/auth/callback").HandlerFunc(router.clientApp.HandleCallback)
 	userAuthRouter.Path("/api/v1/session").HandlerFunc(router.userAuthHandler.LoginHandler)
 	userAuthRouter.Path("/refresh").HandlerFunc(router.userAuthHandler.RefreshTokenHandler)
 	// Policies mapping in orchestrator

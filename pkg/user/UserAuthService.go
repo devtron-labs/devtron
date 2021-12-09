@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/authenticator/middleware"
 	"log"
 	"math/rand"
 	"net/http"
@@ -55,11 +56,11 @@ type UserAuthService interface {
 }
 
 type UserAuthServiceImpl struct {
-	sessionManager     *session.SessionManager
 	userAuthRepository repository.UserAuthRepository
 	sessionClient      session2.ServiceClient
 	logger             *zap.SugaredLogger
 	userRepository     repository.UserRepository
+	sessionManager     *middleware.SessionManager
 }
 
 var (
@@ -102,7 +103,7 @@ type WebhookToken struct {
 	WebhookToken string `env:"WEBHOOK_TOKEN" envDefault:""`
 }
 
-func NewUserAuthServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
+func NewUserAuthServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager     *middleware.SessionManager,
 	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
 ) *UserAuthServiceImpl {
 	serviceImpl := &UserAuthServiceImpl{
@@ -366,7 +367,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 			config := auth.GetConfig()
 			authEnabled = config.AuthEnabled
 
-			if token != "" && authEnabled && !contains(r.URL.Path) {
+			if token != "" && authEnabled && !WhitelistChecker(r.URL.Path) {
 				_, err := sessionManager.VerifyToken(token)
 				if err != nil {
 					log.Printf("Error verifying token: %+v\n", err)
@@ -379,7 +380,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 			}
 			if pass {
 				next.ServeHTTP(w, r)
-			} else if contains(r.URL.Path) {
+			} else if WhitelistChecker(r.URL.Path) {
 				if r.URL.Path == "/app/ci-pipeline/github-webhook/trigger" {
 					apiKey := r.Header.Get("api-key")
 					t, err := GetWebhookToken()
@@ -403,7 +404,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 	}
 }
 
-func contains(url string) bool {
+func WhitelistChecker(url string) bool {
 	urls := []string{
 		"/health",
 		"/metrics",

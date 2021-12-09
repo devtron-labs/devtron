@@ -683,6 +683,8 @@ func InitializeApp() (*App, error) {
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
+
+		AuthWireSet,
 	)
 	return &App{}, nil
 }
