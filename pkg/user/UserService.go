@@ -19,12 +19,12 @@ package user
 
 import (
 	"fmt"
+	"github.com/devtron-labs/authenticator/middleware"
 	"net/http"
 	"strings"
 	"time"
 
 	jwt2 "github.com/argoproj/argo-cd/util/jwt"
-	"github.com/argoproj/argo-cd/util/session"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	casbin2 "github.com/devtron-labs/devtron/internal/casbin"
@@ -50,27 +50,34 @@ type UserService interface {
 	GetUserByToken(token string) (int32, error)
 	IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
+	UserExists(emailId string) bool
 }
 
 type UserServiceImpl struct {
-	sessionManager      *session.SessionManager
+	//	sessionManager      *session.SessionManager
 	userAuthRepository  repository.UserAuthRepository
 	sessionClient       session2.ServiceClient
 	logger              *zap.SugaredLogger
 	userRepository      repository.UserRepository
 	roleGroupRepository repository.RoleGroupRepository
+	sessionManager2     *middleware.SessionManager
 }
 
-func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
-	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
-	userGroupRepository repository.RoleGroupRepository) *UserServiceImpl {
+func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
+	//sessionManager *session.SessionManager,
+	client session2.ServiceClient,
+	logger *zap.SugaredLogger,
+	userRepository repository.UserRepository,
+	userGroupRepository repository.RoleGroupRepository,
+	sessionManager2 *middleware.SessionManager) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
-		userAuthRepository:  userAuthRepository,
-		sessionManager:      sessionManager,
+		userAuthRepository: userAuthRepository,
+		//	sessionManager:      sessionManager,
 		sessionClient:       client,
 		logger:              logger,
 		userRepository:      userRepository,
 		roleGroupRepository: userGroupRepository,
+		sessionManager2:     sessionManager2,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -768,6 +775,20 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 	return response, nil
 }
 
+func (impl UserServiceImpl) UserExists(emailId string) bool {
+	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return false
+	}
+	if model.Id == 0 {
+		impl.logger.Errorw("no user found ", "email", emailId)
+		return false
+	} else {
+		return true
+	}
+}
+
 func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, error) {
 	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
 	if err != nil {
@@ -814,7 +835,9 @@ func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
 		return http.StatusUnauthorized, err
 	}
 
-	claims, err := impl.sessionManager.VerifyToken(token)
+	//claims, err := impl.sessionManager.VerifyToken(token)
+	claims, err := impl.sessionManager2.VerifyToken(token)
+
 	if err != nil {
 		impl.logger.Errorw("failed to verify token", "error", err)
 		err := &util.ApiError{

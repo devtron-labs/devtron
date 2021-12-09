@@ -672,7 +672,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.BulkUpdateRestHandler), new(*restHandler.BulkUpdateRestHandlerImpl)),
 
 		router.NewCoreAppRouterImpl,
-		wire.Bind(new(router.CoreAppRouter),new(*router.CoreAppRouterImpl)),
+		wire.Bind(new(router.CoreAppRouter), new(*router.CoreAppRouterImpl)),
 		restHandler.NewCoreAppRestHandlerImpl,
 		wire.Bind(new(restHandler.CoreAppRestHandler), new(*restHandler.CoreAppRestHandlerImpl)),
 
@@ -708,6 +708,8 @@ func InitializeApp() (*App, error) {
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
+
+		AuthWireSet,
 	)
 	return &App{}, nil
 }

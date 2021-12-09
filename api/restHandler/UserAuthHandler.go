@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"net/http"
 	"strings"
@@ -53,15 +54,31 @@ type UserAuthHandlerImpl struct {
 	natsClient      *pubsub.PubSubClient
 	userService     user.UserService
 	ssoLoginService sso.SSOLoginService
+	loginService    *middleware.LoginService
 }
 
 const POLICY_UPDATE_TOPIC = "Policy.Update"
 
-func NewUserAuthHandlerImpl(userAuthService user.UserAuthService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService,
-	ssoLoginService sso.SSOLoginService) *UserAuthHandlerImpl {
-	userAuthHandler := &UserAuthHandlerImpl{userAuthService: userAuthService, validator: validator, logger: logger,
-		enforcer: enforcer, natsClient: natsClient, userService: userService, ssoLoginService: ssoLoginService}
+func NewUserAuthHandlerImpl(
+	userAuthService user.UserAuthService,
+	validator *validator.Validate,
+	logger *zap.SugaredLogger,
+	enforcer rbac.Enforcer,
+	natsClient *pubsub.PubSubClient,
+	userService user.UserService,
+	ssoLoginService sso.SSOLoginService,
+	loginService *middleware.LoginService,
+) *UserAuthHandlerImpl {
+	userAuthHandler := &UserAuthHandlerImpl{
+		userAuthService: userAuthService,
+		validator:       validator,
+		logger:          logger,
+		enforcer:        enforcer,
+		natsClient:      natsClient,
+		userService:     userService,
+		ssoLoginService: ssoLoginService,
+		loginService:    loginService,
+	}
 
 	err := userAuthHandler.Subscribe()
 	if err != nil {
@@ -86,7 +103,7 @@ func (handler UserAuthHandlerImpl) LoginHandler(w http.ResponseWriter, r *http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	//token, err := handler.loginService.CreateLoginSession(up.Username, up.Password)
 	token, err := handler.userAuthService.HandleLogin(up.Username, up.Password)
 	if err != nil {
 		common.WriteJsonResp(w, fmt.Errorf("invalid username or password"), nil, http.StatusForbidden)
