@@ -1,6 +1,25 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+kind: Job
+
+jobConfigs:
+  backoffLimit: 5
+  activeDeadlineSeconds: 100
+  parallelism: 1
+  completions: 2
+  suspend: false
+  ttlSecondsAfterFinished: 100
+
+cronjobConfigs:
+  schedule: "* * * * *"
+  startingDeadlineSeconds: 100
+  concurrencyPolicy: Allow
+  suspend: false
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  restartPolicy: OnFailure
+
 imagePullSecrets:
   - test1
   - test2
@@ -189,9 +208,10 @@ dbMigrationConfig:
   enabled: false
 
 command:
-  enabled: false
-  value: []
-
+  enabled: true
+  value:
+    - /bin/sh
+    
 args:
   enabled: false
   value: []
@@ -208,13 +228,13 @@ resources:
     cpu: 0.10
     memory: 100Mi
 
-volumeMounts: []
-#     - name: log-volume
-#       mountPath: /var/log
+volumeMounts:
+  - name: log-volume
+    mountPath: /var/log
 
-volumes: []
-#     - name: log-volume
-#       emptyDir: {}
+volumes:
+  - name: log-volume
+    emptyDir: {}
 
 
 nodeSelector: {}
@@ -226,23 +246,25 @@ orchestrator.deploymant.algo: 1
 ConfigMaps:
   enabled: false
   maps: []
-#  - name: config-map-1
-#    type: environment
-#    external: false
-#    data:
-#     key1: key1value-1
-#     key2: key2value-1
-#     key3: key3value-1
-#  - name: config-map-2
-#    type: volume
-#    external: false
-#    mountPath: /etc/config/2
-#    data:
-#     key1: |
-#      club : manchester utd
-#      nation : england
-#     key2: abc-2
-#     key3: abc-2
+  # - name: config-map-1
+  #   type: environment
+  #   external: false
+  #   data:
+  #     key1: key1value-1
+  #     key2: key2value-1
+  #     key3: key3value-1
+  # - name: config-map-2
+  #   type: volume
+  #   external: false
+  #   mountPath: /etc/config/2
+  #   subPath: false
+  #   filePermission: "777"
+  #   data:
+  #     key1: |
+  #       club : manchester utd
+  #       nation : england
+  #     key2: abc-2
+  #     key3: abc-2
 #  - name: config-map-3
 #    type: environment
 #    external: true
@@ -258,25 +280,69 @@ ConfigMaps:
 ConfigSecrets:
   enabled: false
   secrets: []
-#  - name: config-secret-1
-#    type: environment
-#    external: false
-#    data:
-#     key1: key1value-1
-#     key2: key2value-1
-#     key3: key3value-1
-#  - name: config-secret-2
-#    type: volume
-#    external: false
-#    mountPath: /etc/config/2
-#    data:
-#     key1: |
-#      club : manchester utd
-#      nation : england
-#     key2: abc-2
+  # - name: config-secret-1
+  #   type: environment
+  #   external: false
+  #   data:
+  #     key1: key1value-1
+  #     key2: key2value-1
+  #     key3: key3value-1
+  # - name: config-secret-2
+  #   type: volume
+  #   external: false
+  #   mountPath: /etc/config/2
+  #   subPath: false
+  #   filePermission: "777"
+  #   data:
+  #     key1: |
+  #       club : manchester utd
+  #       nation : england
+  #     key2: abc-2
+  #     key3: abc-2
 
 
-initContainers: 
+initContainers:
+  ## Additional init containers to run before the Scheduler pods.
+  ## for example, be used to run a sidecar that chown Logs storage.
+  ## If reuse container image is set as true, you cannot specify an addition init container along with the image.
+  # - reuseContainerImage: true
+  #   volumeMounts:
+  #     - mountPath: /etc/ls-oms
+  #       name: ls-oms-cm-vol
+  #   command:
+  #     - flyway
+  #     - -configFiles=/etc/ls-oms/flyway.conf
+  #     - migrate
+
+  # - name: volume-mount-hack
+  #   image: busybox
+  #   command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #   volumeMounts:
+  #    - mountPath: /usr/local/airflow/logs
+  #      name: logs-data
+  #   resources:
+  #     limits:
+  #       cpu: 50m
+  #       memory: 100Mi
+  #     requests:
+  #       cpu: 10m
+  #       memory: 50Mi
+
+  - name: volume-mount-hack2
+    image: busybox
+    command: ["sh", "-c", "chown -R 1000:1000 logs"]
+    volumeMounts:
+     - mountPath: /usr/local/airflow/logs
+       name: logs-data
+    resources:
+      limits:
+        cpu: 50m
+        memory: 100Mi
+      requests:
+        cpu: 10m
+        memory: 50Mi
+
+containers:
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
   # - name: volume-mount-hack
@@ -285,16 +351,6 @@ initContainers:
   #   volumeMounts:
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
-
-containers: []
-  ## Additional init containers to run before the Scheduler pods.
-  ## for example, be used to run a sidecar that chown Logs storage .
-  #- name: volume-mount-hack
-  #  image: busybox
-  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
-  #  volumeMounts:
-  #    - mountPath: /usr/local/airflow/logs
-#      name: logs-data
 
 
 rawYaml: []
@@ -355,9 +411,15 @@ podDisruptionBudget: {}
 ##
 
 tolerations: []
-  #  - key: "key"
-  #    operator: "Equal|Exists"
-  #    value: "value"
-#    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
+  # - key: "key"
+  #   operator: "Equal|Exists"
+  #   value: "value"
+  #   effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 
 appMetrics: false
+
+podAnnotations:
+  fluentbit.io/exclude: true
+
+podLabels:
+  severity: critical
