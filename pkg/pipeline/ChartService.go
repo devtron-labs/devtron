@@ -810,6 +810,7 @@ func (impl ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId i
 type chartRef struct {
 	Id      int    `json:"id"`
 	Version string `json:"version"`
+	Name    string `json:"name"`
 }
 
 type chartRefResponse struct {
@@ -845,17 +846,20 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 
 	var LatestAppChartRef int
 	for _, result := range results {
-		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version})
+		if len(result.Name) == 0 {
+			result.Name = "Rollout Deployment"
+		}
+		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name})
 		if result.Default == true {
 			LatestAppChartRef = result.Id
 		}
 	}
-
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching latest chart", "err", err)
 		return chartRefResponse, err
 	}
+
 	if envId > 0 {
 		envOverride, err := impl.envOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
 		if err != nil && !errors.IsNotFound(err) {
@@ -1047,13 +1051,17 @@ const memory = "memory"
 
 func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error) {
 	schemajson, err := impl.JsonSchemaExtractFromFile(chartRefId)
-	if err != nil && chartRefId >= 9 {
-		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
-		return false, err
-	} else if err != nil {
+	if err != nil {
 		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
 		return true, nil
 	}
+	//if err != nil && chartRefId >= 9 {
+	//	impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
+	//	return false, err
+	//} else if err != nil {
+	//	impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
+	//	return true, nil
+	//}
 	schemaLoader := gojsonschema.NewGoLoader(schemajson)
 	documentLoader := gojsonschema.NewGoLoader(templatejson)
 	marshalTemplatejson, err := json.Marshal(templatejson)
