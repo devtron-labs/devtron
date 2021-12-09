@@ -76,7 +76,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/terminal"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -112,9 +111,7 @@ func InitializeApp() (*App, error) {
 		session.CDSettingsManager,
 		session.SessionManager,
 		//auth.GetConfig,
-		casbin.Create,
-		casbin.NewEnforcerImpl,
-		wire.Bind(new(casbin.Enforcer), new(*casbin.EnforcerImpl)),
+
 		dex.GetConfig,
 		argocdServer.GetConfig,
 		session2.NewSessionServiceClient,

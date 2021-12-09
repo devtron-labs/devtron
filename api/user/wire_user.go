@@ -2,6 +2,7 @@ package user
 
 import (
 	user2 "github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/google/wire"
 )
@@ -30,4 +31,10 @@ var UserWireSet = wire.NewSet(
 	wire.Bind(new(user2.RoleGroupService), new(*user2.RoleGroupServiceImpl)),
 	repository4.NewRoleGroupRepositoryImpl,
 	wire.Bind(new(repository4.RoleGroupRepository), new(*repository4.RoleGroupRepositoryImpl)),
+
+
+	casbin.NewEnforcerImpl,
+	wire.Bind(new(casbin.Enforcer), new(*casbin.EnforcerImpl)),
+	casbin.Create,
+
 )
