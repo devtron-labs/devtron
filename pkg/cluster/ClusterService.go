@@ -79,26 +79,24 @@ type ClusterService interface {
 }
 
 type ClusterServiceImpl struct {
-	clusterRepository              repository.ClusterRepository
-	environmentRepository          repository.EnvironmentRepository
-	grafanaClient                  grafana.GrafanaClient
-	logger                         *zap.SugaredLogger
-	installedAppRepository         appstore.InstalledAppRepository
-	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository
-	K8sUtil                        *util.K8sUtil
+	clusterRepository      repository.ClusterRepository
+	environmentRepository  repository.EnvironmentRepository
+	grafanaClient          grafana.GrafanaClient
+	logger                 *zap.SugaredLogger
+	installedAppRepository appstore.InstalledAppRepository
+	K8sUtil                *util.K8sUtil
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository appstore.InstalledAppRepository,
-	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository, K8sUtil *util.K8sUtil) *ClusterServiceImpl {
+	K8sUtil *util.K8sUtil) *ClusterServiceImpl {
 	return &ClusterServiceImpl{
-		clusterRepository:              repository,
-		logger:                         logger,
-		environmentRepository:          environmentRepository,
-		grafanaClient:                  grafanaClient,
-		installedAppRepository:         installedAppRepository,
-		clusterInstalledAppsRepository: clusterInstalledAppsRepository,
-		K8sUtil:                        K8sUtil,
+		clusterRepository:      repository,
+		logger:                 logger,
+		environmentRepository:  environmentRepository,
+		grafanaClient:          grafanaClient,
+		installedAppRepository: installedAppRepository,
+		K8sUtil:                K8sUtil,
 	}
 }
 
