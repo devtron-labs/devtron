@@ -1,3 +1,20 @@
+/*
+ * Copyright (c) 2021 Devtron Labs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package client
 
 import (
@@ -31,6 +48,7 @@ func GetSettings(conf *DexConfig) (*oidc.Settings, error) {
 			Issuer:       proxyUrl,
 			ServerSecret: conf.ServerSecret},
 		UserSessionDuration: time.Duration(conf.UserSessionDurationSeconds) * time.Second,
+		AdminPasswordMtime:  conf.AdminPasswordMtime,
 	}
 	return settings, nil
 }
@@ -67,7 +85,8 @@ type DexConfig struct {
 	DexClientSecret  string
 	ServerSecret     string
 	// Specifies token expiration duration
-	UserSessionDurationSeconds int `env:"USER_SESSION_DURATION_SECONDS" envDefault:"86400"`
+	UserSessionDurationSeconds int       `env:"USER_SESSION_DURATION_SECONDS" envDefault:"86400"`
+	AdminPasswordMtime         time.Time `json:"ADMIN_PASSWORD_MTIME"`
 }
 
 func (c *DexConfig) getDexProxyUrl() (string, error) {
