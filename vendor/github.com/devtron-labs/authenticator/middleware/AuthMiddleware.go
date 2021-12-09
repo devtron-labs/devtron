@@ -29,8 +29,6 @@ import (
 func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string) bool) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			//var users []string
-			fmt.Println("requestUrl: " + r.URL.Path)
 			cookie, _ := r.Cookie("argocd.token")
 			token := ""
 			if cookie != nil {
