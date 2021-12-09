@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/team"
+	"github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -271,10 +272,10 @@ func InitializeApp() (*App, error) {
 		router.NewApplicationRouterImpl,
 		wire.Bind(new(router.ApplicationRouter), new(*router.ApplicationRouterImpl)),
 		//app.GetConfig,
-		router.NewUserAuthRouterImpl,
-		wire.Bind(new(router.UserAuthRouter), new(*router.UserAuthRouterImpl)),
-		restHandler.NewUserAuthHandlerImpl,
-		wire.Bind(new(restHandler.UserAuthHandler), new(*restHandler.UserAuthHandlerImpl)),
+		user.NewUserAuthRouterImpl,
+		wire.Bind(new(user.UserAuthRouter), new(*user.UserAuthRouterImpl)),
+		user.NewUserAuthHandlerImpl,
+		wire.Bind(new(user.UserAuthHandler), new(*user.UserAuthHandlerImpl)),
 		user2.NewUserAuthServiceImpl,
 		wire.Bind(new(user2.UserAuthService), new(*user2.UserAuthServiceImpl)),
 		repository4.NewUserAuthRepositoryImpl,
@@ -378,10 +379,10 @@ func InitializeApp() (*App, error) {
 		pubsub.NewCiEventHandlerImpl,
 		wire.Bind(new(pubsub.CiEventHandler), new(*pubsub.CiEventHandlerImpl)),
 
-		router.NewUserRouterImpl,
-		wire.Bind(new(router.UserRouter), new(*router.UserRouterImpl)),
-		restHandler.NewUserRestHandlerImpl,
-		wire.Bind(new(restHandler.UserRestHandler), new(*restHandler.UserRestHandlerImpl)),
+		user.NewUserRouterImpl,
+		wire.Bind(new(user.UserRouter), new(*user.UserRouterImpl)),
+		user.NewUserRestHandlerImpl,
+		wire.Bind(new(user.UserRestHandler), new(*user.UserRestHandlerImpl)),
 		user2.NewUserServiceImpl,
 		wire.Bind(new(user2.UserService), new(*user2.UserServiceImpl)),
 		repository4.NewUserRepositoryImpl,

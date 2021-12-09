@@ -15,7 +15,7 @@
  *
  */
 
-package restHandler
+package user
 
 import (
 	"encoding/json"
@@ -26,7 +26,6 @@ import (
 	"strings"
 
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -64,14 +63,13 @@ type UserRestHandlerImpl struct {
 	validator        *validator.Validate
 	logger           *zap.SugaredLogger
 	enforcer         rbac.Enforcer
-	natsClient       *pubsub.PubSubClient
 	roleGroupService user.RoleGroupService
 }
 
 func NewUserRestHandlerImpl(userService user.UserService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer rbac.Enforcer, natsClient *pubsub.PubSubClient, roleGroupService user.RoleGroupService) *UserRestHandlerImpl {
+	logger *zap.SugaredLogger, enforcer rbac.Enforcer, roleGroupService user.RoleGroupService) *UserRestHandlerImpl {
 	userAuthHandler := &UserRestHandlerImpl{userService: userService, validator: validator, logger: logger,
-		enforcer: enforcer, natsClient: natsClient, roleGroupService: roleGroupService}
+		enforcer: enforcer, roleGroupService: roleGroupService}
 	return userAuthHandler
 }
 

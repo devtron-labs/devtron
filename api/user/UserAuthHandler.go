@@ -15,26 +15,20 @@
  *
  */
 
-package restHandler
+package user
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/authenticator/middleware"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"net/http"
-	"strings"
-
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/casbin"
-	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
-	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"net/http"
+	"strings"
 )
 
 type UserAuthHandler interface {
@@ -42,7 +36,6 @@ type UserAuthHandler interface {
 	CallbackHandler(w http.ResponseWriter, r *http.Request)
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
 	AddDefaultPolicyAndRoles(w http.ResponseWriter, r *http.Request)
-	Subscribe() error
 	AuthVerification(w http.ResponseWriter, r *http.Request)
 }
 
@@ -50,40 +43,16 @@ type UserAuthHandlerImpl struct {
 	userAuthService user.UserAuthService
 	validator       *validator.Validate
 	logger          *zap.SugaredLogger
-	enforcer        rbac.Enforcer
-	natsClient      *pubsub.PubSubClient
-	userService     user.UserService
-	ssoLoginService sso.SSOLoginService
-	loginService    *middleware.LoginService
 }
-
-const POLICY_UPDATE_TOPIC = "Policy.Update"
 
 func NewUserAuthHandlerImpl(
 	userAuthService user.UserAuthService,
 	validator *validator.Validate,
-	logger *zap.SugaredLogger,
-	enforcer rbac.Enforcer,
-	natsClient *pubsub.PubSubClient,
-	userService user.UserService,
-	ssoLoginService sso.SSOLoginService,
-	loginService *middleware.LoginService,
-) *UserAuthHandlerImpl {
+	logger *zap.SugaredLogger) *UserAuthHandlerImpl {
 	userAuthHandler := &UserAuthHandlerImpl{
 		userAuthService: userAuthService,
 		validator:       validator,
 		logger:          logger,
-		enforcer:        enforcer,
-		natsClient:      natsClient,
-		userService:     userService,
-		ssoLoginService: ssoLoginService,
-		loginService:    loginService,
-	}
-
-	err := userAuthHandler.Subscribe()
-	if err != nil {
-		logger.Errorw("subscribe err, POLICY_UPDATE_TOPIC", "err", err)
-		return nil
 	}
 	return userAuthHandler
 }
@@ -121,18 +90,6 @@ func (handler UserAuthHandlerImpl) CallbackHandler(w http.ResponseWriter, r *htt
 
 func (handler UserAuthHandlerImpl) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	handler.userAuthService.HandleRefresh(w, r)
-}
-
-func (handler UserAuthHandlerImpl) Subscribe() error {
-	_, err := handler.natsClient.Conn.Subscribe(POLICY_UPDATE_TOPIC, func(msg *stan.Msg) {
-		handler.logger.Debugw("msg received by subscriber for - Policy Load", "msg", msg)
-		casbin.LoadPolicy()
-	})
-	if err != nil {
-		handler.logger.Errorw("subscribe err, POLICY_UPDATE_TOPIC", "err", err)
-		return err
-	}
-	return nil
 }
 
 func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWriter, r *http.Request) {

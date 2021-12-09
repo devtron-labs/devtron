@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/team"
+	"github.com/devtron-labs/devtron/api/user"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/terminal"
@@ -40,9 +41,9 @@ type MuxRouter struct {
 	EnvironmentClusterMappingsRouter EnvironmentRouter
 	AppListingRouter                 AppListingRouter
 	ClusterRouter                    ClusterRouter
-	WebHookRouter                    WebhookRouter
-	UserAuthRouter                   UserAuthRouter
-	ApplicationRouter                ApplicationRouter
+	WebHookRouter     WebhookRouter
+	UserAuthRouter    user.UserAuthRouter
+	ApplicationRouter ApplicationRouter
 	CDRouter                         CDRouter
 	ProjectManagementRouter          ProjectManagementRouter
 	GitProviderRouter                GitProviderRouter
@@ -50,9 +51,9 @@ type MuxRouter struct {
 	DockerRegRouter                  DockerRegRouter
 	NotificationRouter               NotificationRouter
 	TeamRouter                       team.TeamRouter
-	pubsubClient                     *pubsub2.PubSubClient
-	UserRouter                       UserRouter
-	gitWebhookHandler                pubsub.GitWebhookHandler
+	pubsubClient      *pubsub2.PubSubClient
+	UserRouter        user.UserRouter
+	gitWebhookHandler pubsub.GitWebhookHandler
 	workflowUpdateHandler            pubsub.WorkflowStatusUpdateHandler
 	appUpdateHandler                 pubsub.ApplicationStatusUpdateHandler
 	ciEventHandler                   pubsub.CiEventHandler
@@ -84,7 +85,7 @@ type MuxRouter struct {
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
 	MigrateDbRouter MigrateDbRouter, AppListingRouter AppListingRouter,
 	EnvironmentClusterMappingsRouter EnvironmentRouter, ClusterRouter ClusterRouter,
-	WebHookRouter WebhookRouter, UserAuthRouter UserAuthRouter, ApplicationRouter ApplicationRouter,
+	WebHookRouter WebhookRouter, UserAuthRouter user.UserAuthRouter, ApplicationRouter ApplicationRouter,
 	CDRouter CDRouter, ProjectManagementRouter ProjectManagementRouter,
 	GitProviderRouter GitProviderRouter, GitHostRouter GitHostRouter,
 	DockerRegRouter DockerRegRouter,
@@ -93,7 +94,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	gitWebhookHandler pubsub.GitWebhookHandler,
 	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
 	appUpdateHandler pubsub.ApplicationStatusUpdateHandler,
-	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClient, UserRouter UserRouter, cronBasedEventReceiver pubsub.CronBasedEventReceiver,
+	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClient, UserRouter user.UserRouter, cronBasedEventReceiver pubsub.CronBasedEventReceiver,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter AppStoreRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
@@ -198,7 +199,7 @@ func (r MuxRouter) Init() {
 	r.ApplicationRouter.initApplicationRouter(applicationRouter)
 
 	rootRouter := r.Router.PathPrefix("/orchestrator").Subrouter()
-	r.UserAuthRouter.initUserAuthRouter(rootRouter)
+	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
 
 	projectManagementRouter := r.Router.PathPrefix("/orchestrator/project-management").Subrouter()
 	r.ProjectManagementRouter.InitProjectManagementRouter(projectManagementRouter)
@@ -217,7 +218,7 @@ func (r MuxRouter) Init() {
 	r.TeamRouter.InitTeamRouter(teamRouter)
 
 	userRouter := r.Router.PathPrefix("/orchestrator/user").Subrouter()
-	r.UserRouter.initUserRouter(userRouter)
+	r.UserRouter.InitUserRouter(userRouter)
 
 	chartRefRouter := r.Router.PathPrefix("/orchestrator/chartref").Subrouter()
 	r.ChartRefRouter.initChartRefRouter(chartRefRouter)
