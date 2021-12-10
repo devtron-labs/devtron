@@ -17,6 +17,7 @@ type MuxRouter struct {
 	ssoLoginRouter sso.SsoLoginRouter
 	teamRouter     team.TeamRouter
 	UserAuthRouter user.UserAuthRouter
+	userRouter     user.UserRouter
 }
 
 func NewMuxRouter(
@@ -24,6 +25,7 @@ func NewMuxRouter(
 	ssoLoginRouter sso.SsoLoginRouter,
 	teamRouter team.TeamRouter,
 	UserAuthRouter user.UserAuthRouter,
+	userRouter user.UserRouter,
 
 ) *MuxRouter {
 	r := &MuxRouter{
@@ -32,6 +34,7 @@ func NewMuxRouter(
 		ssoLoginRouter: ssoLoginRouter,
 		teamRouter:     teamRouter,
 		UserAuthRouter: UserAuthRouter,
+		userRouter:     userRouter,
 	}
 	return r
 }
@@ -58,4 +61,7 @@ func (r *MuxRouter) Init() {
 
 	rootRouter := r.Router.PathPrefix("/orchestrator").Subrouter()
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
+
+	userRouter := r.Router.PathPrefix("/orchestrator/user").Subrouter()
+	r.userRouter.InitUserRouter(userRouter)
 }
