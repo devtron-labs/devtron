@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"path"
 	"strconv"
 	"strings"
@@ -76,6 +77,7 @@ type DbPipelineOrchestratorImpl struct {
 	attributesService            attributes.AttributesService
 	appListingRepository         repository.AppListingRepository
 	appLabelsService             app.AppLabelService
+	userAuthService              user.UserAuthService
 }
 
 func NewDbPipelineOrchestrator(
@@ -91,8 +93,7 @@ func NewDbPipelineOrchestrator(
 	attributesService attributes.AttributesService,
 	appListingRepository repository.AppListingRepository,
 	appLabelsService app.AppLabelService,
-) *DbPipelineOrchestratorImpl {
-
+	userAuthService user.UserAuthService) *DbPipelineOrchestratorImpl {
 	return &DbPipelineOrchestratorImpl{
 		appRepository:                pipelineGroupRepository,
 		logger:                       logger,
@@ -107,6 +108,7 @@ func NewDbPipelineOrchestrator(
 		attributesService:            attributesService,
 		appListingRepository:         appListingRepository,
 		appLabelsService:             appLabelsService,
+		userAuthService:              userAuthService,
 	}
 }
 
@@ -729,6 +731,12 @@ func (impl DbPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) error 
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
 		return err
+	}
+	//deleting auth roles entries for this project
+	err = impl.userAuthService.DeleteRoles(repository.PROJECT_TYPE, app.AppName)
+	if err != nil {
+		impl.logger.Errorw("error in deleting auth roles", "err", err)
+		//TODO : confirm if error is to returned or not
 	}
 	return nil
 }

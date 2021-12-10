@@ -143,3 +143,8 @@ func GetUserByRole(role string) ([]string, error) {
 	role = strings.ToLower(role)
 	return e.GetUsersForRole(role)
 }
+
+func RemovePoliciesByRoles(roles string) bool{
+	roles = strings.ToLower(roles)
+	return e.RemovePolicy([]string{roles})
+}

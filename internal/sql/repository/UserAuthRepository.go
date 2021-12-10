@@ -54,10 +54,11 @@ type UserAuthRepository interface {
 	CreateDefaultPoliciesForGlobalEntity(entity string, entityName string, action string, tx *pg.Tx) (bool, error)
 	CreateUpdateDefaultPoliciesForSuperAdmin(tx *pg.Tx) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
-	DeleteRolesByEnvironment(envName string, tx *pg.Tx) error
-	DeleteRolesByProject(teamName string, tx *pg.Tx) error
-	DeleteRolesByApp(appName string, tx *pg.Tx) error
-	DeleteRolesByChartGroup(chartGroupName string, tx *pg.Tx) error
+	GetRolesForEnvironment(envName string) ([]*RoleModel, error)
+	GetRolesForProject(teamName string) ([]*RoleModel, error)
+	GetRolesForApp(appName string) ([]*RoleModel, error)
+	GetRolesForChartGroup(chartGroupName string) ([]*RoleModel, error)
+	DeleteRoles(roles []*RoleModel, tx *pg.Tx) error
 }
 
 type UserAuthRepositoryImpl struct {
@@ -603,43 +604,51 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 	return true, nil
 }
 
-func (impl UserAuthRepositoryImpl) DeleteRolesByEnvironment(envName string, tx *pg.Tx) error {
-	var role *RoleModel
-	_, err := tx.Model(role).Where("environment = ?", envName).Delete()
+func (impl UserAuthRepositoryImpl) GetRolesForEnvironment(envName string) ([]*RoleModel, error) {
+	var roles []*RoleModel
+	err := impl.dbConnection.Model(&roles).Where("environment = ?", envName).Select()
 	if err != nil {
-		impl.Logger.Errorw("error in deleting roles by environment", "err", err)
-		return err
+		impl.Logger.Errorw("error in getting roles for environment", "err", err, "envName", envName)
+		return nil, err
 	}
-	return nil
+	return roles, nil
 }
 
-func (impl UserAuthRepositoryImpl) DeleteRolesByProject(teamName string, tx *pg.Tx) error {
-	var role *RoleModel
-	_, err := tx.Model(role).Where("team = ?", teamName).Delete()
+func (impl UserAuthRepositoryImpl) GetRolesForProject(teamName string) ([]*RoleModel, error) {
+	var roles []*RoleModel
+	err := impl.dbConnection.Model(&roles).Where("team = ?", teamName).Select()
 	if err != nil {
-		impl.Logger.Errorw("error in deleting roles by team", "err", err)
-		return err
+		impl.Logger.Errorw("error in getting roles for team", "err", err, "teamName", teamName)
+		return nil, err
 	}
-	return nil
+	return roles, nil
 }
 
-func (impl UserAuthRepositoryImpl) DeleteRolesByApp(appName string, tx *pg.Tx) error {
-	var role *RoleModel
-	_, err := tx.Model(role).Where("role not like ?", fmt.Sprintf("role:"+CHART_GROUP_TYPE+"%")).
-		Where("entity_name = ?", appName).Delete()
+func (impl UserAuthRepositoryImpl) GetRolesForApp(appName string) ([]*RoleModel, error) {
+	var roles []*RoleModel
+	err := impl.dbConnection.Model(&roles).Where("role not like ?", fmt.Sprintf("role:"+CHART_GROUP_TYPE+"%")).
+		Where("entity_name = ?", appName).Select()
 	if err != nil {
-		impl.Logger.Errorw("error in deleting roles by team", "err", err)
-		return err
+		impl.Logger.Errorw("error in getting roles for app", "err", err, "appName", appName)
+		return nil, err
 	}
-	return nil
+	return roles, nil
 }
 
-func (impl UserAuthRepositoryImpl) DeleteRolesByChartGroup(chartGroupName string, tx *pg.Tx) error {
-	var role *RoleModel
-	_, err := tx.Model(role).Where("role like ?", fmt.Sprintf("role:"+CHART_GROUP_TYPE+"%")).
-		Where("entity_name = ?", chartGroupName).Delete()
+func (impl UserAuthRepositoryImpl) GetRolesForChartGroup(chartGroupName string) ([]*RoleModel, error) {
+	var roles []*RoleModel
+	err := impl.dbConnection.Model(&roles).Where("role like ?", fmt.Sprintf("role:"+CHART_GROUP_TYPE+"%")).
+		Where("entity_name = ?", chartGroupName).Select()
 	if err != nil {
-		impl.Logger.Errorw("error in deleting roles by team", "err", err)
+		impl.Logger.Errorw("error in getting roles for chart group", "err", err, "chartGroupName", chartGroupName)
+		return nil, err
+	}
+	return roles, nil
+}
+
+func (impl UserAuthRepositoryImpl) DeleteRoles(roles []*RoleModel, tx *pg.Tx) error {
+	err := tx.Delete(roles)
+	if err != nil {
 		return err
 	}
 	return nil

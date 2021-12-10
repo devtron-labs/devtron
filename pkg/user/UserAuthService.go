@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/casbin/casbin"
 	"log"
 	"math/rand"
 	"net/http"
@@ -31,10 +32,10 @@ import (
 
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/caarlos0/env"
-	"github.com/casbin/casbin"
 	"github.com/coreos/go-oidc"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
+	casbin2 "github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -530,20 +531,38 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
+	var roleModels []*repository.RoleModel
 	switch entityType {
 	case repository.PROJECT_TYPE:
-		err = impl.userAuthRepository.DeleteRolesByProject(entityName, tx)
+		roleModels, err = impl.userAuthRepository.GetRolesForProject(entityName)
 	case repository.ENV_TYPE:
-		err = impl.userAuthRepository.DeleteRolesByEnvironment(entityName, tx)
+		roleModels, err = impl.userAuthRepository.GetRolesForEnvironment(entityName)
 	case repository.APP_TYPE:
-		err = impl.userAuthRepository.DeleteRolesByApp(entityName, tx)
+		roleModels, err = impl.userAuthRepository.GetRolesForApp(entityName)
 	case repository.CHART_GROUP_TYPE:
-		err = impl.userAuthRepository.DeleteRolesByChartGroup(entityName, tx)
+		roleModels, err = impl.userAuthRepository.GetRolesForChartGroup(entityName)
 	}
 	if err != nil {
-		impl.logger.Errorw(fmt.Sprintf("error in deleting roles by %s", entityType), "err", err, "name", entityName)
+		impl.logger.Errorw(fmt.Sprintf("error in getting roles by %s", entityType), "err", err, "name", entityName)
 		return err
 	}
+
+	//deleting roles
+	err = impl.userAuthRepository.DeleteRoles(roleModels, tx)
+	if err != nil {
+		impl.logger.Errorw(fmt.Sprintf("error in deleting roles for %s:%s", entityType, entityName), "err", err, "name", entityName)
+		return err
+	}
+
+	// deleting policies in casbin for deleted roles
+	var casbinDeleteFailed []bool
+	for _, roleModel := range roleModels {
+		success := casbin2.RemovePoliciesByRoles(roleModel.Role)
+		if !success {
+			impl.logger.Errorw("error in deleting casbin policy for role", "role", roleModel.Role)
+			casbinDeleteFailed = append(casbinDeleteFailed, success)
+		}
+	}
+	//TODO : confirm if information of casbin deletion failure is to be send to user
 	return nil
 }
