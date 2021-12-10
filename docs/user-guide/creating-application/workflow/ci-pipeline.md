@@ -2,7 +2,7 @@
 
 CI Pipeline can be created in three different ways, Continuous Integration, Linked CI Pipeline and Incoming Webhook. Each of these methods have different use-cases which can be used according to the needs of the organization. Let’s begin with Continuous Integration.
 
-![](../../user-guide/creating-application/images/workflow-ci.jpg)
+![](../images/workflow-cd.jpg)
 
 ## A. Continuous Integration
 
