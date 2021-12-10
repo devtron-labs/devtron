@@ -18,7 +18,6 @@
 package user
 
 import (
-	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -40,11 +39,7 @@ type UserAuthRouterImpl struct {
 	clientApp       *oidc.ClientApp
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, settings *settings.ArgoCDSettings, userService user.UserService, dexConfig *client.DexConfig) (*UserAuthRouterImpl, error) {
-	tlsConfig := settings.TLSConfig()
-	if tlsConfig != nil {
-		tlsConfig.InsecureSkipVerify = true
-	}
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userService user.UserService, dexConfig *client.DexConfig) (*UserAuthRouterImpl, error) {
 	router := &UserAuthRouterImpl{
 		userAuthHandler: userAuthHandler,
 		logger:          logger,
