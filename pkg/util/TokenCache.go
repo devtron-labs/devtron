@@ -15,11 +15,12 @@
  *
  */
 
-package user
+package util
 
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"time"
 
 	"github.com/caarlos0/env"
@@ -31,10 +32,10 @@ type TokenCache struct {
 	cache           *cache.Cache
 	logger          *zap.SugaredLogger
 	aCDAuthConfig   *ACDAuthConfig
-	userAuthService UserAuthService
+	userAuthService user.UserAuthService
 }
 
-func NewTokenCache(logger *zap.SugaredLogger, aCDAuthConfig *ACDAuthConfig, userAuthService UserAuthService) *TokenCache {
+func NewTokenCache(logger *zap.SugaredLogger, aCDAuthConfig *ACDAuthConfig, userAuthService user.UserAuthService) *TokenCache {
 	tokenCache := &TokenCache{
 		cache:           cache.New(cache.NoExpiration, 5*time.Minute),
 		logger:          logger,

@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -45,16 +46,16 @@ type TeamRestHandlerImpl struct {
 	logger          *zap.SugaredLogger
 	teamService     team.TeamService
 	userService     user.UserService
-	validator       *validator.Validate
-	enforcer        rbac.Enforcer
-	enforcerUtil    rbac.EnforcerUtil
+	validator    *validator.Validate
+	enforcer     casbin.Enforcer
+	enforcerUtil rbac.EnforcerUtil
 	userAuthService user.UserAuthService
 }
 
 func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
 	userService user.UserService,
-	enforcer rbac.Enforcer,
+	enforcer casbin.Enforcer,
 	validator *validator.Validate, enforcerUtil rbac.EnforcerUtil, userAuthService user.UserAuthService) *TeamRestHandlerImpl {
 	return &TeamRestHandlerImpl{
 		logger:          logger,
@@ -90,7 +91,7 @@ func (impl TeamRestHandlerImpl) SaveTeam(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceTeam, rbac.ActionCreate, "*"); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -115,7 +116,7 @@ func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request)
 	// RBAC enforcer applying
 	var result []team.TeamRequest
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceTeam, rbac.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(item.Name)); ok {
 			result = append(result, item)
 		}
 	}
@@ -142,7 +143,7 @@ func (impl TeamRestHandlerImpl) FetchOne(w http.ResponseWriter, r *http.Request)
 	}
 
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceTeam, rbac.ActionGet, strings.ToLower(res.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(res.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -173,7 +174,7 @@ func (impl TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceTeam, rbac.ActionUpdate, strings.ToLower(bean.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionUpdate, strings.ToLower(bean.Name)); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -202,7 +203,7 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 	// RBAC enforcer applying
 	var grantedTeams []team.TeamRequest
 	for _, item := range teams {
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceTeam, rbac.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(item.Name)); ok {
 			grantedTeams = append(grantedTeams, item)
 		}
 	}

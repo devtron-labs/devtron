@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/team"
+	"github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -41,7 +42,6 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -76,7 +76,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/terminal"
-	user2 "github.com/devtron-labs/devtron/pkg/user"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/session"
@@ -90,6 +90,7 @@ func InitializeApp() (*App, error) {
 		sql.PgSqlWireSet,
 		team.TeamsWireSet,
 		AuthWireSet,
+		user.UserWireSet,
 
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
@@ -101,7 +102,7 @@ func InitializeApp() (*App, error) {
 		eClient.GetEventClientConfig,
 		//sql.NewDbConnection,
 		//app.GetACDAuthConfig,
-		user2.GetACDAuthConfig,
+		util3.GetACDAuthConfig,
 		wire.Value(pipeline.RefChartDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(appstore.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(pipeline.DefaultChart("reference-app-rolling")),
@@ -110,9 +111,7 @@ func InitializeApp() (*App, error) {
 		session.CDSettingsManager,
 		session.SessionManager,
 		//auth.GetConfig,
-		casbin.Create,
-		rbac.NewEnforcerImpl,
-		wire.Bind(new(rbac.Enforcer), new(*rbac.EnforcerImpl)),
+
 		dex.GetConfig,
 		argocdServer.GetConfig,
 		session2.NewSessionServiceClient,
@@ -231,7 +230,7 @@ func InitializeApp() (*App, error) {
 		eClient.NewEventRESTClientImpl,
 		wire.Bind(new(eClient.EventClient), new(*eClient.EventRESTClientImpl)),
 
-		user2.NewTokenCache,
+		util3.NewTokenCache,
 
 		eClient.NewEventSimpleFactoryImpl,
 		wire.Bind(new(eClient.EventFactory), new(*eClient.EventSimpleFactoryImpl)),
@@ -269,14 +268,6 @@ func InitializeApp() (*App, error) {
 		router.NewApplicationRouterImpl,
 		wire.Bind(new(router.ApplicationRouter), new(*router.ApplicationRouterImpl)),
 		//app.GetConfig,
-		router.NewUserAuthRouterImpl,
-		wire.Bind(new(router.UserAuthRouter), new(*router.UserAuthRouterImpl)),
-		restHandler.NewUserAuthHandlerImpl,
-		wire.Bind(new(restHandler.UserAuthHandler), new(*restHandler.UserAuthHandlerImpl)),
-		user2.NewUserAuthServiceImpl,
-		wire.Bind(new(user2.UserAuthService), new(*user2.UserAuthServiceImpl)),
-		repository.NewUserAuthRepositoryImpl,
-		wire.Bind(new(repository.UserAuthRepository), new(*repository.UserAuthRepositoryImpl)),
 
 		router.NewCDRouterImpl,
 		wire.Bind(new(router.CDRouter), new(*router.CDRouterImpl)),
@@ -375,15 +366,6 @@ func InitializeApp() (*App, error) {
 
 		pubsub.NewCiEventHandlerImpl,
 		wire.Bind(new(pubsub.CiEventHandler), new(*pubsub.CiEventHandlerImpl)),
-
-		router.NewUserRouterImpl,
-		wire.Bind(new(router.UserRouter), new(*router.UserRouterImpl)),
-		restHandler.NewUserRestHandlerImpl,
-		wire.Bind(new(restHandler.UserRestHandler), new(*restHandler.UserRestHandlerImpl)),
-		user2.NewUserServiceImpl,
-		wire.Bind(new(user2.UserService), new(*user2.UserServiceImpl)),
-		repository.NewUserRepositoryImpl,
-		wire.Bind(new(repository.UserRepository), new(*repository.UserRepositoryImpl)),
 
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
@@ -547,11 +529,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.ChartGroupRouter), new(*router.ChartGroupRouterImpl)),
 		chartGroup.NewChartGroupDeploymentRepositoryImpl,
 		wire.Bind(new(chartGroup.ChartGroupDeploymentRepository), new(*chartGroup.ChartGroupDeploymentRepositoryImpl)),
-
-		user2.NewRoleGroupServiceImpl,
-		wire.Bind(new(user2.RoleGroupService), new(*user2.RoleGroupServiceImpl)),
-		repository.NewRoleGroupRepositoryImpl,
-		wire.Bind(new(repository.RoleGroupRepository), new(*repository.RoleGroupRepositoryImpl)),
 
 		commonService.NewCommonServiceImpl,
 		wire.Bind(new(commonService.CommonService), new(*commonService.CommonServiceImpl)),

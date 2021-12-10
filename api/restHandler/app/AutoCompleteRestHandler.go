@@ -3,7 +3,7 @@ package app
 import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"net/http"
 	"strconv"
@@ -55,7 +55,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	objects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, app := range apps {
 		object := objects[app.Id]
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
 			accessedApps = append(accessedApps, app)
 		}
 	}
@@ -77,7 +77,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvironmentListAutocomplete(w http.
 	handler.Logger.Infow("request payload, EnvironmentListAutocomplete", "appId", appId)
 	//RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -102,7 +102,7 @@ func (handler PipelineConfigRestHandlerImpl) GitListAutocomplete(w http.Response
 	handler.Logger.Infow("request payload, GitListAutocomplete", "appId", appId)
 	//RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -128,7 +128,7 @@ func (handler PipelineConfigRestHandlerImpl) DockerListAutocomplete(w http.Respo
 	handler.Logger.Infow("request payload, DockerListAutocomplete", "appId", appId)
 	//RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -154,7 +154,7 @@ func (handler PipelineConfigRestHandlerImpl) TeamListAutocomplete(w http.Respons
 	handler.Logger.Infow("request payload, TeamListAutocomplete", "appId", appId)
 	//RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}

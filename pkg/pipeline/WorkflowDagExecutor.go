@@ -23,6 +23,8 @@ import (
 	"fmt"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"strconv"
 	"strings"
 	"time"
@@ -72,12 +74,12 @@ type WorkflowDagExecutorImpl struct {
 	cdConfig                   *CdConfig
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
 	ciArtifactRepository       repository.CiArtifactRepository
-	user                       user.UserService
-	enforcer                   rbac.Enforcer
-	enforcerUtil               rbac.EnforcerUtil
+	user         user.UserService
+	enforcer     casbin.Enforcer
+	enforcerUtil rbac.EnforcerUtil
 	groupRepository            repository.DeploymentGroupRepository
-	tokenCache                 *user.TokenCache
-	acdAuthConfig *user.ACDAuthConfig
+	tokenCache                 *util3.TokenCache
+	acdAuthConfig *util3.ACDAuthConfig
 	envRepository repository2.EnvironmentRepository
 	eventFactory  client.EventFactory
 	eventClient                client.EventClient
@@ -131,8 +133,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	user user.UserService,
 	groupRepository repository.DeploymentGroupRepository,
 	envRepository repository2.EnvironmentRepository,
-	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *user.TokenCache,
-	acdAuthConfig *user.ACDAuthConfig, eventFactory client.EventFactory,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *util3.TokenCache,
+	acdAuthConfig *util3.ACDAuthConfig, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
@@ -297,7 +299,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
-		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
+		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			impl.logger.Warnw("unauthorized for pipeline ", "pipelineId", strconv.Itoa(pipeline.Id))
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
 		}
@@ -616,7 +618,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
-		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
+		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
 		}
 	}

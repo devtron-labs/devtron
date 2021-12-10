@@ -26,7 +26,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/user"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -43,23 +44,23 @@ type SSOLoginService interface {
 
 type SSOLoginServiceImpl struct {
 	sessionManager      *session.SessionManager
-	userAuthRepository  repository.UserAuthRepository
+	userAuthRepository  repository2.UserAuthRepository
 	sessionClient       session2.ServiceClient
 	logger              *zap.SugaredLogger
-	userRepository      repository.UserRepository
-	roleGroupRepository repository.RoleGroupRepository
+	userRepository      repository2.UserRepository
+	roleGroupRepository repository2.RoleGroupRepository
 	ssoLoginRepository  repository.SSOLoginRepository
 	K8sUtil             *util.K8sUtil
 	clusterService      cluster.ClusterService
 	envService          cluster.EnvironmentService
-	aCDAuthConfig       *user.ACDAuthConfig
+	aCDAuthConfig       *util2.ACDAuthConfig
 }
 
-func NewSSOLoginServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
-	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
-	userGroupRepository repository.RoleGroupRepository, ssoLoginRepository repository.SSOLoginRepository,
+func NewSSOLoginServiceImpl(userAuthRepository repository2.UserAuthRepository, sessionManager *session.SessionManager,
+	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository2.UserRepository,
+	userGroupRepository repository2.RoleGroupRepository, ssoLoginRepository repository.SSOLoginRepository,
 	K8sUtil *util.K8sUtil, clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	aCDAuthConfig *user.ACDAuthConfig) *SSOLoginServiceImpl {
+	aCDAuthConfig *util2.ACDAuthConfig) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		userAuthRepository:  userAuthRepository,
 		sessionManager:      sessionManager,

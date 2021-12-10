@@ -15,13 +15,12 @@
  *
  */
 
-package router
+package user
 
 import (
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/oidc"
-	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
@@ -31,18 +30,17 @@ import (
 )
 
 type UserAuthRouter interface {
-	initUserAuthRouter(router *mux.Router)
+	InitUserAuthRouter(router *mux.Router)
 }
 
 type UserAuthRouterImpl struct {
 	logger          *zap.SugaredLogger
-	userAuthHandler restHandler.UserAuthHandler
-	cdProxy         func(writer http.ResponseWriter, request *http.Request)
+	userAuthHandler UserAuthHandler
 	dexProxy        func(writer http.ResponseWriter, request *http.Request)
 	clientApp       *oidc.ClientApp
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler restHandler.UserAuthHandler, settings *settings.ArgoCDSettings, userService user.UserService, dexConfig *client.DexConfig) (*UserAuthRouterImpl, error) {
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, settings *settings.ArgoCDSettings, userService user.UserService, dexConfig *client.DexConfig) (*UserAuthRouterImpl, error) {
 	tlsConfig := settings.TLSConfig()
 	if tlsConfig != nil {
 		tlsConfig.InsecureSkipVerify = true
@@ -69,7 +67,7 @@ func (router UserAuthRouterImpl) RedirectUrlSanitiser(redirectUrl string) string
 	return redirectUrl
 }
 
-func (router UserAuthRouterImpl) initUserAuthRouter(userAuthRouter *mux.Router) {
+func (router UserAuthRouterImpl) InitUserAuthRouter(userAuthRouter *mux.Router) {
 	userAuthRouter.Path("/").
 		HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			router.writeSuccess("Welcome @Devtron", writer)

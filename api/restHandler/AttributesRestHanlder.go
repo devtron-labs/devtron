@@ -23,7 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -39,13 +39,13 @@ type AttributesRestHandler interface {
 }
 
 type AttributesRestHandlerImpl struct {
-	logger            *zap.SugaredLogger
-	enforcer          rbac.Enforcer
-	userService       user.UserService
+	logger      *zap.SugaredLogger
+	enforcer    casbin.Enforcer
+	userService user.UserService
 	attributesService attributes.AttributesService
 }
 
-func NewAttributesRestHandlerImpl(logger *zap.SugaredLogger, enforcer rbac.Enforcer,
+func NewAttributesRestHandlerImpl(logger *zap.SugaredLogger, enforcer casbin.Enforcer,
 	userService user.UserService, attributesService attributes.AttributesService) *AttributesRestHandlerImpl {
 	userAuthHandler := &AttributesRestHandlerImpl{
 		logger:            logger,
@@ -71,7 +71,7 @@ func (handler AttributesRestHandlerImpl) AddAttributes(w http.ResponseWriter, r 
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -103,7 +103,7 @@ func (handler AttributesRestHandlerImpl) UpdateAttributes(w http.ResponseWriter,
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -126,7 +126,7 @@ func (handler AttributesRestHandlerImpl) GetAttributesById(w http.ResponseWriter
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -154,7 +154,7 @@ func (handler AttributesRestHandlerImpl) GetAttributesActiveList(w http.Response
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionGet, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}

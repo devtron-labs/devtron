@@ -25,6 +25,7 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
+	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ktrysmt/go-bitbucket"
 
 	/* #nosec */
@@ -55,7 +56,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/nats-io/stan.go"
@@ -109,13 +109,13 @@ type InstalledAppServiceImpl struct {
 	acdClient      application2.ServiceClient
 	appStoreValuesService                AppStoreValuesService
 	pubsubClient                         *pubsub.PubSubClient
-	tokenCache                           *user.TokenCache
+	tokenCache                           *util2.TokenCache
 	chartGroupDeploymentRepository       chartGroup.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
 	clusterInstalledAppsRepository       appstore.ClusterInstalledAppsRepository
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
-	aCDAuthConfig                        *user.ACDAuthConfig
+	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
 }
 
@@ -134,12 +134,12 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	acdClient application2.ServiceClient,
 	appStoreValuesService AppStoreValuesService,
 	pubsubClient *pubsub.PubSubClient,
-	tokenCache *user.TokenCache,
+	tokenCache *util2.TokenCache,
 	chartGroupDeploymentRepository chartGroup.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService,
 	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository,
 	argoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *util.GitFactory, aCDAuthConfig *user.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository) (*InstalledAppServiceImpl, error) {
+	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		chartRepository:                      chartRepository,
 		logger:                               logger,

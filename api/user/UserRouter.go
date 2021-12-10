@@ -15,25 +15,24 @@
  *
  */
 
-package router
+package user
 
 import (
 	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/gorilla/mux"
 )
 
 type UserRouter interface {
-	initUserRouter(helmRouter *mux.Router)
+	InitUserRouter(helmRouter *mux.Router)
 }
 
 type UserRouterImpl struct {
-	userRestHandler restHandler.UserRestHandler
+	userRestHandler UserRestHandler
 }
 
-func NewUserRouterImpl(userRestHandler restHandler.UserRestHandler, dexCfg *dex.Config, cdCfg *argocdServer.Config, settings *settings.ArgoCDSettings) *UserRouterImpl {
+func NewUserRouterImpl(userRestHandler UserRestHandler, dexCfg *dex.Config, cdCfg *argocdServer.Config, settings *settings.ArgoCDSettings) *UserRouterImpl {
 	tlsConfig := settings.TLSConfig()
 	if tlsConfig != nil {
 		tlsConfig.InsecureSkipVerify = true
@@ -44,7 +43,7 @@ func NewUserRouterImpl(userRestHandler restHandler.UserRestHandler, dexCfg *dex.
 	return router
 }
 
-func (router UserRouterImpl) initUserRouter(userAuthRouter *mux.Router) {
+func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 	//User management
 	userAuthRouter.Path("/{id}").
 		HandlerFunc(router.userRestHandler.GetById).Methods("GET")

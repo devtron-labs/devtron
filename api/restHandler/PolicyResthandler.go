@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"net/http"
@@ -43,16 +44,16 @@ type PolicyRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
 	policyService      security.PolicyService
 	userService        user.UserService
-	userAuthService    user.UserAuthService
-	enforcer           rbac.Enforcer
-	enforcerUtil       rbac.EnforcerUtil
+	userAuthService user.UserAuthService
+	enforcer        casbin.Enforcer
+	enforcerUtil    rbac.EnforcerUtil
 	environmentService cluster.EnvironmentService
 }
 
 func NewPolicyRestHandlerImpl(logger *zap.SugaredLogger,
 	policyService security.PolicyService,
 	userService user.UserService, userAuthService user.UserAuthService,
-	enforcer rbac.Enforcer,
+	enforcer casbin.Enforcer,
 	enforcerUtil rbac.EnforcerUtil, environmentService cluster.EnvironmentService) *PolicyRestHandlerImpl {
 	return &PolicyRestHandlerImpl{
 		logger:             logger,
@@ -84,19 +85,19 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 	//AUTH - check from casbin db
 	if req.AppId > 0 && req.EnvId > 0 {
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(req.AppId)
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, object); !ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 		object = impl.enforcerUtil.GetEnvRBACNameByAppId(req.AppId, req.EnvId)
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, object); !ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else if req.AppId == 0 && req.EnvId > 0 {
 		// for env level access check env level access.
 		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionCreate, "*"); !ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionCreate, "*"); !ok {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -154,19 +155,19 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 	//AUTH - check from casbin db
 	if policy.AppId > 0 && policy.EnvironmentId > 0 {
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(policy.AppId)
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, object); !ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 		object = impl.enforcerUtil.GetEnvRBACNameByAppId(policy.AppId, policy.EnvironmentId)
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else if policy.AppId == 0 && policy.EnvironmentId > 0 {
 		// for env level access check env level access.
 		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionUpdate, "*"); !ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionUpdate, "*"); !ok {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -249,11 +250,11 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 		if policy.AppId > 0 && policy.EnvId > 0 {
 			passCount := 0
 			object := impl.enforcerUtil.GetAppRBACNameByAppId(policy.AppId)
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
 				passCount = 1
 			}
 			object = impl.enforcerUtil.GetEnvRBACNameByAppId(policy.AppId, policy.EnvId)
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionGet, object); ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); ok {
 				if passCount == 1 {
 					passCount = 2
 				}
@@ -268,7 +269,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 				common.WriteJsonResp(w, err, "Failed to get environment by id", http.StatusInternalServerError)
 				return
 			}
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, environment.Environment); ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, environment.Environment); ok {
 				pass = true
 			}
 		} else if clusterId > 0 {
@@ -280,7 +281,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 				return
 			}
 			for _, environment := range environments {
-				if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, environment.Environment); ok {
+				if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, environment.Environment); ok {
 					pass = true
 					continue
 				}

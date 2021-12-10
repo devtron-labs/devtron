@@ -15,7 +15,7 @@
  *
  */
 
-package rbac
+package casbin
 
 const (
 	ResourceCluster           = "cluster"
