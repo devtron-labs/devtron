@@ -250,7 +250,7 @@ func InitializeApp() (*App, error) {
 	installedAppRepositoryImpl := appstore.NewInstalledAppRepositoryImpl(sugaredLogger, db)
 	k8sUtil := util.NewK8sUtil(sugaredLogger)
 	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, environmentRepositoryImpl, grafanaClientImpl, sugaredLogger, installedAppRepositoryImpl, k8sUtil)
-	environmentServiceImpl := cluster.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sUtil, propertiesConfigServiceImpl, grafanaClientImpl)
+	environmentServiceImpl := cluster.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sUtil, propertiesConfigServiceImpl)
 	gitRegistryConfigImpl := pipeline.NewGitRegistryConfigImpl(sugaredLogger, gitProviderRepositoryImpl, gitSensorClientImpl)
 	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(dockerArtifactStoreRepositoryImpl, sugaredLogger)
 	cdHandlerImpl := pipeline.NewCdHandlerImpl(sugaredLogger, cdConfig, userServiceImpl, cdWorkflowRepositoryImpl, cdWorkflowServiceImpl, ciLogServiceImpl, ciArtifactRepositoryImpl, ciPipelineMaterialRepositoryImpl, pipelineRepositoryImpl, environmentRepositoryImpl, ciWorkflowRepositoryImpl, ciConfig)

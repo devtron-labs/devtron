@@ -19,7 +19,6 @@ package cluster
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -62,14 +61,12 @@ type EnvironmentServiceImpl struct {
 	clusterService          ClusterService
 	K8sUtil                 *util.K8sUtil
 	propertiesConfigService pipeline.PropertiesConfigService
-	grafanaClient           grafana.GrafanaClient
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	grafanaClient grafana.GrafanaClient,
 ) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository:   environmentRepository,
@@ -77,7 +74,6 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		clusterService:          clusterService,
 		K8sUtil:                 K8sUtil,
 		propertiesConfigService: propertiesConfigService,
-		grafanaClient:           grafanaClient,
 	}
 }
 
