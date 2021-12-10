@@ -6,7 +6,6 @@ import (
 )
 
 //depends on sql,user,K8sUtil, logger, enforcer,
-//TODO integrate user auth module
 
 var SsoConfigWireSet = wire.NewSet(
 	sso.NewSSOLoginServiceImpl,
