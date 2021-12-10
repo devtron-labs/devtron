@@ -59,10 +59,8 @@ func (r *MuxRouter) Init() {
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
 	teamRouter := baseRouter.PathPrefix("/team").Subrouter()
 	r.teamRouter.InitTeamRouter(teamRouter)
-
 	rootRouter := baseRouter.PathPrefix("/").Subrouter()
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
-
 	userRouter := baseRouter.PathPrefix("/user").Subrouter()
 	r.userRouter.InitUserRouter(userRouter)
 }
