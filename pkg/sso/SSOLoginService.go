@@ -20,12 +20,8 @@ package sso
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/util/session"
 	"github.com/devtron-labs/devtron/api/bean"
-	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
@@ -42,42 +38,29 @@ type SSOLoginService interface {
 }
 
 type SSOLoginServiceImpl struct {
-	sessionManager      *session.SessionManager
-	userAuthRepository  repository2.UserAuthRepository
-	sessionClient       session2.ServiceClient
-	logger              *zap.SugaredLogger
-	userRepository      repository2.UserRepository
-	roleGroupRepository repository2.RoleGroupRepository
-	ssoLoginRepository  SSOLoginRepository
-	K8sUtil             *util.K8sUtil
-	clusterService      cluster.ClusterService
-	envService          cluster.EnvironmentService
-	aCDAuthConfig       *util2.ACDAuthConfig
+	logger             *zap.SugaredLogger
+	ssoLoginRepository SSOLoginRepository
+	K8sUtil            *util.K8sUtil
+	//clusterService     cluster.ClusterService
+	aCDAuthConfig      *util2.ACDAuthConfig
 }
 
-func NewSSOLoginServiceImpl(userAuthRepository repository2.UserAuthRepository, sessionManager *session.SessionManager,
-	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository2.UserRepository,
-	userGroupRepository repository2.RoleGroupRepository, ssoLoginRepository SSOLoginRepository,
-	K8sUtil *util.K8sUtil, clusterService cluster.ClusterService, envService cluster.EnvironmentService,
+func NewSSOLoginServiceImpl(
+	logger *zap.SugaredLogger,
+	ssoLoginRepository SSOLoginRepository,
+	K8sUtil *util.K8sUtil,
 	aCDAuthConfig *util2.ACDAuthConfig) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
-		userAuthRepository:  userAuthRepository,
-		sessionManager:      sessionManager,
-		sessionClient:       client,
-		logger:              logger,
-		userRepository:      userRepository,
-		roleGroupRepository: userGroupRepository,
-		ssoLoginRepository:  ssoLoginRepository,
-		K8sUtil:             K8sUtil,
-		clusterService:      clusterService,
-		envService:          envService,
-		aCDAuthConfig:       aCDAuthConfig,
+		logger:             logger,
+		ssoLoginRepository: ssoLoginRepository,
+		K8sUtil:            K8sUtil,
+		aCDAuthConfig:      aCDAuthConfig,
 	}
 	return serviceImpl
 }
 
 func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean.SSOLoginDto, error) {
-	dbConnection := impl.userRepository.GetConnection()
+	dbConnection := impl.ssoLoginRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
 		return nil, err
@@ -136,7 +119,7 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 }
 
 func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean.SSOLoginDto, error) {
-	dbConnection := impl.userRepository.GetConnection()
+	dbConnection := impl.ssoLoginRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
 		return nil, err
@@ -200,16 +183,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 
 	//TODO- update argocd-cm
 	flag := false
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
-	if err != nil {
-		return flag, err
-	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
-	if err != nil {
-		return flag, err
-	}
-
-	client, err := impl.K8sUtil.GetClient(cfg)
+	client, err :=	impl.K8sUtil.GetClientForInCluster()
 	if err != nil {
 		return flag, err
 	}
