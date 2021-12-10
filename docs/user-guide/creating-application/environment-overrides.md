@@ -2,7 +2,8 @@
 
 You will see all your environments associated with an application under the `Environment Overrides` section.
 
-![](images/environment-override.png)
+![](../../user-guide/creating-application/images/environment-override.png)
+
 
 You can customize your `Deployment template, ConfigMap, Secrets` in Environment Overrides section to add separate customizations for different environments such as dev, test, integration, prod, etc.
 
