@@ -18,9 +18,6 @@
 package user
 
 import (
-	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/gorilla/mux"
 )
 
@@ -32,11 +29,7 @@ type UserRouterImpl struct {
 	userRestHandler UserRestHandler
 }
 
-func NewUserRouterImpl(userRestHandler UserRestHandler, dexCfg *dex.Config, cdCfg *argocdServer.Config, settings *settings.ArgoCDSettings) *UserRouterImpl {
-	tlsConfig := settings.TLSConfig()
-	if tlsConfig != nil {
-		tlsConfig.InsecureSkipVerify = true
-	}
+func NewUserRouterImpl(userRestHandler UserRestHandler) *UserRouterImpl {
 	router := &UserRouterImpl{
 		userRestHandler: userRestHandler,
 	}
