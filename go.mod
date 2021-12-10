@@ -19,7 +19,7 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/cyphar/filepath-securejoin v0.2.2 // indirect
 	github.com/davecgh/go-spew v1.1.1
-	github.com/devtron-labs/authenticator v0.4.18
+	github.com/devtron-labs/authenticator v0.4.19
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/elazarl/goproxy v0.0.0-20210110162100-a92cc753f88e // indirect
 	github.com/emicklei/go-restful v2.11.0+incompatible // indirect
@@ -106,4 +106,4 @@ require (
 	xorm.io/core v0.7.2 // indirect
 )
 
-replace github.com/devtron-labs/authenticator => github.com/nishant-d/authenticator v0.4.18
+replace github.com/devtron-labs/authenticator => github.com/nishant-d/authenticator v0.4.19
