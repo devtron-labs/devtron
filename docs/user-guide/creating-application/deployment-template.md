@@ -1,6 +1,6 @@
 # Devtron Charts
 
-1. [Rollout](deployment-template.md#Rollout Deployment)
+1. [Rollout](deployment-template.md#Rollout-Deployment)
 2. [Job/Cronjob](job-and-cronjob-chart.md)
 3. Knative
 
