@@ -23,7 +23,6 @@ import (
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -48,22 +47,18 @@ type EnvironmentRestHandlerImpl struct {
 	environmentClusterMappingsService request.EnvironmentService
 	logger                            *zap.SugaredLogger
 	userService                       user.UserService
-	validator    *validator.Validate
-	enforcer     casbin.Enforcer
-	enforcerUtil rbac.EnforcerUtil
-	userAuthService                   user.UserAuthService
+	validator                         *validator.Validate
+	enforcer                          casbin.Enforcer
 }
 
 func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, userAuthService user.UserAuthService) *EnvironmentRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer) *EnvironmentRestHandlerImpl {
 	return &EnvironmentRestHandlerImpl{
 		environmentClusterMappingsService: svc,
 		logger:                            logger,
 		userService:                       userService,
 		validator:                         validator,
 		enforcer:                          enforcer,
-		enforcerUtil:                      enforcerUtil,
-		userAuthService:                   userAuthService,
 	}
 }
 
