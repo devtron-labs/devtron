@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/sso"
+	"github.com/devtron-labs/devtron/api/team"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -13,18 +14,18 @@ type MuxRouter struct {
 	Router         *mux.Router
 	logger         *zap.SugaredLogger
 	ssoLoginRouter sso.SsoLoginRouter
-	//teamRouter     team.TeamRouter
+	teamRouter     team.TeamRouter
 }
 
 func NewMuxRouter(
 	logger *zap.SugaredLogger, ssoLoginRouter sso.SsoLoginRouter,
-	//teamRouter team.TeamRouter,
+	teamRouter team.TeamRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:         mux.NewRouter(),
 		logger:         logger,
 		ssoLoginRouter: ssoLoginRouter,
-		//teamRouter:     teamRouter,
+		teamRouter:     teamRouter,
 	}
 	return r
 }
@@ -46,6 +47,6 @@ func (r *MuxRouter) Init() {
 
 	ssoLoginRouter := r.Router.PathPrefix("/orchestrator/sso").Subrouter()
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
-/*	teamRouter := r.Router.PathPrefix("/orchestrator/team").Subrouter()
-	r.teamRouter.InitTeamRouter(teamRouter)*/
+	teamRouter := r.Router.PathPrefix("/orchestrator/team").Subrouter()
+	r.teamRouter.InitTeamRouter(teamRouter)
 }
