@@ -23,7 +23,6 @@ import (
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
@@ -49,7 +48,7 @@ type SSOLoginServiceImpl struct {
 	logger              *zap.SugaredLogger
 	userRepository      repository2.UserRepository
 	roleGroupRepository repository2.RoleGroupRepository
-	ssoLoginRepository  repository.SSOLoginRepository
+	ssoLoginRepository  SSOLoginRepository
 	K8sUtil             *util.K8sUtil
 	clusterService      cluster.ClusterService
 	envService          cluster.EnvironmentService
@@ -58,7 +57,7 @@ type SSOLoginServiceImpl struct {
 
 func NewSSOLoginServiceImpl(userAuthRepository repository2.UserAuthRepository, sessionManager *session.SessionManager,
 	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository2.UserRepository,
-	userGroupRepository repository2.RoleGroupRepository, ssoLoginRepository repository.SSOLoginRepository,
+	userGroupRepository repository2.RoleGroupRepository, ssoLoginRepository SSOLoginRepository,
 	K8sUtil *util.K8sUtil, clusterService cluster.ClusterService, envService cluster.EnvironmentService,
 	aCDAuthConfig *util2.ACDAuthConfig) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
@@ -106,7 +105,7 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 			return nil, err
 		}
 	}
-	model := &repository.SSOLoginModel{
+	model := &SSOLoginModel{
 		Name:   request.Name,
 		Label:  request.Label,
 		Config: string(configDataByte),

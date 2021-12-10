@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
+	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
@@ -41,9 +42,9 @@ type MuxRouter struct {
 	EnvironmentClusterMappingsRouter EnvironmentRouter
 	AppListingRouter                 AppListingRouter
 	ClusterRouter                    ClusterRouter
-	WebHookRouter     WebhookRouter
-	UserAuthRouter    user.UserAuthRouter
-	ApplicationRouter ApplicationRouter
+	WebHookRouter                    WebhookRouter
+	UserAuthRouter                   user.UserAuthRouter
+	ApplicationRouter                ApplicationRouter
 	CDRouter                         CDRouter
 	ProjectManagementRouter          ProjectManagementRouter
 	GitProviderRouter                GitProviderRouter
@@ -51,9 +52,9 @@ type MuxRouter struct {
 	DockerRegRouter                  DockerRegRouter
 	NotificationRouter               NotificationRouter
 	TeamRouter                       team.TeamRouter
-	pubsubClient      *pubsub2.PubSubClient
-	UserRouter        user.UserRouter
-	gitWebhookHandler pubsub.GitWebhookHandler
+	pubsubClient                     *pubsub2.PubSubClient
+	UserRouter                       user.UserRouter
+	gitWebhookHandler                pubsub.GitWebhookHandler
 	workflowUpdateHandler            pubsub.WorkflowStatusUpdateHandler
 	appUpdateHandler                 pubsub.ApplicationStatusUpdateHandler
 	ciEventHandler                   pubsub.CiEventHandler
@@ -73,7 +74,7 @@ type MuxRouter struct {
 	attributesRouter                 AttributesRouter
 	commonRouter                     CommonRouter
 	grafanaRouter                    GrafanaRouter
-	ssoLoginRouter                   SsoLoginRouter
+	ssoLoginRouter                   sso.SsoLoginRouter
 	telemetryRouter                  TelemetryRouter
 	telemetryWatcher                 telemetry.TelemetryEventClient
 	bulkUpdateRouter                 BulkUpdateRouter
@@ -99,7 +100,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter,
-	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter, coreAppRouter CoreAppRouter) *MuxRouter {
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter, coreAppRouter CoreAppRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -268,7 +269,7 @@ func (r MuxRouter) Init() {
 	r.commonRouter.InitCommonRouter(commonRouter)
 
 	ssoLoginRouter := r.Router.PathPrefix("/orchestrator/sso").Subrouter()
-	r.ssoLoginRouter.initSsoLoginRouter(ssoLoginRouter)
+	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
 
 	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
 	r.telemetryRouter.initTelemetryRouter(telemetryRouter)

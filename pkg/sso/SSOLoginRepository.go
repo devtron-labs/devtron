@@ -1,4 +1,4 @@
-package repository
+package sso
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"

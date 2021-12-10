@@ -15,14 +15,13 @@
  *
  */
 
-package restHandler
+package sso
 
 import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -42,20 +41,18 @@ type SsoLoginRestHandler interface {
 }
 
 type SsoLoginRestHandlerImpl struct {
-	userAuthService user.UserAuthService
 	validator       *validator.Validate
-	logger     *zap.SugaredLogger
-	enforcer   casbin.Enforcer
-	natsClient *pubsub.PubSubClient
+	logger          *zap.SugaredLogger
+	enforcer        casbin.Enforcer
 	userService     user.UserService
 	ssoLoginService sso.SSOLoginService
 }
 
-func NewSsoLoginRestHandlerImpl(userAuthService user.UserAuthService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer casbin.Enforcer, natsClient *pubsub.PubSubClient, userService user.UserService,
+func NewSsoLoginRestHandlerImpl(validator *validator.Validate,
+	logger *zap.SugaredLogger, enforcer casbin.Enforcer, userService user.UserService,
 	ssoLoginService sso.SSOLoginService) *SsoLoginRestHandlerImpl {
-	handler := &SsoLoginRestHandlerImpl{userAuthService: userAuthService, validator: validator, logger: logger,
-		enforcer: enforcer, natsClient: natsClient, userService: userService, ssoLoginService: ssoLoginService}
+	handler := &SsoLoginRestHandlerImpl{validator: validator, logger: logger,
+		enforcer: enforcer, userService: userService, ssoLoginService: ssoLoginService}
 	return handler
 }
 

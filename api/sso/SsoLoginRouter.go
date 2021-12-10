@@ -15,42 +15,28 @@
  *
  */
 
-package router
+package sso
 
 import (
-	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/devtron-labs/devtron/api/restHandler"
-	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/pkg/dex"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
-	"go.uber.org/zap"
-	"net/http"
 )
 
 type SsoLoginRouter interface {
-	initSsoLoginRouter(router *mux.Router)
+	InitSsoLoginRouter(router *mux.Router)
 }
 
 type SsoLoginRouterImpl struct {
-	logger   *zap.SugaredLogger
-	handler  restHandler.SsoLoginRestHandler
-	cdProxy  func(writer http.ResponseWriter, request *http.Request)
-	dexProxy func(writer http.ResponseWriter, request *http.Request)
+	handler SsoLoginRestHandler
 }
 
-func NewSsoLoginRouterImpl(logger *zap.SugaredLogger, handler restHandler.SsoLoginRestHandler, cdCfg *argocdServer.Config, dexCfg *dex.Config, settings *settings.ArgoCDSettings, userService user.UserService) *SsoLoginRouterImpl {
-	tlsConfig := settings.TLSConfig()
-	if tlsConfig != nil {
-		tlsConfig.InsecureSkipVerify = true
-	}
+func NewSsoLoginRouterImpl(handler SsoLoginRestHandler) *SsoLoginRouterImpl {
 	router := &SsoLoginRouterImpl{
 		handler: handler,
 	}
 	return router
 }
 
-func (router SsoLoginRouterImpl) initSsoLoginRouter(userAuthRouter *mux.Router) {
+func (router SsoLoginRouterImpl) InitSsoLoginRouter(userAuthRouter *mux.Router) {
 	userAuthRouter.Path("/create").
 		HandlerFunc(router.handler.CreateSSOLoginConfig).Methods("POST")
 	userAuthRouter.Path("/update").
