@@ -21,6 +21,7 @@
 package main
 
 import (
+	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
@@ -197,19 +198,19 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository3.ClusterRepository), new(*repository3.ClusterRepositoryImpl)),
 		clusterAccounts2.NewClusterServiceImpl,
 		wire.Bind(new(clusterAccounts2.ClusterService), new(*clusterAccounts2.ClusterServiceImpl)),
-		restHandler.NewClusterRestHandlerImpl,
-		wire.Bind(new(restHandler.ClusterRestHandler), new(*restHandler.ClusterRestHandlerImpl)),
-		router.NewClusterRouterImpl,
-		wire.Bind(new(router.ClusterRouter), new(*router.ClusterRouterImpl)),
+		cluster.NewClusterRestHandlerImpl,
+		wire.Bind(new(cluster.ClusterRestHandler), new(*cluster.ClusterRestHandlerImpl)),
+		cluster.NewClusterRouterImpl,
+		wire.Bind(new(cluster.ClusterRouter), new(*cluster.ClusterRouterImpl)),
 
 		repository3.NewEnvironmentRepositoryImpl,
 		wire.Bind(new(repository3.EnvironmentRepository), new(*repository3.EnvironmentRepositoryImpl)),
 		clusterAccounts2.NewEnvironmentServiceImpl,
 		wire.Bind(new(clusterAccounts2.EnvironmentService), new(*clusterAccounts2.EnvironmentServiceImpl)),
-		restHandler.NewEnvironmentRestHandlerImpl,
-		wire.Bind(new(restHandler.EnvironmentRestHandler), new(*restHandler.EnvironmentRestHandlerImpl)),
-		router.NewEnvironmentRouterImpl,
-		wire.Bind(new(router.EnvironmentRouter), new(*router.EnvironmentRouterImpl)),
+		cluster.NewEnvironmentRestHandlerImpl,
+		wire.Bind(new(cluster.EnvironmentRestHandler), new(*cluster.EnvironmentRestHandlerImpl)),
+		cluster.NewEnvironmentRouterImpl,
+		wire.Bind(new(cluster.EnvironmentRouter), new(*cluster.EnvironmentRouterImpl)),
 
 		router.NewProjectManagementRouterImpl,
 		wire.Bind(new(router.ProjectManagementRouter), new(*router.ProjectManagementRouterImpl)),

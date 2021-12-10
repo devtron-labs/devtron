@@ -15,10 +15,9 @@
  *
  */
 
-package router
+package cluster
 
 import (
-	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
 
@@ -27,10 +26,10 @@ type EnvironmentRouter interface {
 }
 
 type EnvironmentRouterImpl struct {
-	environmentClusterMappingsRestHandler restHandler.EnvironmentRestHandler
+	environmentClusterMappingsRestHandler EnvironmentRestHandler
 }
 
-func NewEnvironmentRouterImpl(environmentClusterMappingsRestHandler restHandler.EnvironmentRestHandler) *EnvironmentRouterImpl {
+func NewEnvironmentRouterImpl(environmentClusterMappingsRestHandler EnvironmentRestHandler) *EnvironmentRouterImpl {
 	return &EnvironmentRouterImpl{environmentClusterMappingsRestHandler: environmentClusterMappingsRestHandler}
 }
 

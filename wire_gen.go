@@ -8,6 +8,7 @@ package main
 import (
 	client2 "github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/middleware"
+	cluster2 "github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	app3 "github.com/devtron-labs/devtron/api/restHandler/app"
@@ -19,7 +20,7 @@ import (
 	user2 "github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
+	cluster3 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	repository4 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
@@ -275,9 +276,9 @@ func InitializeApp() (*App, error) {
 	migrateDbRouterImpl := router.NewMigrateDbRouterImpl(migrateDbRestHandlerImpl)
 	appListingRestHandlerImpl := restHandler.NewAppListingRestHandlerImpl(serviceClientImpl, appListingServiceImpl, teamServiceImpl, enforcerImpl, pipelineBuilderImpl, sugaredLogger, enforcerUtilImpl, deploymentGroupServiceImpl, userServiceImpl)
 	appListingRouterImpl := router.NewAppListingRouterImpl(appListingRestHandlerImpl)
-	environmentRestHandlerImpl := restHandler.NewEnvironmentRestHandlerImpl(environmentServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, enforcerUtilImpl, userAuthServiceImpl)
-	environmentRouterImpl := router.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
-	clusterServiceClientImpl := cluster2.NewServiceClientImpl(argoCDSettings, sugaredLogger)
+	environmentRestHandlerImpl := cluster2.NewEnvironmentRestHandlerImpl(environmentServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, enforcerUtilImpl, userAuthServiceImpl)
+	environmentRouterImpl := cluster2.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
+	clusterServiceClientImpl := cluster3.NewServiceClientImpl(argoCDSettings, sugaredLogger)
 	refChartProxyDir := _wireRefChartProxyDirValue
 	appStoreApplicationVersionRepositoryImpl := appstore.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	appStoreRepositoryImpl := appstore.NewAppStoreRepositoryImpl(sugaredLogger, db)
@@ -289,8 +290,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	clusterRestHandlerImpl := restHandler.NewClusterRestHandlerImpl(clusterServiceImpl, sugaredLogger, clusterServiceClientImpl, environmentServiceImpl, userServiceImpl, validate, enforcerImpl, installedAppServiceImpl)
-	clusterRouterImpl := router.NewClusterRouterImpl(clusterRestHandlerImpl)
+	clusterRestHandlerImpl := cluster2.NewClusterRestHandlerImpl(clusterServiceImpl, sugaredLogger, clusterServiceClientImpl, environmentServiceImpl, userServiceImpl, validate, enforcerImpl, installedAppServiceImpl)
+	clusterRouterImpl := cluster2.NewClusterRouterImpl(clusterRestHandlerImpl)
 	gitWebhookRepositoryImpl := repository.NewGitWebhookRepositoryImpl(db)
 	gitWebhookServiceImpl := git.NewGitWebhookServiceImpl(sugaredLogger, ciHandlerImpl, gitWebhookRepositoryImpl)
 	gitWebhookRestHandlerImpl := restHandler.NewGitWebhookRestHandlerImpl(sugaredLogger, gitWebhookServiceImpl)
