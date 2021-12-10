@@ -21,13 +21,14 @@
 package main
 
 import (
+	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/sse"
-	sso2 "github.com/devtron-labs/devtron/api/sso"
+	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -61,8 +62,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/attributes"
-	clusterAccounts2 "github.com/devtron-labs/devtron/pkg/cluster"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dex"
@@ -75,7 +74,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -92,6 +90,8 @@ func InitializeApp() (*App, error) {
 		team.TeamsWireSet,
 		AuthWireSet,
 		user.UserWireSet,
+		sso.SsoConfigWireSet,
+		cluster.ClusterWireSet,
 
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
@@ -192,24 +192,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
 		pipeline.NewPropertiesConfigServiceImpl,
 		wire.Bind(new(pipeline.PropertiesConfigService), new(*pipeline.PropertiesConfigServiceImpl)),
-
-		repository3.NewClusterRepositoryImpl,
-		wire.Bind(new(repository3.ClusterRepository), new(*repository3.ClusterRepositoryImpl)),
-		clusterAccounts2.NewClusterServiceImpl,
-		wire.Bind(new(clusterAccounts2.ClusterService), new(*clusterAccounts2.ClusterServiceImpl)),
-		restHandler.NewClusterRestHandlerImpl,
-		wire.Bind(new(restHandler.ClusterRestHandler), new(*restHandler.ClusterRestHandlerImpl)),
-		router.NewClusterRouterImpl,
-		wire.Bind(new(router.ClusterRouter), new(*router.ClusterRouterImpl)),
-
-		repository3.NewEnvironmentRepositoryImpl,
-		wire.Bind(new(repository3.EnvironmentRepository), new(*repository3.EnvironmentRepositoryImpl)),
-		clusterAccounts2.NewEnvironmentServiceImpl,
-		wire.Bind(new(clusterAccounts2.EnvironmentService), new(*clusterAccounts2.EnvironmentServiceImpl)),
-		restHandler.NewEnvironmentRestHandlerImpl,
-		wire.Bind(new(restHandler.EnvironmentRestHandler), new(*restHandler.EnvironmentRestHandlerImpl)),
-		router.NewEnvironmentRouterImpl,
-		wire.Bind(new(router.EnvironmentRouter), new(*router.EnvironmentRouterImpl)),
 
 		router.NewProjectManagementRouterImpl,
 		wire.Bind(new(router.ProjectManagementRouter), new(*router.ProjectManagementRouterImpl)),
@@ -578,11 +560,6 @@ func InitializeApp() (*App, error) {
 		router.NewGrafanaRouterImpl,
 		wire.Bind(new(router.GrafanaRouter), new(*router.GrafanaRouterImpl)),
 
-		sso.NewSSOLoginServiceImpl,
-		wire.Bind(new(sso.SSOLoginService), new(*sso.SSOLoginServiceImpl)),
-		sso.NewSSOLoginRepositoryImpl,
-		wire.Bind(new(sso.SSOLoginRepository), new(*sso.SSOLoginRepositoryImpl)),
-
 		router.NewGitOpsConfigRouterImpl,
 		wire.Bind(new(router.GitOpsConfigRouter), new(*router.GitOpsConfigRouterImpl)),
 		restHandler.NewGitOpsConfigRestHandlerImpl,
@@ -606,10 +583,6 @@ func InitializeApp() (*App, error) {
 		restHandler.NewCommonRestHanlderImpl,
 		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
 		util.NewGitCliUtil,
-		sso2.NewSsoLoginRouterImpl,
-		wire.Bind(new(sso2.SsoLoginRouter), new(*sso2.SsoLoginRouterImpl)),
-		sso2.NewSsoLoginRestHandlerImpl,
-		wire.Bind(new(sso2.SsoLoginRestHandler), new(*sso2.SsoLoginRestHandlerImpl)),
 
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),

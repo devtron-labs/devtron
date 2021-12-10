@@ -19,6 +19,7 @@ package router
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/sso"
@@ -39,9 +40,9 @@ type MuxRouter struct {
 	HelmRouter                       HelmRouter
 	PipelineConfigRouter             PipelineConfigRouter
 	MigrateDbRouter                  MigrateDbRouter
-	EnvironmentClusterMappingsRouter EnvironmentRouter
+	EnvironmentClusterMappingsRouter cluster.EnvironmentRouter
 	AppListingRouter                 AppListingRouter
-	ClusterRouter                    ClusterRouter
+	ClusterRouter                    cluster.ClusterRouter
 	WebHookRouter                    WebhookRouter
 	UserAuthRouter                   user.UserAuthRouter
 	ApplicationRouter                ApplicationRouter
@@ -85,7 +86,7 @@ type MuxRouter struct {
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
 	MigrateDbRouter MigrateDbRouter, AppListingRouter AppListingRouter,
-	EnvironmentClusterMappingsRouter EnvironmentRouter, ClusterRouter ClusterRouter,
+	EnvironmentClusterMappingsRouter cluster.EnvironmentRouter, ClusterRouter cluster.ClusterRouter,
 	WebHookRouter WebhookRouter, UserAuthRouter user.UserAuthRouter, ApplicationRouter ApplicationRouter,
 	CDRouter CDRouter, ProjectManagementRouter ProjectManagementRouter,
 	GitProviderRouter GitProviderRouter, GitHostRouter GitHostRouter,

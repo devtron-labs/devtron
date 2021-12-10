@@ -20,9 +20,9 @@ package sso
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
-	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -41,20 +41,17 @@ type SSOLoginServiceImpl struct {
 	logger             *zap.SugaredLogger
 	ssoLoginRepository SSOLoginRepository
 	K8sUtil            *util.K8sUtil
-	//clusterService     cluster.ClusterService
-	aCDAuthConfig      *util2.ACDAuthConfig
 }
 
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
 	K8sUtil *util.K8sUtil,
-	aCDAuthConfig *util2.ACDAuthConfig) *SSOLoginServiceImpl {
+) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		logger:             logger,
 		ssoLoginRepository: ssoLoginRepository,
 		K8sUtil:            K8sUtil,
-		aCDAuthConfig:      aCDAuthConfig,
 	}
 	return serviceImpl
 }
@@ -183,7 +180,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 
 	//TODO- update argocd-cm
 	flag := false
-	client, err :=	impl.K8sUtil.GetClientForInCluster()
+	k8sClient, err := impl.K8sUtil.GetClientForInCluster()
 	if err != nil {
 		return flag, err
 	}
@@ -192,7 +189,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		cm, err := impl.K8sUtil.GetConfigMap(client.ArgocdNamespaceName, client.ArgoCDConfigMapName, k8sClient)
 		if err != nil {
 			return flag, err
 		}
@@ -204,7 +201,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 		data["dex.config"] = updatedData["dex.config"]
 		data["url"] = request.Url
 		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		_, err = impl.K8sUtil.UpdateConfigMap(client.ArgocdNamespaceName, cm, k8sClient)
 		if err != nil {
 			impl.logger.Warnw("config map failed", "err", err)
 			continue

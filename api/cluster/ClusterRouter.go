@@ -15,10 +15,9 @@
  *
  */
 
-package router
+package cluster
 
 import (
-	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
 
@@ -27,10 +26,10 @@ type ClusterRouter interface {
 }
 
 type ClusterRouterImpl struct {
-	clusterRestHandler restHandler.ClusterRestHandler
+	clusterRestHandler ClusterRestHandler
 }
 
-func NewClusterRouterImpl(handler restHandler.ClusterRestHandler) *ClusterRouterImpl {
+func NewClusterRouterImpl(handler ClusterRestHandler) *ClusterRouterImpl {
 	return &ClusterRouterImpl{
 		clusterRestHandler: handler,
 	}

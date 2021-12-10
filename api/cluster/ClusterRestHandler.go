@@ -15,7 +15,7 @@
  *
  */
 
-package restHandler
+package cluster
 
 import (
 	"context"
