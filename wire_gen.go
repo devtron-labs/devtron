@@ -147,12 +147,7 @@ func InitializeApp() (*App, error) {
 	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl)
 	tokenCache := util2.NewTokenCache(sugaredLogger, acdAuthConfig, userAuthServiceImpl)
 	enforcer := casbin.Create()
-	config2, err := dex.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-	sessionSessionManager := session.SessionManager(settingsManager, config2)
-	enforcerImpl := casbin.NewEnforcerImpl(enforcer, sessionSessionManager, sugaredLogger)
+	enforcerImpl := casbin.NewEnforcerImpl(enforcer, sessionManager, sugaredLogger)
 	teamRepositoryImpl := team.NewTeamRepositoryImpl(db)
 	appRepositoryImpl := app.NewAppRepositoryImpl(db)
 	environmentRepositoryImpl := repository3.NewEnvironmentRepositoryImpl(db)
@@ -212,6 +207,11 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	config2, err := dex.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	sessionSessionManager := session.SessionManager(settingsManager, config2)
 	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, sessionSessionManager, attributesRepositoryImpl)
 	appLabelRepositoryImpl := pipelineConfig.NewAppLabelRepositoryImpl(db)
 	appLabelServiceImpl := app2.NewAppLabelServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl)

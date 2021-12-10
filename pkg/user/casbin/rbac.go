@@ -19,9 +19,9 @@ package casbin
 
 import (
 	"fmt"
-	jwt2 "github.com/argoproj/argo-cd/util/jwt"
-	"github.com/argoproj/argo-cd/util/session"
 	"github.com/casbin/casbin"
+	"github.com/devtron-labs/authenticator/jwt"
+	"github.com/devtron-labs/authenticator/middleware"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -36,7 +36,7 @@ type Enforcer interface {
 
 func NewEnforcerImpl(
 	enforcer *casbin.Enforcer,
-	sessionManager *session.SessionManager,
+	sessionManager *middleware.SessionManager,
 	logger *zap.SugaredLogger) *EnforcerImpl {
 	enf := &EnforcerImpl{Enforcer: enforcer, logger: logger, SessionManager: sessionManager}
 	return enf
@@ -50,7 +50,7 @@ func NewEnforcerImpl(
 // * supports a custom JWT claims enforce function
 type EnforcerImpl struct {
 	*casbin.Enforcer
-	*session.SessionManager
+	*middleware.SessionManager
 	logger *zap.SugaredLogger
 }
 
@@ -90,12 +90,12 @@ func (e *EnforcerImpl) enforce(enf *casbin.Enforcer, rvals ...interface{}) bool 
 	if err != nil {
 		return false
 	}
-	mapClaims, err := jwt2.MapClaims(claims)
+	mapClaims, err := jwt.MapClaims(claims)
 	if err != nil {
 		return false
 	}
-	email := jwt2.GetField(mapClaims, "email")
-	sub := jwt2.GetField(mapClaims, "sub")
+	email := jwt.GetField(mapClaims, "email")
+	sub := jwt.GetField(mapClaims, "sub")
 	if email == "" {
 		email = sub
 	}
