@@ -53,15 +53,16 @@ func (r *MuxRouter) Init() {
 		}
 		_, _ = writer.Write(b)
 	})
+	baseRouter := r.Router.PathPrefix("/orchestrator/").Subrouter()
 
-	ssoLoginRouter := r.Router.PathPrefix("/orchestrator/sso").Subrouter()
+	ssoLoginRouter := baseRouter.PathPrefix("/sso").Subrouter()
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
-	teamRouter := r.Router.PathPrefix("/orchestrator/team").Subrouter()
+	teamRouter := baseRouter.PathPrefix("/team").Subrouter()
 	r.teamRouter.InitTeamRouter(teamRouter)
 
-	rootRouter := r.Router.PathPrefix("/orchestrator").Subrouter()
+	rootRouter := baseRouter.PathPrefix("/").Subrouter()
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
 
-	userRouter := r.Router.PathPrefix("/orchestrator/user").Subrouter()
+	userRouter := baseRouter.PathPrefix("/user").Subrouter()
 	r.userRouter.InitUserRouter(userRouter)
 }
