@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -46,9 +45,8 @@ type TeamRestHandlerImpl struct {
 	logger          *zap.SugaredLogger
 	teamService     team.TeamService
 	userService     user.UserService
-	validator    *validator.Validate
-	enforcer     casbin.Enforcer
-	enforcerUtil rbac.EnforcerUtil
+	validator       *validator.Validate
+	enforcer        casbin.Enforcer
 	userAuthService user.UserAuthService
 }
 
@@ -56,14 +54,13 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
 	userService user.UserService,
 	enforcer casbin.Enforcer,
-	validator *validator.Validate, enforcerUtil rbac.EnforcerUtil, userAuthService user.UserAuthService) *TeamRestHandlerImpl {
+	validator *validator.Validate, userAuthService user.UserAuthService) *TeamRestHandlerImpl {
 	return &TeamRestHandlerImpl{
 		logger:          logger,
 		teamService:     teamService,
 		userService:     userService,
 		validator:       validator,
 		enforcer:        enforcer,
-		enforcerUtil:    enforcerUtil,
 		userAuthService: userAuthService,
 	}
 }
