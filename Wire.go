@@ -62,8 +62,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/attributes"
-	clusterAccounts2 "github.com/devtron-labs/devtron/pkg/cluster"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dex"
@@ -93,6 +91,7 @@ func InitializeApp() (*App, error) {
 		AuthWireSet,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
+		cluster.ClusterWireSet,
 
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
@@ -193,24 +192,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
 		pipeline.NewPropertiesConfigServiceImpl,
 		wire.Bind(new(pipeline.PropertiesConfigService), new(*pipeline.PropertiesConfigServiceImpl)),
-
-		repository3.NewClusterRepositoryImpl,
-		wire.Bind(new(repository3.ClusterRepository), new(*repository3.ClusterRepositoryImpl)),
-		clusterAccounts2.NewClusterServiceImpl,
-		wire.Bind(new(clusterAccounts2.ClusterService), new(*clusterAccounts2.ClusterServiceImpl)),
-		cluster.NewClusterRestHandlerImpl,
-		wire.Bind(new(cluster.ClusterRestHandler), new(*cluster.ClusterRestHandlerImpl)),
-		cluster.NewClusterRouterImpl,
-		wire.Bind(new(cluster.ClusterRouter), new(*cluster.ClusterRouterImpl)),
-
-		repository3.NewEnvironmentRepositoryImpl,
-		wire.Bind(new(repository3.EnvironmentRepository), new(*repository3.EnvironmentRepositoryImpl)),
-		clusterAccounts2.NewEnvironmentServiceImpl,
-		wire.Bind(new(clusterAccounts2.EnvironmentService), new(*clusterAccounts2.EnvironmentServiceImpl)),
-		cluster.NewEnvironmentRestHandlerImpl,
-		wire.Bind(new(cluster.EnvironmentRestHandler), new(*cluster.EnvironmentRestHandlerImpl)),
-		cluster.NewEnvironmentRouterImpl,
-		wire.Bind(new(cluster.EnvironmentRouter), new(*cluster.EnvironmentRouterImpl)),
 
 		router.NewProjectManagementRouterImpl,
 		wire.Bind(new(router.ProjectManagementRouter), new(*router.ProjectManagementRouterImpl)),
