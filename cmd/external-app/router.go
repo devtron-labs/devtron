@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
+	"github.com/devtron-labs/devtron/api/user"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -15,17 +16,22 @@ type MuxRouter struct {
 	logger         *zap.SugaredLogger
 	ssoLoginRouter sso.SsoLoginRouter
 	teamRouter     team.TeamRouter
+	UserAuthRouter user.UserAuthRouter
 }
 
 func NewMuxRouter(
-	logger *zap.SugaredLogger, ssoLoginRouter sso.SsoLoginRouter,
+	logger *zap.SugaredLogger,
+	ssoLoginRouter sso.SsoLoginRouter,
 	teamRouter team.TeamRouter,
+	UserAuthRouter user.UserAuthRouter,
+
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:         mux.NewRouter(),
 		logger:         logger,
 		ssoLoginRouter: ssoLoginRouter,
 		teamRouter:     teamRouter,
+		UserAuthRouter: UserAuthRouter,
 	}
 	return r
 }
@@ -49,4 +55,7 @@ func (r *MuxRouter) Init() {
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
 	teamRouter := r.Router.PathPrefix("/orchestrator/team").Subrouter()
 	r.teamRouter.InitTeamRouter(teamRouter)
+
+	rootRouter := r.Router.PathPrefix("/orchestrator").Subrouter()
+	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
 }
