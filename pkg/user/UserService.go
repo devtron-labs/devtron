@@ -19,20 +19,19 @@ package user
 
 import (
 	"fmt"
+	"github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/middleware"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"net/http"
-	"strings"
-	"time"
-
-	jwt2 "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
+	"net/http"
+	"strings"
+	"time"
 )
 
 type UserService interface {
@@ -840,14 +839,14 @@ func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
 		}
 		return http.StatusUnauthorized, err
 	}
-	mapClaims, err := jwt2.MapClaims(claims)
+	mapClaims, err := jwt.MapClaims(claims)
 	if err != nil {
 		impl.logger.Errorw("failed to MapClaims", "error", err)
 		return http.StatusUnauthorized, err
 	}
 
-	email := jwt2.GetField(mapClaims, "email")
-	sub := jwt2.GetField(mapClaims, "sub")
+	email := jwt.GetField(mapClaims, "email")
+	sub := jwt.GetField(mapClaims, "sub")
 
 	if email == "" && sub == "admin" {
 		email = sub
