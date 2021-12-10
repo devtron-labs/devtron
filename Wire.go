@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/sse"
+	sso2 "github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -579,8 +580,8 @@ func InitializeApp() (*App, error) {
 
 		sso.NewSSOLoginServiceImpl,
 		wire.Bind(new(sso.SSOLoginService), new(*sso.SSOLoginServiceImpl)),
-		repository.NewSSOLoginRepositoryImpl,
-		wire.Bind(new(repository.SSOLoginRepository), new(*repository.SSOLoginRepositoryImpl)),
+		sso.NewSSOLoginRepositoryImpl,
+		wire.Bind(new(sso.SSOLoginRepository), new(*sso.SSOLoginRepositoryImpl)),
 
 		router.NewGitOpsConfigRouterImpl,
 		wire.Bind(new(router.GitOpsConfigRouter), new(*router.GitOpsConfigRouterImpl)),
@@ -605,10 +606,10 @@ func InitializeApp() (*App, error) {
 		restHandler.NewCommonRestHanlderImpl,
 		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
 		util.NewGitCliUtil,
-		router.NewSsoLoginRouterImpl,
-		wire.Bind(new(router.SsoLoginRouter), new(*router.SsoLoginRouterImpl)),
-		restHandler.NewSsoLoginRestHandlerImpl,
-		wire.Bind(new(restHandler.SsoLoginRestHandler), new(*restHandler.SsoLoginRestHandlerImpl)),
+		sso2.NewSsoLoginRouterImpl,
+		wire.Bind(new(sso2.SsoLoginRouter), new(*sso2.SsoLoginRouterImpl)),
+		sso2.NewSsoLoginRestHandlerImpl,
+		wire.Bind(new(sso2.SsoLoginRestHandler), new(*sso2.SsoLoginRestHandlerImpl)),
 
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
