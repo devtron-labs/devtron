@@ -53,14 +53,6 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("PUT").
 		HandlerFunc(impl.clusterRestHandler.Update)
 
-	clusterRouter.Path("/acd/").
-		Methods("GET").
-		HandlerFunc(impl.clusterRestHandler.ClusterListFromACD)
-
-	clusterRouter.Path("/acd/delete").
-		Methods("DELETE").
-		HandlerFunc(impl.clusterRestHandler.DeleteClusterFromACD)
-
 	clusterRouter.Path("/autocomplete").
 		Methods("GET").
 		HandlerFunc(impl.clusterRestHandler.FindAllForAutoComplete)

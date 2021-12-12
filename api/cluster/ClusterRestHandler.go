@@ -49,8 +49,6 @@ type ClusterRestHandler interface {
 	FindById(w http.ResponseWriter, r *http.Request)
 	Update(w http.ResponseWriter, r *http.Request)
 
-	ClusterListFromACD(w http.ResponseWriter, r *http.Request)
-	DeleteClusterFromACD(w http.ResponseWriter, r *http.Request)
 
 	FindAllForAutoComplete(w http.ResponseWriter, r *http.Request)
 	DefaultComponentInstallation(w http.ResponseWriter, r *http.Request)
@@ -129,7 +127,7 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	
+
 	isTriggered, err := impl.installedAppService.DeployDefaultChartOnCluster(bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Save, on DeployDefaultChartOnCluster", "err", err, "payload", bean)
@@ -296,78 +294,6 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 		return
 	}
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
-}
-
-func (impl ClusterRestHandlerImpl) ClusterListFromACD(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(r.Context(), "token", token)
-	cList, err := impl.clusterServiceCD.List(ctx, &cluster3.ClusterQuery{})
-	if err != nil {
-		impl.logger.Errorw("service err, ClusterListFromACD", "error", err)
-		common.WriteJsonResp(w, err, "failed to fetch list from ACD:", http.StatusInternalServerError)
-		return
-	}
-	// RBAC enforcer applying
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, "*"); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	// RBAC enforcer ends
-
-	resJson, err := json.Marshal(cList)
-	_, err = w.Write(resJson)
-	if err != nil {
-		impl.logger.Errorw("marshal err, ClusterListFromACD", "error", err, "cList", cList)
-	}
-
-}
-
-func (impl ClusterRestHandlerImpl) DeleteClusterFromACD(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
-	vars := mux.Vars(r)
-	serverUrl := vars["server_url"]
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	impl.logger.Errorw("request payload, DeleteClusterFromACD", "serverUrl", serverUrl)
-	ctx = context.WithValue(r.Context(), "token", token)
-	res, err := impl.clusterServiceCD.Delete(ctx, &cluster3.ClusterQuery{Server: serverUrl})
-	if err != nil {
-		impl.logger.Errorw("service err, DeleteClusterFromACD", "error", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	// RBAC enforcer applying
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionDelete, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	// RBAC enforcer ends
-
-	resJson, err := json.Marshal(res)
-	_, err = w.Write(resJson)
-	if err != nil {
-		impl.logger.Errorw("service err, DeleteClusterFromACD", "error", err, "res", res)
-	}
-
 }
 
 func (impl ClusterRestHandlerImpl) GetClusterFromACD(w http.ResponseWriter, r *http.Request) {
