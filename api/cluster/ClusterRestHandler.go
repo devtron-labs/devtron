@@ -112,34 +112,6 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	//RBAC enforcer Ends
-
-	bean, err = impl.clusterService.Save(bean, userId)
-	if err != nil {
-		impl.logger.Errorw("service err, Save", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	//create it into argo cd as well
-	configMap := bean.Config
-	serverUrl := bean.ServerUrl
-	bearerToken := ""
-	if configMap["bearer_token"] != "" {
-		bearerToken = configMap["bearer_token"]
-	}
-	tlsConfig := v1alpha1.TLSClientConfig{
-		Insecure: true,
-	}
-	cdClusterConfig := v1alpha1.ClusterConfig{
-		BearerToken:     bearerToken,
-		TLSClientConfig: tlsConfig,
-	}
-
-	cl := &v1alpha1.Cluster{
-		Name:   bean.ClusterName,
-		Server: serverUrl,
-		Config: cdClusterConfig,
-	}
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
 		go func(done <-chan struct{}, closed <-chan bool) {
@@ -151,29 +123,13 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	ctx = context.WithValue(ctx, "token", token)
-	_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
+	bean, err = impl.clusterService.Save(ctx, bean, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, Save", "err", err, "payload", cl)
-		err1 := impl.clusterService.Delete(bean, userId)
-		if err1 != nil {
-			impl.logger.Errorw("service err, Save, delete on rollback", "err", err, "payload", bean)
-			err = &util.ApiError{
-				Code:            constants.ClusterDBRollbackFailed,
-				InternalMessage: err.Error(),
-				UserMessage:     "failed to rollback cluster from db as it has failed in registering on ACD",
-			}
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		err = &util.ApiError{
-			Code:            constants.ClusterCreateACDFailed,
-			InternalMessage: err.Error(),
-			UserMessage:     "failed to register on ACD, rollback completed from db",
-		}
+		impl.logger.Errorw("service err, Save", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
+	
 	isTriggered, err := impl.installedAppService.DeployDefaultChartOnCluster(bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Save, on DeployDefaultChartOnCluster", "err", err, "payload", bean)

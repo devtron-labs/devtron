@@ -18,6 +18,7 @@
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -59,7 +60,7 @@ type DefaultClusterComponent struct {
 }
 
 type ClusterService interface {
-	Save(bean *ClusterBean, userId int32) (*ClusterBean, error)
+	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
@@ -114,7 +115,7 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 	return clusterCfg, nil
 }
 
-func (impl *ClusterServiceImpl) Save(bean *ClusterBean, userId int32) (*ClusterBean, error) {
+func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
 
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
 	if err != nil && err != pg.ErrNoRows {

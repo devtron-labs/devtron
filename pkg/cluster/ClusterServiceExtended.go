@@ -1,7 +1,12 @@
 package cluster
 
 import (
+	"context"
+	cluster3 "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -14,16 +19,19 @@ type ClusterServiceImplExtended struct {
 	environmentRepository  repository.EnvironmentRepository
 	grafanaClient          grafana.GrafanaClient
 	installedAppRepository appstore.InstalledAppRepository
+	clusterServiceCD       cluster2.ServiceClient
 	*ClusterServiceImpl
 }
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository appstore.InstalledAppRepository,
-	K8sUtil *util.K8sUtil) *ClusterServiceImplExtended {
+	K8sUtil *util.K8sUtil,
+	clusterServiceCD cluster2.ServiceClient) *ClusterServiceImplExtended {
 	return &ClusterServiceImplExtended{
 		environmentRepository:  environmentRepository,
 		grafanaClient:          grafanaClient,
 		installedAppRepository: installedAppRepository,
+		clusterServiceCD:       clusterServiceCD,
 		ClusterServiceImpl: &ClusterServiceImpl{
 			clusterRepository: repository,
 			logger:            logger,
@@ -221,4 +229,56 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 		return 0, err
 	}
 	return grafanaDatasourceId, nil
+}
+
+func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+	clusterBean, err := impl.ClusterServiceImpl.Save(ctx, bean, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	//create it into argo cd as well
+	configMap := bean.Config
+	serverUrl := bean.ServerUrl
+	bearerToken := ""
+	if configMap["bearer_token"] != "" {
+		bearerToken = configMap["bearer_token"]
+	}
+	tlsConfig := v1alpha1.TLSClientConfig{
+		Insecure: true,
+	}
+	cdClusterConfig := v1alpha1.ClusterConfig{
+		BearerToken:     bearerToken,
+		TLSClientConfig: tlsConfig,
+	}
+
+	cl := &v1alpha1.Cluster{
+		Name:   bean.ClusterName,
+		Server: serverUrl,
+		Config: cdClusterConfig,
+	}
+
+	_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
+	if err != nil {
+		impl.logger.Errorw("service err, Save", "err", err, "payload", cl)
+		err1 := impl.ClusterServiceImpl.Delete(bean, userId) //FIXME nishant call local
+		if err1 != nil {
+			impl.logger.Errorw("service err, Save, delete on rollback", "err", err, "payload", bean)
+			err = &util.ApiError{
+				Code:            constants.ClusterDBRollbackFailed,
+				InternalMessage: err.Error(),
+				UserMessage:     "failed to rollback cluster from db as it has failed in registering on ACD",
+			}
+			return nil, err
+
+		}
+		err = &util.ApiError{
+			Code:            constants.ClusterCreateACDFailed,
+			InternalMessage: err.Error(),
+			UserMessage:     "failed to register on ACD, rollback completed from db",
+		}
+		return nil, err
+
+	}
+	return clusterBean, nil
 }
