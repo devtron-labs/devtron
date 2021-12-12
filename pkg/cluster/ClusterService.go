@@ -68,7 +68,7 @@ type ClusterService interface {
 
 	FindById(id int) (*ClusterBean, error)
 	FindByIds(id []int) ([]ClusterBean, error)
-	Update(bean *ClusterBean, userId int32) (*ClusterBean, error)
+	Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
 	Delete(bean *ClusterBean, userId int32) error
 
 	FindAllForAutoComplete() ([]ClusterBean, error)
@@ -297,7 +297,7 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 	return beans, nil
 }
 
-func (impl *ClusterServiceImpl) Update(bean *ClusterBean, userId int32) (*ClusterBean, error) {
+func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
 	model, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Error(err)

@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 	cluster3 "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -12,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	"net/http"
+	"strings"
 )
 
 //extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
@@ -112,8 +114,8 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	return beans, nil
 }
 
-func (impl *ClusterServiceImplExtended) Update(bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	bean, err := impl.ClusterServiceImpl.Update(bean, userId)
+func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+	bean, err := impl.ClusterServiceImpl.Update(ctx, bean, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +180,42 @@ func (impl *ClusterServiceImplExtended) Update(bean *ClusterBean, userId int32) 
 			impl.logger.Error(err)
 			return nil, err
 		}
+	}
+	configMap := bean.Config
+	serverUrl := bean.ServerUrl
+	bearerToken := ""
+	if configMap["bearer_token"] != "" {
+		bearerToken = configMap["bearer_token"]
+	}
+
+	tlsConfig := v1alpha1.TLSClientConfig{
+		Insecure: true,
+	}
+	cdClusterConfig := v1alpha1.ClusterConfig{
+		BearerToken:     bearerToken,
+		TLSClientConfig: tlsConfig,
+	}
+
+	cl := &v1alpha1.Cluster{
+		Name:   bean.ClusterName,
+		Server: serverUrl,
+		Config: cdClusterConfig,
+	}
+
+	_, err = impl.clusterServiceCD.Update(ctx, &cluster3.ClusterUpdateRequest{Cluster: cl})
+
+	if err != nil {
+		impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
+		userMsg := "failed to update on cluster via ACD"
+		if strings.Contains(err.Error(), "https://kubernetes.default.svc") {
+			userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
+		}
+		err = &util.ApiError{
+			Code:            constants.ClusterUpdateACDFailed,
+			InternalMessage: err.Error(),
+			UserMessage:     userMsg,
+		}
+		return nil, err
 	}
 	return bean, err
 }
