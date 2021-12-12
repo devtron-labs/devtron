@@ -21,19 +21,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strconv"
 	"strings"
 
-	cluster3 "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
-	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
@@ -47,43 +40,31 @@ type ClusterRestHandler interface {
 	FindAll(w http.ResponseWriter, r *http.Request)
 
 	FindById(w http.ResponseWriter, r *http.Request)
-	FindByEnvId(w http.ResponseWriter, r *http.Request)
 	Update(w http.ResponseWriter, r *http.Request)
 
-	ClusterListFromACD(w http.ResponseWriter, r *http.Request)
-	DeleteClusterFromACD(w http.ResponseWriter, r *http.Request)
-
 	FindAllForAutoComplete(w http.ResponseWriter, r *http.Request)
-	DefaultComponentInstallation(w http.ResponseWriter, r *http.Request)
 }
 
 type ClusterRestHandlerImpl struct {
-	clusterService      cluster.ClusterService
-	clusterServiceCD    cluster2.ServiceClient
-	logger              *zap.SugaredLogger
-	envService          cluster.EnvironmentService
-	userService         user.UserService
-	validator           *validator.Validate
-	enforcer            casbin.Enforcer
-	installedAppService appstore.InstalledAppService
+	clusterService cluster.ClusterService
+	logger         *zap.SugaredLogger
+	userService    user.UserService
+	validator      *validator.Validate
+	enforcer       casbin.Enforcer
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	logger *zap.SugaredLogger,
-	clusterServiceCD cluster2.ServiceClient,
-	envService cluster.EnvironmentService,
 	userService user.UserService,
 	validator *validator.Validate,
-	enforcer casbin.Enforcer, installedAppService appstore.InstalledAppService) *ClusterRestHandlerImpl {
+	enforcer casbin.Enforcer,
+) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
-		clusterService:      clusterService,
-		logger:              logger,
-		clusterServiceCD:    clusterServiceCD,
-		envService:          envService,
-		userService:         userService,
-		validator:           validator,
-		enforcer:            enforcer,
-		installedAppService: installedAppService,
+		clusterService: clusterService,
+		logger:         logger,
+		userService:    userService,
+		validator:      validator,
+		enforcer:       enforcer,
 	}
 }
 
@@ -116,34 +97,6 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	//RBAC enforcer Ends
-
-	bean, err = impl.clusterService.Save(bean, userId)
-	if err != nil {
-		impl.logger.Errorw("service err, Save", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	//create it into argo cd as well
-	configMap := bean.Config
-	serverUrl := bean.ServerUrl
-	bearerToken := ""
-	if configMap["bearer_token"] != "" {
-		bearerToken = configMap["bearer_token"]
-	}
-	tlsConfig := v1alpha1.TLSClientConfig{
-		Insecure: true,
-	}
-	cdClusterConfig := v1alpha1.ClusterConfig{
-		BearerToken:     bearerToken,
-		TLSClientConfig: tlsConfig,
-	}
-
-	cl := &v1alpha1.Cluster{
-		Name:   bean.ClusterName,
-		Server: serverUrl,
-		Config: cdClusterConfig,
-	}
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
 		go func(done <-chan struct{}, closed <-chan bool) {
@@ -155,38 +108,22 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	ctx = context.WithValue(ctx, "token", token)
-	_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
+	bean, err = impl.clusterService.Save(ctx, bean, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, Save", "err", err, "payload", cl)
-		err1 := impl.clusterService.Delete(bean, userId)
-		if err1 != nil {
-			impl.logger.Errorw("service err, Save, delete on rollback", "err", err, "payload", bean)
-			err = &util.ApiError{
-				Code:            constants.ClusterDBRollbackFailed,
-				InternalMessage: err.Error(),
-				UserMessage:     "failed to rollback cluster from db as it has failed in registering on ACD",
-			}
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		err = &util.ApiError{
-			Code:            constants.ClusterCreateACDFailed,
-			InternalMessage: err.Error(),
-			UserMessage:     "failed to register on ACD, rollback completed from db",
-		}
+		impl.logger.Errorw("service err, Save", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	isTriggered, err := impl.installedAppService.DeployDefaultChartOnCluster(bean, userId)
-	if err != nil {
-		impl.logger.Errorw("service err, Save, on DeployDefaultChartOnCluster", "err", err, "payload", bean)
-	}
-	if isTriggered {
-		bean.AgentInstallationStage = 1
-	} else {
-		bean.AgentInstallationStage = 0
-	}
+	/*	isTriggered, err := impl.installedAppService.DeployDefaultChartOnCluster(bean, userId)
+		if err != nil {
+			impl.logger.Errorw("service err, Save, on DeployDefaultChartOnCluster", "err", err, "payload", bean)
+		}
+		if isTriggered {
+			bean.AgentInstallationStage = 1
+		} else {
+			bean.AgentInstallationStage = 0
+		}*/
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
@@ -258,32 +195,6 @@ func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Reque
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
-func (impl ClusterRestHandlerImpl) FindByEnvId(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-	idi, err := strconv.Atoi(id)
-	if err != nil {
-		impl.logger.Errorw("request err, FindByEnvId", "error", err, "clusterId", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	envBean, err := impl.envService.FindClusterByEnvId(idi)
-	if err != nil {
-		impl.logger.Errorw("service err, FindByEnvId", "error", err, "clusterId", id)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, strings.ToLower(envBean.ClusterName)); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	// RBAC enforcer ends
-
-	common.WriteJsonResp(w, err, envBean, http.StatusOK)
-}
-
 func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
@@ -314,170 +225,25 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 		return
 	}
 	// RBAC enforcer ends
-
-	_, err = impl.clusterService.Update(&bean, userId)
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	ctx = context.WithValue(r.Context(), "token", token)
+	_, err = impl.clusterService.Update(ctx, &bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "error", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	configMap := bean.Config
-	serverUrl := bean.ServerUrl
-	bearerToken := ""
-	if configMap["bearer_token"] != "" {
-		bearerToken = configMap["bearer_token"]
-	}
-
-	tlsConfig := v1alpha1.TLSClientConfig{
-		Insecure: true,
-	}
-	cdClusterConfig := v1alpha1.ClusterConfig{
-		BearerToken:     bearerToken,
-		TLSClientConfig: tlsConfig,
-	}
-
-	cl := &v1alpha1.Cluster{
-		Name:   bean.ClusterName,
-		Server: serverUrl,
-		Config: cdClusterConfig,
-	}
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(r.Context(), "token", token)
-	_, err = impl.clusterServiceCD.Update(ctx, &cluster3.ClusterUpdateRequest{Cluster: cl})
-
-	if err != nil {
-		impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
-		userMsg := "failed to update on cluster via ACD"
-		if strings.Contains(err.Error(), "https://kubernetes.default.svc") {
-			userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
-		}
-		err = &util.ApiError{
-			Code:            constants.ClusterUpdateACDFailed,
-			InternalMessage: err.Error(),
-			UserMessage:     userMsg,
-		}
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
-}
-
-func (impl ClusterRestHandlerImpl) ClusterListFromACD(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(r.Context(), "token", token)
-	cList, err := impl.clusterServiceCD.List(ctx, &cluster3.ClusterQuery{})
-	if err != nil {
-		impl.logger.Errorw("service err, ClusterListFromACD", "error", err)
-		common.WriteJsonResp(w, err, "failed to fetch list from ACD:", http.StatusInternalServerError)
-		return
-	}
-	// RBAC enforcer applying
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, "*"); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	// RBAC enforcer ends
-
-	resJson, err := json.Marshal(cList)
-	_, err = w.Write(resJson)
-	if err != nil {
-		impl.logger.Errorw("marshal err, ClusterListFromACD", "error", err, "cList", cList)
-	}
-
-}
-
-func (impl ClusterRestHandlerImpl) DeleteClusterFromACD(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
-	vars := mux.Vars(r)
-	serverUrl := vars["server_url"]
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	impl.logger.Errorw("request payload, DeleteClusterFromACD", "serverUrl", serverUrl)
-	ctx = context.WithValue(r.Context(), "token", token)
-	res, err := impl.clusterServiceCD.Delete(ctx, &cluster3.ClusterQuery{Server: serverUrl})
-	if err != nil {
-		impl.logger.Errorw("service err, DeleteClusterFromACD", "error", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	// RBAC enforcer applying
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionDelete, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	// RBAC enforcer ends
-
-	resJson, err := json.Marshal(res)
-	_, err = w.Write(resJson)
-	if err != nil {
-		impl.logger.Errorw("service err, DeleteClusterFromACD", "error", err, "res", res)
-	}
-
-}
-
-func (impl ClusterRestHandlerImpl) GetClusterFromACD(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
-	vars := mux.Vars(r)
-	serverUrl := vars["server_url"]
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(r.Context(), "token", token)
-	res, err := impl.clusterServiceCD.Get(ctx, &cluster3.ClusterQuery{Server: serverUrl})
-	if err != nil {
-		impl.logger.Errorw("service err, GetClusterFromACD", "error", err, "serverUrl", serverUrl)
-		common.WriteJsonResp(w, err, "failed to fetch from ACD:", http.StatusInternalServerError)
-		return
-	}
-
-	// RBAC enforcer applying
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, "*"); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	// RBAC enforcer ends
-
-	resJson, err := json.Marshal(res)
-	_, err = w.Write(resJson)
-	if err != nil {
-		impl.logger.Errorw("service err, GetClusterFromACD", "error", err, "res", res)
-	}
 }
 
 func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter, r *http.Request) {
@@ -517,42 +283,4 @@ func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter,
 		result = make([]cluster.ClusterBean, 0)
 	}
 	common.WriteJsonResp(w, err, result, http.StatusOK)
-}
-
-func (impl ClusterRestHandlerImpl) DefaultComponentInstallation(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
-	userId, err := impl.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		impl.logger.Errorw("service err, DefaultComponentInstallation", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	clusterId, err := strconv.Atoi(vars["clusterId"])
-	if err != nil {
-		impl.logger.Errorw("request err, DefaultComponentInstallation", "error", err, "clusterId", clusterId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	impl.logger.Errorw("request payload, DefaultComponentInstallation", "clusterId", clusterId)
-	cluster, err := impl.clusterService.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("service err, DefaultComponentInstallation", "error", err, "clusterId", clusterId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	// RBAC enforcer applying
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, strings.ToLower(cluster.ClusterName)); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	// RBAC enforcer ends
-	isTriggered, err := impl.installedAppService.DeployDefaultChartOnCluster(cluster, userId)
-	if err != nil {
-		impl.logger.Errorw("service err, DefaultComponentInstallation", "error", err, "cluster", cluster)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, isTriggered, http.StatusOK)
 }

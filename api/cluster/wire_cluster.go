@@ -11,8 +11,8 @@ import (
 var ClusterWireSet = wire.NewSet(
 	repository.NewClusterRepositoryImpl,
 	wire.Bind(new(repository.ClusterRepository), new(*repository.ClusterRepositoryImpl)),
-	cluster.NewClusterServiceImpl,
-	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImpl)),
+	cluster.NewClusterServiceImplExtended,
+	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImplExtended)),
 	NewClusterRestHandlerImpl,
 	wire.Bind(new(ClusterRestHandler), new(*ClusterRestHandlerImpl)),
 	NewClusterRouterImpl,
@@ -26,4 +26,16 @@ var ClusterWireSet = wire.NewSet(
 	wire.Bind(new(EnvironmentRestHandler), new(*EnvironmentRestHandlerImpl)),
 	NewEnvironmentRouterImpl,
 	wire.Bind(new(EnvironmentRouter), new(*EnvironmentRouterImpl)),
+)
+
+//minimal wire to be used with EA
+var ClusterWireSetEa = wire.NewSet(
+	repository.NewClusterRepositoryImpl,
+	wire.Bind(new(repository.ClusterRepository), new(*repository.ClusterRepositoryImpl)),
+	cluster.NewClusterServiceImpl,
+	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImpl)),
+	NewClusterRestHandlerImpl,
+	wire.Bind(new(ClusterRestHandler), new(*ClusterRestHandlerImpl)),
+	NewClusterRouterImpl,
+	wire.Bind(new(ClusterRouter), new(*ClusterRouterImpl)),
 )
