@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
@@ -18,6 +19,7 @@ type MuxRouter struct {
 	teamRouter     team.TeamRouter
 	UserAuthRouter user.UserAuthRouter
 	userRouter     user.UserRouter
+	clusterRouter  cluster.ClusterRouter
 }
 
 func NewMuxRouter(
@@ -26,6 +28,7 @@ func NewMuxRouter(
 	teamRouter team.TeamRouter,
 	UserAuthRouter user.UserAuthRouter,
 	userRouter user.UserRouter,
+	clusterRouter cluster.ClusterRouter,
 
 ) *MuxRouter {
 	r := &MuxRouter{
@@ -35,6 +38,7 @@ func NewMuxRouter(
 		teamRouter:     teamRouter,
 		UserAuthRouter: UserAuthRouter,
 		userRouter:     userRouter,
+		clusterRouter:  clusterRouter,
 	}
 	return r
 }
@@ -63,4 +67,7 @@ func (r *MuxRouter) Init() {
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
 	userRouter := baseRouter.PathPrefix("/user").Subrouter()
 	r.userRouter.InitUserRouter(userRouter)
+
+	clusterRouter := r.Router.PathPrefix("/cluster").Subrouter()
+	r.clusterRouter.InitClusterRouter(clusterRouter)
 }

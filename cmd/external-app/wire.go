@@ -5,6 +5,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
@@ -21,6 +22,7 @@ func InitializeApp() (*App, error) {
 		sso.SsoConfigWireSet,
 		AuthWireSet,
 		team.TeamsWireSet,
+		cluster.ClusterWireSetEa,
 
 		NewApp,
 		NewMuxRouter,
