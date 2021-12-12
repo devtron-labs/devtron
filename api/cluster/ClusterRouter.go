@@ -57,7 +57,4 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("GET").
 		HandlerFunc(impl.clusterRestHandler.FindAllForAutoComplete)
 
-	clusterRouter.Path("/component/install/{clusterId}").
-		Methods("POST").
-		HandlerFunc(impl.clusterRestHandler.DefaultComponentInstallation)
 }

@@ -27,7 +27,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
@@ -44,16 +43,14 @@ type ClusterRestHandler interface {
 	Update(w http.ResponseWriter, r *http.Request)
 
 	FindAllForAutoComplete(w http.ResponseWriter, r *http.Request)
-	DefaultComponentInstallation(w http.ResponseWriter, r *http.Request)
 }
 
 type ClusterRestHandlerImpl struct {
-	clusterService      cluster.ClusterService
-	logger              *zap.SugaredLogger
-	userService         user.UserService
-	validator           *validator.Validate
-	enforcer            casbin.Enforcer
-	installedAppService appstore.InstalledAppService
+	clusterService cluster.ClusterService
+	logger         *zap.SugaredLogger
+	userService    user.UserService
+	validator      *validator.Validate
+	enforcer       casbin.Enforcer
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
@@ -61,14 +58,13 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	userService user.UserService,
 	validator *validator.Validate,
 	enforcer casbin.Enforcer,
-	installedAppService appstore.InstalledAppService) *ClusterRestHandlerImpl {
+) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
-		clusterService:      clusterService,
-		logger:              logger,
-		userService:         userService,
-		validator:           validator,
-		enforcer:            enforcer,
-		installedAppService: installedAppService,
+		clusterService: clusterService,
+		logger:         logger,
+		userService:    userService,
+		validator:      validator,
+		enforcer:       enforcer,
 	}
 }
 
@@ -119,15 +115,15 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	isTriggered, err := impl.installedAppService.DeployDefaultChartOnCluster(bean, userId)
-	if err != nil {
-		impl.logger.Errorw("service err, Save, on DeployDefaultChartOnCluster", "err", err, "payload", bean)
-	}
-	if isTriggered {
-		bean.AgentInstallationStage = 1
-	} else {
-		bean.AgentInstallationStage = 0
-	}
+	/*	isTriggered, err := impl.installedAppService.DeployDefaultChartOnCluster(bean, userId)
+		if err != nil {
+			impl.logger.Errorw("service err, Save, on DeployDefaultChartOnCluster", "err", err, "payload", bean)
+		}
+		if isTriggered {
+			bean.AgentInstallationStage = 1
+		} else {
+			bean.AgentInstallationStage = 0
+		}*/
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
@@ -287,42 +283,4 @@ func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter,
 		result = make([]cluster.ClusterBean, 0)
 	}
 	common.WriteJsonResp(w, err, result, http.StatusOK)
-}
-
-func (impl ClusterRestHandlerImpl) DefaultComponentInstallation(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
-	userId, err := impl.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		impl.logger.Errorw("service err, DefaultComponentInstallation", "error", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	clusterId, err := strconv.Atoi(vars["clusterId"])
-	if err != nil {
-		impl.logger.Errorw("request err, DefaultComponentInstallation", "error", err, "clusterId", clusterId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	impl.logger.Errorw("request payload, DefaultComponentInstallation", "clusterId", clusterId)
-	cluster, err := impl.clusterService.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("service err, DefaultComponentInstallation", "error", err, "clusterId", clusterId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	// RBAC enforcer applying
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, strings.ToLower(cluster.ClusterName)); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	// RBAC enforcer ends
-	isTriggered, err := impl.installedAppService.DeployDefaultChartOnCluster(cluster, userId)
-	if err != nil {
-		impl.logger.Errorw("service err, DefaultComponentInstallation", "error", err, "cluster", cluster)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, isTriggered, http.StatusOK)
 }

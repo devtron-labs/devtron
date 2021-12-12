@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appstore"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -50,6 +51,7 @@ type InstalledAppRestHandler interface {
 	DeleteInstalledApp(w http.ResponseWriter, r *http.Request)
 	DeployBulk(w http.ResponseWriter, r *http.Request)
 	CheckAppExists(w http.ResponseWriter, r *http.Request)
+	DefaultComponentInstallation(w http.ResponseWriter, r *http.Request)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -57,13 +59,14 @@ type InstalledAppRestHandlerImpl struct {
 	Logger              *zap.SugaredLogger
 	chartService        pipeline.ChartService
 	userAuthService     user.UserService
-	teamService        team.TeamService
-	enforcer           casbin.Enforcer
-	pipelineRepository pipelineConfig.PipelineRepository
+	teamService         team.TeamService
+	enforcer            casbin.Enforcer
+	pipelineRepository  pipelineConfig.PipelineRepository
 	enforcerUtil        rbac.EnforcerUtil
 	configMapService    pipeline.ConfigMapService
 	installedAppService appstore.InstalledAppService
 	validator           *validator.Validate
+	clusterService      cluster.ClusterService
 }
 
 func NewInstalledAppRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -71,7 +74,9 @@ func NewInstalledAppRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Lo
 	enforcer casbin.Enforcer, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil, configMapService pipeline.ConfigMapService,
 	installedAppService appstore.InstalledAppService,
-	validator *validator.Validate) *InstalledAppRestHandlerImpl {
+	validator *validator.Validate,
+	clusterService cluster.ClusterService,
+) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
 		pipelineBuilder:     pipelineBuilder,
 		Logger:              Logger,
@@ -84,6 +89,7 @@ func NewInstalledAppRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Lo
 		configMapService:    configMapService,
 		installedAppService: installedAppService,
 		validator:           validator,
+		clusterService:      clusterService,
 	}
 }
 
@@ -539,4 +545,42 @@ func (handler *InstalledAppRestHandlerImpl) CheckAppExists(w http.ResponseWriter
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (impl *InstalledAppRestHandlerImpl) DefaultComponentInstallation(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		impl.Logger.Errorw("service err, DefaultComponentInstallation", "error", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	clusterId, err := strconv.Atoi(vars["clusterId"])
+	if err != nil {
+		impl.Logger.Errorw("request err, DefaultComponentInstallation", "error", err, "clusterId", clusterId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	impl.Logger.Errorw("request payload, DefaultComponentInstallation", "clusterId", clusterId)
+	cluster, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.Logger.Errorw("service err, DefaultComponentInstallation", "error", err, "clusterId", clusterId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	// RBAC enforcer applying
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, strings.ToLower(cluster.ClusterName)); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer ends
+	isTriggered, err := impl.installedAppService.DeployDefaultChartOnCluster(cluster, userId)
+	if err != nil {
+		impl.Logger.Errorw("service err, DefaultComponentInstallation", "error", err, "cluster", cluster)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, isTriggered, http.StatusOK)
 }
