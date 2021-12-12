@@ -47,7 +47,6 @@ type ClusterRestHandler interface {
 	FindAll(w http.ResponseWriter, r *http.Request)
 
 	FindById(w http.ResponseWriter, r *http.Request)
-	FindByEnvId(w http.ResponseWriter, r *http.Request)
 	Update(w http.ResponseWriter, r *http.Request)
 
 	ClusterListFromACD(w http.ResponseWriter, r *http.Request)
@@ -61,7 +60,6 @@ type ClusterRestHandlerImpl struct {
 	clusterService      cluster.ClusterService
 	clusterServiceCD    cluster2.ServiceClient
 	logger              *zap.SugaredLogger
-	envService          cluster.EnvironmentService
 	userService         user.UserService
 	validator           *validator.Validate
 	enforcer            casbin.Enforcer
@@ -71,7 +69,6 @@ type ClusterRestHandlerImpl struct {
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	logger *zap.SugaredLogger,
 	clusterServiceCD cluster2.ServiceClient,
-	envService cluster.EnvironmentService,
 	userService user.UserService,
 	validator *validator.Validate,
 	enforcer casbin.Enforcer, installedAppService appstore.InstalledAppService) *ClusterRestHandlerImpl {
@@ -79,7 +76,6 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 		clusterService:      clusterService,
 		logger:              logger,
 		clusterServiceCD:    clusterServiceCD,
-		envService:          envService,
 		userService:         userService,
 		validator:           validator,
 		enforcer:            enforcer,
@@ -256,32 +252,6 @@ func (impl ClusterRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Reque
 	//RBAC enforcer Ends
 
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
-}
-
-func (impl ClusterRestHandlerImpl) FindByEnvId(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-	idi, err := strconv.Atoi(id)
-	if err != nil {
-		impl.logger.Errorw("request err, FindByEnvId", "error", err, "clusterId", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	envBean, err := impl.envService.FindClusterByEnvId(idi)
-	if err != nil {
-		impl.logger.Errorw("service err, FindByEnvId", "error", err, "clusterId", id)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, strings.ToLower(envBean.ClusterName)); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	// RBAC enforcer ends
-
-	common.WriteJsonResp(w, err, envBean, http.StatusOK)
 }
 
 func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {

@@ -49,11 +49,6 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("GET").
 		HandlerFunc(impl.clusterRestHandler.FindAll)
 
-	clusterRouter.Path("/env").
-		Methods("GET").
-		Queries("id", "{id}").
-		HandlerFunc(impl.clusterRestHandler.FindByEnvId)
-
 	clusterRouter.Path("").
 		Methods("PUT").
 		HandlerFunc(impl.clusterRestHandler.Update)
