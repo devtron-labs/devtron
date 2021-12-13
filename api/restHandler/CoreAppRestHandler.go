@@ -67,9 +67,9 @@ type CoreAppRestHandlerImpl struct {
 	logger                  *zap.SugaredLogger
 	userAuthService         user.UserService
 	validator               *validator.Validate
-	enforcerUtil    rbac.EnforcerUtil
-	enforcer        casbin.Enforcer
-	appLabelService app.AppLabelService
+	enforcerUtil            rbac.EnforcerUtil
+	enforcer                casbin.Enforcer
+	appLabelService         app.AppLabelService
 	pipelineBuilder         pipeline.PipelineBuilder
 	gitRegistryService      pipeline.GitRegistryConfig
 	chartService            pipeline.ChartService
@@ -79,9 +79,9 @@ type CoreAppRestHandlerImpl struct {
 	appWorkflowService      appWorkflow.AppWorkflowService
 	materialRepository      pipelineConfig.MaterialRepository
 	gitProviderRepo         repository.GitProviderRepository
-	appWorkflowRepository appWorkflow2.AppWorkflowRepository
-	environmentRepository repository2.EnvironmentRepository
-	configMapRepository   chartConfig.ConfigMapRepository
+	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
+	environmentRepository   repository2.EnvironmentRepository
+	configMapRepository     chartConfig.ConfigMapRepository
 	envConfigRepo           chartConfig.EnvConfigOverrideRepository
 	chartRepo               chartConfig.ChartRepository
 	teamService             team.TeamService
@@ -902,7 +902,7 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentSecrets(appId int, envI
 				handler.logger.Errorw("service err, CSEnvironmentFetchForEdit in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
 				return nil, err, http.StatusInternalServerError
 			}
-			if secretConfig.Data == nil{
+			if secretConfig.Data == nil {
 				secretDataWithData.ConfigData[0].Data = secretConfig.Data
 			}
 			secretDataWithData.ConfigData[0].DefaultData = secretConfig.DefaultData

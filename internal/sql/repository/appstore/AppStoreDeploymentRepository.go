@@ -89,9 +89,9 @@ type InstalledApps struct {
 	AppId         int                      `sql:"app_id,notnull"`
 	EnvironmentId int                      `sql:"environment_id,notnull"`
 	Active        bool                     `sql:"active, notnull"`
-	Status      AppstoreDeploymentStatus `sql:"status"`
-	App         app.App
-	Environment repository.Environment
+	Status        AppstoreDeploymentStatus `sql:"status"`
+	App           app.App
+	Environment   repository.Environment
 	sql.AuditLog
 }
 

@@ -72,18 +72,18 @@ type AppServiceImpl struct {
 	eventFactory                  client.EventFactory
 	acdClient                     application.ServiceClient
 	tokenCache                    *util3.TokenCache
-	acdAuthConfig *util3.ACDAuthConfig
-	enforcer      casbin.Enforcer
-	enforcerUtil  rbac.EnforcerUtil
+	acdAuthConfig                 *util3.ACDAuthConfig
+	enforcer                      casbin.Enforcer
+	enforcerUtil                  rbac.EnforcerUtil
 	user                          user.UserService
-	appListingRepository      repository.AppListingRepository
-	appRepository            app.AppRepository
-	envRepository            repository2.EnvironmentRepository
-	pipelineConfigRepository chartConfig.PipelineConfigRepository
+	appListingRepository          repository.AppListingRepository
+	appRepository                 app.AppRepository
+	envRepository                 repository2.EnvironmentRepository
+	pipelineConfigRepository      chartConfig.PipelineConfigRepository
 	configMapRepository           chartConfig.ConfigMapRepository
-	chartRepository           chartConfig.ChartRepository
-	appRepo                   app.AppRepository
-	appLevelMetricsRepository repository.AppLevelMetricsRepository
+	chartRepository               chartConfig.ChartRepository
+	appRepo                       app.AppRepository
+	appLevelMetricsRepository     repository.AppLevelMetricsRepository
 	envLevelMetricsRepository     repository.EnvLevelAppMetricsRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
@@ -103,7 +103,6 @@ type AppService interface {
 	UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application, cdWorkflowId int) error
 	GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
-
 }
 
 func NewAppService(

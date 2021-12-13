@@ -6,9 +6,9 @@ import (
 	"text/template"
 )
 
-func manualAppSyncJobByteArr() []byte{
+func manualAppSyncJobByteArr() []byte {
 	cfg, _ := sql.GetConfig()
-	configValues := sql.Config{Addr: cfg.Addr,Database: cfg.Database, User: cfg.User, Password: cfg.Password}
+	configValues := sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password}
 
 	temp := template.New("manualAppSyncJobByteArr")
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
@@ -52,7 +52,7 @@ func manualAppSyncJobByteArr() []byte{
   }
 }`)
 
-	var manualAppSyncJobBufferBytes  bytes.Buffer
+	var manualAppSyncJobBufferBytes bytes.Buffer
 	if err := temp.Execute(&manualAppSyncJobBufferBytes, configValues); err != nil {
 		return nil
 	}

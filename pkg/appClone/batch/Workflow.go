@@ -33,9 +33,9 @@ type WorkflowAction interface {
 }
 
 type WorkflowActionImpl struct {
-	logger          *zap.SugaredLogger
-	appRepo         pc.AppRepository
-	workflowService appWorkflow.AppWorkflowService
+	logger           *zap.SugaredLogger
+	appRepo          pc.AppRepository
+	workflowService  appWorkflow.AppWorkflowService
 	buildAction      BuildAction
 	deploymentAction DeploymentAction
 }

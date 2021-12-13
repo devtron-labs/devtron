@@ -103,9 +103,9 @@ type PipelineBuilderImpl struct {
 	logger                        *zap.SugaredLogger
 	dbPipelineOrchestrator        DbPipelineOrchestrator
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
-	materialRepo       pipelineConfig.MaterialRepository
-	appRepo            app2.AppRepository
-	pipelineRepository pipelineConfig.PipelineRepository
+	materialRepo                  pipelineConfig.MaterialRepository
+	appRepo                       app2.AppRepository
+	pipelineRepository            pipelineConfig.PipelineRepository
 	propertiesConfigService       PropertiesConfigService
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
@@ -113,9 +113,9 @@ type PipelineBuilderImpl struct {
 	chartRepository               chartConfig.ChartRepository
 	ciArtifactRepository          repository.CiArtifactRepository
 	ecrConfig                     *EcrConfig
-	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository
-	environmentRepository       repository2.EnvironmentRepository
-	pipelineConfigRepository    chartConfig.PipelineConfigRepository
+	envConfigOverrideRepository   chartConfig.EnvConfigOverrideRepository
+	environmentRepository         repository2.EnvironmentRepository
+	pipelineConfigRepository      chartConfig.PipelineConfigRepository
 	mergeUtil                     util.MergeUtil
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	ciConfig                      *CiConfig

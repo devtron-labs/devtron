@@ -38,8 +38,8 @@ type AppLabelService interface {
 type AppLabelServiceImpl struct {
 	logger             *zap.SugaredLogger
 	appLabelRepository pipelineConfig.AppLabelRepository
-	appRepository  app.AppRepository
-	userRepository repository.UserRepository
+	appRepository      app.AppRepository
+	userRepository     repository.UserRepository
 }
 
 func NewAppLabelServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,

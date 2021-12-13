@@ -146,8 +146,8 @@ type ConfigMapServiceImpl struct {
 	pipelineConfigRepository    chartConfig.PipelineConfigRepository
 	configMapRepository         chartConfig.ConfigMapRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
-	commonService commonService.CommonService
-	appRepository app.AppRepository
+	commonService               commonService.CommonService
+	appRepository               app.AppRepository
 }
 
 func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -865,7 +865,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 				resultMapFinal[k] = ""
 			}
 			var resultByte []byte
-			if resultMapFinal!=nil && len(resultMapFinal) >0 {
+			if resultMapFinal != nil && len(resultMapFinal) > 0 {
 				resultByte, err = json.Marshal(resultMapFinal)
 				if err != nil {
 					impl.logger.Errorw("error while marshaling request ", "err", err)

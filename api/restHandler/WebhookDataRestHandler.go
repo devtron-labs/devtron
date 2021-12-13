@@ -40,9 +40,9 @@ type WebhookDataRestHandlerImpl struct {
 	logger                       *zap.SugaredLogger
 	userAuthService              user.UserService
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-	enforcerUtil    rbac.EnforcerUtil
-	enforcer        casbin.Enforcer
-	gitSensorClient gitSensor.GitSensorClient
+	enforcerUtil                 rbac.EnforcerUtil
+	enforcer                     casbin.Enforcer
+	gitSensorClient              gitSensor.GitSensorClient
 	webhookEventDataConfig       pipeline.WebhookEventDataConfig
 }
 

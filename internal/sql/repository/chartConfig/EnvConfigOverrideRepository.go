@@ -38,8 +38,8 @@ type EnvConfigOverride struct {
 	Chart             *Chart
 	Environment       *repository.Environment `sql:"-"`
 	Latest            bool                    `sql:"latest,notnull"`
-	Previous          bool                 `sql:"previous,notnull"`
-	IsOverride        bool                 `sql:"is_override,notnull"`
+	Previous          bool                    `sql:"previous,notnull"`
+	IsOverride        bool                    `sql:"is_override,notnull"`
 	sql.AuditLog
 }
 

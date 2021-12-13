@@ -42,9 +42,9 @@ const DEPLOYMENT_TEMPLATE_RECREATE DeploymentTemplate = "RECREATE"
 type Pipeline struct {
 	tableName                     struct{} `sql:"pipeline" pg:",discard_unknown_columns"`
 	Id                            int      `sql:"id,pk"`
-	AppId        int      `sql:"app_id,notnull"`
-	App          app.App
-	CiPipelineId int         `sql:"ci_pipeline_id"`
+	AppId                         int      `sql:"app_id,notnull"`
+	App                           app.App
+	CiPipelineId                  int         `sql:"ci_pipeline_id"`
 	TriggerType                   TriggerType `sql:"trigger_type,notnull"` // automatic, manual
 	EnvironmentId                 int         `sql:"environment_id"`
 	Name                          string      `sql:"pipeline_name,notnull"`
@@ -57,7 +57,7 @@ type Pipeline struct {
 	PostStageConfigMapSecretNames string      `sql:"post_stage_config_map_secret_names"` // secret names
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
-	Environment repository.Environment
+	Environment                   repository.Environment
 	sql.AuditLog
 }
 

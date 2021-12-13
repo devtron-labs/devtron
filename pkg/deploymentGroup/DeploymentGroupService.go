@@ -100,8 +100,8 @@ type CiMaterialDTO struct {
 }
 
 type DeploymentGroupServiceImpl struct {
-	appRepository app.AppRepository
-	logger        *zap.SugaredLogger
+	appRepository                app.AppRepository
+	logger                       *zap.SugaredLogger
 	pipelineRepository           pipelineConfig.PipelineRepository
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	deploymentGroupRepository    repository.DeploymentGroupRepository

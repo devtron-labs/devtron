@@ -48,9 +48,9 @@ type GitOpsConfigRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
 	gitOpsConfigService gitops.GitOpsConfigService
 	userAuthService     user.UserService
-	validator   *validator.Validate
-	enforcer    casbin.Enforcer
-	teamService team.TeamService
+	validator           *validator.Validate
+	enforcer            casbin.Enforcer
+	teamService         team.TeamService
 	gitOpsRepository    repository.GitOpsConfigRepository
 }
 

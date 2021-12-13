@@ -60,9 +60,9 @@ type CdHandlerImpl struct {
 	ciLogService                 CiLogService
 	ciArtifactRepository         repository.CiArtifactRepository
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
-	envRepository        repository2.EnvironmentRepository
-	pipelineRepository   pipelineConfig.PipelineRepository
+	cdWorkflowRepository         pipelineConfig.CdWorkflowRepository
+	envRepository                repository2.EnvironmentRepository
+	pipelineRepository           pipelineConfig.PipelineRepository
 	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
 }
 

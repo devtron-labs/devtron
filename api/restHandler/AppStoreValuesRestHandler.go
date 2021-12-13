@@ -49,9 +49,9 @@ type AppStoreValuesRestHandlerImpl struct {
 	Logger                *zap.SugaredLogger
 	chartService          pipeline.ChartService
 	userAuthService       user.UserService
-	teamService        team.TeamService
-	enforcer           casbin.Enforcer
-	pipelineRepository pipelineConfig.PipelineRepository
+	teamService           team.TeamService
+	enforcer              casbin.Enforcer
+	pipelineRepository    pipelineConfig.PipelineRepository
 	enforcerUtil          rbac.EnforcerUtil
 	configMapService      pipeline.ConfigMapService
 	installedAppService   appstore.InstalledAppService

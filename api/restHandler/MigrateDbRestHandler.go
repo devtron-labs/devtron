@@ -45,8 +45,8 @@ type MigrateDbRestHandlerImpl struct {
 	dbConfigService      pipeline.DbConfigService
 	userAuthService      user.UserService
 	validator            *validator.Validate
-	dbMigrationService pipeline.DbMigrationService
-	enforcer           casbin.Enforcer
+	dbMigrationService   pipeline.DbMigrationService
+	enforcer             casbin.Enforcer
 }
 
 func NewMigrateDbRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,

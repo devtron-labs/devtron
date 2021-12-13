@@ -36,9 +36,9 @@ type CommonRestHanlderImpl struct {
 	logger              *zap.SugaredLogger
 	gitOpsConfigService gitops.GitOpsConfigService
 	userAuthService     user.UserService
-	validator     *validator.Validate
-	enforcer      casbin.Enforcer
-	commonService commonService.CommonService
+	validator           *validator.Validate
+	enforcer            casbin.Enforcer
+	commonService       commonService.CommonService
 }
 
 func NewCommonRestHanlderImpl(

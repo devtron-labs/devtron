@@ -52,12 +52,12 @@ type NotificationConfigServiceImpl struct {
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	pipelineRepository             pipelineConfig.PipelineRepository
 	slackRepository                repository.SlackNotificationRepository
-	sesRepository         repository.SESNotificationRepository
-	teamRepository        repository2.TeamRepository
-	environmentRepository repository3.EnvironmentRepository
-	appRepository                app.AppRepository
-	userRepository               repository4.UserRepository
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
+	sesRepository                  repository.SESNotificationRepository
+	teamRepository                 repository2.TeamRepository
+	environmentRepository          repository3.EnvironmentRepository
+	appRepository                  app.AppRepository
+	userRepository                 repository4.UserRepository
+	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
 }
 
 type NotificationSettingRequest struct {

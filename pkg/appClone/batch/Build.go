@@ -36,9 +36,9 @@ type BuildAction interface {
 
 type BuildActionImpl struct {
 	logger               *zap.SugaredLogger
-	pipelineBuilder pipeline.PipelineBuilder
-	appRepo         app.AppRepository
-	appWorkflowRepo appWorkflow.AppWorkflowRepository
+	pipelineBuilder      pipeline.PipelineBuilder
+	appRepo              app.AppRepository
+	appWorkflowRepo      appWorkflow.AppWorkflowRepository
 	ciPipelineRepository pc.CiPipelineRepository
 	materialRepo         pc.MaterialRepository
 }

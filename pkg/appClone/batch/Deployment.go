@@ -41,9 +41,9 @@ type DeploymentAction interface {
 
 type DeploymentActionImpl struct {
 	logger                   *zap.SugaredLogger
-	pipelineBuilder pipeline.PipelineBuilder
-	appRepo         app.AppRepository
-	envService      cluster.EnvironmentService
+	pipelineBuilder          pipeline.PipelineBuilder
+	appRepo                  app.AppRepository
+	envService               cluster.EnvironmentService
 	appWorkflowRepo          appWorkflow.AppWorkflowRepository
 	ciPipelineRepository     pc.CiPipelineRepository
 	cdPipelineRepository     pc.PipelineRepository

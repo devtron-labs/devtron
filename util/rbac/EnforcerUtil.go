@@ -43,8 +43,8 @@ type EnforcerUtil interface {
 	GetProjectAdminRBACNameBYAppName(appName string) string
 }
 type EnforcerUtilImpl struct {
-	logger         *zap.SugaredLogger
-	teamRepository team.TeamRepository
+	logger                *zap.SugaredLogger
+	teamRepository        team.TeamRepository
 	appRepo               app.AppRepository
 	environmentRepository repository.EnvironmentRepository
 	pipelineRepository    pipelineConfig.PipelineRepository
