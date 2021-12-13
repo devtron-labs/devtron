@@ -406,7 +406,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	dashboardRouterImpl := router.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
+	dashboardRouterImpl := dashboard.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
 	attributesRestHandlerImpl := restHandler.NewAttributesRestHandlerImpl(sugaredLogger, enforcerImpl, userServiceImpl, attributesServiceImpl)
 	attributesRouterImpl := router.NewAttributesRouterImpl(attributesRestHandlerImpl)
 	commonRestHanlderImpl := restHandler.NewCommonRestHanlderImpl(sugaredLogger, gitOpsConfigServiceImpl, userServiceImpl, validate, enforcerImpl, commonServiceImpl)

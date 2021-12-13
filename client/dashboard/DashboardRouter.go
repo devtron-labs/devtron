@@ -1,8 +1,8 @@
-package router
+package dashboard
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/client/dashboard"
+	"github.com/google/wire"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net"
@@ -11,7 +11,7 @@ import (
 )
 
 type DashboardRouter interface {
-	initDashboardRouter(router *mux.Router)
+	InitDashboardRouter(router *mux.Router)
 }
 
 type DashboardRouterImpl struct {
@@ -19,7 +19,7 @@ type DashboardRouterImpl struct {
 	dashboardProxy func(writer http.ResponseWriter, request *http.Request)
 }
 
-func NewDashboardRouterImpl(logger *zap.SugaredLogger, dashboardCfg *dashboard.Config) *DashboardRouterImpl {
+func NewDashboardRouterImpl(logger *zap.SugaredLogger, dashboardCfg *Config) *DashboardRouterImpl {
 	client := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -31,7 +31,7 @@ func NewDashboardRouterImpl(logger *zap.SugaredLogger, dashboardCfg *dashboard.C
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
-	dashboardProxy := dashboard.NewDashboardHTTPReverseProxy(fmt.Sprintf("http://%s:%s", dashboardCfg.Host, dashboardCfg.Port), client.Transport)
+	dashboardProxy := NewDashboardHTTPReverseProxy(fmt.Sprintf("http://%s:%s", dashboardCfg.Host, dashboardCfg.Port), client.Transport)
 	router := &DashboardRouterImpl{
 		dashboardProxy: dashboardProxy,
 		logger:         logger,
@@ -39,6 +39,12 @@ func NewDashboardRouterImpl(logger *zap.SugaredLogger, dashboardCfg *dashboard.C
 	return router
 }
 
-func (router DashboardRouterImpl) initDashboardRouter(dashboardRouter *mux.Router) {
+func (router DashboardRouterImpl) InitDashboardRouter(dashboardRouter *mux.Router) {
 	dashboardRouter.PathPrefix("").HandlerFunc(router.dashboardProxy)
 }
+
+var DashboardWireSet = wire.NewSet(
+	GetConfig,
+	NewDashboardRouterImpl,
+	wire.Bind(new(DashboardRouter), new(*DashboardRouterImpl)),
+)

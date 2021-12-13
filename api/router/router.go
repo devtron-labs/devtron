@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
+	"github.com/devtron-labs/devtron/client/dashboard"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/terminal"
@@ -71,7 +72,7 @@ type MuxRouter struct {
 	imageScanRouter                  ImageScanRouter
 	policyRouter                     PolicyRouter
 	gitOpsConfigRouter               GitOpsConfigRouter
-	dashboardRouter                  DashboardRouter
+	dashboardRouter                  dashboard.DashboardRouter
 	attributesRouter                 AttributesRouter
 	commonRouter                     CommonRouter
 	grafanaRouter                    GrafanaRouter
@@ -100,7 +101,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter AppStoreRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
-	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter DashboardRouter, attributesRouter AttributesRouter,
+	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter, coreAppRouter CoreAppRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
@@ -257,7 +258,7 @@ func (r MuxRouter) Init() {
 	r.attributesRouter.initAttributesRouter(attributeRouter)
 
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
-	r.dashboardRouter.initDashboardRouter(dashboardRouter)
+	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
 
 	grafanaRouter := r.Router.PathPrefix("/grafana").Subrouter()
 	r.grafanaRouter.initGrafanaRouter(grafanaRouter)
