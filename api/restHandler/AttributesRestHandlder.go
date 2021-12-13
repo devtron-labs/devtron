@@ -39,9 +39,9 @@ type AttributesRestHandler interface {
 }
 
 type AttributesRestHandlerImpl struct {
-	logger      *zap.SugaredLogger
-	enforcer    casbin.Enforcer
-	userService user.UserService
+	logger            *zap.SugaredLogger
+	enforcer          casbin.Enforcer
+	userService       user.UserService
 	attributesService attributes.AttributesService
 }
 

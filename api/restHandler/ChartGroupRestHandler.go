@@ -35,9 +35,9 @@ import (
 type ChartGroupRestHandlerImpl struct {
 	ChartGroupService appstore.ChartGroupService
 	Logger            *zap.SugaredLogger
-	userAuthService user.UserService
-	enforcer        casbin.Enforcer
-	enforcerUtil    rbac.EnforcerUtil
+	userAuthService   user.UserService
+	enforcer          casbin.Enforcer
+	enforcerUtil      rbac.EnforcerUtil
 	validator         *validator.Validate
 }
 

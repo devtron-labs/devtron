@@ -29,8 +29,8 @@ type App struct {
 	AppName   string   `sql:"app_name,notnull"` //same as app name
 	Active    bool     `sql:"active, notnull"`
 	TeamId    int      `sql:"team_id"`
-	AppStore bool     `sql:"app_store, notnull"`
-	Team     team.Team
+	AppStore  bool     `sql:"app_store, notnull"`
+	Team      team.Team
 	sql.AuditLog
 }
 

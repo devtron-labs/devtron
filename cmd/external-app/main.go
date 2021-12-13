@@ -44,4 +44,3 @@ func main() {
 
 	app.Start()
 }
-

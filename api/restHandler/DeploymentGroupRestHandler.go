@@ -49,9 +49,9 @@ type DeploymentGroupRestHandler interface {
 type DeploymentGroupRestHandlerImpl struct {
 	deploymentGroupService deploymentGroup.DeploymentGroupService
 	logger                 *zap.SugaredLogger
-	validator   *validator.Validate
-	enforcer    casbin.Enforcer
-	teamService team.TeamService
+	validator              *validator.Validate
+	enforcer               casbin.Enforcer
+	teamService            team.TeamService
 	userAuthService        user.UserService
 	enforcerUtil           rbac.EnforcerUtil
 }

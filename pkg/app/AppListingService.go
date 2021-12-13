@@ -103,9 +103,9 @@ type FetchAppListingRequest struct {
 
 type AppListingServiceImpl struct {
 	Logger                     *zap.SugaredLogger
-	application          application2.ServiceClient
-	appRepository        app.AppRepository
-	appListingRepository repository.AppListingRepository
+	application                application2.ServiceClient
+	appRepository              app.AppRepository
+	appListingRepository       repository.AppListingRepository
 	appListingViewBuilder      AppListingViewBuilder
 	pipelineRepository         pipelineConfig.PipelineRepository
 	cdWorkflowRepository       pipelineConfig.CdWorkflowRepository

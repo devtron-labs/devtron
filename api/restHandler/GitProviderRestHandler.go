@@ -45,9 +45,9 @@ type GitProviderRestHandlerImpl struct {
 	gitRegistryConfig    pipeline.GitRegistryConfig
 	dbConfigService      pipeline.DbConfigService
 	userAuthService      user.UserService
-	validator   *validator.Validate
-	enforcer    casbin.Enforcer
-	teamService team.TeamService
+	validator            *validator.Validate
+	enforcer             casbin.Enforcer
+	teamService          team.TeamService
 }
 
 func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,

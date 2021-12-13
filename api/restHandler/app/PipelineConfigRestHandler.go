@@ -94,9 +94,9 @@ type PipelineConfigRestHandlerImpl struct {
 	application             application.ServiceClient
 	userAuthService         user.UserService
 	validator               *validator.Validate
-	teamService     team.TeamService
-	enforcer        casbin.Enforcer
-	gitSensorClient gitSensor.GitSensorClient
+	teamService             team.TeamService
+	enforcer                casbin.Enforcer
+	gitSensorClient         gitSensor.GitSensorClient
 	pipelineRepository      pipelineConfig.PipelineRepository
 	appWorkflowService      appWorkflow.AppWorkflowService
 	enforcerUtil            rbac.EnforcerUtil

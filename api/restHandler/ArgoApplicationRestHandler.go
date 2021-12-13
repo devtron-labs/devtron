@@ -65,9 +65,9 @@ type ArgoApplicationRestHandler interface {
 type ArgoApplicationRestHandlerImpl struct {
 	client                 application.ServiceClient
 	logger                 *zap.SugaredLogger
-	pump        connector.Pump
-	enforcer    casbin.Enforcer
-	teamService team.TeamService
+	pump                   connector.Pump
+	enforcer               casbin.Enforcer
+	teamService            team.TeamService
 	environmentService     cluster.EnvironmentService
 	enforcerUtil           rbac.EnforcerUtil
 	terminalSessionHandler terminal.TerminalSessionHandler

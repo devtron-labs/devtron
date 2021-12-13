@@ -44,11 +44,11 @@ type AppWorkflowRestHandlerImpl struct {
 	Logger             *zap.SugaredLogger
 	appWorkflowService appWorkflow.AppWorkflowService
 	userAuthService    user.UserService
-	teamService     team.TeamService
-	enforcer        casbin.Enforcer
-	pipelineBuilder pipeline.PipelineBuilder
-	appRepository   app.AppRepository
-	enforcerUtil    rbac.EnforcerUtil
+	teamService        team.TeamService
+	enforcer           casbin.Enforcer
+	pipelineBuilder    pipeline.PipelineBuilder
+	appRepository      app.AppRepository
+	enforcerUtil       rbac.EnforcerUtil
 }
 
 func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appWorkflowService appWorkflow.AppWorkflowService,

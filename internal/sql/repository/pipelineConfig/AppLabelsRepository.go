@@ -30,8 +30,8 @@ type AppLabel struct {
 	Id        int      `sql:"id,pk"`
 	AppId     int      `sql:"app_id,notnull"`
 	Key       string   `sql:"key,notnull"`
-	Value string   `sql:"value,notnull"`
-	App   app.App
+	Value     string   `sql:"value,notnull"`
+	App       app.App
 	sql.AuditLog
 }
 

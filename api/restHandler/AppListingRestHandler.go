@@ -58,9 +58,9 @@ type AppListingRestHandler interface {
 type AppListingRestHandlerImpl struct {
 	application            application.ServiceClient
 	appListingService      app.AppListingService
-	teamService team.TeamService
-	enforcer    casbin.Enforcer
-	pipeline    pipeline.PipelineBuilder
+	teamService            team.TeamService
+	enforcer               casbin.Enforcer
+	pipeline               pipeline.PipelineBuilder
 	logger                 *zap.SugaredLogger
 	enforcerUtil           rbac.EnforcerUtil
 	deploymentGroupService deploymentGroup.DeploymentGroupService
