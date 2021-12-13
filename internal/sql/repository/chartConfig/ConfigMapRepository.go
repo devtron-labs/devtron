@@ -18,7 +18,7 @@
 package chartConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -53,7 +53,7 @@ type ConfigMapAppModel struct {
 	AppId         int      `sql:"app_id,notnull"`
 	ConfigMapData string   `sql:"config_map_data"`
 	SecretData    string   `sql:"secret_data"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl ConfigMapRepositoryImpl) CreateAppLevel(model *ConfigMapAppModel) (*ConfigMapAppModel, error) {
@@ -100,7 +100,7 @@ type ConfigMapEnvModel struct {
 	EnvironmentId int      `sql:"environment_id,notnull"`
 	ConfigMapData string   `sql:"config_map_data"`
 	SecretData    string   `sql:"secret_data"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl ConfigMapRepositoryImpl) CreateEnvLevel(model *ConfigMapEnvModel) (*ConfigMapEnvModel, error) {

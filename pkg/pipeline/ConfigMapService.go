@@ -20,8 +20,8 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -147,7 +147,7 @@ type ConfigMapServiceImpl struct {
 	configMapRepository         chartConfig.ConfigMapRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	commonService               commonService.CommonService
-	appRepository               pipelineConfig.AppRepository
+	appRepository               app.AppRepository
 }
 
 func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -156,7 +156,7 @@ func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
 	mergeUtil util.MergeUtil,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
-	commonService commonService.CommonService, appRepository pipelineConfig.AppRepository) *ConfigMapServiceImpl {
+	commonService commonService.CommonService, appRepository app.AppRepository) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
 		chartRepository:             chartRepository,
 		logger:                      logger,
@@ -865,7 +865,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 				resultMapFinal[k] = ""
 			}
 			var resultByte []byte
-			if resultMapFinal!=nil && len(resultMapFinal) >0 {
+			if resultMapFinal != nil && len(resultMapFinal) > 0 {
 				resultByte, err = json.Marshal(resultMapFinal)
 				if err != nil {
 					impl.logger.Errorw("error while marshaling request ", "err", err)

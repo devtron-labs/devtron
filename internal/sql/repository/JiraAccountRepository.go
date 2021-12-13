@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"time"
 )
@@ -33,7 +33,7 @@ type JiraAccountDetails struct {
 	FinalIssueStatus   string   `sql:"final_issue_status"`
 	PipelineStage      string   `sql:"pipeline_stage"`
 	PipelineId         int32    `sql:"pipeline_id"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type JiraAccountRepository interface {

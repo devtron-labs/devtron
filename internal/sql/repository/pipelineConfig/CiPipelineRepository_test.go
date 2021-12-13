@@ -19,16 +19,15 @@ package pipelineConfig
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"testing"
-
-	"github.com/devtron-labs/devtron/internal/sql/models"
 )
 
 var ciPipelineRepo CiPipelineRepositoryImpl
 
 func setup() {
-	cfg, _ := models.GetConfig()
-	con, _ := models.NewDbConnection(cfg, nil)
+	cfg, _ := sql.GetConfig()
+	con, _ := sql.NewDbConnection(cfg, nil)
 	ciPipelineRepo = CiPipelineRepositoryImpl{
 		dbConnection: con,
 		logger:       nil,

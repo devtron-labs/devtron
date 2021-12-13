@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -40,13 +41,13 @@ type WebhookDataRestHandlerImpl struct {
 	userAuthService              user.UserService
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	enforcerUtil                 rbac.EnforcerUtil
-	enforcer                     rbac.Enforcer
+	enforcer                     casbin.Enforcer
 	gitSensorClient              gitSensor.GitSensorClient
 	webhookEventDataConfig       pipeline.WebhookEventDataConfig
 }
 
 func NewWebhookDataRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, enforcerUtil rbac.EnforcerUtil, enforcer rbac.Enforcer,
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer,
 	gitSensorClient gitSensor.GitSensorClient, webhookEventDataConfig pipeline.WebhookEventDataConfig) *WebhookDataRestHandlerImpl {
 	return &WebhookDataRestHandlerImpl{
 		logger:                       logger,
@@ -87,7 +88,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadDataForPipelineMaterialI
 	//RBAC
 	token := r.Header.Get("token")
 	object := impl.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -156,7 +157,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMat
 	//RBAC
 	token := r.Header.Get("token")
 	object := impl.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}

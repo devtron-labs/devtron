@@ -19,6 +19,7 @@ package pipeline
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"strconv"
 
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
@@ -26,7 +27,6 @@ import (
 	v1alpha12 "github.com/argoproj/argo/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo/workflow/util"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
@@ -38,7 +38,7 @@ import (
 )
 
 type CdWorkflowService interface {
-	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *cluster.Environment) (*v1alpha1.Workflow, error)
+	SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (*v1alpha1.Workflow, error)
 	DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(name string, namespace string, url string, token string, isExtRun bool) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
@@ -53,7 +53,7 @@ type CdWorkflowServiceImpl struct {
 	config        *rest.Config
 	cdConfig      *CdConfig
 	appService    app.AppService
-	envRepository cluster.EnvironmentRepository
+	envRepository repository.EnvironmentRepository
 }
 
 type CdWorkflowRequest struct {
@@ -95,12 +95,12 @@ type CdWorkflowRequest struct {
 const PRE = "PRE"
 const POST = "POST"
 
-func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository cluster.EnvironmentRepository, cdConfig *CdConfig, appService app.AppService) *CdWorkflowServiceImpl {
+func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, cdConfig *CdConfig, appService app.AppService) *CdWorkflowServiceImpl {
 	return &CdWorkflowServiceImpl{Logger: Logger, config: cdConfig.ClusterConfig,
 		cdConfig: cdConfig, appService: appService, envRepository: envRepository}
 }
 
-func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *cluster.Environment) (*v1alpha1.Workflow, error) {
+func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (*v1alpha1.Workflow, error) {
 	containerEnvVariables := []v12.EnvVar{}
 	if impl.cdConfig.CloudProvider == BLOB_STORAGE_MINIO {
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.cdConfig.MinioAccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.cdConfig.MinioSecretKey}}

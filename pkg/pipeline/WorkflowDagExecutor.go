@@ -21,6 +21,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"strconv"
 	"strings"
 	"time"
@@ -32,7 +36,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -72,12 +75,12 @@ type WorkflowDagExecutorImpl struct {
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
 	ciArtifactRepository       repository.CiArtifactRepository
 	user                       user.UserService
-	enforcer                   rbac.Enforcer
+	enforcer                   casbin.Enforcer
 	enforcerUtil               rbac.EnforcerUtil
 	groupRepository            repository.DeploymentGroupRepository
-	tokenCache                 *user.TokenCache
-	acdAuthConfig              *user.ACDAuthConfig
-	envRepository              cluster.EnvironmentRepository
+	tokenCache                 *util3.TokenCache
+	acdAuthConfig              *util3.ACDAuthConfig
+	envRepository              repository2.EnvironmentRepository
 	eventFactory               client.EventFactory
 	eventClient                client.EventClient
 	cvePolicyRepository        security.CvePolicyRepository
@@ -129,9 +132,9 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	user user.UserService,
 	groupRepository repository.DeploymentGroupRepository,
-	envRepository cluster.EnvironmentRepository,
-	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *user.TokenCache,
-	acdAuthConfig *user.ACDAuthConfig, eventFactory client.EventFactory,
+	envRepository repository2.EnvironmentRepository,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *util3.TokenCache,
+	acdAuthConfig *util3.ACDAuthConfig, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
@@ -296,7 +299,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
-		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
+		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			impl.logger.Warnw("unauthorized for pipeline ", "pipelineId", strconv.Itoa(pipeline.Id))
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
 		}
@@ -306,7 +309,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
 			PipelineId:   pipeline.Id,
-			AuditLog:     models.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
+			AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 		if err != nil {
@@ -323,7 +326,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
-	var env *cluster.Environment
+	var env *repository2.Environment
 	var err error
 	if pipeline.RunPreStageInEnv {
 		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
@@ -382,7 +385,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
-	var env *cluster.Environment
+	var env *repository2.Environment
 	var err error
 	if cpipeline.RunPostStageInEnv {
 		env, err = impl.envRepository.FindById(cpipeline.EnvironmentId)
@@ -615,7 +618,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
-		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
+		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
 		}
 	}
@@ -624,7 +627,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
 			PipelineId:   pipeline.Id,
-			AuditLog:     models.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
+			AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 		if err != nil {
@@ -846,7 +849,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			cdWf := &pipelineConfig.CdWorkflow{
 				CiArtifactId: overrideRequest.CiArtifactId,
 				PipelineId:   overrideRequest.PipelineId,
-				AuditLog:     models.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+				AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 			if err != nil {
@@ -940,7 +943,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			cdWf := &pipelineConfig.CdWorkflow{
 				CiArtifactId: overrideRequest.CiArtifactId,
 				PipelineId:   overrideRequest.PipelineId,
-				AuditLog:     models.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+				AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 			if err != nil {
@@ -971,7 +974,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkDeploymentAsync(requests []*Bulk
 		cdWf := &pipelineConfig.CdWorkflow{
 			CiArtifactId:   request.CiArtifactId,
 			PipelineId:     request.PipelineId,
-			AuditLog:       models.AuditLog{CreatedOn: time.Now(), CreatedBy: UserId, UpdatedOn: time.Now(), UpdatedBy: UserId},
+			AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: UserId, UpdatedOn: time.Now(), UpdatedBy: UserId},
 			WorkflowStatus: pipelineConfig.REQUEST_ACCEPTED,
 		}
 		cdWorkflows = append(cdWorkflows, cdWf)
@@ -1065,7 +1068,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 			Id:           cdWorkflow.Id,
 			CiArtifactId: cdWorkflow.CiArtifactId,
 			PipelineId:   cdWorkflow.PipelineId,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				UpdatedOn: time.Now(),
 			},
 		}

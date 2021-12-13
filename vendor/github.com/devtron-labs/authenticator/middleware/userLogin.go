@@ -16,10 +16,10 @@
  * Some of the code has been taken from argocd, for them argocd licensing terms apply
  */
 
-
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/authenticator/client"
@@ -46,7 +46,7 @@ func NewUserLogin(sessionManager *SessionManager, k8sClient *client.K8sClient) *
 		k8sClient:      k8sClient,
 	}
 }
-func (impl LoginService) CreateLoginSession(username string, password string) (string, error) {
+func (impl LoginService) Create(ctxt context.Context, username string, password string) (string, error) {
 	if username == "" || password == "" {
 		return "", status.Errorf(codes.Unauthenticated, "no credentials supplied")
 	}

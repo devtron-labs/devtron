@@ -19,21 +19,19 @@ package user
 
 import (
 	"fmt"
+	"github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/middleware"
-	"net/http"
-	"strings"
-	"time"
-
-	jwt2 "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/devtron-labs/devtron/api/bean"
-	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
-	casbin2 "github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
+	"net/http"
+	"strings"
+	"time"
 )
 
 type UserService interface {
@@ -54,26 +52,20 @@ type UserService interface {
 }
 
 type UserServiceImpl struct {
-	//	sessionManager      *session.SessionManager
-	userAuthRepository  repository.UserAuthRepository
-	sessionClient       session2.ServiceClient
+	userAuthRepository  repository2.UserAuthRepository
 	logger              *zap.SugaredLogger
-	userRepository      repository.UserRepository
-	roleGroupRepository repository.RoleGroupRepository
+	userRepository      repository2.UserRepository
+	roleGroupRepository repository2.RoleGroupRepository
 	sessionManager2     *middleware.SessionManager
 }
 
-func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
-	//sessionManager *session.SessionManager,
-	client session2.ServiceClient,
+func NewUserServiceImpl(userAuthRepository repository2.UserAuthRepository,
 	logger *zap.SugaredLogger,
-	userRepository repository.UserRepository,
-	userGroupRepository repository.RoleGroupRepository,
+	userRepository repository2.UserRepository,
+	userGroupRepository repository2.RoleGroupRepository,
 	sessionManager2 *middleware.SessionManager) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
-		userAuthRepository: userAuthRepository,
-		//	sessionManager:      sessionManager,
-		sessionClient:       client,
+		userAuthRepository:  userAuthRepository,
 		logger:              logger,
 		userRepository:      userRepository,
 		roleGroupRepository: userGroupRepository,
@@ -144,7 +136,7 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 	return userResponse, nil
 }
 
-func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *repository.UserModel, emailId string) (*bean.UserInfo, error) {
+func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *repository2.UserModel, emailId string) (*bean.UserInfo, error) {
 	updateUserInfo, err := impl.GetById(dbUser.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -182,7 +174,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	}
 
 	//create new user in our db on d basis of info got from google api or hex. assign a basic role
-	model := &repository.UserModel{
+	model := &repository2.UserModel{
 		EmailId:     emailId,
 		AccessToken: userInfo.AccessToken,
 	}
@@ -270,7 +262,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 					}
 					//roleModel := roleModels[0]
 					if roleModel.Id > 0 {
-						userRoleModel := &repository.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
+						userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
 						userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 						if err != nil {
 							return nil, err
@@ -318,7 +310,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 			return nil, err
 		}
 		if roleModel.Id > 0 {
-			userRoleModel := &repository.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
+			userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
 			userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 			if err != nil {
 				return nil, err
@@ -427,9 +419,9 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 		if err != nil {
 			return nil, err
 		}
-		roleIds := make(map[int]repository.UserRoleModel)
-		roleIdsRemaining := make(map[int]*repository.UserRoleModel)
-		oldRolesItems := make(map[int]repository.UserRoleModel)
+		roleIds := make(map[int]repository2.UserRoleModel)
+		roleIdsRemaining := make(map[int]*repository2.UserRoleModel)
+		oldRolesItems := make(map[int]repository2.UserRoleModel)
 
 		for i := range userRoleModels {
 			roleIds[userRoleModels[i].RoleId] = *userRoleModels[i]
@@ -565,7 +557,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 					} else {
 						//new role ids in new array, add it
 						if roleModel.Id > 0 {
-							userRoleModel := &repository.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
+							userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
 							userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 							if err != nil {
 								return nil, err
@@ -619,7 +611,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 			return nil, err
 		}
 		if roleModel.Id > 0 {
-			userRoleModel := &repository.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
+			userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
 			userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 			if err != nil {
 				return nil, err
@@ -847,14 +839,14 @@ func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
 		}
 		return http.StatusUnauthorized, err
 	}
-	mapClaims, err := jwt2.MapClaims(claims)
+	mapClaims, err := jwt.MapClaims(claims)
 	if err != nil {
 		impl.logger.Errorw("failed to MapClaims", "error", err)
 		return http.StatusUnauthorized, err
 	}
 
-	email := jwt2.GetField(mapClaims, "email")
-	sub := jwt2.GetField(mapClaims, "sub")
+	email := jwt.GetField(mapClaims, "email")
+	sub := jwt.GetField(mapClaims, "sub")
 
 	if email == "" && sub == "admin" {
 		email = sub
