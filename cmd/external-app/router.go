@@ -72,7 +72,7 @@ func (r *MuxRouter) Init() {
 	userRouter := baseRouter.PathPrefix("/user").Subrouter()
 	r.userRouter.InitUserRouter(userRouter)
 
-	clusterRouter := r.Router.PathPrefix("/cluster").Subrouter()
+	clusterRouter := baseRouter.PathPrefix("/cluster").Subrouter()
 	r.clusterRouter.InitClusterRouter(clusterRouter)
 
 	r.Router.Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
