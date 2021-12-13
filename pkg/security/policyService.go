@@ -49,9 +49,9 @@ type PolicyService interface {
 }
 type PolicyServiceImpl struct {
 	environmentService            cluster.EnvironmentService
-	logger           *zap.SugaredLogger
-	apRepository     app.AppRepository
-	pipelineOverride chartConfig.PipelineOverrideRepository
+	logger                        *zap.SugaredLogger
+	apRepository                  app.AppRepository
+	pipelineOverride              chartConfig.PipelineOverrideRepository
 	cvePolicyRepository           security.CvePolicyRepository
 	clusterService                cluster.ClusterService
 	PipelineRepository            pipelineConfig.PipelineRepository

@@ -960,4 +960,3 @@ func (handler PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.Respons
 	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
-

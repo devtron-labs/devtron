@@ -47,10 +47,10 @@ type ImageScanServiceImpl struct {
 	scanObjectMetaRepository      security.ImageScanObjectMetaRepository
 	cveStoreRepository            security.CveStoreRepository
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
-	userService    user.UserService
-	teamRepository repository2.TeamRepository
-	appRepository  app.AppRepository
-	envService     cluster.EnvironmentService
+	userService                   user.UserService
+	teamRepository                repository2.TeamRepository
+	appRepository                 app.AppRepository
+	envService                    cluster.EnvironmentService
 	ciArtifactRepository          repository.CiArtifactRepository
 	policyService                 PolicyService
 	pipelineRepository            pipelineConfig.PipelineRepository

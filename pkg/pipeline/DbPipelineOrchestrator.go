@@ -64,17 +64,17 @@ type DbPipelineOrchestrator interface {
 }
 
 type DbPipelineOrchestratorImpl struct {
-	appRepository app2.AppRepository
-	logger        *zap.SugaredLogger
+	appRepository                app2.AppRepository
+	logger                       *zap.SugaredLogger
 	materialRepository           pipelineConfig.MaterialRepository
 	pipelineRepository           pipelineConfig.PipelineRepository
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	CiPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	GitSensorClient              gitSensor.GitSensorClient
 	ciConfig                     *CiConfig
-	appWorkflowRepository appWorkflow.AppWorkflowRepository
-	envRepository         repository2.EnvironmentRepository
-	attributesService     attributes.AttributesService
+	appWorkflowRepository        appWorkflow.AppWorkflowRepository
+	envRepository                repository2.EnvironmentRepository
+	attributesService            attributes.AttributesService
 	appListingRepository         repository.AppListingRepository
 	appLabelsService             app.AppLabelService
 }

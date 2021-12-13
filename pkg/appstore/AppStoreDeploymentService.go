@@ -105,8 +105,8 @@ type InstalledAppServiceImpl struct {
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository
 	environmentRepository                repository5.EnvironmentRepository
 	teamRepository                       repository4.TeamRepository
-	appRepository         app.AppRepository
-	acdClient      application2.ServiceClient
+	appRepository                        app.AppRepository
+	acdClient                            application2.ServiceClient
 	appStoreValuesService                AppStoreValuesService
 	pubsubClient                         *pubsub.PubSubClient
 	tokenCache                           *util2.TokenCache

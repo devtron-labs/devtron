@@ -127,18 +127,18 @@ type ChartServiceImpl struct {
 	chartRepository           chartConfig.ChartRepository
 	logger                    *zap.SugaredLogger
 	repoRepository            chartConfig.ChartRepoRepository
-	chartTemplateService    util.ChartTemplateService
-	pipelineGroupRepository app.AppRepository
-	mergeUtil               util.MergeUtil
+	chartTemplateService      util.ChartTemplateService
+	pipelineGroupRepository   app.AppRepository
+	mergeUtil                 util.MergeUtil
 	repositoryService         repository.ServiceClient
 	refChartDir               RefChartDir
 	defaultChart              DefaultChart
 	chartRefRepository        chartConfig.ChartRefRepository
 	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository  chartConfig.PipelineConfigRepository
-	configMapRepository   chartConfig.ConfigMapRepository
-	environmentRepository repository4.EnvironmentRepository
-	pipelineRepository    pipelineConfig.PipelineRepository
+	configMapRepository       chartConfig.ConfigMapRepository
+	environmentRepository     repository4.EnvironmentRepository
+	pipelineRepository        pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
 	client                    *http.Client
 }
@@ -331,17 +331,17 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ImageDescriptorTemplate: chartValues.ImageDescriptorTemplate,
 		ChartName:               chartMeta.Name,
 		ChartRepo:               chartRepo.Name,
-		ChartRepoUrl:      chartRepo.Url,
-		ChartVersion:      chartMeta.Version,
-		Status:            models.CHARTSTATUS_NEW,
-		Active:            true,
-		ChartLocation:     chartGitAttr.ChartLocation,
-		GitRepoUrl:        chartGitAttr.RepoUrl,
-		ReferenceTemplate: templateName,
-		ChartRefId:        templateRequest.ChartRefId,
-		Latest:            true,
-		Previous:          false,
-		AuditLog:          sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
+		ChartRepoUrl:            chartRepo.Url,
+		ChartVersion:            chartMeta.Version,
+		Status:                  models.CHARTSTATUS_NEW,
+		Active:                  true,
+		ChartLocation:           chartGitAttr.ChartLocation,
+		GitRepoUrl:              chartGitAttr.RepoUrl,
+		ReferenceTemplate:       templateName,
+		ChartRefId:              templateRequest.ChartRefId,
+		Latest:                  true,
+		Previous:                false,
+		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
 	err = impl.chartRepository.Save(chart)
@@ -449,17 +449,17 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		ImageDescriptorTemplate: chartValues.ImageDescriptorTemplate,
 		ChartName:               chartMeta.Name,
 		ChartRepo:               chartRepo.Name,
-		ChartRepoUrl:      chartRepo.Url,
-		ChartVersion:      chartMeta.Version,
-		Status:            models.CHARTSTATUS_NEW,
-		Active:            true,
-		ChartLocation:     chartGitAttr.ChartLocation,
-		GitRepoUrl:        chartGitAttr.RepoUrl,
-		ReferenceTemplate: templateName,
-		ChartRefId:        templateRequest.ChartRefId,
-		Latest:            false,
-		Previous:          false,
-		AuditLog:          sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
+		ChartRepoUrl:            chartRepo.Url,
+		ChartVersion:            chartMeta.Version,
+		Status:                  models.CHARTSTATUS_NEW,
+		Active:                  true,
+		ChartLocation:           chartGitAttr.ChartLocation,
+		GitRepoUrl:              chartGitAttr.RepoUrl,
+		ReferenceTemplate:       templateName,
+		ChartRefId:              templateRequest.ChartRefId,
+		Latest:                  false,
+		Previous:                false,
+		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
 	err = impl.chartRepository.Save(chart)

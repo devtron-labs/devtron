@@ -40,10 +40,10 @@ type CommonServiceImpl struct {
 	gitOpsRepository            repository.GitOpsConfigRepository
 	dockerReg                   repository.DockerArtifactStoreRepository
 	attributeRepo               repository.AttributesRepository
-	gitProviderRepository repository.GitProviderRepository
-	environmentRepository repository3.EnvironmentRepository
-	teamRepository        repository2.TeamRepository
-	appRepository         app.AppRepository
+	gitProviderRepository       repository.GitProviderRepository
+	environmentRepository       repository3.EnvironmentRepository
+	teamRepository              repository2.TeamRepository
+	appRepository               app.AppRepository
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,

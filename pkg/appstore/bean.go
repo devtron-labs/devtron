@@ -39,9 +39,9 @@ type InstallAppVersionDTO struct {
 	UserId                  int32                             `json:"-"`
 	ReferenceValueId        int                               `json:"referenceValueId, omitempty" validate:"required,number"`
 	ReferenceValueKind      string                            `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
-	ACDAppName              string                   `json:"-"`
-	Environment             *repository2.Environment `json:"-"`
-	ChartGroupEntryId       int                      `json:"-"`
+	ACDAppName              string                            `json:"-"`
+	Environment             *repository2.Environment          `json:"-"`
+	ChartGroupEntryId       int                               `json:"-"`
 	DefaultClusterComponent bool                              `json:"-"`
 	Status                  appstore.AppstoreDeploymentStatus `json:"-"`
 	AppStoreId              int                               `json:"appStoreId"`

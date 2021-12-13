@@ -54,8 +54,6 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 )
 
-
-
 type DevtronAppRestHandler interface {
 	CreateApp(w http.ResponseWriter, r *http.Request)
 	DeleteApp(w http.ResponseWriter, r *http.Request)

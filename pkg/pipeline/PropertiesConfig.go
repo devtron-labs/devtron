@@ -80,9 +80,9 @@ type PropertiesConfigServiceImpl struct {
 	logger                       *zap.SugaredLogger
 	envConfigRepo                chartConfig.EnvConfigOverrideRepository
 	chartRepo                    chartConfig.ChartRepository
-	mergeUtil              util.MergeUtil
-	environmentRepository  repository2.EnvironmentRepository
-	dbPipelineOrchestrator DbPipelineOrchestrator
+	mergeUtil                    util.MergeUtil
+	environmentRepository        repository2.EnvironmentRepository
+	dbPipelineOrchestrator       DbPipelineOrchestrator
 	application                  application.ServiceClient
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository
 	appLevelMetricsRepository    repository.AppLevelMetricsRepository
@@ -255,7 +255,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 
 	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chart.ChartVersion)
 	if err != nil {
-		impl.logger.Errorw("chart version parsing", "err", err,"chartVersion",chart.ChartVersion)
+		impl.logger.Errorw("chart version parsing", "err", err, "chartVersion", chart.ChartVersion)
 		return nil, err
 	}
 
@@ -263,7 +263,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		appMetricsRequest := AppMetricEnableDisableRequest{UserId: environmentProperties.UserId, AppId: appId, EnvironmentId: environmentProperties.EnvironmentId, IsAppMetricsEnabled: false}
 		_, err = impl.EnvMetricsEnableDisable(&appMetricsRequest)
 		if err != nil {
-			impl.logger.Errorw("err while disable app metrics for lower versions", "err", err,"appId",appId,"chartMajorVersion",chartMajorVersion,"chartMinorVersion",chartMinorVersion)
+			impl.logger.Errorw("err while disable app metrics for lower versions", "err", err, "appId", appId, "chartMajorVersion", chartMajorVersion, "chartMinorVersion", chartMinorVersion)
 			return nil, err
 		}
 	}

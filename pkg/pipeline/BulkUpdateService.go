@@ -121,12 +121,12 @@ type BulkUpdateServiceImpl struct {
 	chartRefRepository        chartConfig.ChartRefRepository
 	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository  chartConfig.PipelineConfigRepository
-	configMapRepository   chartConfig.ConfigMapRepository
-	environmentRepository repository2.EnvironmentRepository
-	pipelineRepository    pipelineConfig.PipelineRepository
+	configMapRepository       chartConfig.ConfigMapRepository
+	environmentRepository     repository2.EnvironmentRepository
+	pipelineRepository        pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
-	client        *http.Client
-	appRepository app.AppRepository
+	client                    *http.Client
+	appRepository             app.AppRepository
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,

@@ -44,9 +44,9 @@ type PolicyRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
 	policyService      security.PolicyService
 	userService        user.UserService
-	userAuthService user.UserAuthService
-	enforcer        casbin.Enforcer
-	enforcerUtil    rbac.EnforcerUtil
+	userAuthService    user.UserAuthService
+	enforcer           casbin.Enforcer
+	enforcerUtil       rbac.EnforcerUtil
 	environmentService cluster.EnvironmentService
 }
 

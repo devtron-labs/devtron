@@ -74,14 +74,14 @@ type WorkflowDagExecutorImpl struct {
 	cdConfig                   *CdConfig
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
 	ciArtifactRepository       repository.CiArtifactRepository
-	user         user.UserService
-	enforcer     casbin.Enforcer
-	enforcerUtil rbac.EnforcerUtil
+	user                       user.UserService
+	enforcer                   casbin.Enforcer
+	enforcerUtil               rbac.EnforcerUtil
 	groupRepository            repository.DeploymentGroupRepository
 	tokenCache                 *util3.TokenCache
-	acdAuthConfig *util3.ACDAuthConfig
-	envRepository repository2.EnvironmentRepository
-	eventFactory  client.EventFactory
+	acdAuthConfig              *util3.ACDAuthConfig
+	envRepository              repository2.EnvironmentRepository
+	eventFactory               client.EventFactory
 	eventClient                client.EventClient
 	cvePolicyRepository        security.CvePolicyRepository
 	scanResultRepository       security.ImageScanResultRepository

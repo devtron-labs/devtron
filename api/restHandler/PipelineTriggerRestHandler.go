@@ -45,9 +45,9 @@ type PipelineTriggerRestHandler interface {
 type PipelineTriggerRestHandlerImpl struct {
 	appService             app.AppService
 	userAuthService        user.UserService
-	validator   *validator.Validate
-	enforcer    casbin.Enforcer
-	teamService team.TeamService
+	validator              *validator.Validate
+	enforcer               casbin.Enforcer
+	teamService            team.TeamService
 	logger                 *zap.SugaredLogger
 	workflowDagExecutor    pipeline.WorkflowDagExecutor
 	enforcerUtil           rbac.EnforcerUtil

@@ -128,7 +128,7 @@ func (impl MaterialRepositoryImpl) Update(materials []*GitMaterial) error {
 	return err
 }
 
-func(repo MaterialRepositoryImpl) FindByAppIdAndCheckoutPath(appId int, checkoutPath string) (*GitMaterial, error){
+func (repo MaterialRepositoryImpl) FindByAppIdAndCheckoutPath(appId int, checkoutPath string) (*GitMaterial, error) {
 	material := &GitMaterial{}
 	err := repo.dbConnection.Model(material).
 		Column("git_material.*", "GitProvider").
