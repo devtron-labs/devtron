@@ -729,6 +729,6 @@ topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: zone
     whenUnsatisfiable: DoNotSchedule
-    matchLabels:
-      foo: bar
+    autoLabelSelector: true
+    customLabelSelector: {}
 ```
