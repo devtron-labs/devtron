@@ -43,8 +43,8 @@ type AppLabelRestHandlerImpl struct {
 	appLabelService app.AppLabelService
 	userAuthService user.UserService
 	validator       *validator.Validate
-	enforcerUtil rbac.EnforcerUtil
-	enforcer     casbin.Enforcer
+	enforcerUtil    rbac.EnforcerUtil
+	enforcer        casbin.Enforcer
 }
 
 func NewAppLabelRestHandlerImpl(logger *zap.SugaredLogger, appLabelService app.AppLabelService,
