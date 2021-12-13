@@ -94,7 +94,16 @@ spec:
         whenUnsatisfiable: {{ .whenUnsatisfiable }}
         labelSelector:
           matchLabels:
-            {{ toYaml .matchLabels }}
+          {{- if and .autoLabelSelector .customLabelSelector }}
+{{ toYaml .customLabelSelector | indent 12 }}
+          {{- else if .autoLabelSelector }}
+            app: {{ template ".Chart.Name .name" $ }}
+            appId: {{ $.Values.app | quote }}
+            envId: {{ $.Values.env | quote }}
+            release: {{ $.Release.Name }}
+          {{- else if .customLabelSelector }}
+{{ toYaml .customLabelSelector | indent 12 }}
+          {{- end }}
 {{- end }}
 {{- end }}
 {{- if $.Values.podSecurityContext }}
