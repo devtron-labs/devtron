@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
+	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/google/wire"
@@ -23,6 +24,7 @@ func InitializeApp() (*App, error) {
 		AuthWireSet,
 		team.TeamsWireSet,
 		cluster.ClusterWireSetEa,
+		dashboard.DashboardWireSet,
 
 		NewApp,
 		NewMuxRouter,

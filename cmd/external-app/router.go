@@ -7,19 +7,21 @@ import (
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
+	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
 )
 
 type MuxRouter struct {
-	Router         *mux.Router
-	logger         *zap.SugaredLogger
-	ssoLoginRouter sso.SsoLoginRouter
-	teamRouter     team.TeamRouter
-	UserAuthRouter user.UserAuthRouter
-	userRouter     user.UserRouter
-	clusterRouter  cluster.ClusterRouter
+	Router          *mux.Router
+	logger          *zap.SugaredLogger
+	ssoLoginRouter  sso.SsoLoginRouter
+	teamRouter      team.TeamRouter
+	UserAuthRouter  user.UserAuthRouter
+	userRouter      user.UserRouter
+	clusterRouter   cluster.ClusterRouter
+	dashboardRouter dashboard.DashboardRouter
 }
 
 func NewMuxRouter(
@@ -29,16 +31,18 @@ func NewMuxRouter(
 	UserAuthRouter user.UserAuthRouter,
 	userRouter user.UserRouter,
 	clusterRouter cluster.ClusterRouter,
+	dashboardRouter dashboard.DashboardRouter,
 
 ) *MuxRouter {
 	r := &MuxRouter{
-		Router:         mux.NewRouter(),
-		logger:         logger,
-		ssoLoginRouter: ssoLoginRouter,
-		teamRouter:     teamRouter,
-		UserAuthRouter: UserAuthRouter,
-		userRouter:     userRouter,
-		clusterRouter:  clusterRouter,
+		Router:          mux.NewRouter(),
+		logger:          logger,
+		ssoLoginRouter:  ssoLoginRouter,
+		teamRouter:      teamRouter,
+		UserAuthRouter:  UserAuthRouter,
+		userRouter:      userRouter,
+		clusterRouter:   clusterRouter,
+		dashboardRouter: dashboardRouter,
 	}
 	return r
 }
@@ -74,5 +78,7 @@ func (r *MuxRouter) Init() {
 	r.Router.Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		http.Redirect(writer, request, "/dashboard", 301)
 	})
+	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
+	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
 
 }
