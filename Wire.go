@@ -92,6 +92,7 @@ func InitializeApp() (*App, error) {
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
+		dashboard.DashboardWireSet,
 
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
@@ -551,10 +552,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(terminal.TerminalSessionHandler), new(*terminal.TerminalSessionHandlerImpl)),
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
-
-		dashboard.GetConfig,
-		router.NewDashboardRouterImpl,
-		wire.Bind(new(router.DashboardRouter), new(*router.DashboardRouterImpl)),
 
 		grafana.GetConfig,
 		router.NewGrafanaRouterImpl,
