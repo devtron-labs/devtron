@@ -70,4 +70,9 @@ func (r *MuxRouter) Init() {
 
 	clusterRouter := r.Router.PathPrefix("/cluster").Subrouter()
 	r.clusterRouter.InitClusterRouter(clusterRouter)
+
+	r.Router.Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		http.Redirect(writer, request, "/dashboard", 301)
+	})
+
 }
