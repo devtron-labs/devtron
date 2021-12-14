@@ -181,44 +181,17 @@ func (impl K8sUtil) GetConfigMap(namespace string, name string, client *v12.Core
 	}
 }
 
-func (impl K8sUtil) WatchConfigMap(namespace string, dir string, client kubernetes.Interface) (string, string, string, error) {
+func (impl K8sUtil) WatchConfigMap(namespace string, dir string, client kubernetes.Interface) (string, string, []byte, error) {
 	api := client.CoreV1().ConfigMaps(namespace)
 	configMaps, err := api.List(metav1.ListOptions{})
 	if err != nil {
-		return "", "", "", err
-	}
-	for filename, binaryData := range configMaps.Items[6].BinaryData {
-		binaryDataReader := bytes.NewReader(binaryData)
-		chartDir := filepath.Join(string(impl.ConfigMapDir), dir)
-		err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
-		if err != nil {
-			impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
-			return "", "", "", err
-		}
-		impl.ExtractTarGz(binaryDataReader, chartDir)
-		time.Sleep(2 * time.Second)
-
-		configmapDirectoryName := strings.Split(filename, ".")
-
-		readFile, err := ioutil.ReadFile(filepath.Join(string(impl.ConfigMapDir), configmapDirectoryName[0], "Chart.Yaml"))
-		if err != nil {
-			return "", "", "", err
-		}
-
-		chartContent, err := chartutil.UnmarshalChartfile(readFile)
-		if err != nil {
-			return "", "", "", err
-		}
-		configMapName := chartContent.Name
-		configMapVersion := chartContent.Version
-
-		return configMapName, configMapVersion, string(binaryData), nil
+		return "", "", nil, err
 	}
 
 	resourceVersion := configMaps.ListMeta.ResourceVersion
 	watcher, err := api.Watch(metav1.ListOptions{ResourceVersion: resourceVersion})
 	if err != nil {
-		return "", "", "", err
+		return "", "", nil, err
 	}
 
 	ch := watcher.ResultChan()
@@ -234,12 +207,39 @@ func (impl K8sUtil) WatchConfigMap(namespace string, dir string, client kubernet
 			continue
 		}
 		if annotations == "mount" {
+			for filename, binaryData := range configMaps.BinaryData {
+				binaryDataReader := bytes.NewReader(binaryData)
+				chartDir := filepath.Join(string(impl.ConfigMapDir), dir)
+				err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
+				if err != nil {
+					impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
+					return "", "", nil, err
+				}
+				impl.ExtractTarGz(binaryDataReader, chartDir)
+				time.Sleep(time.Second)
+
+				configmapDirectoryName := strings.Split(filename, ".")
+
+				readFile, err := ioutil.ReadFile(filepath.Join(string(impl.ConfigMapDir), configmapDirectoryName[0], "Chart.Yaml"))
+				if err != nil {
+					return "", "", nil, err
+				}
+
+				chartContent, err := chartutil.UnmarshalChartfile(readFile)
+				if err != nil {
+					return "", "", nil, err
+				}
+				configMapName := chartContent.Name
+				configMapVersion := chartContent.Version
+
+				return configMapName, configMapVersion, binaryData, nil
+			}
 
 		}
 
 	}
 
-	return "", "", "", err
+	return "", "", nil, err
 }
 
 func (impl K8sUtil) CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {

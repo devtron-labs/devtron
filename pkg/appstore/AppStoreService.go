@@ -30,7 +30,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
@@ -43,8 +42,6 @@ import (
 	"k8s.io/helm/pkg/version"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -162,16 +159,13 @@ type AppStoreServiceImpl struct {
 	client                        *http.Client
 	refRepository				  chartConfig.ChartRefRepository
 	ChartTemplateService		  util.ChartTemplateService
-	refChartDir               	  pipeline.RefChartDir
-
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client, refRepository chartConfig.ChartRefRepository, ChartTemplateService util.ChartTemplateService,
-	refChartDir pipeline.RefChartDir) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client, refRepository chartConfig.ChartRefRepository, ChartTemplateService util.ChartTemplateService) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -187,7 +181,6 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		client:                        client,
 		refRepository:				   refRepository,
 		ChartTemplateService:		   ChartTemplateService,
-		refChartDir:				   refChartDir,
 	}
 }
 
@@ -812,8 +805,6 @@ func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap(UserId int32) (watch.Inte
 	if err != nil {
 		return nil, err
 	}
-	//a, err:= impl.CheckDirectory(24)
-	//fmt.Println(a)
 	var dirName string
 	if !strings.Contains(chartName, strings.ReplaceAll(chartVersion, ".", "-")) {
 		dirName = chartName + "_" + strings.ReplaceAll(chartVersion, ".", "-")
@@ -843,22 +834,4 @@ func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap(UserId int32) (watch.Inte
 	}
 
 	return nil, nil
-}
-
-func (impl *AppStoreServiceImpl) CheckDirectory(ChartRefId int)(bool, error){
-	chartRef, err := impl.refRepository.FindById(ChartRefId)
-	if err != nil {
-		return false, err
-	}
-	location := chartRef.Location
-	if _, err := os.Stat(filepath.Join(string(impl.refChartDir), location)); os.IsNotExist(err) {
-		chartData := chartRef.ChartData
-		binaryData := []byte(chartData)
-		binaryDataReader := bytes.NewReader(binaryData)
-		impl.K8sUtil.ExtractTarGz(binaryDataReader, string(impl.refChartDir))
-		return true, nil
-	} else {
-		return true, nil
-	}
-
 }
