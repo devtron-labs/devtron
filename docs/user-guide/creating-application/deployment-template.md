@@ -693,11 +693,11 @@ kedaAutoscaling:
   triggers: 
     - type: kafka
       metadata:
-        bootstrapServers: localhost:9092
-        consumerGroup: my-group       
-        topic: test-topic
-        lagThreshold: "50"
-        offsetResetPolicy: latest
+        bootstrapServers: b-2.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092,b-3.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092,b-1.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092
+        topic: Orders-Service-ESP.info
+        lagThreshold: "100"
+        consumerGroup: oders-remove-delivered-packages
+        allowIdleConsumers: "true"
   triggerAuthentication:
     enabled: true
     name: keda-trigger-auth-kafka-credential
