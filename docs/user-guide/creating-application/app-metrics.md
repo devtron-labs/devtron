@@ -1,6 +1,6 @@
 # Application Metrics
 
-Application metrics can be enabled to see your application's metrics.
+Application metrics are available on App details tab of Devtron. These metrics are helpful in monitoring the application during a release or in the event of an issue. Devtron uses in cluster prometheus to display these metrics which can be installed separately from `Charts` section of Devtron.
 
 ## Standard Metrics
 
