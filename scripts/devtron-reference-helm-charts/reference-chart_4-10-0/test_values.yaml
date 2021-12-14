@@ -104,6 +104,13 @@ server:
     image: ""
 deploymentType: "RECREATE"
 
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: zone
+    whenUnsatisfiable: DoNotSchedule
+    autoLabelSelector: true
+    customLabelSelector:
+      foo: bar
 
 EnvVariables:
   - name: FLASK_ENV

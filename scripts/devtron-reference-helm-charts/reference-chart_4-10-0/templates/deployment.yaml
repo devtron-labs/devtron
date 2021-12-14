@@ -86,6 +86,30 @@ spec:
         - name: {{ . }}
   {{- end }}
 {{- end}}
+{{- if $.Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+{{- range $.Values.topologySpreadConstraints }}
+      - maxSkew: {{ .maxSkew }}
+        topologyKey: {{ .topologyKey }}
+        whenUnsatisfiable: {{ .whenUnsatisfiable }}
+        labelSelector:
+          matchLabels:
+          {{- if and .autoLabelSelector .customLabelSelector }}
+{{ toYaml .customLabelSelector | indent 12 }}
+          {{- else if .autoLabelSelector }}
+            app: {{ template ".Chart.Name .name" $ }}
+            appId: {{ $.Values.app | quote }}
+            envId: {{ $.Values.env | quote }}
+            release: {{ $.Release.Name }}
+          {{- else if .customLabelSelector }}
+{{ toYaml .customLabelSelector | indent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}
+{{- if $.Values.podSecurityContext }}
+      securityContext:
+{{ toYaml .Values.podSecurityContext | indent 8 }}
+{{- end }}
 {{- if $.Values.initContainers}}
       initContainers:
 {{- range $i, $c := .Values.initContainers }}
@@ -141,6 +165,15 @@ spec:
           securityContext:
             privileged: true
 {{- end}}
+{{- if $.Values.containerSecurityContext }}
+          securityContext:
+{{ toYaml .Values.containerSecurityContext | indent 12 }}
+{{- end }}
+{{- if and $.Values.containerSecurityContext $.Values.privileged }}
+          securityContext:
+            privileged: true
+{{ toYaml .Values.containerSecurityContext | indent 12 }}
+{{- end }}
           ports:
           {{- range $.Values.ContainerPort }}
             - name: {{ .name}}
