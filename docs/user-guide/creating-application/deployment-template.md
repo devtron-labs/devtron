@@ -658,7 +658,16 @@ kedaAutoscaling:
   maxReplicas: 2
   idleReplicaCount: 0
   pollingInterval: 30
-  advanced: {}
+  advanced:
+    restoreToOriginalReplicaCount: true
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300
+          policies:
+          - type: Percent
+            value: 100
+            periodSeconds: 15
   triggers: 
     - type: prometheus
       metadata:
