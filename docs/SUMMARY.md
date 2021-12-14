@@ -26,7 +26,7 @@
   * [Config Maps](user-guide/creating-application/config-maps.md)
   * [Secrets](user-guide/creating-application/secrets.md)
   * [Environment Overrides](user-guide/creating-application/environment-overrides.md)
-  * [App Metrics](user-guide/creating-application/app-metrics.md)
+  * [Application Metrics](user-guide/creating-application/app-metrics.md)
 * [Cloning Application](user-guide/cloning-application.md)
 * [Deploying Application](user-guide/deploying-application/README.md)
   * [Triggering CI](user-guide/deploying-application/triggering-ci.md)
