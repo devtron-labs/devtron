@@ -514,6 +514,6 @@ func (handler *AppStoreRestHandlerImpl) GetAndCreateConfigMap(w http.ResponseWri
 	request.UserId = userId
 	handler.Logger.Infow("request payload, CreateChartRepo", "payload", request)
 
-	TriggerResult, err := handler.appStoreService.WatchConfigMap(userId)
+	TriggerResult, err := handler.appStoreService.WatchAndSaveConfigMap(userId)
 	common.WriteJsonResp(w, err, TriggerResult, http.StatusOK)
 }
