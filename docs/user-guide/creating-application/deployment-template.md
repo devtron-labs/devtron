@@ -259,6 +259,15 @@ ingressInternal:
 ### Init Containers
 ```yaml
 initContainers: 
+  - reuseContainerImage: true
+    volumeMounts:
+     - mountPath: /etc/ls-oms
+       name: ls-oms-cm-vol
+   command:
+     - flyway
+     - -configFiles=/etc/ls-oms/flyway.conf
+     - migrate
+
   - name: nginx
         image: nginx:1.14.2
         ports:
@@ -266,7 +275,7 @@ initContainers:
         command: ["/usr/local/bin/nginx"]
         args: ["-g", "daemon off;"]
 ```
-Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image.
+Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image. One can use base image inside initContainer by setting the reuseContainerImage flag to `true`.
 
 ### Pause For Seconds Before Switch Active
 ```yaml
