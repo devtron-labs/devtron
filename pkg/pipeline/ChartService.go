@@ -1055,13 +1055,7 @@ const memory = "memory"
 
 func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error) {
 	schemajson, err := impl.JsonSchemaExtractFromFile(chartRefId)
-	if err != nil && chartRefId >= 9 {
-		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
-		return false, err
-	} else if err != nil {
-		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
-		return true, nil
-	}
+
 	schemaLoader := gojsonschema.NewGoLoader(schemajson)
 	documentLoader := gojsonschema.NewGoLoader(templatejson)
 	marshalTemplatejson, err := json.Marshal(templatejson)

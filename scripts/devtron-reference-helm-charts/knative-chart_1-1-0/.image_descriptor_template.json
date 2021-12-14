@@ -1,0 +1,1 @@
+{"kn": {"service": { "image_tag":"{{.Tag}}",  "image":"{{.Name}}" }}}
