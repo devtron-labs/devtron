@@ -85,6 +85,7 @@ type PropertiesConfigServiceImpl struct {
 	application                  application.ServiceClient
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository
 	appLevelMetricsRepository    repository.AppLevelMetricsRepository
+	chartHistoryRepository		 chartConfig.ChartHistoryRepository
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
@@ -96,7 +97,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	application application.ServiceClient,
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-) *PropertiesConfigServiceImpl {
+	chartHistoryRepository chartConfig.ChartHistoryRepository) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
 		logger:                       logger,
 		envConfigRepo:                envConfigRepo,
@@ -107,6 +108,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		application:                  application,
 		envLevelAppMetricsRepository: envLevelAppMetricsRepository,
 		appLevelMetricsRepository:    appLevelMetricsRepository,
+		chartHistoryRepository: 	  chartHistoryRepository,
 	}
 
 }
@@ -325,6 +327,11 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		return nil, fmt.Errorf("namespace name update not supported")
 	}
 
+	_,err = impl.ChartEnvHistoryCreate(override)
+	if err!=nil{
+		impl.logger.Errorw("error in creating entry for env chart history","err",err,"envOverride",override)
+		return nil, err
+	}
 	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(oldEnvOverride.Chart.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
@@ -421,6 +428,11 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Char
 			impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
 			return nil, err
 		}
+		_,err = impl.ChartEnvHistoryCreate(envOverride)
+		if err!=nil{
+			impl.logger.Errorw("error in creating entry for env chart history","err",err,"envOverride",envOverride)
+			return nil, err
+		}
 	}
 	return envOverride, nil
 }
@@ -508,7 +520,6 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool
 	if err != nil {
 		impl.logger.Warnw("error in update envOverride", "envOverrideId", id)
 	}
-
 	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(envOverride.Chart.AppId, envOverride.TargetEnvironment)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error while fetching env level app metric", "err", err)
@@ -649,4 +660,40 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 		}
 	}
 	return appMetricRequest, err
+}
+
+func (impl PropertiesConfigServiceImpl) ChartEnvHistoryCreate(envProperties *chartConfig.EnvConfigOverride) (historyModel *chartConfig.ChartsEnvHistory, err error) {
+	//fetching latest entry by chartsId
+	oldHistory, err := impl.chartHistoryRepository.GetLatestEnvHistoryByEnvConfigOverrideId(envProperties.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching chart history entry by chartsId", "err", err, "envConfigOverrideId", envProperties.Id)
+		return nil, err
+	} else if err == nil {
+		//setting latest to false
+		oldHistory.Latest = false
+		_, err = impl.chartHistoryRepository.UpdateEnvHistory(oldHistory)
+		if err != nil {
+			impl.logger.Errorw("error in updating chart env history entry", "err", err, "history", oldHistory)
+			return nil, err
+		}
+	}
+	//creating new entry
+	historyModel = &chartConfig.ChartsEnvHistory{
+		EnvConfigOverrideId: envProperties.Id,
+		TargetEnvironment:   envProperties.TargetEnvironment,
+		EnvOverride:         envProperties.EnvOverrideValues,
+		Latest:              true,
+		Deployed:            false,
+	}
+	historyModel.CreatedBy = envProperties.CreatedBy
+	historyModel.CreatedOn = envProperties.CreatedOn
+	historyModel.UpdatedBy = envProperties.UpdatedBy
+	historyModel.UpdatedOn = envProperties.UpdatedOn
+	_, err = impl.chartHistoryRepository.CreateEnvHistory(historyModel)
+	if err != nil {
+		impl.logger.Errorw("err in creating history entry for env chart", "err", err)
+		return nil, err
+	}
+	return historyModel, err
+
 }

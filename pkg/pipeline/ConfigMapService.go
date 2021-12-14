@@ -276,7 +276,7 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *ConfigDataR
 		}
 		configMapRequest.Id = configMap.Id
 	}
-	_, err = impl.CMCSGlobalHistoryCreateUpdate(model, chartConfig.CONFIGMAP_TYPE)
+	_, err = impl.CMCSGlobalHistoryCreate(model, chartConfig.CONFIGMAP_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for configmap history", "err", err)
 		return nil, err
@@ -405,7 +405,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *Config
 		}
 		configMapRequest.Id = configMap.Id
 	}
-	_, err = impl.CMCSEnvHistoryCreateUpdate(model, chartConfig.CONFIGMAP_TYPE)
+	_, err = impl.CMCSEnvHistoryCreate(model, chartConfig.CONFIGMAP_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for CM/CS history in bulk update", "err", err)
 		return nil, err
@@ -591,7 +591,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *ConfigDataR
 		}
 		configMapRequest.Id = secret.Id
 	}
-	_, err = impl.CMCSGlobalHistoryCreateUpdate(model, chartConfig.SECRET_TYPE)
+	_, err = impl.CMCSGlobalHistoryCreate(model, chartConfig.SECRET_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for secret history", "err", err)
 		return nil, err
@@ -765,7 +765,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *Config
 		}
 		configMapRequest.Id = configMap.Id
 	}
-	_, err = impl.CMCSEnvHistoryCreateUpdate(model, chartConfig.SECRET_TYPE)
+	_, err = impl.CMCSEnvHistoryCreate(model, chartConfig.SECRET_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for CM/CS history in bulk update", "err", err)
 		return nil, err
@@ -1542,7 +1542,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *B
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
 		}
-		_, err = impl.CMCSGlobalHistoryCreateUpdate(model, chartConfig.CONFIGMAP_TYPE)
+		_, err = impl.CMCSGlobalHistoryCreate(model, chartConfig.CONFIGMAP_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for global CM/CS history in bulk update", "err", err)
 			return nil, err
@@ -1632,7 +1632,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchReque
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
 		}
-		_, err = impl.CMCSEnvHistoryCreateUpdate(model, chartConfig.CONFIGMAP_TYPE)
+		_, err = impl.CMCSEnvHistoryCreate(model, chartConfig.CONFIGMAP_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for env CM/CS history in bulk update", "err", err)
 			return nil, err
@@ -1697,19 +1697,18 @@ func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchReq
 	return bulkPatchRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) CMCSGlobalHistoryCreateUpdate(model *chartConfig.ConfigMapAppModel, configType chartConfig.ConfigType) (historyModel *chartConfig.ConfigmapAndSecretGlobalHistory, err error) {
+func (impl ConfigMapServiceImpl) CMCSGlobalHistoryCreate(model *chartConfig.ConfigMapAppModel, configType chartConfig.ConfigType) (historyModel *chartConfig.ConfigmapAndSecretGlobalHistory, err error) {
 	//fetching latest entry of history
 	oldConfigHistory, err := impl.configMapHistoryRepository.GetLatestHistoryByAppLevelIdAndConfigType(model.Id, configType)
 	if err != nil {
-		if err == pg.ErrNoRows {
-			//setting latest to false
-			oldConfigHistory.Latest = false
-			_, err = impl.configMapHistoryRepository.UpdateGlobalHistory(oldConfigHistory)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			impl.logger.Errorw("error in fetching history entry by app level id", "appLevelId", model.Id)
+		impl.logger.Errorw("error in fetching history entry by app level id", "appLevelId", model.Id)
+		return nil, err
+	} else if err == nil {
+		//setting latest to false
+		oldConfigHistory.Latest = false
+		_, err = impl.configMapHistoryRepository.UpdateGlobalHistory(oldConfigHistory)
+		if err != nil {
+			impl.logger.Errorw("error in updating CM/CS global history entry", "err", err, "history", oldConfigHistory)
 			return nil, err
 		}
 	}
@@ -1737,19 +1736,18 @@ func (impl ConfigMapServiceImpl) CMCSGlobalHistoryCreateUpdate(model *chartConfi
 	return historyModel, nil
 }
 
-func (impl ConfigMapServiceImpl) CMCSEnvHistoryCreateUpdate(model *chartConfig.ConfigMapEnvModel, configType chartConfig.ConfigType) (historyModel *chartConfig.ConfigmapAndSecretEnvHistory, err error) {
+func (impl ConfigMapServiceImpl) CMCSEnvHistoryCreate(model *chartConfig.ConfigMapEnvModel, configType chartConfig.ConfigType) (historyModel *chartConfig.ConfigmapAndSecretEnvHistory, err error) {
 	//fetching latest entry of history
 	oldConfigHistory, err := impl.configMapHistoryRepository.GetLatestHistoryByEnvLevelIdAndConfigType(model.Id, configType)
 	if err != nil {
-		if err == pg.ErrNoRows {
-			//setting latest to false
-			oldConfigHistory.Latest = false
-			_, err = impl.configMapHistoryRepository.UpdateEnvHistory(oldConfigHistory)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			impl.logger.Errorw("error in fetching history entry by app level id", "appLevelId", model.Id)
+		impl.logger.Errorw("error in fetching history entry by app level id", "appLevelId", model.Id)
+		return nil, err
+	} else if err == nil {
+		//setting latest to false
+		oldConfigHistory.Latest = false
+		_, err = impl.configMapHistoryRepository.UpdateEnvHistory(oldConfigHistory)
+		if err != nil {
+			impl.logger.Errorw("error in updating CM/CS env history entry", "err", err, "history", oldConfigHistory)
 			return nil, err
 		}
 	}

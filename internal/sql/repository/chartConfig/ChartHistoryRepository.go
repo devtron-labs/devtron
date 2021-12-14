@@ -29,9 +29,11 @@ type ChartsGlobalHistory struct {
 type ChartHistoryRepository interface {
 	CreateGlobalHistory(chart *ChartsGlobalHistory) (*ChartsGlobalHistory, error)
 	UpdateGlobalHistory(chart *ChartsGlobalHistory) (*ChartsGlobalHistory, error)
+	GetLatestGlobalHistoryByChartsId(chartsId int) (*ChartsGlobalHistory, error)
 
 	CreateEnvHistory(chart *ChartsEnvHistory) (*ChartsEnvHistory, error)
 	UpdateEnvHistory(chart *ChartsEnvHistory) (*ChartsEnvHistory, error)
+	GetLatestEnvHistoryByEnvConfigOverrideId(envConfigOverrideId int) (*ChartsEnvHistory, error)
 }
 
 type ChartHistoryRepositoryImpl struct {
@@ -39,8 +41,8 @@ type ChartHistoryRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
-func NewChartHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB) *ConfigMapHistoryRepositoryImpl {
-	return &ConfigMapHistoryRepositoryImpl{dbConnection: dbConnection, logger: logger}
+func NewChartHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB) *ChartHistoryRepositoryImpl {
+	return &ChartHistoryRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
 func(impl ChartHistoryRepositoryImpl) CreateGlobalHistory(chart *ChartsGlobalHistory) (*ChartsGlobalHistory, error){
@@ -61,7 +63,16 @@ func(impl ChartHistoryRepositoryImpl) UpdateGlobalHistory(chart *ChartsGlobalHis
 	return chart, nil
 }
 
-
+func (impl ChartHistoryRepositoryImpl) GetLatestGlobalHistoryByChartsId(chartsId int) (*ChartsGlobalHistory, error) {
+	var chartHistory *ChartsGlobalHistory
+	err := impl.dbConnection.Model(&chartHistory).Where("charts_id = ?", chartsId).
+		Where("latest = ?", true).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting latest entry for global chart history", "err", err, "charts_id", chartsId)
+		return chartHistory, err
+	}
+	return chartHistory, nil
+}
 
 
 //---------------------------------------------------
@@ -69,6 +80,7 @@ func(impl ChartHistoryRepositoryImpl) UpdateGlobalHistory(chart *ChartsGlobalHis
 type ChartsEnvHistory struct {
 	tableName               struct{}  `sql:"charts_env_history" pg:",discard_unknown_columns"`
 	Id                      int       `sql:"id,pk"`
+	EnvConfigOverrideId     int       `sql:"chart_env_config_override_id"`
 	TargetEnvironment 		int       `sql:"target_environment"`
 	EnvOverride          	string    `sql:"env_override"`
 	Latest                  bool      `sql:"latest,notnull"`
@@ -94,4 +106,15 @@ func(impl ChartHistoryRepositoryImpl) UpdateEnvHistory(chart *ChartsEnvHistory) 
 		return chart, err
 	}
 	return chart, nil
+}
+
+func (impl ChartHistoryRepositoryImpl) GetLatestEnvHistoryByEnvConfigOverrideId(envConfigOverrideId int) (*ChartsEnvHistory, error) {
+	var chartHistory *ChartsEnvHistory
+	err := impl.dbConnection.Model(&chartHistory).Where("chart_env_config_override_id = ?", envConfigOverrideId).
+		Where("latest = ?", true).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting latest entry for env chart history", "err", err, "envConfigOverrideId", envConfigOverrideId)
+		return chartHistory, err
+	}
+	return chartHistory, nil
 }

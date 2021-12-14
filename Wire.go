@@ -709,6 +709,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
 
+		chartConfig.NewConfigMapHistoryRepositoryImpl,
+		wire.Bind(new(chartConfig.ConfigMapHistoryRepository),new(*chartConfig.ConfigMapHistoryRepositoryImpl)),
+		chartConfig.NewChartHistoryRepositoryImpl,
+		wire.Bind(new(chartConfig.ChartHistoryRepository),new(*chartConfig.ChartHistoryRepositoryImpl)),
+		appstore2.NewInstalledAppHistoryRepositoryImpl,
+		wire.Bind(new(appstore2.InstalledAppHistoryRepository),new(*appstore2.InstalledAppHistoryRepositoryImpl)),
 		AuthWireSet,
 	)
 	return &App{}, nil

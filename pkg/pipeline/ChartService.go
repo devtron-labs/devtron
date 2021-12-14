@@ -139,6 +139,7 @@ type ChartServiceImpl struct {
 	pipelineRepository        pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
 	client                    *http.Client
+	chartHistoryRepository    chartConfig.ChartHistoryRepository
 }
 
 func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -159,7 +160,7 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
 	client *http.Client,
 	CustomFormatCheckers *util2.CustomFormatCheckers,
-) *ChartServiceImpl {
+	chartHistoryRepository chartConfig.ChartHistoryRepository) *ChartServiceImpl {
 	return &ChartServiceImpl{
 		chartRepository:           chartRepository,
 		logger:                    logger,
@@ -178,6 +179,7 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 		pipelineRepository:        pipelineRepository,
 		appLevelMetricsRepository: appLevelMetricsRepository,
 		client:                    client,
+		chartHistoryRepository:    chartHistoryRepository,
 	}
 }
 
@@ -349,6 +351,12 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
+	//creating history entry for chart
+	_, err = impl.ChartGlobalHistoryCreate(chart)
+	if err!=nil{
+		impl.logger.Errorw("error in creating entry for chart history","err",err,"chart",chart)
+		return nil,err
+	}
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(templateRequest.AppId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in app metrics app level flag", "error", err)
@@ -465,7 +473,12 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		impl.logger.Errorw("error in saving chart ", "chart", chart, "error", err)
 		return nil, err
 	}
-
+	//creating history entry for chart
+	_, err = impl.ChartGlobalHistoryCreate(chart)
+	if err!=nil{
+		impl.logger.Errorw("error in creating entry for chart history","err",err,"chart",chart)
+		return nil,err
+	}
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(templateRequest.AppId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in app metrics app level flag", "error", err)
@@ -723,7 +736,12 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 	if err != nil {
 		return nil, err
 	}
-
+	//creating history entry for chart
+	_, err = impl.ChartGlobalHistoryCreate(template)
+	if err!=nil{
+		impl.logger.Errorw("error in creating entry for chart history","err",err,"chart",template)
+		return nil,err
+	}
 	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
 		appMetricRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
 		_, err := impl.updateAppLevelMetrics(&appMetricRequest)
@@ -1139,4 +1157,43 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 		}
 		return schemajson, nil
 	}
+}
+
+func (impl ChartServiceImpl) ChartGlobalHistoryCreate(chart *chartConfig.Chart) (historyModel *chartConfig.ChartsGlobalHistory, err error) {
+	//fetching latest entry by chartsId
+	oldHistory, err := impl.chartHistoryRepository.GetLatestGlobalHistoryByChartsId(chart.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching chart history entry by chartsId", "err", err, "chartsId", chart.Id)
+		return nil, err
+	} else if err == nil {
+		//setting latest to false
+		oldHistory.Latest = false
+		_, err = impl.chartHistoryRepository.UpdateGlobalHistory(oldHistory)
+		if err != nil {
+			impl.logger.Errorw("error in updating chart global history entry", "err", err, "history", oldHistory)
+			return nil, err
+		}
+	}
+	//creating new entry
+	historyModel = &chartConfig.ChartsGlobalHistory{
+		ChartsId:                chart.Id,
+		Values:                  chart.Values,
+		GlobalOverride:          chart.GlobalOverride,
+		ReleaseOverride:         chart.ReleaseOverride,
+		PipelineOverride:        chart.PipelineOverride,
+		ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
+		ChartRefId:              chart.ChartRefId,
+		Latest:                  true,
+		Deployed:                false,
+	}
+	historyModel.CreatedBy = chart.CreatedBy
+	historyModel.CreatedOn = chart.CreatedOn
+	historyModel.UpdatedBy = chart.UpdatedBy
+	historyModel.UpdatedOn = chart.UpdatedOn
+	_, err = impl.chartHistoryRepository.CreateGlobalHistory(historyModel)
+	if err != nil {
+		impl.logger.Errorw("err in creating history entry for global chart", "err", err)
+		return nil, err
+	}
+	return historyModel, err
 }

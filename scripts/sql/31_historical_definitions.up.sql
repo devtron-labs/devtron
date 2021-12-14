@@ -87,3 +87,22 @@ CREATE TABLE "public"."charts_env_history"
     CONSTRAINT "charts_env_history_chart_env_config_override_id_fkey" FOREIGN KEY ("chart_env_config_override_id") REFERENCES "public"."chart_env_config_override" ("id"),
     PRIMARY KEY ("id")
 );
+
+
+CREATE SEQUENCE IF NOT EXISTS id_seq_installed_app_history;
+
+-- Table Definition
+CREATE TABLE "public"."installed_app_history"
+(
+    "id"                            integer NOT NULL DEFAULT nextval('id_seq_installed_app_history'::regclass),
+    "installed_app_version_id"      integer NOT NULL,
+    "values_yaml"                   text,
+    "deployed_on"                   timestamptz,
+    "deployed_by"                   int4,
+    "created_on"                    timestamptz,
+    "created_by"                    int4,
+    "updated_on"                    timestamptz,
+    "updated_by"                    int4,
+    CONSTRAINT "installed_app_history_installed_app_version_id_fkey" FOREIGN KEY ("installed_app_version_id") REFERENCES "public"."installed_app_versions" ("id"),
+    PRIMARY KEY ("id")
+);
