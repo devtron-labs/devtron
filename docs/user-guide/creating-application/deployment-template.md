@@ -194,7 +194,7 @@ This allows public access to the url, please ensure you are using right nginx an
 ingress:
   enabled: false
   # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
-  ingressClassName: nginx
+  className: nginx
   annotations: {}
   hosts:
       - host: example1.com
@@ -505,7 +505,7 @@ It gives the realtime metrics of the deployed applications
 | `Mean Time to Recovery` | It shows the average time taken to fix a failed pipeline. |
 
 
-## Add on features in Deployment Chart version 3.9.0
+## Addon features in Deployment Template Chart version 3.9.0
 
 ### Service Account
 
@@ -655,3 +655,99 @@ envoyproxy.resources.limits.cpu >= envoyproxy.resources.requests.cpu
 envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
 ```
 
+## Addon features in Deployment Template Chart version 4.11.0
+
+### KEDA Autoscaling
+[KEDA](https://keda.sh) is a Kubernetes-based Event Driven Autoscaler. With KEDA, you can drive the scaling of any container in Kubernetes based on the number of events needing to be processed. KEDA can be installed into any Kubernetes cluster and can work alongside standard Kubernetes components like the Horizontal Pod Autoscaler(HPA).
+
+Example for autosccaling with KEDA using Prometheus metrics is given below:
+```yaml
+kedaAutoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 2
+  idleReplicaCount: 0
+  pollingInterval: 30
+  advanced:
+    restoreToOriginalReplicaCount: true
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300
+          policies:
+          - type: Percent
+            value: 100
+            periodSeconds: 15
+  triggers: 
+    - type: prometheus
+      metadata:
+        serverAddress:  http://<prometheus-host>:9090
+        metricName: http_request_total
+        query: envoy_cluster_upstream_rq{appId="300", cluster_name="300-0", container="envoy",}
+        threshold: "50"
+  triggerAuthentication:
+    enabled: true
+    name:
+    spec: {}
+  authenticationRef: {}
+```
+Example for autosccaling with KEDA based on kafka is given below :
+```yaml
+kedaAutoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 2
+  idleReplicaCount: 0
+  pollingInterval: 30
+  advanced: {}
+  triggers: 
+    - type: kafka
+      metadata:
+        bootstrapServers: b-2.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092,b-3.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092,b-1.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092
+        topic: Orders-Service-ESP.info
+        lagThreshold: "100"
+        consumerGroup: oders-remove-delivered-packages
+        allowIdleConsumers: "true"
+  triggerAuthentication:
+    enabled: true
+    name: keda-trigger-auth-kafka-credential
+    spec:
+      secretTargetRef:
+        - parameter: sasl
+          name: keda-kafka-secrets
+          key: sasl
+        - parameter: username
+          name: keda-kafka-secrets
+          key: username
+  authenticationRef: 
+    name: keda-trigger-auth-kafka-credential
+```
+
+### Security Context
+A security context defines privilege and access control settings for a Pod or Container.  
+
+To add a security context for main container:
+```yaml
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+```
+
+To add a security context on pod level:
+```yaml
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 3000
+  fsGroup: 2000
+```
+
+### Topology Spread Constraints
+You can use topology spread constraints to control how Pods are spread across your cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains. This can help to achieve high availability as well as efficient resource utilization.
+
+```yaml
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: zone
+    whenUnsatisfiable: DoNotSchedule
+    autoLabelSelector: true
+    customLabelSelector: {}
+```

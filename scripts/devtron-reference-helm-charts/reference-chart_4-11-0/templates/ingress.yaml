@@ -1,0 +1,160 @@
+{{ $svcName := include ".servicename" . }}
+{{ $svcPort := (index .Values.ContainerPort 0).servicePort }}
+{{- if $.Values.ingress.enabled -}}
+{{- if and .Values.ingress.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
+  {{- if not (hasKey .Values.ingress.annotations "kubernetes.io/ingress.class") }}
+  {{- $_ := set .Values.ingress.annotations "kubernetes.io/ingress.class" .Values.ingress.className}}
+  {{- end }}
+{{- if and .Values.ingressInternal.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
+  {{- if not (hasKey .Values.ingressInternal.annotations "kubernetes.io/ingress.class") }}
+  {{- $_ := set .Values.ingressInternal.annotations "kubernetes.io/ingress.class" .Values.ingressInternal.className}}
+  {{- end }}
+{{- end }}
+{{- end }}
+---
+{{ if semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.k8s.io/v1
+{{- else if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.k8s.io/v1beta1
+{{- else -}}
+apiVersion: extensions/v1beta1
+{{- end }}
+kind: Ingress
+metadata:
+  name: {{ template ".Chart.Name .fullname" . }}-ingress
+  namespace: {{ $.Values.NameSpace }}
+  labels:
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Release.Name }}
+{{- if .Values.ingress.annotations }}
+  annotations:
+{{ toYaml .Values.ingress.annotations | indent 4 }}
+{{- end }}
+spec:
+  {{- if and .Values.ingress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  rules:
+  {{- if or .Values.ingress.host .Values.ingress.path }}
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.path }}
+            {{- if and .Values.ingress.pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+            pathType: {{ $.Values.ingress.pathType }}
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ $svcName }}
+                port:
+                  number: {{ $svcPort }}
+              {{- else }}
+              serviceName: {{ $svcName }}
+              servicePort: {{ $svcPort }}
+              {{- end }}
+  {{- end }}
+  {{- range .Values.ingress.hosts }}
+    {{ $outer := . -}}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+        {{- range .paths }}
+          - path: {{ . }}
+            {{- if (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+            pathType: {{ $outer.pathType | quote }}
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ $svcName }}
+                port:
+                  number: {{ $svcPort }}
+              {{- else }}
+              serviceName: {{ $svcName }}
+              servicePort: {{ $svcPort }}
+              {{- end }}
+        {{- end }}
+  {{- end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+{{ toYaml .Values.ingress.tls | indent 4 }}
+  {{- end -}}
+{{- end }}
+{{- if $.Values.ingressInternal.enabled }}
+---
+{{ if semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.k8s.io/v1
+{{ else if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.k8s.io/v1beta1
+{{ else -}}
+apiVersion: extensions/v1beta1
+{{- end }}
+kind: Ingress
+metadata:
+  name: {{ template ".Chart.Name .fullname" . }}-ingress-internal
+  namespace: {{ $.Values.NameSpace }}
+  labels:
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Release.Name }}
+{{- if .Values.ingressInternal.annotations }}
+  annotations:
+{{ toYaml .Values.ingressInternal.annotations | indent 4 }}
+{{- end }}
+spec:
+  {{- if and .Values.ingress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
+  ingressClassName: {{ .Values.ingressInternal.className }}
+  {{- end }}
+  rules:
+  {{- if or .Values.ingressInternal.host .Values.ingressInternal.path }}
+    - host: {{ .Values.ingressInternal.host }}
+      http:
+        paths:
+          - path: {{ .Values.ingressInternal.path }}
+            {{- if and .Values.ingressInternal.pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+            pathType: {{ $.Values.ingressInternal.pathType | default "Prefix" | quote }}
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ $svcName }}
+                port:
+                  number: {{ $svcPort }}
+              {{- else }}
+              serviceName: {{ $svcName }}
+              servicePort: {{ $svcPort }}
+              {{- end }}
+  {{- end }}
+  {{- range .Values.ingressInternal.hosts }}
+    {{ $outer := . -}}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+        {{- range .paths }}
+          - path: {{ . }}
+            {{- if (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+            pathType: {{ $outer.pathType | quote }}
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ $svcName }}
+                port:
+                  number: {{ $svcPort }}
+              {{- else }}
+              serviceName: {{ $svcName }}
+              servicePort: {{ $svcPort }}
+              {{- end }}
+        {{- end }}
+  {{- end }}
+  {{- if .Values.ingressInternal.tls }}
+  tls:
+{{ toYaml .Values.ingressInternal.tls | indent 4 }}
+  {{- end -}}
+{{- end }}
