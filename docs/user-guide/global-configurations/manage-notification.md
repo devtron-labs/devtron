@@ -8,7 +8,7 @@ Click on `Global Configurations` -&gt; `Notifications`
 
 Click on `Configurations` and you will see Devtron support two types of configurations `SES Configurations` or `Slack Configurations`.
 
-![](../../.gitbook/assets/gc-noitfication-condfiguration-tab%20%281%29.jpg)
+![](../../user-guide/global-configurations/images/notifications-configurations.jpg)
 
 ### **Manage SES Configurations**
 
@@ -56,7 +56,7 @@ Click on `Add New` to receive new notification.
 
 ### **Manage Slack Notifications**
 
-![](../../.gitbook/assets/notifi6%20%281%29.jpg)
+![](../../user-guide/global-configurations/images/manage-slack-notifications.jpg)
 
 _**Send To**_
 

@@ -34,7 +34,7 @@ Here you have to provide the type of authentication required by your version con
 
 If you select `Anonymous` then you do not have to provide any username, password/authentication token or SSH key. Just click on `Save` to save your git account provider details.
 
-![](../../user-guide/global-configurations/images/git-accounts-annonymous.jpg)
+![](../../user-guide/global-configurations/images/git-accounts-anonymous.jpg)
 
 * **User Auth**
 
