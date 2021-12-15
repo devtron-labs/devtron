@@ -63,7 +63,7 @@ func (r *MuxRouter) Init() {
 		_, _ = writer.Write(b)
 	})
 	baseRouter := r.Router.PathPrefix("/orchestrator/").Subrouter()
-	baseRouter.Path("/orchestrator/version").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	baseRouter.Path("/version").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(200)
 		response := common.Response{}
