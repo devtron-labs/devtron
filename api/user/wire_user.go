@@ -45,4 +45,10 @@ var UserWireSet = wire.NewSet(
 	user.NewHelmUserRepositoryImpl,
 	wire.Bind(new(user.HelmUserRepository), new(*user.HelmUserRepositoryImpl)),
 
+	user.NewHelmUserRoleRepositoryImpl,
+	wire.Bind(new(user.HelmUserRoleRepository), new(*user.HelmUserRoleRepositoryImpl)),
+	user.NewHelmRoleGroupRepositoryImpl,
+	wire.Bind(new(user.HelmRoleGroupRepository), new(*user.HelmRoleGroupRepositoryImpl)),
+
+
 )

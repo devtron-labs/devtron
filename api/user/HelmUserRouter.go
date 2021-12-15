@@ -25,6 +25,10 @@ func NewHelmUserRouterImpl(userRestHandler HelmUserRestHandler, settings *settin
 }
 
 func (router HelmUserRouterImpl) InitHelmUserRouter(userAuthRouter *mux.Router) {
+	userAuthRouter.Path("/{id}").
+		HandlerFunc(router.userRestHandler.GetById).Methods("GET")
+	userAuthRouter.Path("").
+		HandlerFunc(router.userRestHandler.GetAll).Methods("GET")
 	userAuthRouter.Path("").
 		HandlerFunc(router.userRestHandler.CreateHelmUser).Methods("POST")
 	userAuthRouter.Path("").
