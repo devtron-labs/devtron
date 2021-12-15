@@ -82,6 +82,7 @@ type WorkflowDagExecutorImpl struct {
 	eventClient                client.EventClient
 	cvePolicyRepository        security.CvePolicyRepository
 	scanResultRepository       security.ImageScanResultRepository
+	cdConfigHistoryRepository  pipelineConfig.CdConfigHistoryRepository
 }
 
 type CiArtifactDTO struct {
@@ -133,7 +134,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *user.TokenCache,
 	acdAuthConfig *user.ACDAuthConfig, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
-	scanResultRepository security.ImageScanResultRepository) *WorkflowDagExecutorImpl {
+	scanResultRepository security.ImageScanResultRepository,
+	CdConfigHistoryRepository pipelineConfig.CdConfigHistoryRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:         pipelineRepository,
 		cdWorkflowRepository:       cdWorkflowRepository,
@@ -156,6 +158,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		eventClient:                eventClient,
 		cvePolicyRepository:        cvePolicyRepository,
 		scanResultRepository:       scanResultRepository,
+		cdConfigHistoryRepository:  CdConfigHistoryRepository,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -358,6 +361,22 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 	if evtErr != nil {
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
 	}
+	//updating cd config history entry
+	cdConfigHistory, err := impl.cdConfigHistoryRepository.GetLatestByStageTypeAndPipelineId(pipelineConfig.PRE_CD_TYPE, pipeline.Id)
+	if err!= nil && err!=pg.ErrNoRows{
+		impl.logger.Errorw("error in getting cd config history entry","err",err,"pipelineId",pipeline.Id)
+		return err
+	} else {
+		//updating deployment details
+		cdConfigHistory.Deployed = true
+		cdConfigHistory.DeployedBy = triggeredBy
+		cdConfigHistory.DeployedOn = time.Now()
+		_, err = impl.cdConfigHistoryRepository.UpdateHistory(cdConfigHistory)
+		if err != nil {
+			impl.logger.Errorw("error in updating cd config history entry","err",err,"cdConfigHistory",cdConfigHistory)
+			return err
+		}
+	}
 	return err
 
 }
@@ -371,9 +390,9 @@ func convert(ts string) (*time.Time, error) {
 	return &t, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cpipeline *pipelineConfig.Pipeline, triggeredBy int32) error {
+func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, triggeredBy int32) error {
 	runner := &pipelineConfig.CdWorkflowRunner{
-		Name:         cpipeline.Name,
+		Name:         pipeline.Name,
 		WorkflowType: bean.CD_WORKFLOW_TYPE_POST,
 		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		Status:       WorkflowStarting,
@@ -384,8 +403,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 	var env *cluster.Environment
 	var err error
-	if cpipeline.RunPostStageInEnv {
-		env, err = impl.envRepository.FindById(cpipeline.EnvironmentId)
+	if pipeline.RunPostStageInEnv {
+		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw(" unable to find env ", "err", err)
 			return err
@@ -397,12 +416,12 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	if err != nil {
 		return err
 	}
-	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, cpipeline, triggeredBy)
+	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, triggeredBy)
 	if err != nil {
 		return err
 	}
 	cdStageWorkflowRequest.StageType = POST
-	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, cpipeline, env)
+	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	if err != nil {
 		return err
 	}
@@ -412,12 +431,28 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 
-	event := impl.eventFactory.Build(util2.Trigger, &cpipeline.Id, cpipeline.AppId, &cpipeline.EnvironmentId, util2.CD)
+	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util2.CD)
 	impl.logger.Debugw("event Cd Post Trigger", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, &wfr, 0, bean.CD_WORKFLOW_TYPE_POST)
 	_, evtErr := impl.eventClient.WriteEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
+	}
+	//updating cd config history entry
+	cdConfigHistory, err := impl.cdConfigHistoryRepository.GetLatestByStageTypeAndPipelineId(pipelineConfig.POST_CD_TYPE, pipeline.Id)
+	if err!= nil && err!=pg.ErrNoRows{
+		impl.logger.Errorw("error in getting cd config history entry","err",err,"pipelineId",pipeline.Id)
+		return err
+	} else {
+		//updating deployment details
+		cdConfigHistory.Deployed = true
+		cdConfigHistory.DeployedBy = triggeredBy
+		cdConfigHistory.DeployedOn = time.Now()
+		_, err = impl.cdConfigHistoryRepository.UpdateHistory(cdConfigHistory)
+		if err != nil {
+			impl.logger.Errorw("error in updating cd config history entry","err",err,"cdConfigHistory",cdConfigHistory)
+			return err
+		}
 	}
 	return err
 }

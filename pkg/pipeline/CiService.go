@@ -19,6 +19,7 @@ package pipeline
 
 import (
 	"fmt"
+	"github.com/go-pg/pg"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -137,18 +138,19 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	//updating entry of ci script for deployment details
 	for _, ciPipelineScript := range ciPipelineScripts {
 		ciScriptHistory, err := impl.ciScriptHistoryRepository.GetLatestByCiPipelineScriptsId(ciPipelineScript.Id)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows{
 			impl.Logger.Errorw("error in getting ci script history by ciPipelineScriptsId", "err", err, "ciPipelineScriptsId", ciPipelineScript.Id)
 			return 0, err
-		}
-		//updating build information
-		ciScriptHistory.Built = true
-		ciScriptHistory.BuiltOn = time.Now()
-		ciScriptHistory.BuiltBy = trigger.TriggeredBy
-		_, err = impl.ciScriptHistoryRepository.UpdateHistory(ciScriptHistory)
-		if err != nil {
-			impl.Logger.Errorw("error in updating ci script history", "err", err, "ciScriptHistory", ciScriptHistory)
-			return 0, err
+		} else {
+			//updating build information
+			ciScriptHistory.Built = true
+			ciScriptHistory.BuiltOn = time.Now()
+			ciScriptHistory.BuiltBy = trigger.TriggeredBy
+			_, err = impl.ciScriptHistoryRepository.UpdateHistory(ciScriptHistory)
+			if err != nil {
+				impl.Logger.Errorw("error in updating ci script history", "err", err, "ciScriptHistory", ciScriptHistory)
+				return 0, err
+			}
 		}
 	}
 	return savedCiWf.Id, err
