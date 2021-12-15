@@ -19,6 +19,7 @@ paths:
                     description: git hash from which code was compiled
                   buildTime:
                     type: string
+                    format: date-time
                     example: "2021-12-15T05:44:05Z"
                     description: time when code was complied
                   serverMode:
@@ -28,3 +29,4 @@ paths:
                     enum:
                       - FULL
                       - EA_ONLY
+
