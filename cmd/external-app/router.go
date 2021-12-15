@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/client/dashboard"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -62,6 +63,21 @@ func (r *MuxRouter) Init() {
 		_, _ = writer.Write(b)
 	})
 	baseRouter := r.Router.PathPrefix("/orchestrator/").Subrouter()
+	baseRouter.Path("/orchestrator/version").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(200)
+		response := common.Response{}
+		response.Code = 200
+		response.Result = util.GetDevtronVersion()
+		b, err := json.Marshal(response)
+		if err != nil {
+			b = []byte("OK")
+			r.logger.Errorw("Unexpected error in apiError", "err", err)
+		}
+		_, _ = writer.Write(b)
+	})
+
+
 
 	ssoLoginRouter := baseRouter.PathPrefix("/sso").Subrouter()
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
