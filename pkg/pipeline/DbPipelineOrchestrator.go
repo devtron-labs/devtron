@@ -1269,7 +1269,7 @@ func (impl DbPipelineOrchestratorImpl) GetByEnvOverrideId(envOverrideId int) (*b
 
 func (impl DbPipelineOrchestratorImpl) CiScriptHistoryCreate(ciPipelineScript *pipelineConfig.CiPipelineScript) (historyModel *pipelineConfig.CiScriptHistory, err error) {
 	//fetching latest entry by chartsId
-	oldHistory, err := impl.ciScriptHistoryRepository.GetLatestByStageTypeAndCiPipelineScriptsId(ciPipelineScript.Id, ciPipelineScript.Stage)
+	oldHistory, err := impl.ciScriptHistoryRepository.GetLatestByCiPipelineScriptsId(ciPipelineScript.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching ci script history entry by ciPipelineScriptsId", "err", err, "ciPipelineScriptsId", ciPipelineScript.Id)
 		return nil, err

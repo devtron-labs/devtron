@@ -48,10 +48,14 @@ type CiServiceImpl struct {
 	eventFactory                 client.EventFactory
 	mergeUtil                    *util.MergeUtil
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	ciScriptHistoryRepository    pipelineConfig.CiScriptHistoryRepository
 }
 
-func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, ciConfig *CiConfig, eventClient client.EventClient, eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository) *CiServiceImpl {
+func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, ciConfig *CiConfig, eventClient client.EventClient,
+	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	ciScriptHistoryRepository pipelineConfig.CiScriptHistoryRepository) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                       Logger,
 		workflowService:              workflowService,
@@ -62,6 +66,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		eventFactory:                 eventFactory,
 		mergeUtil:                    mergeUtil,
 		ciPipelineRepository:         ciPipelineRepository,
+		ciScriptHistoryRepository:    ciScriptHistoryRepository,
 	}
 }
 
@@ -129,6 +134,23 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	impl.Logger.Debugw("ci triggered", "wf name ", createdWf.Name, " pipeline ", trigger.PipelineId)
 	middleware.CiTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(trigger.PipelineId)).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
+	//updating entry of ci script for deployment details
+	for _, ciPipelineScript := range ciPipelineScripts {
+		ciScriptHistory, err := impl.ciScriptHistoryRepository.GetLatestByCiPipelineScriptsId(ciPipelineScript.Id)
+		if err != nil {
+			impl.Logger.Errorw("error in getting ci script history by ciPipelineScriptsId", "err", err, "ciPipelineScriptsId", ciPipelineScript.Id)
+			return 0, err
+		}
+		//updating build information
+		ciScriptHistory.Built = true
+		ciScriptHistory.BuiltOn = time.Now()
+		ciScriptHistory.BuiltBy = trigger.TriggeredBy
+		_, err = impl.ciScriptHistoryRepository.UpdateHistory(ciScriptHistory)
+		if err != nil {
+			impl.Logger.Errorw("error in updating ci script history", "err", err, "ciScriptHistory", ciScriptHistory)
+			return 0, err
+		}
+	}
 	return savedCiWf.Id, err
 }
 

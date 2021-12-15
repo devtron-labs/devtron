@@ -23,7 +23,7 @@ type CiScriptHistory struct {
 type CiScriptHistoryRepository interface {
 	CreateHistory(history *CiScriptHistory) (*CiScriptHistory, error)
 	UpdateHistory(history *CiScriptHistory) (*CiScriptHistory, error)
-	GetLatestByStageTypeAndCiPipelineScriptsId(ciPipelineScriptsId int, stage string) (*CiScriptHistory, error)
+	GetLatestByCiPipelineScriptsId(ciPipelineScriptsId int) (*CiScriptHistory, error)
 }
 
 type CiScriptHistoryRepositoryImpl struct {
@@ -53,12 +53,12 @@ func (impl CiScriptHistoryRepositoryImpl) UpdateHistory(history *CiScriptHistory
 	return history, nil
 }
 
-func (impl CiScriptHistoryRepositoryImpl) GetLatestByStageTypeAndCiPipelineScriptsId(ciPipelineScriptsId int, stage string) (*CiScriptHistory, error) {
+func (impl CiScriptHistoryRepositoryImpl) GetLatestByCiPipelineScriptsId(ciPipelineScriptsId int) (*CiScriptHistory, error) {
 	var scriptHistory *CiScriptHistory
 	err := impl.dbConnection.Model(&scriptHistory).Where("ci_pipeline_scripts_id = ?", ciPipelineScriptsId).
-		Where("stage = ?", stage).Where("latest = ?", true).Select()
+		Where("latest = ?", true).Select()
 	if err != nil {
-		impl.logger.Errorw("err in getting latest entry for ci script history", "err", err, "ci_pipeline_scripts_id", ciPipelineScriptsId, "stage", stage)
+		impl.logger.Errorw("err in getting latest entry for ci script history", "err", err, "ci_pipeline_scripts_id", ciPipelineScriptsId)
 		return nil, err
 	}
 	return scriptHistory, nil
