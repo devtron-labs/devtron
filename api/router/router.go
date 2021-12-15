@@ -29,6 +29,7 @@ import (
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/terminal"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -177,6 +178,19 @@ func (r MuxRouter) Init() {
 		_, _ = writer.Write(b)
 	})
 
+	r.Router.Path("/orchestrator/version").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(200)
+		response := common.Response{}
+		response.Code = 200
+		response.Result = util.GetDevtronVersion()
+		b, err := json.Marshal(response)
+		if err != nil {
+			b = []byte("OK")
+			r.logger.Errorw("Unexpected error in apiError", "err", err)
+		}
+		_, _ = writer.Write(b)
+	})
 	coreAppRouter := r.Router.PathPrefix("/orchestrator/core").Subrouter()
 	r.coreAppRouter.initCoreAppRouter(coreAppRouter)
 

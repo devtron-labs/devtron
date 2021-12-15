@@ -79,6 +79,34 @@ autoscaling:
 #      type: External
 #
 
+kedaAutoscaling:
+  enabled: false
+  envSourceContainerName: "" # Optional. Default: .spec.template.spec.containers[0]
+  cooldownPeriod: 300 # Optional. Default: 300 seconds
+  minReplicaCount: 1 
+  maxReplicaCount: 2
+  idleReplicaCount: 0 # Optional. Must be less than minReplicaCount
+  pollingInterval: 30 # Optional. Default: 30 seconds
+  # The fallback section is optional. It defines a number of replicas to fallback to if a scaler is in an error state.
+  fallback: {} # Optional. Section to specify fallback options
+    # failureThreshold: 3 # Mandatory if fallback section is included
+    # replicas: 6
+  advanced: {}
+    # horizontalPodAutoscalerConfig: # Optional. Section to specify HPA related options
+    # behavior: # Optional. Use to modify HPA's scaling behavior
+    #   scaleDown:
+    #     stabilizationWindowSeconds: 300
+    #     policies:
+    #     - type: Percent
+    #       value: 100
+    #       periodSeconds: 15
+  triggers: []
+  triggerAuthentication:
+    enabled: false
+    name: ""
+    spec: {}
+  authenticationRef: {}
+
 secret:
   enabled: false
 
@@ -360,6 +388,13 @@ rawYaml: []
 #    sessionAffinity: None
 #    type: ClusterIP
 
+topologySpreadConstraints: []
+  # - maxSkew: 1
+  #   topologyKey: zone
+  #   whenUnsatisfiable: DoNotSchedule
+  #   autoLabelSelector: true
+  #   customLabelSelector: {}
+
 envoyproxy:
  image: quay.io/devtron/envoy:v1.14.1
  configMapName: ""
@@ -378,6 +413,14 @@ podDisruptionBudget: {}
   ## Node tolerations for server scheduling to nodes with taints
   ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
   ##
+
+podSecurityContext: {}
+  # runAsUser: 1000
+  # runAsGroup: 3000
+  # fsGroup: 2000
+
+containerSecurityContext: {}
+  # allowPrivilegeEscalation: false
 
 tolerations: []
   #  - key: "key"

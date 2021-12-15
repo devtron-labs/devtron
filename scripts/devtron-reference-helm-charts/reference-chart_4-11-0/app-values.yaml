@@ -41,7 +41,6 @@ resources:
     cpu: 0.10
     memory: 100Mi
 
-
 # Optional configs
 LivenessProbe:
   Path: ""
@@ -143,6 +142,8 @@ podAnnotations: {}
 
 rawYaml: []
 
+topologySpreadConstraints: []
+
 initContainers: []
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
@@ -175,6 +176,10 @@ dbMigrationConfig:
   enabled: false
 
 tolerations: []
+
+podSecurityContext: {}
+
+containerSecurityContext: {}
 
 Spec:
   Affinity:
@@ -215,6 +220,19 @@ autoscaling:
 #        targetAverageValue: "2"
 #      type: External
 #
+
+kedaAutoscaling:
+  enabled: false
+  envSourceContainerName: "" # Optional. Default: .spec.template.spec.containers[0]
+  minReplicaCount: 1 
+  maxReplicaCount: 2
+  advanced: {}
+  triggers: []
+  triggerAuthentication:
+    enabled: false
+    name: ""
+    spec: {}
+  authenticationRef: {}
 
 prometheus:
   release: monitoring
