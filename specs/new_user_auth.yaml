@@ -14,7 +14,7 @@ info:
 servers:
   - url: http://petstore.swagger.io/api
 paths:
-  /user:
+  /user/helm:
     get:
       summary: Returns all users
       description: all the template users
@@ -82,7 +82,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /user/{id}:
+  /user/helm/{id}:
     get:
       summary: Returns user detail with role filter
       description: all the template group policies
