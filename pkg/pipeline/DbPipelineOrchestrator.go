@@ -76,6 +76,8 @@ type DbPipelineOrchestratorImpl struct {
 	attributesService            attributes.AttributesService
 	appListingRepository         repository.AppListingRepository
 	appLabelsService             app.AppLabelService
+	ciScriptHistoryRepository    pipelineConfig.CiScriptHistoryRepository
+	cdConfigHistoryRepository    pipelineConfig.CdConfigHistoryRepository
 }
 
 func NewDbPipelineOrchestrator(
@@ -91,8 +93,8 @@ func NewDbPipelineOrchestrator(
 	attributesService attributes.AttributesService,
 	appListingRepository repository.AppListingRepository,
 	appLabelsService app.AppLabelService,
-) *DbPipelineOrchestratorImpl {
-
+	ciScriptHistoryRepository pipelineConfig.CiScriptHistoryRepository,
+	cdConfigHistoryRepository pipelineConfig.CdConfigHistoryRepository) *DbPipelineOrchestratorImpl {
 	return &DbPipelineOrchestratorImpl{
 		appRepository:                pipelineGroupRepository,
 		logger:                       logger,
@@ -107,6 +109,8 @@ func NewDbPipelineOrchestrator(
 		attributesService:            attributesService,
 		appListingRepository:         appListingRepository,
 		appLabelsService:             appLabelsService,
+		ciScriptHistoryRepository:    ciScriptHistoryRepository,
+		cdConfigHistoryRepository:    cdConfigHistoryRepository,
 	}
 }
 
@@ -294,6 +298,12 @@ func (impl DbPipelineOrchestratorImpl) patchCiScripts(userId int32, pipeline *be
 				return err
 			}
 		}
+		//creating history entry
+		_, err := impl.CiScriptHistoryCreate(ciPipelineScript)
+		if err != nil {
+			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			return err
+		}
 	}
 
 	for _, ciScript := range pipeline.AfterDockerBuildScripts {
@@ -311,6 +321,12 @@ func (impl DbPipelineOrchestratorImpl) patchCiScripts(userId int32, pipeline *be
 				impl.logger.Errorw("error while creating script", "err", err)
 				return err
 			}
+		}
+		//creating history entry
+		_, err := impl.CiScriptHistoryCreate(ciPipelineScript)
+		if err != nil {
+			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			return err
 		}
 	}
 
@@ -427,6 +443,12 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 				impl.logger.Errorw("error while saving ci script", "err", err)
 				return nil, err
 			}
+			//creating history entry
+			_, err := impl.CiScriptHistoryCreate(ciPipelineScript)
+			if err != nil {
+				impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+				return nil, err
+			}
 			ciPipeline.BeforeDockerBuildScripts[i].Id = ciPipelineScript.Id
 		}
 
@@ -435,6 +457,12 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 			err = impl.ciPipelineRepository.SaveCiPipelineScript(ciPipelineScript, tx)
 			if err != nil {
 				impl.logger.Errorw("error while saving ci script", "err", err)
+				return nil, err
+			}
+			//creating history entry
+			_, err := impl.CiScriptHistoryCreate(ciPipelineScript)
+			if err != nil {
+				impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
 				return nil, err
 			}
 			ciPipeline.AfterDockerBuildScripts[i].Id = ciPipelineScript.Id
@@ -1006,7 +1034,16 @@ func (impl DbPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean.C
 		AuditLog:                      models.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.pipelineRepository.Save([]*pipelineConfig.Pipeline{pipeline}, tx)
-	return pipeline.Id, err
+	if err != nil {
+		impl.logger.Errorw("error in saving cd pipeline", "err", err, "pipeline", pipeline)
+		return 0, err
+	}
+	err = impl.CdConfigHistoryCreate(pipeline)
+	if err != nil {
+		impl.logger.Errorw("error in creating cd config entry", "err", err, "pipeline", pipeline)
+		return 0, err
+	}
+	return pipeline.Id, nil
 }
 
 func (impl DbPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (err error) {
@@ -1057,6 +1094,12 @@ func (impl DbPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.CD
 	pipeline.UpdatedOn = time.Now()
 	err = impl.pipelineRepository.Update(pipeline, tx)
 	if err != nil {
+		impl.logger.Errorw("error in updating cd pipeline", "err", err, "pipeline", pipeline)
+		return err
+	}
+	err = impl.CdConfigHistoryCreate(pipeline)
+	if err != nil {
+		impl.logger.Errorw("error in creating cd config entry", "err", err, "pipeline", pipeline)
 		return err
 	}
 	return err
@@ -1222,4 +1265,116 @@ func (impl DbPipelineOrchestratorImpl) GetByEnvOverrideId(envOverrideId int) (*b
 		Pipelines: pipelines,
 	}
 	return cdPipelines, nil
+}
+
+func (impl DbPipelineOrchestratorImpl) CiScriptHistoryCreate(ciPipelineScript *pipelineConfig.CiPipelineScript) (historyModel *pipelineConfig.CiScriptHistory, err error) {
+	//fetching latest entry by chartsId
+	oldHistory, err := impl.ciScriptHistoryRepository.GetLatestByStageTypeAndCiPipelineScriptsId(ciPipelineScript.Id, ciPipelineScript.Stage)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching ci script history entry by ciPipelineScriptsId", "err", err, "ciPipelineScriptsId", ciPipelineScript.Id)
+		return nil, err
+	} else if err == nil {
+		//setting latest to false
+		oldHistory.Latest = false
+		_, err = impl.ciScriptHistoryRepository.UpdateHistory(oldHistory)
+		if err != nil {
+			impl.logger.Errorw("error in updating ci script history entry", "err", err, "history", oldHistory)
+			return nil, err
+		}
+	}
+	//creating new entry
+	historyModel = &pipelineConfig.CiScriptHistory{
+		CiPipelineScriptsId: ciPipelineScript.Id,
+		Script:              ciPipelineScript.Script,
+		Stage:               ciPipelineScript.Stage,
+		Latest:              true,
+		Built:               false,
+	}
+	historyModel.CreatedBy = ciPipelineScript.CreatedBy
+	historyModel.CreatedOn = ciPipelineScript.CreatedOn
+	historyModel.UpdatedBy = ciPipelineScript.UpdatedBy
+	historyModel.UpdatedOn = ciPipelineScript.UpdatedOn
+	_, err = impl.ciScriptHistoryRepository.CreateHistory(historyModel)
+	if err != nil {
+		impl.logger.Errorw("err in creating history entry for ci script", "err", err)
+		return nil, err
+	}
+	return historyModel, err
+}
+
+func (impl DbPipelineOrchestratorImpl) CdConfigHistoryCreate(pipeline *pipelineConfig.Pipeline) error {
+	createPreHistory := false
+	preOldHistory, err := impl.cdConfigHistoryRepository.GetLatestByStageTypeAndPipelineId(pipelineConfig.PRE_CD_TYPE, pipeline.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching cd config history entry by pipelineId", "err", err, "stage", pipelineConfig.PRE_CD_TYPE, "pipelineId", pipeline.Id)
+		return err
+	} else if err == nil && !(preOldHistory.Config == pipeline.PreStageConfig && preOldHistory.ConfigMapSecretNames == pipeline.PreStageConfigMapSecretNames) {
+		//setting latest to false
+		preOldHistory.Latest = false
+		_, err = impl.cdConfigHistoryRepository.UpdateHistory(preOldHistory)
+		if err != nil {
+			impl.logger.Errorw("error in updating cd config history entry", "err", err, "history", preOldHistory)
+			return err
+		}
+		createPreHistory = true
+	} else if err == pg.ErrNoRows {
+		createPreHistory = true
+	}
+	if createPreHistory {
+		_, err = impl.createCdConfigHistory(pipeline, pipelineConfig.PRE_CD_TYPE)
+		if err != nil {
+			impl.logger.Errorw("err in creating history entry for cd config", "err", err, "stage", pipelineConfig.PRE_CD_TYPE, "pipeline", pipeline)
+			return err
+		}
+	}
+	createPostHistory := false
+	postOldHistory, err := impl.cdConfigHistoryRepository.GetLatestByStageTypeAndPipelineId(pipelineConfig.POST_CD_TYPE, pipeline.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching cd config history entry by pipelineId", "err", err, "stage", pipelineConfig.POST_CD_TYPE, "pipelineId", pipeline.Id)
+		return err
+	} else if err == nil && !(postOldHistory.Config == pipeline.PostStageConfig && postOldHistory.ConfigMapSecretNames == pipeline.PostStageConfigMapSecretNames) {
+		//setting latest to false
+		postOldHistory.Latest = false
+		_, err = impl.cdConfigHistoryRepository.UpdateHistory(postOldHistory)
+		if err != nil {
+			impl.logger.Errorw("error in updating cd config history entry", "err", err, "history", postOldHistory)
+			return err
+		}
+		createPostHistory = true
+	} else if err == pg.ErrNoRows {
+		createPostHistory = true
+	}
+	if createPostHistory {
+		_, err = impl.createCdConfigHistory(pipeline, pipelineConfig.POST_CD_TYPE)
+		if err != nil {
+			impl.logger.Errorw("err in creating history entry for cd config", "err", err, "stage", pipelineConfig.POST_CD_TYPE, "pipeline", pipeline)
+			return err
+		}
+	}
+	return nil
+}
+func (impl DbPipelineOrchestratorImpl) createCdConfigHistory(pipeline *pipelineConfig.Pipeline, stage pipelineConfig.CdStageType) (*pipelineConfig.CdConfigHistory, error) {
+	historyModel := &pipelineConfig.CdConfigHistory{
+		PipelineId: pipeline.Id,
+		Stage:      stage,
+		Latest:     true,
+		Deployed:   false,
+	}
+	historyModel.CreatedBy = pipeline.CreatedBy
+	historyModel.CreatedOn = pipeline.CreatedOn
+	historyModel.UpdatedBy = pipeline.UpdatedBy
+	historyModel.UpdatedOn = pipeline.UpdatedOn
+	if stage == pipelineConfig.PRE_CD_TYPE {
+		historyModel.Config = pipeline.PreStageConfig
+		historyModel.ConfigMapSecretNames = pipeline.PreStageConfigMapSecretNames
+	} else {
+		historyModel.Config = pipeline.PostStageConfig
+		historyModel.ConfigMapSecretNames = pipeline.PostStageConfigMapSecretNames
+	}
+	_, err := impl.cdConfigHistoryRepository.CreateHistory(historyModel)
+	if err != nil {
+		impl.logger.Errorw("err in creating history entry for cd config", "err", err)
+		return nil, err
+	}
+	return historyModel, nil
 }

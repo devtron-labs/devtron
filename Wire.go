@@ -715,6 +715,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(chartConfig.ChartHistoryRepository),new(*chartConfig.ChartHistoryRepositoryImpl)),
 		appstore2.NewInstalledAppHistoryRepositoryImpl,
 		wire.Bind(new(appstore2.InstalledAppHistoryRepository),new(*appstore2.InstalledAppHistoryRepositoryImpl)),
+		pipelineConfig.NewCiScriptHistoryRepositoryImpl,
+		wire.Bind(new(pipelineConfig.CiScriptHistoryRepository),new(*pipelineConfig.CiScriptHistoryRepositoryImpl)),
+		pipelineConfig.NewCdConfigHistoryRepositoryImpl,
+		wire.Bind(new(pipelineConfig.CdConfigHistoryRepository),new(*pipelineConfig.CdConfigHistoryRepositoryImpl)),
 		AuthWireSet,
 	)
 	return &App{}, nil

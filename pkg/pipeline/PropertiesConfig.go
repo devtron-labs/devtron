@@ -695,5 +695,4 @@ func (impl PropertiesConfigServiceImpl) ChartEnvHistoryCreate(envProperties *cha
 		return nil, err
 	}
 	return historyModel, err
-
 }
