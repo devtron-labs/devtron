@@ -24,7 +24,7 @@ kubectl -n devtroncd get clusterrole
 
 #### STEP 3
 
-Running the below command will resync the new update. 
+Set `reSync: true` in the installer object, this will initiate upgrade of the entire Devtron stack, you can use the following command to do this.
 
 ```bash
 kubectl patch -n devtroncd installer installer-devtron --type='json' -p='[{"op": "add", "path": "/spec/reSync", "value": true }]

@@ -10,7 +10,7 @@
   * [Install using Kubectl](setup/install/install-devtron-using-kubectl.md)
   * [Installation Configurations](setup/install/installation-configuration.md)
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
-* [Devtron Upgrade](setup/Devtron-upgrade/README.md)
+* [Devtron Upgrade](setup/devtron-upgrade/README.md)
 * [Start Using devtron](setup/start-using.md)
 
 ## User Guide
