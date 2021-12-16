@@ -5,7 +5,7 @@ info:
 paths:
   /orchestrator/core/v1beta1/application/{appId}:
     get:
-      description: Get app details
+      description: Get all details of an app by appId. These details include - metadata(appName, projectNamr, labels), gitMaterials, docker config, templates, workflows, configMaps, secrets, environment override configurations.
       operationId: GetAppAllDetail
       parameters:
         - name: appId
@@ -15,7 +15,7 @@ paths:
             type: integer
       responses:
         '200':
-          description: Successfully return all details of the app
+          description: Successfully return all details of the app.
           content:
             application/json:
               schema:
@@ -40,7 +40,7 @@ paths:
                 $ref: '#/components/schemas/Error'
   /orchestrator/core/v1beta1/application:
     post:
-      description: Creates a new app for the configurations provided
+      description: Creates a new app for the configurations provided. The input json object is the same we get in response of GET method for fetching all details of an app
       operationId: CreateApp
       requestBody:
         description: A JSON object containing the app configuration
@@ -51,7 +51,7 @@ paths:
               $ref: '#/components/schemas/AppDetail'
       responses:
         '200':
-          description: Successfully return a message stating the operation is successful
+          description: Successfully return a message stating the operation is successful.
           content:
             application/json:
               schema:
@@ -103,13 +103,181 @@ components:
           items:
             $ref: '#/components/schemas/Secret'
         environmentOverrides:
-          type: object
-          properties:
-            Name:
-              type: string
-              description: Name of environment
-            Values:
-              $ref: '#/components/schemas/EnvironmentOverride'
+          type: array
+          items:
+            type: object
+            properties:
+              Name:
+                type: string
+                description: Name of environment
+              Values:
+                $ref: '#/components/schemas/EnvironmentOverride'
+      example:
+        appMetadata:
+          appName: example-app-2
+          projectName: devtron-demo
+          labels: ["key1":"value1", "key2":"value2"]
+        gitMaterials:
+          - gitProviderUrl: "https://github.com"
+            gitRepoUrl: "https://github.com/user1/example-repo"
+            checkoutPath: "./"
+            fetchSubmodules: true
+          - gitProviderUrl: "https://gitlab.com"
+            gitRepoUrl: "https://gitlab.com/user2/new-repo"
+            checkoutPath: "./a"
+            fetchSubmodules: false
+        dockerConfig:
+          dockerRegistry: "my-dockerhub"
+          dockerRepository: "user/test"
+          dockerBuildConfig:
+            gitCheckoutPath: "./a"
+            dockerfileRelativePath: "Dockerfile"
+            args: ["File":"*"]
+        globalDeploymentTemplate:
+          chartRefId: 13
+          showAppMetrics: true
+          isOverride: false
+          template:
+            ContainerPort:
+              envoyPort: 8799
+              idleTimeout: 1800s
+              name: app
+              port: 8080
+              servicePort: 80
+              supportStreaming: true
+              useHTTP2: true
+            EnvVariables: []
+            GracePeriod: 30
+            LivenessProbe:
+              Path: ""
+              command: []
+              failureThreshold: 3
+              httpHeader:
+                name: ""
+                value: ""
+              initialDelaySeconds: 20
+              periodSeconds: 10
+              port: 8080
+              scheme: ""
+              successThreshold: 1
+              tcp: false
+              timeoutSeconds: 5
+        appWorkflows:
+          - name: "workflow-1"
+            ciPipeline:
+              name: "ci-pipeline-1"
+              isManual: true
+              vulnerabilityScanEnabled: false
+              isExternal: fale
+              ciPipelineMaterialsConfig:
+                - type: "SOURCE_TYPE_BRANCH_FIXED"
+                  value: "master"
+                  checkoutPath: "./"
+                - type: "SOURCE_TYPE_BRANCH_FIXED"
+                  value: "main"
+                  checkoutPath: "./a"
+              dockerBuildArgs: ["File":"*"]
+            cdPipelines:
+              - name: "cd-pipeline-1"
+                environmentName: "devtron-demo"
+                triggerType: "AUTOMATIC"
+                deploymentStrategies:
+                  - name: "BLUE-GREEN"
+                    config:
+                      deployment:
+                        strategy:
+                          blueGreen:
+                            autoPromotionSeconds: 30
+                            "scaleDownDelaySeconds": 30
+                            "previewReplicaCount": 1
+                            "autoPromotionEnabled": false
+                    isDefault: false
+                  - name: "ROLLING"
+                    config:
+                      deployment:
+                        strategy:
+                          blueGreen:
+                            autoPromotionSeconds: 30
+                            "maxSurge": "25%"
+                            "maxUnavailable": 1
+                    isDefault: true
+                preStage:
+                  name: "cd-1-pre"
+                  triggerType: "MANUAL"
+                  config: "version: 0.0.1\ncdPipelineConf:\n- beforeStages:\n- name: test-1\n script: |\n date > test.report\necho 'hello'\noutputLocation: ./test.report\n - name: test-2\nscript: |\n date > test2.report\n outputLocation: ./test2.report;"
+                postStage:
+                  name: "cd-1-post"
+                  triggerType: "AUTO"
+                  config: "version: 0.0.1\ncdPipelineConf:\n- afterStages:\n- name: test-1\n script: |\n date > test.report\necho 'hello'\noutputLocation: ./test.report\n - name: test-2\nscript: |\n date > test2.report\n outputLocation: ./test2.report;"
+                preStageConfigMapSecretNames:
+                  - configMaps: ["cm-1"]
+                  - secrets: ["secret-env-1"]
+                postStageConfigMapSecretNames:
+                  - configMaps: ["cm-env-1"]
+                  - secrets: ["secret-1"]
+                runPreStageInEnv: true
+                runPostStageInEnv: true
+                isClusterCdActive: true
+        globalConfigMaps:
+          - name: "cm-1"
+            isExternal: false
+            usageType: "volume"
+            data: ["abc":"xyz"]
+            dataVolumeUsageConfig:
+              mountPath: "/cm"
+              filePermission: "600"
+              subPath: true
+        globalSecrets:
+          - name: "secret-1"
+            isExternal: false
+            usageType: "environment"
+            data: ["user1":"password1"]
+        environmentOverrides:
+          - name: "devtron-demo"
+            values:
+              deploymentTemplate:
+                chartRefId: 13
+                showAppMetrics: false
+                isOverride: true
+                template:
+                  ContainerPort:
+                    envoyPort: 8799
+                    idleTimeout: 1800s
+                    name: app
+                    port: 8080
+                    servicePort: 80
+                    supportStreaming: true
+                    useHTTP2: true
+                  EnvVariables: []
+                  GracePeriod: 35
+                  LivenessProbe:
+                    Path: ""
+                    command: []
+                    failureThreshold: 4
+                    httpHeader:
+                      name: ""
+                      value: ""
+                    initialDelaySeconds: 21
+                    periodSeconds: 11
+                    port: 8080
+                    scheme: ""
+                    successThreshold: 1
+                    tcp: false
+                    timeoutSeconds: 10
+              configMaps:
+                - name: "cm-env-1"
+                  isExternal: false
+                  usageType: "environment"
+                  data: ["userName":"new-user"]
+              secrets:
+                - name: "secret-env-1"
+                  isExternal: false
+                  usageType: "volume"
+                  data: ["new-user":"devtron123"]
+                  dataVolumeUsageConfig:
+                    mountPath: "/secret"
+                    filePermission: "400"
+                    subPath: false
     AppMetadata:
       type: object
       properties:
