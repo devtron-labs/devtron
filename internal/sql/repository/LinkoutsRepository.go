@@ -19,7 +19,7 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -50,7 +50,7 @@ type LinkoutsModel struct {
 	Link          string   `sql:"link"`
 	Description   string   `sql:"description"`
 	Name          string   `sql:"name"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl LinkoutsRepositoryImpl) Create(model *LinkoutsModel) (*LinkoutsModel, error) {

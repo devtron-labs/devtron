@@ -19,9 +19,9 @@ package notifier
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
@@ -223,7 +223,7 @@ func buildSESNewConfigs(sesReq []*SESConfigDto, userId int32) []*repository.SESC
 			SessionToken: c.SessionToken,
 			Description:  c.Description,
 			Default:      c.Default,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedBy: userId,
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),

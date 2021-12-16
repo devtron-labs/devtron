@@ -18,12 +18,12 @@
 package appstore
 
 import (
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"time"
 
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
 	"go.uber.org/zap"
@@ -114,7 +114,7 @@ func (impl *ChartGroupServiceImpl) CreateChartGroup(req *ChartGroupBean) (*Chart
 	chartGrouModel := &chartGroup.ChartGroup{
 		Name:        req.Name,
 		Description: req.Description,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: req.UserId,
 			UpdatedOn: time.Now(),
@@ -136,7 +136,7 @@ func (impl *ChartGroupServiceImpl) UpdateChartGroup(req *ChartGroupBean) (*Chart
 		Name:        req.Name,
 		Description: req.Description,
 		Id:          req.Id,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			UpdatedOn: time.Now(),
 			UpdatedBy: req.UserId,
 		},
@@ -190,7 +190,7 @@ func (impl *ChartGroupServiceImpl) SaveChartGroupEntries(req *ChartGroupBean) (*
 			AppStoreApplicationVersionId: entryBean.AppStoreApplicationVersionId,
 			ChartGroupId:                 group.Id,
 			Deleted:                      false,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: req.UserId,
 				UpdatedOn: time.Now(),

@@ -18,7 +18,7 @@
 package chartGroup
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -29,7 +29,7 @@ type ChartGroup struct {
 	Id          int      `sql:"id,pk"`
 	Name        string   `sql:"name"`
 	Description string   `sql:"description,notnull"`
-	models.AuditLog
+	sql.AuditLog
 	ChartGroupEntries []*ChartGroupEntry
 }
 

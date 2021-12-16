@@ -19,7 +19,7 @@ package security
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strconv"
@@ -33,7 +33,7 @@ type CveStore struct {
 	Package      string   `sql:"package,notnull"`
 	Version      string   `sql:"version,notnull"`
 	FixedVersion string   `sql:"fixed_version,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type VulnerabilityRequest struct {

@@ -18,8 +18,8 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -43,7 +43,7 @@ type DbMigrationConfig struct {
 	ScriptSource  string        `sql:"script_source"` //location of file in git. relative to git root
 	MigrationTool MigrationTool `sql:"migration_tool"`
 	Active        bool          `sql:"active"`
-	models.AuditLog
+	sql.AuditLog
 	DbConfig    *repository.DbConfig
 	GitMaterial *GitMaterial
 }

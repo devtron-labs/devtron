@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -56,7 +56,7 @@ type SESConfig struct {
 	OwnerId      int32    `sql:"owner_id"`
 	Default      bool     `sql:"default,notnull"`
 	Deleted      bool     `sql:"deleted,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl *SESNotificationRepositoryImpl) FindByIdsIn(ids []int) ([]*SESConfig, error) {

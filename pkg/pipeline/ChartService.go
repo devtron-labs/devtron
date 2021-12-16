@@ -22,6 +22,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -37,7 +40,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -126,7 +128,7 @@ type ChartServiceImpl struct {
 	logger                    *zap.SugaredLogger
 	repoRepository            chartConfig.ChartRepoRepository
 	chartTemplateService      util.ChartTemplateService
-	pipelineGroupRepository   pipelineConfig.AppRepository
+	pipelineGroupRepository   app.AppRepository
 	mergeUtil                 util.MergeUtil
 	repositoryService         repository.ServiceClient
 	refChartDir               RefChartDir
@@ -135,7 +137,7 @@ type ChartServiceImpl struct {
 	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository  chartConfig.PipelineConfigRepository
 	configMapRepository       chartConfig.ConfigMapRepository
-	environmentRepository     cluster.EnvironmentRepository
+	environmentRepository     repository4.EnvironmentRepository
 	pipelineRepository        pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
 	client                    *http.Client
@@ -145,7 +147,7 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 	logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
 	repoRepository chartConfig.ChartRepoRepository,
-	pipelineGroupRepository pipelineConfig.AppRepository,
+	pipelineGroupRepository app.AppRepository,
 	refChartDir RefChartDir,
 	defaultChart DefaultChart,
 	mergeUtil util.MergeUtil,
@@ -154,7 +156,7 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
-	environmentRepository cluster.EnvironmentRepository,
+	environmentRepository repository4.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
 	client *http.Client,
@@ -339,7 +341,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  true,
 		Previous:                false,
-		AuditLog:                models.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
+		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
 	err = impl.chartRepository.Save(chart)
@@ -457,7 +459,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  false,
 		Previous:                false,
-		AuditLog:                models.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
+		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
 	err = impl.chartRepository.Save(chart)
@@ -755,7 +757,7 @@ func (impl ChartServiceImpl) updateAppLevelMetrics(appMetricRequest *AppMetricEn
 			AppId:        appMetricRequest.AppId,
 			AppMetrics:   appMetricRequest.IsAppMetricsEnabled,
 			InfraMetrics: true,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 				CreatedBy: appMetricRequest.UserId,
@@ -943,7 +945,7 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 			EnvOverrideValues: string(envOverride.EnvOverrideValues),
 			TargetEnvironment: envOverride.TargetEnvironment,
 			ChartId:           updatedChart.Id,
-			AuditLog:          models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
+			AuditLog:          sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
 			Namespace:         env.Namespace,
 			Latest:            true,
 			Previous:          false,

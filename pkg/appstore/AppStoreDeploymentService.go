@@ -20,8 +20,12 @@ package appstore
 import (
 	"bytes"
 	"context"
-
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	repository4 "github.com/devtron-labs/devtron/pkg/team"
+	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ktrysmt/go-bitbucket"
 
 	/* #nosec */
@@ -45,18 +49,13 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/nats-io/stan.go"
@@ -104,19 +103,19 @@ type InstalledAppServiceImpl struct {
 	refChartDir                          RefChartProxyDir
 	repositoryService                    repository.ServiceClient
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository
-	environmentRepository                cluster.EnvironmentRepository
-	teamRepository                       team.TeamRepository
-	appRepository                        pipelineConfig.AppRepository
+	environmentRepository                repository5.EnvironmentRepository
+	teamRepository                       repository4.TeamRepository
+	appRepository                        app.AppRepository
 	acdClient                            application2.ServiceClient
 	appStoreValuesService                AppStoreValuesService
 	pubsubClient                         *pubsub.PubSubClient
-	tokenCache                           *user.TokenCache
+	tokenCache                           *util2.TokenCache
 	chartGroupDeploymentRepository       chartGroup.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
 	clusterInstalledAppsRepository       appstore.ClusterInstalledAppsRepository
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
-	aCDAuthConfig                        *user.ACDAuthConfig
+	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
 }
 
@@ -130,17 +129,17 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	chartTemplateService util.ChartTemplateService, refChartDir RefChartProxyDir,
 	repositoryService repository.ServiceClient,
 	appStoreApplicationVersionRepository appstore.AppStoreApplicationVersionRepository,
-	environmentRepository cluster.EnvironmentRepository, teamRepository team.TeamRepository,
-	appRepository pipelineConfig.AppRepository,
+	environmentRepository repository5.EnvironmentRepository, teamRepository repository4.TeamRepository,
+	appRepository app.AppRepository,
 	acdClient application2.ServiceClient,
 	appStoreValuesService AppStoreValuesService,
 	pubsubClient *pubsub.PubSubClient,
-	tokenCache *user.TokenCache,
+	tokenCache *util2.TokenCache,
 	chartGroupDeploymentRepository chartGroup.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService,
 	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository,
 	argoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *util.GitFactory, aCDAuthConfig *user.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository) (*InstalledAppServiceImpl, error) {
+	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		chartRepository:                      chartRepository,
 		logger:                               logger,
@@ -298,7 +297,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	return installAppVersionRequest, nil
 }
 
-func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *cluster.Environment, installedAppVersion *appstore.InstalledAppVersions,
+func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *repository5.Environment, installedAppVersion *appstore.InstalledAppVersions,
 	installAppVersionRequest *InstallAppVersionDTO, appStoreAppVersion *appstore.AppStoreApplicationVersion) error {
 
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
@@ -344,7 +343,7 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *c
 	return nil
 }
 
-func (impl InstalledAppServiceImpl) updateValuesYaml(environment *cluster.Environment, installedAppVersion *appstore.InstalledAppVersions,
+func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.Environment, installedAppVersion *appstore.InstalledAppVersions,
 	installAppVersionRequest *InstallAppVersionDTO) error {
 
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
@@ -625,7 +624,7 @@ func (impl InstalledAppServiceImpl) registerInArgo(chartGitAttribute *util.Chart
 	return err
 }
 
-func (impl InstalledAppServiceImpl) createInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, envModel cluster.Environment, argocdAppName string) error {
+func (impl InstalledAppServiceImpl) createInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, envModel repository5.Environment, argocdAppName string) error {
 	appNamespace := envModel.Namespace
 	if appNamespace == "" {
 		appNamespace = "default"
@@ -678,11 +677,11 @@ func (impl InstalledAppServiceImpl) CheckAppExists(appNames []*AppNames) ([]*App
 }
 
 func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx) (*bean.CreateAppDTO, error) {
-	app, err := impl.appRepository.FindActiveByName(createRequest.AppName)
+	app1, err := impl.appRepository.FindActiveByName(createRequest.AppName)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if app != nil && app.Id > 0 {
+	if app1 != nil && app1.Id > 0 {
 		impl.logger.Infow(" app already exists", "name", createRequest.AppName)
 		err = &util.ApiError{
 			Code:            constants.AppAlreadyExists.Code,
@@ -691,12 +690,12 @@ func (impl InstalledAppServiceImpl) createAppForAppStore(createRequest *bean.Cre
 		}
 		return nil, err
 	}
-	pg := &pipelineConfig.App{
+	pg := &app.App{
 		Active:   true,
 		AppName:  createRequest.AppName,
 		TeamId:   createRequest.TeamId,
 		AppStore: true,
-		AuditLog: models.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+		AuditLog: sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.appRepository.SaveWithTxn(pg, tx)
 	if err != nil {
@@ -944,7 +943,7 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 		InstalledAppId:      installAppVersionDTO.InstalledAppId,
 		Deleted:             false,
 		GroupInstallationId: groupINstallationId,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: installAppVersionDTO.UserId,
 			UpdatedOn: time.Now(),
@@ -1492,10 +1491,10 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 		return false, err
 	}
 	if err == pg.ErrNoRows {
-		t := &team.Team{
+		t := &repository4.Team{
 			Name:     DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT,
 			Active:   true,
-			AuditLog: models.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
 		err = impl.teamRepository.Save(t)
 		if err != nil {

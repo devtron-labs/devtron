@@ -18,9 +18,9 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/url"
 
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 )
@@ -46,7 +46,7 @@ type DockerArtifactStore struct {
 	Connection         string       `sql:"connection" json:"connection,omitempty"`
 	Cert               string       `sql:"cert" json:"cert,omitempty"`
 	Active             bool         `sql:"active,notnull" json:"active"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (store *DockerArtifactStore) GetRegistryLocation() (registryLocation string, err error) {

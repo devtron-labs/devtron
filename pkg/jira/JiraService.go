@@ -19,10 +19,10 @@ package jira
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	jiraUtil "github.com/devtron-labs/devtron/internal/util/JiraUtil"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.uber.org/zap"
 	"time"
 )
@@ -104,7 +104,7 @@ func (impl *ProjectManagementServiceImpl) SaveAccountDetails(jiraConfig *ConfigB
 		FinalIssueStatus:   jiraConfig.FinalIssueStatus,
 		PipelineStage:      jiraConfig.PipelineStage,
 		PipelineId:         jiraConfig.PipelineId,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			CreatedBy: jiraConfig.UserId,
 			CreatedOn: time.Now(),
 			UpdatedOn: time.Now(),

@@ -19,12 +19,12 @@ package pipeline
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/go-pg/pg"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"go.uber.org/zap"
@@ -88,7 +88,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 		Connection:         bean.Connection,
 		Cert:               bean.Cert,
 		Active:             true,
-		AuditLog:           models.AuditLog{CreatedBy: bean.User, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: bean.User},
+		AuditLog:           sql.AuditLog{CreatedBy: bean.User, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: bean.User},
 	}
 	err := impl.dockerArtifactStoreRepository.Save(store)
 	if err != nil {
@@ -209,7 +209,7 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		Connection:         bean.Connection,
 		Cert:               bean.Cert,
 		Active:             true, // later it will change
-		AuditLog:           models.AuditLog{CreatedBy: existingStore.CreatedBy, CreatedOn: existingStore.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: bean.User},
+		AuditLog:           sql.AuditLog{CreatedBy: existingStore.CreatedBy, CreatedOn: existingStore.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: bean.User},
 	}
 	err := impl.dockerArtifactStoreRepository.Update(store)
 	if err != nil {

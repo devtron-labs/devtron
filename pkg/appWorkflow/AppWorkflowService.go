@@ -19,11 +19,11 @@ package appWorkflow
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -86,7 +86,7 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 		wf = &appWorkflow.AppWorkflow{
 			Id:   req.Id,
 			Name: req.Name,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				UpdatedOn: time.Now(),
 				UpdatedBy: req.UserId,
 			},
@@ -97,7 +97,7 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 			Name:   req.Name,
 			AppId:  req.AppId,
 			Active: true,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 				CreatedBy: req.UserId,
@@ -212,7 +212,7 @@ func (impl AppWorkflowServiceImpl) SaveAppWorkflowMapping(req AppWorkflowMapping
 		ParentType:    req.ParentType,
 		Type:          req.Type,
 		Active:        true,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			UpdatedOn: time.Now(),
 			CreatedBy: req.UserId,

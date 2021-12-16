@@ -19,10 +19,10 @@ package pipeline
 
 import (
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"time"
@@ -134,7 +134,7 @@ func (impl GitHostConfigImpl) Create(request *GitHostRequest) (int, error) {
 	gitHost := &repository.GitHost{
 		Name:     request.Name,
 		Active:   request.Active,
-		AuditLog: models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		AuditLog: sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	err = impl.gitHostRepo.Save(gitHost)
 	if err != nil {

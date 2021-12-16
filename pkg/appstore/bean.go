@@ -20,7 +20,7 @@ package appstore
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"time"
 )
 
@@ -40,7 +40,7 @@ type InstallAppVersionDTO struct {
 	ReferenceValueId        int                               `json:"referenceValueId, omitempty" validate:"required,number"`
 	ReferenceValueKind      string                            `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
 	ACDAppName              string                            `json:"-"`
-	Environment             *cluster.Environment              `json:"-"`
+	Environment             *repository2.Environment          `json:"-"`
 	ChartGroupEntryId       int                               `json:"-"`
 	DefaultClusterComponent bool                              `json:"-"`
 	Status                  appstore.AppstoreDeploymentStatus `json:"-"`
