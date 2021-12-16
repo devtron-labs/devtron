@@ -40,7 +40,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 48c6f3b72153ccdf4cb852c008f45a62644232e9
+          value: 9cf9b7f86b164230b541067d61b342e19cbde482
         envFrom:
           - secretRef:
               name: postgresql-migrator
