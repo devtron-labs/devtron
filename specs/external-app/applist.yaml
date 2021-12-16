@@ -1,0 +1,250 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/application/:
+    get:
+      description: this api gives all external application+ devtron helm chart applications.
+      parameters:
+        - in: query
+          name: projectIds
+          example: [ 12, 13 ]
+          description: project ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: array
+            items:
+              type: integer
+        - in: query
+          name: clusterIds
+          example: [ 16, 13 ]
+          description: cluster ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: array
+            items:
+              type: integer
+        - in: query
+          name: namespaces
+          example: [ "devtroncd", "default" ]
+          description: namespace names
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: array
+            items:
+              type: string
+        - in: query
+          name: environmentIds
+          required: true
+          example: [ 56,45 ]
+          description: environment ids
+          allowEmptyValue: true
+          schema:
+            type: array
+            items:
+              type: integer
+      responses:
+        "200":
+          description: all application responces
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/AppList"
+
+  /orchestrator/app/list/:
+    get:
+      description: this api gives all devtron applications.
+      parameters:
+        - in: query
+          name: projectIds
+          example: [ 12, 13 ]
+          description: project ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: array
+            items:
+              type: integer
+        - in: query
+          name: clusterIds
+          example: [ 16, 13 ]
+          description: cluster ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: array
+            items:
+              type: integer
+        - in: query
+          name: environmentIds
+          required: true
+          example: [ 56,45 ]
+          description: environment ids
+          allowEmptyValue: true
+          schema:
+            type: array
+            items:
+              type: integer
+        - in: query
+          name: offset
+          example: 2
+          description: offser
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+        - in: query
+          name: size
+          example: 20
+          description: size
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+        - in: query
+          name: sortOrder
+          example: "ASC"
+          description: sortOrder
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+            enum:
+              - "ASC"
+              - "DESC"
+        - in: query
+          name: sortBy
+          example: "appNameSort"
+          description: sortBy
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+            enum:
+              - "appNameSort"
+      responses:
+        "200":
+          description: all application responces
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppList"
+components:
+  schemas:
+    appListRequest:
+      type: object
+      properties:
+        projectIds:
+          type: array
+          description: project ids
+          items:
+            type: integer
+            format: int64
+          example: [ 1, 2, 3 ]
+        clusterIds:
+          type: array
+          description: cluster ids
+          items:
+            type: integer
+            format: int64
+          example: [ 1, 2, 3 ]
+        namespaces:
+          type: array
+          description: namespace ID
+          items:
+            type: string
+          example: [ "devtroncd", "devtron-ci" ]
+        environmentIds:
+          type: array
+          description: environemnt ids
+          items:
+            type: integer
+            format: int64
+          example: [ 1, 2, 3 ]
+    AppEnvironmentDetail:
+      type: object
+      properties:
+        environmentName:
+          type: string
+          description: name of the environemnt
+          example: "devtroncd"
+        environmentId:
+          type: integer
+          description: "id in which app is deployed"
+          example: 56
+        namespace:
+          type: string
+          description: namespace corresponding to the environemnt
+          example: "devtroncd"
+        clusterName:
+          type: string
+          description: cluster corresponding to the environemt where application is deployed
+          example: "qa-cluster"
+        prduction:
+          type: boolean
+          description: if given environemnt is marked as production or not
+    HelmApp:
+      type: object
+      properties:
+        appName:
+          type: string
+          description: name of the helm application/helm release name
+          example: "demo-app"
+        appId:
+          type: string
+          description: unique identifier for app
+          example: "12,helm-app|cluster1-ns1"
+        chartName:
+          type: string
+          description: name of the chart
+          example: "nginx, fluentd"
+        chartAvatar:
+          type: string
+          description: url/location of the chart icon
+          example: https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Nginx_logo.svg/500px-Nginx_logo.svg.png
+        projectId:
+          type: integer
+          description: unique identifier for the project
+          example: "12"
+        environmentDetail:
+          type: object
+          $ref: "#/components/schemas/AppEnvironmentDetail"
+
+    AppList:
+      type: object
+      properties:
+        helmApps:
+          type: array
+          description: all helm app list, EA+ devtronapp
+          items:
+            type: object
+            $ref: "#/components/schemas/HelmApp"
+        devtronApps:
+          type: array
+          description: all helm app list, EA+ devtronapp
+          items:
+            type: object
+            $ref: "#/components/schemas/DevtronApp"
+    DevtronApp:
+      type: object
+      properties:
+        appName:
+          type: string
+          description: name of the helm application/helm release name
+          example: "demo-app"
+        appId:
+          type: string
+          description: unique identifier for app
+          example: "12,helm-app|cluster1-ns1"
+        projectId:
+          type: integer
+          description: unique identifier for the project
+          example: "12"
+        environmentDetails:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppEnvironmentDetail"
