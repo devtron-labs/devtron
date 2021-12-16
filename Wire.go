@@ -76,7 +76,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/session"
 	"github.com/google/wire"
@@ -631,7 +630,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
-		util2.NewGoJsonSchemaCustomFormatChecker,
+	//	util2.NewGoJsonSchemaCustomFormatChecker,
 
 		chartConfig.NewConfigMapHistoryRepositoryImpl,
 		wire.Bind(new(chartConfig.ConfigMapHistoryRepository),new(*chartConfig.ConfigMapHistoryRepositoryImpl)),
@@ -643,7 +642,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiScriptHistoryRepository),new(*pipelineConfig.CiScriptHistoryRepositoryImpl)),
 		pipelineConfig.NewCdConfigHistoryRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CdConfigHistoryRepository),new(*pipelineConfig.CdConfigHistoryRepositoryImpl)),
-		AuthWireSet,
+	//	AuthWireSet,
 	)
 	return &App{}, nil
 }

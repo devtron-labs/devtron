@@ -1,7 +1,7 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -17,7 +17,7 @@ type CiScriptHistory struct {
 	Built               bool      `sql:"built"`
 	BuiltOn             time.Time `sql:"built_on"`
 	BuiltBy             int32     `sql:"built_by"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type CiScriptHistoryRepository interface {
