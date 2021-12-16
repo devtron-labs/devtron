@@ -8,41 +8,11 @@ paths:
       description: this api gives all external application+ devtron helm chart applications.
       parameters:
         - in: query
-          name: projectIds
-          example: [ 12, 13 ]
-          description: project ids
-          required: true
-          allowEmptyValue: false
-          schema:
-            type: array
-            items:
-              type: integer
-        - in: query
           name: clusterIds
           example: [ 16, 13 ]
           description: cluster ids
           required: true
           allowEmptyValue: false
-          schema:
-            type: array
-            items:
-              type: integer
-        - in: query
-          name: namespaces
-          example: [ "devtroncd", "default" ]
-          description: namespace names
-          required: true
-          allowEmptyValue: true
-          schema:
-            type: array
-            items:
-              type: string
-        - in: query
-          name: environmentIds
-          required: true
-          example: [ 56,45 ]
-          description: environment ids
-          allowEmptyValue: true
           schema:
             type: array
             items:
@@ -184,9 +154,9 @@ components:
           type: string
           description: cluster corresponding to the environemt where application is deployed
           example: "qa-cluster"
-        prduction:
+        isPrduction:
           type: boolean
-          description: if given environemnt is marked as production or not
+          description: if given environemnt is marked as production or not, nullable
     HelmApp:
       type: object
       properties:
@@ -197,7 +167,7 @@ components:
         appId:
           type: string
           description: unique identifier for app
-          example: "12,helm-app|cluster1-ns1"
+          example: "12, helm-app|cluster1-ns1"
         chartName:
           type: string
           description: name of the chart
@@ -208,7 +178,7 @@ components:
           example: https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Nginx_logo.svg/500px-Nginx_logo.svg.png
         projectId:
           type: integer
-          description: unique identifier for the project
+          description: unique identifier for the project, APP with no project will have id `0`
           example: "12"
         environmentDetail:
           type: object
