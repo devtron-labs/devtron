@@ -24,7 +24,16 @@ paths:
             text/event-stream:
               schema:
                 $ref: "#/components/schemas/AppList"
-
+  /orchestrator/application/cluster-env-details:
+    get:
+      description: "returns cluster environment namespace mappings"
+      responses:
+        "200":
+          description: all cluster-env mapping
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClusterEnvironmentDetail"
   /orchestrator/app/list/:
     get:
       description: this api gives all devtron applications.
@@ -136,6 +145,15 @@ components:
             format: int64
           example: [ 1, 2, 3 ]
     AppEnvironmentDetail:
+      allOf:
+        - $ref: "#/components/schemas/EnvironmentDetail"
+        - type: object
+          properties:
+            clusterName:
+              type: string
+              description: cluster corresponding to the environemt where application is deployed
+              example: "qa-cluster"
+    EnvironmentDetail:
       type: object
       properties:
         environmentName:
@@ -150,13 +168,25 @@ components:
           type: string
           description: namespace corresponding to the environemnt
           example: "devtroncd"
-        clusterName:
-          type: string
-          description: cluster corresponding to the environemt where application is deployed
-          example: "qa-cluster"
         isPrduction:
           type: boolean
           description: if given environemnt is marked as production or not, nullable
+    ClusterEnvironmentDetail:
+      type: object
+      properties:
+        clusterName:
+          type: string
+          description: name of the cluster
+          example: "demo cluster"
+        clusterID:
+          type: integer
+          description: id of the cluster
+        environments:
+          type: array
+          description: "environments in that cluster"
+          items:
+            type: object
+            $ref: "#/components/schemas/EnvironmentDetail"
     HelmApp:
       type: object
       properties:
