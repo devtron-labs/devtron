@@ -37,6 +37,13 @@ spec:
               number: 80
         path: /dashboard
         pathType: ImplementationSpecific
+      - backend:
+          service:
+            name: devtron-service
+            port:
+              number: 80
+        path: /grafana
+        pathType: ImplementationSpecific  
 ```        
 
 You can access devtron from any host after applying this yaml. For k8s versions <1.19, [apply this yaml](https://github.com/devtron-labs/devtron/blob/main/manifests/yamls/devtron-ingress-legacy.yaml):
@@ -61,6 +68,13 @@ spec:
           serviceName: devtron-service
           servicePort: 80
         path: /dashboard
+      - backend:
+          service:
+            name: devtron-service
+            port:
+              number: 80
+        path: /grafana
+        pathType: ImplementationSpecific  
 ```        
 
 Optionally you also can access devtron through a specific host like :
@@ -94,6 +108,13 @@ spec:
        Host: devtron.example.com
         path: /dashboard
         pathType: ImplementationSpecific
+      - backend:
+          service:
+            name: devtron-service
+            port:
+              number: 80
+        path: /grafana
+        pathType: ImplementationSpecific  
 
 ```        
 
