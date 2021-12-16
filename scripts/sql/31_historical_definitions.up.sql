@@ -1,3 +1,7 @@
+ALTER TABLE config_map_app_level ADD PRIMARY KEY (id);
+
+ALTER TABLE config_map_env_level ADD PRIMARY KEY (id);
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_config_map_global_history;
 
 -- Table Definition
