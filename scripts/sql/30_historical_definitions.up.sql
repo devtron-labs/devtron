@@ -1,3 +1,7 @@
+ALTER TABLE config_map_app_level ADD PRIMARY KEY (id);
+
+ALTER TABLE config_map_env_level ADD PRIMARY KEY (id);
+
 CREATE SEQUENCE IF NOT EXISTS id_seq_config_map_global_history;
 
 -- Table Definition
@@ -15,8 +19,9 @@ CREATE TABLE "public"."config_map_global_history"
     "created_by"                  int4,
     "updated_on"                  timestamptz,
     "updated_by"                  int4,
-    CONSTRAINT "config_map_global_history_config_map_app_level_id_fkey" FOREIGN KEY ("config_map_app_level_id") REFERENCES "public"."config_map_app_level" ("id"),
-    PRIMARY KEY ("id")
+    PRIMARY KEY ("id"),
+    CONSTRAINT "config_map_global_history_config_map_app_level_id_fkey" FOREIGN KEY ("config_map_app_level_id") REFERENCES "public"."config_map_app_level" ("id")
+
 );
 
 
