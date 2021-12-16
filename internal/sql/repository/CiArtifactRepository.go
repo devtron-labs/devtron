@@ -63,6 +63,7 @@ type CiArtifactRepository interface {
 	GetLatest(cdPipelineId int) (int, error)
 	GetByImageDigest(imageDigest string) (artifact *CiArtifact, err error)
 	GetByIds(ids []int) ([]*CiArtifact, error)
+	GetArtifactByCIPipelineIdAndPipelineId(ciPipelineId int, pipelineId int) (artifact *CiArtifact, err error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -205,6 +206,9 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPip
 		" INNER JOIN cd_workflow wf on wf.pipeline_id=p.id" +
 		" INNER JOIN cd_workflow_runner wfr on wfr.cd_workflow_id = wf.id" +
 		" WHERE p.id= ? and wfr.workflow_type = ? GROUP BY cia.id, cia.data_source, cia.image ORDER BY cia.id DESC"*/
+
+	//this query gets details for status = Succeeded, this status is only valid
+	//for pre stages & post stages, for deploy stage status will be healthy, degraded, aborted, missing etc
 	queryFetchArtifacts = "SELECT cia.id, cia.data_source, cia.image, cia.image_digest FROM cd_workflow_runner wfr" +
 		" INNER JOIN cd_workflow wf on wf.id=wfr.cd_workflow_id" +
 		" INNER JOIN pipeline p on p.id = wf.pipeline_id" +
@@ -517,6 +521,17 @@ func (impl CiArtifactRepositoryImpl) GetByIds(ids []int) ([]*CiArtifact, error) 
 	err := impl.dbConnection.Model(&artifact).
 		Column("ci_artifact.*").
 		Where("ci_artifact.id in (?) ", pg.In(ids)).
+		Select()
+	return artifact, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetArtifactByCIPipelineIdAndPipelineId(ciPipelineId int, pipelineId int) (artifact *CiArtifact, err error) {
+	artifact = &CiArtifact{}
+	err = impl.dbConnection.Model(artifact).
+		Column("ci_artifact.*").
+		Join("INNER JOIN ci_workflow cwf on cwf.id = ci_artifact.ci_workflow_id").
+		Where("cwf.ci_pipeline_id = ? ", ciPipelineId).
+		Where("ci_artifact.pipeline_id = ?", pipelineId).
 		Select()
 	return artifact, err
 }

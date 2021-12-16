@@ -655,6 +655,8 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		digests = append(digests, item.ImageDigest)
 	}
 
+	//FIXME: next 3 loops are same combine them
+	//FIXME: already fetched above as deployment pipeline
 	pipelineModel, err := handler.pipelineRepository.FindById(cdPipelineId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)

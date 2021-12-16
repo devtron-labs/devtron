@@ -418,6 +418,7 @@ type CDPipelineConfigObject struct {
 	Id                            int                               `json:"id,omitempty"  validate:"number" `
 	EnvironmentId                 int                               `json:"environmentId,omitempty"  validate:"number,required" `
 	EnvironmentName               string                            `json:"environmentName,omitempty" `
+	//TODO : check if it's still being used
 	CiPipelineId                  int                               `json:"ciPipelineId,omitempty" validate:"number,required"`
 	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                            `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
@@ -432,6 +433,8 @@ type CDPipelineConfigObject struct {
 	RunPreStageInEnv              bool                              `json:"runPreStageInEnv"`
 	RunPostStageInEnv             bool                              `json:"runPostStageInEnv"`
 	CdArgoSetup                   bool                              `json:"isClusterCdActive"`
+	ParentPipelineId			  int 								`json:"parentPipelineId"`
+	ParentPipelineType			  string							`json:"parentPipelineType"`
 	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
 }
 
