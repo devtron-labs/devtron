@@ -17,3 +17,7 @@ spec:
           serviceName: devtron-service
           servicePort: 80
         path: /dashboard
+      - backend:
+          serviceName: devtron-service
+          servicePort: 80
+        path: /grafana

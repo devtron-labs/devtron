@@ -15,6 +15,7 @@ You will need to be ready with following prerequisites before Devtron installati
 * [Install with Helm3 - Recommended](install-devtron-helm-3.md)
 * [Install with Helm2](install-devtron-helm-2.md)
 * [Install with kubectl](install-devtron-using-kubectl.md)
+* [Upgrade Devtron to Latest Version](#upgrade-devtron)
 
 #### Installation status
 
@@ -159,3 +160,10 @@ kubectl -n devtroncd patch installer installer-devtron --type json -p '[{"op": "
 
 In case you are still facing issues please feel free to reach out to us on [discord](https://discord.gg/jsRG5qx2gp)
 
+## Upgrade Devtron
+
+Run following command to Upgrade Devtron to Latest Version.
+
+```bash
+kubectl patch -n devtroncd installer installer-devtron --type='json' -p='[{"op": "add", "path": "/spec/reSync", "value": true }]'
+```

@@ -1,0 +1,42 @@
+{{- if $.Values.kedaAutoscaling.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ template ".Chart.Name .fullname" $ }}-keda
+spec:
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: {{ include ".Chart.Name .fullname" $ }}
+{{- if $.Values.kedaAutoscaling.envSourceContainerName }}
+    envSourceContainerName: {{ $.Values.kedaAutoscaling.envSourceContainerName }}
+{{- end }}
+  pollingInterval: {{ $.Values.kedaAutoscaling.pollingInterval }}
+  cooldownPeriod: {{ $.Values.kedaAutoscaling.cooldownPeriod }}
+  idleReplicaCount: {{ $.Values.kedaAutoscaling.idleReplicaCount }}
+  minReplicaCount: {{ $.Values.kedaAutoscaling.minReplicaCount }}
+  maxReplicaCount: {{ $.Values.kedaAutoscaling.maxReplicaCount }}
+{{- if $.Values.kedaAutoscaling.fallback }}
+  fallback: 
+{{ toYaml $.Values.kedaAutoscaling.fallback | indent 4 }}
+{{- end }}
+{{- if $.Values.kedaAutoscaling.advanced }}
+  advanced: 
+{{ toYaml $.Values.kedaAutoscaling.advanced | indent 4 }}
+{{- end }}
+  triggers:
+{{ toYaml .Values.kedaAutoscaling.triggers | indent 2}}
+{{- if $.Values.kedaAutoscaling.authenticationRef }}
+    authenticationRef: 
+{{ toYaml $.Values.kedaAutoscaling.authenticationRef | indent 6 }}
+{{- end }}
+---
+{{- if $.Values.kedaAutoscaling.triggerAuthentication.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ $.Values.kedaAutoscaling.triggerAuthentication.name }}
+spec:
+{{ toYaml $.Values.kedaAutoscaling.triggerAuthentication.spec | indent 2 }}
+{{- end }}
+{{- end }}

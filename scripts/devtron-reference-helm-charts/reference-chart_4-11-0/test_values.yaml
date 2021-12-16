@@ -1,7 +1,9 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-
+imagePullSecrets:
+  - test1
+  - test2
 replicaCount: 1
 MinReadySeconds: 5
 MaxSurge: 1
@@ -12,24 +14,30 @@ ContainerPort:
     port: 8080
     servicePort: 80
     envoyPort: 8799
-    useHTTP2: false
-    supportStreaming: false
+    useHTTP2: true
+    supportStreaming: true
     idleTimeout: 1800s
-#    servicemonitor:
-#      enabled: true
-#      path: /abc
-#      scheme: 'http'
-#      interval: 30s
-#      scrapeTimeout: 20s
-#      metricRelabelings:
-#        - sourceLabels: [namespace]
-#          regex: '(.*)'
-#          replacement: myapp
-#          targetLabel: target_namespace
+    servicemonitor:
+      enabled: true
+      path: /abc
+      scheme: 'http'
+      interval: 30s
+      scrapeTimeout: 20s
+      metricRelabelings:
+        - sourceLabels: [namespace]
+          regex: '(.*)'
+          replacement: myapp
+          targetLabel: target_namespace
 
   - name: app1
     port: 8090
     servicePort: 8080
+    useGRPC: true
+    servicemonitor:
+      enabled: true
+  - name: app2
+    port: 8091
+    servicePort: 8081
     useGRPC: true
 
 pauseForSecondsBeforeSwitchActive: 30
@@ -37,17 +45,17 @@ waitForSecondsBeforeScalingDown: 30
 autoPromotionSeconds: 30
 
 Spec:
- Affinity:
-  Key:
-#  Key: kops.k8s.io/instancegroup 
-  Values:
+  Affinity:
+    Key:
+    #  Key: kops.k8s.io/instancegroup
+    Values:
 
 
 image:
   pullPolicy: IfNotPresent
 
 autoscaling:
-  enabled: false
+  enabled: true
   MinReplicas: 1
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
@@ -69,6 +77,7 @@ autoscaling:
 #        value: 4
 #        periodSeconds: 15
 #      selectPolicy: Max
+
   extraMetrics: []
 #    - external:
 #        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
@@ -84,19 +93,24 @@ secret:
 
 service:
   type: ClusterIP
-#  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
+  #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
   annotations: {}
     # test1: test2
-    # test3: test4
+  # test3: test4
 
 server:
- deployment:
-   image_tag: 1-95af053
-   image: ""
+  deployment:
+    image_tag: 1-95af053
+    image: ""
+deploymentType: "RECREATE"
 
-EnvVariablesFromFieldPath:
-- name: POD_NAME
-  fieldPath: metadata.name
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: zone
+    whenUnsatisfiable: DoNotSchedule
+    autoLabelSelector: true
+    customLabelSelector:
+      foo: bar
 
 EnvVariables:
   - name: FLASK_ENV
@@ -110,9 +124,11 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeaders: []
-#    - name: Custom-Header
-#      value: abc
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
+    - name: Custom-Header2
+      value: xyz
 
 ReadinessProbe:
   Path: /
@@ -122,9 +138,9 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeaders: []
-#    - name: Custom-Header
-#      value: abc
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
 
 prometheus:
   release: monitoring
@@ -134,32 +150,32 @@ servicemonitor:
 
 
 prometheusRule:
-  enabled: false
+  enabled: true
   additionalLabels: {}
   namespace: ""
-#  rules:
-#    # These are just examples rules, please adapt them to your needs
-#    - alert: TooMany500s
-#      expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"5.+"} ) / sum(nginx_ingress_controller_requests) ) > 5
-#      for: 1m
-#      labels:
-#        severity: critical
-#      annotations:
-#        description: Too many 5XXs
-#        summary: More than 5% of the all requests did return 5XX, this require your attention
-#    - alert: TooMany400s
-#      expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"4.+"} ) / sum(nginx_ingress_controller_requests) ) > 5
-#      for: 1m
-#      labels:
-#        severity: critical
-#      annotations:
-#        description: Too many 4XXs
-#        summary: More than 5% of the all requests did return 4XX, this require your attention
-#
+  rules:
+    # These are just examples rules, please adapt them to your needs
+    - alert: TooMany500s
+      expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"5.+"} ) / sum(nginx_ingress_controller_requests) ) > 5
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        description: Too many 5XXs
+        summary: More than 5% of the all requests did return 5XX, this require your attention
+    - alert: TooMany400s
+      expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"4.+"} ) / sum(nginx_ingress_controller_requests) ) > 5
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        description: Too many 4XXs
+        summary: More than 5% of the all requests did return 4XX, this require your attention
+
 
 ingress:
-  enabled: false
-  className: ""
+  enabled: true
+  className: nginx
   annotations: {}
 #    nginx.ingress.kubernetes.io/rewrite-target: /
 #    nginx.ingress.kubernetes.io/ssl-redirect: "false"
@@ -167,7 +183,6 @@ ingress:
 #    kubernetes.io/tls-acme: "true"
 #    nginx.ingress.kubernetes.io/canary: "true"
 #    nginx.ingress.kubernetes.io/canary-weight: "10"
-
   hosts:
     - host: chart-example1.local
       pathType: "ImplementationSpecific"
@@ -179,13 +194,17 @@ ingress:
         - /example2
         - /example2/healthz
   tls: []
+### Legacy Ingress Format ##
+#  host: abc.com
+#  path: "/"
+#  pathType: "ImplementationSpecific"
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
 
 ingressInternal:
-  enabled: false
-  className: ""
+  enabled: true
+  className: nginx-internal
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
  #    kubernetes.io/tls-acme: "true"
@@ -203,30 +222,30 @@ ingressInternal:
         - /example2
         - /example2/healthz
   tls: []
- #  - secretName: chart-example-tls
- #    hosts:
- #      - chart-example.local
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
 
 dbMigrationConfig:
   enabled: false
 
 command:
- enabled: false
- value: []
+  enabled: false
+  value: []
 
 args:
- enabled: false
- value: []
+  enabled: false
+  value: []
 
 resources:
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-   limits:
+  limits:
     cpu: 1
     memory: 200Mi
-   requests:
+  requests:
     cpu: 0.10
     memory: 100Mi
 
@@ -246,8 +265,8 @@ nodeSelector: {}
 orchestrator.deploymant.algo: 1
 
 ConfigMaps:
- enabled: false
- maps: []
+  enabled: false
+  maps: []
 #  - name: config-map-1
 #    type: environment
 #    external: false
@@ -278,8 +297,8 @@ ConfigMaps:
 
 
 ConfigSecrets:
- enabled: false
- secrets: []
+  enabled: false
+  secrets: []
 #  - name: config-secret-1
 #    type: environment
 #    external: false
@@ -306,10 +325,7 @@ initContainers: []
   #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
   #  volumeMounts:
   #    - mountPath: /usr/local/airflow/logs
-  #      name: logs-data
-  ## Uncomment below line ONLY IF you want to reuse the container image.
-  ## This will assign your application's docker image to init container.
-  #  reuseContainerImage: true
+#      name: logs-data
 
 containers: []
   ## Additional init containers to run before the Scheduler pods.
@@ -319,7 +335,7 @@ containers: []
   #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
   #  volumeMounts:
   #    - mountPath: /usr/local/airflow/logs
-  #      name: logs-data
+#      name: logs-data
 
 
 rawYaml: []
@@ -361,30 +377,28 @@ rawYaml: []
 #    type: ClusterIP
 
 envoyproxy:
- image: quay.io/devtron/envoy:v1.14.1
- configMapName: ""
- resources:
-   limits:
-     cpu: 50m
-     memory: 50Mi
-   requests:
-     cpu: 50m
-     memory: 50Mi
+  image: envoyproxy/envoy:v1.14.1
+  configMapName: ""
+  resources:
+    limits:
+      cpu: 50m
+      memory: 50Mi
+    requests:
+      cpu: 50m
+      memory: 50Mi
 
 podDisruptionBudget: {}
-#  minAvailable: 1
-#  maxUnavailable: 1
+  #  minAvailable: 1
+  #  maxUnavailable: 1
 
   ## Node tolerations for server scheduling to nodes with taints
   ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
-  ##
+##
 
 tolerations: []
   #  - key: "key"
   #    operator: "Equal|Exists"
   #    value: "value"
-  #    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
+#    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 
-imagePullSecrets: []
-  # - test1
-  # - test2
+appMetrics: false
