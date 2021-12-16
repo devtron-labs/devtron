@@ -120,6 +120,7 @@ type ChartService interface {
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
 	DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
+	CheckAndCreateTemplate(ChartRefId int) error
 }
 type ChartServiceImpl struct {
 	chartRepository           chartConfig.ChartRepository
@@ -139,6 +140,7 @@ type ChartServiceImpl struct {
 	pipelineRepository        pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
 	client                    *http.Client
+	K8sUtil                   *util.K8sUtil
 	chartHistoryRepository    chartConfig.ChartHistoryRepository
 }
 
@@ -160,6 +162,7 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
 	client *http.Client,
 	CustomFormatCheckers *util2.CustomFormatCheckers,
+	K8sUtil  *util.K8sUtil,
 	chartHistoryRepository chartConfig.ChartHistoryRepository) *ChartServiceImpl {
 	return &ChartServiceImpl{
 		chartRepository:           chartRepository,
@@ -179,6 +182,7 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 		pipelineRepository:        pipelineRepository,
 		appLevelMetricsRepository: appLevelMetricsRepository,
 		client:                    client,
+		K8sUtil:                   K8sUtil,
 		chartHistoryRepository:    chartHistoryRepository,
 	}
 }
@@ -1157,6 +1161,24 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 		}
 		return schemajson, nil
 	}
+}
+
+func (impl ChartServiceImpl) CheckAndCreateTemplate(ChartRefId int) error{
+	chartRef, err := impl.chartRefRepository.FindById(ChartRefId)
+	if err != nil {
+		return err
+	}
+	location := chartRef.Location
+	if _, err := os.Stat(filepath.Join(string(impl.refChartDir), location)); os.IsNotExist(err) {
+		chartData := chartRef.ChartData
+		binaryDataReader := bytes.NewReader(chartData)
+		impl.K8sUtil.ExtractTarGz(binaryDataReader, string(impl.refChartDir))
+		time.Sleep(time.Second)
+		return nil
+	} else {
+		return nil
+	}
+
 }
 
 func (impl ChartServiceImpl) ChartGlobalHistoryCreate(chart *chartConfig.Chart) (historyModel *chartConfig.ChartsGlobalHistory, err error) {

@@ -219,7 +219,8 @@ func InitializeApp() (*App, error) {
 	grafanaClientImpl := grafana.NewGrafanaClientImpl(sugaredLogger, httpClient, grafanaClientConfig, attributesServiceImpl)
 	installedAppRepositoryImpl := appstore.NewInstalledAppRepositoryImpl(sugaredLogger, db)
 	clusterInstalledAppsRepositoryImpl := appstore.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
-	k8sUtil := util.NewK8sUtil(sugaredLogger)
+	configMapDir := _wireConfigMapDirValue
+	k8sUtil := util.NewK8sUtil(sugaredLogger, configMapDir)
 	clusterServiceImpl := cluster2.NewClusterServiceImpl(clusterRepositoryImpl, environmentRepositoryImpl, grafanaClientImpl, sugaredLogger, installedAppRepositoryImpl, clusterInstalledAppsRepositoryImpl, k8sUtil)
 	environmentServiceImpl := cluster2.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sUtil, propertiesConfigServiceImpl, grafanaClientImpl)
 	teamServiceImpl := team2.NewTeamServiceImpl(sugaredLogger, teamRepositoryImpl, pipelineBuilderImpl, environmentServiceImpl, userServiceImpl)
@@ -245,7 +246,7 @@ func InitializeApp() (*App, error) {
 	repositoryServiceClientImpl := repository2.NewServiceClientImpl(argoCDSettings, sugaredLogger)
 	chartRefRepositoryImpl := chartConfig.NewChartRefRepositoryImpl(db)
 	customFormatCheckers := util2.NewGoJsonSchemaCustomFormatChecker()
-	chartServiceImpl := pipeline.NewChartServiceImpl(chartRepositoryImpl, sugaredLogger, chartTemplateServiceImpl, chartRepoRepositoryImpl, appRepositoryImpl, refChartDir, defaultChart, utilMergeUtil, repositoryServiceClientImpl, chartRefRepositoryImpl, envConfigOverrideRepositoryImpl, pipelineConfigRepositoryImpl, configMapRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, appLevelMetricsRepositoryImpl, httpClient, customFormatCheckers, chartHistoryRepositoryImpl)
+	chartServiceImpl := pipeline.NewChartServiceImpl(chartRepositoryImpl, sugaredLogger, chartTemplateServiceImpl, chartRepoRepositoryImpl, appRepositoryImpl, refChartDir, defaultChart, utilMergeUtil, repositoryServiceClientImpl, chartRefRepositoryImpl, envConfigOverrideRepositoryImpl, pipelineConfigRepositoryImpl, configMapRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, appLevelMetricsRepositoryImpl, httpClient, customFormatCheckers, k8sUtil, chartHistoryRepositoryImpl)
 	dbMigrationServiceImpl := pipeline.NewDbMogrationService(sugaredLogger, dbMigrationConfigRepositoryImpl)
 	workflowServiceImpl := pipeline.NewWorkflowServiceImpl(sugaredLogger, ciConfig)
 	ciServiceImpl := pipeline.NewCiServiceImpl(sugaredLogger, workflowServiceImpl, ciPipelineMaterialRepositoryImpl, ciWorkflowRepositoryImpl, ciConfig, eventRESTClientImpl, eventSimpleFactoryImpl, mergeUtil, ciPipelineRepositoryImpl, ciScriptHistoryRepositoryImpl)
@@ -372,7 +373,7 @@ func InitializeApp() (*App, error) {
 	configMapRestHandlerImpl := restHandler.NewConfigMapRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, chartServiceImpl, userServiceImpl, teamServiceImpl, enforcerImpl, pipelineRepositoryImpl, enforcerUtilImpl, configMapServiceImpl)
 	configMapRouterImpl := router.NewConfigMapRouterImpl(configMapRestHandlerImpl)
 	versionServiceImpl := argocdServer.NewVersionServiceImpl(argoCDSettings, sugaredLogger)
-	appStoreServiceImpl := appstore2.NewAppStoreServiceImpl(sugaredLogger, appStoreRepositoryImpl, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, userServiceImpl, chartRepoRepositoryImpl, k8sUtil, clusterServiceImpl, environmentServiceImpl, versionServiceImpl, acdAuthConfig, httpClient)
+	appStoreServiceImpl := appstore2.NewAppStoreServiceImpl(sugaredLogger, appStoreRepositoryImpl, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, userServiceImpl, chartRepoRepositoryImpl, k8sUtil, clusterServiceImpl, environmentServiceImpl, versionServiceImpl, acdAuthConfig, httpClient, chartRefRepositoryImpl, chartTemplateServiceImpl)
 	appStoreRestHandlerImpl := restHandler.NewAppStoreRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreServiceImpl, serviceClientImpl, teamServiceImpl, enforcerImpl, enforcerUtilImpl, validate, httpClient)
 	installedAppRestHandlerImpl := restHandler.NewInstalledAppRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, chartServiceImpl, userServiceImpl, teamServiceImpl, enforcerImpl, pipelineRepositoryImpl, enforcerUtilImpl, configMapServiceImpl, installedAppServiceImpl, validate)
 	appStoreValuesRestHandlerImpl := restHandler.NewAppStoreValuesRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, chartServiceImpl, userServiceImpl, teamServiceImpl, enforcerImpl, pipelineRepositoryImpl, enforcerUtilImpl, configMapServiceImpl, installedAppServiceImpl, appStoreValuesServiceImpl)
@@ -456,6 +457,7 @@ func InitializeApp() (*App, error) {
 
 var (
 	_wireLocalDevModeValue     = client2.LocalDevMode(false)
+	_wireConfigMapDirValue     = util.ConfigMapDir("/tmp/configmaps/")
 	_wireChartWorkingDirValue  = util.ChartWorkingDir("/tmp/charts/")
 	_wireRefChartDirValue      = pipeline.RefChartDir("scripts/devtron-reference-helm-charts")
 	_wireDefaultChartValue     = pipeline.DefaultChart("reference-app-rolling")
