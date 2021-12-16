@@ -28,9 +28,9 @@ type WebhookRouter interface {
 }
 
 type WebhookRouterImpl struct {
-	gitWebhookRestHandler restHandler.GitWebhookRestHandler
-	pipelineRestHandler   app.PipelineConfigRestHandler
-	externalCiRestHandler restHandler.ExternalCiRestHandler
+	gitWebhookRestHandler   restHandler.GitWebhookRestHandler
+	pipelineRestHandler     app.PipelineConfigRestHandler
+	externalCiRestHandler   restHandler.ExternalCiRestHandler
 	pubSubClientRestHandler restHandler.PubSubClientRestHandler
 }
 

@@ -18,7 +18,7 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -40,7 +40,7 @@ type CiPipelineMaterial struct {
 	GitTag       string     `sql:"-"`
 	CiPipeline   *CiPipeline
 	GitMaterial  *GitMaterial
-	models.AuditLog
+	sql.AuditLog
 }
 
 type CiPipelineMaterialRepository interface {

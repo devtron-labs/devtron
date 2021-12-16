@@ -20,10 +20,10 @@ package client
 import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util/event"
 	"github.com/satori/go.uuid"
 	"go.uber.org/zap"

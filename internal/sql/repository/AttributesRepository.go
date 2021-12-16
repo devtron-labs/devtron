@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -28,7 +28,7 @@ type Attributes struct {
 	Key       string   `sql:"key,notnull"`
 	Value     string   `sql:"value,notnull"`
 	Active    bool     `sql:"active, notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type AttributesRepository interface {

@@ -24,11 +24,11 @@ import (
 	"fmt"
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 	"strconv"
@@ -160,7 +160,7 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *
 		WorkflowId:   request.WorkflowId,
 		ScanEnabled:  pipeline.ScanEnabled,
 		Scanned:      false,
-		AuditLog:     models.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
+		AuditLog:     sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 	}
 	if pipeline.ScanEnabled {
 		artifact.Scanned = true
@@ -187,7 +187,7 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *
 			ParentCiArtifact: artifact.Id,
 			ScanEnabled:      ci.ScanEnabled,
 			Scanned:          false,
-			AuditLog:         models.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
+			AuditLog:         sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 		}
 		if ci.ScanEnabled {
 			ciArtifact.Scanned = true

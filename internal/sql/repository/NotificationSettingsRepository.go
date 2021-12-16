@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -56,7 +56,7 @@ type NotificationSettingsView struct {
 	//ConfigName    string   `sql:"config_name"`
 	//AppId         *int     `sql:"app_id"`
 	//EnvironmentId *int     `sql:"env_id"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type NotificationSettingsViewWithAppEnv struct {
@@ -67,7 +67,7 @@ type NotificationSettingsViewWithAppEnv struct {
 	Config          string `sql:"config"`
 	AppName         string `json:"app_name"`
 	EnvironmentName string `json:"env_name"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type NotificationSettings struct {

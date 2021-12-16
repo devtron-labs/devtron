@@ -20,7 +20,7 @@ package batch
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -35,12 +35,12 @@ type DataHolderAction interface {
 
 type DataHolderActionImpl struct {
 	logger           *zap.SugaredLogger
-	appRepo          pipelineConfig.AppRepository
+	appRepo          app.AppRepository
 	configMapService pipeline.ConfigMapService
 	envService       cluster.EnvironmentService
 }
 
-func NewDataHolderActionImpl(appRepo pipelineConfig.AppRepository, configMapService pipeline.ConfigMapService, envService cluster.EnvironmentService, logger *zap.SugaredLogger) *DataHolderActionImpl {
+func NewDataHolderActionImpl(appRepo app.AppRepository, configMapService pipeline.ConfigMapService, envService cluster.EnvironmentService, logger *zap.SugaredLogger) *DataHolderActionImpl {
 	dh := &DataHolderActionImpl{
 		logger:           logger,
 		appRepo:          appRepo,

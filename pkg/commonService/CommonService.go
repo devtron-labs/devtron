@@ -19,11 +19,11 @@ package commonService
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -41,9 +41,9 @@ type CommonServiceImpl struct {
 	dockerReg                   repository.DockerArtifactStoreRepository
 	attributeRepo               repository.AttributesRepository
 	gitProviderRepository       repository.GitProviderRepository
-	environmentRepository       cluster.EnvironmentRepository
-	teamRepository              team.TeamRepository
-	appRepository               pipelineConfig.AppRepository
+	environmentRepository       repository3.EnvironmentRepository
+	teamRepository              repository2.TeamRepository
+	appRepository               app.AppRepository
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
@@ -53,8 +53,8 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	dockerReg repository.DockerArtifactStoreRepository,
 	attributeRepo repository.AttributesRepository,
 	gitProviderRepository repository.GitProviderRepository,
-	environmentRepository cluster.EnvironmentRepository, teamRepository team.TeamRepository,
-	appRepository pipelineConfig.AppRepository) *CommonServiceImpl {
+	environmentRepository repository3.EnvironmentRepository, teamRepository repository2.TeamRepository,
+	appRepository app.AppRepository) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
 		logger:                      logger,
 		chartRepository:             chartRepository,

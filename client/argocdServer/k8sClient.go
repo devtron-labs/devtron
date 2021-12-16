@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,8 +30,8 @@ type AppTemplate struct {
 const TimeoutSlow = 30 * time.Second
 
 type ArgoK8sClient interface {
-	CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster) (string, error)
-	GetArgoApplication(namespace string, appName string, cluster *cluster.Cluster) (map[string]interface{}, error)
+	CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster) (string, error)
+	GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error)
 }
 type ArgoK8sClientImpl struct {
 	logger *zap.SugaredLogger
@@ -57,7 +57,7 @@ func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, er
 	return buf.String(), nil
 }
 
-func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *cluster.Cluster) (string, error) {
+func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster) (string, error) {
 	chartYamlContent, err := ioutil.ReadFile(filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"))
 	if err != nil {
 		impl.logger.Errorw("err in reading template", "err", err)
@@ -118,7 +118,7 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 	return err
 }
 
-func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, appName string, cluster *cluster.Cluster) (map[string]interface{}, error) {
+func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error) {
 
 	config, err := rest.InClusterConfig()
 	if err != nil {

@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -48,7 +48,7 @@ type DbConfig struct {
 	UserName  string   `sql:"user_name"`
 	Password  string   `sql:"password"`
 	Active    bool     `sql:"active"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type DbConfigRepository interface {

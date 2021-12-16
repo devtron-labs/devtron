@@ -96,7 +96,7 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 		Methods("GET")
 
 	configRouter.Path("/repo/sync-charts").
-		HandlerFunc(router.appStoreRestHandler.TriggerChartSyncManual).Methods("GET")
+		HandlerFunc(router.appStoreRestHandler.TriggerChartSyncManual).Methods("POST")
 	configRouter.Path("/repo/get-cm").
 		HandlerFunc(router.appStoreRestHandler.GetAndCreateConfigMap).Methods("POST")
 	configRouter.Path("/repo/list").
@@ -110,4 +110,6 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 	configRouter.Path("/repo/validate").
 		HandlerFunc(router.appStoreRestHandler.ValidateChartRepo).Methods("POST")
 
+	configRouter.Path("/cluster-component/install/{clusterId}").
+		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")
 }

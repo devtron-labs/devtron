@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -68,7 +69,7 @@ type NotificationRestHandlerImpl struct {
 	notificationService  notifier.NotificationConfigService
 	slackService         notifier.SlackNotificationService
 	sesService           notifier.SESNotificationService
-	enforcer             rbac.Enforcer
+	enforcer             casbin.Enforcer
 	teamService          team.TeamService
 	environmentService   cluster.EnvironmentService
 	pipelineBuilder      pipeline.PipelineBuilder
@@ -83,7 +84,7 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	logger *zap.SugaredLogger, gitRegistryConfig pipeline.GitRegistryConfig,
 	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
 	validator *validator.Validate, notificationService notifier.NotificationConfigService,
-	slackService notifier.SlackNotificationService, sesService notifier.SESNotificationService, enforcer rbac.Enforcer,
+	slackService notifier.SlackNotificationService, sesService notifier.SESNotificationService, enforcer casbin.Enforcer,
 	teamService team.TeamService, environmentService cluster.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
 	enforcerUtil rbac.EnforcerUtil) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
@@ -130,13 +131,13 @@ func (impl NotificationRestHandlerImpl) SaveNotificationSettings(w http.Response
 	for _, item := range notificationSetting.NotificationConfigRequest {
 		teamRbac, envRbac := impl.buildRbacObjectsForNotificationSettings(item.TeamId, item.EnvId, item.AppId, item.PipelineId, item.PipelineType)
 		for _, object := range teamRbac {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, object); !ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
 		}
 		for _, object := range envRbac {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, object); !ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
@@ -282,13 +283,13 @@ func (impl NotificationRestHandlerImpl) UpdateNotificationSettings(w http.Respon
 	for _, item := range nsViews {
 		teamRbac, envRbac := impl.buildRbacObjectsForNotificationSettings(item.TeamId, item.EnvId, item.AppId, item.PipelineId, item.PipelineType)
 		for _, object := range teamRbac {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, object); !ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
 		}
 		for _, object := range envRbac {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
@@ -326,13 +327,13 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationSettings(w http.Respon
 	for _, item := range nsViews {
 		teamRbac, envRbac := impl.buildRbacObjectsForNotificationSettings(item.TeamId, item.EnvId, item.AppId, item.PipelineId, item.PipelineType)
 		for _, object := range teamRbac {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionDelete, object); !ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
 		}
 		for _, object := range envRbac {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionDelete, object); !ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionDelete, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
@@ -380,7 +381,7 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 		teamRbac, envRbac := impl.buildRbacObjectsForNotificationSettings(nsConfig.TeamId, nsConfig.EnvId, nsConfig.AppId, nsConfig.PipelineId, nsConfig.PipelineType)
 		pass := true
 		for _, object := range teamRbac {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 				pass = false
 				break
 			}
@@ -389,7 +390,7 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 			continue
 		}
 		for _, object := range envRbac {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionGet, object); !ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
 				pass = false
 				break
 			}
@@ -461,7 +462,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 			return
 		}
 		for _, item := range teams {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
 				common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 				return
 			}
@@ -494,7 +495,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 
 		// RBAC enforcer applying
 		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceNotification, rbac.ActionCreate, "*"); !ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
 		}
@@ -545,7 +546,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 			return
 		}
 		for _, item := range teams {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
 				pass = false
 				break
 			}
@@ -559,7 +560,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 		channelsResponse.SlackConfigs = slackConfigs
 	}
 
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceNotification, rbac.ActionGet, "*"); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
 		pass = false
 	}
 	sesConfigs, fErr := impl.sesService.FetchAllSESNotificationConfig()
@@ -592,7 +593,7 @@ func (impl NotificationRestHandlerImpl) FindSESConfig(w http.ResponseWriter, r *
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceNotification, rbac.ActionGet, "*"); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 	}
 
@@ -666,7 +667,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w 
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceNotification, rbac.ActionGet, "*"); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}
@@ -687,13 +688,13 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w 
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, fmt.Sprintf("%s/*", strings.ToLower(team.Name))); ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, fmt.Sprintf("%s/*", strings.ToLower(team.Name))); ok {
 				channelsResponse = append(channelsResponse, item)
 			}
 		}
 
 	} else if cType == string(util.SES) {
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceNotification, rbac.ActionGet, "*"); !ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
 		}
@@ -759,12 +760,12 @@ func (impl NotificationRestHandlerImpl) GetOptionsForNotificationSettings(w http
 		pass := false
 
 		for _, object := range teamRbac {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, object); ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); ok {
 				pass = true
 			}
 		}
 		for _, object := range envRbac {
-			if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, object); ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); ok {
 				pass = true
 			}
 		}

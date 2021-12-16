@@ -19,8 +19,8 @@ package pipelineConfig
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -86,7 +86,7 @@ type CdWorkflow struct {
 	Pipeline         *Pipeline
 	CiArtifact       *repository.CiArtifact
 	CdWorkflowRunner []CdWorkflowRunner
-	models.AuditLog
+	sql.AuditLog
 }
 
 type CdWorkflowConfig struct {

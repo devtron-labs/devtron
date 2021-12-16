@@ -25,6 +25,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"path"
 	"strconv"
 	"strings"
@@ -32,10 +35,8 @@ import (
 
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -63,7 +64,7 @@ type DbPipelineOrchestrator interface {
 }
 
 type DbPipelineOrchestratorImpl struct {
-	appRepository                pipelineConfig.AppRepository
+	appRepository                app2.AppRepository
 	logger                       *zap.SugaredLogger
 	materialRepository           pipelineConfig.MaterialRepository
 	pipelineRepository           pipelineConfig.PipelineRepository
@@ -72,14 +73,14 @@ type DbPipelineOrchestratorImpl struct {
 	GitSensorClient              gitSensor.GitSensorClient
 	ciConfig                     *CiConfig
 	appWorkflowRepository        appWorkflow.AppWorkflowRepository
-	envRepository                cluster.EnvironmentRepository
+	envRepository                repository2.EnvironmentRepository
 	attributesService            attributes.AttributesService
 	appListingRepository         repository.AppListingRepository
 	appLabelsService             app.AppLabelService
 }
 
 func NewDbPipelineOrchestrator(
-	pipelineGroupRepository pipelineConfig.AppRepository,
+	pipelineGroupRepository app2.AppRepository,
 	logger *zap.SugaredLogger,
 	materialRepository pipelineConfig.MaterialRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -87,7 +88,7 @@ func NewDbPipelineOrchestrator(
 	CiPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	GitSensorClient gitSensor.GitSensorClient, ciConfig *CiConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	envRepository cluster.EnvironmentRepository,
+	envRepository repository2.EnvironmentRepository,
 	attributesService attributes.AttributesService,
 	appListingRepository repository.AppListingRepository,
 	appLabelsService app.AppLabelService,
@@ -137,7 +138,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 		Deleted:          createRequest.Deleted,
 		ParentCiPipeline: createRequest.ParentCiPipeline,
 		ScanEnabled:      createRequest.ScanEnabled,
-		AuditLog:         models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+		AuditLog:         sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
 	err = impl.ciPipelineRepository.Update(ciPipelineObject, tx)
 	if err != nil {
@@ -173,7 +174,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			Type:          material.Source.Type,
 			Active:        createRequest.Active,
 			GitMaterialId: material.GitMaterialId,
-			AuditLog:      models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+			AuditLog:      sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 		}
 		if material.Id == 0 {
 			pipelineMaterial.CiPipelineId = createRequest.Id
@@ -228,7 +229,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			IsExternal:       true,
 			Deleted:          createRequest.Deleted,
 			ParentCiPipeline: createRequest.Id,
-			AuditLog:         models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+			AuditLog:         sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 		}
 		err = impl.ciPipelineRepository.Update(ciPipelineObject, tx)
 		if err != nil {
@@ -255,7 +256,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 					Id:       ciPipelineMaterial.Id,
 					Value:    parentMaterial.Source.Value,
 					Active:   createRequest.Active,
-					AuditLog: models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+					AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 				}
 				linkedMaterials = append(linkedMaterials, pipelineMaterial)
 			} else {
@@ -333,7 +334,7 @@ func (impl DbPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig
 	p := &pipelineConfig.CiPipeline{
 		Id:       pipeline.Id,
 		Deleted:  true,
-		AuditLog: models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+		AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
 	err := impl.ciPipelineRepository.Update(p, tx)
 	if err != nil {
@@ -344,7 +345,7 @@ func (impl DbPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig
 		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
 			Id:       material.Id,
 			Active:   false,
-			AuditLog: models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+			AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 		}
 		materials = append(materials, pipelineMaterial)
 	}
@@ -411,7 +412,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 			Active:           true,
 			Deleted:          false,
 			ScanEnabled:      createRequest.ScanEnabled,
-			AuditLog:         models.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+			AuditLog:         sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 		}
 		err = impl.ciPipelineRepository.Save(ciPipelineObject, tx)
 		ciPipeline.Id = ciPipelineObject.Id
@@ -453,7 +454,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 				CheckoutPath:  r.CheckoutPath,
 				CiPipelineId:  ciPipelineObject.Id,
 				Active:        true,
-				AuditLog:      models.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+				AuditLog:      sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 			}
 			pipelineMaterials = append(pipelineMaterials, material)
 		}
@@ -499,7 +500,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 				Type:          "CI_PIPELINE",
 				Active:        true,
 				ParentType:    "",
-				AuditLog:      models.AuditLog{CreatedBy: createRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: createRequest.UserId},
+				AuditLog:      sql.AuditLog{CreatedBy: createRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: createRequest.UserId},
 			}
 			_, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
 			if err != nil {
@@ -532,7 +533,7 @@ func (impl DbPipelineOrchestratorImpl) buildCiPipelineScript(userId int32, ciScr
 		Stage:          scriptStage,
 		Active:         true,
 		OutputLocation: ciScript.OutputLocation,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: userId,
 			UpdatedOn: time.Now(),
@@ -584,7 +585,7 @@ func (impl DbPipelineOrchestratorImpl) saveExternalCiDetails(ciPipeline *bean.Ci
 		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
 			CiPipelineId: ciPipeline.Id,
 			Active:       true,
-			AuditLog:     models.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+			AuditLog:     sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 			AccessToken:  apiKey,
 		}
 		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
@@ -593,7 +594,7 @@ func (impl DbPipelineOrchestratorImpl) saveExternalCiDetails(ciPipeline *bean.Ci
 		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
 			CiPipelineId: ciPipeline.Id,
 			Active:       true,
-			AuditLog:     models.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+			AuditLog:     sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 			AccessToken:  "",
 		}
 		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
@@ -608,7 +609,7 @@ func (impl DbPipelineOrchestratorImpl) updateExternalCiDetails(ciPipeline *bean.
 		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
 			CiPipelineId: ciPipeline.Id,
 			Active:       true,
-			AuditLog:     models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+			AuditLog:     sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 			AccessToken:  apiKey,
 		}
 		externalCiPipeline, _, err = impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
@@ -617,7 +618,7 @@ func (impl DbPipelineOrchestratorImpl) updateExternalCiDetails(ciPipeline *bean.
 		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
 			CiPipelineId: ciPipeline.Id,
 			Active:       true,
-			AuditLog:     models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+			AuditLog:     sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 			AccessToken:  "",
 		}
 		externalCiPipeline, _, err = impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
@@ -629,7 +630,7 @@ func (impl DbPipelineOrchestratorImpl) deleteExternalCiDetails(ciPipeline *pipel
 	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
 		CiPipelineId: ciPipeline.Id,
 		Active:       false,
-		AuditLog:     models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+		AuditLog:     sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
 	externalCiPipeline, rows, err := impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
 	return rows, err
@@ -820,7 +821,7 @@ func (impl DbPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bea
 }
 
 //FIXME: not thread safe
-func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, tx *pg.Tx) (*pipelineConfig.App, error) {
+func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, tx *pg.Tx) (*app2.App, error) {
 	app, err := impl.appRepository.FindActiveByName(name)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -834,11 +835,11 @@ func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32,
 		}
 		return nil, err
 	}
-	pg := &pipelineConfig.App{
+	pg := &app2.App{
 		Active:   true,
 		AppName:  name,
 		TeamId:   teamId,
-		AuditLog: models.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+		AuditLog: sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.appRepository.SaveWithTxn(pg, tx)
 	if err != nil {
@@ -930,7 +931,7 @@ func (impl DbPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.Up
 	currentMaterial.GitProviderId = updateMaterialDTO.Material.GitProviderId
 	currentMaterial.CheckoutPath = updateMaterialDTO.Material.CheckoutPath
 	currentMaterial.FetchSubmodules = updateMaterialDTO.Material.FetchSubmodules
-	currentMaterial.AuditLog = models.AuditLog{UpdatedBy: updateMaterialDTO.UserId, CreatedBy: currentMaterial.CreatedBy, UpdatedOn: time.Now(), CreatedOn: currentMaterial.CreatedOn}
+	currentMaterial.AuditLog = sql.AuditLog{UpdatedBy: updateMaterialDTO.UserId, CreatedBy: currentMaterial.CreatedBy, UpdatedOn: time.Now(), CreatedOn: currentMaterial.CreatedOn}
 
 	err = impl.materialRepository.UpdateMaterial(currentMaterial)
 	if err != nil {
@@ -951,7 +952,7 @@ func (impl DbPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitMat
 		Active:          true,
 		CheckoutPath:    inputMaterial.CheckoutPath,
 		FetchSubmodules: inputMaterial.FetchSubmodules,
-		AuditLog:        models.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+		AuditLog:        sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err := impl.materialRepository.SaveMaterial(material)
 	if err != nil {
@@ -1003,7 +1004,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean.C
 		PostStageConfigMapSecretNames: string(postStageConfigMapSecretNames),
 		RunPreStageInEnv:              pipelineRequest.RunPreStageInEnv,
 		RunPostStageInEnv:             pipelineRequest.RunPostStageInEnv,
-		AuditLog:                      models.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+		AuditLog:                      sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.pipelineRepository.Save([]*pipelineConfig.Pipeline{pipeline}, tx)
 	return pipeline.Id, err

@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/authenticator/middleware"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"log"
 	"math/rand"
 	"net/http"
@@ -36,7 +38,6 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth"
 	"github.com/golang-jwt/jwt/v4"
@@ -55,11 +56,12 @@ type UserAuthService interface {
 }
 
 type UserAuthServiceImpl struct {
-	sessionManager     *session.SessionManager
-	userAuthRepository repository.UserAuthRepository
-	sessionClient      session2.ServiceClient
-	logger             *zap.SugaredLogger
-	userRepository     repository.UserRepository
+	userAuthRepository repository2.UserAuthRepository
+	//sessionClient is being used for argocd username-password login proxy
+	sessionClient  session2.ServiceClient
+	logger         *zap.SugaredLogger
+	userRepository repository2.UserRepository
+	sessionManager *middleware.SessionManager
 }
 
 var (
@@ -102,8 +104,8 @@ type WebhookToken struct {
 	WebhookToken string `env:"WEBHOOK_TOKEN" envDefault:""`
 }
 
-func NewUserAuthServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
-	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
+func NewUserAuthServiceImpl(userAuthRepository repository2.UserAuthRepository, sessionManager *middleware.SessionManager,
+	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository2.UserRepository,
 ) *UserAuthServiceImpl {
 	serviceImpl := &UserAuthServiceImpl{
 		userAuthRepository: userAuthRepository,
@@ -295,7 +297,7 @@ func (impl UserAuthServiceImpl) HandleDexCallback(w http.ResponseWriter, r *http
 		// Do nothing, User already exist in our db. (unique check by email id)
 	} else {
 		//create new user in our db on d basis of info got from google api or hex. assign a basic role
-		model := &repository.UserModel{
+		model := &repository2.UserModel{
 			EmailId:     Claims.Email,
 			AccessToken: rawIDToken,
 		}
@@ -366,7 +368,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 			config := auth.GetConfig()
 			authEnabled = config.AuthEnabled
 
-			if token != "" && authEnabled && !contains(r.URL.Path) {
+			if token != "" && authEnabled && !WhitelistChecker(r.URL.Path) {
 				_, err := sessionManager.VerifyToken(token)
 				if err != nil {
 					log.Printf("Error verifying token: %+v\n", err)
@@ -379,7 +381,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 			}
 			if pass {
 				next.ServeHTTP(w, r)
-			} else if contains(r.URL.Path) {
+			} else if WhitelistChecker(r.URL.Path) {
 				if r.URL.Path == "/app/ci-pipeline/github-webhook/trigger" {
 					apiKey := r.Header.Get("api-key")
 					t, err := GetWebhookToken()
@@ -403,7 +405,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 	}
 }
 
-func contains(url string) bool {
+func WhitelistChecker(url string) bool {
 	urls := []string{
 		"/health",
 		"/metrics",
@@ -465,7 +467,7 @@ func writeResponse(status int, message string, w http.ResponseWriter, err error)
 }
 
 func (impl UserAuthServiceImpl) CreateRole(roleData *bean.RoleData) (bool, error) {
-	roleModel := &repository.RoleModel{
+	roleModel := &repository2.RoleModel{
 		Role:        roleData.Role,
 		Team:        roleData.Team,
 		EntityName:  roleData.EntityName,

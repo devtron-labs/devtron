@@ -20,6 +20,7 @@ package batch
 import (
 	"context"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -36,16 +37,16 @@ var (
 //--------------
 type AppRepositoryMock struct{}
 
-func (repo AppRepositoryMock) Save(pipelineGroup *pipelineConfig.App) error {
+func (repo AppRepositoryMock) Save(pipelineGroup *app.App) error {
 	panic("implement me")
 }
 
-func (repo AppRepositoryMock) Update(app *pipelineConfig.App) error {
+func (repo AppRepositoryMock) Update(app *app.App) error {
 	panic("implement me")
 }
 
-func (repo AppRepositoryMock) FindActiveByName(appName string) (*pipelineConfig.App, error) {
-	return &pipelineConfig.App{Id: 1}, nil
+func (repo AppRepositoryMock) FindActiveByName(appName string) (*app.App, error) {
+	return &app.App{Id: 1}, nil
 	//panic("implement me")
 }
 
@@ -53,23 +54,23 @@ func (repo AppRepositoryMock) AppExists(appName string) (bool, error) {
 	panic("implement me")
 }
 
-func (repo AppRepositoryMock) FindById(id int) (*pipelineConfig.App, error) {
+func (repo AppRepositoryMock) FindById(id int) (*app.App, error) {
 	panic("implement me")
 }
 
-func (repo AppRepositoryMock) FindAppsByTeamId(teamId int) ([]pipelineConfig.App, error) {
+func (repo AppRepositoryMock) FindAppsByTeamId(teamId int) ([]app.App, error) {
 	panic("implement me")
 }
 
-func (repo AppRepositoryMock) FindAppsByTeamName(teamName string) ([]pipelineConfig.App, error) {
+func (repo AppRepositoryMock) FindAppsByTeamName(teamName string) ([]app.App, error) {
 	panic("implement me")
 }
 
-func (repo AppRepositoryMock) FindAll() ([]pipelineConfig.App, error) {
+func (repo AppRepositoryMock) FindAll() ([]app.App, error) {
 	panic("implement me")
 }
 
-func (repo AppRepositoryMock) FindAppsByEnvironmentId(environmentId int) ([]pipelineConfig.App, error) {
+func (repo AppRepositoryMock) FindAppsByEnvironmentId(environmentId int) ([]app.App, error) {
 	panic("implement me")
 }
 

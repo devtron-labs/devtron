@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"io"
 	"net/http"
 	"strconv"
@@ -52,8 +53,6 @@ import (
 	"google.golang.org/grpc/status"
 	"gopkg.in/go-playground/validator.v9"
 )
-
-
 
 type DevtronAppRestHandler interface {
 	CreateApp(w http.ResponseWriter, r *http.Request)
@@ -96,7 +95,7 @@ type PipelineConfigRestHandlerImpl struct {
 	userAuthService         user.UserService
 	validator               *validator.Validate
 	teamService             team.TeamService
-	enforcer                rbac.Enforcer
+	enforcer                casbin.Enforcer
 	gitSensorClient         gitSensor.GitSensorClient
 	pipelineRepository      pipelineConfig.PipelineRepository
 	appWorkflowService      appWorkflow.AppWorkflowService
@@ -119,7 +118,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	application application.ServiceClient,
 	userAuthService user.UserService,
 	teamService team.TeamService,
-	enforcer rbac.Enforcer,
+	enforcer casbin.Enforcer,
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
 	gitSensorClient gitSensor.GitSensorClient,
@@ -195,7 +194,7 @@ func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r 
 	}
 
 	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionDelete, resourceObject); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceObject); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -240,7 +239,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		return
 	}
 	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(project.Name), "*")); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(project.Name), "*")); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -289,7 +288,7 @@ func (handler PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *ht
 
 	//rbac implementation starts here
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -495,7 +494,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.Response
 		var accessedApps []*pipeline.AppBean
 		for _, app := range project.AppList {
 			object := fmt.Sprintf("%s/%s", project.ProjectName, app.Name)
-			if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
 				accessedApps = append(accessedApps, app)
 			}
 		}
@@ -524,7 +523,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	handler.Logger.Infow("request payload, FetchAppWorkflowStatusForTriggerView", "err", err, "appId", appId)
 	//RBAC CHECK
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -577,7 +576,7 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 	}
 	suggestedName := fmt.Sprintf("%s-%d-%s", pType, appId, util2.Generate(4))
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}

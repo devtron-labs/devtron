@@ -1,3 +1,4 @@
+
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
@@ -8,11 +9,7 @@
         "type": "object",
         "properties": {
           "envoyPort": {
-            "type": "integer",
-            "enum": [
-              8799,
-              8800
-            ]
+            "type": "integer"
           },
           "idleTimeout": {
             "type": "string"
@@ -89,12 +86,6 @@
         }
       }
     },
-    "MaxSurge": {
-      "type": "integer"
-    },
-    "MaxUnavailable": {
-      "type": "integer"
-    },
     "MinReadySeconds": {
       "type": "integer"
     },
@@ -146,23 +137,7 @@
       }
     },
     "Spec": {
-      "type": "object",
-      "properties": {
-        "Affinity": {
-          "type": "object",
-          "properties": {
-            "Key": {
-              "type": "null"
-            },
-            "Values": {
-              "type": "string"
-            },
-            "key": {
-              "type": "string"
-            }
-          }
-        }
-      }
+      "type": "object"
     },
     "args": {
       "type": "object",
@@ -467,7 +442,13 @@
           "type": "object"
         },
         "type": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "ClusterIP",
+            "LoadBalancer",
+            "NodePort",
+            "ExternalName"
+          ]
         }
       }
     },

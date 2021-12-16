@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -32,7 +32,7 @@ type GitHost struct {
 	EventTypeHeader string   `sql:"event_type_header"`
 	SecretHeader    string   `sql:"secret_header"`
 	SecretValidator string   `sql:"secret_validator"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type GitHostRepository interface {

@@ -20,11 +20,11 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -45,7 +45,7 @@ type CiArtifact struct {
 	DeployedTime     time.Time `sql:"-"`
 	Deployed         bool      `sql:"-"`
 	Latest           bool      `sql:"-"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type CiArtifactRepository interface {

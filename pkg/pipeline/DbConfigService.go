@@ -19,8 +19,8 @@ package pipeline
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.uber.org/zap"
 	"time"
 )
@@ -72,7 +72,7 @@ func (impl DbConfigServiceImpl) Save(dbConfigBean *DbConfigBean) (dbConfig *DbCo
 		Name:     dbConfigBean.Name,
 		Active:   dbConfigBean.Active,
 		DbName:   dbConfigBean.DbName,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			CreatedBy: dbConfigBean.UserId,
 			UpdatedBy: dbConfigBean.UserId,
 			CreatedOn: time.Now(),
@@ -128,7 +128,7 @@ func (impl DbConfigServiceImpl) Update(dbConfigBean *DbConfigBean) (dbConfig *Db
 		Name:     dbConfigBean.Name,
 		Active:   dbConfigBean.Active,
 		DbName:   dbConfigBean.DbName,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			UpdatedBy: dbConfigBean.UserId,
 			UpdatedOn: time.Now(),
 		},

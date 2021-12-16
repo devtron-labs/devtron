@@ -21,6 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"net/url"
 	"strconv"
 	"strings"
@@ -38,7 +43,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	. "github.com/devtron-labs/devtron/internal/util"
@@ -67,18 +71,18 @@ type AppServiceImpl struct {
 	eventClient                   client.EventClient
 	eventFactory                  client.EventFactory
 	acdClient                     application.ServiceClient
-	tokenCache                    *user.TokenCache
-	acdAuthConfig                 *user.ACDAuthConfig
-	enforcer                      rbac.Enforcer
+	tokenCache                    *util3.TokenCache
+	acdAuthConfig                 *util3.ACDAuthConfig
+	enforcer                      casbin.Enforcer
 	enforcerUtil                  rbac.EnforcerUtil
 	user                          user.UserService
 	appListingRepository          repository.AppListingRepository
-	appRepository                 pipelineConfig.AppRepository
-	envRepository                 cluster.EnvironmentRepository
+	appRepository                 app.AppRepository
+	envRepository                 repository2.EnvironmentRepository
 	pipelineConfigRepository      chartConfig.PipelineConfigRepository
 	configMapRepository           chartConfig.ConfigMapRepository
 	chartRepository               chartConfig.ChartRepository
-	appRepo                       pipelineConfig.AppRepository
+	appRepo                       app.AppRepository
 	appLevelMetricsRepository     repository.AppLevelMetricsRepository
 	envLevelMetricsRepository     repository.EnvLevelAppMetricsRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
@@ -111,11 +115,11 @@ func NewAppService(
 	dbMigrationConfigRepository pipelineConfig.DbMigrationConfigRepository,
 	eventClient client.EventClient,
 	eventFactory client.EventFactory, acdClient application.ServiceClient,
-	cache *user.TokenCache, authConfig *user.ACDAuthConfig,
-	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, user user.UserService,
+	cache *util3.TokenCache, authConfig *util3.ACDAuthConfig,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, user user.UserService,
 	appListingRepository repository.AppListingRepository,
-	appRepository pipelineConfig.AppRepository,
-	envRepository cluster.EnvironmentRepository,
+	appRepository app.AppRepository,
+	envRepository repository2.EnvironmentRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository, configMapRepository chartConfig.ConfigMapRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository, envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
 	chartRepository chartConfig.ChartRepository,
@@ -470,7 +474,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 				Status:            models.CHARTSTATUS_SUCCESS,
 				TargetEnvironment: pipeline.EnvironmentId,
 				ChartId:           chart.Id,
-				AuditLog:          models.AuditLog{UpdatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId},
+				AuditLog:          sql.AuditLog{UpdatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId},
 				Namespace:         environment.Namespace,
 				IsOverride:        false,
 				EnvOverrideValues: "{}",
@@ -630,7 +634,7 @@ func (impl AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDige
 			ObjectType:                  security.ScanObjectType_APP,
 			EnvId:                       envId,
 			ClusterId:                   clusterId,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: 1,
 				UpdatedOn: time.Now(),
@@ -1106,7 +1110,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		PipelineId:             overrideRequest.PipelineId,
 		CiArtifactId:           overrideRequest.CiArtifactId,
 		PipelineMergedValues:   string(merged),
-		AuditLog:               models.AuditLog{UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+		AuditLog:               sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
 	}
 	err = impl.pipelineOverrideRepository.Update(pipelineOverride)
 	if err != nil {
@@ -1127,7 +1131,7 @@ func (impl AppServiceImpl) savePipelineOverride(overrideRequest *bean.ValuesOver
 		CiArtifactId:           overrideRequest.CiArtifactId,
 		PipelineReleaseCounter: currentReleaseNo + 1,
 		CdWorkflowId:           overrideRequest.CdWorkflowId,
-		AuditLog:               models.AuditLog{CreatedBy: overrideRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+		AuditLog:               sql.AuditLog{CreatedBy: overrideRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
 		DeploymentType:         overrideRequest.DeploymentType,
 	}
 

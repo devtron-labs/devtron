@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -62,7 +63,7 @@ type AppStoreRestHandlerImpl struct {
 	appStoreService  appstore.AppStoreService
 	userAuthService  user.UserService
 	teamService      team.TeamService
-	enforcer         rbac.Enforcer
+	enforcer         casbin.Enforcer
 	acdServiceClient application.ServiceClient
 	enforcerUtil     rbac.EnforcerUtil
 	validator        *validator.Validate
@@ -71,7 +72,7 @@ type AppStoreRestHandlerImpl struct {
 
 func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appStoreService appstore.AppStoreService,
 	acdServiceClient application.ServiceClient, teamService team.TeamService,
-	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil,
 	validator *validator.Validate, client *http.Client) *AppStoreRestHandlerImpl {
 	return &AppStoreRestHandlerImpl{
 		Logger:           Logger,
@@ -220,12 +221,12 @@ func (handler *AppStoreRestHandlerImpl) FetchAppDetailsForInstalledApp(w http.Re
 
 	//rbac block starts from here
 	object := handler.enforcerUtil.GetAppRBACName(appDetail.AppName)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(appDetail.AppName, appDetail.EnvironmentId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionGet, object); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
@@ -375,7 +376,7 @@ func (handler *AppStoreRestHandlerImpl) CreateChartRepo(w http.ResponseWriter, r
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -419,7 +420,7 @@ func (handler *AppStoreRestHandlerImpl) UpdateChartRepo(w http.ResponseWriter, r
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -462,7 +463,7 @@ func (handler *AppStoreRestHandlerImpl) ValidateChartRepo(w http.ResponseWriter,
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -478,8 +479,19 @@ func (handler *AppStoreRestHandlerImpl) TriggerChartSyncManual(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
-	TriggerResult := handler.appStoreService.TriggerChartSyncManual()
-	common.WriteJsonResp(w, nil, TriggerResult, http.StatusOK)
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	err2 := handler.appStoreService.TriggerChartSyncManual()
+	if err2 != nil {
+		common.WriteJsonResp(w, err2, nil, http.StatusInternalServerError)
+	} else {
+		common.WriteJsonResp(w, nil, map[string]string{"status": "ok"}, http.StatusOK)
+	}
 }
 
 func (handler *AppStoreRestHandlerImpl) GetAndCreateConfigMap(w http.ResponseWriter, r *http.Request) {
@@ -491,7 +503,7 @@ func (handler *AppStoreRestHandlerImpl) GetAndCreateConfigMap(w http.ResponseWri
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceGlobal, rbac.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}

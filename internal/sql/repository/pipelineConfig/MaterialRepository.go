@@ -18,9 +18,9 @@
 package pipelineConfig
 
 import (
-	//"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -44,8 +44,8 @@ type GitMaterial struct {
 	Name            string   `sql:"name, omitempty"`
 	CheckoutPath    string   `sql:"checkout_path, omitempty"`
 	FetchSubmodules bool     `sql:"fetch_submodules,notnull"`
-	models.AuditLog
-	App         *App
+	sql.AuditLog
+	App         *app.App
 	GitProvider *repository.GitProvider
 }
 
@@ -128,7 +128,7 @@ func (impl MaterialRepositoryImpl) Update(materials []*GitMaterial) error {
 	return err
 }
 
-func(repo MaterialRepositoryImpl) FindByAppIdAndCheckoutPath(appId int, checkoutPath string) (*GitMaterial, error){
+func (repo MaterialRepositoryImpl) FindByAppIdAndCheckoutPath(appId int, checkoutPath string) (*GitMaterial, error) {
 	material := &GitMaterial{}
 	err := repo.dbConnection.Model(material).
 		Column("git_material.*", "GitProvider").

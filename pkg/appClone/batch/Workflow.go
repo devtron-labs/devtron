@@ -20,7 +20,7 @@ package batch
 import (
 	"context"
 	"fmt"
-	pc "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	pc "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/util"

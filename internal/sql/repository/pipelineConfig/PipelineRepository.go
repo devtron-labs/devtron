@@ -18,9 +18,10 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -42,7 +43,7 @@ type Pipeline struct {
 	tableName                     struct{} `sql:"pipeline" pg:",discard_unknown_columns"`
 	Id                            int      `sql:"id,pk"`
 	AppId                         int      `sql:"app_id,notnull"`
-	App                           App
+	App                           app.App
 	CiPipelineId                  int         `sql:"ci_pipeline_id"`
 	TriggerType                   TriggerType `sql:"trigger_type,notnull"` // automatic, manual
 	EnvironmentId                 int         `sql:"environment_id"`
@@ -56,8 +57,8 @@ type Pipeline struct {
 	PostStageConfigMapSecretNames string      `sql:"post_stage_config_map_secret_names"` // secret names
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
-	Environment                   cluster.Environment
-	models.AuditLog
+	Environment                   repository.Environment
+	sql.AuditLog
 }
 
 type PipelineRepository interface {

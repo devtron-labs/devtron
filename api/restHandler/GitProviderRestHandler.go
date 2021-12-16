@@ -23,7 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -46,7 +46,7 @@ type GitProviderRestHandlerImpl struct {
 	dbConfigService      pipeline.DbConfigService
 	userAuthService      user.UserService
 	validator            *validator.Validate
-	enforcer             rbac.Enforcer
+	enforcer             casbin.Enforcer
 	teamService          team.TeamService
 }
 
@@ -54,7 +54,7 @@ func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryC
 	logger *zap.SugaredLogger,
 	gitRegistryConfig pipeline.GitRegistryConfig,
 	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
-	validator *validator.Validate, enforcer rbac.Enforcer, teamService team.TeamService) *GitProviderRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService) *GitProviderRestHandlerImpl {
 	return &GitProviderRestHandlerImpl{
 		dockerRegistryConfig: dockerRegistryConfig,
 		logger:               logger,
@@ -92,7 +92,7 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceGit, rbac.ActionCreate, strings.ToLower(bean.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionCreate, strings.ToLower(bean.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -130,7 +130,7 @@ func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWrite
 	token := r.Header.Get("token")
 	result := make([]pipeline.GitRegistry, 0)
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceGit, rbac.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, strings.ToLower(item.Name)); ok {
 			result = append(result, item)
 		}
 	}
@@ -151,7 +151,7 @@ func (impl GitProviderRestHandlerImpl) FetchOneGitProviders(w http.ResponseWrite
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceGit, rbac.ActionGet, strings.ToLower(res.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, strings.ToLower(res.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -184,7 +184,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceGit, rbac.ActionUpdate, strings.ToLower(bean.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionUpdate, strings.ToLower(bean.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
