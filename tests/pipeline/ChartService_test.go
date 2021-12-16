@@ -4,10 +4,10 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	jsonpatch "github.com/evanphx/json-patch"
 	"io"
 	"log"
@@ -21,9 +21,9 @@ var bulkUpdateService *pipeline.BulkUpdateServiceImpl
 var bulkUpdateRepository bulkUpdate.BulkUpdateRepositoryImpl
 
 func setup() {
-	config, _ := models.GetConfig()
+	config, _ := sql.GetConfig()
 	logger := util.NewSugardLogger()
-	dbConnection, _ := models.NewDbConnection(config, logger)
+	dbConnection, _ := sql.NewDbConnection(config, logger)
 	bulkUpdateRepository := bulkUpdate.NewBulkUpdateRepository(dbConnection, logger)
 	bulkUpdateService = pipeline.NewBulkUpdateServiceImpl(bulkUpdateRepository, nil, nil, nil, nil, "",
 		pipeline.DefaultChart(""), util.MergeUtil{}, nil, nil, nil, nil, nil,

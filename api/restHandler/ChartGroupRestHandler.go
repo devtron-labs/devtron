@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -35,14 +36,14 @@ type ChartGroupRestHandlerImpl struct {
 	ChartGroupService appstore.ChartGroupService
 	Logger            *zap.SugaredLogger
 	userAuthService   user.UserService
-	enforcer          rbac.Enforcer
+	enforcer          casbin.Enforcer
 	enforcerUtil      rbac.EnforcerUtil
 	validator         *validator.Validate
 }
 
 func NewChartGroupRestHandlerImpl(ChartGroupService appstore.ChartGroupService,
 	Logger *zap.SugaredLogger, userAuthService user.UserService,
-	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, validator *validator.Validate) *ChartGroupRestHandlerImpl {
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, validator *validator.Validate) *ChartGroupRestHandlerImpl {
 	return &ChartGroupRestHandlerImpl{
 		ChartGroupService: ChartGroupService,
 		Logger:            Logger,
@@ -89,7 +90,7 @@ func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r
 	//RBAC block starts from here
 	token := r.Header.Get("token")
 	rbacObject := request.Name
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionCreate, rbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceChartGroup, casbin.ActionCreate, rbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -130,7 +131,7 @@ func (impl *ChartGroupRestHandlerImpl) UpdateChartGroup(w http.ResponseWriter, r
 	//RBAC block starts from here
 	token := r.Header.Get("token")
 	rbacObject := request.Name
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionUpdate, rbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceChartGroup, casbin.ActionUpdate, rbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -163,7 +164,7 @@ func (impl *ChartGroupRestHandlerImpl) SaveChartGroupEntries(w http.ResponseWrit
 	//RBAC block starts from here
 	token := r.Header.Get("token")
 	rbacObject := request.Name
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionCreate, rbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceChartGroup, casbin.ActionCreate, rbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -194,7 +195,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupWithChartMetaData(w http.Res
 	//RBAC block starts from here
 	token := r.Header.Get("token")
 	rbacObject := ""
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionGet, rbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceChartGroup, casbin.ActionGet, rbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -226,7 +227,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupInstallationDetail(w http.Re
 	//RBAC block starts from here
 	token := r.Header.Get("token")
 	rbacObject := ""
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionGet, rbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceChartGroup, casbin.ActionGet, rbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -251,7 +252,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupList(w http.ResponseWriter, 
 	//RBAC block starts from here
 	token := r.Header.Get("token")
 	rbacObject := ""
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionGet, rbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceChartGroup, casbin.ActionGet, rbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -286,7 +287,7 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupListMin(w http.ResponseWrite
 	//RBAC block starts from here
 	token := r.Header.Get("token")
 	rbacObject := ""
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceChartGroup, rbac.ActionGet, rbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceChartGroup, casbin.ActionGet, rbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}

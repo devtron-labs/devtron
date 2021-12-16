@@ -1,7 +1,7 @@
 package chartConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -23,7 +23,7 @@ type ChartsGlobalHistory struct {
 	Deployed                bool      `sql:"deployed"`
 	DeployedOn              time.Time `sql:"deployed_on"`
 	DeployedBy              int32     `sql:"deployed_by"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type ChartHistoryRepository interface {
@@ -87,7 +87,7 @@ type ChartsEnvHistory struct {
 	Deployed                bool      `sql:"deployed"`
 	DeployedOn              time.Time `sql:"deployed_on"`
 	DeployedBy              int32     `sql:"deployed_by"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 

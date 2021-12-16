@@ -19,10 +19,11 @@ package notifier
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 	"strings"
@@ -41,7 +42,7 @@ type SlackNotificationServiceImpl struct {
 	logger                         *zap.SugaredLogger
 	teamService                    team.TeamService
 	slackRepository                repository.SlackNotificationRepository
-	userRepository                 repository.UserRepository
+	userRepository                 repository2.UserRepository
 	notificationSettingsRepository repository.NotificationSettingsRepository
 }
 
@@ -60,7 +61,7 @@ type SlackConfigDto struct {
 }
 
 func NewSlackNotificationServiceImpl(logger *zap.SugaredLogger, slackRepository repository.SlackNotificationRepository, teamService team.TeamService,
-	userRepository repository.UserRepository, notificationSettingsRepository repository.NotificationSettingsRepository) *SlackNotificationServiceImpl {
+	userRepository repository2.UserRepository, notificationSettingsRepository repository.NotificationSettingsRepository) *SlackNotificationServiceImpl {
 	return &SlackNotificationServiceImpl{
 		logger:                         logger,
 		teamService:                    teamService,
@@ -163,7 +164,7 @@ func buildSlackNewConfigs(slackReq []SlackConfigDto, userId int32) []*repository
 			ConfigName:  c.ConfigName,
 			WebHookUrl:  c.WebhookUrl,
 			Description: c.Description,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedBy: userId,
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),

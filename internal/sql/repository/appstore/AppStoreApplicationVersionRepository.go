@@ -18,7 +18,7 @@
 package appstore
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strconv"
@@ -63,7 +63,7 @@ type AppStoreApplicationVersion struct {
 	ChartYaml   string    `sql:"chart_yaml"`
 	Latest      bool      `sql:"latest"`
 	AppStoreId  int       `sql:"app_store_id"`
-	models.AuditLog
+	sql.AuditLog
 	RawValues string `sql:"raw_values"`
 	Readme    string `sql:"readme"`
 	AppStore  *AppStore

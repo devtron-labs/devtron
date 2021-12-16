@@ -1,7 +1,7 @@
 package appstore
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -14,7 +14,7 @@ type InstalledAppHistory struct {
 	Values                string    `sql:"values_yaml"`
 	DeployedOn            time.Time `sql:"deployed_on"`
 	DeployedBy            int32     `sql:"deployed_by"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type InstalledAppHistoryRepository interface {

@@ -20,8 +20,8 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -147,7 +147,7 @@ type ConfigMapServiceImpl struct {
 	configMapRepository         chartConfig.ConfigMapRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	commonService               commonService.CommonService
-	appRepository               pipelineConfig.AppRepository
+	appRepository               app.AppRepository
 	configMapHistoryRepository  chartConfig.ConfigMapHistoryRepository
 }
 
@@ -157,7 +157,7 @@ func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
 	mergeUtil util.MergeUtil,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
-	commonService commonService.CommonService, appRepository pipelineConfig.AppRepository, configMapHistoryRepository chartConfig.ConfigMapHistoryRepository) *ConfigMapServiceImpl {
+	commonService commonService.CommonService, appRepository app.AppRepository, configMapHistoryRepository chartConfig.ConfigMapHistoryRepository) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
 		chartRepository:             chartRepository,
 		logger:                      logger,

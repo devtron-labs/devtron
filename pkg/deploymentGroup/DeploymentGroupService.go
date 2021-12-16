@@ -20,12 +20,13 @@ package deploymentGroup
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -99,21 +100,21 @@ type CiMaterialDTO struct {
 }
 
 type DeploymentGroupServiceImpl struct {
-	appRepository                pipelineConfig.AppRepository
+	appRepository                app.AppRepository
 	logger                       *zap.SugaredLogger
 	pipelineRepository           pipelineConfig.PipelineRepository
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	deploymentGroupRepository    repository.DeploymentGroupRepository
-	environmentRepository        cluster.EnvironmentRepository
+	environmentRepository        repository2.EnvironmentRepository
 	deploymentGroupAppRepository repository.DeploymentGroupAppRepository
 	ciArtifactRepository         repository.CiArtifactRepository
 	appWorkflowRepository        appWorkflow.AppWorkflowRepository
 	workflowDagExecutor          pipeline.WorkflowDagExecutor
 }
 
-func NewDeploymentGroupServiceImpl(appRepository pipelineConfig.AppRepository, logger *zap.SugaredLogger,
+func NewDeploymentGroupServiceImpl(appRepository app.AppRepository, logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	deploymentGroupRepository repository.DeploymentGroupRepository, environmentRepository cluster.EnvironmentRepository,
+	deploymentGroupRepository repository.DeploymentGroupRepository, environmentRepository repository2.EnvironmentRepository,
 	deploymentGroupAppRepository repository.DeploymentGroupAppRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,

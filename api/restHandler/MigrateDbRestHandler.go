@@ -22,7 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -46,14 +46,14 @@ type MigrateDbRestHandlerImpl struct {
 	userAuthService      user.UserService
 	validator            *validator.Validate
 	dbMigrationService   pipeline.DbMigrationService
-	enforcer             rbac.Enforcer
+	enforcer             casbin.Enforcer
 }
 
 func NewMigrateDbRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
 	logger *zap.SugaredLogger, gitRegistryConfig pipeline.GitRegistryConfig,
 	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
 	validator *validator.Validate, dbMigrationService pipeline.DbMigrationService,
-	enforcer rbac.Enforcer) *MigrateDbRestHandlerImpl {
+	enforcer casbin.Enforcer) *MigrateDbRestHandlerImpl {
 	return &MigrateDbRestHandlerImpl{
 		dockerRegistryConfig: dockerRegistryConfig,
 		logger:               logger,
@@ -91,7 +91,7 @@ func (impl MigrateDbRestHandlerImpl) SaveDbConfig(w http.ResponseWriter, r *http
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceMigrate, rbac.ActionCreate, strings.ToLower(bean.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionCreate, strings.ToLower(bean.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -118,7 +118,7 @@ func (impl MigrateDbRestHandlerImpl) FetchAllDbConfig(w http.ResponseWriter, r *
 	token := r.Header.Get("token")
 	var result []pipeline.DbConfigBean
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceMigrate, rbac.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, strings.ToLower(item.Name)); ok {
 			result = append(result, *item)
 		}
 	}
@@ -144,7 +144,7 @@ func (impl MigrateDbRestHandlerImpl) FetchOneDbConfig(w http.ResponseWriter, r *
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceMigrate, rbac.ActionGet, strings.ToLower(res.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, strings.ToLower(res.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -179,7 +179,7 @@ func (impl MigrateDbRestHandlerImpl) UpdateDbConfig(w http.ResponseWriter, r *ht
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceMigrate, rbac.ActionUpdate, strings.ToLower(bean.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionUpdate, strings.ToLower(bean.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -206,7 +206,7 @@ func (impl MigrateDbRestHandlerImpl) FetchDbConfigForAutoComp(w http.ResponseWri
 	token := r.Header.Get("token")
 	var result []pipeline.DbConfigBean
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceMigrate, rbac.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, strings.ToLower(item.Name)); ok {
 			result = append(result, *item)
 		}
 	}

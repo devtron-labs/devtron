@@ -19,8 +19,8 @@ package pipeline
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.uber.org/zap"
 	"time"
 )
@@ -59,7 +59,7 @@ func (impl DbMigrationServiceImpl) Save(bean *DbMigrationConfigBean) (*DbMigrati
 		return nil, fmt.Errorf("unsupported migration tool %s", bean.MigrationTool)
 	}
 	migrationConfig := impl.beanToModelAdaptor(bean)
-	migrationConfig.AuditLog = models.AuditLog{
+	migrationConfig.AuditLog = sql.AuditLog{
 		UpdatedOn: time.Now(),
 		CreatedOn: time.Now(),
 		CreatedBy: bean.UserId,
@@ -82,7 +82,7 @@ func (impl DbMigrationServiceImpl) Update(bean *DbMigrationConfigBean) (*DbMigra
 	}
 
 	migrationConfig := impl.beanToModelAdaptor(bean)
-	migrationConfig.AuditLog = models.AuditLog{
+	migrationConfig.AuditLog = sql.AuditLog{
 		UpdatedOn: time.Now(),
 		UpdatedBy: bean.UserId,
 	}

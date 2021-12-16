@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/schema"
 	"go.uber.org/zap"
@@ -40,7 +41,7 @@ type ReleaseMetricsRestHandler interface {
 
 type ReleaseMetricsRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
-	enforcer           rbac.Enforcer
+	enforcer           casbin.Enforcer
 	ReleaseDataService app.ReleaseDataService
 	userAuthService    user.UserService
 	teamService        team.TeamService
@@ -50,7 +51,7 @@ type ReleaseMetricsRestHandlerImpl struct {
 
 func NewReleaseMetricsRestHandlerImpl(
 	logger *zap.SugaredLogger,
-	enforcer rbac.Enforcer,
+	enforcer casbin.Enforcer,
 	ReleaseDataService app.ReleaseDataService,
 	userAuthService user.UserService,
 	teamService team.TeamService,
@@ -98,11 +99,11 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAppEnvironment(w http.Res
 		common.WriteJsonResp(w, fmt.Errorf("envId is incorrect"), nil, http.StatusBadRequest)
 		return
 	}
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, appRbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, appRbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, envRbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, envRbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -133,10 +134,10 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAllAppEnvironment(w http.
 		if envRbacObject == "" {
 			continue
 		}
-		if !impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, appRbacObject) {
+		if !impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, appRbacObject) {
 			continue
 		}
-		if !impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, envRbacObject) {
+		if !impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, envRbacObject) {
 			continue
 		}
 		impl.logger.Infow("trigger event, ResetDataForAllAppEnvironment", "app", pipeline.AppId, "env", pipeline.EnvironmentId)
@@ -165,7 +166,7 @@ func (impl *ReleaseMetricsRestHandlerImpl) GetDeploymentMetrics(w http.ResponseW
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, appRbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, appRbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}

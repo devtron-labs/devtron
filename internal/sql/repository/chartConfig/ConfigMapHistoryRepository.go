@@ -1,7 +1,7 @@
 package chartConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -24,7 +24,7 @@ type ConfigmapAndSecretGlobalHistory struct {
 	DeployedOn          time.Time  `sql:"deployed_on"`
 	DeployedBy          int32      `sql:"deployed_by"`
 	Latest              bool       `sql:"latest,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type ConfigMapHistoryRepository interface {
@@ -102,7 +102,7 @@ type ConfigmapAndSecretEnvHistory struct {
 	DeployedOn          time.Time  `sql:"deployed_on"`
 	DeployedBy          int32      `sql:"deployed_by"`
 	Latest              bool       `sql:"latest, notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) CreateEnvHistory(model *ConfigmapAndSecretEnvHistory) (*ConfigmapAndSecretEnvHistory, error) {
