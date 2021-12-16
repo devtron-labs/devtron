@@ -1699,7 +1699,7 @@ func (impl ConfigMapServiceImpl) buildBulkPayload(bulkPatchRequest *BulkPatchReq
 
 func (impl ConfigMapServiceImpl) CMCSGlobalHistoryCreate(model *chartConfig.ConfigMapAppModel, configType chartConfig.ConfigType) (historyModel *chartConfig.ConfigmapAndSecretGlobalHistory, err error) {
 	//fetching latest entry of history
-	oldConfigHistory, err := impl.configMapHistoryRepository.GetLatestHistoryByAppLevelIdAndConfigType(model.Id, configType)
+	oldConfigHistory, err := impl.configMapHistoryRepository.GetLatestGlobalHistoryByAppLevelIdAndConfigType(model.Id, configType)
 	if err != nil {
 		impl.logger.Errorw("error in fetching history entry by app level id", "appLevelId", model.Id)
 		return nil, err
@@ -1738,7 +1738,7 @@ func (impl ConfigMapServiceImpl) CMCSGlobalHistoryCreate(model *chartConfig.Conf
 
 func (impl ConfigMapServiceImpl) CMCSEnvHistoryCreate(model *chartConfig.ConfigMapEnvModel, configType chartConfig.ConfigType) (historyModel *chartConfig.ConfigmapAndSecretEnvHistory, err error) {
 	//fetching latest entry of history
-	oldConfigHistory, err := impl.configMapHistoryRepository.GetLatestHistoryByEnvLevelIdAndConfigType(model.Id, configType)
+	oldConfigHistory, err := impl.configMapHistoryRepository.GetLatestEnvHistoryByEnvLevelIdAndConfigType(model.Id, configType)
 	if err != nil {
 		impl.logger.Errorw("error in fetching history entry by app level id", "appLevelId", model.Id)
 		return nil, err

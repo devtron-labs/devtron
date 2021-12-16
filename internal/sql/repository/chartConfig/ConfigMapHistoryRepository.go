@@ -30,11 +30,13 @@ type ConfigmapAndSecretGlobalHistory struct {
 type ConfigMapHistoryRepository interface {
 	CreateGlobalHistory(model *ConfigmapAndSecretGlobalHistory) (*ConfigmapAndSecretGlobalHistory, error)
 	UpdateGlobalHistory(model *ConfigmapAndSecretGlobalHistory) (*ConfigmapAndSecretGlobalHistory, error)
-	GetLatestHistoryByAppLevelIdAndConfigType(appLevelId int, configType ConfigType) (*ConfigmapAndSecretGlobalHistory, error)
+	GetLatestGlobalHistoryByAppLevelIdAndConfigType(appLevelId int, configType ConfigType) (*ConfigmapAndSecretGlobalHistory, error)
+	GetLatestGlobalHistoryByAppId(appId int) ([]*ConfigmapAndSecretGlobalHistory, error)
 
 	CreateEnvHistory(model *ConfigmapAndSecretEnvHistory) (*ConfigmapAndSecretEnvHistory, error)
 	UpdateEnvHistory(model *ConfigmapAndSecretEnvHistory) (*ConfigmapAndSecretEnvHistory, error)
-	GetLatestHistoryByEnvLevelIdAndConfigType(envLevelId int, configType ConfigType) (*ConfigmapAndSecretEnvHistory, error)
+	GetLatestEnvHistoryByEnvLevelIdAndConfigType(envLevelId int, configType ConfigType) (*ConfigmapAndSecretEnvHistory, error)
+	GetLatestEnvHistoryByAppIdAndEnvId(appId int, envId int) ([]*ConfigmapAndSecretEnvHistory, error)
 }
 
 type ConfigMapHistoryRepositoryImpl struct {
@@ -64,7 +66,20 @@ func (impl ConfigMapHistoryRepositoryImpl) UpdateGlobalHistory(model *ConfigmapA
 	return model, nil
 }
 
-func (impl ConfigMapHistoryRepositoryImpl) GetLatestHistoryByAppLevelIdAndConfigType(appLevelId int, configType ConfigType) (*ConfigmapAndSecretGlobalHistory, error) {
+func (impl ConfigMapHistoryRepositoryImpl) GetLatestGlobalHistoryByAppId(appId int) ([]*ConfigmapAndSecretGlobalHistory, error) {
+	var model []*ConfigmapAndSecretGlobalHistory
+	err := impl.dbConnection.Model(&model).
+		Join("INNER JOIN config_map_app_level cmapp on config_map_global_history.config_map_app_level_id = cmapp.id").
+		Where("cmapp.app_id = ?", appId).
+		Where("latest = ?", true).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting latest entry for global CM/CS history", "err", err, "appId", appId)
+		return model, err
+	}
+	return model, nil
+}
+
+func (impl ConfigMapHistoryRepositoryImpl) GetLatestGlobalHistoryByAppLevelIdAndConfigType(appLevelId int, configType ConfigType) (*ConfigmapAndSecretGlobalHistory, error) {
 	var model *ConfigmapAndSecretGlobalHistory
 	err := impl.dbConnection.Model(&model).Where("config_map_app_level_id = ?", appLevelId).
 		Where("latest = ?", true).Where("data_type = ?", configType).Select()
@@ -108,12 +123,25 @@ func (impl ConfigMapHistoryRepositoryImpl) UpdateEnvHistory(model *ConfigmapAndS
 	return model, nil
 }
 
-func (impl ConfigMapHistoryRepositoryImpl) GetLatestHistoryByEnvLevelIdAndConfigType(envLevelId int, configType ConfigType) (*ConfigmapAndSecretEnvHistory, error) {
+func (impl ConfigMapHistoryRepositoryImpl) GetLatestEnvHistoryByEnvLevelIdAndConfigType(envLevelId int, configType ConfigType) (*ConfigmapAndSecretEnvHistory, error) {
 	var model *ConfigmapAndSecretEnvHistory
 	err := impl.dbConnection.Model(&model).Where("config_map_env_level_id = ?", envLevelId).
 		Where("latest = ?", true).Where("data_type = ?", configType).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting latest entry for env CM/CS history", "err", err, "envLevelId", envLevelId, "configType", configType)
+		return model, err
+	}
+	return model, nil
+}
+
+func (impl ConfigMapHistoryRepositoryImpl) GetLatestEnvHistoryByAppIdAndEnvId(appId int, envId int) ([]*ConfigmapAndSecretEnvHistory, error) {
+	var model []*ConfigmapAndSecretEnvHistory
+	err := impl.dbConnection.Model(&model).
+		Join("INNER JOIN config_map_env_level cmenv on config_map_env_history.config_map_env_level_id = cmenv.id").
+		Where("cmenv.app_id = ?", appId).Where("cmenv.environment_id = ?", envId).
+		Where("latest = ?", true).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting latest entry for env CM/CS history", "err", err, "envId", envId, "appId", appId)
 		return model, err
 	}
 	return model, nil

@@ -83,6 +83,7 @@ type WorkflowDagExecutorImpl struct {
 	cvePolicyRepository        security.CvePolicyRepository
 	scanResultRepository       security.ImageScanResultRepository
 	cdConfigHistoryRepository  pipelineConfig.CdConfigHistoryRepository
+	configMapHistoryRepository chartConfig.ConfigMapHistoryRepository
 }
 
 type CiArtifactDTO struct {
@@ -128,14 +129,14 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	materialRepository pipelineConfig.MaterialRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
-	user user.UserService,
-	groupRepository repository.DeploymentGroupRepository,
-	envRepository cluster.EnvironmentRepository,
-	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *user.TokenCache,
+	user user.UserService, groupRepository repository.DeploymentGroupRepository,
+	envRepository cluster.EnvironmentRepository, enforcer rbac.Enforcer,
+	enforcerUtil rbac.EnforcerUtil, tokenCache *user.TokenCache,
 	acdAuthConfig *user.ACDAuthConfig, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository,
-	CdConfigHistoryRepository pipelineConfig.CdConfigHistoryRepository) *WorkflowDagExecutorImpl {
+	CdConfigHistoryRepository pipelineConfig.CdConfigHistoryRepository,
+	configMapHistoryRepository chartConfig.ConfigMapHistoryRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:         pipelineRepository,
 		cdWorkflowRepository:       cdWorkflowRepository,
@@ -159,6 +160,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		cvePolicyRepository:        cvePolicyRepository,
 		scanResultRepository:       scanResultRepository,
 		cdConfigHistoryRepository:  CdConfigHistoryRepository,
+		configMapHistoryRepository: configMapHistoryRepository,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -363,8 +365,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 	}
 	//updating cd config history entry
 	cdConfigHistory, err := impl.cdConfigHistoryRepository.GetLatestByStageTypeAndPipelineId(pipelineConfig.PRE_CD_TYPE, pipeline.Id)
-	if err!= nil && err!=pg.ErrNoRows{
-		impl.logger.Errorw("error in getting cd config history entry","err",err,"pipelineId",pipeline.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting cd config history entry", "err", err, "pipelineId", pipeline.Id)
 		return err
 	} else {
 		//updating deployment details
@@ -373,7 +375,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		cdConfigHistory.DeployedOn = time.Now()
 		_, err = impl.cdConfigHistoryRepository.UpdateHistory(cdConfigHistory)
 		if err != nil {
-			impl.logger.Errorw("error in updating cd config history entry","err",err,"cdConfigHistory",cdConfigHistory)
+			impl.logger.Errorw("error in updating cd config history entry", "err", err, "cdConfigHistory", cdConfigHistory)
 			return err
 		}
 	}
@@ -440,8 +442,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 	//updating cd config history entry
 	cdConfigHistory, err := impl.cdConfigHistoryRepository.GetLatestByStageTypeAndPipelineId(pipelineConfig.POST_CD_TYPE, pipeline.Id)
-	if err!= nil && err!=pg.ErrNoRows{
-		impl.logger.Errorw("error in getting cd config history entry","err",err,"pipelineId",pipeline.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting cd config history entry", "err", err, "pipelineId", pipeline.Id)
 		return err
 	} else {
 		//updating deployment details
@@ -450,7 +452,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		cdConfigHistory.DeployedOn = time.Now()
 		_, err = impl.cdConfigHistoryRepository.UpdateHistory(cdConfigHistory)
 		if err != nil {
-			impl.logger.Errorw("error in updating cd config history entry","err",err,"cdConfigHistory",cdConfigHistory)
+			impl.logger.Errorw("error in updating cd config history entry", "err", err, "cdConfigHistory", cdConfigHistory)
 			return err
 		}
 	}
@@ -729,6 +731,40 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	if err1 != nil || err != nil {
 		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
 		return err
+	}
+
+	//updating cd config history
+	globalHistories, err := impl.configMapHistoryRepository.GetLatestGlobalHistoryByAppId(pipeline.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting global CM/CS history", "err", err, "appId", pipeline.AppId)
+		return err
+	} else {
+		for _, globalHistory := range globalHistories {
+			globalHistory.Deployed = true
+			globalHistory.DeployedOn = time.Now()
+			globalHistory.DeployedBy = triggeredBy
+			_, err = impl.configMapHistoryRepository.UpdateGlobalHistory(globalHistory)
+			if err != nil {
+				impl.logger.Errorw("error in updating global CM/CS", "err", err, "history", globalHistory)
+				return err
+			}
+		}
+	}
+	envHistories, err := impl.configMapHistoryRepository.GetLatestEnvHistoryByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting env CM/CS history", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
+		return err
+	} else {
+		for _, envHistory := range envHistories {
+			envHistory.Deployed = true
+			envHistory.DeployedOn = time.Now()
+			envHistory.DeployedBy = triggeredBy
+			_, err = impl.configMapHistoryRepository.UpdateEnvHistory(envHistory)
+			if err != nil {
+				impl.logger.Errorw("error in updating env CM/CS", "err", err, "history", envHistory)
+				return err
+			}
+		}
 	}
 	return nil
 }
