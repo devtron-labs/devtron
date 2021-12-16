@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -49,7 +49,7 @@ type SlackConfig struct {
 	Description string   `sql:"description"`
 	OwnerId     int32    `sql:"owner_id"`
 	TeamId      int      `sql:"team_id"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl *SlackNotificationRepositoryImpl) FindByIdsIn(ids []int) ([]*SlackConfig, error) {

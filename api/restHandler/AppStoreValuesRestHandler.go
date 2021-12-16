@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -49,7 +50,7 @@ type AppStoreValuesRestHandlerImpl struct {
 	chartService          pipeline.ChartService
 	userAuthService       user.UserService
 	teamService           team.TeamService
-	enforcer              rbac.Enforcer
+	enforcer              casbin.Enforcer
 	pipelineRepository    pipelineConfig.PipelineRepository
 	enforcerUtil          rbac.EnforcerUtil
 	configMapService      pipeline.ConfigMapService
@@ -59,7 +60,7 @@ type AppStoreValuesRestHandlerImpl struct {
 
 func NewAppStoreValuesRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
 	chartService pipeline.ChartService, userAuthService user.UserService, teamService team.TeamService,
-	enforcer rbac.Enforcer, pipelineRepository pipelineConfig.PipelineRepository,
+	enforcer casbin.Enforcer, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil, configMapService pipeline.ConfigMapService,
 	installedAppService appstore.InstalledAppService, appStoreValuesService appstore.AppStoreValuesService) *AppStoreValuesRestHandlerImpl {
 	return &AppStoreValuesRestHandlerImpl{

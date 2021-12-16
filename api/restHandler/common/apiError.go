@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/hashicorp/go-multierror"
 	"github.com/juju/errors"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -59,6 +60,16 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 			apiErr.UserMessage = err.Error()
 		}
 		response.Errors = []*util.ApiError{apiErr}
+	} else if multiErr, ok := err.(*multierror.Error); ok {
+		var errorsResp []*util.ApiError
+		for _, e := range multiErr.Errors {
+			errorResp := &util.ApiError{
+				UserMessage:     e.Error(),
+				InternalMessage: e.Error(),
+			}
+			errorsResp = append(errorsResp, errorResp)
+		}
+		response.Errors = errorsResp
 	} else {
 		apiErr := &util.ApiError{}
 		apiErr.Code = "000" // 000=unknown

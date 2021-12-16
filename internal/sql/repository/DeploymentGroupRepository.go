@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -52,7 +52,7 @@ type DeploymentGroup struct {
 	CiPipelineId        int      `sql:"ci_pipeline_id"`
 	Active              bool     `sql:"active,notnull"`
 	DeploymentGroupApps []*DeploymentGroupApp
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl *DeploymentGroupRepositoryImpl) Create(model *DeploymentGroup) (*DeploymentGroup, error) {

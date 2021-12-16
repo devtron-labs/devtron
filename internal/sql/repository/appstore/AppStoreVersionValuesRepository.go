@@ -18,7 +18,7 @@
 package appstore
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -50,7 +50,7 @@ type AppStoreVersionValues struct {
 	AppStoreApplicationVersionId int      `sql:"app_store_application_version_id"`
 	ReferenceType                string   `sql:"reference_type"`
 	Deleted                      bool     `sql:"deleted,notnull"`
-	models.AuditLog
+	sql.AuditLog
 	AppStoreApplicationVersion *AppStoreApplicationVersion
 }
 

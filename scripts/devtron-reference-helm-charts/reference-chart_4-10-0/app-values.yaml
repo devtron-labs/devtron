@@ -75,7 +75,7 @@ ReadinessProbe:
 
 ingress:
   enabled: false
-  className: nginx
+  className: ""
   annotations: {}
 #    nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
 #    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
@@ -101,7 +101,7 @@ ingress:
 
 ingressInternal:
   enabled: false
-  className: nginx-internal
+  className: ""
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
  #    kubernetes.io/tls-acme: "true"

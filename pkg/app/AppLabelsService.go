@@ -19,9 +19,10 @@ package app
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -37,12 +38,12 @@ type AppLabelService interface {
 type AppLabelServiceImpl struct {
 	logger             *zap.SugaredLogger
 	appLabelRepository pipelineConfig.AppLabelRepository
-	appRepository      pipelineConfig.AppRepository
+	appRepository      app.AppRepository
 	userRepository     repository.UserRepository
 }
 
 func NewAppLabelServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository pipelineConfig.AppRepository, userRepository repository.UserRepository) *AppLabelServiceImpl {
+	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository) *AppLabelServiceImpl {
 	return &AppLabelServiceImpl{
 		appLabelRepository: appLabelRepository,
 		logger:             logger,

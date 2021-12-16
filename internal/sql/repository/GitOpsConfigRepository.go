@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -51,7 +51,7 @@ type GitOpsConfig struct {
 	Active               bool     `sql:"active,notnull"`
 	BitBucketWorkspaceId string   `sql:"bitbucket_workspace_id"`
 	BitBucketProjectKey  string   `sql:"bitbucket_project_key"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 func NewGitOpsConfigRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB) *GitOpsConfigRepositoryImpl {

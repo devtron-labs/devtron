@@ -20,13 +20,13 @@ package restHandler
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strings"
 
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -49,7 +49,7 @@ type DockerRegRestHandlerImpl struct {
 	dbConfigService      pipeline.DbConfigService
 	userAuthService      user.UserService
 	validator            *validator.Validate
-	enforcer             rbac.Enforcer
+	enforcer             casbin.Enforcer
 	teamService          team.TeamService
 }
 
@@ -59,7 +59,7 @@ func NewDockerRegRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryCon
 	logger *zap.SugaredLogger,
 	gitRegistryConfig pipeline.GitRegistryConfig,
 	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
-	validator *validator.Validate, enforcer rbac.Enforcer, teamService team.TeamService) *DockerRegRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService) *DockerRegRestHandlerImpl {
 	return &DockerRegRestHandlerImpl{
 		dockerRegistryConfig: dockerRegistryConfig,
 		logger:               logger,
@@ -101,7 +101,7 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 
 		// RBAC enforcer applying
 		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceDocker, rbac.ActionCreate, "*"); !ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionCreate, "*"); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
@@ -131,7 +131,7 @@ func (impl DockerRegRestHandlerImpl) GetDockerArtifactStore(w http.ResponseWrite
 	token := r.Header.Get("token")
 	var result []pipeline.DockerArtifactStoreBean
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceDocker, rbac.ActionGet, strings.ToLower(item.Id)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(item.Id)); ok {
 			result = append(result, item)
 		}
 	}
@@ -152,7 +152,7 @@ func (impl DockerRegRestHandlerImpl) FetchAllDockerAccounts(w http.ResponseWrite
 	token := r.Header.Get("token")
 	var result []pipeline.DockerArtifactStoreBean
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceDocker, rbac.ActionGet, strings.ToLower(item.Id)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(item.Id)); ok {
 			result = append(result, item)
 		}
 	}
@@ -173,7 +173,7 @@ func (impl DockerRegRestHandlerImpl) FetchOneDockerAccounts(w http.ResponseWrite
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceDocker, rbac.ActionGet, strings.ToLower(res.Id)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(res.Id)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -212,7 +212,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 
 		// RBAC enforcer applying
 		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceDocker, rbac.ActionUpdate, strings.ToLower(bean.Id)); !ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionUpdate, strings.ToLower(bean.Id)); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}

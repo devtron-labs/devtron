@@ -1,0 +1,415 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Create App Api
+paths:
+  /orchestrator/core/v1beta1/application/{appId}:
+    get:
+      description: Get app details
+      operationId: GetAppAllDetail
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return all details of the app
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppDetail'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/core/v1beta1/application:
+    post:
+      description: Creates a new app for the configurations provided
+      operationId: CreateApp
+      requestBody:
+        description: A JSON object containing the app configuration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppDetail'
+      responses:
+        '200':
+          description: Successfully return a message stating the operation is successful
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    AppDetail:
+      type: object
+      properties:
+        metadata:
+          $ref : '#/components/schemas/AppMetadata'
+        gitMaterials:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitMaterial'
+        dockerConfig:
+          $ref: '#/components/schemas/DockerConfig'
+        globalDeploymentTemplate:
+          $ref: '#/components/schemas/DeploymentTemplate'
+        appWorkflows:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppWorkflow'
+        globalConfigMaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigMap'
+        globalSecrets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Secret'
+        environmentOverrides:
+          type: object
+          properties:
+            Name:
+              type: string
+              description: Name of environment
+            Values:
+              $ref: '#/components/schemas/EnvironmentOverride'
+    AppMetadata:
+      type: object
+      properties:
+        appName:
+          type: string
+        projectName:
+          type: string
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppLabel'
+    AppLabel:
+      type: object
+      properties:
+        Key:
+          type: string
+        Value:
+          type: string
+    GitMaterial:
+      type: object
+      properties:
+        gitProviderUrl:
+          type: string
+        gitRepoUrl:
+          type: string
+        checkoutPath:
+          type: string
+        fetchSubmodules:
+          type: boolean
+    DockerConfig:
+      type: object
+      properties:
+        dockerRegistry:
+          type: string
+        dockerRepository:
+          type: string
+        dockerBuildConfig:
+          $ref: '#/components/schemas/DockerBuildConfig'
+    DockerBuildConfig:
+      type: object
+      properties:
+        gitCheckoutPath:
+          type: string
+        dockerfileRelativePath:
+          type: string
+        args:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Value:
+                type: string
+          description: map of docker arguments, i.e. key-value pairs
+    DeploymentTemplate:
+      type: object
+      properties:
+        chartRefId:
+          type: integer
+        showAppMetrics:
+          type: boolean
+        isOverride:
+          type: boolean
+        template:
+          type: array
+          items:
+            type: object
+            properties:
+              Fields:
+                type: string
+              Values:
+                type: object
+                description: interface{}
+            description: map of template fields and values
+    AppWorkflow:
+      type: object
+      properties:
+        name:
+          type: string
+        ciPipeline:
+          $ref: '#/components/schemas/CiPipelineDetails'
+        cdPipelines:
+          type: array
+          items:
+            $ref: '#/components/schemas/CdPipelineDetails'
+    CiPipelineDetails:
+      type: object
+      properties:
+        name:
+          type: string
+        isManual:
+          type: boolean
+        vulnerabilityScanEnabled:
+          type: boolean
+        isExternal:
+          type: boolean
+        ciPipelineMaterialsConfig:
+          type: array
+          items:
+            $ref: '#/components/schemas/CiPipelineMaterialConfig'
+        dockerBuildArgs:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Value:
+                type: string
+          description: map of docker arguments, i.e. key-value pairs
+        beforeDockerBuildScripts:
+          type: array
+          items:
+            $ref: '#/components/schemas/BuildScript'
+        afterDockerbuildScripts:
+          type: array
+          items:
+            $ref: '#/components/schemas/BuildScript'
+    CiPipelineMaterialConfig:
+      type: object
+      properties:
+        type:
+          type: string
+        value:
+          type: string
+        checkoutPath:
+          type: string
+    BuildScript:
+      type: object
+      properties:
+        index:
+          type: integer
+        name:
+          type: string
+        script:
+          type: string
+        reportDirectoryPath:
+          type: string
+    CdPipelineDetails:
+      type: object
+      properties:
+        name:
+          type: string
+        environmentName:
+          type: string
+        triggerType:
+          type: string
+        deploymentType:
+          type: string
+        deploymentStrategies:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeploymentStrategy'
+        preStage:
+          $ref: '#/components/schemas/CdStage'
+        postStage:
+          $ref: '#/components/schemas/CdStage'
+        preStageConfigMapSecretNames:
+          $ref: '#/components/schemas/CdStageConfigMapSecretNames'
+        postStageConfigMapSecretNames:
+          $ref: '#/components/schemas/CdStageConfigMapSecretNames'
+        runPreStageInEnv:
+          type: boolean
+        runPostStageInEnv:
+          type: boolean
+        isClusterCdActive:
+          type: boolean
+    DeploymentStrategy:
+      type: object
+      properties:
+        deploymentType:
+          type: string
+        isDefault:
+          type: boolean
+        config:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Values:
+                type: object
+                description: interface{}
+    CdStage:
+      type: object
+      properties:
+        name:
+          type: string
+        triggerType:
+          type: string
+        config:
+          type: string
+    CdStageConfigMapSecretNames:
+      type: object
+      properties:
+        configMaps:
+          type: array
+          items:
+            properties:
+              ConfigMap:
+                type: string
+        secrets:
+          type: array
+          items:
+            properties:
+              Secret:
+                type: string
+    ConfigMap:
+      type: object
+      properties:
+        name:
+          type: string
+        isExtetrnal:
+          type: boolean
+        usageType:
+          type: string
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Values:
+                type: object
+                description: interface{}
+        dataVolumeUsageConfig:
+          $ref: '#/components/schemas/ConfigMapSecretDataVolumeUsageConfig'
+    Secret:
+      type: object
+      properties:
+        name:
+          type: string
+        isExternal:
+          type: boolean
+        externalType:
+          type: string
+        roleArn:
+          type: string
+        usageType:
+          type: string
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              Key:
+                type: string
+              Values:
+                type: object
+                description: interface{}
+        dataVolumeUsageConfig:
+          $ref: '#/components/schemas/ConfigMapSecretDataVolumeUsageConfig'
+        externalSecretData:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalSecret'
+    ConfigMapSecretDataVolumeUsageConfig:
+      type: object
+      properties:
+        mountPath:
+          type: string
+        subPath:
+          type: boolean
+        filePermission:
+          type: string
+    ExternalSecret:
+      type: object
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        property:
+          type: string
+        isBinary:
+          type: boolean
+    EnvironmentOverride:
+      type: object
+      properties:
+        deploymentTemplate:
+          $ref: '#/components/schemas/DeploymentTemplate'
+        configMaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigMap'
+        secrets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Secret'
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

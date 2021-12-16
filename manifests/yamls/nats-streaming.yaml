@@ -125,7 +125,7 @@ spec:
         #  NATS Streaming  #
         ####################
         - name: stan
-          image: nats-streaming:0.23.0
+          image: quay.io/devtron/nats-streaming:0.23.0
           args:
           - -sc
           - /etc/stan-config/stan.conf
@@ -168,7 +168,7 @@ spec:
         #                               #
         #################################
         - name: metrics
-          image: natsio/prometheus-nats-exporter:latest
+          image: quay.io/devtron/prometheus-nats-exporter:latest
           args:
           - -connz
           - -routez

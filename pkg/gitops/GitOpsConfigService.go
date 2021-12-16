@@ -20,6 +20,8 @@ package gitops
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -31,12 +33,10 @@ import (
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
@@ -89,7 +89,7 @@ type GitOpsConfigServiceImpl struct {
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
 	K8sUtil          *util.K8sUtil
-	aCDAuthConfig    *user.ACDAuthConfig
+	aCDAuthConfig    *util3.ACDAuthConfig
 	clusterService   cluster.ClusterService
 	envService       cluster.EnvironmentService
 	versionService   argocdServer.VersionService
@@ -97,7 +97,7 @@ type GitOpsConfigServiceImpl struct {
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
-	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
+	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
 	gitFactory *util.GitFactory) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
@@ -180,7 +180,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		AzureProject:         request.AzureProjectName,
 		BitBucketWorkspaceId: request.BitBucketWorkspaceId,
 		BitBucketProjectKey:  request.BitBucketProjectKey,
-		AuditLog:             models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		AuditLog:             sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model, tx)
 	if err != nil {

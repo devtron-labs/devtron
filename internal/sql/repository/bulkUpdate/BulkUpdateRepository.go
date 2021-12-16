@@ -2,8 +2,8 @@ package bulkUpdate
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
@@ -22,10 +22,10 @@ type BulkUpdateRepository interface {
 	FindBulkUpdateReadme(operation string) (*BulkUpdateReadme, error)
 
 	//For Deployment Template :
-	FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*pipelineConfig.App, error)
-	FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*pipelineConfig.App, error)
-	FindAppByChartId(chartId int) (*pipelineConfig.App, error)
-	FindAppByChartEnvId(chartEnvId int) (*pipelineConfig.App, error)
+	FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*app.App, error)
+	FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*app.App, error)
+	FindAppByChartId(chartId int) (*app.App, error)
+	FindAppByChartEnvId(chartEnvId int) (*app.App, error)
 	FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartConfig.Chart, error)
 	FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error)
 	BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patch string) error
@@ -94,8 +94,8 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkUpdateReadme(resource str
 	return bulkUpdateReadme, err
 }
 
-func (repositoryImpl BulkUpdateRepositoryImpl) FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*pipelineConfig.App, error) {
-	apps := []*pipelineConfig.App{}
+func (repositoryImpl BulkUpdateRepositoryImpl) FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes []string, appNameExcludes []string) ([]*app.App, error) {
+	apps := []*app.App{}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
 	err := repositoryImpl.dbConnection.
 		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
@@ -106,8 +106,8 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindDeploymentTemplateBulkAppName
 	return apps, err
 }
 
-func (repositoryImpl BulkUpdateRepositoryImpl) FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*pipelineConfig.App, error) {
-	apps := []*pipelineConfig.App{}
+func (repositoryImpl BulkUpdateRepositoryImpl) FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*app.App, error) {
+	apps := []*app.App{}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
 	err := repositoryImpl.dbConnection.
 		Model(&apps).Join("INNER JOIN charts ch ON app.id = ch.app_id").
@@ -169,8 +169,8 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindSecretBulkAppModelForEnv(appN
 		Select()
 	return CmAndSecretEnvModel, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartId(chartId int) (*pipelineConfig.App, error) {
-	app := &pipelineConfig.App{}
+func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartId(chartId int) (*app.App, error) {
+	app := &app.App{}
 	err := repositoryImpl.dbConnection.
 		Model(app).Join("INNER JOIN charts ch ON app.id = ch.app_id").
 		Where("ch.id = ?", chartId).
@@ -179,8 +179,8 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartId(chartId int) (*p
 		Select()
 	return app, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartEnvId(chartEnvId int) (*pipelineConfig.App, error) {
-	app := &pipelineConfig.App{}
+func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartEnvId(chartEnvId int) (*app.App, error) {
+	app := &app.App{}
 	err := repositoryImpl.dbConnection.
 		Model(app).Join("INNER JOIN charts ch ON app.id = ch.app_id").
 		Join("INNER JOIN chart_env_config_override ON ch.id = chart_env_config_override.chart_id").

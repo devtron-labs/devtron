@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 
@@ -65,7 +66,7 @@ type ArgoApplicationRestHandlerImpl struct {
 	client                 application.ServiceClient
 	logger                 *zap.SugaredLogger
 	pump                   connector.Pump
-	enforcer               rbac.Enforcer
+	enforcer               casbin.Enforcer
 	teamService            team.TeamService
 	environmentService     cluster.EnvironmentService
 	enforcerUtil           rbac.EnforcerUtil
@@ -74,7 +75,7 @@ type ArgoApplicationRestHandlerImpl struct {
 
 func NewArgoApplicationRestHandlerImpl(client application.ServiceClient,
 	pump connector.Pump,
-	enforcer rbac.Enforcer,
+	enforcer casbin.Enforcer,
 	teamService team.TeamService,
 	environmentService cluster.EnvironmentService,
 	logger *zap.SugaredLogger,
@@ -125,11 +126,11 @@ func (impl ArgoApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWri
 		return
 	}
 	request.EnvironmentId = eId
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, appRbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, appRbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, envRbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, envRbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -516,7 +517,7 @@ func (impl ArgoApplicationRestHandlerImpl) PatchResource(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionTrigger, app); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, app); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -592,11 +593,11 @@ func (impl ArgoApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter,
 		common.WriteJsonResp(w, fmt.Errorf("envId is incorrect"), nil, http.StatusBadRequest)
 		return
 	}
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionTrigger, appRbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionTrigger, envRbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envRbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}

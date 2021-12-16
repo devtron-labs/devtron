@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -49,14 +50,14 @@ type DeploymentGroupRestHandlerImpl struct {
 	deploymentGroupService deploymentGroup.DeploymentGroupService
 	logger                 *zap.SugaredLogger
 	validator              *validator.Validate
-	enforcer               rbac.Enforcer
+	enforcer               casbin.Enforcer
 	teamService            team.TeamService
 	userAuthService        user.UserService
 	enforcerUtil           rbac.EnforcerUtil
 }
 
 func NewDeploymentGroupRestHandlerImpl(deploymentGroupService deploymentGroup.DeploymentGroupService, logger *zap.SugaredLogger,
-	validator *validator.Validate, enforcer rbac.Enforcer, teamService team.TeamService, userAuthService user.UserService, enforcerUtil rbac.EnforcerUtil) *DeploymentGroupRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService, userAuthService user.UserService, enforcerUtil rbac.EnforcerUtil) *DeploymentGroupRestHandlerImpl {
 	return &DeploymentGroupRestHandlerImpl{deploymentGroupService: deploymentGroupService, logger: logger, validator: validator,
 		enforcer: enforcer, teamService: teamService, userAuthService: userAuthService, enforcerUtil: enforcerUtil}
 }
@@ -90,7 +91,7 @@ func (impl *DeploymentGroupRestHandlerImpl) CreateDeploymentGroup(w http.Respons
 	token := r.Header.Get("token")
 	for _, item := range bean.AppIds {
 		resourceName := impl.enforcerUtil.GetAppRBACNameByAppId(item)
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, resourceName); !ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
@@ -133,7 +134,7 @@ func (impl *DeploymentGroupRestHandlerImpl) FetchParentCiForDG(w http.ResponseWr
 	finalResp := make([]*deploymentGroup.CiPipelineResponseForDG, 0)
 	for _, item := range resp {
 		resourceName := impl.enforcerUtil.GetTeamRBACByCiPipelineId(item.CiPipelineId)
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); ok {
 			finalResp = append(finalResp, item)
 		}
 	}
@@ -160,7 +161,7 @@ func (impl *DeploymentGroupRestHandlerImpl) FetchEnvApplicationsForDG(w http.Res
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	resourceName := impl.enforcerUtil.GetTeamRBACByCiPipelineId(ciPipelineId)
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -174,11 +175,11 @@ func (impl *DeploymentGroupRestHandlerImpl) FetchEnvApplicationsForDG(w http.Res
 	finalResp := make([]*deploymentGroup.EnvironmentAppListForDG, 0)
 	for _, item := range result {
 		// RBAC enforcer applying
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceGlobalEnvironment, rbac.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.Name)); ok {
 			passCount := 0
 			for _, app := range item.Apps {
 				resourceName := impl.enforcerUtil.GetAppRBACNameByAppId(app.Id)
-				if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); ok {
+				if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); ok {
 					passCount = passCount + 1
 				}
 			}
@@ -211,11 +212,11 @@ func (impl *DeploymentGroupRestHandlerImpl) FetchAllDeploymentGroups(w http.Resp
 	for _, item := range resp {
 		pass := 0
 		resourceName := impl.enforcerUtil.GetTeamRBACByCiPipelineId(item.CiPipelineId)
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); ok {
 			pass = 1
 		}
 		resourceName = impl.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(item.CiPipelineId, item.EnvironmentId)
-		if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionGet, resourceName); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, resourceName); ok {
 			pass = 2
 		}
 		if pass == 2 {
@@ -252,7 +253,7 @@ func (impl *DeploymentGroupRestHandlerImpl) DeleteDeploymentGroup(w http.Respons
 
 	// RBAC enforcer applying
 	resourceName := impl.enforcerUtil.GetTeamRBACByCiPipelineId(dg.CiPipelineId)
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionDelete, resourceName); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceName); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -294,12 +295,12 @@ func (impl *DeploymentGroupRestHandlerImpl) TriggerReleaseForDeploymentGroup(w h
 	token := r.Header.Get("token")
 	// RBAC enforcer applying
 	object := impl.enforcerUtil.GetTeamRBACByCiPipelineId(dg.CiPipelineId)
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	object = impl.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(dg.CiPipelineId, dg.EnvironmentId)
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionTrigger, object); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -340,7 +341,7 @@ func (impl *DeploymentGroupRestHandlerImpl) UpdateDeploymentGroup(w http.Respons
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	resourceName := impl.enforcerUtil.GetTeamRBACByCiPipelineId(bean.CiPipelineId)
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, resourceName); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -373,7 +374,7 @@ func (impl *DeploymentGroupRestHandlerImpl) GetArtifactsByCiPipeline(w http.Resp
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	resourceName := impl.enforcerUtil.GetTeamRBACByCiPipelineId(dg.CiPipelineId)
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -406,7 +407,7 @@ func (impl *DeploymentGroupRestHandlerImpl) GetDeploymentGroupById(w http.Respon
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	resourceName := impl.enforcerUtil.GetTeamRBACByCiPipelineId(dg.CiPipelineId)
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, resourceName); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
