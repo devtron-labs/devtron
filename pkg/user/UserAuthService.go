@@ -37,7 +37,7 @@ import (
 	"github.com/coreos/go-oidc"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
-	casbin2 "github.com/devtron-labs/devtron/internal/casbin"
+	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth"
@@ -533,15 +533,15 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	var roleModels []*repository.RoleModel
+	var roleModels []*repository2.RoleModel
 	switch entityType {
-	case repository.PROJECT_TYPE:
+	case repository2.PROJECT_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForProject(entityName)
-	case repository.ENV_TYPE:
+	case repository2.ENV_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForEnvironment(entityName)
-	case repository.APP_TYPE:
+	case repository2.APP_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForApp(entityName)
-	case repository.CHART_GROUP_TYPE:
+	case repository2.CHART_GROUP_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForChartGroup(entityName)
 	}
 	if err != nil {

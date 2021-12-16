@@ -19,12 +19,13 @@ package cluster
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -408,13 +409,13 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		impl.logger.Errorw("No matching entry found for delete.", "id", deleteReq.Id)
 		return err
 	}
-	deleteRequest := &cluster.Environment{
+	deleteRequest := &repository.Environment{
 		Name:      deleteReq.Environment,
 		Id:        deleteReq.Id,
 		Active:    deleteReq.Active,
 		ClusterId: deleteReq.ClusterId,
 		Default:   deleteReq.Default,
-		AuditLog:  models.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: userId},
+		AuditLog:  sql.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: userId},
 	}
 	err = impl.environmentRepository.MarkEnvironmentDeleted(deleteRequest)
 	if err != nil {
@@ -422,7 +423,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		return err
 	}
 	//deleting auth roles entries for this environment
-	err = impl.userAuthService.DeleteRoles(repository.ENV_TYPE, deleteRequest.Name)
+	err = impl.userAuthService.DeleteRoles(repository2.ENV_TYPE, deleteRequest.Name)
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		//TODO : confirm if error is to returned or not

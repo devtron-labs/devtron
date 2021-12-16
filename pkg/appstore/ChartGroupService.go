@@ -19,8 +19,8 @@ package appstore
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"time"
 
@@ -423,7 +423,7 @@ func (impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error {
 		return err
 	}
 	//deleting auth roles entries for this chart group
-	err = impl.userAuthService.DeleteRoles(repository.CHART_GROUP_TYPE, req.Name)
+	err = impl.userAuthService.DeleteRoles(repository2.CHART_GROUP_TYPE, req.Name)
 	if err != nil {
 		impl.Logger.Errorw("error in deleting auth roles", "err", err)
 		//TODO : confirm if error is to returned or not

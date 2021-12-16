@@ -20,10 +20,12 @@ package team
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
@@ -41,7 +43,7 @@ type TeamService interface {
 type TeamServiceImpl struct {
 	logger          *zap.SugaredLogger
 	teamRepository  TeamRepository
-	appRepository   pipelineConfig.AppRepository
+	appRepository   app.AppRepository
 	userAuthService user.UserAuthService
 }
 
@@ -53,7 +55,7 @@ type TeamRequest struct {
 }
 
 func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository TeamRepository,
-	 appRepository pipelineConfig.AppRepository,
+	 appRepository app.AppRepository,
 	userAuthService user.UserAuthService) *TeamServiceImpl {
 	return &TeamServiceImpl{
 		logger:          logger,

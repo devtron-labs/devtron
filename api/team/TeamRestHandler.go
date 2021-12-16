@@ -211,7 +211,7 @@ func(impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Request
 	}
 	//rbac starts
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, rbac.ResourceTeam, rbac.ActionCreate, "*"); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
