@@ -27,6 +27,7 @@ import (
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"path"
@@ -734,7 +735,7 @@ func (impl DbPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) error 
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(repository.PROJECT_TYPE, app.AppName)
+	err = impl.userAuthService.DeleteRoles(repository3.PROJECT_TYPE, app.AppName)
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		//TODO : confirm if error is to returned or not

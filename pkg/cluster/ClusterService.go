@@ -78,17 +78,19 @@ type ClusterService interface {
 }
 
 type ClusterServiceImpl struct {
-	clusterRepository repository.ClusterRepository
-	logger            *zap.SugaredLogger
-	K8sUtil           *util.K8sUtil
+	clusterRepository     repository.ClusterRepository
+	logger                *zap.SugaredLogger
+	K8sUtil               *util.K8sUtil
+	environmentRepository repository.EnvironmentRepository
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
-	K8sUtil *util.K8sUtil) *ClusterServiceImpl {
+	K8sUtil *util.K8sUtil, environmentRepository repository.EnvironmentRepository) *ClusterServiceImpl {
 	return &ClusterServiceImpl{
-		clusterRepository: repository,
-		logger:            logger,
-		K8sUtil:           K8sUtil,
+		clusterRepository:     repository,
+		logger:                logger,
+		K8sUtil:               K8sUtil,
+		environmentRepository: environmentRepository,
 	}
 }
 
@@ -388,12 +390,12 @@ func (impl *ClusterServiceImpl) CreateGrafanaDataSource(clusterBean *ClusterBean
 	return 0, fmt.Errorf("method not implemented")
 }
 
-func (impl ClusterServiceImpl)DeleteFromDb(bean *ClusterBean, userId int32) error{
+func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) error {
 	//finding if there are env in this cluster or not, if yes then will not delete
-	env, err:=impl.environmentRepository.FindByClusterId(bean.Id)
-	if !(env == nil && err == pg.ErrNoRows){
-		impl.logger.Errorw("err in deleting cluster, found env in this cluster","clusterName",bean.ClusterName,"err",err)
-		return fmt.Errorf(" Please delete all related pipelines before deleting this environment : %w",err)
+	env, err := impl.environmentRepository.FindByClusterId(bean.Id)
+	if !(env == nil && err == pg.ErrNoRows) {
+		impl.logger.Errorw("err in deleting cluster, found env in this cluster", "clusterName", bean.ClusterName, "err", err)
+		return fmt.Errorf(" Please delete all related pipelines before deleting this environment : %w", err)
 	}
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
@@ -403,9 +405,9 @@ func (impl ClusterServiceImpl)DeleteFromDb(bean *ClusterBean, userId int32) erro
 	deleteReq := existingCluster
 	deleteReq.UpdatedOn = time.Now()
 	deleteReq.UpdatedBy = userId
-	err  = impl.clusterRepository.MarkClusterDeleted(deleteReq)
+	err = impl.clusterRepository.MarkClusterDeleted(deleteReq)
 	if err != nil {
-		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err",err)
+		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
 		return err
 	}
 	return nil

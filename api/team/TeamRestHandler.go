@@ -187,7 +187,7 @@ func (impl TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Reques
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func(impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Request){
+func (impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -216,12 +216,12 @@ func(impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Request
 		return
 	}
 	//rbac ends
-	err = impl.teamService.Delete(&deleteRequest)
-	if err != nil {
-		impl.logger.Errorw("service err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
+	//err = impl.teamService.Delete(&deleteRequest)
+	//if err != nil {
+	//	impl.logger.Errorw("service err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+	//	common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+	//	return
+	//}
 	common.WriteJsonResp(w, err, PROJECT_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
