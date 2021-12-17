@@ -1,19 +1,4 @@
 {
-  "__inputs": [],
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "7.0.3"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph",
-      "version": ""
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -27,11 +12,12 @@
       }
     ]
   },
+  "description": "This Graph shows latency of apps on Devtron dashboard.\n\nhttps://www.devtron.ai",
   "editable": true,
   "gnetId": 13320,
   "graphTooltip": 0,
-  "id": null,
-  "iteration": 1604307624872,
+  "id": 27,
+  "iteration": 1639736288937,
   "links": [],
   "panels": [
     {
@@ -49,31 +35,31 @@
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
-        "h": 9,
+        "h": 8,
         "w": 12,
         "x": 0,
         "y": 0
       },
       "hiddenSeries": false,
-      "id": 2,
+      "id": 5,
       "legend": {
         "avg": false,
         "current": false,
         "max": false,
         "min": false,
-        "show": true,
+        "show": false,
         "total": false,
         "values": false
       },
       "lines": true,
       "linewidth": 1,
-      "links": [],
       "nullPointMode": "null",
       "options": {
-        "dataLinks": []
+        "alertThreshold": true
       },
       "percentage": false,
-      "pointradius": 5,
+      "pluginVersion": "7.3.1",
+      "pointradius": 2,
       "points": false,
       "renderer": "flot",
       "seriesOverrides": [],
@@ -82,21 +68,21 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum by(app,rollouts_pod_template_hash, env) (label_replace(envoy_cluster_upstream_rq_time_sum{appId=\"$app\",envId=\"$env\"}, \"rollouts_pod_template_hash\", \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\")\n/ label_replace(envoy_cluster_upstream_rq_time_count{appId=\"$app\",envId=\"$env\"}, \"rollouts_pod_template_hash\",  \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\"))",
+          "expr": "sum by(pod,app,rollouts_pod_template_hash, env) (label_replace(histogram_quantile($percentile, sum(rate(envoy_cluster_upstream_rq_time_bucket{appId=\"$app\", envId=\"$env\"}[1m])) by (le, pod)), \"rollouts_pod_template_hash\",  \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\"))",
           "format": "time_series",
           "hide": false,
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "{{rollouts_pod_template_hash}}",
+          "legendFormat": "{{pod}}",
           "refId": "A"
         },
         {
-          "expr": "sum by(app,rollouts_pod_template_hash, env) (label_replace(envoy_cluster_upstream_rq_time_sum{app_id=\"$app\",env_id=\"$env\"}, \"rollouts_pod_template_hash\", \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\")\n/ label_replace(envoy_cluster_upstream_rq_time_count{app_id=\"$app\",env_id=\"$env\"}, \"rollouts_pod_template_hash\",  \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\"))",
+          "expr": "sum by(pod,app,rollouts_pod_template_hash, env) (label_replace(histogram_quantile($percentile, sum(rate(envoy_cluster_upstream_rq_time_bucket{app_id=\"$app\", env_id=\"$env\"}[1m])) by (le, pod)), \"rollouts_pod_template_hash\",  \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\"))",
           "format": "time_series",
           "hide": false,
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "{{rollouts_pod_template_hash}}",
+          "legendFormat": "{{pod}}",
           "refId": "B"
         }
       ],
@@ -120,7 +106,7 @@
       },
       "yaxes": [
         {
-          "format": "short",
+          "format": "ms",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -149,7 +135,8 @@
       "datasource": "$datasource",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -177,9 +164,10 @@
       "links": [],
       "nullPointMode": "null",
       "options": {
-        "dataLinks": []
+        "alertThreshold": true
       },
       "percentage": false,
+      "pluginVersion": "7.3.1",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -189,7 +177,116 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum by(pod,app,rollouts_pod_template_hash, env) (label_replace(envoy_cluster_upstream_rq_time_sum{appId=\"$app\",envId=\"$env\"}, \"rollouts_pod_template_hash\", \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\")\n/ label_replace(envoy_cluster_upstream_rq_time_count{appId=\"$app\",envId=\"$env\"}, \"rollouts_pod_template_hash\",  \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\"))",
+          "expr": "sum by(pod,app,rollouts_pod_template_hash, env) (label_replace(histogram_quantile($percentile, sum(rate(envoy_cluster_upstream_rq_time_bucket{appId=\"$app\", envId=\"$env\"}[1m])) by (le, pod)), \"rollouts_pod_template_hash\",  \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\"))",
+          "format": "time_series",
+          "hide": false,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "{{pod}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by(pod,app,rollouts_pod_template_hash, env) (label_replace(histogram_quantile($percentile, sum(rate(envoy_cluster_upstream_rq_time_bucket{app_id=\"$app\", env_id=\"$env\"}[1m])) by (le, pod)), \"rollouts_pod_template_hash\",  \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\"))",
+          "format": "time_series",
+          "hide": false,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "{{pod}}",
+          "refId": "B"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "ms",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "hiddenSeries": false,
+      "id": 2,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.1",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "sum by(app,rollouts_pod_template_hash, env) (label_replace(histogram_quantile($percentile, sum(rate(envoy_cluster_upstream_rq_time_bucket{appId=\"$app\", envId=\"$env\"}[1m])) by (le,rollouts_pod_template_hash)), \"rollouts_pod_template_hash\",  \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\"))",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -198,7 +295,7 @@
           "refId": "A"
         },
         {
-          "expr": "sum by(pod,app,rollouts_pod_template_hash, env) (label_replace(envoy_cluster_upstream_rq_time_sum{app_id=\"$app\",env_id=\"$env\"}, \"rollouts_pod_template_hash\", \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\")\n/ label_replace(envoy_cluster_upstream_rq_time_count{app_id=\"$app\",env_id=\"$env\"}, \"rollouts_pod_template_hash\",  \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\"))",
+          "expr": "sum by(app,rollouts_pod_template_hash, env) (label_replace(histogram_quantile($percentile, sum(rate(envoy_cluster_upstream_rq_time_bucket{app_id=\"$app\", env_id=\"$env\"}[1m])) by (le,rollouts_pod_template_hash)), \"rollouts_pod_template_hash\", \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\"))",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -227,7 +324,116 @@
       },
       "yaxes": [
         {
+          "format": "ms",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
           "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "hiddenSeries": false,
+      "id": 4,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.1",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "sum by(app,rollouts_pod_template_hash, env) (label_replace(histogram_quantile($percentile, sum(rate(envoy_cluster_upstream_rq_time_bucket{appId=\"$app\", envId=\"$env\"}[1m])) by (le,rollouts_pod_template_hash)), \"rollouts_pod_template_hash\",  \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\"))",
+          "format": "time_series",
+          "hide": false,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "{{rollouts_pod_template_hash}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by(app,rollouts_pod_template_hash, env) (label_replace(histogram_quantile($percentile, sum(rate(envoy_cluster_upstream_rq_time_bucket{app_id=\"$app\", env_id=\"$env\"}[1m])) by (le,rollouts_pod_template_hash)), \"rollouts_pod_template_hash\", \"$1(new)\", \"rollouts_pod_template_hash\",  \"($new_rollout_pod_template_hash)\"))",
+          "format": "time_series",
+          "hide": false,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "{{rollouts_pod_template_hash}}",
+          "refId": "B"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "ms",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -249,17 +455,22 @@
       }
     }
   ],
-  "refresh": "10s",
-  "schemaVersion": 25,
+  "refresh": "",
+  "schemaVersion": 26,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": [
       {
         "allValue": null,
-        "current": {},
+        "current": {
+          "selected": false,
+          "text": "3",
+          "value": "3"
+        },
         "datasource": "$datasource",
         "definition": "label_values(kube_pod_labels,label_app_id)",
+        "error": null,
         "hide": 0,
         "includeAll": false,
         "label": "app",
@@ -279,9 +490,14 @@
       },
       {
         "allValue": null,
-        "current": {},
+        "current": {
+          "selected": false,
+          "text": "35",
+          "value": "35"
+        },
         "datasource": "$datasource",
         "definition": "label_values(kube_pod_labels, label_envId)",
+        "error": null,
         "hide": 0,
         "includeAll": false,
         "label": "env",
@@ -301,14 +517,17 @@
       },
       {
         "current": {
+          "selected": true,
           "text": "6b68bf4b89",
           "value": "6b68bf4b89"
         },
+        "error": null,
         "hide": 0,
         "label": "new_rollout_pod_template_hash",
         "name": "new_rollout_pod_template_hash",
         "options": [
           {
+            "selected": true,
             "text": "6b68bf4b89",
             "value": "6b68bf4b89"
           }
@@ -323,6 +542,7 @@
           "text": "Prometheus-devtron",
           "value": "Prometheus-devtron"
         },
+        "error": null,
         "hide": 0,
         "includeAll": false,
         "label": "datasource",
@@ -334,6 +554,50 @@
         "regex": "",
         "skipUrlSync": false,
         "type": "datasource"
+      },
+      {
+        "allValue": null,
+        "current": {
+          "selected": false,
+          "text": "0.5",
+          "value": "0.5"
+        },
+        "error": null,
+        "hide": 0,
+        "includeAll": false,
+        "label": "percentile",
+        "multi": false,
+        "name": "percentile",
+        "options": [
+          {
+            "selected": true,
+            "text": "0.5",
+            "value": "0.5"
+          },
+          {
+            "selected": false,
+            "text": "0.6",
+            "value": "0.6"
+          },
+          {
+            "selected": false,
+            "text": "0.9",
+            "value": "0.9"
+          },
+          {
+            "selected": false,
+            "text": "0.95",
+            "value": "0.95"
+          },
+          {
+            "selected": false,
+            "text": "0.99",
+            "value": "0.99"
+          }
+        ],
+        "query": "0.5, 0.6, 0.9, 0.95, 0.99",
+        "skipUrlSync": false,
+        "type": "custom"
       }
     ]
   },
@@ -368,6 +632,5 @@
   "timezone": "",
   "title": "latency",
   "uid": "devtron-app-metrics-latency",
-  "version": 1,
-  "description": "This Graph shows latency of apps on Devtron dashboard.\n\nhttps://www.devtron.ai"
+  "version": 60
 }
