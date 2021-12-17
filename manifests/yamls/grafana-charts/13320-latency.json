@@ -1,4 +1,25 @@
 {
+  "__inputs": [],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "7.3.1"
+    },
+    {
+      "type": "panel",
+      "id": "graph",
+      "name": "Graph",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -16,8 +37,8 @@
   "editable": true,
   "gnetId": 13320,
   "graphTooltip": 0,
-  "id": 27,
-  "iteration": 1639736288937,
+  "id": null,
+  "iteration": 1639744548837,
   "links": [],
   "panels": [
     {
@@ -455,7 +476,7 @@
       }
     }
   ],
-  "refresh": "",
+  "refresh": "10s",
   "schemaVersion": 26,
   "style": "dark",
   "tags": [],
@@ -463,11 +484,7 @@
     "list": [
       {
         "allValue": null,
-        "current": {
-          "selected": false,
-          "text": "3",
-          "value": "3"
-        },
+        "current": {},
         "datasource": "$datasource",
         "definition": "label_values(kube_pod_labels,label_app_id)",
         "error": null,
@@ -490,11 +507,7 @@
       },
       {
         "allValue": null,
-        "current": {
-          "selected": false,
-          "text": "35",
-          "value": "35"
-        },
+        "current": {},
         "datasource": "$datasource",
         "definition": "label_values(kube_pod_labels, label_envId)",
         "error": null,
