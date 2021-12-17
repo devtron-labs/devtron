@@ -24,7 +24,7 @@ paths:
             text/event-stream:
               schema:
                 $ref: "#/components/schemas/AppList"
-  /orchestrator/application/cluster-env-details:
+  /orchestrator/application/cluster-env-details:   #TODO change url location, move to cluster
     get:
       description: "returns cluster environment namespace mappings"
       responses:
@@ -33,7 +33,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClusterEnvironmentDetail"
+                $ref: "#/components/schemas/ClusterEnvironmentDetailList"
   /orchestrator/app/list/:
     get:
       description: this api gives all devtron applications.
@@ -187,6 +187,12 @@ components:
           items:
             type: object
             $ref: "#/components/schemas/EnvironmentDetail"
+    ClusterEnvironmentDetailList:
+      type: array
+      description: list of cluster env detail object
+      items:
+        type: object
+        $ref: "#/components/schemas/ClusterEnvironmentDetail"
     HelmApp:
       type: object
       properties:
