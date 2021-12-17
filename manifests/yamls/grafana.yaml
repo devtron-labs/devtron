@@ -192,7 +192,7 @@ data:
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13320/revisions/3/download" > "/var/lib/grafana/dashboards/devtron-provider/latency-status.json"
+      "https://grafana.com/api/dashboards/13320/revisions/4/download" > "/var/lib/grafana/dashboards/devtron-provider/latency-status.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
