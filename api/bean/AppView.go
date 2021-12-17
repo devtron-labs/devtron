@@ -26,6 +26,7 @@ import (
 type AppContainer struct {
 	AppId                   int                        `json:"appId"`
 	AppName                 string                     `json:"appName"`
+	ProjectId               int                        `json:"projectId"`
 	AppEnvironmentContainer []*AppEnvironmentContainer `json:"environments"`
 	DefaultEnv              AppEnvironmentContainer    `json:"-"`
 }
@@ -57,6 +58,8 @@ type AppEnvironmentContainer struct {
 	AppName                     string                    `json:"appName"`
 	EnvironmentId               int                       `json:"environmentId"`
 	EnvironmentName             string                    `json:"environmentName"`
+	Namespace                   string                    `json:"namespace"`
+	ClusterName                 string                    `json:"clusterName"`
 	DeploymentCounter           int                       `json:"deploymentCounter,omitempty"`
 	InstanceCounter             int                       `json:"instanceCounter,omitempty"`
 	Status                      string                    `json:"status"`
@@ -65,7 +68,7 @@ type AppEnvironmentContainer struct {
 	PostStageStatus             *string                   `json:"postStageStatus"`
 	LastDeployedTime            string                    `json:"lastDeployedTime,omitempty"`
 	LastSuccessDeploymentDetail DeploymentDetailContainer `json:"-"`
-	Default                     bool                      `json:"default,omitempty"`
+	Default                     bool                      `json:"default"`
 	Deleted                     bool                      `json:"deleted"`
 	MaterialInfo                json.RawMessage           `json:"materialInfo,omitempty"`
 	DataSource                  string                    `json:"dataSource,omitempty"`
