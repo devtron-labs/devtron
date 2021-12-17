@@ -33,6 +33,7 @@ type CdWorkflowRepository interface {
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.CdWorkflowType, limit int) ([]CdWorkflowRunner, error)
+	FindLatestArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.CdWorkflowType) (CdWorkflowRunner, error)
 
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
@@ -305,6 +306,22 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipe
 		return nil, err
 	}
 	return wfrList, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FindLatestArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.CdWorkflowType) (CdWorkflowRunner, error) {
+	wfr := CdWorkflowRunner{}
+	err := impl.dbConnection.
+		Model(&wfr).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+		Where("cd_workflow.pipeline_id = ?", pipelineId).
+		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Order("cd_workflow_runner.id DESC").
+		Limit(1).
+		Select()
+	if err != nil {
+		return wfr, err
+	}
+	return wfr, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByPipelineId(pipelineId int) (CdWorkflowRunner, error) {

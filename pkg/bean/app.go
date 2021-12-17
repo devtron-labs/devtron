@@ -415,9 +415,9 @@ type CDSourceObject struct {
 }
 
 type CDPipelineConfigObject struct {
-	Id                            int                               `json:"id,omitempty"  validate:"number" `
-	EnvironmentId                 int                               `json:"environmentId,omitempty"  validate:"number,required" `
-	EnvironmentName               string                            `json:"environmentName,omitempty" `
+	Id              int    `json:"id,omitempty"  validate:"number" `
+	EnvironmentId   int    `json:"environmentId,omitempty"  validate:"number,required" `
+	EnvironmentName string `json:"environmentName,omitempty" `
 	//TODO : check if it's still being used
 	CiPipelineId                  int                               `json:"ciPipelineId,omitempty" validate:"number,required"`
 	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
@@ -433,8 +433,8 @@ type CDPipelineConfigObject struct {
 	RunPreStageInEnv              bool                              `json:"runPreStageInEnv"`
 	RunPostStageInEnv             bool                              `json:"runPostStageInEnv"`
 	CdArgoSetup                   bool                              `json:"isClusterCdActive"`
-	ParentPipelineId			  int 								`json:"parentPipelineId"`
-	ParentPipelineType			  string							`json:"parentPipelineType"`
+	ParentPipelineId              int                               `json:"parentPipelineId"`
+	ParentPipelineType            string                            `json:"parentPipelineType"`
 	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
 }
 
@@ -513,17 +513,18 @@ type Rollback struct {
 }
 
 type CiArtifactBean struct {
-	Id           int             `json:"id"`
-	Image        string          `json:"image,notnull"`
-	ImageDigest  string          `json:"image_digest,notnull"`
-	MaterialInfo json.RawMessage `json:"material_info"` //git material metadata json array string
-	DataSource   string          `json:"data_source,notnull"`
-	DeployedTime string          `json:"deployed_time"`
-	Deployed     bool            `json:"deployed,notnull"`
-	Latest       bool            `json:"latest,notnull"`
-	IsVulnerable bool            `json:"vulnerable,notnull"`
-	ScanEnabled  bool            `json:"scanEnabled,notnull"`
-	Scanned      bool            `json:"scanned,notnull"`
+	Id              int             `json:"id"`
+	Image           string          `json:"image,notnull"`
+	ImageDigest     string          `json:"image_digest,notnull"`
+	MaterialInfo    json.RawMessage `json:"material_info"` //git material metadata json array string
+	DataSource      string          `json:"data_source,notnull"`
+	DeployedTime    string          `json:"deployed_time"`
+	Deployed        bool            `json:"deployed,notnull"`
+	Latest          bool            `json:"latest,notnull"`
+	RunningOnParent bool            `json:"runningOnParent,notnull"`
+	IsVulnerable    bool            `json:"vulnerable,notnull"`
+	ScanEnabled     bool            `json:"scanEnabled,notnull"`
+	Scanned         bool            `json:"scanned,notnull"`
 }
 
 type CiArtifactResponse struct {
