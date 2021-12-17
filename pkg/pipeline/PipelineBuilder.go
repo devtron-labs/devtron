@@ -1022,6 +1022,15 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 }
 
 func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, ctx context.Context, forceDelete bool) (err error) {
+	//getting children CD pipeline details
+	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting children cd details", "err", err)
+		return err
+	} else if err == pg.ErrNoRows || len(appWorkflowMapping) > 0 {
+		impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
+		return fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
+	}
 	pipeline, err := impl.pipelineRepository.FindById(pipelineId)
 	if err != nil {
 		impl.logger.Errorw("err in fetching pipeline", "id", pipelineId, "err", err)
@@ -1040,7 +1049,7 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	}
 
 	//delete app workflow mapping
-	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(pipelineId)
+	appWorkflowMapping, err = impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(pipelineId)
 	for _, mapping := range appWorkflowMapping {
 		err := impl.appWorkflowRepository.DeleteAppWorkflowMapping(mapping, tx)
 		if err != nil {
@@ -1643,7 +1652,7 @@ func (impl PipelineBuilderImpl) GetArtifactsForPreCdStage(cdPipelineId int, pare
 			return ciArtifactsResponse, err
 		}
 	} else { //Parent is CI pipeline
-		ciArtifacts, err = impl.BuildArtifactsForCIParent(cdPipelineId,ciArtifacts,artifactMap)
+		ciArtifacts, err = impl.BuildArtifactsForCIParent(cdPipelineId, ciArtifacts, artifactMap)
 		if err != nil {
 			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", appWorkflow.CIPIPELINE, "childStage", bean2.CD_WORKFLOW_TYPE_PRE)
 			return ciArtifactsResponse, err
@@ -1683,7 +1692,7 @@ func (impl PipelineBuilderImpl) GetArtifactsForDeployCdStage(cdPipelineId int, p
 			return ciArtifactsResponse, err
 		}
 	} else { //Parent is CI
-		ciArtifacts, err = impl.BuildArtifactsForCIParent(cdPipelineId,ciArtifacts,artifactMap)
+		ciArtifacts, err = impl.BuildArtifactsForCIParent(cdPipelineId, ciArtifacts, artifactMap)
 		if err != nil {
 			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", appWorkflow.CIPIPELINE, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
 			return ciArtifactsResponse, err
@@ -1824,7 +1833,7 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdParentStage(parentPipelineId 
 
 // method for building artifacts for parent CI
 
-func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int) ([]bean.CiArtifactBean, error){
+func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int) ([]bean.CiArtifactBean, error) {
 	artifacts, err := impl.ciArtifactRepository.GetArtifactsByCDPipeline(cdPipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting artifacts for ci", "err", err)
