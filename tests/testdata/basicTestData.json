@@ -1,0 +1,22 @@
+{
+  "environment" : [
+    {
+      "envName" : "demo",
+      "baseServerUrl" : "https://demo.devtron.info:32443",
+      "loginUserName" : "admin",
+      "loginUserPwd" : "argocd-server-6574fb7cbb-2g6nz"
+    },
+    {
+      "envName" : "demo1",
+      "baseServerUrl" : "https://demo1.devtron.info:32443",
+      "loginUserName" : "admin",
+      "loginUserPwd" : "argocd-server-6574fb7cbb-8b6zc"
+    },
+    {
+      "envName" : "prod",
+      "baseServerUrl" : "https://cd.devtron.info:32443",
+      "loginUserName" : "admin",
+      "loginUserPwd" : "needtoget"
+    }
+  ]
+}
