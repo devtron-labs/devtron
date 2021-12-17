@@ -51,11 +51,10 @@ import (
 )
 
 type WorkflowDagExecutor interface {
-
 	HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error
 	HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(gitHash string) error
-	HandlePostStageSuccessEvent(cdPipelineId int, triggeredBy int32) error
+	HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error
 	Subscribe() error
 	TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) error
 	TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, async bool, triggeredBy int32) error
@@ -200,14 +199,14 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 		if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 			impl.logger.Debugw("received pre stage success event for workflow runner ", "wfId", strconv.Itoa(wf.Id))
 			err = impl.HandlePreStageSuccessEvent(cdStageCompleteEvent)
-			if err!=nil {
-				impl.logger.Errorw("deployment success event error",  "err", err)
+			if err != nil {
+				impl.logger.Errorw("deployment success event error", "err", err)
 				return
 			}
 		} else if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 			impl.logger.Debugw("received post stage success event for workflow runner ", "wfId", strconv.Itoa(wf.Id))
-			err = impl.HandlePostStageSuccessEvent(cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy)
-			if err!=nil {
+			err = impl.HandlePostStageSuccessEvent(wf.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy)
+			if err != nil {
 				impl.logger.Errorw("deployment success event error", "err", err)
 				return
 			}
@@ -615,27 +614,32 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 
 			err := impl.TriggerPostStage(cdWorkflow, pipelineOverride.Pipeline, 1)
 			if err != nil {
-				impl.logger.Errorw("error in triggering post stage after successful deployment event","cdWorkflow",cdWorkflow)
+				impl.logger.Errorw("error in triggering post stage after successful deployment event", "cdWorkflow", cdWorkflow)
 				return err
 			}
 		}
-	}else{
+	} else {
 		// to trigger next pre/cd, if any
 		// finding children cd by pipeline id
-		err := impl.HandlePostStageSuccessEvent(pipelineOverride.PipelineId, 1)
-		if err!=nil{
-			impl.logger.Errorw("error in triggering children cd after successful deployment event","parentCdPipelineId",pipelineOverride.PipelineId)
+		err := impl.HandlePostStageSuccessEvent(cdWorkflow.Id, pipelineOverride.PipelineId, 1)
+		if err != nil {
+			impl.logger.Errorw("error in triggering children cd after successful deployment event", "parentCdPipelineId", pipelineOverride.PipelineId)
 			return err
 		}
 	}
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdPipelineId int, triggeredBy int32) error{
+func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error {
 	// finding children cd by pipeline id
 	cdPipelinesMapping, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(cdPipelineId)
-	if err!=nil{
-		impl.logger.Errorw("error in getting mapping of cd pipelines by parent cd pipeline id","err",err,"parentCdPipelineId",cdPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting mapping of cd pipelines by parent cd pipeline id", "err", err, "parentCdPipelineId", cdPipelineId)
+		return err
+	}
+	ciArtifact, err := impl.ciArtifactRepository.GetArtifactByCdWorkflowId(cdWorkflowId)
+	if err != nil {
+		impl.logger.Errorw("error in finding artifact by cd workflow id", "err", err, "cdWorkflowId", cdWorkflowId)
 		return err
 	}
 	//TODO : confirm about this logic used for applyAuth
@@ -643,19 +647,18 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdPipelineId in
 	if triggeredBy != 1 {
 		applyAuth = true
 	}
-	for _, cdPipelineMapping := range cdPipelinesMapping{
+	for _, cdPipelineMapping := range cdPipelinesMapping {
 		//find pipeline by cdPipeline ID
 		pipeline, err := impl.pipelineRepository.FindById(cdPipelineMapping.ComponentId)
-		if err!=nil{
-			impl.logger.Errorw("error in getting cd pipeline by id","err",err,"pipelineId",cdPipelineMapping.ComponentId)
+		if err != nil {
+			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "pipelineId", cdPipelineMapping.ComponentId)
 			return err
 		}
 		//finding ci artifact by ciPipelineID and pipelineId
-		ciArtifact, err := impl.ciArtifactRepository.GetArtifactByCIPipelineIdAndPipelineId(pipeline.CiPipelineId,pipeline.Id)
 		//TODO : confirm values for applyAuth, async & triggeredBy
-		err = impl.triggerStage(nil,pipeline,ciArtifact,applyAuth,false,triggeredBy)
-		if err!=nil{
-			impl.logger.Errorw("error in triggering cd pipeline after successful post stage","err",err,"pipelineId",pipeline.Id)
+		err = impl.triggerStage(nil, pipeline, ciArtifact, applyAuth, false, triggeredBy)
+		if err != nil {
+			impl.logger.Errorw("error in triggering cd pipeline after successful post stage", "err", err, "pipelineId", pipeline.Id)
 			return err
 		}
 	}
