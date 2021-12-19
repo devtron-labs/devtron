@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+option go_package = "github.com/devtron-labs/go-helm-client/bean/grpc/client";
+
+message ClusterConfig {
+  string apiServerUrl = 1;
+  string token = 2;
+  int32 clusterId = 3;
+}
+
+message AppListRequest {
+  repeated ClusterConfig clusters = 1;
+}
+
+
+
+
+service ApplicationService {
+  rpc ListApplications(AppListRequest) returns (stream DeployedAppList){}
+}
+
+message DeployedAppList {
+  repeated DeployedAppDetail DeployedAppDetail = 1;
+  int32 clusterId = 2;
+  string errorMsg = 3;
+  bool errored = 4;
+}
+
+message DeployedAppDetail {
+  string appId = 1;
+  string appName = 2;
+  string chartName = 3;
+  string chartAvatar = 4;
+  EnvironmentDetails environment = 5;
+
+}
+message EnvironmentDetails{
+  string clusterName = 1;
+  int32 clusterId = 2;
+  string namespace = 3;
+
+}

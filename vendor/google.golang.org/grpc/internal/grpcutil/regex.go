@@ -1,8 +1,6 @@
-// +build !go1.10
-
 /*
  *
- * Copyright 2020 gRPC authors.
+ * Copyright 2021 gRPC authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +16,13 @@
  *
  */
 
-package credentials
+package grpcutil
 
-import (
-	"crypto/tls"
-	"net/url"
-)
+import "regexp"
 
-//TODO(ZhenLian): delete this file when we remove Go 1.9 tests.
-func SPIFFEIDFromState(state tls.ConnectionState) *url.URL {
-	return nil
+// FullMatchWithRegex returns whether the full string matches the regex provided.
+func FullMatchWithRegex(re *regexp.Regexp, string string) bool {
+	re.Longest()
+	rem := re.FindString(string)
+	return len(rem) == len(string)
 }
