@@ -20,8 +20,6 @@ package pipeline
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/go-pg/pg"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -60,15 +58,13 @@ type DockerArtifactStoreBean struct {
 type DockerRegistryConfigImpl struct {
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
 	logger                        *zap.SugaredLogger
-	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 }
 
 func NewDockerRegistryConfigImpl(dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
-	logger *zap.SugaredLogger, ciTemplateRepository pipelineConfig.CiTemplateRepository) *DockerRegistryConfigImpl {
+	logger *zap.SugaredLogger) *DockerRegistryConfigImpl {
 	return &DockerRegistryConfigImpl{
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 		logger:                        logger,
-		ciTemplateRepository:          ciTemplateRepository,
 	}
 }
 
@@ -246,13 +242,6 @@ func (impl DockerRegistryConfigImpl) Delete(storeId string) (string, error) {
 }
 
 func (impl DockerRegistryConfigImpl) DeleteReg(bean *DockerArtifactStoreBean) error {
-	//finding if docker reg is used in any app, if yes then will not delete
-	ciTemplates, err := impl.ciTemplateRepository.FindByDockerRegistryId(bean.Id)
-	if !(ciTemplates == nil && err == pg.ErrNoRows) {
-		impl.logger.Errorw("err in deleting docker registry, found docker build config using registry", "dockerRegistry", bean.Id, "err", err)
-		return fmt.Errorf(" Please update all related docker config before deleting this registry : %w", err)
-	}
-
 	dockerReg, err := impl.dockerArtifactStoreRepository.FindOne(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id, "err", err)

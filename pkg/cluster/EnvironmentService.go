@@ -19,7 +19,6 @@ package cluster
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -66,7 +65,6 @@ type EnvironmentServiceImpl struct {
 	clusterService          ClusterService
 	K8sUtil                 *util.K8sUtil
 	propertiesConfigService pipeline.PropertiesConfigService
-	pipelineRepository      pipelineConfig.PipelineRepository
 	userAuthService         user.UserAuthService
 }
 
@@ -74,7 +72,6 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	pipelineRepository pipelineConfig.PipelineRepository,
 	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository:   environmentRepository,
@@ -82,7 +79,6 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		clusterService:          clusterService,
 		K8sUtil:                 K8sUtil,
 		propertiesConfigService: propertiesConfigService,
-		pipelineRepository:      pipelineRepository,
 		userAuthService:         userAuthService,
 	}
 }
@@ -398,12 +394,6 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 }
 
 func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int32) error {
-	//finding if this env is used in any cd pipelines, if yes then will not delete
-	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(deleteReq.Id)
-	if !(pipelines == nil && err == pg.ErrNoRows) {
-		impl.logger.Errorw("err in deleting env, found pipelines in this env", "envName", deleteReq.Environment, "err", err)
-		return fmt.Errorf(" Please delete all related pipelines before deleting this environment : %w", err)
-	}
 	existingTeam, err := impl.environmentRepository.FindById(deleteReq.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", deleteReq.Id)

@@ -33,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -794,13 +793,6 @@ func (impl *AppStoreServiceImpl) DeleteChartRepo(request *ChartRepoDto) error {
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
-	//finding if any charts is deployed using this repo, if yes then will not delete
-	deployedCharts, err := impl.installedAppRepository.GetAllInstalledAppsByChartRepoId(request.Id)
-	if !(deployedCharts == nil && err == pg.ErrNoRows) {
-		impl.logger.Errorw("err in deleting repo, found charts deployed using this repo", "chartRepo", request)
-		return fmt.Errorf("cannot delete repo, found charts deployed in this repo: %w", err)
-	}
 
 	chartRepo, err := impl.repoRepository.FindById(request.Id)
 	if err != nil && !util.IsErrNoRows(err) {

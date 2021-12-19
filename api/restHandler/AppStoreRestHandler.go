@@ -29,6 +29,7 @@ import (
 	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appstore"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -70,12 +71,14 @@ type AppStoreRestHandlerImpl struct {
 	enforcerUtil     rbac.EnforcerUtil
 	validator        *validator.Validate
 	client           *http.Client
+	deleteService    delete2.DeleteService
 }
 
 func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appStoreService appstore.AppStoreService,
 	acdServiceClient application.ServiceClient, teamService team.TeamService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil,
-	validator *validator.Validate, client *http.Client) *AppStoreRestHandlerImpl {
+	validator *validator.Validate, client *http.Client,
+	deleteService delete2.DeleteService) *AppStoreRestHandlerImpl {
 	return &AppStoreRestHandlerImpl{
 		Logger:           Logger,
 		appStoreService:  appStoreService,
@@ -86,6 +89,7 @@ func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.
 		enforcerUtil:     enforcerUtil,
 		validator:        validator,
 		client:           client,
+		deleteService:    deleteService,
 	}
 }
 
@@ -475,7 +479,7 @@ func (handler *AppStoreRestHandlerImpl) ValidateChartRepo(w http.ResponseWriter,
 	common.WriteJsonResp(w, nil, validationResult, http.StatusOK)
 }
 
-func(handler *AppStoreRestHandlerImpl)DeleteChartRepo(w http.ResponseWriter, r *http.Request){
+func (handler *AppStoreRestHandlerImpl) DeleteChartRepo(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -505,13 +509,13 @@ func(handler *AppStoreRestHandlerImpl)DeleteChartRepo(w http.ResponseWriter, r *
 	//rbac ends here
 	request.UserId = userId
 	handler.Logger.Infow("request payload, DeleteChartRepo", "payload", request)
-	err = handler.appStoreService.DeleteChartRepo(request)
+	err = handler.deleteService.DeleteChartRepo(request)
 	if err != nil {
 		handler.Logger.Errorw("err in deleting chart repo", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil,CHART_REPO_DELETE_SUCCESS_RESP , http.StatusOK)
+	common.WriteJsonResp(w, nil, CHART_REPO_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 func (handler *AppStoreRestHandlerImpl) TriggerChartSyncManual(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)

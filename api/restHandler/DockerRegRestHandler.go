@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strings"
@@ -33,7 +34,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 )
 
-const REG_DELETE_SUCCESS_RESP  = "Container Registry deleted successfully."
+const REG_DELETE_SUCCESS_RESP = "Container Registry deleted successfully."
 
 type DockerRegRestHandler interface {
 	SaveDockerRegistryConfig(w http.ResponseWriter, r *http.Request)
@@ -54,6 +55,7 @@ type DockerRegRestHandlerImpl struct {
 	validator            *validator.Validate
 	enforcer             casbin.Enforcer
 	teamService          team.TeamService
+	deleteService        delete2.DeleteService
 }
 
 const secureWithCert = "secure-with-cert"
@@ -62,7 +64,8 @@ func NewDockerRegRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryCon
 	logger *zap.SugaredLogger,
 	gitRegistryConfig pipeline.GitRegistryConfig,
 	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService) *DockerRegRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
+	deleteService delete2.DeleteService) *DockerRegRestHandlerImpl {
 	return &DockerRegRestHandlerImpl{
 		dockerRegistryConfig: dockerRegistryConfig,
 		logger:               logger,
@@ -72,6 +75,7 @@ func NewDockerRegRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryCon
 		validator:            validator,
 		enforcer:             enforcer,
 		teamService:          teamService,
+		deleteService:        deleteService,
 	}
 }
 
@@ -259,7 +263,7 @@ func (impl DockerRegRestHandlerImpl) IsDockerRegConfigured(w http.ResponseWriter
 	common.WriteJsonResp(w, err, isConfigured, http.StatusOK)
 }
 
-func (impl DockerRegRestHandlerImpl) DeleteDockerRegistryConfig(w http.ResponseWriter, r *http.Request){
+func (impl DockerRegRestHandlerImpl) DeleteDockerRegistryConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -274,27 +278,26 @@ func (impl DockerRegRestHandlerImpl) DeleteDockerRegistryConfig(w http.ResponseW
 		return
 	}
 	bean.User = userId
-		impl.logger.Infow("request payload, DeleteDockerRegistryConfig", "payload", bean)
-		err = impl.validator.Struct(bean)
-		if err != nil {
-			impl.logger.Errorw("validation err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
+	impl.logger.Infow("request payload, DeleteDockerRegistryConfig", "payload", bean)
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validation err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
-		// RBAC enforcer applying
-		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionUpdate, strings.ToLower(bean.Id)); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-		//RBAC enforcer Ends
-		err = impl.dockerRegistryConfig.DeleteReg(&bean)
-		if err != nil {
-			impl.logger.Errorw("service err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-
-		common.WriteJsonResp(w, err,REG_DELETE_SUCCESS_RESP, http.StatusOK)
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionUpdate, strings.ToLower(bean.Id)); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	err = impl.deleteService.DeleteDockerRegistryConfig(&bean)
+	if err != nil {
+		impl.logger.Errorw("service err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, REG_DELETE_SUCCESS_RESP, http.StatusOK)
 }

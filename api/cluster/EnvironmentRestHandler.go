@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -52,16 +53,18 @@ type EnvironmentRestHandlerImpl struct {
 	userService                       user.UserService
 	validator                         *validator.Validate
 	enforcer                          casbin.Enforcer
+	deleteService                     delete2.DeleteService
 }
 
 func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer) *EnvironmentRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService) *EnvironmentRestHandlerImpl {
 	return &EnvironmentRestHandlerImpl{
 		environmentClusterMappingsService: svc,
 		logger:                            logger,
 		userService:                       userService,
 		validator:                         validator,
 		enforcer:                          enforcer,
+		deleteService:                     deleteService,
 	}
 }
 
@@ -318,7 +321,7 @@ func (impl EnvironmentRestHandlerImpl) Delete(w http.ResponseWriter, r *http.Req
 		return
 	}
 	//RBAC enforcer Ends
-	err = impl.environmentClusterMappingsService.Delete(&bean, userId)
+	err = impl.deleteService.DeleteEnvironment(&bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Delete", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

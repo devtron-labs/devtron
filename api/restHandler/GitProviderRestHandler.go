@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -51,13 +52,15 @@ type GitProviderRestHandlerImpl struct {
 	validator            *validator.Validate
 	enforcer             casbin.Enforcer
 	teamService          team.TeamService
+	deleteService        delete2.DeleteService
 }
 
 func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
 	logger *zap.SugaredLogger,
 	gitRegistryConfig pipeline.GitRegistryConfig,
 	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService) *GitProviderRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
+	deleteService delete2.DeleteService) *GitProviderRestHandlerImpl {
 	return &GitProviderRestHandlerImpl{
 		dockerRegistryConfig: dockerRegistryConfig,
 		logger:               logger,
@@ -67,6 +70,7 @@ func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryC
 		validator:            validator,
 		enforcer:             enforcer,
 		teamService:          teamService,
+		deleteService: deleteService,
 	}
 }
 
@@ -231,7 +235,7 @@ func (impl GitProviderRestHandlerImpl) DeleteGitRepoConfig(w http.ResponseWriter
 		return
 	}
 	//RBAC enforcer Ends
-	err = impl.gitRegistryConfig.Delete(&bean)
+	err = impl.deleteService.DeleteGitProvider(&bean)
 	if err != nil {
 		impl.logger.Errorw("error in deleting git account", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
