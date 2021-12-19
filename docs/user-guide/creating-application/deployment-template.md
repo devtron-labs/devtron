@@ -76,15 +76,16 @@ LivenessProbe:
       value: abc
   scheme: ""
   tcp: true
+```
 
 | Key | Description |
 | :--- | :--- |
 | `Path` | It define the path where the liveness needs to be checked. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
 | `initialDelaySeconds` | It defines the time to wait before a given container is checked for liveliness. |
 | `periodSeconds` | It defines the time to check a given container for liveness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
+| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
@@ -92,7 +93,7 @@ LivenessProbe:
 
 ### MaxUnavailable
 
- ```yaml
+```yaml
   MaxUnavailable: 0
 ```
 The maximum number of pods that can be unavailable during the update process. The value of "MaxUnavailable: " can be an absolute number or percentage of the replicas count. The default value of "MaxUnavailable: " is 25%.
@@ -130,16 +131,16 @@ ReadinessProbe:
       value: abc
   scheme: ""
   tcp: true
-
+```
 
 | Key | Description |
 | :--- | :--- |
 | `Path` | It define the path where the readiness needs to be checked. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
 | `initialDelaySeconds` | It defines the time to wait before a given container is checked for readiness. |
 | `periodSeconds` | It defines the time to check a given container for readiness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
+| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
@@ -160,11 +161,11 @@ autoscaling:
 
 | Key | Description |
 | :--- | :--- |
-| `MaxReplicas` | Maximum number of replicas allowed for scaling. |
+| `enabled` | Set true to enable autoscaling else set false.|
 | `MinReplicas` | Minimum number of replicas allowed for scaling. |
+| `MaxReplicas` | Maximum number of replicas allowed for scaling. |
 | `TargetCPUUtilizationPercentage` | The target CPU utilization that is expected for a container. |
 | `TargetMemoryUtilizationPercentage` | The target memory utilization that is expected for a container. |
-| `enabled` | Set true to enable autoscaling else set false.|
 | `extraMetrics` | Used to give external metrics for autoscaling. |
 
 ### Image
