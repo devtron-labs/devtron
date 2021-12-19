@@ -103,23 +103,28 @@ type FetchAppListingRequest struct {
 
 }
 
-func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceClusterPair []*repository2.ClusterNamespacePair, err error) {
+func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
 	for _, ns := range req.Namespaces {
 		items := strings.Split(ns, "_")
-		if len(items) != 2 {
-			return nil, fmt.Errorf("invalid namespaceds")
+		if len(items) < 1 && len(items) > 2 {
+			return nil, nil, fmt.Errorf("invalid namespaceds")
 		}
 		clusterId, err := strconv.Atoi(items[0])
 		if err != nil {
-			return nil, fmt.Errorf("invalid clustrer id")
+			return nil, nil, fmt.Errorf("invalid clustrer id")
 		}
-		pair := &repository2.ClusterNamespacePair{
-			NamespaceName: items[1],
-			ClusterId:     clusterId,
+		if len(items) == 2 {
+			pair := &repository2.ClusterNamespacePair{
+				ClusterId:     clusterId,
+				NamespaceName: items[1],
+			}
+			namespaceClusterPair = append(namespaceClusterPair, pair)
+
+		} else {
+			clusterIds = append(clusterIds, clusterId)
 		}
-		namespaceClusterPair = append(namespaceClusterPair, pair)
 	}
-	return namespaceClusterPair, nil
+	return namespaceClusterPair, clusterIds, nil
 }
 
 type AppListingServiceImpl struct {
@@ -143,7 +148,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
-	) *AppListingServiceImpl {
+) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                     Logger,
 		appListingRepository:       appListingRepository,
@@ -167,19 +172,29 @@ const NotDeployed = "Not Deployed"
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	// TODO: check statuses
-	mapping, err := fetchAppListingRequest.GetNamespaceClusterMapping()
+	mappings, clusterIds, err := fetchAppListingRequest.GetNamespaceClusterMapping()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "error", err)
 		return []*bean.AppEnvironmentContainer{}, err
 	}
-	if len(mapping)>0{
-		envs, err:=impl.environmentRepository.FindByClusterIdAndNamespace(mapping)
-		if err!=nil{
+	if len(mappings) > 0 {
+		envs, err := impl.environmentRepository.FindByClusterIdAndNamespace(mappings)
+		if err != nil {
 			impl.Logger.Errorw("error in cluster ns mapping")
 			return []*bean.AppEnvironmentContainer{}, err
 		}
-		for _, env:= range envs{
-			fetchAppListingRequest.Environments= append(fetchAppListingRequest.Environments, env.Id)
+		for _, env := range envs {
+			fetchAppListingRequest.Environments = append(fetchAppListingRequest.Environments, env.Id)
+		}
+	}
+	if len(clusterIds) > 0 {
+		envs, err := impl.environmentRepository.FindByClusterIds(clusterIds)
+		if err != nil {
+			impl.Logger.Errorw("error in cluster ns mapping")
+			return []*bean.AppEnvironmentContainer{}, err
+		}
+		for _, env := range envs {
+			fetchAppListingRequest.Environments = append(fetchAppListingRequest.Environments, env.Id)
 		}
 	}
 	appListingFilter := helper.AppListingFilter{
