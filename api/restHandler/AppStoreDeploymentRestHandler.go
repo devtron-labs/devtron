@@ -303,22 +303,23 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		return
 	}
 
-	var installedAppsResponse []appstore.InstalledAppsResponse
-	for _, app := range res {
+	for _, app := range *res.HelmApps {
+		appName := *app.AppName
+		envId := (*app.EnvironmentDetail).EnvironmentId
 		//rbac block starts from here
-		object := handler.enforcerUtil.GetAppRBACName(app.AppName)
+		object := handler.enforcerUtil.GetAppRBACName(appName)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 			continue
 		}
-		object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, app.EnvironmentId)
+
+		object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(appName, int(*envId) )
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
 			continue
 		}
 		//rback block ends here
-		installedAppsResponse = append(installedAppsResponse, app)
 	}
 
-	common.WriteJsonResp(w, err, installedAppsResponse, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler InstalledAppRestHandlerImpl) GetInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request) {
