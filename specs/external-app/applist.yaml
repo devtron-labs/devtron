@@ -3,20 +3,16 @@ info:
   version: 1.0.0
   title: Devtron Labs
 paths:
-  /orchestrator/application/:
-    get:
+  /orchestrator/application:
+    post:
       description: this api gives all external application+ devtron helm chart applications.
-      parameters:
-        - in: query
-          name: clusterIds
-          example: [ 16, 13 ]
-          description: cluster ids
-          required: true
-          allowEmptyValue: false
-          schema:
-            type: array
-            items:
-              type: integer
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HelmAppListRequest'
       responses:
         "200":
           description: all application responces
@@ -271,3 +267,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AppEnvironmentDetail"
+    HelmAppListRequest:
+      type: object
+      properties:
+        clusterIds:
+          type: array
+          description: cluster ids
+          items:
+            type: integer
+            format: int64
+          example: [ 1, 2, 3 ]
+
