@@ -1647,13 +1647,13 @@ func (impl PipelineBuilderImpl) GetArtifactsForPreCdStage(cdPipelineId int, pare
 	}
 	if parentType == bean2.CD_WORKFLOW_TYPE_POST || parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
 		ciArtifacts, err = impl.BuildArtifactsForCdParentStage(parentId, parentType, ciArtifacts, artifactMap)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_PRE)
 			return ciArtifactsResponse, err
 		}
 	} else { //Parent is CI pipeline
 		ciArtifacts, err = impl.BuildArtifactsForCIParent(cdPipelineId, ciArtifacts, artifactMap)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", appWorkflow.CIPIPELINE, "childStage", bean2.CD_WORKFLOW_TYPE_PRE)
 			return ciArtifactsResponse, err
 		}
@@ -1681,19 +1681,19 @@ func (impl PipelineBuilderImpl) GetArtifactsForDeployCdStage(cdPipelineId int, p
 	}
 	if len(pipeline.PreStageConfig) > 0 {
 		ciArtifacts, err = impl.BuildArtifactsForCdParentStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_PRE, ciArtifacts, artifactMap)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", bean2.CD_WORKFLOW_TYPE_PRE, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
 			return ciArtifactsResponse, err
 		}
 	} else if parentType == bean2.CD_WORKFLOW_TYPE_POST || parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
 		ciArtifacts, err = impl.BuildArtifactsForCdParentStage(parentId, parentType, ciArtifacts, artifactMap)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
 			return ciArtifactsResponse, err
 		}
 	} else { //Parent is CI
 		ciArtifacts, err = impl.BuildArtifactsForCIParent(cdPipelineId, ciArtifacts, artifactMap)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", appWorkflow.CIPIPELINE, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
 			return ciArtifactsResponse, err
 		}
@@ -1717,7 +1717,7 @@ func (impl PipelineBuilderImpl) GetArtifactsForPostCdStage(cdPipelineId int) (be
 		return ciArtifactsResponse, err
 	}
 	ciArtifacts, err = impl.BuildArtifactsForCdParentStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY, ciArtifacts, artifactMap)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for children cd stage", "err", err, "stage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
 		return ciArtifactsResponse, err
 	}
