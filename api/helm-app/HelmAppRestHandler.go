@@ -25,10 +25,6 @@ func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 	}
 }
 
-type ClusterIds struct {
-	ClusterIds []int `json:"clusterIds"`
-}
-
 func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	clusterIdString := vars["clusterIds"]
