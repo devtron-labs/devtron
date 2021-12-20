@@ -1641,7 +1641,7 @@ func (impl PipelineBuilderImpl) GetArtifactsForPreCdStage(cdPipelineId int, pare
 
 	artifactMap := make(map[int]int)
 	ciArtifacts, artifactMap, err = impl.BuildArtifactsForChildStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_PRE)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for children cd stage", "err", err, "stage", bean2.CD_WORKFLOW_TYPE_PRE)
 		return ciArtifactsResponse, err
 	}
@@ -1675,7 +1675,7 @@ func (impl PipelineBuilderImpl) GetArtifactsForDeployCdStage(cdPipelineId int, p
 	}
 	artifactMap := make(map[int]int)
 	ciArtifacts, artifactMap, err = impl.BuildArtifactsForChildStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for children cd stage", "err", err, "stage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
 		return ciArtifactsResponse, err
 	}
@@ -1712,7 +1712,7 @@ func (impl PipelineBuilderImpl) GetArtifactsForPostCdStage(cdPipelineId int) (be
 	artifactMap := make(map[int]int)
 	var err error
 	ciArtifacts, artifactMap, err = impl.BuildArtifactsForChildStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_POST)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for children cd stage", "err", err, "stage", bean2.CD_WORKFLOW_TYPE_POST)
 		return ciArtifactsResponse, err
 	}
