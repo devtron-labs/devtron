@@ -35,4 +35,27 @@ var UserWireSet = wire.NewSet(
 	casbin.NewEnforcerImpl,
 	wire.Bind(new(casbin.Enforcer), new(*casbin.EnforcerImpl)),
 	casbin.Create,
+
+	NewHelmUserRouterImpl,
+	wire.Bind(new(HelmUserRouter), new(*HelmUserRouterImpl)),
+	NewHelmUserRestHandlerImpl,
+	wire.Bind(new(HelmUserRestHandler), new(*HelmUserRestHandlerImpl)),
+	user.NewHelmUserServiceImpl,
+	wire.Bind(new(user.HelmUserService), new(*user.HelmUserServiceImpl)),
+	user.NewHelmUserRepositoryImpl,
+	wire.Bind(new(user.HelmUserRepository), new(*user.HelmUserRepositoryImpl)),
+
+	user.NewHelmUserUtilImpl,
+	wire.Bind(new(user.HelmUserUtil), new(*user.HelmUserUtilImpl)),
+	user.NewHelmUserRoleGroupServiceImpl,
+	wire.Bind(new(user.HelmUserRoleGroupService), new(*user.HelmUserRoleGroupServiceImpl)),
+
+
+
+	user.NewHelmUserRoleRepositoryImpl,
+	wire.Bind(new(user.HelmUserRoleRepository), new(*user.HelmUserRoleRepositoryImpl)),
+	user.NewHelmUserRoleGroupRepositoryImpl,
+	wire.Bind(new(user.HelmUserRoleGroupRepository), new(*user.HelmUserRoleGroupRepositoryImpl)),
+
+
 )
