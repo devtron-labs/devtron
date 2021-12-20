@@ -72,7 +72,7 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.Re
 }
 
 func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *DeployedAppList) openapi.AppList {
-	applicationType := "DEVTRON-CHART-STORE"
+	applicationType := "HELM-APP"
 	appList := openapi.AppList{ClusterIds: &[]int32{deployedApps.ClusterId}, ApplicationType: &applicationType}
 	if deployedApps.Errored {
 		appList.Errored = &deployedApps.Errored
