@@ -281,6 +281,7 @@ func InitializeApp() (*App, error) {
 		pipeline.GetEcrConfig,
 		NewApp,
 		//session.NewK8sClient,
+
 		util.NewK8sUtil,
 		argocdServer.NewVersionServiceImpl,
 		wire.Bind(new(argocdServer.VersionService), new(*argocdServer.VersionServiceImpl)),

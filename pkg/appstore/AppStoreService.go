@@ -21,6 +21,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -35,19 +44,10 @@ import (
 	"github.com/ghodss/yaml"
 	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
-	"io"
-	"io/ioutil"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/helm/pkg/getter"
 	"k8s.io/helm/pkg/helm/environment"
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/version"
-	"net/http"
-	"net/url"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const ValidationSuccessMsg = "Configurations are validated successfully"
@@ -125,7 +125,6 @@ type AppStoreService interface {
 	FindChartVersionsByAppStoreId(appStoreId int) ([]AppStoreVersionsResponse, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean.AppDetailContainer, error)
 	GetReadMeByAppStoreApplicationVersionId(id int) (*ReadmeRes, error)
-
 	SearchAppStoreChartByName(chartName string) ([]*appstore.ChartRepoSearch, error)
 	CreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error)
 	UpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error)
@@ -135,7 +134,7 @@ type AppStoreService interface {
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
-	WatchAndSaveConfigMap() (watch.Interface,error)
+	WatchAndSaveConfigMap() error
 }
 
 type AppStoreVersionsResponse struct {
@@ -160,8 +159,8 @@ type AppStoreServiceImpl struct {
 	versionService                argocdServer.VersionService
 	aCDAuthConfig                 *util2.ACDAuthConfig
 	client                        *http.Client
-	refRepository				  chartConfig.ChartRefRepository
-	ChartTemplateService		  util.ChartTemplateService
+	refRepository                 chartConfig.ChartRefRepository
+	ChartTemplateService          util.ChartTemplateService
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
@@ -182,8 +181,8 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		versionService:                versionService,
 		aCDAuthConfig:                 aCDAuthConfig,
 		client:                        client,
-		refRepository:				   refRepository,
-		ChartTemplateService:		   ChartTemplateService,
+		refRepository:                 refRepository,
+		ChartTemplateService:          ChartTemplateService,
 	}
 }
 
@@ -788,47 +787,63 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 		return err
 	}
 
-
 	return nil
 }
-func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() (watch.Interface,error){
+
+const watcherRestart = "restart event watcher"
+
+func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() error {
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	client, err := impl.K8sUtil.GetClientSet(cfg)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	dir := impl.ChartTemplateService.GetDir()
-	chartName, chartVersion, binaryData, err := impl.K8sUtil.WatchConfigMap( argocdServer.DevtronInstalationNs, dir, client)
+	chartName, chartVersion, chartBinaryData, err := impl.K8sUtil.WatchConfigMap(argocdServer.DevtronInstalationNs, dir, client)
 	if err != nil {
-		return nil, err
-	}
-	var dirLocation string
-	if !strings.Contains(chartName, strings.ReplaceAll(chartVersion, ".", "-")) {
-		dirLocation = chartName + "_" + strings.ReplaceAll(chartVersion, ".", "-")
-	} else {
-		dirLocation = chartName
+		return err
 	}
 
-	refChartDir := filepath.Join(string(impl.K8sUtil.RefChartDir), dirLocation)
+	if err.Error() == watcherRestart{
+		go impl.K8sUtil.WatchConfigMap(argocdServer.DevtronInstalationNs, dir, client)
+	}
+
+	var chartLocation string
+	if !strings.Contains(chartName, strings.ReplaceAll(chartVersion, ".", "-")) {
+		chartLocation = chartName + "_" + strings.ReplaceAll(chartVersion, ".", "-")
+	} else {
+		chartLocation = chartName
+	}
+
+	refChartDir := filepath.Join(string(impl.K8sUtil.RefChartDir), chartLocation)
 	chartDir := filepath.Join(string(impl.K8sUtil.ChartWorkingDir), dir)
+
 	err = dirCopy.Copy(refChartDir, chartDir)
 	if err != nil {
 		impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
 	}
+
+	charts, err := impl.refRepository.GetAll()
+	for  _, chart := range charts{
+		if chart.Name == chartName && chart.Version == chartVersion && chart.Location == chartLocation {
+			go impl.K8sUtil.WatchConfigMap(argocdServer.DevtronInstalationNs, dir, client)
+		}
+	}
+
 	chartRefs := &chartConfig.ChartRef{
 		Name:      chartName,
 		Version:   chartVersion,
-		Location:  dirLocation,
+		Location:  chartLocation,
 		Active:    true,
 		Default:   false,
-		ChartData: binaryData,
+		ChartData: chartBinaryData,
 		AuditLog: sql.AuditLog{
 			CreatedBy: 1,
 			CreatedOn: time.Now(),
@@ -840,8 +855,8 @@ func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() (watch.Interface,error)
 	err = impl.refRepository.Save(chartRefs)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart config", "err", err)
-		return nil, err
+		return err
 	}
 
-	return nil, nil
+	return nil
 }

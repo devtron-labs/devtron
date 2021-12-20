@@ -45,13 +45,14 @@ import (
 	"strings"
 	"time"
 )
+
 type K8sUtilimpl interface {
 }
 
 type K8sUtil struct {
-	logger       		*zap.SugaredLogger
-	ChartWorkingDir 	ChartWorkingDir
-	RefChartDir			pipeline.RefChartDir
+	logger          *zap.SugaredLogger
+	ChartWorkingDir ChartWorkingDir
+	RefChartDir     pipeline.RefChartDir
 }
 
 type ClusterConfig struct {
@@ -59,8 +60,8 @@ type ClusterConfig struct {
 	BearerToken string
 }
 
-func NewK8sUtil(logger *zap.SugaredLogger, chartWorkingDir 	ChartWorkingDir,refChartDir	pipeline.RefChartDir) *K8sUtil {
-	return &K8sUtil{logger: logger, ChartWorkingDir: chartWorkingDir, RefChartDir: refChartDir}
+func NewK8sUtil(logger *zap.SugaredLogger, ChartWorkingDir ChartWorkingDir, RefChartDir pipeline.RefChartDir) *K8sUtil {
+	return &K8sUtil{logger: logger, ChartWorkingDir: ChartWorkingDir, RefChartDir: RefChartDir}
 }
 
 func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
@@ -204,8 +205,7 @@ func (impl K8sUtil) WatchConfigMap(namespace string, dir string, client kubernet
 		case event, ok := <-ch:
 			if !ok {
 				// the channel got closed, so we need to restart
-				go impl.WatchConfigMap(namespace,dir,client)
-				time.Sleep(time.Second)
+				return "", "", nil, error2.New(watcherRestart)
 			}
 			configMaps, ok := event.Object.(*coreV1.ConfigMap)
 			if !ok {
@@ -247,8 +247,7 @@ func (impl K8sUtil) WatchConfigMap(namespace string, dir string, client kubernet
 			}
 
 		case <-time.After(30 * time.Minute):
-			go impl.WatchConfigMap(namespace,dir,client)
-			time.Sleep(time.Second)
+			return "", "", nil, error2.New(watcherRestart)
 		}
 	}
 
