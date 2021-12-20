@@ -64,14 +64,14 @@ func(impl ChartHistoryRepositoryImpl) UpdateGlobalHistory(chart *ChartsGlobalHis
 }
 
 func (impl ChartHistoryRepositoryImpl) GetLatestGlobalHistoryByChartsId(chartsId int) (*ChartsGlobalHistory, error) {
-	var chartHistory *ChartsGlobalHistory
+	var chartHistory ChartsGlobalHistory
 	err := impl.dbConnection.Model(&chartHistory).Where("charts_id = ?", chartsId).
 		Where("latest = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting latest entry for global chart history", "err", err, "charts_id", chartsId)
-		return chartHistory, err
+		return &chartHistory, err
 	}
-	return chartHistory, nil
+	return &chartHistory, nil
 }
 
 
@@ -109,12 +109,12 @@ func(impl ChartHistoryRepositoryImpl) UpdateEnvHistory(chart *ChartsEnvHistory) 
 }
 
 func (impl ChartHistoryRepositoryImpl) GetLatestEnvHistoryByEnvConfigOverrideId(envConfigOverrideId int) (*ChartsEnvHistory, error) {
-	var chartHistory *ChartsEnvHistory
+	var chartHistory ChartsEnvHistory
 	err := impl.dbConnection.Model(&chartHistory).Where("chart_env_config_override_id = ?", envConfigOverrideId).
 		Where("latest = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting latest entry for env chart history", "err", err, "envConfigOverrideId", envConfigOverrideId)
-		return chartHistory, err
+		return &chartHistory, err
 	}
-	return chartHistory, nil
+	return &chartHistory, nil
 }
