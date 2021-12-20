@@ -1,10 +1,12 @@
 package client
 
 import (
-	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 type HelmAppRestHandler interface {
@@ -28,13 +30,18 @@ type ClusterIds struct {
 }
 
 func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	var clusterIds ClusterIds
-	err := decoder.Decode(&clusterIds)
-	if err != nil {
-		handler.logger.Errorw("request err, CreateUser", "err", err, "payload", clusterIds)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	vars := mux.Vars(r)
+	clusterIdString := vars["clusterIds"]
+	clusterIdSlices := strings.Split(clusterIdString, ",")
+	var clusterIds []int
+	for _, is := range clusterIdSlices {
+		j, err := strconv.Atoi(is)
+		if err != nil {
+			handler.logger.Errorw("request err, CreateUser", "err", err, "payload", clusterIds)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		clusterIds = append(clusterIds, j)
 	}
-	handler.helmAppService.ListHelmApplications(clusterIds.ClusterIds, w)
+	handler.helmAppService.ListHelmApplications(clusterIds, w)
 }
