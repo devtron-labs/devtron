@@ -1,0 +1,32 @@
+openapi: "3.0.2"
+info:
+  title: version api
+  version: "1.0"
+paths:
+  /orchestrator/version:
+    get:
+      responses:
+        "200":
+          description: meta info about devtron server
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gitCommit:
+                    type: string
+                    example: d252aa3e
+                    description: git hash from which code was compiled
+                  buildTime:
+                    type: string
+                    format: date-time
+                    example: "2021-12-15T05:44:05Z"
+                    description: time when code was complied
+                  serverMode:
+                    type: string
+                    example: FULL
+                    description: "server mode FULL/EA_ONLY"
+                    enum:
+                      - FULL
+                      - EA_ONLY
+
