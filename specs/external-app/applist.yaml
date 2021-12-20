@@ -24,7 +24,7 @@ paths:
             text/event-stream:
               schema:
                 $ref: "#/components/schemas/AppList"
-  /orchestrator/application/cluster-env-details:   #TODO change url location, move to cluster
+  /orchestrator/application/cluster-env-details: #TODO change url location, move to cluster
     get:
       description: "returns cluster environment namespace mappings"
       responses:
@@ -219,10 +219,27 @@ components:
         environmentDetail:
           type: object
           $ref: "#/components/schemas/AppEnvironmentDetail"
-
     AppList:
       type: object
       properties:
+        clusterIds:
+          type: array
+          description: clusters to which result corresponds
+          example: [ 1, 2 ]
+          items:
+            type: integer
+        applicationType:
+          description: application type inside the array
+          type: string
+          enum: [ DEVTRON-CHART-STORE, DEVTRON-APP ,HELM-APP ]
+        errored:
+          type: boolean
+          description: if data fetch for that cluster produced error
+          example: false
+        errorMsg:
+          type: string
+          description: error msg if client failed to fetch
+          example: cluster not rechable
         helmApps:
           type: array
           description: all helm app list, EA+ devtronapp

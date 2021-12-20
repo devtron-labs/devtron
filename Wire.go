@@ -23,6 +23,7 @@ package main
 import (
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/devtron-labs/devtron/api/router"
@@ -93,6 +94,7 @@ func InitializeApp() (*App, error) {
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
 		dashboard.DashboardWireSet,
+		client.HelmAppWireSet,
 
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
