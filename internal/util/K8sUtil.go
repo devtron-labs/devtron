@@ -23,6 +23,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	error2 "errors"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	"io"
@@ -44,14 +45,13 @@ import (
 	"strings"
 	"time"
 )
-
-type ConfigMapDir string
 type K8sUtilimpl interface {
 }
 
 type K8sUtil struct {
-	logger       *zap.SugaredLogger
-	ConfigMapDir ConfigMapDir
+	logger       		*zap.SugaredLogger
+	ChartWorkingDir 	ChartWorkingDir
+	RefChartDir			pipeline.RefChartDir
 }
 
 type ClusterConfig struct {
@@ -59,8 +59,8 @@ type ClusterConfig struct {
 	BearerToken string
 }
 
-func NewK8sUtil(logger *zap.SugaredLogger, configMapDir ConfigMapDir) *K8sUtil {
-	return &K8sUtil{logger: logger, ConfigMapDir: configMapDir}
+func NewK8sUtil(logger *zap.SugaredLogger, chartWorkingDir 	ChartWorkingDir,refChartDir	pipeline.RefChartDir) *K8sUtil {
+	return &K8sUtil{logger: logger, ChartWorkingDir: chartWorkingDir, RefChartDir: refChartDir}
 }
 
 func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
@@ -181,6 +181,8 @@ func (impl K8sUtil) GetConfigMap(namespace string, name string, client *v12.Core
 	}
 }
 
+const watcherRestart = "restart event watcher"
+
 func (impl K8sUtil) WatchConfigMap(namespace string, dir string, client kubernetes.Interface) (string, string, []byte, error) {
 	api := client.CoreV1().ConfigMaps(namespace)
 	configMaps, err := api.List(metav1.ListOptions{})
@@ -189,7 +191,8 @@ func (impl K8sUtil) WatchConfigMap(namespace string, dir string, client kubernet
 	}
 
 	resourceVersion := configMaps.ListMeta.ResourceVersion
-	watcher, err := api.Watch(metav1.ListOptions{ResourceVersion: resourceVersion})
+	timeout := int64(1800)
+	watcher, err := api.Watch(metav1.ListOptions{ResourceVersion: resourceVersion, TimeoutSeconds: &timeout})
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -197,46 +200,56 @@ func (impl K8sUtil) WatchConfigMap(namespace string, dir string, client kubernet
 	ch := watcher.ResultChan()
 
 	for {
-		event := <-ch
-		configMaps, ok := event.Object.(*coreV1.ConfigMap)
-		if !ok {
-			panic("Could not cast to Endpoint")
-		}
-		annotations, ok := configMaps.Annotations["charts.devtron.ai/data"]
-		if !ok {
-			continue
-		}
-		if annotations == "mount" {
-			for filename, binaryData := range configMaps.BinaryData {
-				binaryDataReader := bytes.NewReader(binaryData)
-				chartDir := filepath.Join(string(impl.ConfigMapDir), dir)
-				err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
-				if err != nil {
-					impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
-					return "", "", nil, err
-				}
-				impl.ExtractTarGz(binaryDataReader, chartDir)
+		select {
+		case event, ok := <-ch:
+			if !ok {
+				// the channel got closed, so we need to restart
+				go impl.WatchConfigMap(namespace,dir,client)
 				time.Sleep(time.Second)
+			}
+			configMaps, ok := event.Object.(*coreV1.ConfigMap)
+			if !ok {
+				return "", "", nil, nil
+			}
+			annotations, ok := configMaps.Annotations["charts.devtron.ai/data"]
+			if !ok {
+				continue
+			}
+			if annotations == "mount" {
+				for filename, binaryData := range configMaps.BinaryData {
+					binaryDataReader := bytes.NewReader(binaryData)
+					chartDir := filepath.Join(string(impl.ChartWorkingDir), dir)
+					err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
+					if err != nil {
+						impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
+						return "", "", nil, err
+					}
 
-				configmapDirectoryName := strings.Split(filename, ".")
+					impl.ExtractTarGz(binaryDataReader, chartDir)
 
-				readFile, err := ioutil.ReadFile(filepath.Join(string(impl.ConfigMapDir), configmapDirectoryName[0], "Chart.Yaml"))
-				if err != nil {
-					return "", "", nil, err
+					configmapDirectoryName := strings.Split(filename, ".")
+
+					readFile, err := ioutil.ReadFile(filepath.Join(string(impl.ChartWorkingDir), configmapDirectoryName[0], "Chart.Yaml"))
+					if err != nil {
+						return "", "", nil, err
+					}
+
+					chartContent, err := chartutil.UnmarshalChartfile(readFile)
+					if err != nil {
+						return "", "", nil, err
+					}
+					configMapName := chartContent.Name
+					configMapVersion := chartContent.Version
+
+					return configMapName, configMapVersion, binaryData, nil
 				}
 
-				chartContent, err := chartutil.UnmarshalChartfile(readFile)
-				if err != nil {
-					return "", "", nil, err
-				}
-				configMapName := chartContent.Name
-				configMapVersion := chartContent.Version
-
-				return configMapName, configMapVersion, binaryData, nil
 			}
 
+		case <-time.After(30 * time.Minute):
+			go impl.WatchConfigMap(namespace,dir,client)
+			time.Sleep(time.Second)
 		}
-
 	}
 
 	return "", "", nil, err
@@ -460,7 +473,7 @@ func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, cluster
 	return nil
 }
 
-func (impl K8sUtil) ExtractTarGz(gzipStream io.Reader, configMapsDir string) {
+func (impl K8sUtil) ExtractTarGz(gzipStream io.Reader, chartDir string) {
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
 		log.Fatal("ExtractTarGz: NewReader failed")
@@ -479,8 +492,8 @@ func (impl K8sUtil) ExtractTarGz(gzipStream io.Reader, configMapsDir string) {
 		}
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if _, err := os.Stat(filepath.Join(configMapsDir, header.Name)); os.IsNotExist(err) {
-				if err := os.Mkdir(filepath.Join(configMapsDir, header.Name), 0755); err != nil {
+			if _, err := os.Stat(filepath.Join(chartDir, header.Name)); os.IsNotExist(err) {
+				if err := os.Mkdir(filepath.Join(chartDir, header.Name), 0755); err != nil {
 					log.Fatalf("ExtractTarGz: Mkdir() failed: %s", err.Error())
 				}
 			} else {
@@ -488,7 +501,7 @@ func (impl K8sUtil) ExtractTarGz(gzipStream io.Reader, configMapsDir string) {
 			}
 
 		case tar.TypeReg:
-			outFile, err := os.Create(filepath.Join(configMapsDir, header.Name))
+			outFile, err := os.Create(filepath.Join(chartDir, header.Name))
 			if err != nil {
 				log.Fatalf("ExtractTarGz: Create() failed: %s", err.Error())
 			}

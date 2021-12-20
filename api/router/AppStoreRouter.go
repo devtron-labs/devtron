@@ -97,8 +97,6 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 
 	configRouter.Path("/repo/sync-charts").
 		HandlerFunc(router.appStoreRestHandler.TriggerChartSyncManual).Methods("POST")
-	configRouter.Path("/repo/get-cm").
-		HandlerFunc(router.appStoreRestHandler.GetAndCreateConfigMap).Methods("POST")
 	configRouter.Path("/repo/list").
 		HandlerFunc(router.appStoreRestHandler.GetChartRepoList).Methods("GET")
 	configRouter.Path("/repo/{id}").

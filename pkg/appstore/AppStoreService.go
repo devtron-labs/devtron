@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
+	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -43,6 +44,7 @@ import (
 	"k8s.io/helm/pkg/version"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -133,7 +135,7 @@ type AppStoreService interface {
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
-	WatchAndSaveConfigMap(UserId int32) (watch.Interface,error)
+	WatchAndSaveConfigMap() (watch.Interface,error)
 }
 
 type AppStoreVersionsResponse struct {
@@ -789,7 +791,7 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 
 	return nil
 }
-func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap(UserId int32) (watch.Interface,error){
+func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() (watch.Interface,error){
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
 		return nil, err
@@ -807,25 +809,31 @@ func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap(UserId int32) (watch.Inte
 	if err != nil {
 		return nil, err
 	}
-	var dirName string
+	var dirLocation string
 	if !strings.Contains(chartName, strings.ReplaceAll(chartVersion, ".", "-")) {
-		dirName = chartName + "_" + strings.ReplaceAll(chartVersion, ".", "-")
+		dirLocation = chartName + "_" + strings.ReplaceAll(chartVersion, ".", "-")
 	} else {
-		dirName = chartName
+		dirLocation = chartName
 	}
 
+	refChartDir := filepath.Join(string(impl.K8sUtil.RefChartDir), dirLocation)
+	chartDir := filepath.Join(string(impl.K8sUtil.ChartWorkingDir), dir)
+	err = dirCopy.Copy(refChartDir, chartDir)
+	if err != nil {
+		impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
+	}
 	chartRefs := &chartConfig.ChartRef{
 		Name:      chartName,
 		Version:   chartVersion,
-		Location:  dirName,
+		Location:  dirLocation,
 		Active:    true,
 		Default:   false,
 		ChartData: binaryData,
 		AuditLog: sql.AuditLog{
-			CreatedBy: UserId,
+			CreatedBy: 1,
 			CreatedOn: time.Now(),
 			UpdatedOn: time.Now(),
-			UpdatedBy: UserId,
+			UpdatedBy: 1,
 		},
 	}
 
