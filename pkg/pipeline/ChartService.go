@@ -143,6 +143,7 @@ type ChartServiceImpl struct {
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
 	client                    *http.Client
 	K8sUtil                   *util.K8sUtil
+	CustomFormatCheckers	  *util2.CustomFormatCheckers
 }
 
 func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -183,6 +184,8 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 		pipelineRepository:        pipelineRepository,
 		appLevelMetricsRepository: appLevelMetricsRepository,
 		client:                    client,
+		CustomFormatCheckers: 	   CustomFormatCheckers,
+		K8sUtil: 				   K8sUtil,
 	}
 }
 

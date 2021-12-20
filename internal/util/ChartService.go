@@ -43,7 +43,6 @@ type ChartTemplateService interface {
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
-	CreateAndPushToGit(appName, baseTemplateName, version, tmpChartLocation string) (chartGitAttribute *ChartGitAttribute, err error)
 	GetDir() string
 }
 type ChartTemplateServiceImpl struct {
@@ -129,7 +128,7 @@ func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, 
 		return nil, nil, err
 	}
 	values.Values = valuesYaml
-	chartGitAttr, err := impl.CreateAndPushToGit(chartMetaData.Name, templateName, chartMetaData.Version, chartDir)
+	chartGitAttr, err := impl.createAndPushToGit(chartMetaData.Name, templateName, chartMetaData.Version, chartDir)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
 		return nil, nil, err
@@ -147,7 +146,7 @@ type ChartGitAttribute struct {
 	RepoUrl, ChartLocation string
 }
 
-func (impl ChartTemplateServiceImpl) CreateAndPushToGit(appName, baseTemplateName, version, tmpChartLocation string) (chartGitAttribute *ChartGitAttribute, err error) {
+func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateName, version, tmpChartLocation string) (chartGitAttribute *ChartGitAttribute, err error) {
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appName = space.ReplaceAllString(appName, "-")
