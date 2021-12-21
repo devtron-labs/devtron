@@ -227,6 +227,206 @@ func (a *DefaultApiService) OrchestratorAppListGetExecute(r ApiOrchestratorAppLi
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
+type ApiOrchestratorAppStoreInstalledAppsGetRequest struct {
+	ctx _context.Context
+	ApiService *DefaultApiService
+	envIds *[]int32
+	clusterIds *[]int32
+	onlyDeprecated *bool
+	chartRepoIds *int32
+	offset *int32
+	size *int32
+	appStoreName *string
+	sortBy *string
+}
+
+// environment ids
+func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) EnvIds(envIds []int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
+	r.envIds = &envIds
+	return r
+}
+// cluster ids
+func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) ClusterIds(clusterIds []int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
+	r.clusterIds = &clusterIds
+	return r
+}
+// deprecated flag
+func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) OnlyDeprecated(onlyDeprecated bool) ApiOrchestratorAppStoreInstalledAppsGetRequest {
+	r.onlyDeprecated = &onlyDeprecated
+	return r
+}
+// size
+func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) ChartRepoIds(chartRepoIds int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
+	r.chartRepoIds = &chartRepoIds
+	return r
+}
+// offser
+func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) Offset(offset int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
+	r.offset = &offset
+	return r
+}
+// size
+func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) Size(size int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
+	r.size = &size
+	return r
+}
+// app store name
+func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) AppStoreName(appStoreName string) ApiOrchestratorAppStoreInstalledAppsGetRequest {
+	r.appStoreName = &appStoreName
+	return r
+}
+// app name
+func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) SortBy(sortBy string) ApiOrchestratorAppStoreInstalledAppsGetRequest {
+	r.sortBy = &sortBy
+	return r
+}
+
+func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) Execute() (AppList, *_nethttp.Response, error) {
+	return r.ApiService.OrchestratorAppStoreInstalledAppsGetExecute(r)
+}
+
+/*
+OrchestratorAppStoreInstalledAppsGet Method for OrchestratorAppStoreInstalledAppsGet
+
+this api gives all chart-store applications.
+
+ @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiOrchestratorAppStoreInstalledAppsGetRequest
+*/
+func (a *DefaultApiService) OrchestratorAppStoreInstalledAppsGet(ctx _context.Context) ApiOrchestratorAppStoreInstalledAppsGetRequest {
+	return ApiOrchestratorAppStoreInstalledAppsGetRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return AppList
+func (a *DefaultApiService) OrchestratorAppStoreInstalledAppsGetExecute(r ApiOrchestratorAppStoreInstalledAppsGetRequest) (AppList, *_nethttp.Response, error) {
+	var (
+		localVarHTTPMethod   = _nethttp.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  AppList
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorAppStoreInstalledAppsGet")
+	if err != nil {
+		return localVarReturnValue, nil, GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/orchestrator/app-store/installed-apps/"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := _neturl.Values{}
+	localVarFormParams := _neturl.Values{}
+	if r.envIds == nil {
+		return localVarReturnValue, nil, reportError("envIds is required and must be specified")
+	}
+	if r.clusterIds == nil {
+		return localVarReturnValue, nil, reportError("clusterIds is required and must be specified")
+	}
+	if r.onlyDeprecated == nil {
+		return localVarReturnValue, nil, reportError("onlyDeprecated is required and must be specified")
+	}
+	if r.chartRepoIds == nil {
+		return localVarReturnValue, nil, reportError("chartRepoIds is required and must be specified")
+	}
+	if r.offset == nil {
+		return localVarReturnValue, nil, reportError("offset is required and must be specified")
+	}
+	if r.size == nil {
+		return localVarReturnValue, nil, reportError("size is required and must be specified")
+	}
+	if r.appStoreName == nil {
+		return localVarReturnValue, nil, reportError("appStoreName is required and must be specified")
+	}
+	if r.sortBy == nil {
+		return localVarReturnValue, nil, reportError("sortBy is required and must be specified")
+	}
+
+	{
+		t := *r.envIds
+		if reflect.TypeOf(t).Kind() == reflect.Slice {
+			s := reflect.ValueOf(t)
+			for i := 0; i < s.Len(); i++ {
+				localVarQueryParams.Add("envIds", parameterToString(s.Index(i), "multi"))
+			}
+		} else {
+			localVarQueryParams.Add("envIds", parameterToString(t, "multi"))
+		}
+	}
+	{
+		t := *r.clusterIds
+		if reflect.TypeOf(t).Kind() == reflect.Slice {
+			s := reflect.ValueOf(t)
+			for i := 0; i < s.Len(); i++ {
+				localVarQueryParams.Add("clusterIds", parameterToString(s.Index(i), "multi"))
+			}
+		} else {
+			localVarQueryParams.Add("clusterIds", parameterToString(t, "multi"))
+		}
+	}
+	localVarQueryParams.Add("onlyDeprecated", parameterToString(*r.onlyDeprecated, ""))
+	localVarQueryParams.Add("chartRepoIds", parameterToString(*r.chartRepoIds, ""))
+	localVarQueryParams.Add("offset", parameterToString(*r.offset, ""))
+	localVarQueryParams.Add("size", parameterToString(*r.size, ""))
+	localVarQueryParams.Add("appStoreName", parameterToString(*r.appStoreName, ""))
+	localVarQueryParams.Add("sortBy", parameterToString(*r.sortBy, ""))
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := _ioutil.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = _ioutil.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
 type ApiOrchestratorApplicationClusterEnvDetailsGetRequest struct {
 	ctx _context.Context
 	ApiService *DefaultApiService
