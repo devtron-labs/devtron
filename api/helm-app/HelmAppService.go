@@ -79,6 +79,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 		appList.ErrorMsg = &deployedApps.ErrorMsg
 	} else {
 		var HelmApps []openapi.HelmApp
+		projectId := int32(0) //TODO pick from db
 		for _, deployedapp := range deployedApps.DeployedAppDetail {
 			lastDeployed := deployedapp.LastDeployed.AsTime()
 			helmApp := openapi.HelmApp{
@@ -87,7 +88,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 				ChartName:      &deployedapp.ChartName,
 				ChartAvatar:    &deployedapp.ChartAvatar,
 				LastDeployedAt: &lastDeployed,
-				//	ProjectId:         0,
+				ProjectId:      &projectId,
 				EnvironmentDetail: &openapi.AppEnvironmentDetail{
 					Namespace:   &deployedapp.Environment.Namespace,
 					ClusterName: &deployedapp.Environment.ClusterName,
