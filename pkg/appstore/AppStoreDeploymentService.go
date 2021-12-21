@@ -513,25 +513,30 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appstore.AppStoreFilter) (ope
 	}
 	var helmAppsResponse []openapi.HelmApp
 	for _, a := range installedApps {
-		appId := strconv.Itoa(a.Id)
-		projectId := int32(a.TeamId)
-		envId := int32(a.EnvironmentId)
-		clusterId := int32(a.ClusterId)
+		appLocal := a // copied data from here because value is passed as reference
+		if appLocal.TeamId == 0{
+			//skipping entries for empty projectId
+			continue
+		}
+		appId := strconv.Itoa(appLocal.Id)
+		projectId := int32(appLocal.TeamId)
+		envId := int32(appLocal.EnvironmentId)
+		clusterId := int32(appLocal.ClusterId)
 		environmentDetails := openapi.AppEnvironmentDetail{
-			EnvironmentName: &a.EnvironmentName,
+			EnvironmentName: &appLocal.EnvironmentName,
 			EnvironmentId:   &envId,
-			Namespace:       &a.Namespace,
-			ClusterName:     &a.ClusterName,
+			Namespace:       &appLocal.Namespace,
+			ClusterName:     &appLocal.ClusterName,
 			ClusterId:       &clusterId,
 		}
 		helmAppResp := openapi.HelmApp{
-			AppName:           &a.AppName,
-			ChartName:         &a.AppStoreApplicationName,
+			AppName:           &appLocal.AppName,
+			ChartName:         &appLocal.AppStoreApplicationName,
 			AppId:             &appId,
 			ProjectId:         &projectId,
 			EnvironmentDetail: &environmentDetails,
-			ChartAvatar:       &a.Icon,
-			LastDeployedAt:    &a.UpdatedOn,
+			ChartAvatar:       &appLocal.Icon,
+			LastDeployedAt:    &appLocal.UpdatedOn,
 		}
 		helmAppsResponse = append(helmAppsResponse, helmAppResp)
 	}
