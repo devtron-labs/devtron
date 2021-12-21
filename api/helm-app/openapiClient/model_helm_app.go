@@ -12,10 +12,13 @@ package openapi
 
 import (
 	"encoding/json"
+	"time"
 )
 
 // HelmApp struct for HelmApp
 type HelmApp struct {
+	// time when this application was last deployed/updated
+	LastDeployedAt *time.Time `json:"lastDeployedAt,omitempty"`
 	// name of the helm application/helm release name
 	AppName *string `json:"appName,omitempty"`
 	// unique identifier for app
@@ -44,6 +47,38 @@ func NewHelmApp() *HelmApp {
 func NewHelmAppWithDefaults() *HelmApp {
 	this := HelmApp{}
 	return &this
+}
+
+// GetLastDeployedAt returns the LastDeployedAt field value if set, zero value otherwise.
+func (o *HelmApp) GetLastDeployedAt() time.Time {
+	if o == nil || o.LastDeployedAt == nil {
+		var ret time.Time
+		return ret
+	}
+	return *o.LastDeployedAt
+}
+
+// GetLastDeployedAtOk returns a tuple with the LastDeployedAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *HelmApp) GetLastDeployedAtOk() (*time.Time, bool) {
+	if o == nil || o.LastDeployedAt == nil {
+		return nil, false
+	}
+	return o.LastDeployedAt, true
+}
+
+// HasLastDeployedAt returns a boolean if a field has been set.
+func (o *HelmApp) HasLastDeployedAt() bool {
+	if o != nil && o.LastDeployedAt != nil {
+		return true
+	}
+
+	return false
+}
+
+// SetLastDeployedAt gets a reference to the given time.Time and assigns it to the LastDeployedAt field.
+func (o *HelmApp) SetLastDeployedAt(v time.Time) {
+	o.LastDeployedAt = &v
 }
 
 // GetAppName returns the AppName field value if set, zero value otherwise.
@@ -240,6 +275,9 @@ func (o *HelmApp) SetEnvironmentDetail(v AppEnvironmentDetail) {
 
 func (o HelmApp) MarshalJSON() ([]byte, error) {
 	toSerialize := map[string]interface{}{}
+	if o.LastDeployedAt != nil {
+		toSerialize["lastDeployedAt"] = o.LastDeployedAt
+	}
 	if o.AppName != nil {
 		toSerialize["appName"] = o.AppName
 	}
