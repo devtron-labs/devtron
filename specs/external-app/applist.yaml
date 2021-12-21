@@ -275,6 +275,11 @@ components:
     HelmApp:
       type: object
       properties:
+        lastDeployedAt:
+          type: string
+          format: date-time
+          example: "2021-12-15T05:44:05Z"
+          description: time when this application was last deployed/updated
         appName:
           type: string
           description: name of the helm application/helm release name
