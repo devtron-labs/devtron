@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -158,16 +159,18 @@ type AppStoreServiceImpl struct {
 	envService                    cluster.EnvironmentService
 	versionService                argocdServer.VersionService
 	aCDAuthConfig                 *util2.ACDAuthConfig
-	client                        *http.Client
-	refRepository                 chartConfig.ChartRefRepository
-	ChartTemplateService          util.ChartTemplateService
+	client               		  *http.Client
+	ChartRefRepository  		  chartConfig.ChartRefRepository
+	ChartTemplateService 		  util.ChartTemplateService
+	RefChartDir					  pipeline.RefChartDir
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService, aCDAuthConfig *util2.ACDAuthConfig, client *http.Client, refRepository chartConfig.ChartRefRepository, ChartTemplateService util.ChartTemplateService) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *util2.ACDAuthConfig, client *http.Client, refRepository chartConfig.ChartRefRepository,
+	ChartTemplateService util.ChartTemplateService, RefChartDir pipeline.RefChartDir) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -181,8 +184,9 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		versionService:                versionService,
 		aCDAuthConfig:                 aCDAuthConfig,
 		client:                        client,
-		refRepository:                 refRepository,
+		ChartRefRepository:            refRepository,
 		ChartTemplateService:          ChartTemplateService,
+		RefChartDir:				   RefChartDir,
 	}
 }
 
@@ -822,7 +826,7 @@ func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() error {
 		chartLocation = chartName
 	}
 
-	refChartDir := filepath.Join(string(impl.K8sUtil.RefChartDir), chartLocation)
+	refChartDir := filepath.Join(string(impl.RefChartDir), chartLocation)
 	chartDir := filepath.Join(string(impl.K8sUtil.ChartWorkingDir), dir)
 
 	err = dirCopy.Copy(refChartDir, chartDir)
@@ -830,7 +834,7 @@ func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() error {
 		impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
 	}
 
-	charts, err := impl.refRepository.GetAll()
+	charts, err := impl.ChartRefRepository.GetAll()
 	for  _, chart := range charts{
 		if chart.Name == chartName && chart.Version == chartVersion && chart.Location == chartLocation {
 			go impl.K8sUtil.WatchConfigMap(argocdServer.DevtronInstalationNs, dir, client)
@@ -852,7 +856,7 @@ func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() error {
 		},
 	}
 
-	err = impl.refRepository.Save(chartRefs)
+	err = impl.ChartRefRepository.Save(chartRefs)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart config", "err", err)
 		return err
