@@ -499,12 +499,12 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int) (*InstallAppV
 func (impl InstalledAppServiceImpl) GetAll(filter *appstore.AppStoreFilter) (openapi.AppList, error) {
 	applicationType := "DEVTRON-CHART-STORE"
 	var clusterIdsConverted []int32
-	for _, clusterId := range filter.ClusterIds{
+	for _, clusterId := range filter.ClusterIds {
 		clusterIdsConverted = append(clusterIdsConverted, int32(clusterId))
 	}
 	installedAppsResponse := openapi.AppList{
 		ApplicationType: &applicationType,
-		ClusterIds: &clusterIdsConverted,
+		ClusterIds:      &clusterIdsConverted,
 	}
 	installedApps, err := impl.installedAppRepository.GetAllInstalledApps(filter)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -516,11 +516,13 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appstore.AppStoreFilter) (ope
 		appId := strconv.Itoa(a.Id)
 		projectId := int32(a.TeamId)
 		envId := int32(a.EnvironmentId)
+		clusterId := int32(a.ClusterId)
 		environmentDetails := openapi.AppEnvironmentDetail{
 			EnvironmentName: &a.EnvironmentName,
 			EnvironmentId:   &envId,
 			Namespace:       &a.Namespace,
 			ClusterName:     &a.ClusterName,
+			ClusterId:       &clusterId,
 		}
 		helmAppResp := openapi.HelmApp{
 			AppName:           &a.AppName,
@@ -528,6 +530,7 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appstore.AppStoreFilter) (ope
 			AppId:             &appId,
 			ProjectId:         &projectId,
 			EnvironmentDetail: &environmentDetails,
+			ChartAvatar:       &a.Icon,
 		}
 		helmAppsResponse = append(helmAppsResponse, helmAppResp)
 	}
