@@ -9,6 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes/typed/events/v1beta1"
+	v1b1 "k8s.io/api/events/v1beta1"
 	"k8s.io/client-go/rest"
 )
 
@@ -21,12 +23,15 @@ type k8sApplication interface {
 type K8sApplicationServiceImpl struct {
 	restConfig *rest.Config
 	logger     *zap.SugaredLogger
+	restInterface rest.Interface
 }
 
-func NewK8sApplicationServiceImpl(restConfig *rest.Config, logger *zap.SugaredLogger) *K8sApplicationServiceImpl {
+func NewK8sApplicationServiceImpl(restConfig *rest.Config, logger *zap.SugaredLogger,
+	restInterface rest.Interface) *K8sApplicationServiceImpl {
 	return &K8sApplicationServiceImpl{
 		restConfig: restConfig,
 		logger:     logger,
+		restInterface: restInterface,
 	}
 }
 
@@ -55,7 +60,13 @@ type DeleteRequest struct {
 }
 
 type ManifestResponse struct {
+	//TODO : update validations
 	Manifest unstructured.Unstructured `protobuf:"bytes,1,req,name=manifest" json:"manifest,omitempty"`
+}
+
+type EventResponse struct{
+	//TODO : update validations
+	Event *v1b1.Event
 }
 
 func (impl K8sApplicationServiceImpl) GetResource(request *GetRequest)(*ManifestResponse, error) {
@@ -125,6 +136,16 @@ func (impl K8sApplicationServiceImpl) DeleteResource(request *DeleteRequest) (*M
 	return &ManifestResponse{*obj}, nil
 }
 
+func (impl K8sApplicationServiceImpl) GetEvents(request *GetRequest)(*EventResponse, error) {
+	eventsClient := v1beta1.New(impl.restInterface)
+	//TODO : confirm method to be used(get vs list)
+	event, err := eventsClient.Events(request.Namespace).Get(request.Name, metav1.GetOptions{})
+	if err != nil{
+		return nil, err
+	}
+	return &EventResponse{event}, nil
+}
+
 func ServerResourceForGroupVersionKind(discoveryClient discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
 	resources, err := discoveryClient.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
 	if err != nil {
@@ -132,7 +153,6 @@ func ServerResourceForGroupVersionKind(discoveryClient discovery.DiscoveryInterf
 	}
 	for _, r := range resources.APIResources {
 		if r.Kind == gvk.Kind {
-			//log.Debugf("Chose API '%s' for %s", r.Name, gvk)
 			return &r, nil
 		}
 	}
