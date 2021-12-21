@@ -48,16 +48,18 @@ type RoleGroupServiceImpl struct {
 	logger              *zap.SugaredLogger
 	userRepository      repository2.UserRepository
 	roleGroupRepository repository2.RoleGroupRepository
+	userCommonService   UserCommonService
 }
 
 func NewRoleGroupServiceImpl(userAuthRepository repository2.UserAuthRepository,
 	logger *zap.SugaredLogger, userRepository repository2.UserRepository,
-	roleGroupRepository repository2.RoleGroupRepository) *RoleGroupServiceImpl {
+	roleGroupRepository repository2.RoleGroupRepository, userCommonService UserCommonService) *RoleGroupServiceImpl {
 	serviceImpl := &RoleGroupServiceImpl{
 		userAuthRepository:  userAuthRepository,
 		logger:              logger,
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
+		userCommonService:   userCommonService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -235,71 +237,22 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 		return nil, err
 	}
 
-	// DELETE PROCESS STARTS
-	existingRoleIds := make(map[int]*repository2.RoleGroupRoleMapping)
-	remainingExistingRoleIds := make(map[int]*repository2.RoleGroupRoleMapping)
+	existingRoles := make(map[int]*repository2.RoleGroupRoleMapping)
+	eliminatedRoles := make(map[int]*repository2.RoleGroupRoleMapping)
 	for _, item := range roleGroupMappingModels {
-		existingRoleIds[item.RoleId] = item
-		remainingExistingRoleIds[item.RoleId] = item
+		existingRoles[item.RoleId] = item
+		eliminatedRoles[item.RoleId] = item
 	}
 
-	// Filter out removed items in current request
-	//var policies []casbin2.Policy
-	for _, roleFilter := range request.RoleFilters {
-		if roleFilter.EntityName == "" {
-			roleFilter.EntityName = "NONE"
-		}
-		if roleFilter.Environment == "" {
-			roleFilter.Environment = "NONE"
-		}
-		entityNames := strings.Split(roleFilter.EntityName, ",")
-		environments := strings.Split(roleFilter.Environment, ",")
-		for _, environment := range environments {
-			for _, entityName := range entityNames {
-				if entityName == "NONE" {
-					entityName = ""
-				}
-				if environment == "NONE" {
-					environment = ""
-				}
-				roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.Type)
-				if err != nil {
-					impl.logger.Errorw("Error in fetching roles by filter", "user", request)
-					return nil, err
-				}
-				if roleModel.Id == 0 {
-					impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
-					request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
-					continue
-				}
-				//roleModel := roleModels[0]
-				if _, ok := existingRoleIds[roleModel.Id]; ok {
-					delete(remainingExistingRoleIds, roleModel.Id)
-				}
-			}
-		}
+	// DELETE PROCESS STARTS
+	var eliminatedPolicies []casbin2.Policy
+	items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx)
+	if err != nil {
+		return nil, err
 	}
-
-	//delete remaining Ids from casbin role mapping table in orchestrator and casbin policy db
-	// which are existing but not provided in this request
-	var policiesRemove []casbin2.Policy
-	for _, model := range remainingExistingRoleIds {
-		_, err := impl.roleGroupRepository.DeleteRoleGroupRoleMapping(model, tx)
-		if err != nil {
-			return nil, err
-		}
-		role, err := impl.userAuthRepository.GetRoleById(model.RoleId)
-		if err != nil {
-			return nil, err
-		}
-		policyGroup, err := impl.roleGroupRepository.GetRoleGroupById(model.RoleGroupId)
-		if err != nil {
-			return nil, err
-		}
-		policiesRemove = append(policiesRemove, casbin2.Policy{Type: "g", Sub: casbin2.Subject(policyGroup.CasbinName), Obj: casbin2.Object(role.Role)})
-	}
-	if len(policiesRemove) > 0 {
-		pRes := casbin2.RemovePolicy(policiesRemove)
+	eliminatedPolicies = append(eliminatedPolicies, items...)
+	if len(eliminatedPolicies) > 0 {
+		pRes := casbin2.RemovePolicy(eliminatedPolicies)
 		println(pRes)
 	}
 	// DELETE PROCESS ENDS
