@@ -12,13 +12,14 @@ Click on `View Workflows` to view and delete your workflows in the application.
 
 To delete the workflows in your application, you must first delete all the pipelines\(CD Pipeline, CI Pipeline or Linked CI Pipeline or External CI Pipeline if there are any\).
 
-![](../.gitbook/assets/deleting-workflow%20%281%29.jpg)
+![](../images/deleting-application/deleting-workflow-1.jpg)
 
 After you have deleted all the pipelines in the workflow, you can delete that particular workflow.
 
 Similarly, delete all the workflows in the application.
 
-![](../.gitbook/assets/delete_app3.jpg)
+![](../images/deleting-application/deleting-delete-application-1.jpg)
+
 
 Now, Click on `Delete Application` to delete the application.
 
