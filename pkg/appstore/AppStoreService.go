@@ -792,6 +792,7 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 }
 
 var CallbackConfigMap = func (configMaps *v1.ConfigMap) {
+	logger := zap.SugaredLogger{}
 	for filename, binaryData := range configMaps.BinaryData {
 		binaryDataReader := bytes.NewReader(binaryData)
 		chartTemplateService := util.ChartTemplateServiceImpl{}
@@ -801,16 +802,25 @@ var CallbackConfigMap = func (configMaps *v1.ConfigMap) {
 		chartDir := filepath.Join(string(ChartWorkingDir), dir)
 		err := os.MkdirAll(chartDir, os.ModePerm)
 		if err != nil {
+			logger.Errorw("error in creating directory, CallbackConfigMap", "err", err)
 		}
 
 		err = util3.ExtractTarGz(binaryDataReader, chartDir)
 		if err != nil {
+			logger.Errorw("error in extraction of binary data, CallbackConfigMap", "err", err)
 		}
 		configmapDirectoryName := strings.Split(filename, ".")
 
 		readFile, err := ioutil.ReadFile(filepath.Join(string(ChartWorkingDir), configmapDirectoryName[0], "Chart.Yaml"))
+		if err != nil {
+			logger.Errorw("error in read file, CallbackConfigMap", "err", err)
+		}
 
 		chartContent, err := chartutil.UnmarshalChartfile(readFile)
+		if err != nil {
+			logger.Errorw("error in Unmarshal Chartfile, CallbackConfigMap", "err", err)
+		}
+
 		chartName := chartContent.Name
 		chartVersion := chartContent.Version
 
@@ -826,13 +836,17 @@ var CallbackConfigMap = func (configMaps *v1.ConfigMap) {
 
 		err = dirCopy.Copy(refChartDir, chartDir)
 		if err != nil {
+			logger.Errorw("error in copy directory, CallbackConfigMap", "err", err)
 		}
 
 		chartConfigMap := chartConfig.ChartRefRepositoryImpl{}
 		charts, err := chartConfigMap.GetAll()
+		if err != nil {
+			logger.Errorw("error in getAll ConfigMap, CallbackConfigMap", "err", err)
+		}
 		for _, chart := range charts {
-			if chart.Name == chartName && chart.Version == chartVersion && chart.Location == chartLocation {
-				//go impl.WatchAndSaveConfigMap()
+			if (chart.Name == chartName && chart.Version == chartVersion) || (chart.Location == chartLocation) {
+				return
 			}
 		}
 
@@ -853,24 +867,24 @@ var CallbackConfigMap = func (configMaps *v1.ConfigMap) {
 
 		err = chartConfigMap.Save(chartRefs)
 		if err != nil {
+			logger.Errorw("error in saving ConfigMap, CallbackConfigMap", "err", err)
 		}
 	}
 	return
 }
 
-func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() error {
+func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() {
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
-		return err
+		impl.logger.Errorw("error in clusterBean, WatchAndSaveConfigMap", "err", err)
 	}
 	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
 	if err != nil {
-		return err
+		impl.logger.Errorw("error in getting cluster config, WatchAndSaveConfigMap", "err", err)
 	}
 	client, err := impl.K8sUtil.GetClientSet(cfg)
 	if err != nil {
-		return err
+		impl.logger.Errorw("error in getting client set, WatchAndSaveConfigMap", "err", err)
 	}
 	go impl.K8sUtil.WatchConfigMapWithCallback(argocdServer.DevtronInstalationNs, client, CallbackConfigMap)
-	return nil
 }

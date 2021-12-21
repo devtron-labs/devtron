@@ -20,6 +20,8 @@ package util
 import (
 	"encoding/json"
 	error2 "errors"
+	"time"
+
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	batchV1 "k8s.io/api/batch/v1"
@@ -32,7 +34,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
-	"time"
 )
 
 type K8sUtilimpl interface {
@@ -171,18 +172,18 @@ func (impl K8sUtil) GetConfigMap(namespace string, name string, client *v12.Core
 
 const watcherRestart = "restart event watcher"
 
-func (impl K8sUtil) WatchConfigMapWithCallback(namespace string, client kubernetes.Interface, CallbackConfigMap func(*v1.ConfigMap)) (string, string, []byte, error) {
+func (impl K8sUtil) WatchConfigMapWithCallback(namespace string, client kubernetes.Interface, CallbackConfigMap func(*v1.ConfigMap)) error {
 	api := client.CoreV1().ConfigMaps(namespace)
 	configMaps, err := api.List(metav1.ListOptions{})
 	if err != nil {
-		return "", "", nil, err
+		return err
 	}
 
 	resourceVersion := configMaps.ListMeta.ResourceVersion
 	timeout := int64(1800)
 	watcher, err := api.Watch(metav1.ListOptions{ResourceVersion: resourceVersion, TimeoutSeconds: &timeout})
 	if err != nil {
-		return "", "", nil, err
+		return err
 	}
 
 	ch := watcher.ResultChan()
@@ -193,11 +194,11 @@ func (impl K8sUtil) WatchConfigMapWithCallback(namespace string, client kubernet
 
 			if !ok {
 				// the channel got closed, so we need to restart
-				return "", "", nil, error2.New(watcherRestart)
+				return error2.New(watcherRestart)
 			}
 			configMaps, ok := event.Object.(*coreV1.ConfigMap)
 			if !ok {
-				return "", "", nil, nil
+				return nil
 			}
 			annotations, ok := configMaps.Annotations["charts.devtron.ai/data"]
 			if !ok {
@@ -207,11 +208,11 @@ func (impl K8sUtil) WatchConfigMapWithCallback(namespace string, client kubernet
 				CallbackConfigMap(configMaps)
 			}
 		case <-time.After(30 * time.Minute):
-			return "", "", nil, error2.New(watcherRestart)
+			return error2.New(watcherRestart)
 		}
 	}
 
-	return "", "", nil, err
+	return err
 }
 
 func (impl K8sUtil) CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
