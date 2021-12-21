@@ -185,6 +185,11 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 }
 
 func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]json.RawMessage, error) {
+	err := impl.ExtractChartIfMissing(chartRefId)
+	if err != nil {
+		return nil, err
+	}
+
 	refChart, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		return nil, err
@@ -222,6 +227,10 @@ type AppMetricsEnabled struct {
 }
 
 func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
+	err := impl.ExtractChartIfMissing(templateRequest.ChartRefId)
+	if err != nil {
+		return nil, err
+	}
 	chartMeta, err := impl.getChartMetaData(templateRequest)
 	if err != nil {
 		return nil, err
