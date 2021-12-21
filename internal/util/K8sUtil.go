@@ -39,7 +39,7 @@ type K8sUtilimpl interface {
 }
 
 type K8sUtil struct {
-	logger               *zap.SugaredLogger
+	logger *zap.SugaredLogger
 }
 
 type ClusterConfig struct {
@@ -190,6 +190,7 @@ func (impl K8sUtil) WatchConfigMapWithCallback(namespace string, client kubernet
 	for {
 		select {
 		case event, ok := <-ch:
+
 			if !ok {
 				// the channel got closed, so we need to restart
 				return "", "", nil, error2.New(watcherRestart)
