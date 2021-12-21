@@ -139,7 +139,7 @@ type AppStoreService interface {
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
-	WatchAndSaveConfigMap() error
+	WatchAndSaveConfigMap()
 }
 
 type AppStoreVersionsResponse struct {

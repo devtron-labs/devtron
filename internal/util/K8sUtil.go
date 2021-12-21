@@ -170,35 +170,28 @@ func (impl K8sUtil) GetConfigMap(namespace string, name string, client *v12.Core
 	}
 }
 
-const watcherRestart = "restart event watcher"
-
-func (impl K8sUtil) WatchConfigMapWithCallback(namespace string, client kubernetes.Interface, CallbackConfigMap func(*v1.ConfigMap)) error {
+func (impl K8sUtil) WatchConfigMapWithCallback(namespace string, client kubernetes.Interface, CallbackConfigMap func(*v1.ConfigMap)) {
 	api := client.CoreV1().ConfigMaps(namespace)
 	configMaps, err := api.List(metav1.ListOptions{})
 	if err != nil {
-		return err
+		impl.logger.Errorw("err in configmaps list, WatchConfigMapWithCallback", "err", err)
 	}
-
 	resourceVersion := configMaps.ListMeta.ResourceVersion
-	timeout := int64(1800)
-	watcher, err := api.Watch(metav1.ListOptions{ResourceVersion: resourceVersion, TimeoutSeconds: &timeout})
+	watcher, err := api.Watch(metav1.ListOptions{ResourceVersion: resourceVersion})
 	if err != nil {
-		return err
+		impl.logger.Errorw("err in configmaps watcher, WatchConfigMapWithCallback", "err", err)
 	}
-
 	ch := watcher.ResultChan()
-
 	for {
 		select {
 		case event, ok := <-ch:
 
 			if !ok {
-				// the channel got closed, so we need to restart
-				return error2.New(watcherRestart)
+				impl.logger.Errorw("configmap event not found, WatchConfigMapWithCallback", "err", err)
 			}
 			configMaps, ok := event.Object.(*coreV1.ConfigMap)
 			if !ok {
-				return nil
+				impl.logger.Errorw("configMaps not found err, WatchConfigMapWithCallback", "err", err)
 			}
 			annotations, ok := configMaps.Annotations["charts.devtron.ai/data"]
 			if !ok {
@@ -207,12 +200,8 @@ func (impl K8sUtil) WatchConfigMapWithCallback(namespace string, client kubernet
 			if annotations == "mount" {
 				CallbackConfigMap(configMaps)
 			}
-		case <-time.After(30 * time.Minute):
-			return error2.New(watcherRestart)
 		}
 	}
-
-	return err
 }
 
 func (impl K8sUtil) CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
