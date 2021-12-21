@@ -31,6 +31,9 @@ func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r
 	clusterIdSlices := strings.Split(clusterIdString, ",")
 	var clusterIds []int
 	for _, is := range clusterIdSlices {
+		if len(is)==0 {
+			continue
+		}
 		j, err := strconv.Atoi(is)
 		if err != nil {
 			handler.logger.Errorw("request err, CreateUser", "err", err, "payload", clusterIds)
