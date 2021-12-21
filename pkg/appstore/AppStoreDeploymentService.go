@@ -531,6 +531,7 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appstore.AppStoreFilter) (ope
 			ProjectId:         &projectId,
 			EnvironmentDetail: &environmentDetails,
 			ChartAvatar:       &a.Icon,
+			LastDeployedAt:    &a.UpdatedOn,
 		}
 		helmAppsResponse = append(helmAppsResponse, helmAppResp)
 	}
