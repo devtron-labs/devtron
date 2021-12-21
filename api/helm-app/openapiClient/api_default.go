@@ -327,32 +327,32 @@ func (a *DefaultApiService) OrchestratorApplicationClusterEnvDetailsGetExecute(r
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiOrchestratorApplicationGetRequest struct {
+type ApiOrchestratorApplicationPostRequest struct {
 	ctx _context.Context
 	ApiService *DefaultApiService
-	clusterIds *[]int32
+	helmAppListRequest *HelmAppListRequest
 }
 
-// cluster ids
-func (r ApiOrchestratorApplicationGetRequest) ClusterIds(clusterIds []int32) ApiOrchestratorApplicationGetRequest {
-	r.clusterIds = &clusterIds
+// json as request body
+func (r ApiOrchestratorApplicationPostRequest) HelmAppListRequest(helmAppListRequest HelmAppListRequest) ApiOrchestratorApplicationPostRequest {
+	r.helmAppListRequest = &helmAppListRequest
 	return r
 }
 
-func (r ApiOrchestratorApplicationGetRequest) Execute() (AppList, *_nethttp.Response, error) {
-	return r.ApiService.OrchestratorApplicationGetExecute(r)
+func (r ApiOrchestratorApplicationPostRequest) Execute() (AppList, *_nethttp.Response, error) {
+	return r.ApiService.OrchestratorApplicationPostExecute(r)
 }
 
 /*
-OrchestratorApplicationGet Method for OrchestratorApplicationGet
+OrchestratorApplicationPost Method for OrchestratorApplicationPost
 
 this api gives all external application+ devtron helm chart applications.
 
  @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiOrchestratorApplicationGetRequest
+ @return ApiOrchestratorApplicationPostRequest
 */
-func (a *DefaultApiService) OrchestratorApplicationGet(ctx _context.Context) ApiOrchestratorApplicationGetRequest {
-	return ApiOrchestratorApplicationGetRequest{
+func (a *DefaultApiService) OrchestratorApplicationPost(ctx _context.Context) ApiOrchestratorApplicationPostRequest {
+	return ApiOrchestratorApplicationPostRequest{
 		ApiService: a,
 		ctx: ctx,
 	}
@@ -360,41 +360,30 @@ func (a *DefaultApiService) OrchestratorApplicationGet(ctx _context.Context) Api
 
 // Execute executes the request
 //  @return AppList
-func (a *DefaultApiService) OrchestratorApplicationGetExecute(r ApiOrchestratorApplicationGetRequest) (AppList, *_nethttp.Response, error) {
+func (a *DefaultApiService) OrchestratorApplicationPostExecute(r ApiOrchestratorApplicationPostRequest) (AppList, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod   = _nethttp.MethodGet
+		localVarHTTPMethod   = _nethttp.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
 		localVarReturnValue  AppList
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationGet")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationPost")
 	if err != nil {
 		return localVarReturnValue, nil, GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/orchestrator/application/"
+	localVarPath := localBasePath + "/orchestrator/application"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := _neturl.Values{}
 	localVarFormParams := _neturl.Values{}
-	if r.clusterIds == nil {
-		return localVarReturnValue, nil, reportError("clusterIds is required and must be specified")
+	if r.helmAppListRequest == nil {
+		return localVarReturnValue, nil, reportError("helmAppListRequest is required and must be specified")
 	}
 
-	{
-		t := *r.clusterIds
-		if reflect.TypeOf(t).Kind() == reflect.Slice {
-			s := reflect.ValueOf(t)
-			for i := 0; i < s.Len(); i++ {
-				localVarQueryParams.Add("clusterIds", parameterToString(s.Index(i), "multi"))
-			}
-		} else {
-			localVarQueryParams.Add("clusterIds", parameterToString(t, "multi"))
-		}
-	}
 	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{}
+	localVarHTTPContentTypes := []string{"application/json"}
 
 	// set Content-Type header
 	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
@@ -410,6 +399,8 @@ func (a *DefaultApiService) OrchestratorApplicationGetExecute(r ApiOrchestratorA
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
+	// body params
+	localVarPostBody = r.helmAppListRequest
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err

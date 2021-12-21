@@ -87,9 +87,9 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 				ChartAvatar: &deployedapp.ChartAvatar,
 				//	ProjectId:         0,
 				EnvironmentDetail: &openapi.AppEnvironmentDetail{
-					Namespace: &deployedapp.Environment.Namespace,
-					//	IsPrduction:     nil,
+					Namespace:   &deployedapp.Environment.Namespace,
 					ClusterName: &deployedapp.Environment.ClusterName,
+					ClusterId:   &deployedapp.Environment.ClusterId,
 				},
 			}
 			HelmApps = append(HelmApps, helmApp)

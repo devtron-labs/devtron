@@ -26,6 +26,8 @@ type AppEnvironmentDetail struct {
 	IsPrduction *bool `json:"isPrduction,omitempty"`
 	// cluster corresponding to the environemt where application is deployed
 	ClusterName *string `json:"clusterName,omitempty"`
+	// clusterId corresponding to the environemt where application is deployed
+	ClusterId *int32 `json:"clusterId,omitempty"`
 }
 
 // NewAppEnvironmentDetail instantiates a new AppEnvironmentDetail object
@@ -205,6 +207,38 @@ func (o *AppEnvironmentDetail) SetClusterName(v string) {
 	o.ClusterName = &v
 }
 
+// GetClusterId returns the ClusterId field value if set, zero value otherwise.
+func (o *AppEnvironmentDetail) GetClusterId() int32 {
+	if o == nil || o.ClusterId == nil {
+		var ret int32
+		return ret
+	}
+	return *o.ClusterId
+}
+
+// GetClusterIdOk returns a tuple with the ClusterId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AppEnvironmentDetail) GetClusterIdOk() (*int32, bool) {
+	if o == nil || o.ClusterId == nil {
+		return nil, false
+	}
+	return o.ClusterId, true
+}
+
+// HasClusterId returns a boolean if a field has been set.
+func (o *AppEnvironmentDetail) HasClusterId() bool {
+	if o != nil && o.ClusterId != nil {
+		return true
+	}
+
+	return false
+}
+
+// SetClusterId gets a reference to the given int32 and assigns it to the ClusterId field.
+func (o *AppEnvironmentDetail) SetClusterId(v int32) {
+	o.ClusterId = &v
+}
+
 func (o AppEnvironmentDetail) MarshalJSON() ([]byte, error) {
 	toSerialize := map[string]interface{}{}
 	if o.EnvironmentName != nil {
@@ -221,6 +255,9 @@ func (o AppEnvironmentDetail) MarshalJSON() ([]byte, error) {
 	}
 	if o.ClusterName != nil {
 		toSerialize["clusterName"] = o.ClusterName
+	}
+	if o.ClusterId != nil {
+		toSerialize["clusterId"] = o.ClusterId
 	}
 	return json.Marshal(toSerialize)
 }

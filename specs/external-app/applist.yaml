@@ -149,6 +149,10 @@ components:
               type: string
               description: cluster corresponding to the environemt where application is deployed
               example: "qa-cluster"
+            clusterId:
+              type: integer
+              description: clusterId corresponding to the environemt where application is deployed
+              example: "12"
     EnvironmentDetail:
       type: object
       properties:
