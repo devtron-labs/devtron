@@ -258,8 +258,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 			envIds = append(envIds, envId)
 		}
 	}
-	vars := mux.Vars(r)
-	clusterIdString := vars["clusterIds"]
+	clusterIdString := v.Get("clusterIds")
 	clusterIdSlices := strings.Split(clusterIdString, ",")
 	var clusterIds []int
 	for _, clusterId := range clusterIdSlices {
