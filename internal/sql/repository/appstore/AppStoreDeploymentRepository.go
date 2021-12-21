@@ -226,7 +226,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *AppStoreFilte
 	var query string
 	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name,"
 	query = query + " env.environment_name, env.id as environment_id, a.app_name, asav.icon, asav.name as app_store_application_name,"
-	query = query + " env.namespace, cluster.cluster_name as clusterName, a.team_id as teamId, "
+	query = query + " env.namespace, cluster.cluster_name, a.team_id, "
 	query = query + " asav.id as app_store_application_version_id, ia.id , asav.deprecated"
 	query = query + " from installed_app_versions iav"
 	query = query + " inner join installed_apps ia on iav.installed_app_id = ia.id"

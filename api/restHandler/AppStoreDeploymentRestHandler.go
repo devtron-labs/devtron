@@ -259,16 +259,18 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		}
 	}
 	clusterIdString := v.Get("clusterIds")
-	clusterIdSlices := strings.Split(clusterIdString, ",")
 	var clusterIds []int
-	for _, clusterId := range clusterIdSlices {
-		id, err := strconv.Atoi(clusterId)
-		if err != nil {
-			handler.Logger.Errorw("request err, GetAllInstalledApp", "err", err, "clusterIdString", clusterIdString)
-			common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
-			return
+	if clusterIdString != "" {
+		clusterIdSlices := strings.Split(clusterIdString, ",")
+		for _, clusterId := range clusterIdSlices {
+			id, err := strconv.Atoi(clusterId)
+			if err != nil {
+				handler.Logger.Errorw("request err, GetAllInstalledApp", "err", err, "clusterIdString", clusterIdString)
+				common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
+				return
+			}
+			clusterIds = append(clusterIds, id)
 		}
-		clusterIds = append(clusterIds, id)
 	}
 	onlyDeprecated := false
 	deprecatedStr := v.Get("onlyDeprecated")
