@@ -80,11 +80,13 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 	} else {
 		var HelmApps []openapi.HelmApp
 		for _, deployedapp := range deployedApps.DeployedAppDetail {
+			lastDeployed := deployedapp.LastDeployed.AsTime()
 			helmApp := openapi.HelmApp{
-				AppName:     &deployedapp.AppName,
-				AppId:       &deployedapp.AppId,
-				ChartName:   &deployedapp.ChartName,
-				ChartAvatar: &deployedapp.ChartAvatar,
+				AppName:        &deployedapp.AppName,
+				AppId:          &deployedapp.AppId,
+				ChartName:      &deployedapp.ChartName,
+				ChartAvatar:    &deployedapp.ChartAvatar,
+				LastDeployedAt: &lastDeployed,
 				//	ProjectId:         0,
 				EnvironmentDetail: &openapi.AppEnvironmentDetail{
 					Namespace:   &deployedapp.Environment.Namespace,
