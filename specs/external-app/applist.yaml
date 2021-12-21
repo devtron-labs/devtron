@@ -108,6 +108,85 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AppList"
+  /orchestrator/app-store/installed-apps/:
+    get:
+      description: this api gives all chart-store applications.
+      parameters:
+        - in: query
+          name: envIds
+          example: [ 1, 2 ]
+          description: environment ids
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: array
+            items:
+              type: integer
+        - in: query
+          name: clusterIds
+          example: [ 16, 13 ]
+          description: cluster ids
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: array
+            items:
+              type: integer
+        - in: query
+          name: onlyDeprecated
+          example: false
+          description: deprecated flag
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: boolean
+        - in: query
+          name: chartRepoIds
+          example: [10, 12]
+          description: size
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          example: 2
+          description: offser
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+        - in: query
+          name: size
+          example: 20
+          description: size
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+        - in: query
+          name: appStoreName
+          example: "appStoreName"
+          description: app store name
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: string
+        - in: query
+          name: sortBy
+          example: "appName"
+          description: app name
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: all application responces
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppList"
 components:
   schemas:
     appListRequest:
