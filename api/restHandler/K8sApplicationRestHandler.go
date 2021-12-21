@@ -8,6 +8,7 @@ import (
 type K8sApplicationRestHandler interface {
 	GetResource(w http.ResponseWriter, r *http.Request)
 	UpdateResource(w http.ResponseWriter, r *http.Request)
+	DeleteResource(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -20,7 +21,14 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,) *K8sApplicatio
 	}
 }
 
+func(impl K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request){
 
-UpdateResource(w http.ResponseWriter, r *http.Request){
+}
+
+func(impl K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWriter, r *http.Request){
+
+}
+
+func(impl K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *http.Request){
 
 }
