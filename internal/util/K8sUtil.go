@@ -23,7 +23,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	error2 "errors"
-	"fmt"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	"io"
@@ -39,7 +38,6 @@ import (
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/helm/pkg/chartutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -518,4 +516,5 @@ func (impl K8sUtil) ExtractTarGz(gzipStream io.Reader, chartDir string) error{
 		}
 
 	}
+	return nil
 }
