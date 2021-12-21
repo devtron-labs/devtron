@@ -18,15 +18,10 @@
 package util
 
 import (
-	"archive/tar"
-	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	error2 "errors"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
-	"io"
-	"io/ioutil"
 	batchV1 "k8s.io/api/batch/v1"
 	coreV1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -37,10 +32,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
-	"k8s.io/helm/pkg/chartutil"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -48,8 +39,7 @@ type K8sUtilimpl interface {
 }
 
 type K8sUtil struct {
-	logger          *zap.SugaredLogger
-	ChartWorkingDir ChartWorkingDir
+	logger               *zap.SugaredLogger
 }
 
 type ClusterConfig struct {
@@ -57,8 +47,8 @@ type ClusterConfig struct {
 	BearerToken string
 }
 
-func NewK8sUtil(logger *zap.SugaredLogger, ChartWorkingDir ChartWorkingDir) *K8sUtil {
-	return &K8sUtil{logger: logger, ChartWorkingDir: ChartWorkingDir}
+func NewK8sUtil(logger *zap.SugaredLogger) *K8sUtil {
+	return &K8sUtil{logger: logger}
 }
 
 func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
@@ -181,7 +171,7 @@ func (impl K8sUtil) GetConfigMap(namespace string, name string, client *v12.Core
 
 const watcherRestart = "restart event watcher"
 
-func (impl K8sUtil) WatchConfigMap(namespace string, dir string, client kubernetes.Interface) (string, string, []byte, error) {
+func (impl K8sUtil) WatchConfigMapWithCallback(namespace string, client kubernetes.Interface, CallbackConfigMap func(*v1.ConfigMap)) (string, string, []byte, error) {
 	api := client.CoreV1().ConfigMaps(namespace)
 	configMaps, err := api.List(metav1.ListOptions{})
 	if err != nil {
@@ -212,41 +202,9 @@ func (impl K8sUtil) WatchConfigMap(namespace string, dir string, client kubernet
 			if !ok {
 				continue
 			}
-
 			if annotations == "mount" {
-				for filename, binaryData := range configMaps.BinaryData {
-					binaryDataReader := bytes.NewReader(binaryData)
-					chartDir := filepath.Join(string(impl.ChartWorkingDir), dir)
-					err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
-					if err != nil {
-						impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
-						return "", "", nil, err
-					}
-
-					err = impl.ExtractTarGz(binaryDataReader, chartDir)
-					if err != nil {
-						impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
-						return "", "", nil, err
-					}
-					configmapDirectoryName := strings.Split(filename, ".")
-
-					readFile, err := ioutil.ReadFile(filepath.Join(string(impl.ChartWorkingDir), configmapDirectoryName[0], "Chart.Yaml"))
-					if err != nil {
-						return "", "", nil, err
-					}
-
-					chartContent, err := chartutil.UnmarshalChartfile(readFile)
-					if err != nil {
-						return "", "", nil, err
-					}
-					configMapName := chartContent.Name
-					configMapVersion := chartContent.Version
-
-					return configMapName, configMapVersion, binaryData, nil
-				}
-
+				CallbackConfigMap(configMaps)
 			}
-
 		case <-time.After(30 * time.Minute):
 			return "", "", nil, error2.New(watcherRestart)
 		}
@@ -470,51 +428,5 @@ func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, cluster
 		return err
 	}
 
-	return nil
-}
-
-func (impl K8sUtil) ExtractTarGz(gzipStream io.Reader, chartDir string) error{
-	uncompressedStream, err := gzip.NewReader(gzipStream)
-	if err != nil {
-		return err
-	}
-
-	tarReader := tar.NewReader(uncompressedStream)
-	for true {
-		header, err := tarReader.Next()
-
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			return err
-		}
-		switch header.Typeflag {
-		case tar.TypeDir:
-			if _, err := os.Stat(filepath.Join(chartDir, header.Name)); os.IsNotExist(err) {
-				if err := os.Mkdir(filepath.Join(chartDir, header.Name), 0755); err != nil {
-					return err
-				}
-			} else {
-				break
-			}
-
-		case tar.TypeReg:
-			outFile, err := os.Create(filepath.Join(chartDir, header.Name))
-			if err != nil {
-				return err
-			}
-			if _, err := io.Copy(outFile, tarReader); err != nil {
-				return err
-			}
-			outFile.Close()
-
-		default:
-			return err
-
-		}
-
-	}
 	return nil
 }

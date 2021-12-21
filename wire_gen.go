@@ -236,9 +236,8 @@ func InitializeApp() (*App, error) {
 	defaultChart := _wireDefaultChartValue
 	repositoryServiceClientImpl := repository4.NewServiceClientImpl(argoCDSettings, sugaredLogger)
 	chartRefRepositoryImpl := chartConfig.NewChartRefRepositoryImpl(db)
-	k8sUtil := util.NewK8sUtil(sugaredLogger, chartWorkingDir)
 	customFormatCheckers := util3.NewGoJsonSchemaCustomFormatChecker()
-	chartServiceImpl := pipeline.NewChartServiceImpl(chartRepositoryImpl, sugaredLogger, chartTemplateServiceImpl, chartRepoRepositoryImpl, appRepositoryImpl, refChartDir, defaultChart, utilMergeUtil, repositoryServiceClientImpl, chartRefRepositoryImpl, envConfigOverrideRepositoryImpl, pipelineConfigRepositoryImpl, configMapRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, appLevelMetricsRepositoryImpl, httpClient, k8sUtil, customFormatCheckers)
+	chartServiceImpl := pipeline.NewChartServiceImpl(chartRepositoryImpl, sugaredLogger, chartTemplateServiceImpl, chartRepoRepositoryImpl, appRepositoryImpl, refChartDir, defaultChart, utilMergeUtil, repositoryServiceClientImpl, chartRefRepositoryImpl, envConfigOverrideRepositoryImpl, pipelineConfigRepositoryImpl, configMapRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, appLevelMetricsRepositoryImpl, httpClient, customFormatCheckers)
 	dbMigrationServiceImpl := pipeline.NewDbMogrationService(sugaredLogger, dbMigrationConfigRepositoryImpl)
 	workflowServiceImpl := pipeline.NewWorkflowServiceImpl(sugaredLogger, ciConfig)
 	ciServiceImpl := pipeline.NewCiServiceImpl(sugaredLogger, workflowServiceImpl, ciPipelineMaterialRepositoryImpl, ciWorkflowRepositoryImpl, ciConfig, eventRESTClientImpl, eventSimpleFactoryImpl, mergeUtil, ciPipelineRepositoryImpl)
@@ -251,6 +250,7 @@ func InitializeApp() (*App, error) {
 	}
 	grafanaClientImpl := grafana.NewGrafanaClientImpl(sugaredLogger, httpClient, grafanaClientConfig, attributesServiceImpl)
 	installedAppRepositoryImpl := appstore.NewInstalledAppRepositoryImpl(sugaredLogger, db)
+	k8sUtil := util.NewK8sUtil(sugaredLogger)
 	clusterServiceClientImpl := cluster.NewServiceClientImpl(argoCDSettings, sugaredLogger)
 	clusterServiceImplExtended := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, environmentRepositoryImpl, grafanaClientImpl, sugaredLogger, installedAppRepositoryImpl, k8sUtil, clusterServiceClientImpl)
 	environmentServiceImpl := cluster2.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImplExtended, sugaredLogger, k8sUtil, propertiesConfigServiceImpl)
@@ -354,7 +354,7 @@ func InitializeApp() (*App, error) {
 	appStoreRepositoryImpl := appstore.NewAppStoreRepositoryImpl(sugaredLogger, db)
 	appStoreApplicationVersionRepositoryImpl := appstore.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	versionServiceImpl := argocdServer.NewVersionServiceImpl(argoCDSettings, sugaredLogger)
-	appStoreServiceImpl := appstore2.NewAppStoreServiceImpl(sugaredLogger, appStoreRepositoryImpl, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, userServiceImpl, chartRepoRepositoryImpl, k8sUtil, clusterServiceImplExtended, environmentServiceImpl, versionServiceImpl, acdAuthConfig, httpClient, chartRefRepositoryImpl, chartTemplateServiceImpl, refChartDir)
+	appStoreServiceImpl := appstore2.NewAppStoreServiceImpl(sugaredLogger, appStoreRepositoryImpl, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, userServiceImpl, chartRepoRepositoryImpl, k8sUtil, clusterServiceImplExtended, environmentServiceImpl, versionServiceImpl, acdAuthConfig, httpClient)
 	appStoreRestHandlerImpl := restHandler.NewAppStoreRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreServiceImpl, serviceClientImpl, teamServiceImpl, enforcerImpl, enforcerUtilImpl, validate, httpClient)
 	refChartProxyDir := _wireRefChartProxyDirValue
 	appStoreVersionValuesRepositoryImpl := appstore.NewAppStoreVersionValuesRepositoryImpl(sugaredLogger, db)

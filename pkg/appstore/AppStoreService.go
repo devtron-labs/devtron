@@ -26,6 +26,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -42,9 +43,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/getter"
 	"k8s.io/helm/pkg/helm/environment"
 	"k8s.io/helm/pkg/repo"
@@ -160,17 +164,13 @@ type AppStoreServiceImpl struct {
 	versionService                argocdServer.VersionService
 	aCDAuthConfig                 *util2.ACDAuthConfig
 	client                        *http.Client
-	ChartRefRepository            chartConfig.ChartRefRepository
-	ChartTemplateService          util.ChartTemplateService
-	RefChartDir                   pipeline.RefChartDir
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService, aCDAuthConfig *util2.ACDAuthConfig, client *http.Client, refRepository chartConfig.ChartRefRepository,
-	ChartTemplateService util.ChartTemplateService, RefChartDir pipeline.RefChartDir) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *util2.ACDAuthConfig, client *http.Client) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -184,9 +184,6 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		versionService:                versionService,
 		aCDAuthConfig:                 aCDAuthConfig,
 		client:                        client,
-		ChartRefRepository:            refRepository,
-		ChartTemplateService:          ChartTemplateService,
-		RefChartDir:                   RefChartDir,
 	}
 }
 
@@ -794,7 +791,72 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 	return nil
 }
 
-const watcherRestart = "restart event watcher"
+var CallbackConfigMap = func (configMaps *v1.ConfigMap) {
+	for filename, binaryData := range configMaps.BinaryData {
+		binaryDataReader := bytes.NewReader(binaryData)
+		chartTemplateService := util.ChartTemplateServiceImpl{}
+		dir := chartTemplateService.GetDir()
+
+		var ChartWorkingDir util.ChartWorkingDir
+		chartDir := filepath.Join(string(ChartWorkingDir), dir)
+		err := os.MkdirAll(chartDir, os.ModePerm)
+		if err != nil {
+		}
+
+		err = util3.ExtractTarGz(binaryDataReader, chartDir)
+		if err != nil {
+		}
+		configmapDirectoryName := strings.Split(filename, ".")
+
+		readFile, err := ioutil.ReadFile(filepath.Join(string(ChartWorkingDir), configmapDirectoryName[0], "Chart.Yaml"))
+
+		chartContent, err := chartutil.UnmarshalChartfile(readFile)
+		chartName := chartContent.Name
+		chartVersion := chartContent.Version
+
+		var chartLocation string
+		if !strings.Contains(chartName, strings.ReplaceAll(chartVersion, ".", "-")) {
+			chartLocation = chartName + "_" + strings.ReplaceAll(chartVersion, ".", "-")
+		} else {
+			chartLocation = chartName
+		}
+
+		var RefChartDir pipeline.RefChartDir
+		refChartDir := filepath.Join(string(RefChartDir), chartLocation)
+
+		err = dirCopy.Copy(refChartDir, chartDir)
+		if err != nil {
+		}
+
+		chartConfigMap := chartConfig.ChartRefRepositoryImpl{}
+		charts, err := chartConfigMap.GetAll()
+		for _, chart := range charts {
+			if chart.Name == chartName && chart.Version == chartVersion && chart.Location == chartLocation {
+				//go impl.WatchAndSaveConfigMap()
+			}
+		}
+
+		chartRefs := &chartConfig.ChartRef{
+			Name:      chartName,
+			Version:   chartVersion,
+			Location:  chartLocation,
+			Active:    true,
+			Default:   false,
+			ChartData: binaryData,
+			AuditLog: sql.AuditLog{
+				CreatedBy: 1,
+				CreatedOn: time.Now(),
+				UpdatedOn: time.Now(),
+				UpdatedBy: 1,
+			},
+		}
+
+		err = chartConfigMap.Save(chartRefs)
+		if err != nil {
+		}
+	}
+	return
+}
 
 func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() error {
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
@@ -809,58 +871,6 @@ func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() error {
 	if err != nil {
 		return err
 	}
-	dir := impl.ChartTemplateService.GetDir()
-	chartName, chartVersion, chartBinaryData, err := impl.K8sUtil.WatchConfigMap(argocdServer.DevtronInstalationNs, dir, client)
-	if err != nil {
-		return err
-	}
-
-	if err.Error() == watcherRestart {
-		go impl.K8sUtil.WatchConfigMap(argocdServer.DevtronInstalationNs, dir, client)
-	}
-
-	var chartLocation string
-	if !strings.Contains(chartName, strings.ReplaceAll(chartVersion, ".", "-")) {
-		chartLocation = chartName + "_" + strings.ReplaceAll(chartVersion, ".", "-")
-	} else {
-		chartLocation = chartName
-	}
-
-	refChartDir := filepath.Join(string(impl.RefChartDir), chartLocation)
-	chartDir := filepath.Join(string(impl.K8sUtil.ChartWorkingDir), dir)
-
-	err = dirCopy.Copy(refChartDir, chartDir)
-	if err != nil {
-		impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
-	}
-
-	charts, err := impl.ChartRefRepository.GetAll()
-	for _, chart := range charts {
-		if chart.Name == chartName && chart.Version == chartVersion && chart.Location == chartLocation {
-			go impl.K8sUtil.WatchConfigMap(argocdServer.DevtronInstalationNs, dir, client)
-		}
-	}
-
-	chartRefs := &chartConfig.ChartRef{
-		Name:      chartName,
-		Version:   chartVersion,
-		Location:  chartLocation,
-		Active:    true,
-		Default:   false,
-		ChartData: chartBinaryData,
-		AuditLog: sql.AuditLog{
-			CreatedBy: 1,
-			CreatedOn: time.Now(),
-			UpdatedOn: time.Now(),
-			UpdatedBy: 1,
-		},
-	}
-
-	err = impl.ChartRefRepository.Save(chartRefs)
-	if err != nil {
-		impl.logger.Errorw("error in fetching chart config", "err", err)
-		return err
-	}
-
+	go impl.K8sUtil.WatchConfigMapWithCallback(argocdServer.DevtronInstalationNs, client, CallbackConfigMap)
 	return nil
 }

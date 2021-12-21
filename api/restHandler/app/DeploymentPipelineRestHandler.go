@@ -109,7 +109,7 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	err = handler.chartService.CheckAndCreateTemplate(chartRefId)
+	err = handler.chartService.ExtractChartIfMissing(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("template not found err, GetDeploymentTemplate", "err", err, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -310,7 +310,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		return
 	}
 
-	err = handler.chartService.CheckAndCreateTemplate(chartRefId)
+	err = handler.chartService.ExtractChartIfMissing(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("template not found err, GetDeploymentTemplate", "err", err, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -409,7 +409,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		return
 	}
 
-	err = handler.chartService.CheckAndCreateTemplate(chartRefId)
+	err = handler.chartService.ExtractChartIfMissing(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("template not found err, GetDeploymentTemplate", "err", err, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -456,7 +456,7 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 		return
 	}
 
-	err = handler.chartService.CheckAndCreateTemplate(chartRefId)
+	err = handler.chartService.ExtractChartIfMissing(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("template not found err, GetDeploymentTemplate", "err", err, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -510,7 +510,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 	}
 
 	if pg.ErrNoRows == err {
-		err := handler.chartService.CheckAndCreateTemplate(chartRefId)
+		err := handler.chartService.ExtractChartIfMissing(chartRefId)
 		if err != nil {
 			handler.Logger.Errorw("template not found err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -530,7 +530,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		appConfigResponse["globalConfig"] = mapB
 	} else {
 		if template.ChartRefId != chartRefId {
-			err := handler.chartService.CheckAndCreateTemplate(chartRefId)
+			err := handler.chartService.ExtractChartIfMissing(chartRefId)
 			if err != nil {
 				handler.Logger.Errorw("template not found err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -818,7 +818,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
 	}
-	err = handler.chartService.CheckAndCreateTemplate(chartRefId)
+	err = handler.chartService.ExtractChartIfMissing(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("template not found err, GetDeploymentTemplate", "err", err, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

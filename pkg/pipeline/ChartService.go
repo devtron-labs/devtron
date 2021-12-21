@@ -122,7 +122,7 @@ type ChartService interface {
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
 	DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
-	CheckAndCreateTemplate(ChartRefId int) error
+	ExtractChartIfMissing(ChartRefId int) error
 }
 type ChartServiceImpl struct {
 	chartRepository           chartConfig.ChartRepository
@@ -142,8 +142,6 @@ type ChartServiceImpl struct {
 	pipelineRepository        pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
 	client                    *http.Client
-	K8sUtil                   *util.K8sUtil
-	CustomFormatCheckers      *util2.CustomFormatCheckers
 }
 
 func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -163,7 +161,6 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
 	client *http.Client,
-	K8sUtil *util.K8sUtil,
 	CustomFormatCheckers *util2.CustomFormatCheckers,
 ) *ChartServiceImpl {
 	return &ChartServiceImpl{
@@ -184,8 +181,6 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 		pipelineRepository:        pipelineRepository,
 		appLevelMetricsRepository: appLevelMetricsRepository,
 		client:                    client,
-		K8sUtil:                   K8sUtil,
-		CustomFormatCheckers:      CustomFormatCheckers,
 	}
 }
 
@@ -1149,7 +1144,7 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 	}
 }
 
-func (impl ChartServiceImpl) CheckAndCreateTemplate(ChartRefId int) error {
+func (impl ChartServiceImpl) ExtractChartIfMissing(ChartRefId int) error {
 	chartRef, err := impl.chartRefRepository.FindById(ChartRefId)
 	if err != nil {
 		return err
@@ -1158,7 +1153,7 @@ func (impl ChartServiceImpl) CheckAndCreateTemplate(ChartRefId int) error {
 	if _, err := os.Stat(filepath.Join(string(impl.refChartDir), location)); os.IsNotExist(err) {
 		chartData := chartRef.ChartData
 		binaryDataReader := bytes.NewReader(chartData)
-		err = impl.K8sUtil.ExtractTarGz(binaryDataReader, string(impl.refChartDir))
+		err = util2.ExtractTarGz(binaryDataReader, string(impl.refChartDir))
 		if err != nil {
 			return err
 		}

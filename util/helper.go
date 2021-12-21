@@ -18,11 +18,16 @@
 package util
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -118,4 +123,50 @@ func HttpRequest(url string) (map[string]interface{}, error) {
 		return apiRes, err
 	}
 	return nil, err
+}
+
+func ExtractTarGz(gzipStream io.Reader, chartDir string) error{
+	uncompressedStream, err := gzip.NewReader(gzipStream)
+	if err != nil {
+		return err
+	}
+
+	tarReader := tar.NewReader(uncompressedStream)
+	for true {
+		header, err := tarReader.Next()
+
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if _, err := os.Stat(filepath.Join(chartDir, header.Name)); os.IsNotExist(err) {
+				if err := os.Mkdir(filepath.Join(chartDir, header.Name), 0755); err != nil {
+					return err
+				}
+			} else {
+				break
+			}
+
+		case tar.TypeReg:
+			outFile, err := os.Create(filepath.Join(chartDir, header.Name))
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(outFile, tarReader); err != nil {
+				return err
+			}
+			outFile.Close()
+
+		default:
+			return err
+
+		}
+
+	}
+	return nil
 }
