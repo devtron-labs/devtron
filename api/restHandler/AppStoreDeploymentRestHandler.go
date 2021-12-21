@@ -244,19 +244,32 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	}
 	v := r.URL.Query()
 	token := r.Header.Get("token")
-	var envs []int
-	envsQueryParam := v.Get("envs")
+	var envIds []int
+	envsQueryParam := v.Get("envIds")
 	if envsQueryParam != "" {
 		envsStr := strings.Split(envsQueryParam, ",")
 		for _, t := range envsStr {
-			env, err := strconv.Atoi(t)
+			envId, err := strconv.Atoi(t)
 			if err != nil {
 				handler.Logger.Errorw("request err, GetAllInstalledApp", "err", err, "envsQueryParam", envsQueryParam)
 				response.WriteResponse(http.StatusBadRequest, "please send valid envs", w, errors.New("env id invalid"))
 				return
 			}
-			envs = append(envs, env)
+			envIds = append(envIds, envId)
 		}
+	}
+	vars := mux.Vars(r)
+	clusterIdString := vars["clusterIds"]
+	clusterIdSlices := strings.Split(clusterIdString, ",")
+	var clusterIds []int
+	for _, clusterId := range clusterIdSlices {
+		id, err := strconv.Atoi(clusterId)
+		if err != nil {
+			handler.Logger.Errorw("request err, GetAllInstalledApp", "err", err, "clusterIdString", clusterIdString)
+			common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
+			return
+		}
+		clusterIds = append(clusterIds, id)
 	}
 	onlyDeprecated := false
 	deprecatedStr := v.Get("onlyDeprecated")
@@ -268,7 +281,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	}
 
 	var chartRepoIds []int
-	chartRepoIdsStr := v.Get("chartRepoId")
+	chartRepoIdsStr := v.Get("chartRepoIds")
 	if len(chartRepoIdsStr) > 0 {
 		chartRepoIdStrArr := strings.Split(chartRepoIdsStr, ",")
 		for _, chartRepoIdStr := range chartRepoIdStrArr {
@@ -290,7 +303,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	if len(sizeStr) > 0 {
 		size, _ = strconv.Atoi(sizeStr)
 	}
-	filter := &appstore2.AppStoreFilter{OnlyDeprecated: onlyDeprecated, ChartRepoId: chartRepoIds, AppStoreName: appStoreName, EnvIds: envs, AppName: appName}
+	filter := &appstore2.AppStoreFilter{OnlyDeprecated: onlyDeprecated, ChartRepoId: chartRepoIds, AppStoreName: appStoreName, EnvIds: envIds, AppName: appName, ClusterIds: clusterIds}
 	if size > 0 {
 		filter.Size = size
 		filter.Offset = offset

@@ -252,6 +252,9 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *AppStoreFilte
 	if len(filter.EnvIds) > 0 {
 		query = query + " AND env.id IN (" + sqlIntSeq(filter.EnvIds) + ")"
 	}
+	if len(filter.ClusterIds) > 0 {
+		query = query + " AND cluster.id IN (" + sqlIntSeq(filter.ClusterIds) + ")"
+	}
 	query = query + " ORDER BY aps.name ASC"
 	if filter.Size > 0 {
 		query = query + " OFFSET " + strconv.Itoa(filter.Offset) + " LIMIT " + strconv.Itoa(filter.Size) + ""

@@ -498,8 +498,13 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int) (*InstallAppV
 
 func (impl InstalledAppServiceImpl) GetAll(filter *appstore.AppStoreFilter) (openapi.AppList, error) {
 	applicationType := "DEVTRON-CHART-STORE"
+	var clusterIdsConverted []int32
+	for _, clusterId := range filter.ClusterIds{
+		clusterIdsConverted = append(clusterIdsConverted, int32(clusterId))
+	}
 	installedAppsResponse := openapi.AppList{
 		ApplicationType: &applicationType,
+		ClusterIds: &clusterIdsConverted,
 	}
 	installedApps, err := impl.installedAppRepository.GetAllInstalledApps(filter)
 	if err != nil && !util.IsErrNoRows(err) {
