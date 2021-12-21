@@ -565,20 +565,20 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 						}
 					}
 
-					if _, ok := roleIds[roleModel.Id]; ok {
-						//Adding policies which is removed
-						policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
-					} else {
-						//new role ids in new array, add it
-						if roleModel.Id > 0 {
-							userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
-							userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
-							if err != nil {
-								return nil, err
-							}
-							policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+					//new role ids in new array, add it
+					if roleModel.Id > 0 {
+						userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
+						userRoleModel.CreatedBy = userInfo.UserId
+						userRoleModel.UpdatedBy = userInfo.UserId
+						userRoleModel.CreatedOn = time.Now()
+						userRoleModel.UpdatedOn = time.Now()
+						userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
+						if err != nil {
+							return nil, err
 						}
+						policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
 					}
+
 				}
 			}
 		}
@@ -700,6 +700,7 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 				Environment: role.Environment,
 				EntityName:  role.EntityName,
 				Action:      role.Action,
+				Type:        role.AccessType,
 			}
 
 		}
