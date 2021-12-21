@@ -159,10 +159,10 @@ type AppStoreServiceImpl struct {
 	envService                    cluster.EnvironmentService
 	versionService                argocdServer.VersionService
 	aCDAuthConfig                 *util2.ACDAuthConfig
-	client               		  *http.Client
-	ChartRefRepository  		  chartConfig.ChartRefRepository
-	ChartTemplateService 		  util.ChartTemplateService
-	RefChartDir					  pipeline.RefChartDir
+	client                        *http.Client
+	ChartRefRepository            chartConfig.ChartRefRepository
+	ChartTemplateService          util.ChartTemplateService
+	RefChartDir                   pipeline.RefChartDir
 }
 
 func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
@@ -186,7 +186,7 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 		client:                        client,
 		ChartRefRepository:            refRepository,
 		ChartTemplateService:          ChartTemplateService,
-		RefChartDir:				   RefChartDir,
+		RefChartDir:                   RefChartDir,
 	}
 }
 
@@ -815,7 +815,7 @@ func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() error {
 		return err
 	}
 
-	if err.Error() == watcherRestart{
+	if err.Error() == watcherRestart {
 		go impl.K8sUtil.WatchConfigMap(argocdServer.DevtronInstalationNs, dir, client)
 	}
 
@@ -835,7 +835,7 @@ func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() error {
 	}
 
 	charts, err := impl.ChartRefRepository.GetAll()
-	for  _, chart := range charts{
+	for _, chart := range charts {
 		if chart.Name == chartName && chart.Version == chartVersion && chart.Location == chartLocation {
 			go impl.K8sUtil.WatchConfigMap(argocdServer.DevtronInstalationNs, dir, client)
 		}

@@ -184,8 +184,8 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 		pipelineRepository:        pipelineRepository,
 		appLevelMetricsRepository: appLevelMetricsRepository,
 		client:                    client,
-		K8sUtil:				   K8sUtil,
-		CustomFormatCheckers:	   CustomFormatCheckers,
+		K8sUtil:                   K8sUtil,
+		CustomFormatCheckers:      CustomFormatCheckers,
 	}
 }
 
@@ -1149,7 +1149,7 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 	}
 }
 
-func (impl ChartServiceImpl) CheckAndCreateTemplate(ChartRefId int) error{
+func (impl ChartServiceImpl) CheckAndCreateTemplate(ChartRefId int) error {
 	chartRef, err := impl.chartRefRepository.FindById(ChartRefId)
 	if err != nil {
 		return err
@@ -1158,7 +1158,10 @@ func (impl ChartServiceImpl) CheckAndCreateTemplate(ChartRefId int) error{
 	if _, err := os.Stat(filepath.Join(string(impl.refChartDir), location)); os.IsNotExist(err) {
 		chartData := chartRef.ChartData
 		binaryDataReader := bytes.NewReader(chartData)
-		impl.K8sUtil.ExtractTarGz(binaryDataReader, string(impl.refChartDir))
+		err = impl.K8sUtil.ExtractTarGz(binaryDataReader, string(impl.refChartDir))
+		if err != nil {
+			return err
+		}
 		time.Sleep(time.Second)
 		return nil
 	} else {
@@ -1166,5 +1169,3 @@ func (impl ChartServiceImpl) CheckAndCreateTemplate(ChartRefId int) error{
 	}
 
 }
-
-

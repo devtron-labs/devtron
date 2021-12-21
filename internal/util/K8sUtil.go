@@ -23,6 +23,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	error2 "errors"
+	"fmt"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	"io"
@@ -213,6 +214,7 @@ func (impl K8sUtil) WatchConfigMap(namespace string, dir string, client kubernet
 			if !ok {
 				continue
 			}
+
 			if annotations == "mount" {
 				for filename, binaryData := range configMaps.BinaryData {
 					binaryDataReader := bytes.NewReader(binaryData)
@@ -223,8 +225,11 @@ func (impl K8sUtil) WatchConfigMap(namespace string, dir string, client kubernet
 						return "", "", nil, err
 					}
 
-					impl.ExtractTarGz(binaryDataReader, chartDir)
-
+					err = impl.ExtractTarGz(binaryDataReader, chartDir)
+					if err != nil {
+						impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
+						return "", "", nil, err
+					}
 					configmapDirectoryName := strings.Split(filename, ".")
 
 					readFile, err := ioutil.ReadFile(filepath.Join(string(impl.ChartWorkingDir), configmapDirectoryName[0], "Chart.Yaml"))
@@ -470,10 +475,10 @@ func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, cluster
 	return nil
 }
 
-func (impl K8sUtil) ExtractTarGz(gzipStream io.Reader, chartDir string) {
+func (impl K8sUtil) ExtractTarGz(gzipStream io.Reader, chartDir string) error{
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
-		log.Fatal("ExtractTarGz: NewReader failed")
+		return err
 	}
 
 	tarReader := tar.NewReader(uncompressedStream)
@@ -485,13 +490,13 @@ func (impl K8sUtil) ExtractTarGz(gzipStream io.Reader, chartDir string) {
 		}
 
 		if err != nil {
-			log.Fatalf("ExtractTarGz: Next() failed: %s", err.Error())
+			return err
 		}
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if _, err := os.Stat(filepath.Join(chartDir, header.Name)); os.IsNotExist(err) {
 				if err := os.Mkdir(filepath.Join(chartDir, header.Name), 0755); err != nil {
-					log.Fatalf("ExtractTarGz: Mkdir() failed: %s", err.Error())
+					return err
 				}
 			} else {
 				break
@@ -500,18 +505,16 @@ func (impl K8sUtil) ExtractTarGz(gzipStream io.Reader, chartDir string) {
 		case tar.TypeReg:
 			outFile, err := os.Create(filepath.Join(chartDir, header.Name))
 			if err != nil {
-				log.Fatalf("ExtractTarGz: Create() failed: %s", err.Error())
+				return err
 			}
 			if _, err := io.Copy(outFile, tarReader); err != nil {
-				log.Fatalf("ExtractTarGz: Copy() failed: %s", err.Error())
+				return err
 			}
 			outFile.Close()
 
 		default:
-			log.Fatalf(
-				"ExtractTarGz: uknown type: %s in %s",
-				header.Typeflag,
-				header.Name)
+			return err
+
 		}
 
 	}
