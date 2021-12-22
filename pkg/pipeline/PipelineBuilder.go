@@ -80,7 +80,7 @@ type PipelineBuilder interface {
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
-	GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.CdWorkflowType) (bean.CiArtifactResponse, error)
+	GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType) (bean.CiArtifactResponse, error)
 	FetchArtifactForRollback(cdPipelineId int) (bean.CiArtifactResponse, error)
 	FindAppsByTeamId(teamId int) ([]AppBean, error)
 	GetAppListByTeamIds(teamIds []int) ([]*TeamAppBean, error)
@@ -1027,7 +1027,7 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting children cd details", "err", err)
 		return err
-	} else if err == pg.ErrNoRows || len(appWorkflowMapping) > 0 {
+	} else if len(appWorkflowMapping) > 0 {
 		impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
 		return fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
 	}
@@ -1557,7 +1557,7 @@ func (impl PipelineBuilderImpl) FetchConfigmapSecretsForCdStages(appId, envId, c
 	return existingConfigMapSecrets, nil
 }
 
-func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.CdWorkflowType) (bean.CiArtifactResponse, error) {
+func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType) (bean.CiArtifactResponse, error) {
 	var ciArtifactsResponse bean.CiArtifactResponse
 	var err error
 	parentId, parentType, err := impl.GetCdParentDetails(cdPipelineId)
@@ -1572,7 +1572,7 @@ func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage
 			return ciArtifactsResponse, err
 		}
 	} else if stage == bean2.CD_WORKFLOW_TYPE_DEPLOY {
-		ciArtifactsResponse, err = impl.GetArtifactsForDeployCdStage(cdPipelineId, parentId, parentType)
+		ciArtifactsResponse, err = impl.GetArtifactsForDeployStage(cdPipelineId, parentId, parentType)
 		if err != nil {
 			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "stage", stage, "cdPipelineId", cdPipelineId)
 			return ciArtifactsResponse, err
@@ -1584,33 +1584,9 @@ func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage
 			return ciArtifactsResponse, err
 		}
 	}
-	if len(ciArtifactsResponse.CiArtifacts) > 0 {
-		var ids []int
-		for _, item := range ciArtifactsResponse.CiArtifacts {
-			ids = append(ids, item.Id)
-		}
-		artifacts, err := impl.ciArtifactRepository.GetByIds(ids)
-		if err != nil {
-			impl.logger.Errorw("error in getting ci artifacts")
-			return ciArtifactsResponse, err
-		}
-		artifactMap := make(map[int]*repository.CiArtifact)
-		for _, artifact := range artifacts {
-			artifactMap[artifact.Id] = artifact
-		}
-
-		var ciArtifactsFinal []bean.CiArtifactBean
-		for _, item := range ciArtifactsResponse.CiArtifacts {
-			artifact := artifactMap[item.Id]
-			item.Scanned = artifact.Scanned
-			item.ScanEnabled = artifact.ScanEnabled
-			ciArtifactsFinal = append(ciArtifactsFinal, item)
-		}
-		ciArtifactsResponse.CiArtifacts = ciArtifactsFinal
-	}
 	return ciArtifactsResponse, nil
 }
-func (impl PipelineBuilderImpl) GetCdParentDetails(cdPipelineId int) (parentId int, parentType bean2.CdWorkflowType, err error) {
+func (impl PipelineBuilderImpl) GetCdParentDetails(cdPipelineId int) (parentId int, parentType bean2.WorkflowType, err error) {
 	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(cdPipelineId)
 	if err != nil {
 		return 0, "", err
@@ -1632,31 +1608,23 @@ func (impl PipelineBuilderImpl) GetCdParentDetails(cdPipelineId int) (parentId i
 		}
 	}
 	// empty string used to denote CI pipeline
-	return parentId, "", nil
+	return parentId, bean2.CI_WORKFLOW_TYPE, nil
 }
-func (impl PipelineBuilderImpl) GetArtifactsForPreCdStage(cdPipelineId int, parentId int, parentType bean2.CdWorkflowType) (bean.CiArtifactResponse, error) {
+func (impl PipelineBuilderImpl) GetArtifactsForPreCdStage(cdPipelineId int, parentId int, parentType bean2.WorkflowType) (bean.CiArtifactResponse, error) {
 	var ciArtifacts []bean.CiArtifactBean
 	var ciArtifactsResponse bean.CiArtifactResponse
 	var err error
 
 	artifactMap := make(map[int]int)
-	ciArtifacts, artifactMap, err = impl.BuildArtifactsForChildStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_PRE)
+	ciArtifacts, artifactMap, err = impl.BuildArtifactsForCdStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_PRE, ciArtifacts, artifactMap, false)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for children cd stage", "err", err, "stage", bean2.CD_WORKFLOW_TYPE_PRE)
 		return ciArtifactsResponse, err
 	}
-	if parentType == bean2.CD_WORKFLOW_TYPE_POST || parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
-		ciArtifacts, err = impl.BuildArtifactsForCdParentStage(parentId, parentType, ciArtifacts, artifactMap)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_PRE)
-			return ciArtifactsResponse, err
-		}
-	} else { //Parent is CI pipeline
-		ciArtifacts, err = impl.BuildArtifactsForCIParent(cdPipelineId, ciArtifacts, artifactMap)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", appWorkflow.CIPIPELINE, "childStage", bean2.CD_WORKFLOW_TYPE_PRE)
-			return ciArtifactsResponse, err
-		}
+	ciArtifacts, err = impl.BuildArtifactsForParentStage(cdPipelineId, parentId, parentType, ciArtifacts,artifactMap)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_PRE)
+		return ciArtifactsResponse, err
 	}
 	ciArtifactsResponse.CdPipelineId = cdPipelineId
 	if ciArtifacts == nil {
@@ -1666,7 +1634,7 @@ func (impl PipelineBuilderImpl) GetArtifactsForPreCdStage(cdPipelineId int, pare
 	return ciArtifactsResponse, nil
 }
 
-func (impl PipelineBuilderImpl) GetArtifactsForDeployCdStage(cdPipelineId int, parentId int, parentType bean2.CdWorkflowType) (bean.CiArtifactResponse, error) {
+func (impl PipelineBuilderImpl) GetArtifactsForDeployStage(cdPipelineId int, parentId int, parentType bean2.WorkflowType) (bean.CiArtifactResponse, error) {
 	var ciArtifacts []bean.CiArtifactBean
 	var ciArtifactsResponse bean.CiArtifactResponse
 	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
@@ -1674,29 +1642,19 @@ func (impl PipelineBuilderImpl) GetArtifactsForDeployCdStage(cdPipelineId int, p
 		impl.logger.Errorw("Error in getting cd pipeline details", err, "cdPipelineId", cdPipelineId)
 	}
 	artifactMap := make(map[int]int)
-	ciArtifacts, artifactMap, err = impl.BuildArtifactsForChildStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY)
+	ciArtifacts, artifactMap, err = impl.BuildArtifactsForCdStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY, ciArtifacts, artifactMap, false)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for children cd stage", "err", err, "stage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
 		return ciArtifactsResponse, err
 	}
 	if len(pipeline.PreStageConfig) > 0 {
-		ciArtifacts, err = impl.BuildArtifactsForCdParentStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_PRE, ciArtifacts, artifactMap)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", bean2.CD_WORKFLOW_TYPE_PRE, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
-			return ciArtifactsResponse, err
-		}
-	} else if parentType == bean2.CD_WORKFLOW_TYPE_POST || parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
-		ciArtifacts, err = impl.BuildArtifactsForCdParentStage(parentId, parentType, ciArtifacts, artifactMap)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
-			return ciArtifactsResponse, err
-		}
-	} else { //Parent is CI
-		ciArtifacts, err = impl.BuildArtifactsForCIParent(cdPipelineId, ciArtifacts, artifactMap)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", appWorkflow.CIPIPELINE, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
-			return ciArtifactsResponse, err
-		}
+		parentId = cdPipelineId
+		parentType = bean2.CD_WORKFLOW_TYPE_PRE
+	}
+	ciArtifacts, err = impl.BuildArtifactsForParentStage(cdPipelineId, parentId, parentType, ciArtifacts,artifactMap)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
+		return ciArtifactsResponse, err
 	}
 	ciArtifactsResponse.CdPipelineId = cdPipelineId
 	if ciArtifacts == nil {
@@ -1711,14 +1669,17 @@ func (impl PipelineBuilderImpl) GetArtifactsForPostCdStage(cdPipelineId int) (be
 	var ciArtifactsResponse bean.CiArtifactResponse
 	artifactMap := make(map[int]int)
 	var err error
-	ciArtifacts, artifactMap, err = impl.BuildArtifactsForChildStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_POST)
+	ciArtifacts, artifactMap, err = impl.BuildArtifactsForCdStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_POST, ciArtifacts, artifactMap, false)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for children cd stage", "err", err, "stage", bean2.CD_WORKFLOW_TYPE_POST)
 		return ciArtifactsResponse, err
 	}
-	ciArtifacts, err = impl.BuildArtifactsForCdParentStage(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY, ciArtifacts, artifactMap)
+	//as POST deploy stage can only have DEPLOY stage as it's parent
+	parentId := cdPipelineId
+	parentType := bean2.CD_WORKFLOW_TYPE_DEPLOY
+	ciArtifacts, err = impl.BuildArtifactsForParentStage(cdPipelineId, parentId, parentType, ciArtifacts,artifactMap)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting artifacts for children cd stage", "err", err, "stage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
+		impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", parentType, "childStage", bean2.CD_WORKFLOW_TYPE_DEPLOY)
 		return ciArtifactsResponse, err
 	}
 	ciArtifactsResponse.CdPipelineId = cdPipelineId
@@ -1729,76 +1690,38 @@ func (impl PipelineBuilderImpl) GetArtifactsForPostCdStage(cdPipelineId int) (be
 	return ciArtifactsResponse, nil
 }
 
-func (impl PipelineBuilderImpl) BuildArtifactsForChildStage(childPipelineId int, childStageType bean2.CdWorkflowType) (ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, err error) {
-	artifactMap = make(map[int]int)
-	//getting workflow runner list for own and updating artifacts
-	latestChildWfr, err := impl.cdWorkflowRepository.FindLatestArtifactByPipelineIdAndRunnerType(childPipelineId, childStageType)
-	if err != nil {
-		impl.logger.Errorw("error in getting artifact for deployed items", "cdPipelineId", childPipelineId)
-		return ciArtifacts, artifactMap, err
+func (impl PipelineBuilderImpl) BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int) ([]bean.CiArtifactBean, error){
+	var ciArtifactsFinal []bean.CiArtifactBean
+	var err error
+	if parentType == bean2.CI_WORKFLOW_TYPE{
+		ciArtifactsFinal, err = impl.BuildArtifactsForCIParent(cdPipelineId, ciArtifacts, artifactMap)
+	} else{
+		//parent type is PRE, POST or DEPLOY type
+		ciArtifactsFinal,_,err = impl.BuildArtifactsForCdStage(parentId, parentType, ciArtifacts, artifactMap, true)
 	}
-	childWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(childPipelineId, childStageType, 10)
-	if err != nil {
-		impl.logger.Errorw("error in getting artifact for deployed post stage items", "cdPipelineId", childPipelineId)
-		return ciArtifacts, artifactMap, err
-	}
-	var acceptedStatus string
-	if childStageType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
-		acceptedStatus = application.Healthy
-	} else {
-		acceptedStatus = application.Succeeded
-	}
-	for _, wfr := range childWfrList {
-		if _, ok := artifactMap[wfr.CdWorkflow.CiArtifact.Id]; !ok {
-			if wfr.Status == acceptedStatus {
-				mInfo, err := parseMaterialInfo([]byte(wfr.CdWorkflow.CiArtifact.MaterialInfo), wfr.CdWorkflow.CiArtifact.DataSource)
-				if err != nil {
-					mInfo = []byte("[]")
-					impl.logger.Errorw("Error in parsing artifact material info", "err", err)
-				}
-				latest := false
-				if latestChildWfr.CdWorkflow.CiArtifactId == wfr.CdWorkflow.CiArtifactId {
-					latest = true
-				}
-				ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
-					Id:           wfr.CdWorkflow.CiArtifact.Id,
-					Image:        wfr.CdWorkflow.CiArtifact.Image,
-					ImageDigest:  wfr.CdWorkflow.CiArtifact.ImageDigest,
-					MaterialInfo: mInfo,
-					Deployed:     true,
-					DeployedTime: formatDate(wfr.StartedOn, bean.LayoutRFC3339),
-					Latest:       latest,
-				})
-				//storing index of ci artifact for using in parent wfr config update
-				artifactMap[wfr.CdWorkflow.CiArtifact.Id] = len(ciArtifacts) - 1
-			}
-		}
-	}
-	return ciArtifacts, artifactMap, nil
+	return ciArtifactsFinal, err
 }
 
-// can only be used when parent stages = [deploy, pre, post] and not valid for ci; for CI, another method written down below
 
-func (impl PipelineBuilderImpl) BuildArtifactsForCdParentStage(parentPipelineId int, parentStageType bean2.CdWorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int) ([]bean.CiArtifactBean, error) {
+func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, parent bool) ([]bean.CiArtifactBean, map[int]int, error){
 	//getting wfr for parent and updating artifacts
-	latestParentWfr, err := impl.cdWorkflowRepository.FindLatestArtifactByPipelineIdAndRunnerType(parentPipelineId, parentStageType)
+	parentWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(pipelineId, stageType, 10)
 	if err != nil {
-		impl.logger.Errorw("error in getting artifact for deployed items", "cdPipelineId", parentPipelineId)
-		return ciArtifacts, err
-	}
-	parentWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(parentPipelineId, parentStageType, 10)
-	if err != nil {
-		impl.logger.Errorw("error in getting artifact for deployed items", "cdPipelineId", parentPipelineId)
-		return ciArtifacts, err
+		impl.logger.Errorw("error in getting artifact for deployed items", "cdPipelineId", pipelineId)
+		return ciArtifacts,artifactMap, err
 	}
 	var acceptedStatus string
-	if parentStageType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
+	if stageType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
 		acceptedStatus = application.Healthy
 	} else {
-		acceptedStatus = application.Succeeded
+		acceptedStatus = application.SUCCEEDED
 	}
-	for _, wfr := range parentWfrList {
+	for index, wfr := range parentWfrList {
 		if wfr.Status == acceptedStatus {
+			var runningOnParent bool
+			var latest bool
+			runningOnParent = parent && index == 0
+			latest = !parent && index == 0
 			if ciArtifactIndex, ok := artifactMap[wfr.CdWorkflow.CiArtifact.Id]; !ok {
 				//entry not present, creating new entry
 				mInfo, err := parseMaterialInfo([]byte(wfr.CdWorkflow.CiArtifact.MaterialInfo), wfr.CdWorkflow.CiArtifact.DataSource)
@@ -1806,29 +1729,32 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdParentStage(parentPipelineId 
 					mInfo = []byte("[]")
 					impl.logger.Errorw("Error in parsing artifact material info", "err", err)
 				}
-				runningOnParent := false
-				if latestParentWfr.CdWorkflow.CiArtifactId == wfr.CdWorkflow.CiArtifactId {
-					runningOnParent = true
-				}
-				ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
+				ciArtifact := bean.CiArtifactBean{
 					Id:              wfr.CdWorkflow.CiArtifact.Id,
 					Image:           wfr.CdWorkflow.CiArtifact.Image,
 					ImageDigest:     wfr.CdWorkflow.CiArtifact.ImageDigest,
 					MaterialInfo:    mInfo,
 					RunningOnParent: runningOnParent,
-				})
+					Latest: latest,
+					Scanned: wfr.CdWorkflow.CiArtifact.Scanned,
+					ScanEnabled: wfr.CdWorkflow.CiArtifact.ScanEnabled,
+				}
+				if !parent{
+					ciArtifact.Deployed=    true
+					ciArtifact.DeployedTime= formatDate(wfr.StartedOn, bean.LayoutRFC3339)
+				}
+				ciArtifacts = append(ciArtifacts, )
 				//storing index of ci artifact for using when updating old entry
 				artifactMap[wfr.CdWorkflow.CiArtifact.Id] = len(ciArtifacts) - 1
 			} else {
-				//entry already present, checking if this artifact is running on parent
-				//if yes, updating the same
-				if latestParentWfr.CdWorkflow.CiArtifactId == wfr.CdWorkflow.CiArtifactId {
-					ciArtifacts[ciArtifactIndex].RunningOnParent = true
+				//entry already present, updating running on parent
+				if parent {
+					ciArtifacts[ciArtifactIndex].RunningOnParent = runningOnParent
 				}
 			}
 		}
 	}
-	return ciArtifacts, nil
+	return ciArtifacts, artifactMap,nil
 }
 
 // method for building artifacts for parent CI

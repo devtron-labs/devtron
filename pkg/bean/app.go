@@ -415,10 +415,9 @@ type CDSourceObject struct {
 }
 
 type CDPipelineConfigObject struct {
-	Id              int    `json:"id,omitempty"  validate:"number" `
-	EnvironmentId   int    `json:"environmentId,omitempty"  validate:"number,required" `
-	EnvironmentName string `json:"environmentName,omitempty" `
-	//TODO : check if it's still being used
+	Id                            int                               `json:"id,omitempty"  validate:"number" `
+	EnvironmentId                 int                               `json:"environmentId,omitempty"  validate:"number,required" `
+	EnvironmentName               string                            `json:"environmentName,omitempty" `
 	CiPipelineId                  int                               `json:"ciPipelineId,omitempty" validate:"number,required"`
 	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                            `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName

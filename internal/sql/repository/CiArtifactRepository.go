@@ -57,7 +57,7 @@ type CiArtifactRepository interface {
 	FetchArtifactForRollback(cdPipelineId int) ([]CiArtifact, error)
 
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
-	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.CdWorkflowType) ([]CiArtifact, error)
+	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
 	SaveAll(artifacts []*CiArtifact) error
 	GetArtifactsByCiPipelineId(ciPipelineId int) ([]CiArtifact, error)
 	FinDByParentCiArtifactAndCiId(parentCiArtifact int, ciPipelineIds []int) ([]*CiArtifact, error)
@@ -196,7 +196,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId int) 
 	return artifactsAll, err
 }
 
-func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.CdWorkflowType) ([]CiArtifact, error) {
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error) {
 	var artifactsA []CiArtifact
 	var artifactsAB []CiArtifact
 
