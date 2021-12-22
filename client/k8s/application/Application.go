@@ -2,36 +2,33 @@ package application
 
 import (
 	"go.uber.org/zap"
+	v1b1 "k8s.io/api/events/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/typed/events/v1beta1"
-	v1b1 "k8s.io/api/events/v1beta1"
 	"k8s.io/client-go/rest"
 )
 
-type k8sApplication interface {
-	GetResource(request *GetRequest)(resp *ManifestResponse, err error)
-	UpdateResource(request *UpdateRequest)(resp *ManifestResponse, err error)
-	DeleteResource(request *DeleteRequest)(resp *ManifestResponse, err error)
+type K8sApplicationService interface {
+	GetResource(token string, request *GetRequest) (resp *ManifestResponse, err error)
+	UpdateResource(token string, request *UpdateRequest) (resp *ManifestResponse, err error)
+	DeleteResource(token string, request *DeleteRequest) (resp *ManifestResponse, err error)
+	ListEvents(token string, request *GetRequest) (*EventsResponse, error)
 }
 
 type K8sApplicationServiceImpl struct {
-	restConfig *rest.Config
-	logger     *zap.SugaredLogger
-	restInterface rest.Interface
+	logger        *zap.SugaredLogger
 }
 
-func NewK8sApplicationServiceImpl(restConfig *rest.Config, logger *zap.SugaredLogger,
-	restInterface rest.Interface) *K8sApplicationServiceImpl {
+func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger) *K8sApplicationServiceImpl {
 	return &K8sApplicationServiceImpl{
-		restConfig: restConfig,
-		logger:     logger,
-		restInterface: restInterface,
+		logger:        logger,
 	}
 }
 
@@ -52,7 +49,7 @@ type UpdateRequest struct {
 }
 
 type DeleteRequest struct {
-	//TODO : update validations, confirm for force delete flag
+	//TODO : update validations
 	Name             string                  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
 	Namespace        string                  `protobuf:"bytes,2,req,name=namespace" json:"namespace,omitempty"`
 	GroupVersionKind schema.GroupVersionKind `protobuf:"bytes,3,req,name=groupVersionKind" json:"groupVersionKind,omitempty"`
@@ -64,17 +61,20 @@ type ManifestResponse struct {
 	Manifest unstructured.Unstructured `protobuf:"bytes,1,req,name=manifest" json:"manifest,omitempty"`
 }
 
-type EventResponse struct{
+type EventsResponse struct {
 	//TODO : update validations
-	Event *v1b1.Event
+	Events *v1b1.EventList
 }
 
-func (impl K8sApplicationServiceImpl) GetResource(request *GetRequest)(*ManifestResponse, error) {
-	dynamicIf, err := dynamic.NewForConfig(impl.restConfig)
+func (impl K8sApplicationServiceImpl) GetResource(token string, request *GetRequest) (*ManifestResponse, error) {
+	restConfig := &rest.Config{
+		BearerToken: token,
+	}
+	dynamicIf, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		return nil, err
 	}
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(impl.restConfig)
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -91,12 +91,15 @@ func (impl K8sApplicationServiceImpl) GetResource(request *GetRequest)(*Manifest
 	return &ManifestResponse{*obj}, nil
 }
 
-func (impl K8sApplicationServiceImpl) UpdateResource(request *UpdateRequest) (*ManifestResponse, error) {
-	dynamicIf, err := dynamic.NewForConfig(impl.restConfig)
+func (impl K8sApplicationServiceImpl) UpdateResource(token string, request *UpdateRequest) (*ManifestResponse, error) {
+	restConfig := &rest.Config{
+		BearerToken: token,
+	}
+	dynamicIf, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		return nil, err
 	}
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(impl.restConfig)
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -111,12 +114,15 @@ func (impl K8sApplicationServiceImpl) UpdateResource(request *UpdateRequest) (*M
 	}
 	return &ManifestResponse{*obj}, nil
 }
-func (impl K8sApplicationServiceImpl) DeleteResource(request *DeleteRequest) (*ManifestResponse, error) {
-	dynamicIf, err := dynamic.NewForConfig(impl.restConfig)
+func (impl K8sApplicationServiceImpl) DeleteResource(token string, request *DeleteRequest) (*ManifestResponse, error) {
+	restConfig := &rest.Config{
+		BearerToken: token,
+	}
+	dynamicIf, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		return nil, err
 	}
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(impl.restConfig)
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -136,14 +142,24 @@ func (impl K8sApplicationServiceImpl) DeleteResource(request *DeleteRequest) (*M
 	return &ManifestResponse{*obj}, nil
 }
 
-func (impl K8sApplicationServiceImpl) GetEvents(request *GetRequest)(*EventResponse, error) {
-	eventsClient := v1beta1.New(impl.restInterface)
-	//TODO : confirm method to be used(get vs list)
-	event, err := eventsClient.Events(request.Namespace).Get(request.Name, metav1.GetOptions{})
-	if err != nil{
+func (impl K8sApplicationServiceImpl) ListEvents(token string, request *GetRequest) (*EventsResponse, error) {
+	restConfig := &rest.Config{
+		BearerToken: token,
+	}
+	var resourceMap map[string]string
+	resourceMap["involvedObject.apiVersion"] = request.GroupVersionKind.GroupVersion().String()
+	resourceMap["involvedObject.kind"] = request.GroupVersionKind.Kind
+	resourceMap["involvedObject.name"] = request.Name
+	resourceMap["involvedObject.namespace"] = request.Namespace
+	listOptions := metav1.ListOptions{
+		FieldSelector: fields.Set(resourceMap).AsSelector().String(),
+	}
+	eventsClient, err := v1beta1.NewForConfig(restConfig)
+	events, err := eventsClient.Events(request.Namespace).List(listOptions)
+	if err != nil {
 		return nil, err
 	}
-	return &EventResponse{event}, nil
+	return &EventsResponse{events}, nil
 }
 
 func ServerResourceForGroupVersionKind(discoveryClient discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
