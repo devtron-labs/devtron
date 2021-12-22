@@ -792,6 +792,11 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 }
 
 var CallbackConfigMap = func (configMaps *v1.ConfigMap) {
+	annotations, ok := configMaps.Annotations["charts.devtron.ai/data"]
+	if !ok || annotations != "mount"{
+		return
+	}
+
 	logger := zap.SugaredLogger{}
 	for filename, binaryData := range configMaps.BinaryData {
 		binaryDataReader := bytes.NewReader(binaryData)
@@ -886,5 +891,5 @@ func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() {
 	if err != nil {
 		impl.logger.Errorw("error in getting client set, WatchAndSaveConfigMap", "err", err)
 	}
-	go impl.K8sUtil.WatchConfigMapWithCallback(argocdServer.DevtronInstalationNs, client, CallbackConfigMap)
+	go impl.K8sUtil.RetryWatchConfigMapWithCallback(argocdServer.DevtronInstalationNs, client, CallbackConfigMap)
 }
