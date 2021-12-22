@@ -137,35 +137,68 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, a
 	/*if act == "admin" {
 		act = "*"
 	}*/
-	if len(accessType) == 0 {
-		accessType = ""
-	}
+
 	var err error
 	if len(entity) > 0 && len(app) > 0 && act == "update" {
-		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.entity_name=? AND role.action=? and role.access_type=?"
-		_, err = impl.dbConnection.Query(&model, query, entity, app, act, accessType)
+		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.entity_name=? AND role.action=?"
+		if len(accessType) == 0 {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type='" + accessType + "'"
+		}
+		_, err = impl.dbConnection.Query(&model, query, entity, app, act)
 	} else if len(entity) > 0 && app == "" {
-		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.action=? and role.access_type=?"
-		_, err = impl.dbConnection.Query(&model, query, entity, act, accessType)
+		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.action=?"
+		if len(accessType) == 0 {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type='"+accessType+"'"
+		}
+		_, err = impl.dbConnection.Query(&model, query, entity, act)
 	} else {
 		if len(team) > 0 && len(app) > 0 && len(env) > 0 && len(act) > 0 {
-			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND role.environment=? AND role.action=? and role.access_type=?"
-			_, err = impl.dbConnection.Query(&model, query, team, app, env, act, accessType)
+			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND role.environment=? AND role.action=?"
+			if len(accessType) == 0 {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='"+accessType+"'"
+			}
+			_, err = impl.dbConnection.Query(&model, query, team, app, env, act)
 		} else if len(team) > 0 && app == "" && len(env) > 0 && len(act) > 0 {
-			query := "SELECT role.* FROM roles role WHERE role.team=? AND coalesce(role.entity_name,'')=? AND role.environment=? AND role.action=? and role.access_type=?"
-			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, env, act, accessType)
+			query := "SELECT role.* FROM roles role WHERE role.team=? AND coalesce(role.entity_name,'')=? AND role.environment=? AND role.action=?"
+			if len(accessType) == 0 {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='"+accessType+"'"
+			}
+			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, env, act)
 		} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
 			//this is applicable for all environment of a team
-			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND coalesce(role.environment,'')=? AND role.action=? and role.access_type=?"
-			_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY, act, accessType)
+			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND coalesce(role.environment,'')=? AND role.action=?"
+			if len(accessType) == 0 {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='"+accessType+"'"
+			}
+			_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY, act)
 		} else if len(team) > 0 && app == "" && env == "" && len(act) > 0 {
 			//this is applicable for all environment of a team
-			query := "SELECT role.* FROM roles role WHERE role.team = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=? and role.access_type=?"
-			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, EMPTY, act, accessType)
+			query := "SELECT role.* FROM roles role WHERE role.team = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
+			if len(accessType) == 0 {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='"+accessType+"'"
+			}
+			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, EMPTY, act)
 		} else if team == "" && app == "" && env == "" && len(act) > 0 {
 			//this is applicable for super admin, all env, all team, all app
-			query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=? and role.access_type=?"
-			_, err = impl.dbConnection.Query(&model, query, EMPTY, EMPTY, EMPTY, act, accessType)
+			query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
+			if len(accessType) == 0 {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='"+accessType+"'"
+			}
+			_, err = impl.dbConnection.Query(&model, query, EMPTY, EMPTY, EMPTY, act)
 		} else if team == "" && app == "" && env == "" && act == "" {
 			return model, nil
 		} else {
@@ -449,7 +482,7 @@ func (impl UserAuthRepositoryImpl) CreateDefaultHelmPolicies(team string, entity
 
 	//Creating ROLES
 	roleAdmin := "{\n    \"role\": \"hawf:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"hawf:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"admin\",\n    \"accessType\": \"hawf\"\n}"
-	roleEdit := "{\n    \"role\": \"hawf:hawf_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"hawf:edit_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"edit\",\n    \"accessType\": \"hawf\"\n}"
+	roleEdit := "{\n    \"role\": \"hawf:edit_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"hawf:edit_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"edit\",\n    \"accessType\": \"hawf\"\n}"
 	roleView := "{\n    \"role\": \"hawf:view_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"hawf:view_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"view\",\n    \"accessType\": \"hawf\"\n}"
 
 	roleAdmin = strings.ReplaceAll(roleAdmin, "<TEAM>", team)
@@ -643,9 +676,6 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx)
 }
 
 func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx) (bool, error) {
-	if len(roleData.AccessType) == 0 {
-		roleData.AccessType = ""
-	}
 	roleModel := &RoleModel{
 		Role:        roleData.Role,
 		Entity:      roleData.Entity,
