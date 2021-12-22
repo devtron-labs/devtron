@@ -26,7 +26,7 @@ RUN GOOS=linux make build-all
 #CMD ["./devtron"]
 #
 
-FROM alpine:4.15.0 as  devtron-ea
+FROM alpine:3.15.0 as  devtron-ea
 
 RUN apk add --no-cache ca-certificates
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/auth_model.conf .
