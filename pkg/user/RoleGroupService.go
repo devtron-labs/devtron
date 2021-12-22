@@ -137,7 +137,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 						//userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + roleFilter.Environment + "," + roleFilter.Application + "," + roleFilter.Action
 
 						if len(roleFilter.Team) > 0 && len(roleFilter.Environment) > 0 {
-							if roleFilter.AccessType == "hawf" {
+							if roleFilter.AccessType == bean.APP_ACCESS_TYPE_HELM {
 								flag, err := impl.userAuthRepository.CreateDefaultHelmPolicies(roleFilter.Team, entityName, environment, tx)
 								if err != nil || flag == false {
 									return nil, err
@@ -286,7 +286,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 					request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
 
 					if len(roleFilter.Team) > 0 {
-						if roleFilter.AccessType == "hawf" {
+						if roleFilter.AccessType == bean.APP_ACCESS_TYPE_HELM {
 							flag, err := impl.userAuthRepository.CreateDefaultHelmPolicies(roleFilter.Team, entityName, environment, tx)
 							if err != nil || flag == false {
 								return nil, err
@@ -525,6 +525,7 @@ func (impl RoleGroupServiceImpl) FetchRolesForGroups(groupNames []string) ([]*be
 			Action:      role.Action,
 			Environment: role.Environment,
 			Team:        role.Team,
+			AccessType:  role.AccessType,
 		}
 		list = append(list, bean)
 	}

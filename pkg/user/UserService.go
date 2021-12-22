@@ -228,7 +228,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 						//userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + roleFilter.Environment + "," + roleFilter.Application + "," + roleFilter.Action
 
 						if len(roleFilter.Team) > 0 {
-							if roleFilter.AccessType == "hawf" {
+							if roleFilter.AccessType == bean.APP_ACCESS_TYPE_HELM {
 								flag, err := impl.userAuthRepository.CreateDefaultHelmPolicies(roleFilter.Team, entityName, environment, tx)
 								if err != nil || flag == false {
 									return nil, err
@@ -470,7 +470,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 						userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
 
 						if len(roleFilter.Team) > 0 {
-							if roleFilter.AccessType == "hawf" {
+							if roleFilter.AccessType == bean.APP_ACCESS_TYPE_HELM {
 								flag, err := impl.userAuthRepository.CreateDefaultHelmPolicies(roleFilter.Team, entityName, environment, tx)
 								if err != nil || flag == false {
 									return nil, err

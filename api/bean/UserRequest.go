@@ -94,3 +94,4 @@ const (
 )
 
 const SUPERADMIN = "role:super-admin___"
+const APP_ACCESS_TYPE_HELM = "hawf"
