@@ -1740,7 +1740,7 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 					ciArtifact.Deployed = true
 					ciArtifact.DeployedTime = formatDate(wfr.StartedOn, bean.LayoutRFC3339)
 				}
-				ciArtifacts = append(ciArtifacts)
+				ciArtifacts = append(ciArtifacts, ciArtifact)
 				//storing index of ci artifact for using when updating old entry
 				artifactMap[wfr.CdWorkflow.CiArtifact.Id] = len(ciArtifacts) - 1
 			} else {
@@ -1774,6 +1774,8 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, ciAr
 				Image:        artifact.Image,
 				ImageDigest:  artifact.ImageDigest,
 				MaterialInfo: mInfo,
+				ScanEnabled:  artifact.ScanEnabled,
+				Scanned:      artifact.Scanned,
 			})
 		}
 	}
