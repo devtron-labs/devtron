@@ -673,8 +673,8 @@ Example for autosccaling with KEDA using Prometheus metrics is given below:
 ```yaml
 kedaAutoscaling:
   enabled: true
-  minReplicas: 1
-  maxReplicas: 2
+  minReplicaCount: 1
+  maxReplicaCount: 2
   idleReplicaCount: 0
   pollingInterval: 30
   advanced:
@@ -704,8 +704,8 @@ Example for autosccaling with KEDA based on kafka is given below :
 ```yaml
 kedaAutoscaling:
   enabled: true
-  minReplicas: 1
-  maxReplicas: 2
+  minReplicaCount: 1
+  maxReplicaCount: 2
   idleReplicaCount: 0
   pollingInterval: 30
   advanced: {}
