@@ -448,7 +448,7 @@ func InitializeApp() (*App, error) {
 }
 
 var (
-	_wireLocalDevModeValue     = client2.LocalDevMode(false)
+	_wireLocalDevModeValue     = client2.LocalDevMode(true)
 	_wireChartWorkingDirValue  = util.ChartWorkingDir("/tmp/charts/")
 	_wireRefChartDirValue      = pipeline.RefChartDir("scripts/devtron-reference-helm-charts")
 	_wireDefaultChartValue     = pipeline.DefaultChart("reference-app-rolling")

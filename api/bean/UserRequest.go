@@ -53,7 +53,7 @@ type RoleFilter struct {
 	EntityName  string `json:"entityName"`
 	Environment string `json:"environment"`
 	Action      string `json:"action"`
-	Type        string `json:"type"`
+	AccessType  string `json:"accessType"`
 }
 
 type Role struct {
@@ -69,6 +69,7 @@ type RoleData struct {
 	EntityName  string `json:"entityName"`
 	Environment string `json:"environment"`
 	Action      string `json:"action"`
+	AccessType  string `json:"accessType"`
 }
 
 type SSOLoginDto struct {

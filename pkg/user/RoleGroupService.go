@@ -127,7 +127,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 					if environment == "NONE" {
 						environment = ""
 					}
-					roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.Type)
+					roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
 					if err != nil {
 						impl.logger.Errorw("Error in fetching role by filter", "user", request)
 						return nil, err
@@ -137,7 +137,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 						//userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + roleFilter.Environment + "," + roleFilter.Application + "," + roleFilter.Action
 
 						if len(roleFilter.Team) > 0 && len(roleFilter.Environment) > 0 {
-							if roleFilter.Type == "hawf" {
+							if roleFilter.AccessType == "hawf" {
 								flag, err := impl.userAuthRepository.CreateDefaultHelmPolicies(roleFilter.Team, entityName, environment, tx)
 								if err != nil || flag == false {
 									return nil, err
@@ -148,7 +148,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 									return nil, err
 								}
 							}
-							roleModel, err = impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.Type)
+							roleModel, err = impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
 							if err != nil {
 								impl.logger.Errorw("Error in fetching role by filter", "user", request)
 								return nil, err
@@ -163,7 +163,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 							if err != nil || flag == false {
 								return nil, err
 							}
-							roleModel, err = impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.Type)
+							roleModel, err = impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
 							if err != nil {
 								impl.logger.Errorw("Error in fetching role by filter", "user", request)
 								return nil, err
@@ -276,7 +276,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 				if environment == "NONE" {
 					environment = ""
 				}
-				roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.Type)
+				roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
 				if err != nil {
 					impl.logger.Errorw("Error in fetching role by filter", "user", request)
 					return nil, err
@@ -286,7 +286,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 					request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
 
 					if len(roleFilter.Team) > 0 {
-						if roleFilter.Type == "hawf" {
+						if roleFilter.AccessType == "hawf" {
 							flag, err := impl.userAuthRepository.CreateDefaultHelmPolicies(roleFilter.Team, entityName, environment, tx)
 							if err != nil || flag == false {
 								return nil, err
@@ -297,7 +297,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 								return nil, err
 							}
 						}
-						roleModel, err = impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.Type)
+						roleModel, err = impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
 						if err != nil {
 							impl.logger.Errorw("Error in fetching role by filter", "user", request)
 							return nil, err
@@ -312,7 +312,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 						if err != nil || flag == false {
 							return nil, err
 						}
-						roleModel, err = impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.Type)
+						roleModel, err = impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
 						if err != nil {
 							impl.logger.Errorw("Error in fetching role by filter", "user", request)
 							return nil, err
@@ -397,7 +397,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 				Environment: role.Environment,
 				EntityName:  role.EntityName,
 				Action:      role.Action,
-				Type:        role.AccessType,
+				AccessType:  role.AccessType,
 			}
 		}
 	}

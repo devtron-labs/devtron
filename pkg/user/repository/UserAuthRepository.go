@@ -302,10 +302,10 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 	casbin.AddPolicy(policiesView.Data)
 
 	//Creating ROLES
-	roleManager := "{\r\n    \"role\": \"role:manager_<TEAM>_<ENV>_<APP>\",\r\n    \"casbinSubjects\": [\r\n        \"role:manager_<TEAM>_<ENV>_<APP>\"\r\n    ],\r\n    \"team\": \"<TEAM>\",\r\n    \"entityName\": \"<APP>\",\r\n    \"environment\": \"<ENV>\",\r\n    \"action\": \"manager\"\r\n}"
-	roleAdmin := "{\n    \"role\": \"role:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"admin\"\n}"
-	roleTrigger := "{\n    \"role\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:trigger_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"trigger\"\n}"
-	roleView := "{\n    \"role\": \"role:view_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:view_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"view\"\n}"
+	roleManager := "{\r\n    \"role\": \"role:manager_<TEAM>_<ENV>_<APP>\",\r\n    \"casbinSubjects\": [\r\n        \"role:manager_<TEAM>_<ENV>_<APP>\"\r\n    ],\r\n    \"team\": \"<TEAM>\",\r\n    \"entityName\": \"<APP>\",\r\n    \"environment\": \"<ENV>\",\r\n    \"action\": \"manager\",\r\n    \"access_type\": \"\"\n}"
+	roleAdmin := "{\n    \"role\": \"role:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"admin\",\n    \"access_type\": \"\"\n}"
+	roleTrigger := "{\n    \"role\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:trigger_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"trigger\",\n    \"access_type\": \"\"\n}"
+	roleView := "{\n    \"role\": \"role:view_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:view_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"view\",\n    \"access_type\": \"\"\n}"
 	roleManager = strings.ReplaceAll(roleManager, "<TEAM>", team)
 	roleManager = strings.ReplaceAll(roleManager, "<ENV>", env)
 	roleManager = strings.ReplaceAll(roleManager, "<APP>", entityName)
@@ -378,10 +378,9 @@ func (impl UserAuthRepositoryImpl) CreateDefaultHelmPolicies(team string, entity
 	if err != nil {
 		return false, err
 	}
-
-	adminPolicies := "{\\r\\n    \\\"data\\\": [\\r\\n        {\\r\\n            \\\"type\\\": \\\"p\\\",\\r\\n            \\\"sub\\\": \\\"hawf:admin_<TEAM>_<ENV>_<APP>\\\",\\r\\n            \\\"res\\\": \\\"hawf\\\",\\r\\n            \\\"act\\\": \\\"*\\\",\\r\\n            \\\"obj\\\": \\\"<TEAM_OBJ>\\/<ENV_OBJ>\\/<APP_OBJ>\\\"\\r\\n        },\\r\\n        {\\r\\n            \\\"type\\\": \\\"p\\\",\\r\\n            \\\"sub\\\": \\\"hawf:admin_<TEAM>_<ENV>_<APP>\\\",\\r\\n            \\\"res\\\": \\\"team\\\",\\r\\n            \\\"act\\\": \\\"get\\\",\\r\\n            \\\"obj\\\": \\\"<TEAM_OBJ>\\\"\\r\\n        },\\r\\n        {\\r\\n            \\\"type\\\": \\\"p\\\",\\r\\n            \\\"sub\\\": \\\"hawf:admin_<TEAM>_<ENV>_<APP>\\\",\\r\\n            \\\"res\\\": \\\"global-environment\\\",\\r\\n            \\\"act\\\": \\\"get\\\",\\r\\n            \\\"obj\\\": \\\"<ENV_OBJ>\\\"\\r\\n        }\\r\\n    ]\\r\\n}"
-	editPolicies := "{\\r\\n    \\\"data\\\": [\\r\\n        {\\r\\n            \\\"type\\\": \\\"p\\\",\\r\\n            \\\"sub\\\": \\\"hawf:edit_<TEAM>_<ENV>_<APP>\\\",\\r\\n            \\\"res\\\": \\\"hawf\\\",\\r\\n            \\\"act\\\": \\\"get\\\",\\r\\n            \\\"obj\\\": \\\"<TEAM_OBJ>\\/<ENV_OBJ>\\/<APP_OBJ>\\\"\\r\\n        },\\r\\n        {\\r\\n            \\\"type\\\": \\\"p\\\",\\r\\n            \\\"sub\\\": \\\"hawf:edit_<TEAM>_<ENV>_<APP>\\\",\\r\\n            \\\"res\\\": \\\"hawf\\\",\\r\\n            \\\"act\\\": \\\"update\\\",\\r\\n            \\\"obj\\\": \\\"<TEAM_OBJ>\\/<ENV_OBJ>\\/<APP_OBJ>\\\"\\r\\n        },\\r\\n        {\\r\\n            \\\"type\\\": \\\"p\\\",\\r\\n            \\\"sub\\\": \\\"hawf:edit_<TEAM>_<ENV>_<APP>\\\",\\r\\n            \\\"res\\\": \\\"global-environment\\\",\\r\\n            \\\"act\\\": \\\"get\\\",\\r\\n            \\\"obj\\\": \\\"<ENV_OBJ>\\\"\\r\\n        },\\r\\n        {\\r\\n            \\\"type\\\": \\\"p\\\",\\r\\n            \\\"sub\\\": \\\"hawf:edit_<TEAM>_<ENV>_<APP>\\\",\\r\\n            \\\"res\\\": \\\"team\\\",\\r\\n            \\\"act\\\": \\\"get\\\",\\r\\n            \\\"obj\\\": \\\"<TEAM_OBJ>\\\"\\r\\n        }\\r\\n    ]\\r\\n}"
-	viewPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"applications\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        }\r\n    ]\r\n}"
+	adminPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"hawf:admin_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"hawf\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"<TEAM_OBJ>/<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"hawf:admin_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"hawf:admin_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        }\r\n    ]\r\n}"
+	editPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"hawf:edit_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"hawf\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>/<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"hawf:edit_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"hawf\",\r\n            \"act\": \"update\",\r\n            \"obj\": \"<TEAM_OBJ>/<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"hawf:edit_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"hawf:edit_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        }\r\n    ]\r\n}"
+	viewPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"hawf:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"hawf\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>/<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"hawf:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"hawf:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        }\r\n    ]\r\n}"
 
 	adminPolicies = strings.ReplaceAll(adminPolicies, "<TEAM>", team)
 	adminPolicies = strings.ReplaceAll(adminPolicies, "<ENV>", env)
@@ -449,9 +448,9 @@ func (impl UserAuthRepositoryImpl) CreateDefaultHelmPolicies(team string, entity
 	casbin.AddPolicy(policiesView.Data)
 
 	//Creating ROLES
-	roleAdmin := "{\n    \"role\": \"hawf:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"hawf:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"admin\"\n}"
-	roleEdit := "{\n    \"role\": \"hawf:hawf_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"hawf:edit_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"edit\"\n}"
-	roleView := "{\n    \"role\": \"hawf:view_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"hawf:view_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"view\"\n}"
+	roleAdmin := "{\n    \"role\": \"hawf:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"hawf:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"admin\",\n    \"accessType\": \"hawf\"\n}"
+	roleEdit := "{\n    \"role\": \"hawf:hawf_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"hawf:edit_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"edit\",\n    \"accessType\": \"hawf\"\n}"
+	roleView := "{\n    \"role\": \"hawf:view_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"hawf:view_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"view\",\n    \"accessType\": \"hawf\"\n}"
 
 	roleAdmin = strings.ReplaceAll(roleAdmin, "<TEAM>", team)
 	roleAdmin = strings.ReplaceAll(roleAdmin, "<ENV>", env)
@@ -644,6 +643,9 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx)
 }
 
 func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx) (bool, error) {
+	if len(roleData.AccessType) == 0 {
+		roleData.AccessType = ""
+	}
 	roleModel := &RoleModel{
 		Role:        roleData.Role,
 		Entity:      roleData.Entity,
@@ -651,6 +653,7 @@ func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx
 		EntityName:  roleData.EntityName,
 		Environment: roleData.Environment,
 		Action:      roleData.Action,
+		AccessType:  roleData.AccessType,
 	}
 	roleModel, err := impl.CreateRole(roleModel, tx)
 	if err != nil || roleModel == nil {

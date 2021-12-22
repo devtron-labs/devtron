@@ -60,7 +60,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 				if environment == "NONE" {
 					environment = ""
 				}
-				roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.Type)
+				roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
 				if err != nil {
 					impl.logger.Errorw("Error in fetching roles by filter", "user", userInfo)
 					return nil, err
@@ -116,7 +116,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 				if environment == "NONE" {
 					environment = ""
 				}
-				roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.Type)
+				roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
 				if err != nil {
 					impl.logger.Errorw("Error in fetching roles by filter", "user", request)
 					return nil, err
