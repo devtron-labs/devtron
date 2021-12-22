@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/cluster"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
@@ -23,6 +24,7 @@ type MuxRouter struct {
 	userRouter      user.UserRouter
 	clusterRouter   cluster.ClusterRouter
 	dashboardRouter dashboard.DashboardRouter
+	helmAppRouter   client.HelmAppRouter
 }
 
 func NewMuxRouter(
@@ -33,6 +35,7 @@ func NewMuxRouter(
 	userRouter user.UserRouter,
 	clusterRouter cluster.ClusterRouter,
 	dashboardRouter dashboard.DashboardRouter,
+	helmAppRouter client.HelmAppRouter,
 
 ) *MuxRouter {
 	r := &MuxRouter{
@@ -44,6 +47,7 @@ func NewMuxRouter(
 		userRouter:      userRouter,
 		clusterRouter:   clusterRouter,
 		dashboardRouter: dashboardRouter,
+		helmAppRouter:   helmAppRouter,
 	}
 	return r
 }
@@ -77,8 +81,6 @@ func (r *MuxRouter) Init() {
 		_, _ = writer.Write(b)
 	})
 
-
-
 	ssoLoginRouter := baseRouter.PathPrefix("/sso").Subrouter()
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
 	teamRouter := baseRouter.PathPrefix("/team").Subrouter()
@@ -96,5 +98,8 @@ func (r *MuxRouter) Init() {
 	})
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
+
+	helmApp := r.Router.PathPrefix("/orchestrator/application").Subrouter()
+	r.helmAppRouter.InitAppListRouter(helmApp)
 
 }
