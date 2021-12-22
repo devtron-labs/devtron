@@ -36,7 +36,8 @@ func (impl K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *
 	group := v.Get("group")
 	kind := v.Get("kind")
 	resourceName := v.Get("resourceName")
-	token := r.Header.Get("token")
+	bearerToken := v.Get("bearerToken")
+	//token := r.Header.Get("token")
 	request := &application.GetRequest{
 		Name:         resourceName,
 		Namespace: nameSpace,
@@ -46,7 +47,7 @@ func (impl K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *
 			Version: version,
 		},
 	}
-	resource, err := impl.k8sApplication.GetResource(token, request)
+	resource, err := impl.k8sApplication.GetResource(bearerToken, request)
 	if err!=nil{
 		common.WriteJsonResp(w,err,resource,http.StatusInternalServerError)
 		return
