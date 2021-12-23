@@ -31,12 +31,15 @@ type ApplicationRouter interface {
 type ApplicationRouterImpl struct {
 	handler restHandler.ArgoApplicationRestHandler
 	logger  *zap.SugaredLogger
+	handler2 restHandler.K8sApplicationRestHandler
 }
 
-func NewApplicationRouterImpl(handler restHandler.ArgoApplicationRestHandler, logger *zap.SugaredLogger) *ApplicationRouterImpl {
+func NewApplicationRouterImpl(handler restHandler.ArgoApplicationRestHandler, logger *zap.SugaredLogger,
+	handler2 restHandler.K8sApplicationRestHandler) *ApplicationRouterImpl {
 	return &ApplicationRouterImpl{
 		handler: handler,
 		logger:  logger,
+		handler2: handler2,
 	}
 }
 
@@ -62,14 +65,21 @@ func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
 	router.Path("/{name}/resource-tree").
 		Methods("GET").
 		HandlerFunc(r.handler.GetResourceTree)
+
+
 	router.Path("/{name}/resource").
-		Queries("version", "{version}", "namespace", "{namespace}", "group", "{group}", "kind", "{kind}", "resourceName", "{resourceName}").
-		Methods("GET").
-		HandlerFunc(r.handler.GetResource)
+		Methods("POST").
+		HandlerFunc(r.handler2.GetResource)
 	router.Path("/{name}/events").
-		Queries("resourceNamespace", "{resourceNamespace}", "resourceUID", "{resourceUID}", "resourceName", "{resourceName}").
-		Methods("GET").
-		HandlerFunc(r.handler.ListResourceEvents)
+		Methods("POST").
+		HandlerFunc(r.handler2.ListEvents)
+	router.Path("/{name}/resource").
+		Methods("PUT").
+		HandlerFunc(r.handler2.UpdateResource)
+	router.Path("/{name}/resource/delete").
+		Methods("POST").
+		HandlerFunc(r.handler2.DeleteResource)
+
 	router.Path("/{name}/events").
 		Methods("GET").
 		HandlerFunc(r.handler.ListResourceEvents)
