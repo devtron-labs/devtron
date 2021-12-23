@@ -1,10 +1,10 @@
 package restHandler
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 )
 
@@ -28,26 +28,14 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplication 
 }
 
 func (impl K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {
-	//vars := mux.Vars(r)
-	//name := vars["name"]
-	v := r.URL.Query()
-	nameSpace := v.Get("namespace")
-	version := v.Get("version")
-	group := v.Get("group")
-	kind := v.Get("kind")
-	resourceName := v.Get("resourceName")
-	bearerToken := v.Get("bearerToken")
-	//token := r.Header.Get("token")
-	request := &application.GetRequest{
-		Name:         resourceName,
-		Namespace: nameSpace,
-		GroupVersionKind: schema.GroupVersionKind{
-			Kind: kind,
-			Group: group,
-			Version: version,
-		},
+	decoder := json.NewDecoder(r.Body)
+	var request application.K8sRequestBean
+	err := decoder.Decode(&request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
-	resource, err := impl.k8sApplication.GetResource(bearerToken, request)
+	resource, err := impl.k8sApplication.GetResource(&request)
 	if err!=nil{
 		common.WriteJsonResp(w,err,resource,http.StatusInternalServerError)
 		return
@@ -57,24 +45,14 @@ func (impl K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *
 }
 
 func (impl K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWriter, r *http.Request) {
-	v := r.URL.Query()
-	nameSpace := v.Get("namespace")
-	version := v.Get("version")
-	group := v.Get("group")
-	kind := v.Get("kind")
-	resourceName := v.Get("resourceName")
-	token := r.Header.Get("token")
-	//TODO : confirm patch & patchType placement(header/url param)
-	request := &application.UpdateRequest{
-		Name:         resourceName,
-		Namespace: nameSpace,
-		GroupVersionKind: schema.GroupVersionKind{
-			Kind: kind,
-			Group: group,
-			Version: version,
-		},
+	decoder := json.NewDecoder(r.Body)
+	var request application.K8sRequestBean
+	err := decoder.Decode(&request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
-	resource, err := impl.k8sApplication.UpdateResource(token, request)
+	resource, err := impl.k8sApplication.UpdateResource(&request)
 	if err!=nil{
 		common.WriteJsonResp(w,err,resource,http.StatusInternalServerError)
 		return
@@ -84,24 +62,14 @@ func (impl K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWriter, 
 }
 
 func (impl K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *http.Request) {
-	v := r.URL.Query()
-	nameSpace := v.Get("namespace")
-	version := v.Get("version")
-	group := v.Get("group")
-	kind := v.Get("kind")
-	resourceName := v.Get("resourceName")
-	token := r.Header.Get("token")
-	//TODO : confirm force bool value
-	request := &application.DeleteRequest{
-		Name:         resourceName,
-		Namespace: nameSpace,
-		GroupVersionKind: schema.GroupVersionKind{
-			Kind: kind,
-			Group: group,
-			Version: version,
-		},
+	decoder := json.NewDecoder(r.Body)
+	var request application.K8sRequestBean
+	err := decoder.Decode(&request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
-	resource, err := impl.k8sApplication.DeleteResource(token, request)
+	resource, err := impl.k8sApplication.DeleteResource(&request)
 	if err!=nil{
 		common.WriteJsonResp(w,err,resource,http.StatusInternalServerError)
 		return
@@ -111,23 +79,14 @@ func (impl K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, 
 }
 
 func (impl K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, r *http.Request) {
-	v := r.URL.Query()
-	nameSpace := v.Get("namespace")
-	version := v.Get("version")
-	group := v.Get("group")
-	kind := v.Get("kind")
-	resourceName := v.Get("resourceName")
-	token := r.Header.Get("token")
-	request := &application.GetRequest{
-		Name:         resourceName,
-		Namespace: nameSpace,
-		GroupVersionKind: schema.GroupVersionKind{
-			Kind: kind,
-			Group: group,
-			Version: version,
-		},
+	decoder := json.NewDecoder(r.Body)
+	var request application.K8sRequestBean
+	err := decoder.Decode(&request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
-	events, err := impl.k8sApplication.ListEvents(token, request)
+	events, err := impl.k8sApplication.ListEvents(&request)
 	if err!=nil{
 		common.WriteJsonResp(w,err,events,http.StatusInternalServerError)
 		return

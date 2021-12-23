@@ -300,7 +300,7 @@ func InitializeApp() (*App, error) {
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImplExtended, sugaredLogger)
 	argoApplicationRestHandlerImpl := restHandler.NewArgoApplicationRestHandlerImpl(serviceClientImpl, pumpImpl, enforcerImpl, teamServiceImpl, environmentServiceImpl, sugaredLogger, enforcerUtilImpl, terminalSessionHandlerImpl)
-	k8sApplicationServiceImpl := application2.NewK8sApplicationServiceImpl(sugaredLogger)
+	k8sApplicationServiceImpl := application2.NewK8sApplicationServiceImpl(sugaredLogger, clusterRepositoryImpl)
 	k8sApplicationRestHandlerImpl := restHandler.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl)
 	applicationRouterImpl := router.NewApplicationRouterImpl(argoApplicationRestHandlerImpl, sugaredLogger, k8sApplicationRestHandlerImpl)
 	argoConfig, err := ArgoUtil.GetArgoConfig()

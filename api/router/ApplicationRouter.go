@@ -71,7 +71,7 @@ func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
 	//	HandlerFunc(r.handler.GetResource)
 	router.Path("/{name}/resource").
 		Queries("version", "{version}", "namespace", "{namespace}", "group", "{group}", "kind", "{kind}", "resourceName", "{resourceName}").
-		Methods("GET").
+		Methods("POST").
 		HandlerFunc(r.handler2.GetResource)
 	//TODO:
 	//router.Path("/{name}/events").
