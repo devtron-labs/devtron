@@ -32,16 +32,18 @@ func (impl K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *
 	var request application.K8sRequestBean
 	err := decoder.Decode(&request)
 	if err != nil {
+		impl.logger.Errorw("error in decoding request body","err",err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	//TODO : add rbac
 	resource, err := impl.k8sApplication.GetResource(&request)
 	if err!=nil{
+		impl.logger.Errorw("error in getting resource","err",err)
 		common.WriteJsonResp(w,err,resource,http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w,nil,resource,http.StatusOK)
-	return
 }
 
 func (impl K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWriter, r *http.Request) {
@@ -49,16 +51,18 @@ func (impl K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWriter, 
 	var request application.K8sRequestBean
 	err := decoder.Decode(&request)
 	if err != nil {
+		impl.logger.Errorw("error in decoding request body","err",err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	//TODO : add rbac
 	resource, err := impl.k8sApplication.UpdateResource(&request)
 	if err!=nil{
+		impl.logger.Errorw("error in updating resource","err",err)
 		common.WriteJsonResp(w,err,resource,http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w,nil,resource,http.StatusOK)
-	return
 }
 
 func (impl K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *http.Request) {
@@ -66,16 +70,18 @@ func (impl K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, 
 	var request application.K8sRequestBean
 	err := decoder.Decode(&request)
 	if err != nil {
+		impl.logger.Errorw("error in decoding request body","err",err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	//TODO : add rbac
 	resource, err := impl.k8sApplication.DeleteResource(&request)
 	if err!=nil{
+		impl.logger.Errorw("error in deleting resource","err",err)
 		common.WriteJsonResp(w,err,resource,http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w,nil,resource,http.StatusOK)
-	return
 }
 
 func (impl K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, r *http.Request) {
@@ -83,14 +89,16 @@ func (impl K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, r *h
 	var request application.K8sRequestBean
 	err := decoder.Decode(&request)
 	if err != nil {
+		impl.logger.Errorw("error in decoding request body","err",err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	//TODO : add rbac
 	events, err := impl.k8sApplication.ListEvents(&request)
 	if err!=nil{
+		impl.logger.Errorw("error in getting events list","err",err)
 		common.WriteJsonResp(w,err,events,http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w,nil,events,http.StatusOK)
-	return
 }
