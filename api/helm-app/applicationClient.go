@@ -3,12 +3,14 @@ package client
 import (
 	"context"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 type HelmAppClient interface {
 	ListApplication(req *AppListRequest) (ApplicationService_ListApplicationsClient, error)
+	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
 }
 
 type HelmAppClientImpl struct {
@@ -55,4 +57,20 @@ func (impl *HelmAppClientImpl) ListApplication(req *AppListRequest) (Application
 		return nil, err
 	}
 	return stream, nil
+}
+
+///	GetAppDetail(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppDetail, error)
+
+func (impl *HelmAppClientImpl) GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error) {
+	conn, err := impl.getConnection()
+	defer util.Close(conn, impl.logger)
+	if err != nil {
+		return nil, err
+	}
+	applicationClient := NewApplicationServiceClient(conn)
+	detail, err := applicationClient.GetAppDetail(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return detail, nil
 }

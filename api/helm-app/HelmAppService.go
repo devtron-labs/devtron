@@ -1,16 +1,21 @@
 package client
 
 import (
+	"context"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/gogo/protobuf/proto"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 type HelmAppService interface {
 	ListHelmApplications(clusterIds []int, w http.ResponseWriter)
+	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
 }
 type HelmAppServiceImpl struct {
 	Logger         *zap.SugaredLogger
@@ -69,6 +74,50 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.Re
 		func(message interface{}) interface{} {
 			return impl.appListRespProtoTransformer(message.(*DeployedAppList))
 		})
+}
+
+func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
+	cluster, err := impl.clusterService.FindById(app.ClusterId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
+		return nil, err
+	}
+	config := &ClusterConfig{
+		ApiServerUrl: cluster.ServerUrl,
+		Token:        cluster.Config["bearer_token"],
+		ClusterId:    int32(cluster.Id),
+		ClusterName:  cluster.ClusterName,
+	}
+	req := &AppDetailRequest{
+		ClusterConfig: config,
+		Namespace:     app.Namespace,
+		ReleaseName:   app.ReleaseName,
+	}
+	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
+	return appdetail, err
+
+}
+
+type AppIdentifier struct {
+	ClusterId   int
+	Namespace   string
+	ReleaseName string
+}
+
+func DecodeAppId(appId string) (*AppIdentifier, error) {
+	component := strings.Split(appId, "|")
+	if len(component) != 3 {
+		return nil, fmt.Errorf("malformed app id %s", appId)
+	}
+	clustewrId, err := strconv.Atoi(component[0])
+	if err != nil {
+		return nil, err
+	}
+	return &AppIdentifier{
+		ClusterId:   clustewrId,
+		Namespace:   component[1],
+		ReleaseName: component[2],
+	}, nil
 }
 
 func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *DeployedAppList) openapi.AppList {

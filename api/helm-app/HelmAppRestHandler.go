@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -11,6 +12,7 @@ import (
 
 type HelmAppRestHandler interface {
 	ListApplications(w http.ResponseWriter, r *http.Request)
+	GetApplicationDetail(w http.ResponseWriter, r *http.Request)
 }
 type HelmAppRestHandlerImpl struct {
 	logger         *zap.SugaredLogger
@@ -31,7 +33,7 @@ func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r
 	clusterIdSlices := strings.Split(clusterIdString, ",")
 	var clusterIds []int
 	for _, is := range clusterIdSlices {
-		if len(is)==0 {
+		if len(is) == 0 {
 			continue
 		}
 		j, err := strconv.Atoi(is)
@@ -43,4 +45,21 @@ func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r
 		clusterIds = append(clusterIds, j)
 	}
 	handler.helmAppService.ListHelmApplications(clusterIds, w)
+}
+
+func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	clusterIdString := vars["appId"]
+
+	appIdentifier, err := DecodeAppId(clusterIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	appdetail, err := handler.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, appdetail, http.StatusOK)
 }

@@ -25,6 +25,7 @@ func InitializeApp() (*App, error) {
 		team.TeamsWireSet,
 		cluster.ClusterWireSetEa,
 		dashboard.DashboardWireSet,
+		//client.HelmAppWireSet,
 
 		NewApp,
 		NewMuxRouter,

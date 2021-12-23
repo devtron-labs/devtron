@@ -18,4 +18,7 @@ func NewHelmAppRouterImpl(helmAppRestHandler HelmAppRestHandler) *HelmAppRouterI
 func (impl *HelmAppRouterImpl) InitAppListRouter(helmRouter *mux.Router) {
 	helmRouter.Path("").Queries("clusterIds", "{clusterIds}").
 		HandlerFunc(impl.helmAppRestHandler.ListApplications).Methods("GET")
+
+	helmRouter.Path("/app").Queries("appId", "{appId}").
+		HandlerFunc(impl.helmAppRestHandler.GetApplicationDetail).Methods("GET")
 }

@@ -35,7 +35,7 @@ func NewMuxRouter(
 	userRouter user.UserRouter,
 	clusterRouter cluster.ClusterRouter,
 	dashboardRouter dashboard.DashboardRouter,
-	helmAppRouter client.HelmAppRouter,
+	//helmAppRouter client.HelmAppRouter,
 
 ) *MuxRouter {
 	r := &MuxRouter{
@@ -47,7 +47,7 @@ func NewMuxRouter(
 		userRouter:      userRouter,
 		clusterRouter:   clusterRouter,
 		dashboardRouter: dashboardRouter,
-		helmAppRouter:   helmAppRouter,
+		//helmAppRouter:   helmAppRouter,
 	}
 	return r
 }
@@ -99,7 +99,7 @@ func (r *MuxRouter) Init() {
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
 
-	helmApp := r.Router.PathPrefix("/orchestrator/application").Subrouter()
-	r.helmAppRouter.InitAppListRouter(helmApp)
+	/*helmApp := r.Router.PathPrefix("/orchestrator/application").Subrouter()
+	r.helmAppRouter.InitAppListRouter(helmApp)*/
 
 }

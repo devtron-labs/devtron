@@ -19,6 +19,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ApplicationServiceClient interface {
 	ListApplications(ctx context.Context, in *AppListRequest, opts ...grpc.CallOption) (ApplicationService_ListApplicationsClient, error)
+	GetAppDetail(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppDetail, error)
 }
 
 type applicationServiceClient struct {
@@ -61,11 +62,21 @@ func (x *applicationServiceListApplicationsClient) Recv() (*DeployedAppList, err
 	return m, nil
 }
 
+func (c *applicationServiceClient) GetAppDetail(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppDetail, error) {
+	out := new(AppDetail)
+	err := c.cc.Invoke(ctx, "/ApplicationService/GetAppDetail", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationServiceServer is the server API for ApplicationService service.
 // All implementations must embed UnimplementedApplicationServiceServer
 // for forward compatibility
 type ApplicationServiceServer interface {
 	ListApplications(*AppListRequest, ApplicationService_ListApplicationsServer) error
+	GetAppDetail(context.Context, *AppDetailRequest) (*AppDetail, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
 
@@ -75,6 +86,9 @@ type UnimplementedApplicationServiceServer struct {
 
 func (UnimplementedApplicationServiceServer) ListApplications(*AppListRequest, ApplicationService_ListApplicationsServer) error {
 	return status.Errorf(codes.Unimplemented, "method ListApplications not implemented")
+}
+func (UnimplementedApplicationServiceServer) GetAppDetail(context.Context, *AppDetailRequest) (*AppDetail, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAppDetail not implemented")
 }
 func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
 
@@ -110,13 +124,36 @@ func (x *applicationServiceListApplicationsServer) Send(m *DeployedAppList) erro
 	return x.ServerStream.SendMsg(m)
 }
 
+func _ApplicationService_GetAppDetail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).GetAppDetail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/GetAppDetail",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).GetAppDetail(ctx, req.(*AppDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ApplicationService_ServiceDesc is the grpc.ServiceDesc for ApplicationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "ApplicationService",
 	HandlerType: (*ApplicationServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetAppDetail",
+			Handler:    _ApplicationService_GetAppDetail_Handler,
+		},
+	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "ListApplications",
