@@ -38,6 +38,7 @@ type EnvironmentBean struct {
 	PrometheusEndpoint string `json:"prometheus_endpoint,omitempty"`
 	Namespace          string `json:"namespace,omitempty" validate:"max=50"`
 	CdArgoSetup        bool   `json:"isClusterCdActive"`
+	DisplayName		   string `json:"display_name,omitempty" validate:"required,max=50"`
 }
 
 type EnvironmentService interface {
@@ -103,12 +104,21 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		return mappings, fmt.Errorf("environment already exists")
 	}
 
+	environmentName := mappings.ClusterName + "_" + mappings.Namespace
+	results, err := impl.environmentRepository.FindAll()
+	for _,  result := range results{
+		if result.Name == environmentName{
+			return nil, fmt.Errorf("cluster name and namespace already exixts")
+		}
+	}
+
 	model = &repository.Environment{
-		Name:      mappings.Environment,
-		ClusterId: mappings.ClusterId,
-		Active:    mappings.Active,
-		Namespace: mappings.Namespace,
-		Default:   mappings.Default,
+		Name:      		environmentName,
+		ClusterId:		mappings.ClusterId,
+		Active:    		mappings.Active,
+		Namespace:		mappings.Namespace,
+		Default:   		mappings.Default,
+		DisplayName: 	mappings.DisplayName,
 	}
 	model.CreatedBy = userId
 	model.UpdatedBy = userId
@@ -155,6 +165,7 @@ func (impl EnvironmentServiceImpl) FindOne(environment string) (*EnvironmentBean
 		PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
 		Namespace:          model.Namespace,
 		Default:            model.Default,
+		DisplayName: 		model.DisplayName,
 	}
 	return bean, nil
 }
@@ -176,6 +187,7 @@ func (impl EnvironmentServiceImpl) GetAll() ([]EnvironmentBean, error) {
 			Namespace:          model.Namespace,
 			Default:            model.Default,
 			CdArgoSetup:        model.Cluster.CdArgoSetup,
+			DisplayName: 		model.DisplayName,
 		})
 	}
 	return beans, nil
@@ -196,6 +208,7 @@ func (impl EnvironmentServiceImpl) GetAllActive() ([]EnvironmentBean, error) {
 			PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
 			Namespace:          model.Namespace,
 			Default:            model.Default,
+			DisplayName:  		model.DisplayName,
 		})
 	}
 	return beans, nil
@@ -215,6 +228,7 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*EnvironmentBean, error) {
 		PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
 		Namespace:          model.Namespace,
 		Default:            model.Default,
+		DisplayName: 		model.DisplayName,
 	}
 
 	/*clusterBean := &ClusterBean{
@@ -231,6 +245,9 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 		impl.logger.Errorw("error in finding environment for update", "err", err)
 		return mappings, err
 	}
+
+	mappings.DisplayName = mappings.Environment
+	mappings.Environment = model.Name
 	isNamespaceChange := false
 	if model.Namespace != mappings.Namespace {
 		isNamespaceChange = true
@@ -324,6 +341,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 			Environment: model.Name,
 			Namespace:   model.Namespace,
 			CdArgoSetup: model.Cluster.CdArgoSetup,
+			DisplayName: model.DisplayName,
 		})
 	}
 	return beans, nil

@@ -32,6 +32,7 @@ type Environment struct {
 	Default             bool   `sql:"default,notnull"`
 	GrafanaDatasourceId int    `sql:"grafana_datasource_id"`
 	Namespace           string `sql:"namespace"`
+	DisplayName			string `sql:"display_name"`
 	sql.AuditLog
 }
 

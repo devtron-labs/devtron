@@ -1,0 +1,1 @@
+ALTER TABLE "public"."environment" ADD COLUMN IF NOT EXISTS "display_name" varchar(250);

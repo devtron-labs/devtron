@@ -123,7 +123,7 @@ func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
+	bean.Environment = bean.DisplayName
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.Environment)); !ok {
@@ -148,6 +148,7 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 	for _, item := range bean {
 		// RBAC enforcer applying
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.Environment)); ok {
+			item.Environment = item.DisplayName
 			result = append(result, item)
 		}
 		//RBAC enforcer Ends
@@ -169,6 +170,7 @@ func (impl EnvironmentRestHandlerImpl) GetAllActive(w http.ResponseWriter, r *ht
 	for _, item := range bean {
 		// RBAC enforcer applying
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.Environment)); ok {
+			item.Environment = item.DisplayName
 			result = append(result, item)
 		}
 		//RBAC enforcer Ends
@@ -192,6 +194,7 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
 	impl.logger.Infow("request payload, Update", "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
@@ -230,6 +233,8 @@ func (impl EnvironmentRestHandlerImpl) FindById(w http.ResponseWriter, r *http.R
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	bean.Environment = bean.DisplayName
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
@@ -272,6 +277,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	for _, item := range environments {
 		if authEnabled == true {
 			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.Environment)); ok {
+				item.Environment = item.DisplayName
 				grantedEnvironment = append(grantedEnvironment, item)
 			}
 		} else {
