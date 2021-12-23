@@ -38,7 +38,7 @@ type EnvironmentBean struct {
 	PrometheusEndpoint string `json:"prometheus_endpoint,omitempty"`
 	Namespace          string `json:"namespace,omitempty" validate:"max=50"`
 	CdArgoSetup        bool   `json:"isClusterCdActive"`
-	DisplayName		   string `json:"display_name,omitempty" validate:"required,max=50"`
+	DisplayName		   string `json:"display_name"`
 }
 
 type EnvironmentService interface {
@@ -104,16 +104,17 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		return mappings, fmt.Errorf("environment already exists")
 	}
 
-	environmentName := mappings.ClusterName + "_" + mappings.Namespace
+	mappings.DisplayName = mappings.Environment
+	mappings.Environment = clusterBean.ClusterName + "_" + mappings.Namespace
+
 	results, err := impl.environmentRepository.FindAll()
 	for _,  result := range results{
-		if result.Name == environmentName{
+		if result.Name == mappings.Environment{
 			return nil, fmt.Errorf("cluster name and namespace already exixts")
 		}
 	}
-
 	model = &repository.Environment{
-		Name:      		environmentName,
+		Name:      		mappings.Environment,
 		ClusterId:		mappings.ClusterId,
 		Active:    		mappings.Active,
 		Namespace:		mappings.Namespace,
@@ -246,8 +247,6 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 		return mappings, err
 	}
 
-	mappings.DisplayName = mappings.Environment
-	mappings.Environment = model.Name
 	isNamespaceChange := false
 	if model.Namespace != mappings.Namespace {
 		isNamespaceChange = true
@@ -258,12 +257,12 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 		return nil, err
 	}
 
-	model.Name = mappings.Environment
 	model.Active = mappings.Active
 	model.Namespace = mappings.Namespace
 	model.Default = mappings.Default
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
+	model.DisplayName = mappings.Environment
 
 	//namespace create if not exist
 	if len(model.Namespace) > 0 {
@@ -309,6 +308,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 	}
 
 	mappings.Id = model.Id
+	mappings.Environment = model.Name
 	return mappings, nil
 }
 
