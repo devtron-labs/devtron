@@ -20,6 +20,42 @@ paths:
             text/event-stream:
               schema:
                 $ref: "#/components/schemas/AppList"
+  /orchestrator/application/hibernate:
+    post:
+      description: hibernate the app
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HibernateRequest'
+      responses:
+        "200":
+          description: hibernate success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HibernateStatus"
+  /orchestrator/application/unhibernate:
+    post:
+      description: un hibernate the app
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HibernateRequest'
+      responses:
+        "200":
+          description: hibernate success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HibernateStatus"
   /orchestrator/application/cluster-env-details: #TODO change url location, move to cluster
     get:
       description: "returns cluster environment namespace mappings"
@@ -142,7 +178,7 @@ paths:
             type: boolean
         - in: query
           name: chartRepoIds
-          example: [10, 12]
+          example: [ 10, 12 ]
           description: size
           required: true
           allowEmptyValue: true
@@ -365,4 +401,54 @@ components:
             type: integer
             format: int64
           example: [ 1, 2, 3 ]
+    HibernateTargetObject:
+      type: object
+      properties:
+        group:
+          type: string
+          description: k8s resource group
+          example: apps
+        kind:
+          type: string
+          description: k8s resource kind
+          example: Deployment
+        version:
+          type: string
+          description: k8s resource version
+          example: v1
+        name:
+          type: string
+          description: k8s resource name
+          example: test-deployment
+        namespace:
+          type: string
+          description: k8s resource ns
+          example: devtron
+    HibernateRequest:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: helm app id
+          example: "1|test|testapp"
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/HibernateTargetObject"
+    HibernateStatus:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: operation was success or not
+          example: true
+        errorMessage:
+          type: string
+          description: failure cause, empty is success
+          example: resource doesn't exists
+        targetObject:
+          type: object
+          $ref: "#/components/schemas/HibernateTargetObject"
+
+
 
