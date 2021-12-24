@@ -21,4 +21,16 @@ func (impl *HelmAppRouterImpl) InitAppListRouter(helmRouter *mux.Router) {
 
 	helmRouter.Path("/app").Queries("appId", "{appId}").
 		HandlerFunc(impl.helmAppRestHandler.GetApplicationDetail).Methods("GET")
+
+	helmRouter.Path("/{name}/resource").Queries("appId", "{appId}").
+		HandlerFunc(impl.helmAppRestHandler.GetResource).Methods("POST")
+
+	helmRouter.Path("/{name}/resource").Queries("appId", "{appId}").
+		HandlerFunc(impl.helmAppRestHandler.UpdateResource).Methods("PUT")
+
+	helmRouter.Path("/{name}/resource/delete").Queries("appId", "{appId}").
+		HandlerFunc(impl.helmAppRestHandler.DeleteResource).Methods("POST")
+
+	helmRouter.Path("/{name}/events").Queries("appId", "{appId}").
+		HandlerFunc(impl.helmAppRestHandler.ListEvents).Methods("POST")
 }

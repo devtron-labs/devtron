@@ -42,6 +42,7 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/grafana"
 	jClient "github.com/devtron-labs/devtron/client/jira"
+	application2 "github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/client/lens"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
@@ -81,7 +82,6 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/session"
 	"github.com/google/wire"
-	application2 "github.com/devtron-labs/devtron/client/k8s/application"
 )
 
 func InitializeApp() (*App, error) {
@@ -636,10 +636,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
 
-		restHandler.NewK8sApplicationRestHandlerImpl,
-		wire.Bind(new(restHandler.K8sApplicationRestHandler),new(*restHandler.K8sApplicationRestHandlerImpl)),
 		application2.NewK8sApplicationServiceImpl,
-		wire.Bind(new(application2.K8sApplicationService),new(*application2.K8sApplicationServiceImpl)),
+		wire.Bind(new(application2.K8sApplicationService), new(*application2.K8sApplicationServiceImpl)),
 	)
 	return &App{}, nil
 }

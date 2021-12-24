@@ -16,13 +16,11 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-const DEFAULT_CLUSTER = "default_cluster"
-
 type K8sApplicationService interface {
-	GetResource(request *K8sRequestBean) (resp *ManifestResponse, err error)
-	UpdateResource(request *K8sRequestBean) (resp *ManifestResponse, err error)
-	DeleteResource(request *K8sRequestBean) (resp *ManifestResponse, err error)
-	ListEvents(request *K8sRequestBean) (*EventsResponse, error)
+	GetResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
+	UpdateResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
+	DeleteResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
+	ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -39,8 +37,6 @@ func NewK8sApplicationServiceImpl(logger *zap.SugaredLogger, clusterRepository r
 
 type K8sRequestBean struct {
 	//TODO : update validations
-	AppId              int                `json:"appId"`
-	ClusterId          int                `json:"clusterId"`
 	ResourceIdentifier ResourceIdentifier `json:"resourceIdentifier"`
 	Patch              string             `json:"patch"`
 }
@@ -62,8 +58,8 @@ type EventsResponse struct {
 	Events *apiv1.EventList
 }
 
-func (impl K8sApplicationServiceImpl) GetResource(request *K8sRequestBean) (*ManifestResponse, error) {
-	dynamicIf, resource, err := impl.GetResourceAndDynamicIf(request)
+func (impl K8sApplicationServiceImpl) GetResource(restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
+	dynamicIf, resource, err := impl.GetResourceAndDynamicIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, err
@@ -76,8 +72,8 @@ func (impl K8sApplicationServiceImpl) GetResource(request *K8sRequestBean) (*Man
 	return &ManifestResponse{*obj}, nil
 }
 
-func (impl K8sApplicationServiceImpl) UpdateResource(request *K8sRequestBean) (*ManifestResponse, error) {
-	dynamicIf, resource, err := impl.GetResourceAndDynamicIf(request)
+func (impl K8sApplicationServiceImpl) UpdateResource(restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
+	dynamicIf, resource, err := impl.GetResourceAndDynamicIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, err
@@ -95,8 +91,8 @@ func (impl K8sApplicationServiceImpl) UpdateResource(request *K8sRequestBean) (*
 	}
 	return &ManifestResponse{*obj}, nil
 }
-func (impl K8sApplicationServiceImpl) DeleteResource(request *K8sRequestBean) (*ManifestResponse, error) {
-	dynamicIf, resource, err := impl.GetResourceAndDynamicIf(request)
+func (impl K8sApplicationServiceImpl) DeleteResource(restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
+	dynamicIf, resource, err := impl.GetResourceAndDynamicIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, err
@@ -114,12 +110,7 @@ func (impl K8sApplicationServiceImpl) DeleteResource(request *K8sRequestBean) (*
 	return &ManifestResponse{*obj}, nil
 }
 
-func (impl K8sApplicationServiceImpl) ListEvents(request *K8sRequestBean) (*EventsResponse, error) {
-	restConfig, err := impl.GetClusterConfig(request.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config by ID", "err", err, "clusterid", request.ClusterId)
-		return nil, err
-	}
+func (impl K8sApplicationServiceImpl) ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error) {
 	resourceIdentifier := request.ResourceIdentifier
 	resourceIdentifier.GroupVersionKind.Kind = "List"
 	eventsClient, err := v1.NewForConfig(restConfig)
@@ -141,8 +132,7 @@ func (impl K8sApplicationServiceImpl) ListEvents(request *K8sRequestBean) (*Even
 	return &EventsResponse{list}, nil
 }
 
-func (impl K8sApplicationServiceImpl) GetResourceAndDynamicIf(request *K8sRequestBean) (dynamicIf dynamic.Interface, resource schema.GroupVersionResource, err error) {
-	restConfig, err := impl.GetClusterConfig(request.ClusterId)
+func (impl K8sApplicationServiceImpl) GetResourceAndDynamicIf(restConfig *rest.Config, request *K8sRequestBean) (dynamicIf dynamic.Interface, resource schema.GroupVersionResource, err error) {
 	resourceIdentifier := request.ResourceIdentifier
 	dynamicIf, err = dynamic.NewForConfig(restConfig)
 	if err != nil {
@@ -161,27 +151,6 @@ func (impl K8sApplicationServiceImpl) GetResourceAndDynamicIf(request *K8sReques
 	}
 	resource = resourceIdentifier.GroupVersionKind.GroupVersion().WithResource(apiResource.Name)
 	return dynamicIf, resource, nil
-}
-
-func (impl K8sApplicationServiceImpl) GetClusterConfig(clusterId int) (*rest.Config, error) {
-	cluster, err := impl.clusterRepository.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
-		return nil, err
-	}
-	configMap := cluster.Config
-	bearerToken := configMap["bearer_token"]
-	var restConfig *rest.Config
-	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
-		restConfig, err = rest.InClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting cluster config for default cluster", "err", err)
-			return nil, err
-		}
-	} else {
-		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
-	}
-	return restConfig, nil
 }
 
 func ServerResourceForGroupVersionKind(discoveryClient discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
