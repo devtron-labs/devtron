@@ -1,6 +1,8 @@
+// +build go1.13
+
 /*
  *
- * Copyright 2021 gRPC authors.
+ * Copyright 2019 gRPC authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +18,16 @@
  *
  */
 
-package grpcutil
+package dns
 
-import "regexp"
+import "net"
 
-// FullMatchWithRegex returns whether the full string matches the regex provided.
-func FullMatchWithRegex(re *regexp.Regexp, string string) bool {
-	re.Longest()
-	rem := re.FindString(string)
-	return len(rem) == len(string)
+func init() {
+	filterError = func(err error) error {
+		if dnsErr, ok := err.(*net.DNSError); ok && dnsErr.IsNotFound {
+			// The name does not exist; not an error.
+			return nil
+		}
+		return err
+	}
 }
