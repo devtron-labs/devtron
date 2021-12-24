@@ -1,9 +1,11 @@
 package application
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
+	"io"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +23,7 @@ type K8sApplicationService interface {
 	UpdateResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
 	DeleteResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
 	ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error)
+	GetPodLogs(restconfig *rest.Config)(error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -39,6 +42,13 @@ type K8sRequestBean struct {
 	//TODO : update validations
 	ResourceIdentifier ResourceIdentifier `json:"resourceIdentifier"`
 	Patch              string             `json:"patch"`
+	PodLogsRequest 	   PodLogsRequest	`json:"podLogsRequest"`
+}
+type PodLogsRequest struct{
+	SinceSeconds         int64    `protobuf:"varint,5,req,name=sinceSeconds" json:"sinceSeconds"`
+	SinceTime            *metav1.Time `protobuf:"bytes,6,opt,name=sinceTime" json:"sinceTime,omitempty"`
+	TailLines            int64    `protobuf:"varint,7,req,name=tailLines" json:"tailLines"`
+	Follow               bool     `protobuf:"varint,8,req,name=follow" json:"follow"`
 }
 
 type ResourceIdentifier struct {
@@ -137,6 +147,10 @@ func (impl K8sApplicationServiceImpl) ListEvents(restConfig *rest.Config, reques
 	resourceIdentifier := request.ResourceIdentifier
 	resourceIdentifier.GroupVersionKind.Kind = "List"
 	eventsClient, err := v1.NewForConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting client for resource", "err", err)
+		return nil,  err
+	}
 	eventsIf := eventsClient.Events(resourceIdentifier.Namespace)
 	eventsExp := eventsIf.(v1.EventExpansion)
 	fieldSelector := eventsExp.GetFieldSelector(pointer.StringPtr(resourceIdentifier.Name), pointer.StringPtr(resourceIdentifier.Namespace), nil, nil)
@@ -153,6 +167,41 @@ func (impl K8sApplicationServiceImpl) ListEvents(restConfig *rest.Config, reques
 		return nil, err
 	}
 	return &EventsResponse{list}, nil
+}
+
+func (impl K8sApplicationServiceImpl) GetPodLogs(restConfig *rest.Config, request *K8sRequestBean)(error){
+	resourceIdentifier := request.ResourceIdentifier
+	podLogsRequest := request.PodLogsRequest
+	podClient, err := v1.NewForConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting client for resource", "err", err)
+		return  err
+	}
+	podLogOptions := &apiv1.PodLogOptions{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       resourceIdentifier.GroupVersionKind.Kind,
+			APIVersion: resourceIdentifier.GroupVersionKind.GroupVersion().String(),
+		},
+		Follow: podLogsRequest.Follow,
+		TailLines: &podLogsRequest.TailLines,
+		SinceSeconds: &podLogsRequest.SinceSeconds,
+		SinceTime: podLogsRequest.SinceTime,
+	}
+	podIf := podClient.Pods(resourceIdentifier.Namespace)
+	logsRequest := podIf.GetLogs(resourceIdentifier.Name, podLogOptions)
+	stream, err := logsRequest.Stream()
+	if err != nil {
+		impl.logger.Errorw("error in streaming pod logs", "err", err)
+		return  err
+	}
+	defer stream.Close()
+	buffer := new(bytes.Buffer)
+	_, err = io.Copy(buffer, stream)
+	if err != nil {
+		impl.logger.Errorw("error in copying logs info to buffer","err",err)
+		return err
+	}
+	return nil
 }
 
 func (impl K8sApplicationServiceImpl) GetResourceIf(restConfig *rest.Config, request *K8sRequestBean) (resourceIf dynamic.NamespaceableResourceInterface, err error) {

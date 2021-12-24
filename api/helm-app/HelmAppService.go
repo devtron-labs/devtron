@@ -168,6 +168,8 @@ func (impl *HelmAppServiceImpl) ListEvents(appIdentifier *AppIdentifier, request
 	return resp, nil
 }
 
+func(impk *HelmAppServiceImpl) GetPodLogs()
+
 func (impl *HelmAppServiceImpl) GetRestConfigByClusterId(clusterId int) (*rest.Config, error) {
 	cluster, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
