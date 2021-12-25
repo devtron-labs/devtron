@@ -20,6 +20,8 @@ const DEFAULT_CLUSTER = "default_cluster"
 type HelmAppService interface {
 	ListHelmApplications(clusterIds []int, w http.ResponseWriter)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
+	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
+	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	GetResource(app *AppIdentifier, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error)
 	UpdateResource(app *AppIdentifier, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error)
 	DeleteResource(app *AppIdentifier, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error)
@@ -86,8 +88,71 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.Re
 		})
 }
 
-func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
-	cluster, err := impl.clusterService.FindById(app.ClusterId)
+func (impl *HelmAppServiceImpl) hibernateReqAdaptor(hibernateRequest *openapi.HibernateRequest) *HibernateRequest {
+	req := &HibernateRequest{}
+	for _, reqObject := range hibernateRequest.GetResources() {
+		obj := &ObjectIdentifier{
+			Group:     *reqObject.Group,
+			Kind:      *reqObject.Kind,
+			Version:   *reqObject.Version,
+			Name:      *reqObject.Name,
+			Namespace: *reqObject.Namespace,
+		}
+		req.ObjectIdentifier = append(req.ObjectIdentifier, obj)
+	}
+	return req
+}
+func (impl *HelmAppServiceImpl) hibernateResponseAdaptor(in []*HibernateStatus) []*openapi.HibernateStatus {
+	var resStatus []*openapi.HibernateStatus
+	for _, status := range in {
+		resObj := &openapi.HibernateStatus{
+			Success:      &status.Success,
+			ErrorMessage: &status.ErrorMsg,
+			TargetObject: &openapi.HibernateTargetObject{
+				Group:     &status.TargetObject.Group,
+				Kind:      &status.TargetObject.Kind,
+				Version:   &status.TargetObject.Version,
+				Name:      &status.TargetObject.Name,
+				Namespace: &status.TargetObject.Namespace,
+			},
+		}
+		resStatus = append(resStatus, resObj)
+	}
+	return resStatus
+}
+func (impl *HelmAppServiceImpl) HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+	conf, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		return nil, err
+	}
+	req := impl.hibernateReqAdaptor(hibernateRequest)
+	req.ClusterConfig = conf
+	res, err := impl.helmAppClient.Hibernate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	response := impl.hibernateResponseAdaptor(res.Status)
+	return response, nil
+}
+
+func (impl *HelmAppServiceImpl) UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+
+	conf, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		return nil, err
+	}
+	req := impl.hibernateReqAdaptor(hibernateRequest)
+	req.ClusterConfig = conf
+	res, err := impl.helmAppClient.UnHibernate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	response := impl.hibernateResponseAdaptor(res.Status)
+	return response, nil
+}
+
+func (impl *HelmAppServiceImpl) getClusterConf(clusterId int) (*ClusterConfig, error) {
+	cluster, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
@@ -97,6 +162,14 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 		Token:        cluster.Config["bearer_token"],
 		ClusterId:    int32(cluster.Id),
 		ClusterName:  cluster.ClusterName,
+	}
+	return config, nil
+}
+func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
+	config, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "err", err)
+		return nil, err
 	}
 	req := &AppDetailRequest{
 		ClusterConfig: config,

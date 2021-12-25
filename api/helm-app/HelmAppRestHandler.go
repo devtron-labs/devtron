@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/gorilla/mux"
@@ -15,6 +16,8 @@ import (
 type HelmAppRestHandler interface {
 	ListApplications(w http.ResponseWriter, r *http.Request)
 	GetApplicationDetail(w http.ResponseWriter, r *http.Request)
+	Hibernate(w http.ResponseWriter, r *http.Request)
+	UnHibernate(w http.ResponseWriter, r *http.Request)
 	GetResource(w http.ResponseWriter, r *http.Request)
 	UpdateResource(w http.ResponseWriter, r *http.Request)
 	DeleteResource(w http.ResponseWriter, r *http.Request)
@@ -68,6 +71,50 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 		return
 	}
 	common.WriteJsonResp(w, err, appdetail, http.StatusOK)
+}
+
+func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.Request) {
+	var hibernateRequest *openapi.HibernateRequest
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(hibernateRequest)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	appIdentifier, err := DecodeAppId(*hibernateRequest.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//TODO: apply app filter
+	res, err := handler.helmAppService.HibernateApplication(context.Background(), appIdentifier, hibernateRequest)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *http.Request) {
+	var hibernateRequest *openapi.HibernateRequest
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(hibernateRequest)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	appIdentifier, err := DecodeAppId(*hibernateRequest.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//TODO: apply app filter
+	res, err := handler.helmAppService.UnHibernateApplication(context.Background(), appIdentifier, hibernateRequest)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *HelmAppRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {

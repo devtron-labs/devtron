@@ -20,6 +20,8 @@ const _ = grpc.SupportPackageIsVersion7
 type ApplicationServiceClient interface {
 	ListApplications(ctx context.Context, in *AppListRequest, opts ...grpc.CallOption) (ApplicationService_ListApplicationsClient, error)
 	GetAppDetail(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppDetail, error)
+	Hibernate(ctx context.Context, in *HibernateRequest, opts ...grpc.CallOption) (*HibernateResponse, error)
+	UnHibernate(ctx context.Context, in *HibernateRequest, opts ...grpc.CallOption) (*HibernateResponse, error)
 }
 
 type applicationServiceClient struct {
@@ -71,12 +73,32 @@ func (c *applicationServiceClient) GetAppDetail(ctx context.Context, in *AppDeta
 	return out, nil
 }
 
+func (c *applicationServiceClient) Hibernate(ctx context.Context, in *HibernateRequest, opts ...grpc.CallOption) (*HibernateResponse, error) {
+	out := new(HibernateResponse)
+	err := c.cc.Invoke(ctx, "/ApplicationService/Hibernate", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *applicationServiceClient) UnHibernate(ctx context.Context, in *HibernateRequest, opts ...grpc.CallOption) (*HibernateResponse, error) {
+	out := new(HibernateResponse)
+	err := c.cc.Invoke(ctx, "/ApplicationService/UnHibernate", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationServiceServer is the server API for ApplicationService service.
 // All implementations must embed UnimplementedApplicationServiceServer
 // for forward compatibility
 type ApplicationServiceServer interface {
 	ListApplications(*AppListRequest, ApplicationService_ListApplicationsServer) error
 	GetAppDetail(context.Context, *AppDetailRequest) (*AppDetail, error)
+	Hibernate(context.Context, *HibernateRequest) (*HibernateResponse, error)
+	UnHibernate(context.Context, *HibernateRequest) (*HibernateResponse, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
 
@@ -89,6 +111,12 @@ func (UnimplementedApplicationServiceServer) ListApplications(*AppListRequest, A
 }
 func (UnimplementedApplicationServiceServer) GetAppDetail(context.Context, *AppDetailRequest) (*AppDetail, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAppDetail not implemented")
+}
+func (UnimplementedApplicationServiceServer) Hibernate(context.Context, *HibernateRequest) (*HibernateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Hibernate not implemented")
+}
+func (UnimplementedApplicationServiceServer) UnHibernate(context.Context, *HibernateRequest) (*HibernateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnHibernate not implemented")
 }
 func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
 
@@ -142,6 +170,42 @@ func _ApplicationService_GetAppDetail_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_Hibernate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HibernateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).Hibernate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/Hibernate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).Hibernate(ctx, req.(*HibernateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ApplicationService_UnHibernate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HibernateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).UnHibernate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/UnHibernate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).UnHibernate(ctx, req.(*HibernateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ApplicationService_ServiceDesc is the grpc.ServiceDesc for ApplicationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +216,14 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAppDetail",
 			Handler:    _ApplicationService_GetAppDetail_Handler,
+		},
+		{
+			MethodName: "Hibernate",
+			Handler:    _ApplicationService_Hibernate_Handler,
+		},
+		{
+			MethodName: "UnHibernate",
+			Handler:    _ApplicationService_UnHibernate_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

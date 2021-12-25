@@ -11,6 +11,8 @@ import (
 type HelmAppClient interface {
 	ListApplication(req *AppListRequest) (ApplicationService_ListApplicationsClient, error)
 	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
+	Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
+	UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 }
 
 type HelmAppClientImpl struct {
@@ -69,6 +71,34 @@ func (impl *HelmAppClientImpl) GetAppDetail(ctx context.Context, in *AppDetailRe
 	}
 	applicationClient := NewApplicationServiceClient(conn)
 	detail, err := applicationClient.GetAppDetail(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return detail, nil
+}
+
+func (impl *HelmAppClientImpl) Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error) {
+	conn, err := impl.getConnection()
+	defer util.Close(conn, impl.logger)
+	if err != nil {
+		return nil, err
+	}
+	applicationClient := NewApplicationServiceClient(conn)
+	detail, err := applicationClient.Hibernate(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return detail, nil
+}
+
+func (impl *HelmAppClientImpl) UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error) {
+	conn, err := impl.getConnection()
+	defer util.Close(conn, impl.logger)
+	if err != nil {
+		return nil, err
+	}
+	applicationClient := NewApplicationServiceClient(conn)
+	detail, err := applicationClient.UnHibernate(ctx, in)
 	if err != nil {
 		return nil, err
 	}
