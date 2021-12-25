@@ -16,15 +16,16 @@ import (
 )
 
 type MuxRouter struct {
-	Router          *mux.Router
-	logger          *zap.SugaredLogger
-	ssoLoginRouter  sso.SsoLoginRouter
-	teamRouter      team.TeamRouter
-	UserAuthRouter  user.UserAuthRouter
-	userRouter      user.UserRouter
-	clusterRouter   cluster.ClusterRouter
-	dashboardRouter dashboard.DashboardRouter
-	helmAppRouter   client.HelmAppRouter
+	Router            *mux.Router
+	logger            *zap.SugaredLogger
+	ssoLoginRouter    sso.SsoLoginRouter
+	teamRouter        team.TeamRouter
+	UserAuthRouter    user.UserAuthRouter
+	userRouter        user.UserRouter
+	clusterRouter     cluster.ClusterRouter
+	dashboardRouter   dashboard.DashboardRouter
+	helmAppRouter     client.HelmAppRouter
+	environmentRouter cluster.EnvironmentRouter
 }
 
 func NewMuxRouter(
@@ -36,18 +37,20 @@ func NewMuxRouter(
 	clusterRouter cluster.ClusterRouter,
 	dashboardRouter dashboard.DashboardRouter,
 	helmAppRouter client.HelmAppRouter,
+	environmentRouter cluster.EnvironmentRouter,
 
 ) *MuxRouter {
 	r := &MuxRouter{
-		Router:          mux.NewRouter(),
-		logger:          logger,
-		ssoLoginRouter:  ssoLoginRouter,
-		teamRouter:      teamRouter,
-		UserAuthRouter:  UserAuthRouter,
-		userRouter:      userRouter,
-		clusterRouter:   clusterRouter,
-		dashboardRouter: dashboardRouter,
-		helmAppRouter:   helmAppRouter,
+		Router:            mux.NewRouter(),
+		logger:            logger,
+		ssoLoginRouter:    ssoLoginRouter,
+		teamRouter:        teamRouter,
+		UserAuthRouter:    UserAuthRouter,
+		userRouter:        userRouter,
+		clusterRouter:     clusterRouter,
+		dashboardRouter:   dashboardRouter,
+		helmAppRouter:     helmAppRouter,
+		environmentRouter: environmentRouter,
 	}
 	return r
 }
@@ -92,6 +95,9 @@ func (r *MuxRouter) Init() {
 
 	clusterRouter := baseRouter.PathPrefix("/cluster").Subrouter()
 	r.clusterRouter.InitClusterRouter(clusterRouter)
+
+	environmentClusterMappingsRouter := r.Router.PathPrefix("/orchestrator/env").Subrouter()
+	r.environmentRouter.InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter)
 
 	r.Router.Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		http.Redirect(writer, request, "/dashboard", 301)
