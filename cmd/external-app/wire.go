@@ -6,6 +6,8 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/cluster"
+	"github.com/devtron-labs/devtron/api/connector"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
@@ -25,7 +27,7 @@ func InitializeApp() (*App, error) {
 		team.TeamsWireSet,
 		cluster.ClusterWireSetEa,
 		dashboard.DashboardWireSet,
-		//client.HelmAppWireSet,
+		client.HelmAppWireSet,
 
 		NewApp,
 		NewMuxRouter,
@@ -36,6 +38,10 @@ func InitializeApp() (*App, error) {
 
 		//acd session client bind with authenticator login
 		wire.Bind(new(session.ServiceClient), new(*middleware.LoginService)),
+		connector.NewPumpImpl,
+		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
+
+
 	)
 	return &App{}, nil
 }
