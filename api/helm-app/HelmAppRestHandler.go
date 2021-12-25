@@ -69,7 +69,7 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 }
 
 func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.Request) {
-	var hibernateRequest *openapi.HibernateRequest
+	hibernateRequest :=&openapi.HibernateRequest{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(hibernateRequest)
 	if err != nil {
