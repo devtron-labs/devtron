@@ -22,11 +22,14 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 )
 
-type CdWorkflowType string
+type WorkflowType string
 
-const CD_WORKFLOW_TYPE_PRE CdWorkflowType = "PRE"
-const CD_WORKFLOW_TYPE_POST CdWorkflowType = "POST"
-const CD_WORKFLOW_TYPE_DEPLOY CdWorkflowType = "DEPLOY"
+const (
+	CD_WORKFLOW_TYPE_PRE    WorkflowType = "PRE"
+	CD_WORKFLOW_TYPE_POST   WorkflowType = "POST"
+	CD_WORKFLOW_TYPE_DEPLOY WorkflowType = "DEPLOY"
+	CI_WORKFLOW_TYPE        WorkflowType = "CI"
+)
 
 type ValuesOverrideRequest struct {
 	PipelineId         int                   `json:"pipelineId" validate:"required"`
@@ -36,7 +39,7 @@ type ValuesOverrideRequest struct {
 	TargetDbVersion    int                   `json:"targetDbVersion"`
 	ForceTrigger       bool                  `json:"forceTrigger,notnull"`
 	DeploymentTemplate string                `json:"strategy,omitempty"` // validate:"oneof=BLUE-GREEN ROLLING"`
-	CdWorkflowType     CdWorkflowType        `json:"cdWorkflowType,notnull"`
+	CdWorkflowType     WorkflowType        `json:"cdWorkflowType,notnull"`
 	CdWorkflowId       int                   `json:"cdWorkflowId"`
 	UserId             int32                 `json:"-"`
 	DeploymentType     models.DeploymentType `json:"-"`
