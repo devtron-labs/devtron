@@ -41,6 +41,7 @@ type Pump interface {
 	StartStream(w http.ResponseWriter, recv func() (proto.Message, error), err error)
 	StartStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, recv func() (*application.LogEntry, error), err error)
 	StartMessage(w http.ResponseWriter, resp proto.Message, perr error)
+	StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{})interface{})
 }
 
 type PumpImpl struct {
@@ -184,6 +185,48 @@ func (impl PumpImpl) StartStream(w http.ResponseWriter, recv func() (proto.Messa
 		}
 		response := bean.Response{}
 		response.Result = resp
+		buf, err := json.Marshal(response)
+		data := "data: " + string(buf)
+		if _, err = w.Write([]byte(data)); err != nil {
+			impl.logger.Errorf("Failed to send response chunk: %v", err)
+			return
+		}
+		wroteHeader = true
+		if _, err = w.Write(delimiter); err != nil {
+			impl.logger.Errorf("Failed to send delimiter chunk: %v", err)
+			return
+		}
+		f.Flush()
+	}
+}
+
+
+func (impl PumpImpl) StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{})interface{}) {
+	f, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)
+	}
+	if err != nil {
+		http.Error(w, errors.Details(err), http.StatusInternalServerError)
+	}
+	w.Header().Set("Transfer-Encoding", "chunked")
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	var wroteHeader bool
+	for {
+		resp, err := recv()
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			impl.logger.Errorf("Error occurred while reading data from argocd %+v\n", err)
+			impl.handleForwardResponseStreamError(wroteHeader, w, err)
+			return
+		}
+		response := bean.Response{}
+		response.Result = transformer(resp)
 		buf, err := json.Marshal(response)
 		data := "data: " + string(buf)
 		if _, err = w.Write([]byte(data)); err != nil {

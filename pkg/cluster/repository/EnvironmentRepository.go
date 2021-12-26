@@ -47,6 +47,8 @@ type EnvironmentRepository interface {
 	FindByClusterId(clusterId int) ([]*Environment, error)
 	FindByIds(ids []*int) ([]*Environment, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*Environment, error)
+	FindByClusterIdAndNamespace(namespaceClusterPair []*ClusterNamespacePair) ([]*Environment, error)
+	FindByClusterIds(clusterIds []int) ([]*Environment, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB) *EnvironmentRepositoryImpl {
@@ -107,6 +109,36 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindAll() ([]Environment, error)
 		Column("environment.*", "Cluster").
 		Join("inner join cluster c on environment.cluster_id = c.id").
 		Where("environment.active = ?", true).
+		Select()
+	return mappings, err
+}
+
+type ClusterNamespacePair struct {
+	ClusterId     int
+	NamespaceName string
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterIdAndNamespace(namespaceClusterPair []*ClusterNamespacePair) ([]*Environment, error) {
+	var mappings []*Environment
+	var clusterNsPair []interface{}
+	for _, _pair := range namespaceClusterPair {
+		if len(_pair.NamespaceName) > 0 {
+			clusterNsPair = append(clusterNsPair, []interface{}{_pair.ClusterId, _pair.NamespaceName})
+		}
+	}
+	err := repositoryImpl.dbConnection.
+		Model(&mappings).
+		Where("active = true").
+		Where(" (cluster_id, namespace) in (?)", pg.InMulti(clusterNsPair)).
+		Select()
+	return mappings, err
+}
+func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterIds(clusterIds []int) ([]*Environment, error) {
+	var mappings []*Environment
+	err := repositoryImpl.dbConnection.
+		Model(&mappings).
+		Where("active = true").
+		Where(" cluster_id in (?)", pg.In(clusterIds)).
 		Select()
 	return mappings, err
 }

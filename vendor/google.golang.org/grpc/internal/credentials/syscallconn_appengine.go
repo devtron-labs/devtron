@@ -18,7 +18,7 @@
  *
  */
 
-package internal
+package credentials
 
 import (
 	"net"
