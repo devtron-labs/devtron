@@ -21,17 +21,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1/validation"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"net/http"
-	"strings"
 )
 
 type BatchOperationRestHandler interface {
@@ -40,20 +39,22 @@ type BatchOperationRestHandler interface {
 
 type BatchOperationRestHandlerImpl struct {
 	userAuthService user.UserService
-	enforcer        rbac.Enforcer
+	enforcer        casbin.Enforcer
 	workflowAction  batch.WorkflowAction
 	teamService     team.TeamService
 	logger          *zap.SugaredLogger
+	enforcerUtil    rbac.EnforcerUtil
 }
 
-func NewBatchOperationRestHandlerImpl(userAuthService user.UserService, enforcer rbac.Enforcer, workflowAction batch.WorkflowAction,
-	teamService team.TeamService, logger *zap.SugaredLogger) *BatchOperationRestHandlerImpl {
+func NewBatchOperationRestHandlerImpl(userAuthService user.UserService, enforcer casbin.Enforcer, workflowAction batch.WorkflowAction,
+	teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil) *BatchOperationRestHandlerImpl {
 	return &BatchOperationRestHandlerImpl{
 		userAuthService: userAuthService,
 		enforcer:        enforcer,
 		workflowAction:  workflowAction,
 		teamService:     teamService,
 		logger:          logger,
+		enforcerUtil:    enforcerUtil,
 	}
 }
 
@@ -94,10 +95,8 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 		if workflow.Destination.App == nil || len(*workflow.Destination.App) == 0 {
 			common.WriteJsonResp(w, errors.New("app name cannot be empty"), nil, http.StatusBadRequest)
 		}
-
-		team, err := handler.teamService.FindActiveTeamByAppName(*workflow.Destination.App)
-
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
+		rbacString := handler.enforcerUtil.GetProjectAdminRBACNameBYAppName(*workflow.Destination.App)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, rbacString); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}

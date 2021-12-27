@@ -20,13 +20,9 @@ package sso
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/util/session"
+	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/api/bean"
-	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -42,42 +38,26 @@ type SSOLoginService interface {
 }
 
 type SSOLoginServiceImpl struct {
-	sessionManager      *session.SessionManager
-	userAuthRepository  repository.UserAuthRepository
-	sessionClient       session2.ServiceClient
-	logger              *zap.SugaredLogger
-	userRepository      repository.UserRepository
-	roleGroupRepository repository.RoleGroupRepository
-	ssoLoginRepository  repository.SSOLoginRepository
-	K8sUtil             *util.K8sUtil
-	clusterService      cluster.ClusterService
-	envService          cluster.EnvironmentService
-	aCDAuthConfig       *user.ACDAuthConfig
+	logger             *zap.SugaredLogger
+	ssoLoginRepository SSOLoginRepository
+	K8sUtil            *util.K8sUtil
 }
 
-func NewSSOLoginServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
-	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
-	userGroupRepository repository.RoleGroupRepository, ssoLoginRepository repository.SSOLoginRepository,
-	K8sUtil *util.K8sUtil, clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	aCDAuthConfig *user.ACDAuthConfig) *SSOLoginServiceImpl {
+func NewSSOLoginServiceImpl(
+	logger *zap.SugaredLogger,
+	ssoLoginRepository SSOLoginRepository,
+	K8sUtil *util.K8sUtil,
+) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
-		userAuthRepository:  userAuthRepository,
-		sessionManager:      sessionManager,
-		sessionClient:       client,
-		logger:              logger,
-		userRepository:      userRepository,
-		roleGroupRepository: userGroupRepository,
-		ssoLoginRepository:  ssoLoginRepository,
-		K8sUtil:             K8sUtil,
-		clusterService:      clusterService,
-		envService:          envService,
-		aCDAuthConfig:       aCDAuthConfig,
+		logger:             logger,
+		ssoLoginRepository: ssoLoginRepository,
+		K8sUtil:            K8sUtil,
 	}
 	return serviceImpl
 }
 
 func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean.SSOLoginDto, error) {
-	dbConnection := impl.userRepository.GetConnection()
+	dbConnection := impl.ssoLoginRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
 		return nil, err
@@ -105,7 +85,7 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 			return nil, err
 		}
 	}
-	model := &repository.SSOLoginModel{
+	model := &SSOLoginModel{
 		Name:   request.Name,
 		Label:  request.Label,
 		Config: string(configDataByte),
@@ -136,7 +116,7 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 }
 
 func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean.SSOLoginDto, error) {
-	dbConnection := impl.userRepository.GetConnection()
+	dbConnection := impl.ssoLoginRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
 		return nil, err
@@ -200,16 +180,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 
 	//TODO- update argocd-cm
 	flag := false
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
-	if err != nil {
-		return flag, err
-	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
-	if err != nil {
-		return flag, err
-	}
-
-	client, err := impl.K8sUtil.GetClient(cfg)
+	k8sClient, err := impl.K8sUtil.GetClientForInCluster()
 	if err != nil {
 		return flag, err
 	}
@@ -218,7 +189,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
 
-		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		cm, err := impl.K8sUtil.GetConfigMap(client.ArgocdNamespaceName, client.ArgoCDConfigMapName, k8sClient)
 		if err != nil {
 			return flag, err
 		}
@@ -230,7 +201,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 		data["dex.config"] = updatedData["dex.config"]
 		data["url"] = request.Url
 		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		_, err = impl.K8sUtil.UpdateConfigMap(client.ArgocdNamespaceName, cm, k8sClient)
 		if err != nil {
 			impl.logger.Warnw("config map failed", "err", err)
 			continue

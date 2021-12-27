@@ -24,3 +24,10 @@ spec:
               number: 80
         path: /dashboard
         pathType: ImplementationSpecific
+      - backend:
+          service:
+            name: devtron-service
+            port:
+              number: 80
+        path: /grafana
+        pathType: ImplementationSpecific

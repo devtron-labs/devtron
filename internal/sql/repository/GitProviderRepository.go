@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -43,7 +43,7 @@ type GitProvider struct {
 	AuthMode      AuthMode `sql:"auth_mode,notnull"`
 	Active        bool     `sql:"active,notnull"`
 	GitHostId     int      `sql:"git_host_id"` //id stored in db git_host( foreign key)
-	models.AuditLog
+	sql.AuditLog
 }
 
 type GitProviderRepository interface {

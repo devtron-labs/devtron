@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 )
@@ -40,7 +41,7 @@ type PipelineOverride struct {
 	PipelineReleaseCounter int                   `sql:"pipeline_release_counter"` //built index
 	CdWorkflowId           int                   `sql:"cd_workflow_id"`           //built index
 	DeploymentType         models.DeploymentType `sql:"deployment_type"`          // deployment type
-	models.AuditLog
+	sql.AuditLog
 	EnvConfigOverride *EnvConfigOverride
 	CiArtifact        *repository.CiArtifact
 	Pipeline          *pipelineConfig.Pipeline

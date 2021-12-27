@@ -29,15 +29,17 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
@@ -66,7 +68,7 @@ type CoreAppRestHandlerImpl struct {
 	userAuthService         user.UserService
 	validator               *validator.Validate
 	enforcerUtil            rbac.EnforcerUtil
-	enforcer                rbac.Enforcer
+	enforcer                casbin.Enforcer
 	appLabelService         app.AppLabelService
 	pipelineBuilder         pipeline.PipelineBuilder
 	gitRegistryService      pipeline.GitRegistryConfig
@@ -78,7 +80,7 @@ type CoreAppRestHandlerImpl struct {
 	materialRepository      pipelineConfig.MaterialRepository
 	gitProviderRepo         repository.GitProviderRepository
 	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
-	environmentRepository   cluster.EnvironmentRepository
+	environmentRepository   repository2.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
 	envConfigRepo           chartConfig.EnvConfigOverrideRepository
 	chartRepo               chartConfig.ChartRepository
@@ -86,11 +88,11 @@ type CoreAppRestHandlerImpl struct {
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
-	enforcer rbac.Enforcer, appLabelService app.AppLabelService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
+	enforcer casbin.Enforcer, appLabelService app.AppLabelService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
 	chartService pipeline.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
-	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository cluster.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
+	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartConfig.ChartRepository, teamService team.TeamService) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
@@ -137,7 +139,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//rbac implementation for app (user should be admin)
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, object); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
 		handler.logger.Errorw("Unauthorized User for app update action", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -266,7 +268,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 		return
 	}
 	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -900,7 +902,7 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentSecrets(appId int, envI
 				handler.logger.Errorw("service err, CSEnvironmentFetchForEdit in GetAppAllDetail", "err", err, "appId", appId, "envId", envId)
 				return nil, err, http.StatusInternalServerError
 			}
-			if secretConfig.Data == nil{
+			if secretConfig.Data == nil {
 				secretDataWithData.ConfigData[0].Data = secretConfig.Data
 			}
 			secretDataWithData.ConfigData[0].DefaultData = secretConfig.DefaultData
@@ -1002,7 +1004,7 @@ func (handler CoreAppRestHandlerImpl) buildEnvironmentOverrides(appId int, token
 
 			//check RBAC for environment
 			object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-			if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
 				handler.logger.Errorw("Unauthorized User for env update action", "err", err, "appId", appId, "envId", envId)
 				return nil, fmt.Errorf("unauthorized user"), http.StatusForbidden
 			}
@@ -1471,7 +1473,7 @@ func (handler CoreAppRestHandlerImpl) createWorkflowInDb(workflowName string, ap
 		Name:   workflowName,
 		AppId:  appId,
 		Active: true,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			UpdatedOn: time.Now(),
 			CreatedBy: userId,
@@ -1574,7 +1576,7 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 
 		// RBAC starts
 		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(appName, envModel.Id)
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, object); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
 			return errors.New("unauthorized User")
 		}
 		// RBAC ends
@@ -1640,7 +1642,7 @@ func (handler CoreAppRestHandlerImpl) createEnvOverrides(ctx context.Context, ap
 
 		// RBAC starts
 		object := handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envModel.Id)
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
 			return fmt.Errorf("unauthorized user"), http.StatusForbidden
 		}
 		// RBAC ends

@@ -18,9 +18,11 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -42,7 +44,7 @@ type Pipeline struct {
 	tableName                     struct{} `sql:"pipeline" pg:",discard_unknown_columns"`
 	Id                            int      `sql:"id,pk"`
 	AppId                         int      `sql:"app_id,notnull"`
-	App                           App
+	App                           app.App
 	CiPipelineId                  int         `sql:"ci_pipeline_id"`
 	TriggerType                   TriggerType `sql:"trigger_type,notnull"` // automatic, manual
 	EnvironmentId                 int         `sql:"environment_id"`
@@ -56,8 +58,8 @@ type Pipeline struct {
 	PostStageConfigMapSecretNames string      `sql:"post_stage_config_map_secret_names"` // secret names
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
-	Environment                   cluster.Environment
-	models.AuditLog
+	Environment                   repository.Environment
+	sql.AuditLog
 }
 
 type PipelineRepository interface {
@@ -76,6 +78,7 @@ type PipelineRepository interface {
 	UndoDelete(id int) error
 	UniqueAppEnvironmentPipelines() ([]*Pipeline, error)
 	FindByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
+	FindByParentCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
 	FindByPipelineTriggerGitHash(gitHash string) (pipeline *Pipeline, err error)
 	FindByIdsInAndEnvironment(ids []int, environmentId int) ([]*Pipeline, error)
 	FindActiveByAppIdAndEnvironmentIdV2() (pipelines []*Pipeline, err error)
@@ -165,6 +168,21 @@ func (impl PipelineRepositoryImpl) FindByCiPipelineId(ciPipelineId int) (pipelin
 	err = impl.dbConnection.Model(&pipelines).
 		Where("ci_pipeline_id =?", ciPipelineId).
 		Where("deleted =?", false).
+		Select()
+	if err != nil && util.IsErrNoRows(err) {
+		return make([]*Pipeline, 0), nil
+	} else if err != nil {
+		return nil, err
+	}
+	return pipelines, nil
+}
+func (impl PipelineRepositoryImpl) FindByParentCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.*").
+		Join("INNER JOIN app_workflow_mapping awm on awm.component_id = pipeline.id").
+		Where("pipeline.ci_pipeline_id =?", ciPipelineId).
+		Where("awm.parent_type =?", appWorkflow.CIPIPELINE).
+		Where("pipeline.deleted =?", false).
 		Select()
 	if err != nil && util.IsErrNoRows(err) {
 		return make([]*Pipeline, 0), nil

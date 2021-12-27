@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -43,12 +44,12 @@ type AppLabelRestHandlerImpl struct {
 	userAuthService user.UserService
 	validator       *validator.Validate
 	enforcerUtil    rbac.EnforcerUtil
-	enforcer        rbac.Enforcer
+	enforcer        casbin.Enforcer
 }
 
 func NewAppLabelRestHandlerImpl(logger *zap.SugaredLogger, appLabelService app.AppLabelService,
 	userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
-	enforcer rbac.Enforcer) *AppLabelRestHandlerImpl {
+	enforcer casbin.Enforcer) *AppLabelRestHandlerImpl {
 	handler := &AppLabelRestHandlerImpl{
 		logger:          logger,
 		appLabelService: appLabelService,
@@ -77,7 +78,7 @@ func (handler AppLabelRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *ht
 	objects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, label := range labels {
 		object := objects[label.AppId]
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
 			results = append(results, label)
 		}
 	}
@@ -101,7 +102,7 @@ func (handler AppLabelRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *
 	//rback implementation starts here
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -141,7 +142,7 @@ func (handler AppLabelRestHandlerImpl) UpdateLabelsInApp(w http.ResponseWriter, 
 	//rback implementation starts here
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, object); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}

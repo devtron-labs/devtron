@@ -5,11 +5,11 @@ import (
 )
 
 func getTestGithubClient() GitHubClient {
-	logger:=NewSugardLogger()
-	gitCliUtl:=NewGitCliUtil(logger)
-	gitService:=NewGitServiceImpl(&GitConfig{GitToken: "", GitUserName: "nishant"},logger,gitCliUtl)
+	logger := NewSugardLogger()
+	gitCliUtl := NewGitCliUtil(logger)
+	gitService := NewGitServiceImpl(&GitConfig{GitToken: "", GitUserName: "nishant"}, logger, gitCliUtl)
 
-	githubClient, err := NewGithubClient("", "", "test-org",logger , gitService)
+	githubClient, err := NewGithubClient("", "", "test-org", logger, gitService)
 	if err != nil {
 		panic(err)
 	}
