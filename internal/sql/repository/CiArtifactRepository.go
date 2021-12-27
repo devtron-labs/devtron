@@ -45,7 +45,7 @@ type CiArtifact struct {
 	DeployedTime     time.Time `sql:"-"`
 	Deployed         bool      `sql:"-"`
 	Latest           bool      `sql:"-"`
-	RunningOnParent  bool 	   `sql:"-"`
+	RunningOnParent  bool      `sql:"-"`
 	sql.AuditLog
 }
 
