@@ -33,7 +33,7 @@ import (
 
 type EventFactory interface {
 	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event
-	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.CdWorkflowType) Event
+	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
 	//BuildFinalData(event Event) *Payload
 }
@@ -83,7 +83,7 @@ func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *in
 	return event
 }
 
-func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.CdWorkflowType) Event {
+func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event {
 	//event.CdWorkflowRunnerId =
 	event.CdWorkflowType = stage
 	payload := event.Payload
