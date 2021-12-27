@@ -182,7 +182,7 @@ spec:
     app: lens
 ---
 # Legacy HPA api in case autoscaling/v2beta2 is unavailable
-apiVersion: autoscaling/v2beta1
+apiVersion: autoscaling/v1
 kind: HorizontalPodAutoscaler
 metadata:
  name: lens-hpa
@@ -204,7 +204,7 @@ spec:
        targetAverageUtilization: 80
 ---
 # Source: lens/templates/hpa.yaml
-apiVersion: autoscaling/v2beta2
+apiVersion: autoscaling/v1
 kind: HorizontalPodAutoscaler
 metadata:
  name: lens-hpa
