@@ -10,6 +10,7 @@
   * [Install using Kubectl](setup/install/install-devtron-using-kubectl.md)
   * [Installation Configurations](setup/install/installation-configuration.md)
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
+  * [Ingress setup for devtron installation](setup/install/ingress-setup.md)
 * [Devtron Upgrade](setup/upgrade/README.md)
   * [0.2.x-0.3.x](setup/upgrade/devtron-upgrade-0.2.x-0.3.x.md)
 * [Start Using devtron](setup/start-using.md)
