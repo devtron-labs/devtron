@@ -9,7 +9,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/gogo/protobuf/proto"
 	"go.uber.org/zap"
-	"k8s.io/client-go/rest"
 	"net/http"
 	"strconv"
 	"strings"
@@ -22,30 +21,30 @@ type HelmAppService interface {
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
-	GetResource(app *AppIdentifier, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error)
-	UpdateResource(app *AppIdentifier, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error)
-	DeleteResource(app *AppIdentifier, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error)
-	ListEvents(app *AppIdentifier, request *application.K8sRequestBean) (*application.EventsResponse, error)
+	DecodeAppId(appId string) (*AppIdentifier, error)
 }
 type HelmAppServiceImpl struct {
 	logger         *zap.SugaredLogger
 	clusterService cluster.ClusterService
 	helmAppClient  HelmAppClient
 	pump           connector.Pump
-	k8sApplication application.K8sApplicationService
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	helmAppClient HelmAppClient,
-	pump connector.Pump, k8sApplication application.K8sApplicationService) *HelmAppServiceImpl {
+	pump connector.Pump) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:         Logger,
 		clusterService: clusterService,
 		helmAppClient:  helmAppClient,
 		pump:           pump,
-		k8sApplication: k8sApplication,
 	}
+}
+
+type ResourceRequestBean struct {
+	AppId      string                     `json:"appId"`
+	K8sRequest application.K8sRequestBean `json:"k8sRequest"`
 }
 
 func (impl *HelmAppServiceImpl) listApplications(clusterIds []int) (ApplicationService_ListApplicationsClient, error) {
@@ -181,96 +180,13 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 
 }
 
-func (impl *HelmAppServiceImpl) GetResource(appIdentifier *AppIdentifier, request *application.K8sRequestBean) (*application.ManifestResponse, error) {
-	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(appIdentifier.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", appIdentifier.ClusterId)
-		return nil, err
-	}
-	resp, err := impl.k8sApplication.GetResource(restConfig, request)
-	if err != nil {
-		impl.logger.Errorw("error in getting resource", "err", err, "request", request)
-		return nil, err
-	}
-	return resp, nil
-}
-
-func (impl *HelmAppServiceImpl) UpdateResource(appIdentifier *AppIdentifier, request *application.K8sRequestBean) (*application.ManifestResponse, error) {
-	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(appIdentifier.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", appIdentifier.ClusterId)
-		return nil, err
-	}
-	resp, err := impl.k8sApplication.UpdateResource(restConfig, request)
-	if err != nil {
-		impl.logger.Errorw("error in updating resource", "err", err, "request", request)
-		return nil, err
-	}
-	return resp, nil
-}
-
-func (impl *HelmAppServiceImpl) DeleteResource(appIdentifier *AppIdentifier, request *application.K8sRequestBean) (*application.ManifestResponse, error) {
-	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(appIdentifier.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", appIdentifier.ClusterId)
-		return nil, err
-	}
-	resp, err := impl.k8sApplication.DeleteResource(restConfig, request)
-	if err != nil {
-		impl.logger.Errorw("error in deleting resource", "err", err, "request", request)
-		return nil, err
-	}
-	return resp, nil
-}
-
-func (impl *HelmAppServiceImpl) ListEvents(appIdentifier *AppIdentifier, request *application.K8sRequestBean) (*application.EventsResponse, error) {
-	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(appIdentifier.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", appIdentifier.ClusterId)
-		return nil, err
-	}
-	resp, err := impl.k8sApplication.ListEvents(restConfig, request)
-	if err != nil {
-		impl.logger.Errorw("error in getting events list", "err", err, "request", request)
-		return nil, err
-	}
-	return resp, nil
-}
-
-func(impk *HelmAppServiceImpl) GetPodLogs()
-
-func (impl *HelmAppServiceImpl) GetRestConfigByClusterId(clusterId int) (*rest.Config, error) {
-	cluster, err := impl.clusterService.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
-		return nil, err
-	}
-	configMap := cluster.Config
-	bearerToken := configMap["bearer_token"]
-	var restConfig *rest.Config
-	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
-		restConfig, err = rest.InClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
-			return nil, err
-		}
-	} else {
-		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
-	}
-	return restConfig, nil
-}
-
 type AppIdentifier struct {
-	ClusterId   int
-	Namespace   string
-	ReleaseName string
+	ClusterId   int    `json:"clusterId"`
+	Namespace   string `json:"namespace"`
+	ReleaseName string `json:"releaseName"`
 }
 
-func DecodeAppId(appId string) (*AppIdentifier, error) {
+func (impl *HelmAppServiceImpl) DecodeAppId(appId string) (*AppIdentifier, error) {
 	component := strings.Split(appId, "|")
 	if len(component) != 3 {
 		return nil, fmt.Errorf("malformed app id %s", appId)

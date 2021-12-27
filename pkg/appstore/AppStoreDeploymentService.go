@@ -514,7 +514,7 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appstore.AppStoreFilter) (ope
 	var helmAppsResponse []openapi.HelmApp
 	for _, a := range installedApps {
 		appLocal := a // copied data from here because value is passed as reference
-		if appLocal.TeamId == 0{
+		if appLocal.TeamId == 0 {
 			//skipping entries for empty projectId
 			continue
 		}

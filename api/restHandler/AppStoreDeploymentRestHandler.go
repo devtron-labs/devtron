@@ -326,7 +326,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 			continue
 		}
 
-		object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(appName, int(*envId) )
+		object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(appName, int(*envId))
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
 			continue
 		}

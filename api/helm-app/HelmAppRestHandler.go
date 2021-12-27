@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -18,10 +17,6 @@ type HelmAppRestHandler interface {
 	GetApplicationDetail(w http.ResponseWriter, r *http.Request)
 	Hibernate(w http.ResponseWriter, r *http.Request)
 	UnHibernate(w http.ResponseWriter, r *http.Request)
-	GetResource(w http.ResponseWriter, r *http.Request)
-	UpdateResource(w http.ResponseWriter, r *http.Request)
-	DeleteResource(w http.ResponseWriter, r *http.Request)
-	ListEvents(w http.ResponseWriter, r *http.Request)
 }
 type HelmAppRestHandlerImpl struct {
 	logger         *zap.SugaredLogger
@@ -60,7 +55,7 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 	vars := mux.Vars(r)
 	clusterIdString := vars["appId"]
 
-	appIdentifier, err := DecodeAppId(clusterIdString)
+	appIdentifier, err := handler.helmAppService.DecodeAppId(clusterIdString)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -81,7 +76,7 @@ func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appIdentifier, err := DecodeAppId(*hibernateRequest.AppId)
+	appIdentifier, err := handler.helmAppService.DecodeAppId(*hibernateRequest.AppId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -103,7 +98,7 @@ func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appIdentifier, err := DecodeAppId(*hibernateRequest.AppId)
+	appIdentifier, err := handler.helmAppService.DecodeAppId(*hibernateRequest.AppId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -115,116 +110,4 @@ func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *htt
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler *HelmAppRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	clusterIdString := vars["appId"]
-
-	appIdentifier, err := DecodeAppId(clusterIdString)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	var request application.K8sRequestBean
-	err = decoder.Decode(&request)
-	if err != nil {
-		handler.logger.Errorw("error in decoding request body", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	//TODO : add rbac
-	resource, err := handler.helmAppService.GetResource(appIdentifier, &request)
-	if err != nil {
-		handler.logger.Errorw("error in getting resource", "err", err)
-		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, nil, resource, http.StatusOK)
-}
-
-func (handler *HelmAppRestHandlerImpl) UpdateResource(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	clusterIdString := vars["appId"]
-
-	appIdentifier, err := DecodeAppId(clusterIdString)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	var request application.K8sRequestBean
-	err = decoder.Decode(&request)
-	if err != nil {
-		handler.logger.Errorw("error in decoding request body", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	//TODO : add rbac
-	resource, err := handler.helmAppService.UpdateResource(appIdentifier, &request)
-	if err != nil {
-		handler.logger.Errorw("error in updating resource", "err", err)
-		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, nil, resource, http.StatusOK)
-}
-
-func (handler *HelmAppRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	clusterIdString := vars["appId"]
-
-	appIdentifier, err := DecodeAppId(clusterIdString)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	var request application.K8sRequestBean
-	err = decoder.Decode(&request)
-	if err != nil {
-		handler.logger.Errorw("error in decoding request body", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	//TODO : add rbac
-	resource, err := handler.helmAppService.DeleteResource(appIdentifier, &request)
-	if err != nil {
-		handler.logger.Errorw("error in deleting resource", "err", err)
-		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, nil, resource, http.StatusOK)
-}
-
-func (handler *HelmAppRestHandlerImpl) ListEvents(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	clusterIdString := vars["appId"]
-
-	appIdentifier, err := DecodeAppId(clusterIdString)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	var request application.K8sRequestBean
-	err = decoder.Decode(&request)
-	if err != nil {
-		handler.logger.Errorw("error in decoding request body", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	//TODO : add rbac
-	events, err := handler.helmAppService.ListEvents(appIdentifier, &request)
-	if err != nil {
-		handler.logger.Errorw("error in getting events list", "err", err)
-		common.WriteJsonResp(w, err, events, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, nil, events, http.StatusOK)
 }

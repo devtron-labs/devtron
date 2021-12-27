@@ -18,6 +18,7 @@
 package connector
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -41,7 +42,8 @@ type Pump interface {
 	StartStream(w http.ResponseWriter, recv func() (proto.Message, error), err error)
 	StartStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, recv func() (*application.LogEntry, error), err error)
 	StartMessage(w http.ResponseWriter, resp proto.Message, perr error)
-	StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{})interface{})
+	StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{}) interface{})
+	StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, stream io.ReadCloser, err error)
 }
 
 type PumpImpl struct {
@@ -51,6 +53,81 @@ type PumpImpl struct {
 func NewPumpImpl(logger *zap.SugaredLogger) *PumpImpl {
 	return &PumpImpl{
 		logger: logger,
+	}
+}
+
+func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, stream io.ReadCloser, err error) {
+	f, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)
+	}
+	if err != nil {
+		http.Error(w, errors.Details(err), http.StatusInternalServerError)
+	}
+	w.Header().Set("Transfer-Encoding", "chunked")
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	var wroteHeader bool
+	if isReconnect {
+		err := impl.sendEvent(nil, []byte("RECONNECT_STREAM"), []byte("RECONNECT_STREAM"), w)
+		if err != nil {
+			impl.logger.Errorw("error in writing data over sse", "err", err)
+			return
+		}
+	}
+	// heartbeat start
+	ticker := time.NewTicker(30 * time.Second)
+	done := make(chan bool)
+	var mux sync.Mutex
+	go func() error {
+		for {
+			select {
+			case <-done:
+				return nil
+			case t := <-ticker.C:
+				mux.Lock()
+				err := impl.sendEvent(nil, []byte("PING"), []byte(t.String()), w)
+				mux.Unlock()
+				if err != nil {
+					impl.logger.Errorw("error in writing PING over sse", "err", err)
+					return err
+				}
+				f.Flush()
+			}
+		}
+	}()
+	defer func() {
+		ticker.Stop()
+		done <- true
+	}()
+
+	// heartbeat end
+	for {
+		buffer := new(bytes.Buffer)
+		_, err = io.Copy(buffer, stream)
+		if err != nil {
+			impl.logger.Errorw("error in copying logs info to buffer", "err", err)
+			impl.handleForwardResponseStreamError(wroteHeader, w, err)
+			return
+		}
+		buffer.Bytes()
+		buf, err := json.Marshal(buffer)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling data", "err", err)
+			return
+		}
+		mux.Lock()
+		//TODO : get timestamp from buffer
+		err = impl.sendEvent([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)), nil, buf, w)
+		mux.Unlock()
+		if err != nil {
+			impl.logger.Errorw("error in writing data over sse", "err", err)
+			return
+		}
+		wroteHeader = true
+		f.Flush()
 	}
 }
 
@@ -200,8 +277,7 @@ func (impl PumpImpl) StartStream(w http.ResponseWriter, recv func() (proto.Messa
 	}
 }
 
-
-func (impl PumpImpl) StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{})interface{}) {
+func (impl PumpImpl) StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{}) interface{}) {
 	f, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)

@@ -28,15 +28,15 @@ var (
 type DefaultApiService service
 
 type ApiOrchestratorAppListGetRequest struct {
-	ctx _context.Context
-	ApiService *DefaultApiService
-	projectIds *[]int32
-	clusterIds *[]int32
+	ctx            _context.Context
+	ApiService     *DefaultApiService
+	projectIds     *[]int32
+	clusterIds     *[]int32
 	environmentIds *[]int32
-	offset *int32
-	size *int32
-	sortOrder *string
-	sortBy *string
+	offset         *int32
+	size           *int32
+	sortOrder      *string
+	sortBy         *string
 }
 
 // project ids
@@ -44,31 +44,37 @@ func (r ApiOrchestratorAppListGetRequest) ProjectIds(projectIds []int32) ApiOrch
 	r.projectIds = &projectIds
 	return r
 }
+
 // cluster ids
 func (r ApiOrchestratorAppListGetRequest) ClusterIds(clusterIds []int32) ApiOrchestratorAppListGetRequest {
 	r.clusterIds = &clusterIds
 	return r
 }
+
 // environment ids
 func (r ApiOrchestratorAppListGetRequest) EnvironmentIds(environmentIds []int32) ApiOrchestratorAppListGetRequest {
 	r.environmentIds = &environmentIds
 	return r
 }
+
 // offser
 func (r ApiOrchestratorAppListGetRequest) Offset(offset int32) ApiOrchestratorAppListGetRequest {
 	r.offset = &offset
 	return r
 }
+
 // size
 func (r ApiOrchestratorAppListGetRequest) Size(size int32) ApiOrchestratorAppListGetRequest {
 	r.size = &size
 	return r
 }
+
 // sortOrder
 func (r ApiOrchestratorAppListGetRequest) SortOrder(sortOrder string) ApiOrchestratorAppListGetRequest {
 	r.sortOrder = &sortOrder
 	return r
 }
+
 // sortBy
 func (r ApiOrchestratorAppListGetRequest) SortBy(sortBy string) ApiOrchestratorAppListGetRequest {
 	r.sortBy = &sortBy
@@ -90,7 +96,7 @@ this api gives all devtron applications.
 func (a *DefaultApiService) OrchestratorAppListGet(ctx _context.Context) ApiOrchestratorAppListGetRequest {
 	return ApiOrchestratorAppListGetRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
@@ -98,10 +104,10 @@ func (a *DefaultApiService) OrchestratorAppListGet(ctx _context.Context) ApiOrch
 //  @return AppList
 func (a *DefaultApiService) OrchestratorAppListGetExecute(r ApiOrchestratorAppListGetRequest) (AppList, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod   = _nethttp.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  AppList
+		localVarHTTPMethod  = _nethttp.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue AppList
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorAppListGet")
@@ -228,16 +234,16 @@ func (a *DefaultApiService) OrchestratorAppListGetExecute(r ApiOrchestratorAppLi
 }
 
 type ApiOrchestratorAppStoreInstalledAppsGetRequest struct {
-	ctx _context.Context
-	ApiService *DefaultApiService
-	envIds *[]int32
-	clusterIds *[]int32
+	ctx            _context.Context
+	ApiService     *DefaultApiService
+	envIds         *[]int32
+	clusterIds     *[]int32
 	onlyDeprecated *bool
-	chartRepoIds *int32
-	offset *int32
-	size *int32
-	appStoreName *string
-	sortBy *string
+	chartRepoIds   *int32
+	offset         *int32
+	size           *int32
+	appStoreName   *string
+	sortBy         *string
 }
 
 // environment ids
@@ -245,36 +251,43 @@ func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) EnvIds(envIds []int32) A
 	r.envIds = &envIds
 	return r
 }
+
 // cluster ids
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) ClusterIds(clusterIds []int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.clusterIds = &clusterIds
 	return r
 }
+
 // deprecated flag
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) OnlyDeprecated(onlyDeprecated bool) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.onlyDeprecated = &onlyDeprecated
 	return r
 }
+
 // size
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) ChartRepoIds(chartRepoIds int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.chartRepoIds = &chartRepoIds
 	return r
 }
+
 // offser
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) Offset(offset int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.offset = &offset
 	return r
 }
+
 // size
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) Size(size int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.size = &size
 	return r
 }
+
 // app store name
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) AppStoreName(appStoreName string) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.appStoreName = &appStoreName
 	return r
 }
+
 // app name
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) SortBy(sortBy string) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.sortBy = &sortBy
@@ -296,7 +309,7 @@ this api gives all chart-store applications.
 func (a *DefaultApiService) OrchestratorAppStoreInstalledAppsGet(ctx _context.Context) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	return ApiOrchestratorAppStoreInstalledAppsGetRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
@@ -304,10 +317,10 @@ func (a *DefaultApiService) OrchestratorAppStoreInstalledAppsGet(ctx _context.Co
 //  @return AppList
 func (a *DefaultApiService) OrchestratorAppStoreInstalledAppsGetExecute(r ApiOrchestratorAppStoreInstalledAppsGetRequest) (AppList, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod   = _nethttp.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  AppList
+		localVarHTTPMethod  = _nethttp.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue AppList
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorAppStoreInstalledAppsGet")
@@ -428,10 +441,9 @@ func (a *DefaultApiService) OrchestratorAppStoreInstalledAppsGetExecute(r ApiOrc
 }
 
 type ApiOrchestratorApplicationClusterEnvDetailsGetRequest struct {
-	ctx _context.Context
+	ctx        _context.Context
 	ApiService *DefaultApiService
 }
-
 
 func (r ApiOrchestratorApplicationClusterEnvDetailsGetRequest) Execute() ([]ClusterEnvironmentDetail, *_nethttp.Response, error) {
 	return r.ApiService.OrchestratorApplicationClusterEnvDetailsGetExecute(r)
@@ -448,7 +460,7 @@ returns cluster environment namespace mappings
 func (a *DefaultApiService) OrchestratorApplicationClusterEnvDetailsGet(ctx _context.Context) ApiOrchestratorApplicationClusterEnvDetailsGetRequest {
 	return ApiOrchestratorApplicationClusterEnvDetailsGetRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
@@ -456,10 +468,10 @@ func (a *DefaultApiService) OrchestratorApplicationClusterEnvDetailsGet(ctx _con
 //  @return []ClusterEnvironmentDetail
 func (a *DefaultApiService) OrchestratorApplicationClusterEnvDetailsGetExecute(r ApiOrchestratorApplicationClusterEnvDetailsGetRequest) ([]ClusterEnvironmentDetail, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod   = _nethttp.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  []ClusterEnvironmentDetail
+		localVarHTTPMethod  = _nethttp.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue []ClusterEnvironmentDetail
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationClusterEnvDetailsGet")
@@ -528,8 +540,8 @@ func (a *DefaultApiService) OrchestratorApplicationClusterEnvDetailsGetExecute(r
 }
 
 type ApiOrchestratorApplicationHibernatePostRequest struct {
-	ctx _context.Context
-	ApiService *DefaultApiService
+	ctx              _context.Context
+	ApiService       *DefaultApiService
 	hibernateRequest *HibernateRequest
 }
 
@@ -553,7 +565,7 @@ hibernate the app
 func (a *DefaultApiService) OrchestratorApplicationHibernatePost(ctx _context.Context) ApiOrchestratorApplicationHibernatePostRequest {
 	return ApiOrchestratorApplicationHibernatePostRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
@@ -561,10 +573,10 @@ func (a *DefaultApiService) OrchestratorApplicationHibernatePost(ctx _context.Co
 //  @return []HibernateStatus
 func (a *DefaultApiService) OrchestratorApplicationHibernatePostExecute(r ApiOrchestratorApplicationHibernatePostRequest) ([]HibernateStatus, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod   = _nethttp.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  []HibernateStatus
+		localVarHTTPMethod  = _nethttp.MethodPost
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue []HibernateStatus
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationHibernatePost")
@@ -635,8 +647,8 @@ func (a *DefaultApiService) OrchestratorApplicationHibernatePostExecute(r ApiOrc
 }
 
 type ApiOrchestratorApplicationPostRequest struct {
-	ctx _context.Context
-	ApiService *DefaultApiService
+	ctx                _context.Context
+	ApiService         *DefaultApiService
 	helmAppListRequest *HelmAppListRequest
 }
 
@@ -661,7 +673,7 @@ this api gives all external application+ devtron helm chart applications.
 func (a *DefaultApiService) OrchestratorApplicationPost(ctx _context.Context) ApiOrchestratorApplicationPostRequest {
 	return ApiOrchestratorApplicationPostRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
@@ -669,10 +681,10 @@ func (a *DefaultApiService) OrchestratorApplicationPost(ctx _context.Context) Ap
 //  @return AppList
 func (a *DefaultApiService) OrchestratorApplicationPostExecute(r ApiOrchestratorApplicationPostRequest) (AppList, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod   = _nethttp.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  AppList
+		localVarHTTPMethod  = _nethttp.MethodPost
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue AppList
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationPost")
@@ -746,8 +758,8 @@ func (a *DefaultApiService) OrchestratorApplicationPostExecute(r ApiOrchestrator
 }
 
 type ApiOrchestratorApplicationUnhibernatePostRequest struct {
-	ctx _context.Context
-	ApiService *DefaultApiService
+	ctx              _context.Context
+	ApiService       *DefaultApiService
 	hibernateRequest *HibernateRequest
 }
 
@@ -771,7 +783,7 @@ un hibernate the app
 func (a *DefaultApiService) OrchestratorApplicationUnhibernatePost(ctx _context.Context) ApiOrchestratorApplicationUnhibernatePostRequest {
 	return ApiOrchestratorApplicationUnhibernatePostRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
@@ -779,10 +791,10 @@ func (a *DefaultApiService) OrchestratorApplicationUnhibernatePost(ctx _context.
 //  @return []HibernateStatus
 func (a *DefaultApiService) OrchestratorApplicationUnhibernatePostExecute(r ApiOrchestratorApplicationUnhibernatePostRequest) ([]HibernateStatus, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod   = _nethttp.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  []HibernateStatus
+		localVarHTTPMethod  = _nethttp.MethodPost
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue []HibernateStatus
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationUnhibernatePost")

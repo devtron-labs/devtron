@@ -1,0 +1,210 @@
+package k8s
+
+import (
+	"context"
+	"fmt"
+	"github.com/devtron-labs/devtron/api/connector"
+	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"go.uber.org/zap"
+	"io"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/rest"
+)
+
+const DEFAULT_CLUSTER = "default_cluster"
+
+type K8sApplicationService interface {
+	GetResource(app *client.AppIdentifier, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error)
+	UpdateResource(app *client.AppIdentifier, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error)
+	DeleteResource(app *client.AppIdentifier, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error)
+	ListEvents(app *client.AppIdentifier, request *application.K8sRequestBean) (*application.EventsResponse, error)
+	GetPodLogs(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (io.ReadCloser, error)
+}
+type K8sApplicationServiceImpl struct {
+	logger           *zap.SugaredLogger
+	clusterService   cluster.ClusterService
+	pump             connector.Pump
+	k8sClientService application.K8sClientService
+	helmAppService   client.HelmAppService
+}
+
+func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
+	clusterService cluster.ClusterService,
+	pump connector.Pump, k8sClientService application.K8sClientService,
+	helmAppService client.HelmAppService) *K8sApplicationServiceImpl {
+	return &K8sApplicationServiceImpl{
+		logger:           Logger,
+		clusterService:   clusterService,
+		pump:             pump,
+		k8sClientService: k8sClientService,
+		helmAppService:   helmAppService,
+	}
+}
+
+type ResourceRequestBean struct {
+	AppId      string                     `json:"appId"`
+	K8sRequest application.K8sRequestBean `json:"k8sRequest"`
+}
+
+func (impl *K8sApplicationServiceImpl) GetResource(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (*application.ManifestResponse, error) {
+	valid, err := impl.ValidateResourceRequest(appIdentifier, request)
+	if err != nil {
+		impl.logger.Errorw("error in validating resource request", "err", err)
+		return nil, err
+	}
+	if !valid {
+		return nil, fmt.Errorf(" The resource in your request is not valid for this app. Please change and try again.")
+	}
+	//getting rest config by clusterId
+	restConfig, err := impl.getRestConfigByClusterId(appIdentifier.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", appIdentifier.ClusterId)
+		return nil, err
+	}
+	resp, err := impl.k8sClientService.GetResource(restConfig, request)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource", "err", err, "request", request)
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (impl *K8sApplicationServiceImpl) UpdateResource(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (*application.ManifestResponse, error) {
+	valid, err := impl.ValidateResourceRequest(appIdentifier, request)
+	if err != nil {
+		impl.logger.Errorw("error in validating resource request", "err", err)
+		return nil, err
+	}
+	if !valid {
+		return nil, fmt.Errorf(" The resource in your request is not valid for this app. Please change and try again.")
+	}
+	//getting rest config by clusterId
+	restConfig, err := impl.getRestConfigByClusterId(appIdentifier.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", appIdentifier.ClusterId)
+		return nil, err
+	}
+	resp, err := impl.k8sClientService.UpdateResource(restConfig, request)
+	if err != nil {
+		impl.logger.Errorw("error in updating resource", "err", err, "request", request)
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (impl *K8sApplicationServiceImpl) DeleteResource(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (*application.ManifestResponse, error) {
+	valid, err := impl.ValidateResourceRequest(appIdentifier, request)
+	if err != nil {
+		impl.logger.Errorw("error in validating resource request", "err", err)
+		return nil, err
+	}
+	if !valid {
+		return nil, fmt.Errorf(" The resource in your request is not valid for this app. Please change and try again.")
+	}
+	//getting rest config by clusterId
+	restConfig, err := impl.getRestConfigByClusterId(appIdentifier.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", appIdentifier.ClusterId)
+		return nil, err
+	}
+	resp, err := impl.k8sClientService.DeleteResource(restConfig, request)
+	if err != nil {
+		impl.logger.Errorw("error in deleting resource", "err", err, "request", request)
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (impl *K8sApplicationServiceImpl) ListEvents(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (*application.EventsResponse, error) {
+	valid, err := impl.ValidateResourceRequest(appIdentifier, request)
+	if err != nil {
+		impl.logger.Errorw("error in validating resource request", "err", err)
+		return nil, err
+	}
+	if !valid {
+		return nil, fmt.Errorf(" The resource in your request is not valid for this app. Please change and try again.")
+	}
+	//getting rest config by clusterId
+	restConfig, err := impl.getRestConfigByClusterId(appIdentifier.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", appIdentifier.ClusterId)
+		return nil, err
+	}
+	resp, err := impl.k8sClientService.ListEvents(restConfig, request)
+	if err != nil {
+		impl.logger.Errorw("error in getting events list", "err", err, "request", request)
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetPodLogs(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (io.ReadCloser, error) {
+	valid, err := impl.ValidateResourceRequest(appIdentifier, request)
+	if err != nil {
+		impl.logger.Errorw("error in validating resource request", "err", err)
+		return nil, err
+	}
+	if !valid {
+		return nil, fmt.Errorf(" The resource in your request is not valid for this app. Please change and try again.")
+	}
+	//getting rest config by clusterId
+	restConfig, err := impl.getRestConfigByClusterId(appIdentifier.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", appIdentifier.ClusterId)
+		return nil, err
+	}
+	resp, err := impl.k8sClientService.GetPodLogs(restConfig, request)
+	if err != nil {
+		impl.logger.Errorw("error in getting events list", "err", err, "request", request)
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (impl *K8sApplicationServiceImpl) getRestConfigByClusterId(clusterId int) (*rest.Config, error) {
+	cluster, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
+		return nil, err
+	}
+	configMap := cluster.Config
+	bearerToken := configMap["bearer_token"]
+	var restConfig *rest.Config
+	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
+		restConfig, err = rest.InClusterConfig()
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
+			return nil, err
+		}
+	} else {
+		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
+	}
+	return restConfig, nil
+}
+
+func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error) {
+	app, err := impl.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting app detail", "err", err, "appDetails", appIdentifier)
+		return false, err
+	}
+	valid := false
+	for _, node := range app.ResourceTreeResponse.Nodes {
+		nodeDetails := application.ResourceIdentifier{
+			Name:      node.Name,
+			Namespace: node.Namespace,
+			GroupVersionKind: schema.GroupVersionKind{
+				Group:   node.Group,
+				Version: node.Version,
+				Kind:    node.Kind,
+			},
+		}
+		if nodeDetails == request.ResourceIdentifier {
+			valid = true
+			break
+		}
+	}
+	return valid, nil
+}

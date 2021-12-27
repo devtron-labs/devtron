@@ -79,6 +79,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/session"
 	"github.com/google/wire"
@@ -96,6 +97,7 @@ func InitializeApp() (*App, error) {
 		cluster.ClusterWireSet,
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
+		k8s.K8sApplicationWireSet,
 
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
@@ -636,8 +638,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
 
-		application2.NewK8sApplicationServiceImpl,
-		wire.Bind(new(application2.K8sApplicationService), new(*application2.K8sApplicationServiceImpl)),
+		application2.NewK8sClientServiceImpl,
+		wire.Bind(new(application2.K8sClientService), new(*application2.K8sClientServiceImpl)),
 	)
 	return &App{}, nil
 }
