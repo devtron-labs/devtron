@@ -32,7 +32,7 @@ type CdWorkflowRepository interface {
 	FindById(wfId int) (*CdWorkflow, error)
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
-	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.CdWorkflowType, limit int) ([]CdWorkflowRunner, error)
+	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error)
 
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
@@ -45,8 +45,8 @@ type CdWorkflowRepository interface {
 	FindLastPreOrPostTriggeredByPipelineId(pipelineId int) (CdWorkflowRunner, error)
 	FindLastPreOrPostTriggeredByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error)
 
-	FindByWorkflowIdAndRunnerType(wfId int, runnerType bean.CdWorkflowType) (CdWorkflowRunner, error)
-	FindLastStatusByPipelineIdAndRunnerType(pipelineId int, runnerType bean.CdWorkflowType) (CdWorkflowRunner, error)
+	FindByWorkflowIdAndRunnerType(wfId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
+	FindLastStatusByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
 	SaveWorkFlows(wfs ...*CdWorkflow) error
 	IsLatestWf(pipelineId int, wfId int) (bool, error)
 	FindLatestCdWorkflowByPipelineId(pipelineIds []int) (*CdWorkflow, error)
@@ -119,7 +119,7 @@ type CdWorkflowRunner struct {
 	tableName    struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
 	Id           int                  `sql:"id,pk"`
 	Name         string               `sql:"name"`
-	WorkflowType bean.CdWorkflowType  `sql:"workflow_type"` //pre,post,deploy
+	WorkflowType bean.WorkflowType  `sql:"workflow_type"` //pre,post,deploy
 	ExecutorType WorkflowExecutorType `sql:"executor_type"` //awf, system
 	Status       string               `sql:"status"`
 	PodStatus    string               `sql:"pod_status"`
@@ -286,7 +286,7 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 	return wfrList, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.CdWorkflowType, limit int) ([]CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&wfrList).
@@ -306,6 +306,7 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipe
 	}
 	return wfrList, err
 }
+
 
 func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByPipelineId(pipelineId int) (CdWorkflowRunner, error) {
 	wfr := CdWorkflowRunner{}
@@ -372,7 +373,7 @@ func (impl *CdWorkflowRepositoryImpl) FindWorkflowRunnerById(wfrId int) (*CdWork
 	return wfr, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindByWorkflowIdAndRunnerType(wfId int, runnerType bean.CdWorkflowType) (CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FindByWorkflowIdAndRunnerType(wfId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {
 	var wfr CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&wfr).
@@ -386,7 +387,7 @@ func (impl *CdWorkflowRepositoryImpl) FindByWorkflowIdAndRunnerType(wfId int, ru
 	return wfr, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindLastStatusByPipelineIdAndRunnerType(pipelineId int, runnerType bean.CdWorkflowType) (CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FindLastStatusByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {
 	wfr := CdWorkflowRunner{}
 	err := impl.dbConnection.
 		Model(&wfr).
