@@ -27,6 +27,7 @@ import (
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -1213,10 +1214,19 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 	if appWorkflowModel.Id > 0 {
+		var parentPipelineId int
+		var parentPipelineType string
+		if pipeline.ParentPipelineId == 0 {
+			parentPipelineId = pipeline.CiPipelineId
+			parentPipelineType = "CI_PIPELINE"
+		} else {
+			parentPipelineId = pipeline.ParentPipelineId
+			parentPipelineType = pipeline.ParentPipelineType
+		}
 		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
 			AppWorkflowId: appWorkflowModel.Id,
-			ParentId:      pipeline.ParentPipelineId,
-			ParentType:    pipeline.ParentPipelineType,
+			ParentId:      parentPipelineId,
+			ParentType:    parentPipelineType,
 			ComponentId:   pipelineId,
 			Type:          "CD_PIPELINE",
 			Active:        true,
@@ -1626,6 +1636,11 @@ func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentI
 		impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", parentType, "stage", stage)
 		return ciArtifactsResponse, err
 	}
+	if ciArtifacts != nil && len(ciArtifacts) > 0 {
+		sort.SliceStable(ciArtifacts, func(i, j int) bool {
+			return ciArtifacts[i].CiArtifactCreationTime.Before(ciArtifacts[j].CiArtifactCreationTime)
+		})
+	}
 	ciArtifactsResponse.CdPipelineId = cdPipelineId
 	if ciArtifacts == nil {
 		ciArtifacts = []bean.CiArtifactBean{}
@@ -1671,14 +1686,15 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 					impl.logger.Errorw("Error in parsing artifact material info", "err", err)
 				}
 				ciArtifact := bean.CiArtifactBean{
-					Id:              wfr.CdWorkflow.CiArtifact.Id,
-					Image:           wfr.CdWorkflow.CiArtifact.Image,
-					ImageDigest:     wfr.CdWorkflow.CiArtifact.ImageDigest,
-					MaterialInfo:    mInfo,
-					RunningOnParent: runningOnParent,
-					Latest:          latest,
-					Scanned:         wfr.CdWorkflow.CiArtifact.Scanned,
-					ScanEnabled:     wfr.CdWorkflow.CiArtifact.ScanEnabled,
+					Id:                     wfr.CdWorkflow.CiArtifact.Id,
+					Image:                  wfr.CdWorkflow.CiArtifact.Image,
+					ImageDigest:            wfr.CdWorkflow.CiArtifact.ImageDigest,
+					MaterialInfo:           mInfo,
+					RunningOnParent:        runningOnParent,
+					Latest:                 latest,
+					Scanned:                wfr.CdWorkflow.CiArtifact.Scanned,
+					ScanEnabled:            wfr.CdWorkflow.CiArtifact.ScanEnabled,
+					CiArtifactCreationTime: wfr.CdWorkflow.CiArtifact.CreatedOn,
 				}
 				if !parent {
 					ciArtifact.Deployed = true
@@ -1714,12 +1730,13 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, ciAr
 				impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
 			}
 			ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
-				Id:           artifact.Id,
-				Image:        artifact.Image,
-				ImageDigest:  artifact.ImageDigest,
-				MaterialInfo: mInfo,
-				ScanEnabled:  artifact.ScanEnabled,
-				Scanned:      artifact.Scanned,
+				Id:                     artifact.Id,
+				Image:                  artifact.Image,
+				ImageDigest:            artifact.ImageDigest,
+				MaterialInfo:           mInfo,
+				ScanEnabled:            artifact.ScanEnabled,
+				Scanned:                artifact.Scanned,
+				CiArtifactCreationTime: artifact.CreatedOn,
 			})
 		}
 	}
