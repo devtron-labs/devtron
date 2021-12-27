@@ -320,7 +320,12 @@ This defines annotations and the type of service, optionally can define name als
 ### Volumes
 
 ```yaml
- volumes: []
+volumes:
+  - name: log-volume
+    emptyDir: {}
+  - name: logpv
+    persistentVolumeClaim:
+      claimName: logpvc
 ```
 
 It is required when some values need to be read from or written to an external disk.
@@ -328,7 +333,12 @@ It is required when some values need to be read from or written to an external d
 ### Volume Mounts
 
 ```yaml
-volumeMounts: []
+volumeMounts:
+  - mountPath: /var/log/nginx/
+    name: log-volume 
+  - mountPath: /mnt/logs
+    name: logpvc
+    subPath: employee  
 ```
 
 It is used to provide mounts to the volume.
