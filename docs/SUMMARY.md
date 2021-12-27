@@ -26,7 +26,6 @@
   * [Config Maps](user-guide/creating-application/config-maps.md)
   * [Secrets](user-guide/creating-application/secrets.md)
   * [Environment Overrides](user-guide/creating-application/environment-overrides.md)
-  * [Job And CronJob](user-guide/creating-application/job-and-cronjob.md)
 * [Cloning Application](user-guide/cloning-application.md)
 * [Deploying Application](user-guide/deploying-application/README.md)
   * [Triggering CI](user-guide/deploying-application/triggering-ci.md)
