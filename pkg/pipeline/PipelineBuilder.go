@@ -1636,9 +1636,10 @@ func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentI
 		impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", parentType, "stage", stage)
 		return ciArtifactsResponse, err
 	}
+	//sorting ci artifacts on the basis of creation time
 	if ciArtifacts != nil && len(ciArtifacts) > 0 {
 		sort.SliceStable(ciArtifacts, func(i, j int) bool {
-			return ciArtifacts[i].CiArtifactCreationTime.Before(ciArtifacts[j].CiArtifactCreationTime)
+			return ciArtifacts[i].CiArtifactCreationTime.After(ciArtifacts[j].CiArtifactCreationTime)
 		})
 	}
 	ciArtifactsResponse.CdPipelineId = cdPipelineId
