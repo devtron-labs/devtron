@@ -189,7 +189,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId int) 
 			}
 		}
 		artifactsAll = append(artifactsAll, a)
-		if len(artifactsAll) >= 10 {
+		if len(artifactsAll) >= 30 {
 			break
 		}
 	}
