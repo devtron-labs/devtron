@@ -21,7 +21,8 @@ Provide the below information to add your kubernetes cluster:
    * TLS Key
    * TLS Certificate
 
-![](../../.gitbook/assets/cluster_gc1.png)
+
+![](../../user-guide/global-configurations/images/cluster-1.jpg)
 
 ### 1. Name
 
@@ -70,11 +71,11 @@ on saving or update a cluster there is a call to fetch k8s version, it will stor
 
 Check the below screenshots to know how it looks like If you select the `Basic` authentication type
 
-![](../../.gitbook/assets/cluster_gc2%20%283%29.png)
+![](../../user-guide/global-configurations/images/cluster-2.jpg)
 
 If you select the `Anonymous` authentication type
 
-![](../../.gitbook/assets/cluster_gc3%20%283%29.png)
+![](../../user-guide/global-configurations/images/cluster-1.jpg)
 
 Now click on `Save Cluster` to save your cluster information.
 

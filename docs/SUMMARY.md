@@ -18,7 +18,7 @@
 ## User Guide
 
 * [Creating Application](user-guide/creating-application/README.md)
-  * [Git Material](user-guide/creating-application/git-material.md)
+  * [Git Repository](user-guide/creating-application/git-material.md)
   * [Docker Build Configuration](user-guide/creating-application/docker-build-configuration.md)
   * [Deployment Template](user-guide/creating-application/deployment-template.md)
   * [Workflow](user-guide/creating-application/workflow/README.md)
@@ -45,7 +45,7 @@
 * [Global Configurations](user-guide/global-configurations/README.md)
   * [GitOps](user-guide/global-configurations/gitops.md)
   * [Git Accounts](user-guide/global-configurations/git-accounts.md)
-  * [Docker Registries](user-guide/global-configurations/docker-registries.md)
+  * [Container Registries](user-guide/global-configurations/docker-registries.md)
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
   * [Cluster And Environments](user-guide/global-configurations/cluster-and-environments.md)
   * [Projects](user-guide/global-configurations/projects.md)
