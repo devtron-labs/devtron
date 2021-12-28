@@ -141,14 +141,14 @@ func (impl *K8sApplicationServiceImpl) ListEvents(request *ResourceRequestBean) 
 }
 
 func (impl *K8sApplicationServiceImpl) GetPodLogs(request *ResourceRequestBean) (io.ReadCloser, error) {
-	valid, err := impl.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
-	if err != nil {
-		impl.logger.Errorw("error in validating resource request", "err", err)
-		return nil, err
-	}
-	if !valid {
-		return nil, fmt.Errorf(" The resource in your request is not valid for this app. Please change and try again.")
-	}
+	//valid, err := impl.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	//if err != nil {
+	//	impl.logger.Errorw("error in validating resource request", "err", err)
+	//	return nil, err
+	//}
+	//if !valid {
+	//	return nil, fmt.Errorf(" The resource in your request is not valid for this app. Please change and try again.")
+	//}
 	//getting rest config by clusterId
 	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
@@ -204,6 +204,16 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(appIdentifier *cl
 		if nodeDetails == request.ResourceIdentifier {
 			valid = true
 			break
+		}
+	}
+	for _, pod := range app.ResourceTreeResponse.PodMetadata {
+		if pod.Name == request.ResourceIdentifier.Name {
+			for _, container := range pod.Containers{
+				if container == request.PodLogsRequest.ContainerName{
+					valid = true
+					break
+				}
+			}
 		}
 	}
 	return valid, nil

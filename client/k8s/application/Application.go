@@ -42,8 +42,8 @@ type K8sRequestBean struct {
 	Patch              string             `json:"patch,omitempty"`
 	PodLogsRequest     PodLogsRequest     `json:"podLogsRequest,omitempty"`
 }
+
 type PodLogsRequest struct {
-	SinceSeconds  int          `json:"sinceSeconds,omitempty"`
 	SinceTime     *metav1.Time `json:"sinceTime,omitempty"`
 	TailLines     int          `json:"tailLines"`
 	Follow        bool         `json:"follow"`
@@ -51,7 +51,7 @@ type PodLogsRequest struct {
 }
 
 type ResourceIdentifier struct {
-	Name             string                  `json:"name"`
+	Name             string                  `json:"name"`       //pod name for logs request
 	Namespace        string                  `json:"namespace"`
 	GroupVersionKind schema.GroupVersionKind `json:"groupVersionKind"`
 }
@@ -173,7 +173,6 @@ func (impl K8sClientServiceImpl) GetPodLogs(restConfig *rest.Config, request *K8
 		impl.logger.Errorw("error in getting client for resource", "err", err)
 		return nil, err
 	}
-	sinceSeconds := int64(podLogsRequest.SinceSeconds)
 	tailLines := int64(podLogsRequest.TailLines)
 	podLogOptions := &apiv1.PodLogOptions{
 		//TypeMeta: metav1.TypeMeta{
@@ -183,11 +182,9 @@ func (impl K8sClientServiceImpl) GetPodLogs(restConfig *rest.Config, request *K8
 		Follow:       podLogsRequest.Follow,
 		TailLines:    &tailLines,
 		Container:    podLogsRequest.ContainerName,
-		Timestamps: true,
+		Timestamps: false,
 	}
-	if sinceSeconds != 0 {
-		podLogOptions.SinceSeconds = &sinceSeconds
-	} else if podLogsRequest.SinceTime != nil {
+	if podLogsRequest.SinceTime != nil {
 		podLogOptions.SinceTime = podLogsRequest.SinceTime
 	}
 	podIf := podClient.Pods(resourceIdentifier.Namespace)

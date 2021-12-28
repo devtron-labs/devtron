@@ -33,7 +33,7 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 		HandlerFunc(impl.k8sApplicationRestHandler.ListEvents).Methods("POST")
 
 	k8sAppRouter.Path("/pods/logs").
-		HandlerFunc(impl.k8sApplicationRestHandler.GetPodLogs).Methods("POST")
+		HandlerFunc(impl.k8sApplicationRestHandler.GetPodLogs).Methods("GET")
 
 	k8sAppRouter.Path("/pod/exec/session/{appId}/{environmentId}/{namespace}/{pod}/{shell}/{container}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetTerminalSession).Methods("GET")

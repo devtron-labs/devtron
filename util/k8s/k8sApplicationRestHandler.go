@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
@@ -124,13 +126,31 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	var request ResourceRequestBean
-	err := decoder.Decode(&request)
-	if err != nil {
-		handler.logger.Errorw("error in decoding request body", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	//decoder := json.NewDecoder(r.Body)
+	//var request ResourceRequestBean
+	//err := decoder.Decode(&request)
+	//if err != nil {
+	//	handler.logger.Errorw("error in decoding request body", "err", err)
+	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//	return
+	//}
+
+	request := ResourceRequestBean{
+		AppIdentifier: &client.AppIdentifier{
+			Namespace: "devtron-test",
+			ClusterId: 2,
+		},
+		K8sRequest: &application.K8sRequestBean{
+			ResourceIdentifier: application.ResourceIdentifier{
+				Name: "kartik-test-6-devtron-test-6756979697-46hmm",
+				Namespace: "devtron-test",
+			},
+			PodLogsRequest: application.PodLogsRequest{
+				TailLines: 500,
+				Follow: true,
+				ContainerName: "kartik-test-6",
+			},
+		},
 	}
 
 	//TODO : add rbac
@@ -145,7 +165,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		lastSeenMsgId = lastSeenMsgId + 1 //increased by one ns to avoid duplicate
 		t := v1.Unix(0, lastSeenMsgId)
 		request.K8sRequest.PodLogsRequest.SinceTime = &t
-		request.K8sRequest.PodLogsRequest.SinceSeconds = 0 //set this to zero, since its reconnect request
 		isReconnect = true
 	}
 	stream, err := handler.k8sApplicationService.GetPodLogs(&request)
