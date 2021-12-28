@@ -1,6 +1,8 @@
 syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
 
 option go_package = "github.com/devtron-labs/go-helm-client/bean/grpc/client";
 
@@ -18,8 +20,10 @@ message AppListRequest {
 service ApplicationService {
   rpc ListApplications(AppListRequest) returns (stream DeployedAppList){}
   rpc GetAppDetail(AppDetailRequest) returns (AppDetail){}
-  rpc Hibernate(HibernateRequest) returns ( HibernateResponse){}
+  rpc Hibernate(HibernateRequest) returns (HibernateResponse){}
   rpc UnHibernate(HibernateRequest) returns (HibernateResponse){}
+  rpc GetDeploymentHistory(AppDetailRequest) returns (HelmAppDeploymentHistory){}
+  rpc GetValuesYaml(AppDetailRequest) returns (ReleaseInfo){}
 }
 
 message DeployedAppList {
@@ -36,13 +40,11 @@ message DeployedAppDetail {
   string chartAvatar = 4;
   EnvironmentDetails environment = 5;
   google.protobuf.Timestamp LastDeployed = 6;
-
 }
 message EnvironmentDetails{
   string clusterName = 1;
   int32 clusterId = 2;
   string namespace = 3;
-
 }
 
 //---------------app detail-------
@@ -144,4 +146,23 @@ message HibernateStatus{
 message HibernateResponse{
   repeated HibernateStatus  status = 1;
 }
-//-------------------
+//------------------- deployment history
+
+message  HelmAppDeploymentDetail {
+  ChartMetadata chartMetadata = 1;
+  string manifest = 2;
+  repeated string dockerImages = 3;
+  int32 version = 4;
+  google.protobuf.Timestamp DeployedAt = 5;
+}
+
+message HelmAppDeploymentHistory {
+  repeated HelmAppDeploymentDetail deploymentHistory = 1;
+}
+
+message ReleaseInfo{
+  DeployedAppDetail deployedAppDetail = 1;
+  google.protobuf.Any defaultValues = 2;
+  google.protobuf.Any overrideValues = 3;
+  google.protobuf.Any mergedValues = 4;
+}

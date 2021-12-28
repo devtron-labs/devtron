@@ -20,6 +20,44 @@ paths:
             text/event-stream:
               schema:
                 $ref: "#/components/schemas/AppList"
+  /orchestrator/application/deployment-hostory:
+    get:
+      description: deployment history of helm app
+      parameters:
+        - in: query
+          name: appId
+          example: "12|helm-app|cluster1-ns1"
+          description: project ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: deployment history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelmAppDeploymentHistory"
+  /orchestrator/application/values-yaml:
+    get:
+      description: deployment values.yaml
+      parameters:
+        - in: query
+          name: appId
+          example: "12|helm-app|cluster1-ns1"
+          description: project ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: deployment history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReleaseInfo"
   /orchestrator/application/hibernate:
     post:
       description: hibernate the app
@@ -323,7 +361,7 @@ components:
         appId:
           type: string
           description: unique identifier for app
-          example: "12, helm-app|cluster1-ns1"
+          example: "12|helm-app|cluster1-ns1"
         chartName:
           type: string
           description: name of the chart
@@ -449,6 +487,72 @@ components:
         targetObject:
           type: object
           $ref: "#/components/schemas/HibernateTargetObject"
-
-
-
+    ChartMetadata:
+      type: object
+      properties:
+        chartName:
+          type: string
+          description: name of the chart
+          example: envoy
+        chartVersion:
+          type: string
+          description: version of the helm chart
+          example: v1.2.3
+        home:
+          type: string
+          description: chart home
+          example: nginx.com
+        sources:
+          type: array
+          description: source of the helm chart
+          example: [ nginx.com ]
+          items:
+            type: string
+        description:
+          type: string
+          description: description of the helm chart
+          example: description of the helm chart
+    HelmAppDeploymentDetail:
+      type: object
+      properties:
+        chartMetadata:
+          type: object
+          $ref: "#/components/schemas/ChartMetadata"
+          description: metadata of the chart
+        manifest:
+          type: string
+          description: final manifest of the chart
+        dockerImages:
+          type: array
+          description: docker images presrnt insise the chart
+          items:
+            type: string
+        version:
+          type: int
+          description: deployment version of the helm chart
+          example: 12
+        deployedAt:
+          type: string
+          format: date-time
+          example: "2021-12-15T05:44:05Z"
+    HelmAppDeploymentHistory:
+      type: array
+      description: deployment history
+      items:
+        $ref: "#/components/schemas/HelmAppDeploymentDetail"
+    ReleaseInfo:
+      type: object
+      properties:
+        deployedAppDetail:
+          type: object
+          $ref: "#/components/schemas/HelmAppDeploymentDetail"
+          description: deployment deils
+        defaultValues:
+          type: string
+          description: default chat values
+        overrideValues:
+          type: string
+          description: overrides passed by user
+        mergedValues:
+          type: string
+          description: merged values
