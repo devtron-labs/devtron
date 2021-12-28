@@ -168,6 +168,13 @@ autoscaling:
 | `TargetMemoryUtilizationPercentage` | The target memory utilization that is expected for a container. |
 | `extraMetrics` | Used to give external metrics for autoscaling. |
 
+### Fullname Override
+
+```yaml
+fullnameOverride: app-name
+```
+`fullnameOverride` replaces the release fullname created by default by devtron, which is used to construct Kubernetes object names. By default, devtron uses {app-name}-{environment-name} as release fullname.
+
 ### Image
 
 ```yaml
