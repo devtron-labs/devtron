@@ -21,8 +21,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -31,9 +36,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type PolicyService interface {
@@ -48,7 +50,7 @@ type PolicyService interface {
 type PolicyServiceImpl struct {
 	environmentService            cluster.EnvironmentService
 	logger                        *zap.SugaredLogger
-	apRepository                  pipelineConfig.AppRepository
+	apRepository                  app.AppRepository
 	pipelineOverride              chartConfig.PipelineOverrideRepository
 	cvePolicyRepository           security.CvePolicyRepository
 	clusterService                cluster.ClusterService
@@ -66,7 +68,7 @@ type PolicyServiceImpl struct {
 
 func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 	logger *zap.SugaredLogger,
-	apRepository pipelineConfig.AppRepository,
+	apRepository app.AppRepository,
 	pipelineOverride chartConfig.PipelineOverrideRepository,
 	cvePolicyRepository security.CvePolicyRepository,
 	clusterService cluster.ClusterService,
@@ -293,7 +295,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		}
 	}
 
-	if scanResultsId != nil && len(scanResultsId) > 0 {
+	if len(scanResultsId) > 0 {
 		ot, err := impl.imageScanDeployInfoRepository.FindByTypeMetaAndTypeId(typeId, objectType) //todo insure this touple unique in db
 		if err != nil && err != pg.ErrNoRows {
 			return nil, err
@@ -304,7 +306,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 				ObjectType:                  objectType,
 				EnvId:                       envId,
 				ClusterId:                   clusterId,
-				AuditLog: models.AuditLog{
+				AuditLog: sql.AuditLog{
 					CreatedOn: time.Now(),
 					CreatedBy: 1,
 					UpdatedOn: time.Now(),
@@ -476,7 +478,7 @@ func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicy
 		CVEStoreId:    request.CveId,
 		Action:        action,
 		Severity:      &severity,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: userId,
 			UpdatedOn: time.Now(),
@@ -644,7 +646,7 @@ func (impl *PolicyServiceImpl) vulnerabilityPolicyBuilder(policyLevel security.P
 			Id: v.Id,
 			Policy: &bean.VulnerabilityPermission{
 				Action:      bean.VulnerabilityAction(v.Action.String()),
-				Inherited:   !(v.PolicyLevel() == policyLevel),
+				Inherited:   v.PolicyLevel() != policyLevel,
 				IsOverriden: v.PolicyLevel() == policyLevel,
 			},
 			PolicyOrigin: v.PolicyLevel().String(),
@@ -658,7 +660,7 @@ func (impl *PolicyServiceImpl) vulnerabilityPolicyBuilder(policyLevel security.P
 				Id: v.Id,
 				Policy: &bean.VulnerabilityPermission{
 					Action:      bean.VulnerabilityAction(v.Action.String()),
-					Inherited:   !(v.PolicyLevel() == policyLevel),
+					Inherited:   v.PolicyLevel() != policyLevel,
 					IsOverriden: v.PolicyLevel() == policyLevel,
 				},
 				PolicyOrigin: v.PolicyLevel().String(),

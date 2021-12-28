@@ -19,18 +19,17 @@ package user
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/util/session"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/bean"
-	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
-	casbin2 "github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 )
 
 type RoleGroupService interface {
@@ -45,21 +44,17 @@ type RoleGroupService interface {
 }
 
 type RoleGroupServiceImpl struct {
-	sessionManager      *session.SessionManager
-	userAuthRepository  repository.UserAuthRepository
-	sessionClient       session2.ServiceClient
+	userAuthRepository  repository2.UserAuthRepository
 	logger              *zap.SugaredLogger
-	userRepository      repository.UserRepository
-	roleGroupRepository repository.RoleGroupRepository
+	userRepository      repository2.UserRepository
+	roleGroupRepository repository2.RoleGroupRepository
 }
 
-func NewRoleGroupServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
-	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
-	roleGroupRepository repository.RoleGroupRepository) *RoleGroupServiceImpl {
+func NewRoleGroupServiceImpl(userAuthRepository repository2.UserAuthRepository,
+	logger *zap.SugaredLogger, userRepository repository2.UserRepository,
+	roleGroupRepository repository2.RoleGroupRepository) *RoleGroupServiceImpl {
 	serviceImpl := &RoleGroupServiceImpl{
 		userAuthRepository:  userAuthRepository,
-		sessionManager:      sessionManager,
-		sessionClient:       client,
 		logger:              logger,
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
@@ -86,7 +81,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 	} else {
 
 		//create new user in our db on d basis of info got from google api or hex. assign a basic role
-		model := &repository.RoleGroup{
+		model := &repository2.RoleGroup{
 			Name:        request.Name,
 			Description: request.Description,
 		}
@@ -114,10 +109,10 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		//Starts Role and Mapping
 		var policies []casbin2.Policy
 		for _, roleFilter := range request.RoleFilters {
-			if len(roleFilter.EntityName) == 0 {
+			if roleFilter.EntityName == "" {
 				roleFilter.EntityName = "NONE"
 			}
-			if len(roleFilter.Environment) == 0 {
+			if roleFilter.Environment == "" {
 				roleFilter.Environment = "NONE"
 			}
 			entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -176,7 +171,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 					}
 
 					if roleModel.Id > 0 {
-						roleGroupMappingModel := &repository.RoleGroupRoleMapping{RoleGroupId: model.Id, RoleId: roleModel.Id}
+						roleGroupMappingModel := &repository2.RoleGroupRoleMapping{RoleGroupId: model.Id, RoleId: roleModel.Id}
 						roleGroupMappingModel.CreatedBy = request.UserId
 						roleGroupMappingModel.UpdatedBy = request.UserId
 						roleGroupMappingModel.CreatedOn = time.Now()
@@ -235,8 +230,8 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 	}
 
 	// DELETE PROCESS STARTS
-	existingRoleIds := make(map[int]*repository.RoleGroupRoleMapping)
-	remainingExistingRoleIds := make(map[int]*repository.RoleGroupRoleMapping)
+	existingRoleIds := make(map[int]*repository2.RoleGroupRoleMapping)
+	remainingExistingRoleIds := make(map[int]*repository2.RoleGroupRoleMapping)
 	for _, item := range roleGroupMappingModels {
 		existingRoleIds[item.RoleId] = item
 		remainingExistingRoleIds[item.RoleId] = item
@@ -245,10 +240,10 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 	// Filter out removed items in current request
 	//var policies []casbin2.Policy
 	for _, roleFilter := range request.RoleFilters {
-		if len(roleFilter.EntityName) == 0 {
+		if roleFilter.EntityName == "" {
 			roleFilter.EntityName = "NONE"
 		}
-		if len(roleFilter.Environment) == 0 {
+		if roleFilter.Environment == "" {
 			roleFilter.Environment = "NONE"
 		}
 		entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -306,10 +301,10 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 	//Adding New Policies
 	var policies []casbin2.Policy
 	for _, roleFilter := range request.RoleFilters {
-		if len(roleFilter.EntityName) == 0 {
+		if roleFilter.EntityName == "" {
 			roleFilter.EntityName = "NONE"
 		}
-		if len(roleFilter.Environment) == 0 {
+		if roleFilter.Environment == "" {
 			roleFilter.Environment = "NONE"
 		}
 		entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -373,7 +368,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 						policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(roleGroup.CasbinName), Obj: casbin2.Object(roleModel.Role)})
 					} else {
 						//new role ids in new array, add it
-						roleGroupMappingModel := &repository.RoleGroupRoleMapping{RoleGroupId: request.Id, RoleId: roleModel.Id}
+						roleGroupMappingModel := &repository2.RoleGroupRoleMapping{RoleGroupId: request.Id, RoleId: roleModel.Id}
 						roleGroupMappingModel.CreatedBy = request.UserId
 						roleGroupMappingModel.UpdatedBy = request.UserId
 						roleGroupMappingModel.CreatedOn = time.Now()
@@ -448,7 +443,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 	for _, v := range roleFilterMap {
 		roleFilters = append(roleFilters, *v)
 	}
-	if roleFilters == nil || len(roleFilters) == 0 {
+	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
 	bean := &bean.RoleGroup{
@@ -477,7 +472,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroups() ([]*bean.RoleGroup, error) {
 		list = append(list, bean)
 	}
 
-	if list == nil || len(list) == 0 {
+	if len(list) == 0 {
 		list = make([]*bean.RoleGroup, 0)
 	}
 	return list, nil

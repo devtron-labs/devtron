@@ -23,14 +23,15 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	"io"
@@ -130,6 +131,7 @@ type AppStoreService interface {
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
+	TriggerChartSyncManual() error
 }
 
 type AppStoreVersionsResponse struct {
@@ -152,7 +154,7 @@ type AppStoreServiceImpl struct {
 	clusterService                cluster.ClusterService
 	envService                    cluster.EnvironmentService
 	versionService                argocdServer.VersionService
-	aCDAuthConfig                 *user.ACDAuthConfig
+	aCDAuthConfig                 *util2.ACDAuthConfig
 	client                        *http.Client
 }
 
@@ -160,7 +162,7 @@ func NewAppStoreServiceImpl(logger *zap.SugaredLogger, appStoreRepository appsto
 	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
 	userService user.UserService, repoRepository chartConfig.ChartRepoRepository, K8sUtil *util.K8sUtil,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService,
-	versionService argocdServer.VersionService, aCDAuthConfig *user.ACDAuthConfig, client *http.Client) *AppStoreServiceImpl {
+	versionService argocdServer.VersionService, aCDAuthConfig *util2.ACDAuthConfig, client *http.Client) *AppStoreServiceImpl {
 	return &AppStoreServiceImpl{
 		logger:                        logger,
 		appStoreRepository:            appStoreRepository,
@@ -297,7 +299,7 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	chartRepo := &chartConfig.ChartRepo{AuditLog: models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId}}
+	chartRepo := &chartConfig.ChartRepo{AuditLog: sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId}}
 	chartRepo.Name = request.Name
 	chartRepo.Url = request.Url
 	chartRepo.AuthMode = request.AuthMode
@@ -676,6 +678,16 @@ func (impl *AppStoreServiceImpl) ValidateAndCreateChartRepo(request *ChartRepoDt
 		return nil, nil, validationResult
 	}
 	chartRepo, err := impl.CreateChartRepo(request)
+	if err != nil {
+		return nil, err, validationResult
+	}
+
+	// Trigger chart sync job, ignore error
+	err = impl.TriggerChartSyncManual()
+	if err != nil {
+		impl.logger.Errorw("Error in triggering chart sync job manually", "err", err)
+	}
+
 	return chartRepo, err, validationResult
 }
 func (impl *AppStoreServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
@@ -684,6 +696,16 @@ func (impl *AppStoreServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDt
 		return nil, nil, validationResult
 	}
 	chartRepo, err := impl.UpdateChartRepo(request)
+	if err != nil {
+		return nil, err, validationResult
+	}
+
+	// Trigger chart sync job, ignore error
+	err = impl.TriggerChartSyncManual()
+	if err != nil {
+		impl.logger.Errorw("Error in triggering chart sync job manually", "err", err)
+	}
+
 	return chartRepo, err, validationResult
 }
 
@@ -735,4 +757,28 @@ func (impl *AppStoreServiceImpl) get(href string, chartRepository *repo.ChartRep
 	_, err = io.Copy(buf, resp.Body)
 	resp.Body.Close()
 	return buf, err, http.StatusOK
+}
+
+func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
+	defaultClusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	if err != nil {
+		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", "err", err)
+		return err
+	}
+
+	defaultClusterConfig, err := impl.clusterService.GetClusterConfig(defaultClusterBean)
+	if err != nil {
+		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual", "err", err)
+		return err
+	}
+
+	manualAppSyncJobByteArr := manualAppSyncJobByteArr()
+
+	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, argocdServer.DevtronInstalationNs, defaultClusterConfig)
+	if err != nil {
+		impl.logger.Errorw("DeleteAndCreateJob err, TriggerChartSyncManual", "err", err)
+		return err
+	}
+
+	return nil
 }

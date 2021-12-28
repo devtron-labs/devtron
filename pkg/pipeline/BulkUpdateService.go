@@ -3,18 +3,20 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"net/http"
+
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type NameIncludesExcludes struct {
@@ -120,11 +122,11 @@ type BulkUpdateServiceImpl struct {
 	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository  chartConfig.PipelineConfigRepository
 	configMapRepository       chartConfig.ConfigMapRepository
-	environmentRepository     cluster.EnvironmentRepository
+	environmentRepository     repository2.EnvironmentRepository
 	pipelineRepository        pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
 	client                    *http.Client
-	appRepository             pipelineConfig.AppRepository
+	appRepository             app.AppRepository
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -140,11 +142,11 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
-	environmentRepository cluster.EnvironmentRepository,
+	environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
 	client *http.Client,
-	appRepository pipelineConfig.AppRepository,
+	appRepository app.AppRepository,
 ) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
 		bulkUpdateRepository:      bulkUpdateRepository,
@@ -874,13 +876,13 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload *BulkUpdatePayloa
 	var deploymentTemplateBulkUpdateResponse *DeploymentTemplateBulkUpdateResponse
 	var configMapBulkUpdateResponse *CmAndSecretBulkUpdateResponse
 	var secretBulkUpdateResponse *CmAndSecretBulkUpdateResponse
-	if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil && len(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson) != 0 {
+	if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil && bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson != "" {
 		deploymentTemplateBulkUpdateResponse = impl.BulkUpdateDeploymentTemplate(bulkUpdatePayload)
 	}
-	if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 && len(bulkUpdatePayload.ConfigMap.Spec.PatchJson) != 0 {
+	if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 && bulkUpdatePayload.ConfigMap.Spec.PatchJson != "" {
 		configMapBulkUpdateResponse = impl.BulkUpdateConfigMap(bulkUpdatePayload)
 	}
-	if bulkUpdatePayload.Secret != nil && bulkUpdatePayload.Secret.Spec != nil && len(bulkUpdatePayload.Secret.Spec.Names) != 0 && len(bulkUpdatePayload.Secret.Spec.PatchJson) != 0 {
+	if bulkUpdatePayload.Secret != nil && bulkUpdatePayload.Secret.Spec != nil && len(bulkUpdatePayload.Secret.Spec.Names) != 0 && bulkUpdatePayload.Secret.Spec.PatchJson != "" {
 		secretBulkUpdateResponse = impl.BulkUpdateSecret(bulkUpdatePayload)
 	}
 

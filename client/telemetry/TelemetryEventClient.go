@@ -9,6 +9,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/patrickmn/go-cache"
@@ -29,7 +30,7 @@ type TelemetryEventClientImpl struct {
 	client               *http.Client
 	clusterService       cluster.ClusterService
 	K8sUtil              *util2.K8sUtil
-	aCDAuthConfig        *user.ACDAuthConfig
+	aCDAuthConfig        *util3.ACDAuthConfig
 	environmentService   cluster.EnvironmentService
 	userService          user.UserService
 	appListingRepository repository.AppListingRepository
@@ -43,7 +44,7 @@ type TelemetryEventClient interface {
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-	K8sUtil *util2.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
+	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	environmentService cluster.EnvironmentService, userService user.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) (*TelemetryEventClientImpl, error) {

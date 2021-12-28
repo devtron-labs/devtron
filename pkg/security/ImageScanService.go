@@ -18,16 +18,18 @@
 package security
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/team"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
-	"github.com/devtron-labs/devtron/internal/sql/repository/team"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ImageScanService interface {
@@ -46,8 +48,8 @@ type ImageScanServiceImpl struct {
 	cveStoreRepository            security.CveStoreRepository
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
 	userService                   user.UserService
-	teamRepository                team.TeamRepository
-	appRepository                 pipelineConfig.AppRepository
+	teamRepository                repository2.TeamRepository
+	appRepository                 app.AppRepository
 	envService                    cluster.EnvironmentService
 	ciArtifactRepository          repository.CiArtifactRepository
 	policyService                 PolicyService
@@ -122,8 +124,8 @@ type SeverityCount struct {
 func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository security.ImageScanHistoryRepository,
 	scanResultRepository security.ImageScanResultRepository, scanObjectMetaRepository security.ImageScanObjectMetaRepository,
 	cveStoreRepository security.CveStoreRepository, imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
-	userService user.UserService, teamRepository team.TeamRepository,
-	appRepository pipelineConfig.AppRepository,
+	userService user.UserService, teamRepository repository2.TeamRepository,
+	appRepository app.AppRepository,
 	envService cluster.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository appstore.InstalledAppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository) *ImageScanServiceImpl {
@@ -287,9 +289,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			return nil, err
 		}
 
-		for _, id := range scanDeployInfo.ImageScanExecutionHistoryId {
-			scanExecutionIds = append(scanExecutionIds, id)
-		}
+		scanExecutionIds = append(scanExecutionIds, scanDeployInfo.ImageScanExecutionHistoryId...)
 
 		if scanDeployInfo.ObjectType == security.ScanObjectType_APP || scanDeployInfo.ObjectType == security.ScanObjectType_CHART {
 			request.AppId = scanDeployInfo.ScanObjectMetaId
@@ -377,7 +377,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 		Low:      lowCount,
 	}
 	imageScanResponse.ImageScanDeployInfoId = request.ImageScanDeployInfoId
-	if vulnerabilities == nil || len(vulnerabilities) == 0 {
+	if len(vulnerabilities) == 0 {
 		vulnerabilities = make([]*Vulnerabilities, 0)
 	}
 	imageScanResponse.Vulnerabilities = vulnerabilities
@@ -433,7 +433,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 				}
 				updatedVulnerabilities = append(updatedVulnerabilities, vulnerability)
 			}
-			if updatedVulnerabilities == nil || len(updatedVulnerabilities) == 0 {
+			if len(updatedVulnerabilities) == 0 {
 				updatedVulnerabilities = make([]*Vulnerabilities, 0)
 			}
 			imageScanResponse.Vulnerabilities = updatedVulnerabilities
@@ -448,8 +448,7 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 	var executionTime time.Time
 
 	var objectType []string
-	objectType = append(objectType, security.ScanObjectType_APP)
-	objectType = append(objectType, security.ScanObjectType_CHART)
+	objectType = append(objectType, security.ScanObjectType_APP, security.ScanObjectType_CHART)
 	scanDeployInfo, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(request.AppId, request.EnvId, objectType)
 	if err != nil && pg.ErrNoRows != err {
 		impl.Logger.Errorw("error while fetching scan execution result", "err", err)
@@ -458,9 +457,7 @@ func (impl ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *Imag
 	if scanDeployInfo == nil || scanDeployInfo.Id == 0 || err == pg.ErrNoRows {
 		return nil, err
 	}
-	for _, id := range scanDeployInfo.ImageScanExecutionHistoryId {
-		scanExecutionIds = append(scanExecutionIds, id)
-	}
+	scanExecutionIds = append(scanExecutionIds, scanDeployInfo.ImageScanExecutionHistoryId...)
 
 	var highCount, moderateCount, lowCount int
 	if len(scanExecutionIds) > 0 {

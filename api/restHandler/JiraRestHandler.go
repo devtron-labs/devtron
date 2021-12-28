@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
@@ -51,59 +52,59 @@ func (impl JiraRestHandlerImpl) SaveAccountConfig(w http.ResponseWriter, r *http
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var jiraConfigBean jira.ConfigBean
 	err = decoder.Decode(&jiraConfigBean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveAccountConfig", "err", err, "payload", jiraConfigBean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	impl.logger.Infow("request payload, SaveAccountConfig", "err", err, "payload", jiraConfigBean)
 	err = impl.validator.Struct(jiraConfigBean)
 	if err != nil {
 		impl.logger.Errorw("validation err, SaveAccountConfig", "err", err, "payload", jiraConfigBean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	account, err := impl.jiraService.SaveAccountDetails(&jiraConfigBean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, SaveAccountConfig", "err", err, "payload", jiraConfigBean)
-		writeJsonResp(w, err, "error in saving jira config", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "error in saving jira config", http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, account.Id, http.StatusOK)
+	common.WriteJsonResp(w, err, account.Id, http.StatusOK)
 }
 
 func (impl JiraRestHandlerImpl) UpdateIssueStatus(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var updateBean jira.UpdateIssueBean
 	err = json.NewDecoder(r.Body).Decode(&updateBean)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateIssueStatus", "err", err, "payload", updateBean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	impl.logger.Infow("request payload, UpdateIssueStatus", "err", err, "payload", updateBean)
 	err = impl.validator.Struct(updateBean)
 	if err != nil {
 		impl.logger.Errorw("validation err, UpdateIssueStatus", "err", err, "payload", updateBean)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	res, err := impl.jiraService.UpdateJiraStatus(&updateBean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, UpdateIssueStatus", "err", err, "payload", updateBean)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }

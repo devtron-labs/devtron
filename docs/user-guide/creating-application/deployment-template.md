@@ -34,7 +34,7 @@ This defines ports on which application services will be exposed to other servic
 ```yaml
 ContainerPort:
   - envoyPort: 8799
-    idleTimeout: 
+    idleTimeout:
     name: app
     port: 8080
     servicePort: 80
@@ -71,27 +71,29 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeader:
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
   scheme: ""
   tcp: true
 ```
- 
+
 | Key | Description |
 | :--- | :--- |
 | `Path` | It define the path where the liveness needs to be checked. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
 | `initialDelaySeconds` | It defines the time to wait before a given container is checked for liveliness. |
 | `periodSeconds` | It defines the time to check a given container for liveness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
-| `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
 
 ### MaxUnavailable
- 
- ```yaml
+
+```yaml
   MaxUnavailable: 0
 ```
 The maximum number of pods that can be unavailable during the update process. The value of "MaxUnavailable: " can be an absolute number or percentage of the replicas count. The default value of "MaxUnavailable: " is 25%.
@@ -124,20 +126,22 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeader:
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
   scheme: ""
   tcp: true
 ```
 
 | Key | Description |
 | :--- | :--- |
-| `Path` | It define the path where the rediness needs to be checked. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
+| `Path` | It define the path where the readiness needs to be checked. |
 | `initialDelaySeconds` | It defines the time to wait before a given container is checked for readiness. |
 | `periodSeconds` | It defines the time to check a given container for readiness. |
-| `successThreshold` | It defines the number of successes required before a given container is said to fulfil the rediness probe. |
+| `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
-| `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
@@ -157,12 +161,19 @@ autoscaling:
 
 | Key | Description |
 | :--- | :--- |
-| `MaxReplicas` | Maximum number of replicas allowed for scaling. |
+| `enabled` | Set true to enable autoscaling else set false.|
 | `MinReplicas` | Minimum number of replicas allowed for scaling. |
+| `MaxReplicas` | Maximum number of replicas allowed for scaling. |
 | `TargetCPUUtilizationPercentage` | The target CPU utilization that is expected for a container. |
 | `TargetMemoryUtilizationPercentage` | The target memory utilization that is expected for a container. |
-| `enabled` | Set true to enable autoscaling else set false.|
 | `extraMetrics` | Used to give external metrics for autoscaling. |
+
+### Fullname Override
+
+```yaml
+fullnameOverride: app-name
+```
+`fullnameOverride` replaces the release fullname created by default by devtron, which is used to construct Kubernetes object names. By default, devtron uses {app-name}-{environment-name} as release fullname.
 
 ### Image
 
@@ -173,6 +184,16 @@ image:
 
 Image is used to access images in kubernetes, pullpolicy is used to define the instances calling the image, here the image is pulled when the image is not present,it can also be set as "Always".
 
+### imagePullSecrets
+
+`imagePullSecrets` contains the docker credentials that are used for accessing a registry. 
+
+```yaml
+imagePullSecrets:
+  - regcred
+```
+regcred is the secret that contains the docker credentials that are used for accessing a registry. Devtron will not create this secret automatically, you'll have to create this secret using dt-secrets helm chart in the App store or create one using kubectl. You can follow this documentation Pull an Image from a Private Registry [https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) .
+
 ### Ingress
 
 This allows public access to the url, please ensure you are using right nginx annotation for nginx class, its default value is nginx
@@ -180,6 +201,26 @@ This allows public access to the url, please ensure you are using right nginx an
 ```yaml
 ingress:
   enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  className: nginx
+  annotations: {}
+  hosts:
+      - host: example1.com
+        paths:
+            - /example
+      - host: example2.com
+        paths:
+            - /example2
+            - /example2/healthz
+  tls: []
+```
+Legacy deployment-template ingress format
+
+```yaml
+ingress:
+  enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx-internal
   annotations: {}
   path: ""
   host: ""
@@ -201,9 +242,17 @@ This allows private access to the url, please ensure you are using right nginx a
 ```yaml
 ingressInternal:
   enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx-internal
   annotations: {}
-  path: ""
-  host: ""
+  hosts:
+      - host: example1.com
+        paths:
+            - /example
+      - host: example2.com
+        paths:
+            - /example2
+            - /example2/healthz
   tls: []
 ```
 
@@ -218,6 +267,15 @@ ingressInternal:
 ### Init Containers
 ```yaml
 initContainers: 
+  - reuseContainerImage: true
+    volumeMounts:
+     - mountPath: /etc/ls-oms
+       name: ls-oms-cm-vol
+   command:
+     - flyway
+     - -configFiles=/etc/ls-oms/flyway.conf
+     - migrate
+
   - name: nginx
         image: nginx:1.14.2
         ports:
@@ -225,13 +283,13 @@ initContainers:
         command: ["/usr/local/bin/nginx"]
         args: ["-g", "daemon off;"]
 ```
-Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image.
+Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image. One can use base image inside initContainer by setting the reuseContainerImage flag to `true`.
 
 ### Pause For Seconds Before Switch Active
 ```yaml
 pauseForSecondsBeforeSwitchActive: 30
 ```
-To wait for given period of time before swith active the container.
+To wait for given period of time before switch active the container.
 
 ### Resources
 
@@ -240,11 +298,11 @@ These define minimum and maximum RAM and CPU available to the application.
 ```yaml
 resources:
   limits:
-    cpu: '1'
-    memory: 200Mi
+    cpu: "1"
+    memory: "200Mi"
   requests:
-    cpu: '0.10'
-    memory: 100Mi
+    cpu: "0.10"
+    memory: "100Mi"
 ```
 
 Resources are required to set CPU and memory usage.
@@ -270,7 +328,12 @@ This defines annotations and the type of service, optionally can define name als
 ### Volumes
 
 ```yaml
- volumes: []
+volumes:
+  - name: log-volume
+    emptyDir: {}
+  - name: logpv
+    persistentVolumeClaim:
+      claimName: logpvc
 ```
 
 It is required when some values need to be read from or written to an external disk.
@@ -278,7 +341,12 @@ It is required when some values need to be read from or written to an external d
 ### Volume Mounts
 
 ```yaml
-volumeMounts: []
+volumeMounts:
+  - mountPath: /var/log/nginx/
+    name: log-volume 
+  - mountPath: /mnt/logs
+    name: logpvc
+    subPath: employee  
 ```
 
 It is used to provide mounts to the volume.
@@ -310,17 +378,17 @@ Value part of the label for node selection, this should be same as that on node.
 
 ```yaml
 tolerations:
-  key: "key"
-  operator: "Equal"
-  value: "value"
-  effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
+ - key: "key"
+   operator: "Equal"
+   value: "value"
+   effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 ```
 
 Taints are the opposite, they allow a node to repel a set of pods.
 
 A given pod can access the given node and avoid the given taint only if the given pod satisfies a given taint.
 
-Taints and tolerations work together to ensure that pods are not scheduled onto the inappropriate nodes. One or more taints can be applied to a node, this marks that the node should not accept any pods that don't tolerate the taints.
+Taints and tolerations are a mechanism which work together that allows you to ensure that pods are not placed on inappropriate nodes. Taints are added to nodes, while tolerations are defined in the pod specification. When you taint a node, it will repel all the pods except those that have a toleration for that taint. A node can have one or many taints associated with it.
 
 ### Arguments
 
@@ -464,7 +532,7 @@ It gives the realtime metrics of the deployed applications
 | `Mean Time to Recovery` | It shows the average time taken to fix a failed pipeline. |
 
 
-## Add on features in Deployment Chart version 3.9.0
+## Addon features in Deployment Template Chart version 3.9.0
 
 ### Service Account
 
@@ -474,7 +542,7 @@ serviceAccountName: orchestrator
 
 A service account provides an identity for the processes that run in a Pod.
 
-When you access the cluster, you are authenticated by the apiserver as a particular User Account. Processes in containers inside pod can also contact the apiserver. When you are authenticated as a particular Service Account.
+When you access the cluster, you are authenticated by the API server as a particular User Account. Processes in containers inside pod can also contact the API server. When you are authenticated as a particular Service Account.
 
 When you create a pod, if you do not create a service account, it is automatically assigned the default service account in the namespace.
 
@@ -492,7 +560,7 @@ You can specify `maxUnavailable` and `minAvailable` in a `PodDisruptionBudget`.
 
 With `minAvailable` of 1, evictions are allowed as long as they leave behind 1 or more healthy pods of the total number of desired replicas.
 
-With `maxAvailable` of 1, evictions are allowed as long as atmost 1 unhealthy replica among the total number of desired replicas.
+With `maxAvailable` of 1, evictions are allowed as long as at most 1 unhealthy replica among the total number of desired replicas.
 
 ### Application metrics Envoy Configurations
 
@@ -502,11 +570,11 @@ envoyproxy:
   configMapName: ""
   resources:
     limits:
-      cpu: 50m
-      memory: 50Mi
+      cpu: "50m"
+      memory: "50Mi"
     requests:
-      cpu: 50m
-      memory: 50Mi
+      cpu: "50m"
+      memory: "50Mi"
 ```
 
 Envoy is attached as a sidecar to the application container to collect metrics like 4XX, 5XX, Throughput and latency. You can now configure the envoy settings such as idleTimeout, resources etc.
@@ -557,6 +625,23 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
 ```
 
 HPA, by default is configured to work with CPU and Memory metrics. These metrics are useful for internal cluster sizing, but you might want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.
@@ -575,3 +660,121 @@ If you want to see application metrics like different HTTP status codes metrics,
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
 
+### Helm Chart Json Schema Table
+
+Helm Chart json schema is used to validate the deployment template values.
+
+| Chart Version | Link |
+| :--- | :--- |
+| `reference-chart_3-12-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-12-0/schema.json) |
+| `reference-chart_3-11-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-11-0/schema.json) |
+| `reference-chart_3-10-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-10-0/schema.json) |
+| `reference-chart_3-9-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-9-0/schema.json) |
+
+
+### Other Validations in Json Schema
+
+The values of CPU and Memory in limits must be greater than or equal to in requests respectively. Similarly, In case of envoyproxy, the values of limits are greater than or equal to requests as mentioned below.
+```
+resources.limits.cpu >= resources.requests.cpu
+resources.limits.memory >= resources.requests.memory
+envoyproxy.resources.limits.cpu >= envoyproxy.resources.requests.cpu
+envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
+```
+
+## Addon features in Deployment Template Chart version 4.11.0
+
+### KEDA Autoscaling
+[KEDA](https://keda.sh) is a Kubernetes-based Event Driven Autoscaler. With KEDA, you can drive the scaling of any container in Kubernetes based on the number of events needing to be processed. KEDA can be installed into any Kubernetes cluster and can work alongside standard Kubernetes components like the Horizontal Pod Autoscaler(HPA).
+
+Example for autosccaling with KEDA using Prometheus metrics is given below:
+```yaml
+kedaAutoscaling:
+  enabled: true
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  idleReplicaCount: 0
+  pollingInterval: 30
+  advanced:
+    restoreToOriginalReplicaCount: true
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300
+          policies:
+          - type: Percent
+            value: 100
+            periodSeconds: 15
+  triggers: 
+    - type: prometheus
+      metadata:
+        serverAddress:  http://<prometheus-host>:9090
+        metricName: http_request_total
+        query: envoy_cluster_upstream_rq{appId="300", cluster_name="300-0", container="envoy",}
+        threshold: "50"
+  triggerAuthentication:
+    enabled: true
+    name:
+    spec: {}
+  authenticationRef: {}
+```
+Example for autosccaling with KEDA based on kafka is given below :
+```yaml
+kedaAutoscaling:
+  enabled: true
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  idleReplicaCount: 0
+  pollingInterval: 30
+  advanced: {}
+  triggers: 
+    - type: kafka
+      metadata:
+        bootstrapServers: b-2.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092,b-3.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092,b-1.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092
+        topic: Orders-Service-ESP.info
+        lagThreshold: "100"
+        consumerGroup: oders-remove-delivered-packages
+        allowIdleConsumers: "true"
+  triggerAuthentication:
+    enabled: true
+    name: keda-trigger-auth-kafka-credential
+    spec:
+      secretTargetRef:
+        - parameter: sasl
+          name: keda-kafka-secrets
+          key: sasl
+        - parameter: username
+          name: keda-kafka-secrets
+          key: username
+  authenticationRef: 
+    name: keda-trigger-auth-kafka-credential
+```
+
+### Security Context
+A security context defines privilege and access control settings for a Pod or Container.  
+
+To add a security context for main container:
+```yaml
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+```
+
+To add a security context on pod level:
+```yaml
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 3000
+  fsGroup: 2000
+```
+
+### Topology Spread Constraints
+You can use topology spread constraints to control how Pods are spread across your cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains. This can help to achieve high availability as well as efficient resource utilization.
+
+```yaml
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: zone
+    whenUnsatisfiable: DoNotSchedule
+    autoLabelSelector: true
+    customLabelSelector: {}
+```

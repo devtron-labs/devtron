@@ -18,8 +18,8 @@
 package chartConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 )
@@ -32,7 +32,7 @@ type PipelineStrategy struct {
 	Config     string                            `sql:"config"`
 	Default    bool                              `sql:"default,notnull"`
 	Deleted    bool                              `sql:"deleted,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type PipelineConfigRepository interface {

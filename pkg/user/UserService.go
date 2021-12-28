@@ -19,14 +19,13 @@ package user
 
 import (
 	"fmt"
-	jwt2 "github.com/argoproj/argo-cd/util/jwt"
-	"github.com/argoproj/argo-cd/util/session"
+	"github.com/devtron-labs/authenticator/jwt"
+	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/bean"
-	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
-	casbin2 "github.com/devtron-labs/devtron/internal/casbin"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
@@ -49,27 +48,28 @@ type UserService interface {
 	GetUserByToken(token string) (int32, error)
 	IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
+	UserExists(emailId string) bool
 }
 
 type UserServiceImpl struct {
-	sessionManager      *session.SessionManager
-	userAuthRepository  repository.UserAuthRepository
-	sessionClient       session2.ServiceClient
+	userAuthRepository  repository2.UserAuthRepository
 	logger              *zap.SugaredLogger
-	userRepository      repository.UserRepository
-	roleGroupRepository repository.RoleGroupRepository
+	userRepository      repository2.UserRepository
+	roleGroupRepository repository2.RoleGroupRepository
+	sessionManager2     *middleware.SessionManager
 }
 
-func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository, sessionManager *session.SessionManager,
-	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository.UserRepository,
-	userGroupRepository repository.RoleGroupRepository) *UserServiceImpl {
+func NewUserServiceImpl(userAuthRepository repository2.UserAuthRepository,
+	logger *zap.SugaredLogger,
+	userRepository repository2.UserRepository,
+	userGroupRepository repository2.RoleGroupRepository,
+	sessionManager2 *middleware.SessionManager) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
 		userAuthRepository:  userAuthRepository,
-		sessionManager:      sessionManager,
-		sessionClient:       client,
 		logger:              logger,
 		userRepository:      userRepository,
 		roleGroupRepository: userGroupRepository,
+		sessionManager2:     sessionManager2,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -77,7 +77,7 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository, sessio
 
 func (impl UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) (bool, error) {
 	if len(userInfo.RoleFilters) == 1 &&
-		len(userInfo.RoleFilters[0].Team) == 0 && len(userInfo.RoleFilters[0].Environment) == 0 && len(userInfo.RoleFilters[0].Action) == 0 {
+		userInfo.RoleFilters[0].Team == "" && userInfo.RoleFilters[0].Environment == "" && userInfo.RoleFilters[0].Action == "" {
 		//skip
 	} else {
 		invalid := false
@@ -136,7 +136,7 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 	return userResponse, nil
 }
 
-func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *repository.UserModel, emailId string) (*bean.UserInfo, error) {
+func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *repository2.UserModel, emailId string) (*bean.UserInfo, error) {
 	updateUserInfo, err := impl.GetById(dbUser.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -174,7 +174,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	}
 
 	//create new user in our db on d basis of info got from google api or hex. assign a basic role
-	model := &repository.UserModel{
+	model := &repository2.UserModel{
 		EmailId:     emailId,
 		AccessToken: userInfo.AccessToken,
 	}
@@ -200,10 +200,10 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	if userInfo.SuperAdmin == false {
 		for _, roleFilter := range userInfo.RoleFilters {
 
-			if len(roleFilter.EntityName) == 0 {
+			if roleFilter.EntityName == "" {
 				roleFilter.EntityName = "NONE"
 			}
-			if len(roleFilter.Environment) == 0 {
+			if roleFilter.Environment == "" {
 				roleFilter.Environment = "NONE"
 			}
 			entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -262,7 +262,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 					}
 					//roleModel := roleModels[0]
 					if roleModel.Id > 0 {
-						userRoleModel := &repository.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
+						userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
 						userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 						if err != nil {
 							return nil, err
@@ -310,7 +310,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 			return nil, err
 		}
 		if roleModel.Id > 0 {
-			userRoleModel := &repository.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
+			userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
 			userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 			if err != nil {
 				return nil, err
@@ -419,9 +419,9 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 		if err != nil {
 			return nil, err
 		}
-		roleIds := make(map[int]repository.UserRoleModel)
-		roleIdsRemaining := make(map[int]*repository.UserRoleModel)
-		oldRolesItems := make(map[int]repository.UserRoleModel)
+		roleIds := make(map[int]repository2.UserRoleModel)
+		roleIdsRemaining := make(map[int]*repository2.UserRoleModel)
+		oldRolesItems := make(map[int]repository2.UserRoleModel)
 
 		for i := range userRoleModels {
 			roleIds[userRoleModels[i].RoleId] = *userRoleModels[i]
@@ -438,10 +438,10 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 
 		// DELETE Removed Items
 		for _, roleFilter := range userInfo.RoleFilters {
-			if len(roleFilter.EntityName) == 0 {
+			if roleFilter.EntityName == "" {
 				roleFilter.EntityName = "NONE"
 			}
-			if len(roleFilter.Environment) == 0 {
+			if roleFilter.Environment == "" {
 				roleFilter.Environment = "NONE"
 			}
 			entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -490,10 +490,10 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 
 		//Adding New Policies
 		for _, roleFilter := range userInfo.RoleFilters {
-			if len(roleFilter.EntityName) == 0 {
+			if roleFilter.EntityName == "" {
 				roleFilter.EntityName = "NONE"
 			}
-			if len(roleFilter.Environment) == 0 {
+			if roleFilter.Environment == "" {
 				roleFilter.Environment = "NONE"
 			}
 			entityNames := strings.Split(roleFilter.EntityName, ",")
@@ -557,7 +557,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 					} else {
 						//new role ids in new array, add it
 						if roleModel.Id > 0 {
-							userRoleModel := &repository.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
+							userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
 							userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 							if err != nil {
 								return nil, err
@@ -611,7 +611,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 			return nil, err
 		}
 		if roleModel.Id > 0 {
-			userRoleModel := &repository.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
+			userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
 			userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 			if err != nil {
 				return nil, err
@@ -720,10 +720,10 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	for _, item := range filterGroupsModels {
 		filterGroups = append(filterGroups, item.Name)
 	}
-	if filterGroups == nil || len(filterGroups) == 0 {
+	if len(filterGroups) == 0 {
 		filterGroups = make([]string, 0)
 	}
-	if roleFilters == nil || len(roleFilters) == 0 {
+	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
 	response := &bean.UserInfo{
@@ -761,10 +761,24 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 			Groups:      make([]string, 0),
 		})
 	}
-	if response == nil || len(response) == 0 {
+	if len(response) == 0 {
 		response = make([]bean.UserInfo, 0)
 	}
 	return response, nil
+}
+
+func (impl UserServiceImpl) UserExists(emailId string) bool {
+	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return false
+	}
+	if model.Id == 0 {
+		impl.logger.Errorw("no user found ", "email", emailId)
+		return false
+	} else {
+		return true
+	}
 }
 
 func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, error) {
@@ -804,7 +818,7 @@ func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 }
 
 func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
-	if len(token) == 0 {
+	if token == "" {
 		impl.logger.Infow("no token provided", "token", token)
 		err := &util.ApiError{
 			Code:            constants.UserNoTokenProvided,
@@ -813,7 +827,9 @@ func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
 		return http.StatusUnauthorized, err
 	}
 
-	claims, err := impl.sessionManager.VerifyToken(token)
+	//claims, err := impl.sessionManager.VerifyToken(token)
+	claims, err := impl.sessionManager2.VerifyToken(token)
+
 	if err != nil {
 		impl.logger.Errorw("failed to verify token", "error", err)
 		err := &util.ApiError{
@@ -823,16 +839,16 @@ func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
 		}
 		return http.StatusUnauthorized, err
 	}
-	mapClaims, err := jwt2.MapClaims(claims)
+	mapClaims, err := jwt.MapClaims(claims)
 	if err != nil {
 		impl.logger.Errorw("failed to MapClaims", "error", err)
 		return http.StatusUnauthorized, err
 	}
 
-	email := jwt2.GetField(mapClaims, "email")
-	sub := jwt2.GetField(mapClaims, "sub")
+	email := jwt.GetField(mapClaims, "email")
+	sub := jwt.GetField(mapClaims, "sub")
 
-	if len(email) == 0 && sub == "admin" {
+	if email == "" && sub == "admin" {
 		email = sub
 	}
 

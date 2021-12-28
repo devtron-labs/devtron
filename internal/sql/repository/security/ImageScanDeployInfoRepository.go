@@ -19,12 +19,13 @@ package security
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/go-pg/pg"
-	"go.uber.org/zap"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-pg/pg"
+	"go.uber.org/zap"
 )
 
 /**
@@ -39,7 +40,7 @@ type ImageScanDeployInfo struct {
 	ObjectType                  string   `sql:"object_type,notnull"`
 	EnvId                       int      `sql:"env_id,notnull"`
 	ClusterId                   int      `sql:"cluster_id,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 const (
@@ -268,7 +269,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *I
 
 func (impl ImageScanDeployInfoRepositoryImpl) scanListingQueryBuilder(request *ImageScanFilter, size int, offset int, deployInfoIds []int) string {
 	query := ""
-	if len(request.AppName) == 0 && len(request.CVEName) == 0 && len(request.ObjectName) == 0 {
+	if request.AppName == "" && request.CVEName == "" && request.ObjectName == "" {
 		query = impl.scanListQueryWithoutObject(request, size, offset, deployInfoIds)
 	} else if len(request.CVEName) > 0 {
 		query = impl.scanListQueryWithoutObject(request, size, offset, deployInfoIds)

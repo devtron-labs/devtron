@@ -18,11 +18,12 @@
 package appstore
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ChartGroupServiceImpl struct {
@@ -106,7 +107,7 @@ func (impl *ChartGroupServiceImpl) CreateChartGroup(req *ChartGroupBean) (*Chart
 	chartGrouModel := &chartGroup.ChartGroup{
 		Name:        req.Name,
 		Description: req.Description,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: req.UserId,
 			UpdatedOn: time.Now(),
@@ -128,7 +129,7 @@ func (impl *ChartGroupServiceImpl) UpdateChartGroup(req *ChartGroupBean) (*Chart
 		Name:        req.Name,
 		Description: req.Description,
 		Id:          req.Id,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			UpdatedOn: time.Now(),
 			UpdatedBy: req.UserId,
 		},
@@ -182,7 +183,7 @@ func (impl *ChartGroupServiceImpl) SaveChartGroupEntries(req *ChartGroupBean) (*
 			AppStoreApplicationVersionId: entryBean.AppStoreApplicationVersionId,
 			ChartGroupId:                 group.Id,
 			Deleted:                      false,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: req.UserId,
 				UpdatedOn: time.Now(),
@@ -294,7 +295,7 @@ func (impl *ChartGroupServiceImpl) ChartGroupList(max int) (*ChartGroupList, err
 	for _, v := range groupMap {
 		chartGroups = append(chartGroups, v)
 	}
-	if chartGroups == nil || len(chartGroups) == 0 {
+	if len(chartGroups) == 0 {
 		chartGroups = make([]*ChartGroupBean, 0)
 	}
 	return &ChartGroupList{Groups: chartGroups}, nil
@@ -379,7 +380,7 @@ func (impl *ChartGroupServiceImpl) ChartGroupListMin(max int) ([]*ChartGroupBean
 		}
 		chartGroupList = append(chartGroupList, chartGroupRes)
 	}
-	if chartGroupList == nil || len(chartGroupList) == 0 {
+	if len(chartGroupList) == 0 {
 		chartGroupList = make([]*ChartGroupBean, 0)
 	}
 	return chartGroupList, nil

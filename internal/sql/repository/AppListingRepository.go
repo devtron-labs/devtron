@@ -23,13 +23,14 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type AppListingRepository interface {
@@ -133,8 +134,8 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 		}
 
 		if len(item.DataSource) > 0 {
-			mInfo, err := parseMaterialInfo([]byte(item.MaterialInfoJson), item.DataSource)
-			if err == nil {
+			mInfo, err := parseMaterialInfo(item.MaterialInfoJson, item.DataSource)
+			if err == nil && len(mInfo) > 0 {
 				item.MaterialInfo = mInfo
 			} else {
 				item.MaterialInfo = []byte("[]")
@@ -156,7 +157,7 @@ func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int,
 	impl.Logger.Debugf("reached at AppListingRepository:")
 	var deploymentDetail bean.DeploymentDetailContainer
 	query := "SELECT env.environment_name, a.app_name, ceco.namespace, u.email_id as last_deployed_by" +
-		" , cia.material_info, pco.created_on AS last_deployed_time, pco.pipeline_release_counter as release_version" +
+		" , cia.material_info as material_info_json_string, pco.created_on AS last_deployed_time, pco.pipeline_release_counter as release_version" +
 		" , env.default, cia.data_source, p.pipeline_name as last_deployed_pipeline, cia.id as ci_artifact_id" +
 		" FROM chart_env_config_override ceco" +
 		" INNER JOIN environment env ON env.id=ceco.target_environment" +
@@ -174,8 +175,8 @@ func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int,
 		return deploymentDetail, err
 	}
 
-	mInfo, err := parseMaterialInfo(deploymentDetail.MaterialInfo, deploymentDetail.DataSource)
-	if err == nil {
+	mInfo, err := parseMaterialInfo(deploymentDetail.MaterialInfoJsonString, deploymentDetail.DataSource)
+	if err == nil && len(mInfo) > 0 {
 		deploymentDetail.MaterialInfo = mInfo
 	} else {
 		deploymentDetail.MaterialInfo = []byte("[]")
@@ -184,15 +185,20 @@ func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int,
 	return deploymentDetail, nil
 }
 
-func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMessage, error) {
+func parseMaterialInfo(materialInfo string, source string) (json.RawMessage, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("PARSEMATERIALINFO_MATERIAL_RECOVER,  materialInfo: %s,  source: %s, err: %s \n", materialInfo, source, r)
+		}
+	}()
 	if source != "GOCD" && source != "CI-RUNNER" && source != "EXTERNAL" {
 		return nil, fmt.Errorf("datasource: %s not supported", source)
 	}
-	if materialInfo == nil {
+	if materialInfo == "" {
 		return []byte("[]"), nil
 	}
 	var ciMaterials []*CiMaterialInfo
-	err := json.Unmarshal(materialInfo, &ciMaterials)
+	err := json.Unmarshal([]byte(materialInfo), &ciMaterials)
 	if err != nil {
 		return []byte("[]"), err
 	}
@@ -312,7 +318,7 @@ func (impl AppListingRepositoryImpl) FetchAppTriggerView(appId int) ([]bean.Trig
 			var tView bean.TriggerView
 			statusQuery := "SELECT p.id as cd_pipeline_id, pco.created_on as last_deployed_time," +
 				" u.email_id as last_deployed_by, pco.pipeline_release_counter as release_version," +
-				" cia.material_info, cia.data_source, evt.reason as status" +
+				" cia.material_info as material_info_json_string, cia.data_source, evt.reason as status" +
 				" FROM pipeline p" +
 				" INNER JOIN pipeline_config_override pco ON pco.pipeline_id = p.id" +
 				" INNER JOIN ci_artifact cia on cia.id = pco.ci_artifact_id" +
@@ -340,8 +346,8 @@ func (impl AppListingRepositoryImpl) FetchAppTriggerView(appId int) ([]bean.Trig
 				item.ReleaseVersion = tView.ReleaseVersion
 				item.DataSource = tView.DataSource
 				item.MaterialInfo = tView.MaterialInfo
-				mInfo, err := parseMaterialInfo(tView.MaterialInfo, tView.DataSource)
-				if err == nil {
+				mInfo, err := parseMaterialInfo(tView.MaterialInfoJsonString, tView.DataSource)
+				if err == nil && len(mInfo) > 0 {
 					item.MaterialInfo = mInfo
 				} else {
 					item.MaterialInfo = []byte("[]")
@@ -401,24 +407,13 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int) ([]bean.AppS
 		materialExists = 1
 	}
 
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId))
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(1, "MATERIAL", materialExists))
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId))
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(3, "CI_PIPELINE", stages.CiPipelineId))
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(4, "CHART", stages.ChartId))
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(5, "CD_PIPELINE", stages.PipelineId))
-	appStageStatus = append(appStageStatus, bean.AppStageStatus{
-		Stage:     6,
-		StageName: "CHART_ENV_CONFIG",
-		Status: func() bool {
-			if stages.YamlStatus == 3 && stages.YamlReviewed == true {
-				return true
-			} else {
-				return false
-			}
-		}(),
-		Required: true,
-	})
+	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId), impl.makeAppStageStatus(1, "MATERIAL", materialExists), impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId), impl.makeAppStageStatus(3, "CI_PIPELINE", stages.CiPipelineId), impl.makeAppStageStatus(4, "CHART", stages.ChartId), impl.makeAppStageStatus(5, "CD_PIPELINE", stages.PipelineId), bean.AppStageStatus{Stage: 6, StageName: "CHART_ENV_CONFIG", Status: func() bool {
+		if stages.YamlStatus == 3 && stages.YamlReviewed == true {
+			return true
+		} else {
+			return false
+		}
+	}(), Required: true})
 
 	return appStageStatus, nil
 }

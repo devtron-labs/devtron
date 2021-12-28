@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -47,7 +47,7 @@ type DeploymentGroupApp struct {
 	DeploymentGroupId int      `sql:"deployment_group_id"`
 	AppId             int      `sql:"app_id"`
 	Active            bool     `sql:"active,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl DeploymentGroupAppRepositoryImpl) Create(model *DeploymentGroupApp) (*DeploymentGroupApp, error) {

@@ -28,9 +28,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -61,7 +61,7 @@ type CdHandlerImpl struct {
 	ciArtifactRepository         repository.CiArtifactRepository
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	cdWorkflowRepository         pipelineConfig.CdWorkflowRepository
-	envRepository                cluster.EnvironmentRepository
+	envRepository                repository2.EnvironmentRepository
 	pipelineRepository           pipelineConfig.PipelineRepository
 	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
 }
@@ -73,7 +73,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	ciArtifactRepository repository.CiArtifactRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	envRepository cluster.EnvironmentRepository,
+	envRepository repository2.EnvironmentRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciConfig *CiConfig) *CdHandlerImpl {
 	return &CdHandlerImpl{

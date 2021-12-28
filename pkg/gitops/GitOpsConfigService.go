@@ -20,14 +20,23 @@ package gitops
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
+	"math/rand"
+	"net/http"
+	"net/url"
+	"os"
+	"path"
+	"strconv"
+	"strings"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
@@ -36,17 +45,11 @@ import (
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"math/rand"
-	"net/http"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type GitOpsConfigService interface {
-	ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error)
-	ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error)
+	ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (DetailedErrorGitOpsConfigResponse, error)
+	ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (DetailedErrorGitOpsConfigResponse, error)
 	GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse
 	CreateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error)
 	UpdateGitOpsConfig(config *bean2.GitOpsConfigDto) error
@@ -68,7 +71,6 @@ const (
 	CloneHttp             = "Clone Http"
 	CreateReadmeStage     = "Create Readme"
 	GITHUB_PROVIDER       = "GITHUB"
-	GITHUB_HOST           = "https://github.com/"
 	GITLAB_PROVIDER       = "GITLAB"
 	BITBUCKET_PROVIDER    = "BITBUCKET_CLOUD"
 	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
@@ -79,13 +81,15 @@ type DetailedErrorGitOpsConfigResponse struct {
 	SuccessfulStages []string          `json:"successfulStages"`
 	StageErrorMap    map[string]string `json:"stageErrorMap"`
 	ValidatedOn      time.Time         `json:"validatedOn"`
+	DeleteRepoFailed bool              `json:"deleteRepoFailed"`
 }
+
 type GitOpsConfigServiceImpl struct {
 	randSource       rand.Source
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
 	K8sUtil          *util.K8sUtil
-	aCDAuthConfig    *user.ACDAuthConfig
+	aCDAuthConfig    *util3.ACDAuthConfig
 	clusterService   cluster.ClusterService
 	envService       cluster.EnvironmentService
 	versionService   argocdServer.VersionService
@@ -93,7 +97,7 @@ type GitOpsConfigServiceImpl struct {
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
-	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *user.ACDAuthConfig,
+	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
 	gitFactory *util.GitFactory) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
@@ -109,31 +113,37 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 	}
 }
 
-func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error) {
+func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (DetailedErrorGitOpsConfigResponse, error) {
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
-		gitOpsConfig, err := impl.CreateGitOpsConfig(config)
+		_, err := impl.CreateGitOpsConfig(config)
 		if err != nil {
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
-			return gitOpsConfig, detailedErrorGitOpsConfigResponse, err
+			return detailedErrorGitOpsConfigResponse, err
 		}
-		return gitOpsConfig, detailedErrorGitOpsConfigResponse, nil
 	}
-	return nil, detailedErrorGitOpsConfigResponse, nil
+	return detailedErrorGitOpsConfigResponse, nil
 }
-func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, DetailedErrorGitOpsConfigResponse, error) {
+func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (DetailedErrorGitOpsConfigResponse, error) {
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		err := impl.UpdateGitOpsConfig(config)
 		if err != nil {
 			impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", config)
-			return config, detailedErrorGitOpsConfigResponse, err
+			return detailedErrorGitOpsConfigResponse, err
 		}
-		return config, detailedErrorGitOpsConfigResponse, nil
 	}
-	return nil, detailedErrorGitOpsConfigResponse, nil
+	return detailedErrorGitOpsConfigResponse, nil
 }
 
+func (impl *GitOpsConfigServiceImpl) buildGithubOrgUrl(host, orgId string) (orgUrl string, err error) {
+	hostUrl, err := url.Parse(host)
+	if err != nil {
+		return "", err
+	}
+	hostUrl.Path = path.Join(hostUrl.Path, orgId)
+	return hostUrl.String(), nil
+}
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error) {
 	impl.logger.Debugw("gitops create request", "req", request)
 	dbConnection := impl.gitOpsRepository.GetConnection()
@@ -170,7 +180,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		AzureProject:         request.AzureProjectName,
 		BitBucketWorkspaceId: request.BitBucketWorkspaceId,
 		BitBucketProjectKey:  request.BitBucketProjectKey,
-		AuditLog:             models.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		AuditLog:             sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model, tx)
 	if err != nil {
@@ -237,7 +247,11 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
-		request.Host = GITHUB_HOST + request.GitHubOrgId
+		orgUrl, err := impl.buildGithubOrgUrl(request.Host, request.GitHubOrgId)
+		if err != nil {
+			return nil, err
+		}
+		request.Host = orgUrl
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
@@ -245,10 +259,10 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 			return nil, err
 		}
 		slashSuffixPresent := strings.HasSuffix(request.Host, "/")
-		if slashSuffixPresent{
+		if slashSuffixPresent {
 			request.Host += groupName
-		} else{
-			request.Host = fmt.Sprintf(request.Host + "/%s", groupName)
+		} else {
+			request.Host = fmt.Sprintf(request.Host+"/%s", groupName)
 		}
 	}
 	if strings.ToUpper(request.Provider) == BITBUCKET_PROVIDER {
@@ -407,7 +421,11 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if strings.ToUpper(request.Provider) == GITHUB_PROVIDER {
-		request.Host = GITHUB_HOST + request.GitHubOrgId
+		orgUrl, err := impl.buildGithubOrgUrl(request.Host, request.GitHubOrgId)
+		if err != nil {
+			return err
+		}
+		request.Host = orgUrl
 	}
 	if strings.ToUpper(request.Provider) == GITLAB_PROVIDER {
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
@@ -415,10 +433,10 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 			return err
 		}
 		slashSuffixPresent := strings.HasSuffix(request.Host, "/")
-		if slashSuffixPresent{
+		if slashSuffixPresent {
 			request.Host += groupName
-		} else{
-			request.Host = fmt.Sprintf(request.Host + "/%s", groupName)
+		} else {
+			request.Host = fmt.Sprintf(request.Host+"/%s", groupName)
 		}
 	}
 	if strings.ToUpper(request.Provider) == BITBUCKET_PROVIDER {
@@ -617,9 +635,9 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfi
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
 	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
-	if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
+	/*if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
 		config.Host = GITHUB_HOST
-	}
+	}*/
 	if strings.ToUpper(config.Provider) == BITBUCKET_PROVIDER {
 		config.Host = util.BITBUCKET_CLONE_BASE_URL
 		config.BitBucketProjectKey = strings.ToUpper(config.BitBucketProjectKey)
@@ -675,8 +693,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 			detailedErrorGitOpsConfigActions.StageErrorMap[PushStage] = err
 		}
 	} else {
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CommitOnRestStage)
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, PushStage)
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CommitOnRestStage, PushStage)
 	}
 	repoOptions := &bitbucket.RepositoryOptions{
 		Owner:     config.BitBucketWorkspaceId,
@@ -687,7 +704,9 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	err = client.DeleteRepository(appName, config.Username, config.GitHubOrgId, config.AzureProjectName, repoOptions)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo", "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[DeleteRepoStage] = impl.extractErrorMessageByProvider(err, config.Provider)
+		//here below the assignment of delete is removed for making this stage optional, and it's failure not preventing it from saving/updating gitOps config
+		//detailedErrorGitOpsConfigActions.StageErrorMap[DeleteRepoStage] = impl.extractErrorMessageByProvider(err, config.Provider)
+		detailedErrorGitOpsConfigActions.DeleteRepoFailed = true
 	} else {
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, DeleteRepoStage)
 	}
@@ -710,7 +729,7 @@ func (impl *GitOpsConfigServiceImpl) getDir() string {
 func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, provider string) error {
 	if provider == GITLAB_PROVIDER {
 		errorResponse, ok := err.(*gitlab.ErrorResponse)
-		if ok{
+		if ok {
 			errorMessage := fmt.Errorf("%s", errorResponse.Message)
 			return errorMessage
 		}
@@ -731,5 +750,6 @@ func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErro
 	for stage, err := range detailedErrorGitOpsConfigActions.StageErrorMap {
 		detailedErrorResponse.StageErrorMap[stage] = err.Error()
 	}
+	detailedErrorResponse.DeleteRepoFailed = detailedErrorGitOpsConfigActions.DeleteRepoFailed
 	return detailedErrorResponse
 }

@@ -19,16 +19,19 @@ package notifier
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/team"
-	util2 "github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/util/event"
-	"github.com/go-pg/pg"
-	"go.uber.org/zap"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/team"
+	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"strings"
 	"time"
+
+	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	util2 "github.com/devtron-labs/devtron/internal/util"
+	util "github.com/devtron-labs/devtron/util/event"
+	"github.com/go-pg/pg"
+	"go.uber.org/zap"
 )
 
 type NotificationConfigService interface {
@@ -50,10 +53,10 @@ type NotificationConfigServiceImpl struct {
 	pipelineRepository             pipelineConfig.PipelineRepository
 	slackRepository                repository.SlackNotificationRepository
 	sesRepository                  repository.SESNotificationRepository
-	teamRepository                 team.TeamRepository
-	environmentRepository          cluster.EnvironmentRepository
-	appRepository                  pipelineConfig.AppRepository
-	userRepository                 repository.UserRepository
+	teamRepository                 repository2.TeamRepository
+	environmentRepository          repository3.EnvironmentRepository
+	appRepository                  app.AppRepository
+	userRepository                 repository4.UserRepository
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
 }
 
@@ -161,9 +164,9 @@ type ProvidersConfig struct {
 
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository,
-	sesRepository repository.SESNotificationRepository, teamRepository team.TeamRepository,
-	environmentRepository cluster.EnvironmentRepository, appRepository pipelineConfig.AppRepository,
-	userRepository repository.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
+	sesRepository repository.SESNotificationRepository, teamRepository repository2.TeamRepository,
+	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository,
+	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,
 		notificationSettingsRepository: notificationSettingsRepository,
@@ -372,7 +375,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				}
 			}
 			var providerConfigs []*ProvidersConfig
-			if slackIds != nil && len(slackIds) > 0 {
+			if len(slackIds) > 0 {
 				slackConfigs, err := impl.slackRepository.FindByIds(slackIds)
 				if err != nil && err != pg.ErrNoRows {
 					impl.logger.Errorw("error in fetching slack config", "err", err)
@@ -383,7 +386,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				}
 			}
 
-			if userIds != nil && len(userIds) > 0 {
+			if len(userIds) > 0 {
 				sesConfigs, err := impl.userRepository.GetByIds(userIds)
 				if err != nil && err != pg.ErrNoRows {
 					impl.logger.Errorw("error in fetching user", "error", err)
@@ -531,9 +534,7 @@ func (impl *NotificationConfigServiceImpl) buildPipelineResponses(config config,
 
 	if len(config.Pipelines) > 0 {
 		var pipelinesIds []int
-		for _, p := range config.Pipelines {
-			pipelinesIds = append(pipelinesIds, p)
-		}
+		pipelinesIds = append(pipelinesIds, config.Pipelines...)
 		if util.CI == config.PipelineType {
 			ciPipelines, err = impl.ciPipelineRepository.FindByIdsIn(pipelinesIds)
 		} else if util.CD == config.PipelineType {
@@ -651,7 +652,7 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 			impl.logger.Errorw("failed to fetch existing notification settings view", "err", err)
 			return 0, err
 		}
-		if nsOptions == nil || len(nsOptions) == 0 {
+		if len(nsOptions) == 0 {
 			notificationSettings, err = impl.notificationConfigBuilder.BuildNewNotificationSettings(notificationSettingsRequest, existingNotificationSettingsConfig)
 			if err != nil {
 				impl.logger.Error(err)

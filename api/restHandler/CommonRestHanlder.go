@@ -18,10 +18,11 @@
 package restHandler
 
 import (
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -36,14 +37,14 @@ type CommonRestHanlderImpl struct {
 	gitOpsConfigService gitops.GitOpsConfigService
 	userAuthService     user.UserService
 	validator           *validator.Validate
-	enforcer            rbac.Enforcer
+	enforcer            casbin.Enforcer
 	commonService       commonService.CommonService
 }
 
 func NewCommonRestHanlderImpl(
 	logger *zap.SugaredLogger,
 	gitOpsConfigService gitops.GitOpsConfigService, userAuthService user.UserService,
-	validator *validator.Validate, enforcer rbac.Enforcer, commonService commonService.CommonService) *CommonRestHanlderImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, commonService commonService.CommonService) *CommonRestHanlderImpl {
 	return &CommonRestHanlderImpl{
 		logger:              logger,
 		gitOpsConfigService: gitOpsConfigService,
@@ -57,15 +58,15 @@ func NewCommonRestHanlderImpl(
 func (impl CommonRestHanlderImpl) GlobalChecklist(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	res, err := impl.commonService.GlobalChecklist()
 	if err != nil {
 		impl.logger.Errorw("service err, GlobalChecklist", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }

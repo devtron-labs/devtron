@@ -18,6 +18,7 @@
 package restHandler
 
 import (
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/git"
@@ -61,7 +62,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	secretFromRequest := vars["secret"]
 	if err != nil {
 		impl.logger.Errorw("Error in getting git host Id from request", "err", err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -72,7 +73,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	gitHost, err := impl.gitHostConfig.GetById(gitHostId)
 	if err != nil {
 		impl.logger.Errorw("Error in getting git host from DB", "err", err, "gitHostId", gitHostId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -80,7 +81,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	requestBodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		impl.logger.Errorw("Cannot read the request body:", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -88,7 +89,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	impl.logger.Debug("Secret validation result ", isValidSig)
 	if !isValidSig {
 		impl.logger.Error("Signature mismatch")
-		writeJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 
@@ -97,7 +98,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	impl.logger.Debugw("eventType : ", eventType)
 	if len(eventType) == 0 {
 		impl.logger.Errorw("Event type not known ", eventType)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -112,7 +113,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	err = impl.webhookEventDataConfig.Save(webhookEvent)
 	if err != nil {
 		impl.logger.Errorw("Error while saving webhook data", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -120,6 +121,6 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	err = impl.eventClient.WriteNatsEvent(pubsub.WEBHOOK_EVENT_TOPIC, webhookEvent)
 	if err != nil {
 		impl.logger.Errorw("Error while handling webhook in git-sensor", "err", err)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
 }

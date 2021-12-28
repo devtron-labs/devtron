@@ -21,6 +21,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -29,19 +36,14 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/prometheus"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/api/prometheus/v1"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type AppListingService interface {
@@ -102,7 +104,7 @@ type FetchAppListingRequest struct {
 type AppListingServiceImpl struct {
 	Logger                     *zap.SugaredLogger
 	application                application2.ServiceClient
-	appRepository              pipelineConfig.AppRepository
+	appRepository              app.AppRepository
 	appListingRepository       repository.AppListingRepository
 	appListingViewBuilder      AppListingViewBuilder
 	pipelineRepository         pipelineConfig.PipelineRepository
@@ -111,15 +113,15 @@ type AppListingServiceImpl struct {
 	appLevelMetricsRepository  repository.AppLevelMetricsRepository
 	envLevelMetricsRepository  repository.EnvLevelAppMetricsRepository
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
-	environmentRepository      cluster.EnvironmentRepository
+	environmentRepository      repository2.EnvironmentRepository
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
-	application application2.ServiceClient, appRepository pipelineConfig.AppRepository,
+	application application2.ServiceClient, appRepository app.AppRepository,
 	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
 	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository cluster.EnvironmentRepository) *AppListingServiceImpl {
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                     Logger,
 		appListingRepository:       appListingRepository,
@@ -321,7 +323,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		}
 		appEnvKey := env.AppName + "-" + env.EnvironmentName
 		status, ok := existingAppEnvStatusMapping[appEnvKey]
-		if !ok || len(env.DataSource) == 0 {
+		if !ok || env.DataSource == "" {
 			status = NotDeployed
 		}
 		env.Status = status
@@ -393,8 +395,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		} else {
 			if pipeline.PreStageConfig != "" {
 				if preCdStageRunner != nil && preCdStageRunner.Id != 0 {
-					var status string
-					status = latestTriggeredWf.WorkflowStatus.String()
+					var status string = latestTriggeredWf.WorkflowStatus.String()
 					env.PreStageStatus = &status
 				} else {
 					status := ""
@@ -403,16 +404,14 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			}
 			if pipeline.PostStageConfig != "" {
 				if postCdStageRunner != nil && postCdStageRunner.Id != 0 {
-					var status string
-					status = latestTriggeredWf.WorkflowStatus.String()
+					var status string = latestTriggeredWf.WorkflowStatus.String()
 					env.PostStageStatus = &status
 				} else {
 					status := ""
 					env.PostStageStatus = &status
 				}
 			}
-			var status string
-			status = latestTriggeredWf.WorkflowStatus.String()
+			var status string = latestTriggeredWf.WorkflowStatus.String()
 
 			env.CdStageStatus = &status
 		}
@@ -556,7 +555,7 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 //Return only a integer value pod count, aggregated of all the pod inside a app
 //(includes all the pods running different cd pipeline for same app)
 func (impl AppListingServiceImpl) PodCountByAppLabel(appLabel string, namespace string, env string, proEndpoint string) int {
-	if len(appLabel) == 0 || len(namespace) == 0 || len(proEndpoint) == 0 || len(env) == 0 {
+	if appLabel == "" || namespace == "" || proEndpoint == "" || env == "" {
 		impl.Logger.Warnw("not a complete data found for prometheus call", "missing", "AppName or namespace or prometheus url or env")
 		return 0
 	}
@@ -616,7 +615,7 @@ func (impl AppListingServiceImpl) PodListByAppLabel(appLabel string, namespace s
 	response := make(map[string]interface{})
 	podList := make(map[string]string)
 	resultMap := make(map[string]interface{})
-	if len(appLabel) == 0 || len(namespace) == 0 || len(proEndpoint) == 0 || len(env) == 0 {
+	if appLabel == "" || namespace == "" || proEndpoint == "" || env == "" {
 		impl.Logger.Warnw("not a complete data found for prometheus call", "missing", "AppName or namespace or prometheus url or env")
 		return podList
 	}
@@ -672,7 +671,7 @@ func (impl AppListingServiceImpl) CpuUsageGroupByPod(namespace string, env strin
 	impl.Logger.Debug("executing cpuUsageGroupByPod:")
 	cpuUsageMetric := make(map[string]string)
 
-	if len(namespace) == 0 || len(proEndpoint) == 0 || len(env) == 0 {
+	if namespace == "" || proEndpoint == "" || env == "" {
 		impl.Logger.Warnw("not a complete data found for prometheus call", "missing", "AppName or namespace or prometheus url or env")
 		return cpuUsageMetric
 	}
@@ -733,7 +732,7 @@ func (impl AppListingServiceImpl) CpuRequestGroupByPod(namespace string, env str
 	impl.Logger.Debug("executing cpuUsageGroupByPod:")
 	cpuRequestMetric := make(map[string]string)
 
-	if len(namespace) == 0 || len(proEndpoint) == 0 || len(env) == 0 {
+	if namespace == "" || proEndpoint == "" || env == "" {
 		impl.Logger.Warnw("not a complete data found for prometheus call", "missing", "AppName or namespace or prometheus url or env")
 		return cpuRequestMetric
 	}
@@ -795,7 +794,7 @@ func (impl AppListingServiceImpl) MemoryUsageGroupByPod(namespace string, env st
 	impl.Logger.Debug("executing memoryUsageGroupByPod")
 	memoryUsageMetric := make(map[string]string)
 
-	if len(namespace) == 0 || len(proEndpoint) == 0 || len(env) == 0 {
+	if namespace == "" || proEndpoint == "" || env == "" {
 		impl.Logger.Warnw("not a complete data found for prometheus call", "missing", "AppName or namespace or prometheus url or env")
 		return memoryUsageMetric
 	}
@@ -853,7 +852,7 @@ func (impl AppListingServiceImpl) MemoryUsageGroupByPod(namespace string, env st
 func (impl AppListingServiceImpl) MemoryRequestGroupByPod(namespace string, env string, proEndpoint string) map[string]string {
 	impl.Logger.Debug("executing memoryRequestGroupByPod")
 	memoryRequestMetric := make(map[string]string)
-	if len(namespace) == 0 || len(proEndpoint) == 0 || len(env) == 0 {
+	if namespace == "" || proEndpoint == "" || env == "" {
 		impl.Logger.Warnw("not a complete data found for prometheus call", "missing", "AppName or namespace or prometheus url or env")
 		return memoryRequestMetric
 	}

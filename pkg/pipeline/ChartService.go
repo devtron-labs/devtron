@@ -22,29 +22,34 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	repository2 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
+	"github.com/xeipuuv/gojsonschema"
 	"go.uber.org/zap"
-	"io/ioutil"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
-	"net/http"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type TemplateRequest struct {
@@ -115,13 +120,15 @@ type ChartService interface {
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]json.RawMessage, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
+	DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error)
+	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
 }
 type ChartServiceImpl struct {
 	chartRepository           chartConfig.ChartRepository
 	logger                    *zap.SugaredLogger
 	repoRepository            chartConfig.ChartRepoRepository
 	chartTemplateService      util.ChartTemplateService
-	pipelineGroupRepository   pipelineConfig.AppRepository
+	pipelineGroupRepository   app.AppRepository
 	mergeUtil                 util.MergeUtil
 	repositoryService         repository.ServiceClient
 	refChartDir               RefChartDir
@@ -130,7 +137,7 @@ type ChartServiceImpl struct {
 	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository  chartConfig.PipelineConfigRepository
 	configMapRepository       chartConfig.ConfigMapRepository
-	environmentRepository     cluster.EnvironmentRepository
+	environmentRepository     repository4.EnvironmentRepository
 	pipelineRepository        pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
 	client                    *http.Client
@@ -140,7 +147,7 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 	logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
 	repoRepository chartConfig.ChartRepoRepository,
-	pipelineGroupRepository pipelineConfig.AppRepository,
+	pipelineGroupRepository app.AppRepository,
 	refChartDir RefChartDir,
 	defaultChart DefaultChart,
 	mergeUtil util.MergeUtil,
@@ -149,10 +156,11 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
-	environmentRepository cluster.EnvironmentRepository,
+	environmentRepository repository4.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
 	client *http.Client,
+	CustomFormatCheckers *util2.CustomFormatCheckers,
 ) *ChartServiceImpl {
 	return &ChartServiceImpl{
 		chartRepository:           chartRepository,
@@ -333,7 +341,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  true,
 		Previous:                false,
-		AuditLog:                models.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
+		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
 	err = impl.chartRepository.Save(chart)
@@ -451,7 +459,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  false,
 		Previous:                false,
-		AuditLog:                models.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
+		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
 	err = impl.chartRepository.Save(chart)
@@ -749,7 +757,7 @@ func (impl ChartServiceImpl) updateAppLevelMetrics(appMetricRequest *AppMetricEn
 			AppId:        appMetricRequest.AppId,
 			AppMetrics:   appMetricRequest.IsAppMetricsEnabled,
 			InfraMetrics: true,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 				CreatedBy: appMetricRequest.UserId,
@@ -804,6 +812,7 @@ func (impl ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId i
 type chartRef struct {
 	Id      int    `json:"id"`
 	Version string `json:"version"`
+	Name    string `json:"name"`
 }
 
 type chartRefResponse struct {
@@ -839,17 +848,20 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 
 	var LatestAppChartRef int
 	for _, result := range results {
-		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version})
+		if len(result.Name) == 0 {
+			result.Name = "Rollout Deployment"
+		}
+		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name})
 		if result.Default == true {
 			LatestAppChartRef = result.Id
 		}
 	}
-
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching latest chart", "err", err)
 		return chartRefResponse, err
 	}
+
 	if envId > 0 {
 		envOverride, err := impl.envOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
 		if err != nil && !errors.IsNotFound(err) {
@@ -933,7 +945,7 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 			EnvOverrideValues: string(envOverride.EnvOverrideValues),
 			TargetEnvironment: envOverride.TargetEnvironment,
 			ChartId:           updatedChart.Id,
-			AuditLog:          models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
+			AuditLog:          sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
 			Namespace:         env.Namespace,
 			Latest:            true,
 			Previous:          false,
@@ -1032,4 +1044,101 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 		return &appMetricRequest, nil
 	}
 	return nil, err
+}
+
+const memoryPattern = `"1000Mi" or "1Gi"`
+const cpuPattern = `"50m" or "0.05"`
+const cpu = "cpu"
+const memory = "memory"
+
+func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error) {
+	schemajson, err := impl.JsonSchemaExtractFromFile(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
+		return true, nil
+	}
+	//if err != nil && chartRefId >= 9 {
+	//	impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
+	//	return false, err
+	//} else if err != nil {
+	//	impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
+	//	return true, nil
+	//}
+	schemaLoader := gojsonschema.NewGoLoader(schemajson)
+	documentLoader := gojsonschema.NewGoLoader(templatejson)
+	marshalTemplatejson, err := json.Marshal(templatejson)
+	if err != nil {
+		impl.logger.Errorw("json template marshal err, DeploymentTemplateValidate", "err", err)
+		return false, err
+	}
+	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	if err != nil {
+		impl.logger.Errorw("result validate err, DeploymentTemplateValidate", "err", err)
+		return false, err
+	}
+	if result.Valid() {
+		var dat map[string]interface{}
+		if err := json.Unmarshal(marshalTemplatejson, &dat); err != nil {
+			impl.logger.Errorw("json template unmarshal err, DeploymentTemplateValidate", "err", err)
+			return false, err
+		}
+
+		_, err := util2.CompareLimitsRequests(dat)
+		if err != nil {
+			impl.logger.Errorw("LimitRequestCompare err, DeploymentTemplateValidate", "err", err)
+			return false, err
+		}
+		_, err = util2.AutoScale(dat)
+		if err != nil {
+			impl.logger.Errorw("LimitRequestCompare err, DeploymentTemplateValidate", "err", err)
+			return false, err
+		}
+
+		return true, nil
+	} else {
+		var stringerror string
+		for _, err := range result.Errors() {
+			impl.logger.Errorw("result err, DeploymentTemplateValidate", "err", err.Details())
+			if err.Details()["format"] == cpu {
+				stringerror = stringerror + err.Field() + ": Format should be like " + cpuPattern + "\n"
+			} else if err.Details()["format"] == memory {
+				stringerror = stringerror + err.Field() + ": Format should be like " + memoryPattern + "\n"
+			} else {
+				stringerror = stringerror + err.String() + "\n"
+			}
+		}
+		return false, errors.New(stringerror)
+	}
+}
+
+func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error) {
+	refChartDir, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	if err != nil {
+		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
+		return nil, err
+	}
+	fileStatus := filepath.Join(refChartDir, "schema.json")
+	if _, err := os.Stat(fileStatus); os.IsNotExist(err) {
+		impl.logger.Errorw("Schema File Not Found err, JsonSchemaExtractFromFile", err)
+		return nil, err
+	} else {
+		jsonFile, err := os.Open(fileStatus)
+		if err != nil {
+			impl.logger.Errorw("jsonfile open err, JsonSchemaExtractFromFile", "err", err)
+			return nil, err
+		}
+		byteValueJsonFile, err := ioutil.ReadAll(jsonFile)
+		if err != nil {
+			impl.logger.Errorw("byteValueJsonFile read err, JsonSchemaExtractFromFile", "err", err)
+			return nil, err
+		}
+
+		var schemajson map[string]interface{}
+		err = json.Unmarshal([]byte(byteValueJsonFile), &schemajson)
+		if err != nil {
+			impl.logger.Errorw("Unmarshal err in byteValueJsonFile, DeploymentTemplateValidate", "err", err)
+			return nil, err
+		}
+		return schemajson, nil
+	}
 }

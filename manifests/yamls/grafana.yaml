@@ -186,25 +186,25 @@ data:
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13322/revisions/3/download" > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage.json"
+      "https://grafana.com/api/dashboards/13322/revisions/4/download" > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13320/revisions/2/download" > "/var/lib/grafana/dashboards/devtron-provider/latency-status.json"
+      "https://grafana.com/api/dashboards/13320/revisions/4/download" > "/var/lib/grafana/dashboards/devtron-provider/latency-status.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13325/revisions/3/download" > "/var/lib/grafana/dashboards/devtron-provider/memory-usage.json"
+      "https://grafana.com/api/dashboards/13325/revisions/4/download" > "/var/lib/grafana/dashboards/devtron-provider/memory-usage.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
     -H "Accept: application/json" \
     -H "Content-Type: application/json;charset=UTF-8" \
-      "https://grafana.com/api/dashboards/13321/revisions/2/download" > "/var/lib/grafana/dashboards/devtron-provider/response-status.json"
+      "https://grafana.com/api/dashboards/13321/revisions/6/download" > "/var/lib/grafana/dashboards/devtron-provider/response-status.json"
     curl -skf \
     --connect-timeout 60 \
     --max-time 60 \
@@ -274,7 +274,7 @@ spec:
     - "ReadWriteOnce"
   resources:
     requests:
-      storage: "20Gi"
+      storage: "2Gi"
 ---
 # Source: grafana/templates/clusterrole.yaml
 kind: ClusterRole
@@ -313,7 +313,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ---
 # Source: grafana/templates/role.yaml
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: devtron-grafana
@@ -349,7 +349,7 @@ rules:
   resourceNames:  [devtron-grafana-test]
 ---
 # Source: grafana/templates/rolebinding.yaml
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: devtron-grafana
@@ -582,7 +582,7 @@ spec:
           emptyDir: {}
 ---
 # Source: grafana/templates/ingress.yaml
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: devtron-grafana
@@ -601,9 +601,12 @@ spec:
       http:
         paths:
           - path: /grafana
+            pathType: ImplementationSpecific
             backend:
-              serviceName: devtron-grafana
-              servicePort: 80
+              service:
+                name: devtron-grafana
+                port:
+                  number: 80
 ---
 # Source: grafana/templates/tests/test.yaml
 apiVersion: v1
@@ -634,4 +637,4 @@ spec:
   - name: tests
     configMap:
       name: devtron-grafana-test
-  restartPolicy: Never
+  restartPolicy: OnFailure

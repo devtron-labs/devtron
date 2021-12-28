@@ -18,13 +18,14 @@
 package appstore
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/go-pg/pg"
-	"go.uber.org/zap"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"strconv"
 	"time"
+
+	"github.com/go-pg/pg"
+	"go.uber.org/zap"
 )
 
 type InstalledAppRepository interface {
@@ -89,9 +90,9 @@ type InstalledApps struct {
 	EnvironmentId int                      `sql:"environment_id,notnull"`
 	Active        bool                     `sql:"active, notnull"`
 	Status        AppstoreDeploymentStatus `sql:"status"`
-	App           pipelineConfig.App
-	Environment   cluster.Environment
-	models.AuditLog
+	App           app.App
+	Environment   repository.Environment
+	sql.AuditLog
 }
 
 type InstalledAppVersions struct {
@@ -103,7 +104,7 @@ type InstalledAppVersions struct {
 	Active                       bool     `sql:"active, notnull"`
 	ReferenceValueId             int      `sql:"reference_value_id"`
 	ReferenceValueKind           string   `sql:"reference_value_kind"`
-	models.AuditLog
+	sql.AuditLog
 	InstalledApp               InstalledApps
 	AppStoreApplicationVersion AppStoreApplicationVersion
 }
@@ -261,8 +262,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *AppStoreFilte
 
 func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error) {
 	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
-	var queryTemp string
-	queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, ia.updated_on, u.email_id, asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id " +
+	var queryTemp string = "select env.environment_name, env.id as environment_id, a.app_name, ia.updated_on, u.email_id, asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id " +
 		" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id" +
 		" inner join app a on a.id = ia.app_id " +
 		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id " +

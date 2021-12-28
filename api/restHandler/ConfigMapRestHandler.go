@@ -21,10 +21,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -59,7 +61,7 @@ type ConfigMapRestHandlerImpl struct {
 	chartService       pipeline.ChartService
 	userAuthService    user.UserService
 	teamService        team.TeamService
-	enforcer           rbac.Enforcer
+	enforcer           casbin.Enforcer
 	pipelineRepository pipelineConfig.PipelineRepository
 	enforcerUtil       rbac.EnforcerUtil
 	configMapService   pipeline.ConfigMapService
@@ -67,7 +69,7 @@ type ConfigMapRestHandlerImpl struct {
 
 func NewConfigMapRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
 	chartService pipeline.ChartService, userAuthService user.UserService, teamService team.TeamService,
-	enforcer rbac.Enforcer, pipelineRepository pipelineConfig.PipelineRepository,
+	enforcer casbin.Enforcer, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil, configMapService pipeline.ConfigMapService) *ConfigMapRestHandlerImpl {
 	return &ConfigMapRestHandlerImpl{
 		pipelineBuilder:    pipelineBuilder,
@@ -86,7 +88,7 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalAddUpdate(w http.ResponseWriter,
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var configMapRequest pipeline.ConfigDataRequest
@@ -94,7 +96,7 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalAddUpdate(w http.ResponseWriter,
 	err = decoder.Decode(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, CMGlobalAddUpdate", "err", err, "payload", configMapRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	configMapRequest.UserId = userId
@@ -103,8 +105,8 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalAddUpdate(w http.ResponseWriter,
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(configMapRequest.AppId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC END
@@ -112,24 +114,24 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalAddUpdate(w http.ResponseWriter,
 	res, err := handler.configMapService.CMGlobalAddUpdate(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMGlobalAddUpdate", "err", err, "payload", configMapRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CMEnvironmentAddUpdate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var configMapRequest pipeline.ConfigDataRequest
 	err = decoder.Decode(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, CMEnvironmentAddUpdate", "err", err, "payload", configMapRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	configMapRequest.UserId = userId
@@ -138,13 +140,13 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentAddUpdate(w http.ResponseWr
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(configMapRequest.AppId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(configMapRequest.AppId, configMapRequest.EnvironmentId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC END
@@ -152,31 +154,31 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentAddUpdate(w http.ResponseWr
 	res, err := handler.configMapService.CMEnvironmentAddUpdate(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMEnvironmentAddUpdate", "err", err, "payload", configMapRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CMGlobalFetch(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CMGlobalFetch", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC END
@@ -184,37 +186,37 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalFetch(w http.ResponseWriter, r *
 	res, err := handler.configMapService.CMGlobalFetch(appId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMGlobalFetch", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CMEnvironmentFetch(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CMEnvironmentFetch", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CMEnvironmentFetch", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC END
@@ -222,17 +224,17 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentFetch(w http.ResponseWriter
 	res, err := handler.configMapService.CMEnvironmentFetch(appId, envId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMEnvironmentFetch", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CSGlobalAddUpdate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var configMapRequest pipeline.ConfigDataRequest
@@ -240,7 +242,7 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalAddUpdate(w http.ResponseWriter,
 	err = decoder.Decode(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, CSGlobalAddUpdate", "err", err, "payload", configMapRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	configMapRequest.UserId = userId
@@ -249,8 +251,8 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalAddUpdate(w http.ResponseWriter,
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(configMapRequest.AppId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC END
@@ -258,17 +260,17 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalAddUpdate(w http.ResponseWriter,
 	res, err := handler.configMapService.CSGlobalAddUpdate(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSGlobalAddUpdate", "err", err, "payload", configMapRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var configMapRequest pipeline.ConfigDataRequest
@@ -276,7 +278,7 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWr
 	err = decoder.Decode(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, CSEnvironmentAddUpdate", "err", err, "payload", configMapRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	configMapRequest.UserId = userId
@@ -285,13 +287,13 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWr
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(configMapRequest.AppId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionCreate, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(configMapRequest.AppId, configMapRequest.EnvironmentId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionCreate, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC END
@@ -299,31 +301,31 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentAddUpdate(w http.ResponseWr
 	res, err := handler.configMapService.CSEnvironmentAddUpdate(&configMapRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSEnvironmentAddUpdate", "err", err, "payload", configMapRequest)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CSGlobalFetch(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CSGlobalFetch", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC END
@@ -331,37 +333,37 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalFetch(w http.ResponseWriter, r *
 	res, err := handler.configMapService.CSGlobalFetch(appId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSGlobalFetch", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CSEnvironmentFetch(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CSEnvironmentFetch", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("bad request", "err", err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC END
@@ -369,29 +371,29 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentFetch(w http.ResponseWriter
 	res, err := handler.configMapService.CSEnvironmentFetch(appId, envId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSEnvironmentFetch", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CMGlobalDelete(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CMGlobalDelete", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CMGlobalDelete", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	name := vars["name"]
@@ -400,8 +402,8 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalDelete(w http.ResponseWriter, r 
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionDelete, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC END
@@ -409,35 +411,35 @@ func (handler ConfigMapRestHandlerImpl) CMGlobalDelete(w http.ResponseWriter, r 
 	res, err := handler.configMapService.CMGlobalDelete(name, id, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMGlobalDelete", "err", err, "appId", appId, "id", id, "name", name)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CMEnvironmentDelete(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CMEnvironmentDelete", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CMEnvironmentDelete", "err", err, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CMEnvironmentDelete", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	name := vars["name"]
@@ -446,13 +448,13 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentDelete(w http.ResponseWrite
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionDelete, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionDelete, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionDelete, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC END
@@ -460,29 +462,29 @@ func (handler ConfigMapRestHandlerImpl) CMEnvironmentDelete(w http.ResponseWrite
 	res, err := handler.configMapService.CMEnvironmentDelete(name, id, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CMEnvironmentDelete", "err", err, "appId", appId, "envId", envId, "id", id)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CSGlobalDelete(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CSGlobalDelete", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CSGlobalDelete", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	name := vars["name"]
@@ -491,8 +493,8 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalDelete(w http.ResponseWriter, r 
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionDelete, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC END
@@ -500,35 +502,35 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalDelete(w http.ResponseWriter, r 
 	res, err := handler.configMapService.CSGlobalDelete(name, id, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSGlobalDelete", "err", err, "appId", appId, "id", id, "name", name)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CSEnvironmentDelete(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CSEnvironmentDelete", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CSEnvironmentDelete", "err", err, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CSEnvironmentDelete", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	name := vars["name"]
@@ -537,13 +539,13 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentDelete(w http.ResponseWrite
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionDelete, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionDelete, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionDelete, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC END
@@ -551,29 +553,29 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentDelete(w http.ResponseWrite
 	res, err := handler.configMapService.CSEnvironmentDelete(name, id, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSEnvironmentDelete", "err", err, "appId", appId, "envId", envId, "id", id)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CSGlobalFetchForEdit(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CSGlobalFetchForEdit", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CSGlobalFetchForEdit", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	name := vars["name"]
@@ -582,44 +584,44 @@ func (handler ConfigMapRestHandlerImpl) CSGlobalFetchForEdit(w http.ResponseWrit
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC END
 
-	res, err := handler.configMapService.CSGlobalFetchForEdit(name, id, userId)
+	res, err := handler.configMapService.CSGlobalFetchForEdit(name, id)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSGlobalFetchForEdit", "err", err, "appId", appId, "id", id, "name", name)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) CSEnvironmentFetchForEdit(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CSEnvironmentFetchForEdit", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CSEnvironmentFetchForEdit", "err", err, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CSEnvironmentFetchForEdit", "err", err, "id", id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	name := vars["name"]
@@ -628,38 +630,38 @@ func (handler ConfigMapRestHandlerImpl) CSEnvironmentFetchForEdit(w http.Respons
 	//RBAC START
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionUpdate, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceEnvironment, rbac.ActionUpdate, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC END
 
-	res, err := handler.configMapService.CSEnvironmentFetchForEdit(name, id, appId, envId, userId)
+	res, err := handler.configMapService.CSEnvironmentFetchForEdit(name, id, appId, envId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CSEnvironmentFetchForEdit", "err", err, "appId", appId, "envId", envId, "id", id)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
 	//AUTH - check from casbin db
 	roles, err := handler.userAuthService.CheckUserRoles(userId)
 	if err != nil {
-		writeJsonResp(w, err, []byte("Failed to get user by id"), http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, []byte("Failed to get user by id"), http.StatusInternalServerError)
 		return
 	}
 	superAdmin := false
@@ -669,7 +671,7 @@ func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWri
 		}
 	}
 	if superAdmin == false {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 	//AUTH
@@ -678,7 +680,7 @@ func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWri
 	err = decoder.Decode(&bulkPatchRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, ConfigSecretBulkPatch", "err", err, "payload", bulkPatchRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.Logger.Infow("request payload, ConfigSecretBulkPatch", "payload", bulkPatchRequest)
@@ -687,16 +689,16 @@ func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWri
 		_, err := handler.configMapService.ConfigSecretGlobalBulkPatch(&bulkPatchRequest)
 		if err != nil {
 			handler.Logger.Errorw("service err, ConfigSecretBulkPatch", "err", err, "payload", bulkPatchRequest)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 	} else {
 		_, err := handler.configMapService.ConfigSecretEnvironmentBulkPatch(&bulkPatchRequest)
 		if err != nil {
 			handler.Logger.Errorw("service err, ConfigSecretBulkPatch", "err", err, "payload", bulkPatchRequest)
-			writeJsonResp(w, err, nil, http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 	}
-	writeJsonResp(w, err, true, http.StatusOK)
+	common.WriteJsonResp(w, err, true, http.StatusOK)
 }

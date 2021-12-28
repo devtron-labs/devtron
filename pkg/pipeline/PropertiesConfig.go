@@ -20,17 +20,19 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"time"
+
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
-	"time"
 )
 
 type EnvironmentProperties struct {
@@ -79,7 +81,7 @@ type PropertiesConfigServiceImpl struct {
 	envConfigRepo                chartConfig.EnvConfigOverrideRepository
 	chartRepo                    chartConfig.ChartRepository
 	mergeUtil                    util.MergeUtil
-	environmentRepository        cluster.EnvironmentRepository
+	environmentRepository        repository2.EnvironmentRepository
 	dbPipelineOrchestrator       DbPipelineOrchestrator
 	application                  application.ServiceClient
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository
@@ -90,7 +92,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
 	chartRepo chartConfig.ChartRepository,
 	mergeUtil util.MergeUtil,
-	environmentRepository cluster.EnvironmentRepository,
+	environmentRepository repository2.EnvironmentRepository,
 	dbPipelineOrchestrator DbPipelineOrchestrator,
 	application application.ServiceClient,
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,
@@ -154,7 +156,7 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 			IsOverride: envOverride.IsOverride,
 		}
 
-		if len(environmentPropertiesResponse.Namespace) == 0 {
+		if environmentPropertiesResponse.Namespace == "" {
 			environmentPropertiesResponse.Namespace = envOverride.Namespace
 		}
 	}
@@ -253,7 +255,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 
 	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chart.ChartVersion)
 	if err != nil {
-		impl.logger.Errorw("chart version parsing", "err", err)
+		impl.logger.Errorw("chart version parsing", "err", err, "chartVersion", chart.ChartVersion)
 		return nil, err
 	}
 
@@ -261,7 +263,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		appMetricsRequest := AppMetricEnableDisableRequest{UserId: environmentProperties.UserId, AppId: appId, EnvironmentId: environmentProperties.EnvironmentId, IsAppMetricsEnabled: false}
 		_, err = impl.EnvMetricsEnableDisable(&appMetricsRequest)
 		if err != nil {
-			impl.logger.Errorw("err while disable app metrics for lower versions", "err", err)
+			impl.logger.Errorw("err while disable app metrics for lower versions", "err", err, "appId", appId, "chartMajorVersion", chartMajorVersion, "chartMinorVersion", chartMinorVersion)
 			return nil, err
 		}
 	}
@@ -312,7 +314,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		Status:            propertiesRequest.Status,
 		ManualReviewed:    propertiesRequest.ManualReviewed,
 		Namespace:         propertiesRequest.Namespace,
-		AuditLog:          models.AuditLog{UpdatedBy: propertiesRequest.UserId, UpdatedOn: time.Now()},
+		AuditLog:          sql.AuditLog{UpdatedBy: propertiesRequest.UserId, UpdatedOn: time.Now()},
 	}
 
 	override.Latest = true
@@ -400,7 +402,7 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Char
 			Status:            chartStatus,
 			TargetEnvironment: environmentId,
 			ChartId:           chart.Id,
-			AuditLog:          models.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
+			AuditLog:          sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
 			Namespace:         namespace,
 			IsOverride:        isOverride,
 		}
@@ -625,7 +627,7 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 			EnvId:        appMetricRequest.EnvironmentId,
 			AppMetrics:   &appMetricRequest.IsAppMetricsEnabled,
 			InfraMetrics: &infraMetrics,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 				CreatedBy: appMetricRequest.UserId,

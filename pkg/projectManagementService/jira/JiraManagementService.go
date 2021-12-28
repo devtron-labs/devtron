@@ -19,10 +19,11 @@ package jira
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/client/jira"
+	"strings"
+
+	client "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"go.uber.org/zap"
-	"strings"
 )
 
 type AccountService interface {
@@ -65,7 +66,7 @@ func (impl *AccountServiceImpl) UpdateJiraStatus(updateRequest *UpdateRequest, f
 
 		id := ""
 		for _, jiraTransition := range transitionResponses {
-			if strings.ToLower(finalIssueStatus) == strings.ToLower(jiraTransition.Name) {
+			if strings.EqualFold(finalIssueStatus, jiraTransition.Name) {
 				id = jiraTransition.Id
 				break
 			}

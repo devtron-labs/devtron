@@ -20,8 +20,8 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -132,8 +132,8 @@ type ConfigMapService interface {
 	CSGlobalDeleteByAppId(name string, appId int, userId int32) (bool, error)
 	CSEnvironmentDeleteByAppIdAndEnvId(name string, appId int, envId int, userId int32) (bool, error)
 
-	CSGlobalFetchForEdit(name string, id int, userId int32) (*ConfigDataRequest, error)
-	CSEnvironmentFetchForEdit(name string, id int, appId int, envId int, userId int32) (*ConfigDataRequest, error)
+	CSGlobalFetchForEdit(name string, id int) (*ConfigDataRequest, error)
+	CSEnvironmentFetchForEdit(name string, id int, appId int, envId int) (*ConfigDataRequest, error)
 	ConfigSecretGlobalBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error)
 	ConfigSecretEnvironmentBulkPatch(bulkPatchRequest *BulkPatchRequest) (*BulkPatchRequest, error)
 }
@@ -147,7 +147,7 @@ type ConfigMapServiceImpl struct {
 	configMapRepository         chartConfig.ConfigMapRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	commonService               commonService.CommonService
-	appRepository               pipelineConfig.AppRepository
+	appRepository               app.AppRepository
 }
 
 func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -156,7 +156,7 @@ func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
 	mergeUtil util.MergeUtil,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
-	commonService commonService.CommonService, appRepository pipelineConfig.AppRepository) *ConfigMapServiceImpl {
+	commonService commonService.CommonService, appRepository app.AppRepository) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
 		chartRepository:             chartRepository,
 		logger:                      logger,
@@ -864,10 +864,13 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 			for k := range resultMap {
 				resultMapFinal[k] = ""
 			}
-			resultByte, err := json.Marshal(resultMapFinal)
-			if err != nil {
-				impl.logger.Errorw("error while marshaling request ", "err", err)
-				return nil, err
+			var resultByte []byte
+			if resultMapFinal != nil && len(resultMapFinal) > 0 {
+				resultByte, err = json.Marshal(resultMapFinal)
+				if err != nil {
+					impl.logger.Errorw("error while marshaling request ", "err", err)
+					return nil, err
+				}
 			}
 			item.Data = resultByte
 		}
@@ -1300,7 +1303,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDeleteByAppIdAndEnvId(name string,
 
 ////
 
-func (impl ConfigMapServiceImpl) CSGlobalFetchForEdit(name string, id int, userId int32) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CSGlobalFetchForEdit(name string, id int) (*ConfigDataRequest, error) {
 	configMapEnvLevel, err := impl.configMapRepository.GetByIdAppLevel(id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -1329,7 +1332,7 @@ func (impl ConfigMapServiceImpl) CSGlobalFetchForEdit(name string, id int, userI
 	return configDataRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, appId int, envId int, userId int32) (*ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, appId int, envId int) (*ConfigDataRequest, error) {
 	configDataRequest := &ConfigDataRequest{}
 	configsList := &SecretsList{}
 	var configs []*ConfigData

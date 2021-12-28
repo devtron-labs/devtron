@@ -18,14 +18,15 @@
 package app
 
 import (
-	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/util/event"
-	"go.uber.org/zap"
 	"strings"
 	"time"
+
+	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	client "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
+	util "github.com/devtron-labs/devtron/util/event"
+	"go.uber.org/zap"
 )
 
 type DeploymentFailureHandler interface {
@@ -89,5 +90,5 @@ func (impl *DeploymentFailureHandlerImpl) BuildPayload(appName string, deploymen
 }
 
 func (impl *DeploymentFailureHandlerImpl) isDeploymentFailed(ds repository.DeploymentStatus) bool {
-	return ds.Status == application.Degraded && time.Now().Sub(ds.UpdatedOn) > 5*time.Minute
+	return ds.Status == application.Degraded && time.Since(ds.UpdatedOn) > 5*time.Minute
 }

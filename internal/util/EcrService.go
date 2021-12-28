@@ -28,7 +28,7 @@ import (
 )
 
 //FIXME: this code is temp
-func CreateEcrRepo(repoName string, RegistryURL string, reg string, accessKey string, secretKey string) error {
+func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey string) error {
 	region := reg
 	credentials := credentials.NewStaticCredentials(accessKey, secretKey, "")
 	svc := ecr.New(session.New(&aws.Config{
