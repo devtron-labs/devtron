@@ -182,10 +182,12 @@ func (impl K8sClientServiceImpl) GetPodLogs(restConfig *rest.Config, request *K8
 		//},
 		Follow:       podLogsRequest.Follow,
 		TailLines:    &tailLines,
-		SinceSeconds: &sinceSeconds,
 		Container:    podLogsRequest.ContainerName,
+		Timestamps: true,
 	}
-	if podLogsRequest.SinceTime != nil {
+	if sinceSeconds != 0 {
+		podLogOptions.SinceSeconds = &sinceSeconds
+	} else if podLogsRequest.SinceTime != nil {
 		podLogOptions.SinceTime = podLogsRequest.SinceTime
 	}
 	podIf := podClient.Pods(resourceIdentifier.Namespace)
