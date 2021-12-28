@@ -167,7 +167,7 @@ autoscaling:
 | `enabled` | Set true to enable autoscaling else set false.|
 | `extraMetrics` | Used to give external metrics for autoscaling. |
 
-## Fullname Override
+### Fullname Override
 
 ```yaml
 fullnameOverride: app-name
