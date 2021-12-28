@@ -167,6 +167,12 @@ autoscaling:
 | `enabled` | Set true to enable autoscaling else set false.|
 | `extraMetrics` | Used to give external metrics for autoscaling. |
 
+## Fullname Override
+
+```yaml
+fullnameOverride: app-name
+```
+
 ### Image
 
 ```yaml
@@ -175,13 +181,6 @@ image:
 ```
 
 Image is used to access images in kubernetes, pullpolicy is used to define the instances calling the image, here the image is pulled when the image is not present,it can also be set as "Always".
-
-### Fullname Override
-
-```yaml
-fullnameOverride: app-name
-```
-
 
 ### imagePullSecrets
 
