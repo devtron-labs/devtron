@@ -172,6 +172,7 @@ autoscaling:
 ```yaml
 fullnameOverride: app-name
 ```
+`fullnameOverride` replaces the name of all the resources that will be created using chart.
 
 ### Image
 
