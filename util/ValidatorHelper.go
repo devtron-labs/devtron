@@ -258,12 +258,8 @@ func (f CpuChecker) IsFormat(input interface{}) bool {
 	if !ok {
 		return false
 	}
-
-	if CpuUnitChecker.MatchString(asString) {
-		return true
-	} else {
-		return false
-	}
+	quantity, err := resource.ParseQuantity(asString)
+	return err == nil && quantity.Value() > 0
 }
 
 func (f MemoryChecker) IsFormat(input interface{}) bool {
@@ -274,12 +270,8 @@ func (f MemoryChecker) IsFormat(input interface{}) bool {
 	if !ok {
 		return false
 	}
-
-	if MemoryUnitChecker.MatchString(asString) {
-		return true
-	} else {
-		return false
-	}
+	quantity, err := resource.ParseQuantity(asString)
+	return err == nil && quantity.Value() > 0
 }
 
 type (
