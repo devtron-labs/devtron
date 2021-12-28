@@ -18,6 +18,7 @@
 package connector
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -64,12 +65,7 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 	if err != nil {
 		http.Error(w, errors.Details(err), http.StatusInternalServerError)
 	}
-	//w.Header().Set("Transfer-Encoding", "chunked")
-	//w.Header().Set("Content-Type", "text/event-stream")
-	//w.Header().Set("X-Accel-Buffering", "no")
-	//w.Header().Set("X-Content-Type-Options", "nosniff")
 
-	//var wroteHeader bool
 	if isReconnect {
 		err := impl.sendEvent(nil, []byte("RECONNECT_STREAM"), []byte("RECONNECT_STREAM"), w)
 		if err != nil {
@@ -105,27 +101,25 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 
 	// heartbeat end
 	for {
-		//buffer := new(bytes.Buffer)
-		byt, err := io.ReadAll(stream)
-		fmt.Println(string(byt), err)
-		//_, err = io.Copy(buffer, stream)
-		//if err != nil {
-		//	impl.logger.Errorw("error in copying logs info to buffer", "err", err)
-		//	impl.handleForwardResponseStreamError(wroteHeader, w, err)
-		//	return
-		//}
-		log := string(byt)
-		a := regexp.MustCompile(" ")
-		splitLog := a.Split(log, 2)
-		mux.Lock()
-		err = impl.sendEvent([]byte(splitLog[0]), nil, []byte(splitLog[1]), w)
-		mux.Unlock()
-		if err != nil {
-			impl.logger.Errorw("error in writing data over sse", "err", err)
-			return
+		sc := bufio.NewScanner(stream)
+		for sc.Scan() {
+			log := sc.Text()
+			a := regexp.MustCompile(" ")
+			splitLog := a.Split(log, 2)
+			timeParsed, err := time.Parse(time.RFC3339, splitLog[0])
+			if err != nil {
+				impl.logger.Errorw("error in writing data over sse", "err", err)
+				return
+			}
+			mux.Lock()
+			err = impl.sendEvent([]byte(strconv.FormatInt(timeParsed.UnixNano(), 10)), nil, []byte(splitLog[1]), w)
+			mux.Unlock()
+			if err != nil {
+				impl.logger.Errorw("error in writing data over sse", "err", err)
+				return
+			}
+			f.Flush()
 		}
-		//wroteHeader = true
-		f.Flush()
 	}
 }
 

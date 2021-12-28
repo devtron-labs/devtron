@@ -51,7 +51,7 @@ type PodLogsRequest struct {
 }
 
 type ResourceIdentifier struct {
-	Name             string                  `json:"name"`       //pod name for logs request
+	Name             string                  `json:"name"` //pod name for logs request
 	Namespace        string                  `json:"namespace"`
 	GroupVersionKind schema.GroupVersionKind `json:"groupVersionKind"`
 }
@@ -175,14 +175,10 @@ func (impl K8sClientServiceImpl) GetPodLogs(restConfig *rest.Config, request *K8
 	}
 	tailLines := int64(podLogsRequest.TailLines)
 	podLogOptions := &apiv1.PodLogOptions{
-		//TypeMeta: metav1.TypeMeta{
-		//	Kind:       resourceIdentifier.GroupVersionKind.Kind,
-		//	APIVersion: resourceIdentifier.GroupVersionKind.GroupVersion().String(),
-		//},
-		Follow:       podLogsRequest.Follow,
-		TailLines:    &tailLines,
-		Container:    podLogsRequest.ContainerName,
-		Timestamps: false,
+		Follow:     podLogsRequest.Follow,
+		TailLines:  &tailLines,
+		Container:  podLogsRequest.ContainerName,
+		Timestamps: true,
 	}
 	if podLogsRequest.SinceTime != nil {
 		podLogOptions.SinceTime = podLogsRequest.SinceTime
@@ -194,12 +190,6 @@ func (impl K8sClientServiceImpl) GetPodLogs(restConfig *rest.Config, request *K8
 		impl.logger.Errorw("error in streaming pod logs", "err", err)
 		return nil, err
 	}
-	//buffer := new(bytes.Buffer)
-	//_, err = io.Copy(buffer, stream)
-	//if err != nil {
-	//	impl.logger.Errorw("error in copying logs info to buffer", "err", err)
-	//	return nil, err
-	//}
 	return stream, nil
 }
 

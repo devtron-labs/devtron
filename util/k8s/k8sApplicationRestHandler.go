@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
@@ -58,6 +56,12 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	if err != nil || !valid {
+		handler.logger.Errorw("error in validating resource request", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	//TODO : add rbac
 	resource, err := handler.k8sApplicationService.GetResource(&request)
 	if err != nil {
@@ -74,6 +78,12 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	if err != nil || !valid {
+		handler.logger.Errorw("error in validating resource request", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -96,6 +106,12 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	if err != nil || !valid {
+		handler.logger.Errorw("error in validating resource request", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	//TODO : add rbac
 	resource, err := handler.k8sApplicationService.DeleteResource(&request)
 	if err != nil {
@@ -115,6 +131,12 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	if err != nil || !valid {
+		handler.logger.Errorw("error in validating resource request", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	//TODO : add rbac
 	events, err := handler.k8sApplicationService.ListEvents(&request)
 	if err != nil {
@@ -126,33 +148,20 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *http.Request) {
-	//decoder := json.NewDecoder(r.Body)
-	//var request ResourceRequestBean
-	//err := decoder.Decode(&request)
-	//if err != nil {
-	//	handler.logger.Errorw("error in decoding request body", "err", err)
-	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//	return
-	//}
-
-	request := ResourceRequestBean{
-		AppIdentifier: &client.AppIdentifier{
-			Namespace: "devtron-test",
-			ClusterId: 2,
-		},
-		K8sRequest: &application.K8sRequestBean{
-			ResourceIdentifier: application.ResourceIdentifier{
-				Name: "kartik-test-6-devtron-test-6756979697-46hmm",
-				Namespace: "devtron-test",
-			},
-			PodLogsRequest: application.PodLogsRequest{
-				TailLines: 500,
-				Follow: true,
-				ContainerName: "kartik-test-6",
-			},
-		},
+	decoder := json.NewDecoder(r.Body)
+	var request ResourceRequestBean
+	err := decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
-
+	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	if err != nil || !valid {
+		handler.logger.Errorw("error in validating resource request", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	//TODO : add rbac
 	lastEventId := r.Header.Get("Last-Event-ID")
 	isReconnect := false

@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"context"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/k8s/application"
@@ -21,6 +20,7 @@ type K8sApplicationService interface {
 	DeleteResource(request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
 	ListEvents(request *ResourceRequestBean) (*application.EventsResponse, error)
 	GetPodLogs(request *ResourceRequestBean) (io.ReadCloser, error)
+	ValidateResourceRequest(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger           *zap.SugaredLogger
@@ -49,14 +49,6 @@ type ResourceRequestBean struct {
 }
 
 func (impl *K8sApplicationServiceImpl) GetResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
-	valid, err := impl.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
-	if err != nil {
-		impl.logger.Errorw("error in validating resource request", "err", err)
-		return nil, err
-	}
-	if !valid {
-		return nil, fmt.Errorf(" The resource in your request is not valid for this app. Please change and try again.")
-	}
 	//getting rest config by clusterId
 	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
@@ -72,14 +64,6 @@ func (impl *K8sApplicationServiceImpl) GetResource(request *ResourceRequestBean)
 }
 
 func (impl *K8sApplicationServiceImpl) UpdateResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
-	valid, err := impl.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
-	if err != nil {
-		impl.logger.Errorw("error in validating resource request", "err", err)
-		return nil, err
-	}
-	if !valid {
-		return nil, fmt.Errorf(" The resource in your request is not valid for this app. Please change and try again.")
-	}
 	//getting rest config by clusterId
 	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
@@ -95,14 +79,6 @@ func (impl *K8sApplicationServiceImpl) UpdateResource(request *ResourceRequestBe
 }
 
 func (impl *K8sApplicationServiceImpl) DeleteResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
-	valid, err := impl.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
-	if err != nil {
-		impl.logger.Errorw("error in validating resource request", "err", err)
-		return nil, err
-	}
-	if !valid {
-		return nil, fmt.Errorf(" The resource in your request is not valid for this app. Please change and try again.")
-	}
 	//getting rest config by clusterId
 	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
@@ -118,14 +94,6 @@ func (impl *K8sApplicationServiceImpl) DeleteResource(request *ResourceRequestBe
 }
 
 func (impl *K8sApplicationServiceImpl) ListEvents(request *ResourceRequestBean) (*application.EventsResponse, error) {
-	valid, err := impl.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
-	if err != nil {
-		impl.logger.Errorw("error in validating resource request", "err", err)
-		return nil, err
-	}
-	if !valid {
-		return nil, fmt.Errorf(" The resource in your request is not valid for this app. Please change and try again.")
-	}
 	//getting rest config by clusterId
 	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
@@ -141,14 +109,6 @@ func (impl *K8sApplicationServiceImpl) ListEvents(request *ResourceRequestBean) 
 }
 
 func (impl *K8sApplicationServiceImpl) GetPodLogs(request *ResourceRequestBean) (io.ReadCloser, error) {
-	//valid, err := impl.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
-	//if err != nil {
-	//	impl.logger.Errorw("error in validating resource request", "err", err)
-	//	return nil, err
-	//}
-	//if !valid {
-	//	return nil, fmt.Errorf(" The resource in your request is not valid for this app. Please change and try again.")
-	//}
 	//getting rest config by clusterId
 	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
@@ -206,12 +166,14 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(appIdentifier *cl
 			break
 		}
 	}
-	for _, pod := range app.ResourceTreeResponse.PodMetadata {
-		if pod.Name == request.ResourceIdentifier.Name {
-			for _, container := range pod.Containers{
-				if container == request.PodLogsRequest.ContainerName{
-					valid = true
-					break
+	if !valid {
+		for _, pod := range app.ResourceTreeResponse.PodMetadata {
+			if pod.Name == request.ResourceIdentifier.Name {
+				for _, container := range pod.Containers {
+					if container == request.PodLogsRequest.ContainerName {
+						valid = true
+						break
+					}
 				}
 			}
 		}
