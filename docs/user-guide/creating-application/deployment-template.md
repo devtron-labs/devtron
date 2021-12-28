@@ -172,7 +172,7 @@ autoscaling:
 ```yaml
 fullnameOverride: app-name
 ```
-`fullnameOverride` replaces the name of all the resources that will be created using chart.
+`fullnameOverride` replaces the release fullname created by default by devtron, which is used to construct Kubernetes object names. By default, devtron uses {app-name}-{environment-name} as release fullname.
 
 ### Image
 
