@@ -1637,9 +1637,9 @@ func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentI
 		return ciArtifactsResponse, err
 	}
 	//sorting ci artifacts on the basis of creation time
-	if ciArtifacts != nil && len(ciArtifacts) > 0 {
+	if ciArtifacts != nil {
 		sort.SliceStable(ciArtifacts, func(i, j int) bool {
-			return ciArtifacts[i].CiArtifactCreationTime.After(ciArtifacts[j].CiArtifactCreationTime)
+			return ciArtifacts[i].Id > ciArtifacts[j].Id
 		})
 	}
 	ciArtifactsResponse.CdPipelineId = cdPipelineId
@@ -1695,7 +1695,6 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 					Latest:                 latest,
 					Scanned:                wfr.CdWorkflow.CiArtifact.Scanned,
 					ScanEnabled:            wfr.CdWorkflow.CiArtifact.ScanEnabled,
-					CiArtifactCreationTime: wfr.CdWorkflow.CiArtifact.CreatedOn,
 				}
 				if !parent {
 					ciArtifact.Deployed = true
@@ -1737,7 +1736,6 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, ciAr
 				MaterialInfo:           mInfo,
 				ScanEnabled:            artifact.ScanEnabled,
 				Scanned:                artifact.Scanned,
-				CiArtifactCreationTime: artifact.CreatedOn,
 			})
 		}
 	}

@@ -524,7 +524,6 @@ type CiArtifactBean struct {
 	IsVulnerable           bool            `json:"vulnerable,notnull"`
 	ScanEnabled            bool            `json:"scanEnabled,notnull"`
 	Scanned                bool            `json:"scanned,notnull"`
-	CiArtifactCreationTime time.Time       `json:"ciArtifactCreationTime"`
 }
 
 type CiArtifactResponse struct {
