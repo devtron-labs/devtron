@@ -23,15 +23,16 @@ import (
 )
 
 type Environment struct {
-	tableName           struct{} `sql:"environment" pg:",discard_unknown_columns"`
-	Id                  int      `sql:"id,pk"`
-	Name                string   `sql:"environment_name"`
-	ClusterId           int      `sql:"cluster_id"`
-	Cluster             *Cluster
-	Active              bool   `sql:"active,notnull"`
-	Default             bool   `sql:"default,notnull"`
-	GrafanaDatasourceId int    `sql:"grafana_datasource_id"`
-	Namespace           string `sql:"namespace"`
+	tableName             struct{} `sql:"environment" pg:",discard_unknown_columns"`
+	Id                    int      `sql:"id,pk"`
+	Name                  string   `sql:"environment_name"`
+	ClusterId             int      `sql:"cluster_id"`
+	Cluster               *Cluster
+	Active                bool   `sql:"active,notnull"`
+	Default               bool   `sql:"default,notnull"`
+	GrafanaDatasourceId   int    `sql:"grafana_datasource_id"`
+	Namespace             string `sql:"namespace"`
+	EnvironmentIdentifier string `sql:"environment_identifier"`
 	sql.AuditLog
 }
 
@@ -150,8 +151,8 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterId(clusterId int) (
 	return mappings, err
 }
 
-func (repo EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Environment, error) {
+func (repositoryImpl EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Environment, error) {
 	var apps []*Environment
-	err := repo.dbConnection.Model(&apps).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
+	err := repositoryImpl.dbConnection.Model(&apps).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
 	return apps, err
 }

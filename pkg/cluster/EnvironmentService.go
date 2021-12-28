@@ -29,15 +29,16 @@ import (
 )
 
 type EnvironmentBean struct {
-	Id                 int    `json:"id,omitempty" validate:"number"`
-	Environment        string `json:"environment_name,omitempty" validate:"required,max=50"`
-	ClusterId          int    `json:"cluster_id,omitempty" validate:"number,required"`
-	ClusterName        string `json:"cluster_name,omitempty"`
-	Active             bool   `json:"active"`
-	Default            bool   `json:"default"`
-	PrometheusEndpoint string `json:"prometheus_endpoint,omitempty"`
-	Namespace          string `json:"namespace,omitempty" validate:"max=50"`
-	CdArgoSetup        bool   `json:"isClusterCdActive"`
+	Id                    int    `json:"id,omitempty" validate:"number"`
+	Environment           string `json:"environment_name,omitempty" validate:"required,max=50"`
+	ClusterId             int    `json:"cluster_id,omitempty" validate:"number,required"`
+	ClusterName           string `json:"cluster_name,omitempty"`
+	Active                bool   `json:"active"`
+	Default               bool   `json:"default"`
+	PrometheusEndpoint    string `json:"prometheus_endpoint,omitempty"`
+	Namespace             string `json:"namespace,omitempty" validate:"max=50"`
+	CdArgoSetup           bool   `json:"isClusterCdActive"`
+	EnvironmentIdentifier string `json:"environmentIdentifier"`
 }
 
 type EnvironmentService interface {
@@ -148,13 +149,14 @@ func (impl EnvironmentServiceImpl) FindOne(environment string) (*EnvironmentBean
 		return nil, err
 	}
 	bean := &EnvironmentBean{
-		Id:                 model.Id,
-		Environment:        model.Name,
-		ClusterId:          model.Cluster.Id,
-		Active:             model.Active,
-		PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
-		Namespace:          model.Namespace,
-		Default:            model.Default,
+		Id:                    model.Id,
+		Environment:           model.Name,
+		ClusterId:             model.Cluster.Id,
+		Active:                model.Active,
+		PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
+		Namespace:             model.Namespace,
+		Default:               model.Default,
+		EnvironmentIdentifier: model.EnvironmentIdentifier,
 	}
 	return bean, nil
 }
@@ -167,15 +169,16 @@ func (impl EnvironmentServiceImpl) GetAll() ([]EnvironmentBean, error) {
 	var beans []EnvironmentBean
 	for _, model := range models {
 		beans = append(beans, EnvironmentBean{
-			Id:                 model.Id,
-			Environment:        model.Name,
-			ClusterId:          model.Cluster.Id,
-			ClusterName:        model.Cluster.ClusterName,
-			Active:             model.Active,
-			PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
-			Namespace:          model.Namespace,
-			Default:            model.Default,
-			CdArgoSetup:        model.Cluster.CdArgoSetup,
+			Id:                    model.Id,
+			Environment:           model.Name,
+			ClusterId:             model.Cluster.Id,
+			ClusterName:           model.Cluster.ClusterName,
+			Active:                model.Active,
+			PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
+			Namespace:             model.Namespace,
+			Default:               model.Default,
+			CdArgoSetup:           model.Cluster.CdArgoSetup,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
 	return beans, nil
@@ -189,13 +192,14 @@ func (impl EnvironmentServiceImpl) GetAllActive() ([]EnvironmentBean, error) {
 	var beans []EnvironmentBean
 	for _, model := range models {
 		beans = append(beans, EnvironmentBean{
-			Id:                 model.Id,
-			Environment:        model.Name,
-			ClusterId:          model.Cluster.Id,
-			Active:             model.Active,
-			PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
-			Namespace:          model.Namespace,
-			Default:            model.Default,
+			Id:                    model.Id,
+			Environment:           model.Name,
+			ClusterId:             model.Cluster.Id,
+			Active:                model.Active,
+			PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
+			Namespace:             model.Namespace,
+			Default:               model.Default,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
 	return beans, nil
@@ -208,13 +212,14 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*EnvironmentBean, error) {
 		return nil, err
 	}
 	bean := &EnvironmentBean{
-		Id:                 model.Id,
-		Environment:        model.Name,
-		ClusterId:          model.Cluster.Id,
-		Active:             model.Active,
-		PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
-		Namespace:          model.Namespace,
-		Default:            model.Default,
+		Id:                    model.Id,
+		Environment:           model.Name,
+		ClusterId:             model.Cluster.Id,
+		Active:                model.Active,
+		PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
+		Namespace:             model.Namespace,
+		Default:               model.Default,
+		EnvironmentIdentifier: model.EnvironmentIdentifier,
 	}
 
 	/*clusterBean := &ClusterBean{
@@ -320,10 +325,11 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 	var beans []EnvironmentBean
 	for _, model := range models {
 		beans = append(beans, EnvironmentBean{
-			Id:          model.Id,
-			Environment: model.Name,
-			Namespace:   model.Namespace,
-			CdArgoSetup: model.Cluster.CdArgoSetup,
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Namespace:             model.Namespace,
+			CdArgoSetup:           model.Cluster.CdArgoSetup,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
 	return beans, nil
@@ -355,13 +361,10 @@ func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*EnvironmentBean, er
 		beans = append(beans, &EnvironmentBean{
 			Id:          model.Id,
 			Environment: model.Name,
-			//ClusterId:          model.Cluster.Id,
-			//ClusterName:        model.Cluster.ClusterName,
 			Active: model.Active,
-			//PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
 			Namespace: model.Namespace,
 			Default:   model.Default,
-			//CdArgoSetup:        model.Cluster.CdArgoSetup,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
 	return beans, nil
@@ -380,9 +383,10 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 	var beans []*EnvironmentBean
 	for _, model := range models {
 		beans = append(beans, &EnvironmentBean{
-			Id:          model.Id,
-			Environment: model.Name,
-			Namespace:   model.Namespace,
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Namespace:             model.Namespace,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
 	return beans, nil

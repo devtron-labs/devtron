@@ -220,7 +220,7 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 		if err != nil {
 		}
 		for _, e := range envs {
-			envRbac = append(envRbac, fmt.Sprintf("%s/*", strings.ToLower(e.Environment)))
+			envRbac = append(envRbac, fmt.Sprintf("%s/*", strings.ToLower(e.EnvironmentIdentifier)))
 		}
 	} else if len(envIds) > 0 && len(appIds) > 0 {
 		envs, err := impl.environmentService.FindByIds(envIds)
@@ -228,7 +228,7 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 		}
 		for _, e := range envs {
 			for _, aId := range appIds {
-				envRbac = append(envRbac, fmt.Sprintf("%s/%s", strings.ToLower(e.Environment), appsMap[*aId]))
+				envRbac = append(envRbac, fmt.Sprintf("%s/%s", strings.ToLower(e.EnvironmentIdentifier), appsMap[*aId]))
 			}
 		}
 	}
