@@ -13,6 +13,8 @@ type HelmAppClient interface {
 	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
 	Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
+	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest) (*HelmAppDeploymentHistory, error)
+	GetValuesYaml(ctx context.Context, in *AppDetailRequest) (*ReleaseInfo, error)
 }
 
 type HelmAppClientImpl struct {

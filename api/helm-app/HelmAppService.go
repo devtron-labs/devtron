@@ -18,6 +18,8 @@ type HelmAppService interface {
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
+	GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error)
+	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error)
 }
 type HelmAppServiceImpl struct {
 	Logger         *zap.SugaredLogger
@@ -169,6 +171,36 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
 	return appdetail, err
 
+}
+
+func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {
+	config, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
+		return nil, err
+	}
+	req := &AppDetailRequest{
+		ClusterConfig: config,
+		Namespace:     app.Namespace,
+		ReleaseName:   app.ReleaseName,
+	}
+	history, err := impl.helmAppClient.GetDeploymentHistory(ctx, req)
+	return history, err
+}
+
+func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error) {
+	config, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
+		return nil, err
+	}
+	req := &AppDetailRequest{
+		ClusterConfig: config,
+		Namespace:     app.Namespace,
+		ReleaseName:   app.ReleaseName,
+	}
+	history, err := impl.helmAppClient.GetValuesYaml(ctx, req)
+	return history, err
 }
 
 type AppIdentifier struct {

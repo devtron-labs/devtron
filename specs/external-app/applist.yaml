@@ -20,7 +20,7 @@ paths:
             text/event-stream:
               schema:
                 $ref: "#/components/schemas/AppList"
-  /orchestrator/application/deployment-hostory:
+  /orchestrator/application/deployment-history:
     get:
       description: deployment history of helm app
       parameters:

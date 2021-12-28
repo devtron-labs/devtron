@@ -17,6 +17,8 @@ type HelmAppRestHandler interface {
 	GetApplicationDetail(w http.ResponseWriter, r *http.Request)
 	Hibernate(w http.ResponseWriter, r *http.Request)
 	UnHibernate(w http.ResponseWriter, r *http.Request)
+	GetDeploymentHistory(w http.ResponseWriter, r *http.Request)
+	GetValuesYaml(w http.ResponseWriter, r *http.Request)
 }
 type HelmAppRestHandlerImpl struct {
 	logger         *zap.SugaredLogger
@@ -69,7 +71,7 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 }
 
 func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.Request) {
-	hibernateRequest :=&openapi.HibernateRequest{}
+	hibernateRequest := &openapi.HibernateRequest{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(hibernateRequest)
 	if err != nil {
@@ -105,6 +107,38 @@ func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *htt
 	}
 	//TODO: apply app filter
 	res, err := handler.helmAppService.UnHibernateApplication(context.Background(), appIdentifier, hibernateRequest)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *HelmAppRestHandlerImpl) GetDeploymentHistory(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId := vars["appId"]
+	appIdentifier, err := DecodeAppId(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	res, err := handler.helmAppService.GetDeploymentHistory(context.Background(), appIdentifier)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId := vars["appId"]
+	appIdentifier, err := DecodeAppId(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	res, err := handler.helmAppService.GetValuesYaml(context.Background(), appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
