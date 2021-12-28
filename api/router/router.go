@@ -307,5 +307,5 @@ func (r MuxRouter) Init() {
 	r.helmAppRouter.InitAppListRouter(helmApp)
 
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
-	r.helmAppRouter.InitAppListRouter(k8sApp)
+	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
 }

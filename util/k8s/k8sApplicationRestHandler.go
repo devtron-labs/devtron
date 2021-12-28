@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -29,7 +28,6 @@ type K8sApplicationRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
 	k8sApplicationService  K8sApplicationService
 	pump                   connector.Pump
-	helmAppService         client.HelmAppService
 	terminalSessionHandler terminal.TerminalSessionHandler
 	enforcer               casbin.Enforcer
 	enforcerUtil           rbac.EnforcerUtil
@@ -37,13 +35,12 @@ type K8sApplicationRestHandlerImpl struct {
 
 func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
 	k8sApplicationService K8sApplicationService, pump connector.Pump,
-	helmAppService client.HelmAppService, terminalSessionHandler terminal.TerminalSessionHandler,
+	terminalSessionHandler terminal.TerminalSessionHandler,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                 logger,
 		k8sApplicationService:  k8sApplicationService,
 		pump:                   pump,
-		helmAppService:         helmAppService,
 		terminalSessionHandler: terminalSessionHandler,
 		enforcer:               enforcer,
 		enforcerUtil:           enforcerUtil,
@@ -59,14 +56,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
-	if err != nil {
-		handler.logger.Errorw("error in decoding appId", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 	//TODO : add rbac
-	resource, err := handler.k8sApplicationService.GetResource(appIdentifier, &request.K8sRequest)
+	resource, err := handler.k8sApplicationService.GetResource(&request)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -84,15 +75,8 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
-	if err != nil {
-		handler.logger.Errorw("error in decoding appId", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
 	//TODO : add rbac
-	resource, err := handler.k8sApplicationService.UpdateResource(appIdentifier, &request.K8sRequest)
+	resource, err := handler.k8sApplicationService.UpdateResource(&request)
 	if err != nil {
 		handler.logger.Errorw("error in updating resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -110,14 +94,8 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
-	if err != nil {
-		handler.logger.Errorw("error in decoding appId", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 	//TODO : add rbac
-	resource, err := handler.k8sApplicationService.DeleteResource(appIdentifier, &request.K8sRequest)
+	resource, err := handler.k8sApplicationService.DeleteResource(&request)
 	if err != nil {
 		handler.logger.Errorw("error in deleting resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -135,14 +113,8 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
-	if err != nil {
-		handler.logger.Errorw("error in decoding appId", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 	//TODO : add rbac
-	events, err := handler.k8sApplicationService.ListEvents(appIdentifier, &request.K8sRequest)
+	events, err := handler.k8sApplicationService.ListEvents(&request)
 	if err != nil {
 		handler.logger.Errorw("error in getting events list", "err", err)
 		common.WriteJsonResp(w, err, events, http.StatusInternalServerError)
@@ -160,12 +132,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
-	if err != nil {
-		handler.logger.Errorw("error in decoding appId", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+
 	//TODO : add rbac
 	lastEventId := r.Header.Get("Last-Event-ID")
 	isReconnect := false
@@ -181,7 +148,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		request.K8sRequest.PodLogsRequest.SinceSeconds = 0 //set this to zero, since its reconnect request
 		isReconnect = true
 	}
-	stream, err := handler.k8sApplicationService.GetPodLogs(appIdentifier, &request.K8sRequest)
+	stream, err := handler.k8sApplicationService.GetPodLogs(&request)
 	defer util.Close(stream, handler.logger)
 	handler.pump.StartK8sStreamWithHeartBeat(w, isReconnect, stream, err)
 }
