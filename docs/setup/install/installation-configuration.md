@@ -46,8 +46,8 @@ HIDE_DISCORD=false
 
 |Parameter | Description|
 |-|-|
-|RECOMMEND_SECURITY_SCANNING | By default `security scanning` is `enabled` for a new build pipeline. User can turn it off.|
-|FORCE_SECURITY_SCANNING | By default `security scanning` is `enabled` for a new build pipeline. User cannot turn it off for existing build pipelines. User cannot make changes in pipeline if `security scanning` is enabled.|
+|RECOMMEND_SECURITY_SCANNING | If True `security scanning` is `enabled` by default for a new build pipeline. Users can however turn it off in the new or existing pipelines.|
+|FORCE_SECURITY_SCANNING | If set True, `security scanning` is forcefully `enabled` by default for a new build pipeline. User can not turn it off for new as well as for existing build pipelines. Old pipelines that have security scanning disabled will remain unchanged and image scanning should be enabled manually for them.|
 |HIDE_DISCORD | Hides discord chat bot from dashboard.|
 
 
