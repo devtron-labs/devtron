@@ -410,15 +410,20 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown() ([]*E
 		impl.logger.Errorw("error in fetching environments", "err", err)
 	}
 	var environments []*EnvironmentBean
+	uniqueComboMap := make(map[string]*EnvironmentBean)
 	for _, model := range models {
-		environments = append(environments, &EnvironmentBean{
+		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
+		uniqueComboMap[key] = &EnvironmentBean{
 			Id:          model.Id,
 			Environment: model.Name,
 			Namespace:   model.Namespace,
 			ClusterId:   model.ClusterId,
 			ClusterName: model.Cluster.ClusterName,
 			CdArgoSetup: model.Cluster.CdArgoSetup,
-		})
+		}
+	}
+	for _, v := range uniqueComboMap {
+		environments = append(environments, v)
 	}
 	/*
 		clumap := make(map[string][]EnvironmentBean)
@@ -440,7 +445,12 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown() ([]*E
 		// skip if found error in fetching any cluster namespaces
 	}
 	if clusterNamespaces != nil && len(clusterNamespaces) > 0 {
-		environments = append(environments, clusterNamespaces...)
+		for _, item := range clusterNamespaces {
+			key := fmt.Sprintf("%s__%s", item.ClusterName, item.Namespace)
+			if _, ok := uniqueComboMap[key]; !ok {
+				environments = append(environments, item)
+			}
+		}
 	}
 	//TODO - dedupe which are already in db
 	return environments, nil
@@ -494,8 +504,8 @@ func (impl EnvironmentServiceImpl) getAllClusterNamespaceCombination() ([]*Envir
 
 		for _, namespace := range namespaces {
 			beans = append(beans, &EnvironmentBean{
-				Environment: fmt.Sprintf("%__%s", clusterBean.ClusterName, namespace.Namespace),
-				Namespace:   namespace.Namespace,
+				Environment: fmt.Sprintf("%s__%s", clusterBean.ClusterName, namespace.ObjectMeta.Name),
+				Namespace:   namespace.ObjectMeta.Name,
 				ClusterName: clusterBean.ClusterName,
 			})
 		}
