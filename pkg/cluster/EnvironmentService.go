@@ -24,6 +24,8 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	"net/http"
 	"time"
 )
 
@@ -46,8 +48,8 @@ type EnvDto struct {
 }
 
 type ClusterEnvDto struct {
-	ClusterId    int      `json:"clusterId,omitempty"`
-	ClusterName  string   `json:"clusterName,omitempty"`
+	ClusterId    int       `json:"clusterId,omitempty"`
+	ClusterName  string    `json:"clusterName,omitempty"`
 	Environments []*EnvDto `json:"environments,omitempty"`
 }
 
@@ -64,7 +66,8 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
-	GetEnvironmentListForAutocompleteGroupByCluster() ([]ClusterEnvDto, error)
+	GetEnvironmentListForAutocompleteGroupByCluster() ([]*EnvironmentBean, error)
+	GetAllActiveClusterAndNamespace() ([]*EnvironmentBean, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -401,15 +404,14 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocompleteGroupByCluster() ([]ClusterEnvDto, error) {
+func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocompleteGroupByCluster() ([]*EnvironmentBean, error) {
 	models, err := impl.environmentRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "err", err)
 	}
-	var clusters []ClusterEnvDto
-	clumap := make(map[string][]EnvironmentBean)
+	var environments []*EnvironmentBean
 	for _, model := range models {
-		clumap[model.Cluster.ClusterName] = append(clumap[model.Cluster.ClusterName], EnvironmentBean{
+		environments = append(environments, &EnvironmentBean{
 			Id:          model.Id,
 			Environment: model.Name,
 			Namespace:   model.Namespace,
@@ -418,5 +420,66 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocompleteGroupByClust
 			CdArgoSetup: model.Cluster.CdArgoSetup,
 		})
 	}
-	return clusters, nil
+	/*
+		clumap := make(map[string][]EnvironmentBean)
+		for _, model := range models {
+			clumap[model.Cluster.ClusterName] = append(clumap[model.Cluster.ClusterName], EnvironmentBean{
+				Id:          model.Id,
+				Environment: model.Name,
+				Namespace:   model.Namespace,
+				ClusterId:   model.ClusterId,
+				ClusterName: model.Cluster.ClusterName,
+				CdArgoSetup: model.Cluster.CdArgoSetup,
+			})
+		}
+	  `*/
+	/*
+		clusterNamespaces, err := impl.GetAllActiveClusterAndNamespace()
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment", "err", err)
+		}
+		environments = append(environments, clusterNamespaces...)
+	*/
+	//TODO - dedupe which are already in db
+	return environments, nil
+}
+
+func (impl EnvironmentServiceImpl) GetAllActiveClusterAndNamespace() ([]*EnvironmentBean, error) {
+	var beans []*EnvironmentBean
+	models, err := impl.clusterService.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+	}
+
+	for _, clusterBean := range models {
+		client, err := impl.K8sUtil.GetClientForInCluster()
+		if err != nil {
+			return nil, err
+		}
+		if clusterBean.ClusterName != "default_cluster" {
+			configMap := clusterBean.Config
+			bearerToken := configMap["bearer_token"]
+			clusterCfg := &util.ClusterConfig{Host: clusterBean.ServerUrl, BearerToken: bearerToken}
+			client, err = impl.K8sUtil.GetClient(clusterCfg)
+			if err != nil {
+				return nil, err
+			}
+		}
+		namespaces, err := impl.K8sUtil.ListNamespaces(client)
+		statusError, _ := err.(*errors2.StatusError)
+		if err != nil && statusError.Status().Code != http.StatusNotFound {
+			impl.logger.Errorw("secret not found", "err", err)
+			return nil, err
+		}
+
+		for _, namespace := range namespaces {
+			beans = append(beans, &EnvironmentBean{
+				Environment: fmt.Sprintf("%__%s", clusterBean.ClusterName, namespace.Namespace),
+				Namespace:   namespace.Namespace,
+				ClusterName: clusterBean.ClusterName,
+			})
+		}
+	}
+
+	return beans, nil
 }

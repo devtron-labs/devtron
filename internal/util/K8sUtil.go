@@ -382,3 +382,16 @@ func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, cluster
 
 	return nil
 }
+
+func (impl K8sUtil) ListNamespaces(client *v12.CoreV1Client) (exists []v1.Namespace, err error) {
+	ns, err := client.Namespaces().List(metav1.ListOptions{})
+	//ns, err := impl.k8sClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+	impl.logger.Debugw("ns fetch", "res", ns)
+	if errors.IsNotFound(err) {
+		return ns.Items, nil
+	} else if err != nil {
+		return ns.Items, err
+	} else {
+		return ns.Items, nil
+	}
+}

@@ -304,12 +304,13 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocompleteClusterW
 			//ignore error, apply rbac by default
 		}
 	}
-	environments, err := impl.environmentClusterMappingsService.GetAllActive()
+	environments, err := impl.environmentClusterMappingsService.GetEnvironmentListForAutocompleteGroupByCluster()
 	if err != nil {
 		impl.logger.Errorw("service err, GetEnvironmentListForAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
 	token := r.Header.Get("token")
 	// RBAC enforcer applying
 	var clusters []request.ClusterEnvDto
@@ -328,7 +329,8 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocompleteClusterW
 				EnvironmentId:   environment.Id,
 				EnvironmentName: environment.Environment,
 				Namespace:       environment.Namespace,
-			})		}
+			})
+		}
 	}
 	//RBAC enforcer Ends
 

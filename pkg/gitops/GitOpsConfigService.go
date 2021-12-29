@@ -205,7 +205,6 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 	if err != nil {
 		return nil, err
 	}
-
 	secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
 	statusError, _ := err.(*errors.StatusError)
 	if err != nil && statusError.Status().Code != http.StatusNotFound {
