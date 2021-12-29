@@ -559,7 +559,7 @@ components:
         readme:
           type: string
           description:
-        EnvironmentDetail:
+        environmentDetail:
           type: object
           $ref: "#/components/schemas/EnvironmentDetail"
           description: detail of environment where its currently deployed
