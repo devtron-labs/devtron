@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/gorilla/mux"
@@ -52,7 +53,7 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 	apiKey := vars["api-key"]
 	if apiKey == "" {
 		impl.logger.Errorw("request err, HandleExternalCiWebhook", "apiKey", apiKey)
-		writeJsonResp(w, errors.New("invalid api-key"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New("invalid api-key"), nil, http.StatusBadRequest)
 		return
 	}
 
@@ -60,7 +61,7 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 	err := decoder.Decode(&req)
 	if err != nil {
 		impl.logger.Errorw("request err, HandleExternalCiWebhook", "err", err, "payload", req)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	impl.logger.Infow("request payload, HandleExternalCiWebhook", "payload", req)
@@ -68,23 +69,23 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 	ciPipelineId, err := impl.webhookService.AuthenticateExternalCiWebhook(apiKey)
 	if err != nil {
 		impl.logger.Errorw("auth error", "err", err, "apiKey", apiKey, "payload", req)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	ciArtifactReq, err := impl.ciEventHandler.BuildCiArtifactRequest(req)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	_, err = impl.webhookService.SaveCiArtifactWebhook(ciPipelineId, ciArtifactReq)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	writeJsonResp(w, err, nil, http.StatusOK)
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }

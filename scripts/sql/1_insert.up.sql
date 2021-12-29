@@ -3470,7 +3470,7 @@ SELECT pg_catalog.setval('public.chart_group_id_seq', 1, false);
 -- Name: chart_repo_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.chart_repo_id_seq', 4, true);
+SELECT pg_catalog.setval('public.chart_repo_id_seq', 11, true);
 
 
 --
@@ -5437,7 +5437,8 @@ INSERT INTO "public"."chart_repo" ("id", "name", "url", "is_default", "active", 
 ('7', 'bitnami', 'https://charts.bitnami.com/bitnami', 'f', 't', 'now()', '1', 'now()', '1', 't'),
 ('8', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts', 'f', 't', 'now()', '1', 'now()', '1', 't'),
 ('9', 'jetstack', 'https://charts.jetstack.io', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('10', 'metrics-server', 'https://kubernetes-sigs.github.io/metrics-server', 'f', 't', 'now()', '1', 'now()', '1', 't');
+('10', 'metrics-server', 'https://kubernetes-sigs.github.io/metrics-server', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+('11', 'autoscaler', 'https://kubernetes.github.io/autoscaler', 'f', 't', 'now()', '1', 'now()', '1', 't');
 
 
 INSERT INTO "public"."cluster" ("id", "cluster_name", "active", "created_on", "created_by", "updated_on", "updated_by", "server_url", "config", "prometheus_endpoint", "cd_argo_setup", "p_username", "p_password", "p_tls_client_cert", "p_tls_client_key") VALUES

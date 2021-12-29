@@ -87,7 +87,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			}
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash)
 			if err != nil {
-				impl.logger.Errorw("success event error", "gitHash", gitHash, "err", err)
+				impl.logger.Errorw("deployment success event error", "gitHash", gitHash, "err", err)
 				return
 			}
 		}

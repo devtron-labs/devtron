@@ -76,7 +76,9 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeader:
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
   scheme: ""
   tcp: true
 ```
@@ -84,19 +86,19 @@ LivenessProbe:
 | Key | Description |
 | :--- | :--- |
 | `Path` | It define the path where the liveness needs to be checked. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
 | `initialDelaySeconds` | It defines the time to wait before a given container is checked for liveliness. |
 | `periodSeconds` | It defines the time to check a given container for liveness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
-| `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
 
 ### MaxUnavailable
 
- ```yaml
+```yaml
   MaxUnavailable: 0
 ```
 The maximum number of pods that can be unavailable during the update process. The value of "MaxUnavailable: " can be an absolute number or percentage of the replicas count. The default value of "MaxUnavailable: " is 25%.
@@ -129,7 +131,9 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  httpHeader:
+  httpHeaders:
+    - name: Custom-Header
+      value: abc
   scheme: ""
   tcp: true
 ```
@@ -137,12 +141,12 @@ ReadinessProbe:
 | Key | Description |
 | :--- | :--- |
 | `Path` | It define the path where the readiness needs to be checked. |
-| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
 | `initialDelaySeconds` | It defines the time to wait before a given container is checked for readiness. |
 | `periodSeconds` | It defines the time to check a given container for readiness. |
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
-| `httpHeader` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
+| `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
+| `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
 
@@ -162,12 +166,19 @@ autoscaling:
 
 | Key | Description |
 | :--- | :--- |
-| `MaxReplicas` | Maximum number of replicas allowed for scaling. |
+| `enabled` | Set true to enable autoscaling else set false.|
 | `MinReplicas` | Minimum number of replicas allowed for scaling. |
+| `MaxReplicas` | Maximum number of replicas allowed for scaling. |
 | `TargetCPUUtilizationPercentage` | The target CPU utilization that is expected for a container. |
 | `TargetMemoryUtilizationPercentage` | The target memory utilization that is expected for a container. |
-| `enabled` | Set true to enable autoscaling else set false.|
 | `extraMetrics` | Used to give external metrics for autoscaling. |
+
+### Fullname Override
+
+```yaml
+fullnameOverride: app-name
+```
+`fullnameOverride` replaces the release fullname created by default by devtron, which is used to construct Kubernetes object names. By default, devtron uses {app-name}-{environment-name} as release fullname.
 
 ### Image
 
@@ -178,6 +189,16 @@ image:
 
 Image is used to access images in kubernetes, pullpolicy is used to define the instances calling the image, here the image is pulled when the image is not present,it can also be set as "Always".
 
+### imagePullSecrets
+
+`imagePullSecrets` contains the docker credentials that are used for accessing a registry. 
+
+```yaml
+imagePullSecrets:
+  - regcred
+```
+regcred is the secret that contains the docker credentials that are used for accessing a registry. Devtron will not create this secret automatically, you'll have to create this secret using dt-secrets helm chart in the App store or create one using kubectl. You can follow this documentation Pull an Image from a Private Registry [https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) .
+
 ### Ingress
 
 This allows public access to the url, please ensure you are using right nginx annotation for nginx class, its default value is nginx
@@ -185,6 +206,26 @@ This allows public access to the url, please ensure you are using right nginx an
 ```yaml
 ingress:
   enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  className: nginx
+  annotations: {}
+  hosts:
+      - host: example1.com
+        paths:
+            - /example
+      - host: example2.com
+        paths:
+            - /example2
+            - /example2/healthz
+  tls: []
+```
+Legacy deployment-template ingress format
+
+```yaml
+ingress:
+  enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx-internal
   annotations: {}
   path: ""
   host: ""
@@ -206,9 +247,17 @@ This allows private access to the url, please ensure you are using right nginx a
 ```yaml
 ingressInternal:
   enabled: false
+  # For K8s 1.19 and above use ingressClassName instead of annotation kubernetes.io/ingress.class:
+  ingressClassName: nginx-internal
   annotations: {}
-  path: ""
-  host: ""
+  hosts:
+      - host: example1.com
+        paths:
+            - /example
+      - host: example2.com
+        paths:
+            - /example2
+            - /example2/healthz
   tls: []
 ```
 
@@ -223,6 +272,15 @@ ingressInternal:
 ### Init Containers
 ```yaml
 initContainers: 
+  - reuseContainerImage: true
+    volumeMounts:
+     - mountPath: /etc/ls-oms
+       name: ls-oms-cm-vol
+   command:
+     - flyway
+     - -configFiles=/etc/ls-oms/flyway.conf
+     - migrate
+
   - name: nginx
         image: nginx:1.14.2
         ports:
@@ -230,7 +288,7 @@ initContainers:
         command: ["/usr/local/bin/nginx"]
         args: ["-g", "daemon off;"]
 ```
-Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image.
+Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image. One can use base image inside initContainer by setting the reuseContainerImage flag to `true`.
 
 ### Pause For Seconds Before Switch Active
 ```yaml
@@ -275,7 +333,12 @@ This defines annotations and the type of service, optionally can define name als
 ### Volumes
 
 ```yaml
- volumes: []
+volumes:
+  - name: log-volume
+    emptyDir: {}
+  - name: logpv
+    persistentVolumeClaim:
+      claimName: logpvc
 ```
 
 It is required when some values need to be read from or written to an external disk.
@@ -283,7 +346,12 @@ It is required when some values need to be read from or written to an external d
 ### Volume Mounts
 
 ```yaml
-volumeMounts: []
+volumeMounts:
+  - mountPath: /var/log/nginx/
+    name: log-volume 
+  - mountPath: /mnt/logs
+    name: logpvc
+    subPath: employee  
 ```
 
 It is used to provide mounts to the volume.
@@ -469,7 +537,7 @@ It gives the realtime metrics of the deployed applications
 | `Mean Time to Recovery` | It shows the average time taken to fix a failed pipeline. |
 
 
-## Add on features in Deployment Chart version 3.9.0
+## Addon features in Deployment Template Chart version 3.9.0
 
 ### Service Account
 
@@ -562,6 +630,23 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
 ```
 
 HPA, by default is configured to work with CPU and Memory metrics. These metrics are useful for internal cluster sizing, but you might want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.
@@ -602,3 +687,99 @@ envoyproxy.resources.limits.cpu >= envoyproxy.resources.requests.cpu
 envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
 ```
 
+## Addon features in Deployment Template Chart version 4.11.0
+
+### KEDA Autoscaling
+[KEDA](https://keda.sh) is a Kubernetes-based Event Driven Autoscaler. With KEDA, you can drive the scaling of any container in Kubernetes based on the number of events needing to be processed. KEDA can be installed into any Kubernetes cluster and can work alongside standard Kubernetes components like the Horizontal Pod Autoscaler(HPA).
+
+Example for autosccaling with KEDA using Prometheus metrics is given below:
+```yaml
+kedaAutoscaling:
+  enabled: true
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  idleReplicaCount: 0
+  pollingInterval: 30
+  advanced:
+    restoreToOriginalReplicaCount: true
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300
+          policies:
+          - type: Percent
+            value: 100
+            periodSeconds: 15
+  triggers: 
+    - type: prometheus
+      metadata:
+        serverAddress:  http://<prometheus-host>:9090
+        metricName: http_request_total
+        query: envoy_cluster_upstream_rq{appId="300", cluster_name="300-0", container="envoy",}
+        threshold: "50"
+  triggerAuthentication:
+    enabled: true
+    name:
+    spec: {}
+  authenticationRef: {}
+```
+Example for autosccaling with KEDA based on kafka is given below :
+```yaml
+kedaAutoscaling:
+  enabled: true
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  idleReplicaCount: 0
+  pollingInterval: 30
+  advanced: {}
+  triggers: 
+    - type: kafka
+      metadata:
+        bootstrapServers: b-2.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092,b-3.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092,b-1.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092
+        topic: Orders-Service-ESP.info
+        lagThreshold: "100"
+        consumerGroup: oders-remove-delivered-packages
+        allowIdleConsumers: "true"
+  triggerAuthentication:
+    enabled: true
+    name: keda-trigger-auth-kafka-credential
+    spec:
+      secretTargetRef:
+        - parameter: sasl
+          name: keda-kafka-secrets
+          key: sasl
+        - parameter: username
+          name: keda-kafka-secrets
+          key: username
+  authenticationRef: 
+    name: keda-trigger-auth-kafka-credential
+```
+
+### Security Context
+A security context defines privilege and access control settings for a Pod or Container.  
+
+To add a security context for main container:
+```yaml
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+```
+
+To add a security context on pod level:
+```yaml
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 3000
+  fsGroup: 2000
+```
+
+### Topology Spread Constraints
+You can use topology spread constraints to control how Pods are spread across your cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains. This can help to achieve high availability as well as efficient resource utilization.
+
+```yaml
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: zone
+    whenUnsatisfiable: DoNotSchedule
+    autoLabelSelector: true
+    customLabelSelector: {}
+```

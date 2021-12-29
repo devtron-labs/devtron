@@ -18,7 +18,7 @@
 package appstore
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -29,7 +29,7 @@ type ClusterInstalledApps struct {
 	ClusterId      int      `sql:"cluster_id,notnull"`
 	InstalledAppId int      `sql:"installed_app_id,notnull"`
 	InstalledApp   InstalledApps
-	models.AuditLog
+	sql.AuditLog
 }
 
 type ClusterInstalledAppsRepository interface {

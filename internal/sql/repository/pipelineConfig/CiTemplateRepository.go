@@ -18,8 +18,9 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -39,8 +40,8 @@ type CiTemplate struct {
 	Version           string   `sql:"version"` //gocd etage
 	Active            bool     `sql:"active,notnull"`
 	GitMaterialId     int      `sql:"git_material_id"`
-	models.AuditLog
-	App            *App
+	sql.AuditLog
+	App            *app.App
 	DockerRegistry *repository.DockerArtifactStore
 	GitMaterial    *GitMaterial
 }

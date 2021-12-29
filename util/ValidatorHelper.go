@@ -2,12 +2,24 @@ package util
 
 import (
 	"errors"
+	"fmt"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"math"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/xeipuuv/gojsonschema"
+)
+
+const (
+	CpuRegex    = "(^\\d*\\.?\\d+e?\\d*)(m?)$"
+	MemoryRegex = "(^\\d*\\.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)$"
+)
+
+var (
+	CpuUnitChecker, _    = regexp.Compile(CpuRegex)
+	MemoryUnitChecker, _ = regexp.Compile(MemoryRegex)
 )
 
 type resourceParser struct {
@@ -20,53 +32,61 @@ type resourceParser struct {
 var memoryParser *resourceParser
 var cpuParser *resourceParser
 
-func MemoryToNumber(memory string) (float64, error) {
-	if memoryParser == nil {
-		pattern := "(\\d*e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)"
-		re, _ := regexp.Compile(pattern)
-		memoryParser = &resourceParser{
-			name:    "memory",
-			pattern: pattern,
-			regex:   re,
-			conversions: map[string]float64{
-				"E":  float64(1000000000000000000),
-				"P":  float64(1000000000000000),
-				"T":  float64(1000000000000),
-				"G":  float64(1000000000),
-				"M":  float64(1000000),
-				"K":  float64(1000),
-				"Ei": float64(1152921504606846976),
-				"Pi": float64(1125899906842624),
-				"Ti": float64(1099511627776),
-				"Gi": float64(1073741824),
-				"Mi": float64(1048576),
-				"Ki": float64(1024),
-			},
+func getResourcesLimitsKeys(envoyProxy bool) []string {
+	if envoyProxy {
+		return []string{"envoyproxy", "resources", "limits"}
+	} else {
+		return []string{"resources", "limits"}
+	}
+}
+func getResourcesRequestsKeys(envoyProxy bool) []string {
+	if envoyProxy {
+		return []string{"envoyproxy", "resources", "requests"}
+	} else {
+		return []string{"resources", "requests"}
+	}
+}
+
+func validateAndBuildResourcesAssignment(dat map[string]interface{}, validationKeys []string) (validatedMap map[string]interface{}) {
+	var test map[string]interface{}
+	test = dat
+	for _, validationKey := range validationKeys {
+		if test[validationKey] != nil {
+			test = test[validationKey].(map[string]interface{})
+		} else {
+			return map[string]interface{}{"cpu": "0", "memory": "0"}
 		}
 	}
-	return convertResource(memoryParser, memory)
+	return test
 }
-func CpuToNumber(cpu string) (float64, error) {
-	demo := NoCpuUnitChecker.MatchString(cpu)
-	if demo {
-		return strconv.ParseFloat(cpu, 64)
+
+func MemoryToNumber(memory string) (int64, error) {
+	quantity, err := resource.ParseQuantity(memory)
+	if err != nil {
+		return 0, err
 	}
-	if cpuParser == nil {
-		pattern := "(\\d*e?\\d*)(m?)"
-		re, _ := regexp.Compile(pattern)
-		cpuParser = &resourceParser{
-			name:    "cpu",
-			pattern: pattern,
-			regex:   re,
-			conversions: map[string]float64{
-				"m": .001,
-			},
-		}
+	if quantity.Value() < 0 {
+		return 0, fmt.Errorf("value cannot be negative")
 	}
-	return convertResource(cpuParser, cpu)
+	return quantity.Value(), nil
 }
+
+func CpuToNumber(cpu string) (int64, error) {
+	quantity, err := resource.ParseQuantity(cpu)
+	if err != nil {
+		return 0, err
+	}
+	if quantity.MilliValue() < 0 {
+		return 0, fmt.Errorf("value cannot be negative")
+	}
+	return quantity.MilliValue(), nil
+}
+
 func convertResource(rp *resourceParser, resource string) (float64, error) {
 	matches := rp.regex.FindAllStringSubmatch(resource, -1)
+	if len(matches) == 0 {
+		return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
+	}
 	if len(matches[0]) < 2 {
 		return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
 	}
@@ -119,14 +139,11 @@ func ParseFloat(str string) (float64, error) {
 }
 
 func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
-	limit, ok := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-	if !ok {
-		return false, errors.New("resources.limits is required")
+	if dat == nil {
+		return true, nil
 	}
-	envoproxyLimit, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-	if !ok {
-		return false, errors.New("envoproxy.resources.limits is required")
-	}
+	limit := validateAndBuildResourcesAssignment(dat, getResourcesLimitsKeys(false))
+	envoproxyLimit := validateAndBuildResourcesAssignment(dat, getResourcesLimitsKeys(true))
 	checkCPUlimit, ok := limit["cpu"]
 	if !ok {
 		return false, errors.New("resources.limits.cpu is required")
@@ -143,14 +160,8 @@ func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 	if !ok {
 		return false, errors.New("envoyproxy.resources.limits.memory is required")
 	}
-	request, ok := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-	if !ok {
-		return true, nil
-	}
-	envoproxyRequest, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-	if !ok {
-		return true, nil
-	}
+	request := validateAndBuildResourcesAssignment(dat, getResourcesRequestsKeys(false))
+	envoproxyRequest := validateAndBuildResourcesAssignment(dat, getResourcesRequestsKeys(true))
 	checkCPURequests, ok := request["cpu"]
 	if !ok {
 		return true, nil
@@ -201,14 +212,13 @@ func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-
-	if (envoproxyCPULimit < envoproxyCPURequest){
+	if envoproxyCPULimit < envoproxyCPURequest && envoproxyCPULimit != 0 {
 		return false, errors.New("envoyproxy.resources.limits.cpu must be greater than or equal to envoyproxy.resources.requests.cpu")
-	}else if (envoproxyMemoryLimit < envoproxyMemoryRequest){
+	} else if envoproxyMemoryLimit < envoproxyMemoryRequest && envoproxyMemoryLimit != 0 {
 		return false, errors.New("envoyproxy.resources.limits.memory must be greater than or equal to envoyproxy.resources.requests.memory")
-	}else if (cpuLimit < cpuRequest) {
+	} else if cpuLimit < cpuRequest && cpuLimit != 0 {
 		return false, errors.New("resources.limits.cpu must be greater than or equal to resources.requests.cpu")
-	}else if (memoryLimit < memoryRequest) {
+	} else if memoryLimit < memoryRequest && memoryLimit != 0 {
 		return false, errors.New("resources.limits.memory must be greater than or equal to resources.requests.memory")
 	}
 	return true, nil
@@ -216,154 +226,52 @@ func CompareLimitsRequests(dat map[string]interface{}) (bool, error) {
 }
 
 func AutoScale(dat map[string]interface{}) (bool, error) {
-	autoscaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
-	if !ok {
+	if dat == nil {
 		return true, nil
 	}
-	if autoscaleEnabled.(bool) {
-		limit, ok := dat["resources"].(map[string]interface{})["limits"].(map[string]interface{})
+	if dat["autoscaling"] != nil {
+		autoScaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
 		if !ok {
-			return false, errors.New("resources.limits is required")
-		}
-		envoproxyLimit, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["limits"].(map[string]interface{})
-		if !ok {
-			return false, errors.New("envoproxy.resources.limits is required")
-		}
-		checkCPUlimit, ok := limit["cpu"]
-		if !ok {
-			return false, errors.New("resources.limits.cpu is required")
-		}
-		checkMemorylimit, ok := limit["memory"]
-		if !ok {
-			return false, errors.New("resources.limits.memory is required")
-		}
-		checkEnvoproxyCPUlimit, ok := envoproxyLimit["cpu"]
-		if !ok {
-			return false, errors.New("envoyproxy.resources.limits.cpu is required")
-		}
-		checkEnvoproxyMemorylimit, ok := envoproxyLimit["memory"]
-		if !ok {
-			return false, errors.New("envoyproxy.resources.limits.memory is required")
-		}
-		request, ok := dat["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-		if !ok {
-			return false, errors.New("resources.requests is required")
-		}
-		envoproxyRequest, ok := dat["envoyproxy"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-		if !ok {
-			return false, errors.New("envoyproxy.resources.requests is required")
-		}
-		checkCPURequests, ok := request["cpu"]
-		if !ok {
-			return false, errors.New("resources.requests.cpu is required")
-		}
-		checkMemoryRequests, ok := request["memory"]
-		if !ok {
-			return false, errors.New("resources.requests.memory is required")
-		}
-		checkEnvoproxyCPURequests, ok := envoproxyRequest["cpu"]
-		if !ok {
-			return false, errors.New("envoyproxy.resources.requests.cpu is required")
-		}
-		checkEnvoproxyMemoryRequests, ok := envoproxyRequest["memory"]
-		if !ok {
-			return false, errors.New("envoyproxy.resources.requests.memory is required")
-		}
-
-		cpuLimit, err := CpuToNumber(checkCPUlimit.(string))
-		if err != nil {
-			return false, err
-		}
-		memoryLimit, err := MemoryToNumber(checkMemorylimit.(string))
-		if err != nil {
-			return false, err
-		}
-		cpuRequest, err := CpuToNumber(checkCPURequests.(string))
-		if err != nil {
-			return false, err
-		}
-		memoryRequest, err := MemoryToNumber(checkMemoryRequests.(string))
-		if err != nil {
-			return false, err
-		}
-
-		envoproxyCPULimit, err := CpuToNumber(checkEnvoproxyCPUlimit.(string))
-		if err != nil {
-			return false, err
-		}
-		envoproxyMemoryLimit, err := MemoryToNumber(checkEnvoproxyMemorylimit.(string))
-		if err != nil {
-			return false, err
-		}
-		envoproxyCPURequest, err := CpuToNumber(checkEnvoproxyCPURequests.(string))
-		if err != nil {
-			return false, err
-		}
-		envoproxyMemoryRequest, err := MemoryToNumber(checkEnvoproxyMemoryRequests.(string))
-		if err != nil {
-			return false, err
-		}
-
-		if (envoproxyCPULimit < envoproxyCPURequest){
-			return false, errors.New("envoyproxy.resources.limits.cpu must be greater than or equal to envoyproxy.resources.requests.cpu")
-		}else if (envoproxyMemoryLimit < envoproxyMemoryRequest){
-			return false, errors.New("envoyproxy.resources.limits.memory must be greater than or equal to envoyproxy.resources.requests.memory")
-		}else if (cpuLimit < cpuRequest) {
-			return false, errors.New("resources.limits.cpu must be greater than or equal to resources.requests.cpu")
-		}else if (memoryLimit < memoryRequest) {
-			return false, errors.New("resources.limits.memory must be greater than or equal to resources.requests.memory")
-		}else {
 			return true, nil
 		}
-	} else {
-		return true, nil
+		if autoScaleEnabled.(bool) {
+			minReplicas, okMin := dat["autoscaling"].(map[string]interface{})["MinReplicas"]
+			maxReplicas, okMax := dat["autoscaling"].(map[string]interface{})["MaxReplicas"]
+			if !okMin || !okMax {
+				return false, errors.New("autoscaling.MinReplicas and autoscaling.MaxReplicas are mandatory fields")
+			}
+			// see https://pkg.go.dev/encoding/json#Unmarshal for why conversion to float64 and not int
+			// Bug fix PR https://github.com/devtron-labs/devtron/pull/884
+			if minReplicas.(float64) > maxReplicas.(float64) {
+				return false, errors.New("autoscaling.MinReplicas can not be greater than autoscaling.MaxReplicas")
+			}
+		}
 	}
+	return true, nil
 }
 
-var (
-	CpuUnitChecker, _   = regexp.Compile("^([0-9.]+)m$")
-	NoCpuUnitChecker, _ = regexp.Compile("^([0-9.]+)$")
-	MiChecker, _        = regexp.Compile("^[0-9]+Mi$")
-	GiChecker, _        = regexp.Compile("^[0-9]+Gi$")
-	TiChecker, _        = regexp.Compile("^[0-9]+Ti$")
-	PiChecker, _        = regexp.Compile("^[0-9]+Pi$")
-	KiChecker, _        = regexp.Compile("^[0-9]+Ki$")
-)
-
 func (f CpuChecker) IsFormat(input interface{}) bool {
+	if input == nil {
+		return false
+	}
 	asString, ok := input.(string)
 	if !ok {
 		return false
 	}
-
-	if CpuUnitChecker.MatchString(asString) {
-		return true
-	} else if NoCpuUnitChecker.MatchString(asString) {
-		return true
-	} else {
-		return false
-	}
+	quantity, err := resource.ParseQuantity(asString)
+	return err == nil && quantity.Value() > 0
 }
 
 func (f MemoryChecker) IsFormat(input interface{}) bool {
+	if input == nil {
+		return false
+	}
 	asString, ok := input.(string)
 	if !ok {
 		return false
 	}
-
-	if MiChecker.MatchString(asString) {
-		return true
-	} else if GiChecker.MatchString(asString) {
-		return true
-	} else if TiChecker.MatchString(asString) {
-		return true
-	} else if PiChecker.MatchString(asString) {
-		return true
-	} else if KiChecker.MatchString(asString) {
-		return true
-	} else {
-		return false
-	}
+	quantity, err := resource.ParseQuantity(asString)
+	return err == nil && quantity.Value() > 0
 }
 
 type (

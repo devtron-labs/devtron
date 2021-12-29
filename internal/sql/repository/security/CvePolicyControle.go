@@ -19,7 +19,7 @@ package security
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 )
@@ -35,7 +35,7 @@ type CvePolicy struct {
 	Action        PolicyAction `sql:"action, notnull"`
 	Severity      *Severity    `sql:"severity, notnull "`
 	Deleted       bool         `sql:"deleted, notnull"`
-	models.AuditLog
+	sql.AuditLog
 	CveStore *CveStore
 }
 

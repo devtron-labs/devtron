@@ -19,6 +19,7 @@ package chartConfig
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -38,7 +39,7 @@ func TestEnvConfigOverrideRepositoryImpl_Save(t *testing.T) {
 		EnvOverrideValues: "{}",
 		ManualReviewed:    false,
 		Active:            true,
-		AuditLog:          models.AuditLog{CreatedBy: 1, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: 1},
+		AuditLog:          sql.AuditLog{CreatedBy: 1, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: 1},
 	}
 	repo := getEcr()
 	err := repo.Save(eco)

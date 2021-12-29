@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -30,7 +30,7 @@ type EnvLevelAppMetrics struct {
 	EnvId        int      `sql:"env_id,notnull"`
 	AppMetrics   *bool    `sql:"app_metrics,notnull"`
 	InfraMetrics *bool    `sql:"infra_metrics,notnull"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 type EnvLevelAppMetricsRepositoryImpl struct {

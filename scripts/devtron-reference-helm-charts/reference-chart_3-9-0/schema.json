@@ -8,11 +8,7 @@
             "type": "object",
             "properties": {
               "envoyPort": {
-                "type": "integer",
-                "enum": [
-                    8799,
-                    8800
-                ]
+                "type": "integer"
               },
               "idleTimeout": {
                 "type": "string"
@@ -32,10 +28,7 @@
               "useHTTP2": {
                 "type": "boolean"
               }
-            },
-            "required": [
-                "port"
-            ]
+            }
           }
       },
       "EnvVariables": {
@@ -92,12 +85,6 @@
           }
         }
       },
-      "MaxSurge": {
-        "type": "integer"
-      },
-      "MaxUnavailable": {
-        "type": "integer"
-      },
       "MinReadySeconds": {
         "type": "integer"
       },
@@ -149,23 +136,7 @@
         }
       },
       "Spec": {
-        "type": "object",
-        "properties": {
-          "Affinity": {
-            "type": "object",
-            "properties": {
-              "Key": {
-                "type": "null"
-              },
-              "Values": {
-                "type": "string"
-              },
-              "key": {
-                "type": "string"
-              }
-            }
-          }
-        }
+        "type": "object"
       },
       "args": {
         "type": "object",
@@ -260,11 +231,7 @@
                     "type": "string",
                     "format": "memory"
                   }
-                },
-                "required": [
-                    "cpu",
-                    "memory"
-                ]
+                }
               },
               "requests": {
                 "type": "object",
@@ -279,10 +246,7 @@
                   }
                 }
               }
-            },
-            "required": [
-                "limits"
-            ]
+            }
           }
         }
       },
@@ -327,12 +291,6 @@
             "type": "object",
             "patternproperties": {
               "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/><,.": {
-                  "type": "string"
-              },
-              "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/.,><": {
-                  "type": "string"
-              },
-              "[a-zA-Z_]+[0-9.]+!@#&%*+-=:;?/><,.": {
                   "type": "string"
               }
           }
@@ -388,11 +346,7 @@
                 "type": "string",
                 "format": "memory"
               }
-            },
-            "required": [
-                "cpu",
-                "memory"
-            ]
+            }
           },
           "requests": {
             "type": "object",
@@ -407,10 +361,7 @@
               }
             }
           }
-        },
-        "required": [
-            "limits"
-        ]
+        }
       },
       "secret": {
         "type": "object",
@@ -446,7 +397,13 @@
             "type": "object"
           },
           "type": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "ClusterIP",
+              "LoadBalancer",
+              "NodePort",
+              "ExternalName"
+            ]
           }
         }
       },
@@ -473,12 +430,5 @@
       "waitForSecondsBeforeScalingDown": {
         "type": "integer"
       }
-    },
-    "required": [
-        "replicaCount",
-        "ContainerPort",
-        "ingress",
-        "ingressInternal",
-        "autoscaling"
-    ]
+    }
   }

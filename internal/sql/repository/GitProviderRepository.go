@@ -18,7 +18,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
@@ -43,7 +43,7 @@ type GitProvider struct {
 	AuthMode      AuthMode `sql:"auth_mode,notnull"`
 	Active        bool     `sql:"active,notnull"`
 	GitHostId     int      `sql:"git_host_id"` //id stored in db git_host( foreign key)
-	models.AuditLog
+	sql.AuditLog
 }
 
 type GitProviderRepository interface {
@@ -52,6 +52,7 @@ type GitProviderRepository interface {
 	FindAllActiveForAutocomplete() ([]GitProvider, error)
 	FindAll() ([]GitProvider, error)
 	FindOne(providerId string) (GitProvider, error)
+	FindByUrl(providerUrl string) (GitProvider, error)
 	Update(gitProvider *GitProvider) error
 }
 
@@ -94,6 +95,13 @@ func (impl GitProviderRepositoryImpl) FindOne(providerId string) (GitProvider, e
 	var provider GitProvider
 	err := impl.dbConnection.Model(&provider).
 		Where("id = ?", providerId).Select()
+	return provider, err
+}
+
+func (impl GitProviderRepositoryImpl) FindByUrl(providerUrl string) (GitProvider, error) {
+	var provider GitProvider
+	err := impl.dbConnection.Model(&provider).
+		Where("url = ?", providerUrl).Where("active = ?", true).Select()
 	return provider, err
 }
 

@@ -10,12 +10,15 @@
   * [Install using Kubectl](setup/install/install-devtron-using-kubectl.md)
   * [Installation Configurations](setup/install/installation-configuration.md)
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
+  * [Ingress setup for devtron installation](setup/install/ingress-setup.md)
+* [Devtron Upgrade](setup/upgrade/README.md)
+  * [0.2.x-0.3.x](setup/upgrade/devtron-upgrade-0.2.x-0.3.x.md)
 * [Start Using devtron](setup/start-using.md)
 
 ## User Guide
 
 * [Creating Application](user-guide/creating-application/README.md)
-  * [Git Material](user-guide/creating-application/git-material.md)
+  * [Git Repository](user-guide/creating-application/git-material.md)
   * [Docker Build Configuration](user-guide/creating-application/docker-build-configuration.md)
   * [Deployment Template](user-guide/creating-application/deployment-template.md)
   * [Workflow](user-guide/creating-application/workflow/README.md)
@@ -43,7 +46,7 @@
 * [Global Configurations](user-guide/global-configurations/README.md)
   * [GitOps](user-guide/global-configurations/gitops.md)
   * [Git Accounts](user-guide/global-configurations/git-accounts.md)
-  * [Docker Registries](user-guide/global-configurations/docker-registries.md)
+  * [Container Registries](user-guide/global-configurations/docker-registries.md)
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
   * [Cluster And Environments](user-guide/global-configurations/cluster-and-environments.md)
   * [Projects](user-guide/global-configurations/projects.md)
@@ -57,7 +60,5 @@
   * [Devtron Generic Helm Chart To Run Cron Job Or One Time Job](user-guide/use-cases/devtron-generic-helm-chart-to-run-cron-job-or-one-time-job.md)
   * [Connect SpringBoot with Mysql Database](user-guide/use-cases/connect-springboot-with-mysql-database.md)
   * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
-  * [Connect Django With Mysql Database](user-guide/use-cases/untitled-3.md)
+  * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
 * [Telemetry Overview](user-guide/telemetry.md)
-  
-

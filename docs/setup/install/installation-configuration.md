@@ -36,4 +36,19 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 |INGRESS_ANNOTATIONS | Annotations for ingress| ""| Optional|
 |PROMETHEUS_URL | Existing Prometheus URL if it is installed| ""| Optional|
 
+### Dashboard Configurations
+
+```bash
+RECOMMEND_SECURITY_SCANNING=false
+FORCE_SECURITY_SCANNING=false
+HIDE_DISCORD=false
+```
+
+|Parameter | Description|
+|-|-|
+|RECOMMEND_SECURITY_SCANNING | If True `security scanning` is `enabled` by default for a new build pipeline. Users can however turn it off in the new or existing pipelines.|
+|FORCE_SECURITY_SCANNING | If set True, `security scanning` is forcefully `enabled` by default for a new build pipeline. User can not turn it off for new as well as for existing build pipelines. Old pipelines that have security scanning disabled will remain unchanged and image scanning should be enabled manually for them.|
+|HIDE_DISCORD | Hides discord chat bot from dashboard.|
+
+
 

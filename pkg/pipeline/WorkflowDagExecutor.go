@@ -21,6 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"strconv"
 	"strings"
 	"time"
@@ -32,7 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -50,6 +54,7 @@ type WorkflowDagExecutor interface {
 	HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error
 	HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(gitHash string) error
+	HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error
 	Subscribe() error
 	TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) error
 	TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, async bool, triggeredBy int32) error
@@ -72,16 +77,17 @@ type WorkflowDagExecutorImpl struct {
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
 	ciArtifactRepository       repository.CiArtifactRepository
 	user                       user.UserService
-	enforcer                   rbac.Enforcer
+	enforcer                   casbin.Enforcer
 	enforcerUtil               rbac.EnforcerUtil
 	groupRepository            repository.DeploymentGroupRepository
-	tokenCache                 *user.TokenCache
-	acdAuthConfig              *user.ACDAuthConfig
-	envRepository              cluster.EnvironmentRepository
+	tokenCache                 *util3.TokenCache
+	acdAuthConfig              *util3.ACDAuthConfig
+	envRepository              repository2.EnvironmentRepository
 	eventFactory               client.EventFactory
 	eventClient                client.EventClient
 	cvePolicyRepository        security.CvePolicyRepository
 	scanResultRepository       security.ImageScanResultRepository
+	appWorkflowRepository      appWorkflow.AppWorkflowRepository
 }
 
 type CiArtifactDTO struct {
@@ -129,11 +135,12 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	user user.UserService,
 	groupRepository repository.DeploymentGroupRepository,
-	envRepository cluster.EnvironmentRepository,
-	enforcer rbac.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *user.TokenCache,
-	acdAuthConfig *user.ACDAuthConfig, eventFactory client.EventFactory,
+	envRepository repository2.EnvironmentRepository,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *util3.TokenCache,
+	acdAuthConfig *util3.ACDAuthConfig, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
-	scanResultRepository security.ImageScanResultRepository) *WorkflowDagExecutorImpl {
+	scanResultRepository security.ImageScanResultRepository,
+	appWorkflowRepository appWorkflow.AppWorkflowRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:         pipelineRepository,
 		cdWorkflowRepository:       cdWorkflowRepository,
@@ -156,6 +163,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		eventClient:                eventClient,
 		cvePolicyRepository:        cvePolicyRepository,
 		scanResultRepository:       scanResultRepository,
+		appWorkflowRepository:      appWorkflowRepository,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -189,9 +197,19 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 			return
 		}
 		if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-			_ = impl.HandlePreStageSuccessEvent(cdStageCompleteEvent)
+			impl.logger.Debugw("received pre stage success event for workflow runner ", "wfId", strconv.Itoa(wf.Id))
+			err = impl.HandlePreStageSuccessEvent(cdStageCompleteEvent)
+			if err != nil {
+				impl.logger.Errorw("deployment success event error", "err", err)
+				return
+			}
 		} else if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-			impl.logger.Debugw("received post success event for workflow runner ", "wfId", strconv.Itoa(wf.Id))
+			impl.logger.Debugw("received post stage success event for workflow runner ", "wfId", strconv.Itoa(wf.Id))
+			err = impl.HandlePostStageSuccessEvent(wf.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy)
+			if err != nil {
+				impl.logger.Errorw("deployment success event error", "err", err)
+				return
+			}
 		}
 	}, stan.DurableName(CD_COMPLETE_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
 	if err != nil {
@@ -205,7 +223,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 	//1. get cd pipelines
 	//2. get config
 	//3. trigger wf/ deployment
-	pipelines, err := impl.pipelineRepository.FindByCiPipelineId(artifact.PipelineId)
+	pipelines, err := impl.pipelineRepository.FindByParentCiPipelineId(artifact.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
 		return err
@@ -222,7 +240,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error {
 	var err error
 	if len(pipeline.PreStageConfig) > 0 {
-		//pre stage exists
+		// pre stage exists
 		if pipeline.PreTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 			impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", artifact.Id, "pipelineId", pipeline.Id)
 			err = impl.TriggerPreStage(cdWf, artifact, pipeline, artifact.UpdatedBy, applyAuth) //TODO handle error here
@@ -270,7 +288,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 			if err != nil {
 				return err
 			}
-
+			//TODO : confirm about this logic used for applyAuth
 			applyAuth := false
 			if cdStageCompleteEvent.TriggeredBy != 1 {
 				applyAuth = true
@@ -296,7 +314,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
-		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
+		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			impl.logger.Warnw("unauthorized for pipeline ", "pipelineId", strconv.Itoa(pipeline.Id))
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
 		}
@@ -306,7 +324,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
 			PipelineId:   pipeline.Id,
-			AuditLog:     models.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
+			AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 		if err != nil {
@@ -323,7 +341,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
-	var env *cluster.Environment
+	var env *repository2.Environment
 	var err error
 	if pipeline.RunPreStageInEnv {
 		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
@@ -382,7 +400,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
-	var env *cluster.Environment
+	var env *repository2.Environment
 	var err error
 	if cpipeline.RunPostStageInEnv {
 		env, err = impl.envRepository.FindById(cpipeline.EnvironmentId)
@@ -596,8 +614,52 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 
 			err := impl.TriggerPostStage(cdWorkflow, pipelineOverride.Pipeline, 1)
 			if err != nil {
+				impl.logger.Errorw("error in triggering post stage after successful deployment event", "cdWorkflow", cdWorkflow)
 				return err
 			}
+		}
+	} else {
+		// to trigger next pre/cd, if any
+		// finding children cd by pipeline id
+		err := impl.HandlePostStageSuccessEvent(cdWorkflow.Id, pipelineOverride.PipelineId, 1)
+		if err != nil {
+			impl.logger.Errorw("error in triggering children cd after successful deployment event", "parentCdPipelineId", pipelineOverride.PipelineId)
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error {
+	// finding children cd by pipeline id
+	cdPipelinesMapping, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(cdPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting mapping of cd pipelines by parent cd pipeline id", "err", err, "parentCdPipelineId", cdPipelineId)
+		return err
+	}
+	ciArtifact, err := impl.ciArtifactRepository.GetArtifactByCdWorkflowId(cdWorkflowId)
+	if err != nil {
+		impl.logger.Errorw("error in finding artifact by cd workflow id", "err", err, "cdWorkflowId", cdWorkflowId)
+		return err
+	}
+	//TODO : confirm about this logic used for applyAuth
+	applyAuth := false
+	if triggeredBy != 1 {
+		applyAuth = true
+	}
+	for _, cdPipelineMapping := range cdPipelinesMapping {
+		//find pipeline by cdPipeline ID
+		pipeline, err := impl.pipelineRepository.FindById(cdPipelineMapping.ComponentId)
+		if err != nil {
+			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "pipelineId", cdPipelineMapping.ComponentId)
+			return err
+		}
+		//finding ci artifact by ciPipelineID and pipelineId
+		//TODO : confirm values for applyAuth, async & triggeredBy
+		err = impl.triggerStage(nil, pipeline, ciArtifact, applyAuth, false, triggeredBy)
+		if err != nil {
+			impl.logger.Errorw("error in triggering cd pipeline after successful post stage", "err", err, "pipelineId", pipeline.Id)
+			return err
 		}
 	}
 	return nil
@@ -615,7 +677,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
-		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), rbac.ResourceApplications, rbac.ActionTrigger, object); !ok {
+		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
 		}
 	}
@@ -624,7 +686,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
 			PipelineId:   pipeline.Id,
-			AuditLog:     models.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
+			AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 		if err != nil {
@@ -846,7 +908,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			cdWf := &pipelineConfig.CdWorkflow{
 				CiArtifactId: overrideRequest.CiArtifactId,
 				PipelineId:   overrideRequest.PipelineId,
-				AuditLog:     models.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+				AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 			if err != nil {
@@ -940,7 +1002,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			cdWf := &pipelineConfig.CdWorkflow{
 				CiArtifactId: overrideRequest.CiArtifactId,
 				PipelineId:   overrideRequest.PipelineId,
-				AuditLog:     models.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+				AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 			if err != nil {
@@ -971,7 +1033,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkDeploymentAsync(requests []*Bulk
 		cdWf := &pipelineConfig.CdWorkflow{
 			CiArtifactId:   request.CiArtifactId,
 			PipelineId:     request.PipelineId,
-			AuditLog:       models.AuditLog{CreatedOn: time.Now(), CreatedBy: UserId, UpdatedOn: time.Now(), UpdatedBy: UserId},
+			AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: UserId, UpdatedOn: time.Now(), UpdatedBy: UserId},
 			WorkflowStatus: pipelineConfig.REQUEST_ACCEPTED,
 		}
 		cdWorkflows = append(cdWorkflows, cdWf)
@@ -1065,7 +1127,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 			Id:           cdWorkflow.Id,
 			CiArtifactId: cdWorkflow.CiArtifactId,
 			PipelineId:   cdWorkflow.PipelineId,
-			AuditLog: models.AuditLog{
+			AuditLog: sql.AuditLog{
 				UpdatedOn: time.Now(),
 			},
 		}

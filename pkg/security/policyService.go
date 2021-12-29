@@ -21,12 +21,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -49,7 +50,7 @@ type PolicyService interface {
 type PolicyServiceImpl struct {
 	environmentService            cluster.EnvironmentService
 	logger                        *zap.SugaredLogger
-	apRepository                  pipelineConfig.AppRepository
+	apRepository                  app.AppRepository
 	pipelineOverride              chartConfig.PipelineOverrideRepository
 	cvePolicyRepository           security.CvePolicyRepository
 	clusterService                cluster.ClusterService
@@ -67,7 +68,7 @@ type PolicyServiceImpl struct {
 
 func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
 	logger *zap.SugaredLogger,
-	apRepository pipelineConfig.AppRepository,
+	apRepository app.AppRepository,
 	pipelineOverride chartConfig.PipelineOverrideRepository,
 	cvePolicyRepository security.CvePolicyRepository,
 	clusterService cluster.ClusterService,
@@ -305,7 +306,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 				ObjectType:                  objectType,
 				EnvId:                       envId,
 				ClusterId:                   clusterId,
-				AuditLog: models.AuditLog{
+				AuditLog: sql.AuditLog{
 					CreatedOn: time.Now(),
 					CreatedBy: 1,
 					UpdatedOn: time.Now(),
@@ -477,7 +478,7 @@ func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicy
 		CVEStoreId:    request.CveId,
 		Action:        action,
 		Severity:      &severity,
-		AuditLog: models.AuditLog{
+		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: userId,
 			UpdatedOn: time.Now(),

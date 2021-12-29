@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	pc "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	pc "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"

@@ -18,8 +18,11 @@
 package util
 
 const (
-	KubernetesSecret  string = "KubernetesSecret"
-	AWSSecretsManager string = "AWSSecretsManager"
-	AWSSystemManager  string = "AWSSystemManager"
-	HashiCorpVault    string = "HashiCorpVault"
+	KubernetesSecret                    string = "KubernetesSecret"
+	AWSSecretsManager                   string = "AWSSecretsManager"
+	AWSSystemManager                    string = "AWSSystemManager"
+	HashiCorpVault                      string = "HashiCorpVault"
+	KubernetesExternalSecret            string = "KubernetesExternalSecret"
+	ConfigMapSecretUsageTypeEnvironment string = "environment"
+	ConfigMapSecretUsageTypeVolume      string = "volume"
 )

@@ -18,6 +18,7 @@
 package chartConfig
 
 import (
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"reflect"
 	"testing"
 	"time"
@@ -40,7 +41,7 @@ func TestPipelineOverrideRepositoryImpl_Save(t *testing.T) {
 		PipelineMergedValues:   "{}",
 		PipelineOverrideValues: "{}",
 		RequestIdentifier:      "request-1",
-		AuditLog:               models.AuditLog{CreatedBy: 1, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: 1},
+		AuditLog:               sql.AuditLog{CreatedBy: 1, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: 1},
 	}
 	err := getPor().Save(po)
 	assert.NoError(t, err)

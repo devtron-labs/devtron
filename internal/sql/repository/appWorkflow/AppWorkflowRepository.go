@@ -19,7 +19,7 @@ package appWorkflow
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -44,6 +44,7 @@ type AppWorkflowRepository interface {
 	FindWFCDMappingByCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
 	DeleteAppWorkflowMapping(appWorkflow *AppWorkflowMapping, tx *pg.Tx) error
 	FindWFCDMappingByCIPipelineIds(ciPipelineIds []int) ([]*AppWorkflowMapping, error)
+	FindWFCDMappingByParentCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -67,7 +68,7 @@ type AppWorkflow struct {
 	Active      bool            `sql:"active"`
 	WorkflowDAG json.RawMessage `sql:"workflow_dag"`
 	AppId       int             `sql:"app_id"`
-	models.AuditLog
+	sql.AuditLog
 }
 
 // TODO: Suraj - This is v1, it has to be evolved later
@@ -145,7 +146,7 @@ type AppWorkflowMapping struct {
 	Active        bool     `sql:"active"`
 	ParentType    string   `sql:"parent_type,notnull"`
 	AppWorkflow   *AppWorkflow
-	models.AuditLog
+	sql.AuditLog
 }
 
 func (impl AppWorkflowRepositoryImpl) SaveAppWorkflowMapping(wf *AppWorkflowMapping, tx *pg.Tx) (*AppWorkflowMapping, error) {
@@ -252,6 +253,16 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCDPipelineId(cdPipelineId
 	return appWorkflowsMapping, err
 }
 
+func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByParentCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+
+	err := impl.dbConnection.Model(&appWorkflowsMapping).
+		Where("parent_id = ?", cdPipelineId).
+		Where("parent_type = ?", CDPIPELINE).
+		Where("active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
 func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflowMapping(appWorkflow *AppWorkflowMapping, tx *pg.Tx) error {
 	appWorkflow.Active = false
 	err := tx.Update(appWorkflow)

@@ -21,6 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strconv"
 	"strings"
@@ -57,7 +59,7 @@ type AppListingRestHandlerImpl struct {
 	application            application.ServiceClient
 	appListingService      app.AppListingService
 	teamService            team.TeamService
-	enforcer               rbac.Enforcer
+	enforcer               casbin.Enforcer
 	pipeline               pipeline.PipelineBuilder
 	logger                 *zap.SugaredLogger
 	enforcerUtil           rbac.EnforcerUtil
@@ -76,7 +78,7 @@ type AppStatus struct {
 func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	appListingService app.AppListingService,
 	teamService team.TeamService,
-	enforcer rbac.Enforcer,
+	enforcer casbin.Enforcer,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService) *AppListingRestHandlerImpl {
@@ -110,12 +112,12 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "stage", "1")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	user, err := handler.userService.GetById(userId)
 	if userId == 0 || err != nil {
-		writeJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	userEmailId := strings.ToLower(user.EmailId)
@@ -124,7 +126,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	err = decoder.Decode(&fetchAppListingRequest)
 	if err != nil {
 		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -133,14 +135,14 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		dg, err = handler.deploymentGroupService.FindById(fetchAppListingRequest.DeploymentGroupId)
 		if err != nil {
 			handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
-			writeJsonResp(w, err, "", http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		}
 	}
 
 	envContainers, err := handler.appListingService.FetchAppsByEnvironment(fetchAppListingRequest, w, r, token)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
-		writeJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 	}
 	t2 := time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "2")
@@ -149,7 +151,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
-		writeJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
 	}
 	appEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
@@ -165,7 +167,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		}
 		for teamId, teamName := range uniqueTeams {
 			object := strings.ToLower(teamName)
-			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceTeam, rbac.ActionGet, object); ok {
+			if ok := handler.enforcer.EnforceByEmail(userEmailId, casbin.ResourceTeam, casbin.ActionGet, object); ok {
 				authorizedTeams[teamId] = true
 			}
 		}
@@ -183,7 +185,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 			object := fmt.Sprintf("%s/%s", filteredAppEnvContainer.TeamName, filteredAppEnvContainer.AppName)
 			object = strings.ToLower(object)
-			if ok := handler.enforcer.EnforceByEmail(userEmailId, rbac.ResourceApplications, rbac.ActionGet, object); ok {
+			if ok := handler.enforcer.EnforceByEmail(userEmailId, casbin.ResourceApplications, casbin.ActionGet, object); ok {
 				appEnvContainers = append(appEnvContainers, filteredAppEnvContainer)
 			}
 		}
@@ -194,7 +196,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	apps, err := handler.appListingService.BuildAppListingResponse(fetchAppListingRequest, appEnvContainers)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
-		writeJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 	}
 
 	// Apply pagination
@@ -235,7 +237,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "4")
 	t1 = t2
 	handler.logger.Infow("api response time testing", "total time", time.Now().String(), "total time", t1.Unix()-t0.Unix())
-	writeJsonResp(w, err, appContainerResponse, http.StatusOK)
+	common.WriteJsonResp(w, err, appContainerResponse, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, r *http.Request) {
@@ -243,24 +245,24 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 	token := r.Header.Get("token")
 	appId, err := strconv.Atoi(vars["app-id"])
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	envId, err := strconv.Atoi(vars["env-id"])
 	if err != nil {
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	appDetail, err := handler.appListingService.FetchAppDetails(appId, envId)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppDetails", "err", err, "appId", appId, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
 
@@ -292,7 +294,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 				InternalMessage: "app detail fetched, failed to get resource tree from acd",
 				UserMessage:     "Error fetching detail, if you have recently created this deployment pipeline please try after sometime.",
 			}
-			writeJsonResp(w, err, "", http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 			return
 		}
 		if resp.Status == v1alpha1.HealthStatusHealthy {
@@ -318,7 +320,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 	} else {
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
-	writeJsonResp(w, err, appDetail, http.StatusOK)
+	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWriter, r *http.Request) {
@@ -327,7 +329,7 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 	appId, err := strconv.Atoi(vars["app-id"])
 	if err != nil {
 		handler.logger.Errorw("request err, FetchAppTriggerView", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.logger.Debugw("request payload, FetchAppTriggerView", "appId", appId)
@@ -335,7 +337,7 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 	triggerView, err := handler.appListingService.FetchAppTriggerView(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppTriggerView", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -343,8 +345,8 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 	// RBAC enforcer applying
 	if len(triggerView) > 0 {
 		object := handler.enforcerUtil.GetAppRBACName(triggerView[0].AppName)
-		if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
-			writeJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	}
@@ -442,7 +444,7 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 			triggerView[i].Status = "Not Deployed"
 		}
 	}
-	writeJsonResp(w, err, triggerView, http.StatusOK)
+	common.WriteJsonResp(w, err, triggerView, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWriter, r *http.Request) {
@@ -450,7 +452,7 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 	appId, err := strconv.Atoi(vars["app-id"])
 	if err != nil {
 		handler.logger.Errorw("request err, FetchAppStageStatus", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	handler.logger.Infow("request payload, FetchAppStageStatus", "appId", appId)
@@ -458,14 +460,14 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 	app, err := handler.pipeline.GetApp(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppStageStatus", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
-		writeJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -473,10 +475,10 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 	triggerView, err := handler.appListingService.FetchAppStageStatus(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppStageStatus", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	writeJsonResp(w, err, triggerView, http.StatusOK)
+	common.WriteJsonResp(w, err, triggerView, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWriter, r *http.Request) {
@@ -484,21 +486,21 @@ func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWr
 	appId, err := strconv.Atoi(vars["app-id"])
 	if err != nil {
 		handler.logger.Errorw("request err, FetchOtherEnvironment", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
 	app, err := handler.pipeline.GetApp(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchOtherEnvironment", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
-		writeJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -506,13 +508,13 @@ func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWr
 	otherEnvironment, err := handler.appListingService.FetchOtherEnvironment(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchOtherEnvironment", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	//TODO - rbac env level
 
-	writeJsonResp(w, err, otherEnvironment, http.StatusOK)
+	common.WriteJsonResp(w, err, otherEnvironment, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWriter, r *http.Request) {
@@ -521,19 +523,19 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	Id, err := strconv.Atoi(vars["Id"])
 	if err != nil {
 		handler.logger.Errorw("request err, RedirectToLinkouts", "err", err, "id", Id)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.logger.Errorw("request err, RedirectToLinkouts", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.logger.Errorw("request err, RedirectToLinkouts", "err", err, "envId", envId)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	podName := vars["podName"]
@@ -541,14 +543,14 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	app, err := handler.pipeline.GetApp(appId)
 	if err != nil {
 		handler.logger.Errorw("bad request", "err", err)
-		writeJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, rbac.ResourceApplications, rbac.ActionGet, object); !ok {
-		writeJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -556,7 +558,7 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	link, err := handler.appListingService.RedirectToLinkouts(Id, appId, envId, podName, containerName)
 	if err != nil || len(link) == 0 {
 		handler.logger.Errorw("service err, RedirectToLinkouts", "err", err, "appId", appId)
-		writeJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, r, link, http.StatusOK)
