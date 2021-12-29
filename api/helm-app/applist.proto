@@ -37,7 +37,7 @@ message DeployedAppDetail {
   string appName = 2;
   string chartName = 3;
   string chartAvatar = 4;
-  EnvironmentDetails environment = 5;
+  EnvironmentDetails environmentDetail = 5;
   google.protobuf.Timestamp LastDeployed = 6;
   string chartVersion = 7;
 }
