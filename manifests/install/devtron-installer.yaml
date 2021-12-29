@@ -4,4 +4,4 @@ metadata:
   name: installer-devtron
   namespace: devtroncd
 spec:
-  url: https://raw.githubusercontent.com/devtron-labs/devtron/v0.3.11/manifests/installation-script
+  url: https://raw.githubusercontent.com/devtron-labs/devtron/v0.3.12/manifests/installation-script
