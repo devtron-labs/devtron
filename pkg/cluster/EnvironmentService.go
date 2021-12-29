@@ -39,6 +39,18 @@ type EnvironmentBean struct {
 	CdArgoSetup        bool   `json:"isClusterCdActive"`
 }
 
+type EnvDto struct {
+	EnvironmentId   int    `json:"environmentId,omitempty" validate:"number"`
+	EnvironmentName string `json:"environmentName,omitempty" validate:"max=50"`
+	Namespace       string `json:"namespace,omitempty" validate:"max=50"`
+}
+
+type ClusterEnvDto struct {
+	ClusterId    int      `json:"clusterId,omitempty"`
+	ClusterName  string   `json:"clusterName,omitempty"`
+	Environments []*EnvDto `json:"environments,omitempty"`
+}
+
 type EnvironmentService interface {
 	FindOne(environment string) (*EnvironmentBean, error)
 	Create(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
@@ -52,13 +64,14 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
+	GetEnvironmentListForAutocompleteGroupByCluster() ([]ClusterEnvDto, error)
 }
 
 type EnvironmentServiceImpl struct {
-	environmentRepository   repository.EnvironmentRepository
-	logger                  *zap.SugaredLogger
-	clusterService          ClusterService
-	K8sUtil                 *util.K8sUtil
+	environmentRepository repository.EnvironmentRepository
+	logger                *zap.SugaredLogger
+	clusterService        ClusterService
+	K8sUtil               *util.K8sUtil
 	//propertiesConfigService pipeline.PropertiesConfigService
 }
 
@@ -68,10 +81,10 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 //	propertiesConfigService pipeline.PropertiesConfigService,
 ) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
-		environmentRepository:   environmentRepository,
-		logger:                  logger,
-		clusterService:          clusterService,
-		K8sUtil:                 K8sUtil,
+		environmentRepository: environmentRepository,
+		logger:                logger,
+		clusterService:        clusterService,
+		K8sUtil:               K8sUtil,
 		//propertiesConfigService: propertiesConfigService,
 	}
 }
@@ -191,6 +204,7 @@ func (impl EnvironmentServiceImpl) GetAllActive() ([]EnvironmentBean, error) {
 			Id:                 model.Id,
 			Environment:        model.Name,
 			ClusterId:          model.Cluster.Id,
+			ClusterName:        model.Cluster.ClusterName,
 			Active:             model.Active,
 			PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
 			Namespace:          model.Namespace,
@@ -385,4 +399,24 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 		})
 	}
 	return beans, nil
+}
+
+func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocompleteGroupByCluster() ([]ClusterEnvDto, error) {
+	models, err := impl.environmentRepository.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+	}
+	var clusters []ClusterEnvDto
+	clumap := make(map[string][]EnvironmentBean)
+	for _, model := range models {
+		clumap[model.Cluster.ClusterName] = append(clumap[model.Cluster.ClusterName], EnvironmentBean{
+			Id:          model.Id,
+			Environment: model.Name,
+			Namespace:   model.Namespace,
+			ClusterId:   model.ClusterId,
+			ClusterName: model.Cluster.ClusterName,
+			CdArgoSetup: model.Cluster.CdArgoSetup,
+		})
+	}
+	return clusters, nil
 }

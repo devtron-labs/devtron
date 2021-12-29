@@ -470,6 +470,16 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.Response
 		common.WriteJsonResp(w, err, "StatusBadRequest", http.StatusBadRequest)
 		return
 	}
+
+	onlyDevtronCharts := false
+	onlyChartsAttr := v.Get("onlyCharts")
+	if len(onlyChartsAttr) > 0 {
+		onlyDevtronCharts, err = strconv.ParseBool(onlyChartsAttr)
+		if err != nil {
+			err = nil
+			//ignore error, apply rbac by default
+		}
+	}
 	handler.Logger.Infow("request payload, GetAppListByTeamIds", "payload", params)
 	var teamIds []int
 	teamIdList := strings.Split(params, ",")
@@ -481,7 +491,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.Response
 		}
 		teamIds = append(teamIds, teamId)
 	}
-	projectWiseApps, err := handler.pipelineBuilder.GetAppListByTeamIds(teamIds)
+	projectWiseApps, err := handler.pipelineBuilder.GetAppListByTeamIds(teamIds, onlyDevtronCharts)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetAppListByTeamIds", "err", err, "payload", params)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

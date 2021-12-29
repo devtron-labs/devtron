@@ -41,6 +41,7 @@ type EnvironmentRestHandler interface {
 	Update(w http.ResponseWriter, r *http.Request)
 	FindById(w http.ResponseWriter, r *http.Request)
 	GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request)
+	GetEnvironmentListForAutocompleteClusterWise(w http.ResponseWriter, r *http.Request)
 }
 
 type EnvironmentRestHandlerImpl struct {
@@ -283,4 +284,62 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		grantedEnvironment = make([]request.EnvironmentBean, 0)
 	}
 	common.WriteJsonResp(w, err, grantedEnvironment, http.StatusOK)
+}
+
+func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocompleteClusterWise(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	v := r.URL.Query()
+	authEnabled := true
+	auth := v.Get("auth")
+	if len(auth) > 0 {
+		authEnabled, err = strconv.ParseBool(auth)
+		if err != nil {
+			authEnabled = true
+			err = nil
+			//ignore error, apply rbac by default
+		}
+	}
+	environments, err := impl.environmentClusterMappingsService.GetAllActive()
+	if err != nil {
+		impl.logger.Errorw("service err, GetEnvironmentListForAutocomplete", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	var clusters []request.ClusterEnvDto
+	grantedEnvironmentMap := make(map[string][]*request.EnvDto)
+	for _, environment := range environments {
+		if authEnabled == true {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(environment.Environment)); ok {
+				grantedEnvironmentMap[environment.ClusterName] = append(grantedEnvironmentMap[environment.ClusterName], &request.EnvDto{
+					EnvironmentId:   environment.Id,
+					EnvironmentName: environment.Environment,
+					Namespace:       environment.Namespace,
+				})
+			}
+		} else {
+			grantedEnvironmentMap[environment.ClusterName] = append(grantedEnvironmentMap[environment.ClusterName], &request.EnvDto{
+				EnvironmentId:   environment.Id,
+				EnvironmentName: environment.Environment,
+				Namespace:       environment.Namespace,
+			})		}
+	}
+	//RBAC enforcer Ends
+
+	for k, v := range grantedEnvironmentMap {
+		clusters = append(clusters, request.ClusterEnvDto{
+			ClusterName:  k,
+			Environments: v,
+		})
+	}
+	if len(clusters) == 0 {
+		clusters = make([]request.ClusterEnvDto, 0)
+	}
+	common.WriteJsonResp(w, err, clusters, http.StatusOK)
 }

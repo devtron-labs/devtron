@@ -43,7 +43,7 @@ type AppRepository interface {
 	FindActiveListByName(appName string) ([]*App, error)
 	FindById(id int) (pipelineGroup *App, err error)
 	FindAppsByTeamId(teamId int) ([]App, error)
-	FindAppsByTeamIds(teamId []int) ([]App, error)
+	FindAppsByTeamIds(teamId []int, onlyDevtronCharts bool) ([]App, error)
 	FindAppsByTeamName(teamName string) ([]App, error)
 	FindAll() ([]App, error)
 	FindAppsByEnvironmentId(environmentId int) ([]App, error)
@@ -134,10 +134,10 @@ func (repo AppRepositoryImpl) FindAppsByTeamId(teamId int) ([]App, error) {
 	return apps, err
 }
 
-func (repo AppRepositoryImpl) FindAppsByTeamIds(teamId []int) ([]App, error) {
+func (repo AppRepositoryImpl) FindAppsByTeamIds(teamId []int, onlyDevtronCharts bool) ([]App, error) {
 	var apps []App
 	err := repo.dbConnection.Model(&apps).Column("app.*", "Team").Where("team_id in (?)", pg.In(teamId)).
-		Where("app.active=?", true).Where("app.app_store=?", false).Select()
+		Where("app.active=?", true).Where("app.app_store=?", onlyDevtronCharts).Select()
 	return apps, err
 }
 

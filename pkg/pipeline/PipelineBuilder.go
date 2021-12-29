@@ -83,7 +83,7 @@ type PipelineBuilder interface {
 	GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType) (bean.CiArtifactResponse, error)
 	FetchArtifactForRollback(cdPipelineId int) (bean.CiArtifactResponse, error)
 	FindAppsByTeamId(teamId int) ([]AppBean, error)
-	GetAppListByTeamIds(teamIds []int) ([]*TeamAppBean, error)
+	GetAppListByTeamIds(teamIds []int, onlyDevtronCharts bool) ([]*TeamAppBean, error)
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	GetAppList() ([]AppBean, error)
@@ -1849,13 +1849,13 @@ type AppBean struct {
 	TeamId int    `json:"teamId,omitempty"`
 }
 
-func (impl PipelineBuilderImpl) GetAppListByTeamIds(teamIds []int) ([]*TeamAppBean, error) {
+func (impl PipelineBuilderImpl) GetAppListByTeamIds(teamIds []int, onlyDevtronCharts bool) ([]*TeamAppBean, error) {
 	var appsRes []*TeamAppBean
 	teamMap := make(map[int]*TeamAppBean)
 	if len(teamIds) == 0 {
 		return appsRes, nil
 	}
-	apps, err := impl.appRepo.FindAppsByTeamIds(teamIds)
+	apps, err := impl.appRepo.FindAppsByTeamIds(teamIds, onlyDevtronCharts)
 	if err != nil {
 		impl.logger.Errorw("error while fetching app", "err", err)
 		return nil, err
