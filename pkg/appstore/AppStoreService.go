@@ -139,7 +139,7 @@ type AppStoreService interface {
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartConfig.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
-	WatchAndSaveConfigMap()
+	WatchAndSaveConfigMapWithChartData()
 }
 
 type AppStoreVersionsResponse struct {
@@ -878,18 +878,18 @@ var CallbackConfigMap = func (configMaps *v1.ConfigMap) {
 	return
 }
 
-func (impl *AppStoreServiceImpl) WatchAndSaveConfigMap() {
+func (impl *AppStoreServiceImpl) WatchAndSaveConfigMapWithChartData() {
 	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
 	if err != nil {
-		impl.logger.Errorw("error in clusterBean, WatchAndSaveConfigMap", "err", err)
+		impl.logger.Errorw("error in clusterBean, WatchAndSaveConfigMapWithChartData", "err", err)
 	}
 	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
 	if err != nil {
-		impl.logger.Errorw("error in getting cluster config, WatchAndSaveConfigMap", "err", err)
+		impl.logger.Errorw("error in getting cluster config, WatchAndSaveConfigMapWithChartData", "err", err)
 	}
 	client, err := impl.K8sUtil.GetClientSet(cfg)
 	if err != nil {
-		impl.logger.Errorw("error in getting client set, WatchAndSaveConfigMap", "err", err)
+		impl.logger.Errorw("error in getting client set, WatchAndSaveConfigMapWithChartData", "err", err)
 	}
 	go impl.K8sUtil.RetryWatchConfigMapWithCallback(argocdServer.DevtronInstalationNs, client, CallbackConfigMap)
 }

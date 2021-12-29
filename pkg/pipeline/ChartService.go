@@ -381,6 +381,11 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 }
 
 func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
+	err := impl.ExtractChartIfMissing(templateRequest.ChartRefId)
+	if err != nil {
+		return nil, err
+	}
+
 	chartMeta, err := impl.getChartMetaData(templateRequest)
 	if err != nil {
 		return nil, err
