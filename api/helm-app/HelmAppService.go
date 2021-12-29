@@ -14,7 +14,7 @@ import (
 )
 
 type HelmAppService interface {
-	ListHelmApplications(clusterIds []int, w http.ResponseWriter)
+	ListHelmApplications(clusterIds []int, w http.ResponseWriter, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
@@ -67,7 +67,7 @@ func (impl *HelmAppServiceImpl) listApplications(clusterIds []int) (ApplicationS
 	return applicatonStream, err
 }
 
-func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.ResponseWriter) {
+func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.ResponseWriter, helmAuth func(token string, object string) bool) {
 	appStream, err := impl.listApplications(clusterIds)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "clusters", clusterIds, "err", err)
@@ -76,7 +76,7 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.Re
 		return appStream.Recv()
 	}, err,
 		func(message interface{}) interface{} {
-			return impl.appListRespProtoTransformer(message.(*DeployedAppList))
+			return impl.appListRespProtoTransformer(message.(*DeployedAppList), helmAuth)
 		})
 }
 
@@ -225,7 +225,7 @@ func DecodeAppId(appId string) (*AppIdentifier, error) {
 	}, nil
 }
 
-func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *DeployedAppList) openapi.AppList {
+func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *DeployedAppList, helmAuth func(token string, object string) bool) openapi.AppList {
 	applicationType := "HELM-APP"
 	appList := openapi.AppList{ClusterIds: &[]int32{deployedApps.ClusterId}, ApplicationType: &applicationType}
 	if deployedApps.Errored {
@@ -249,7 +249,11 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 					ClusterId:   &deployedapp.Environment.ClusterId,
 				},
 			}
-			HelmApps = append(HelmApps, helmApp)
+			envName := fmt.Sprintf("%s__%s", deployedapp.Environment.ClusterName, deployedapp.Environment.Namespace)
+			isValidAuth := helmAuth("", fmt.Sprintf("%s/%s/%s", "unassigned", envName, deployedapp.AppName))
+			if isValidAuth {
+				HelmApps = append(HelmApps, helmApp)
+			}
 		}
 		appList.HelmApps = &HelmApps
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -23,13 +24,15 @@ type HelmAppRestHandler interface {
 type HelmAppRestHandlerImpl struct {
 	logger         *zap.SugaredLogger
 	helmAppService HelmAppService
+	enforcer       casbin.Enforcer
 }
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
-	helmAppService HelmAppService) *HelmAppRestHandlerImpl {
+	helmAppService HelmAppService, enforcer casbin.Enforcer) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
 		logger:         logger,
 		helmAppService: helmAppService,
+		enforcer:       enforcer,
 	}
 }
 
@@ -50,7 +53,7 @@ func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r
 		}
 		clusterIds = append(clusterIds, j)
 	}
-	handler.helmAppService.ListHelmApplications(clusterIds, w)
+	handler.helmAppService.ListHelmApplications(clusterIds, w, handler.CheckHelmAuth)
 }
 
 func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {
@@ -144,4 +147,11 @@ func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *h
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *HelmAppRestHandlerImpl) CheckHelmAuth(token string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionGet, strings.ToLower(object)); !ok {
+		return false
+	}
+	return true
 }
