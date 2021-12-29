@@ -20,7 +20,7 @@
 * [Creating Application](user-guide/creating-application/README.md)
   * [Git Repository](user-guide/creating-application/git-material.md)
   * [Docker Build Configuration](user-guide/creating-application/docker-build-configuration.md)
-  * [Deployment Template](user-guide/creating-application/deplyment-template/deployment-template.md)
+  * [Deployment Template](user-guide/creating-application/deployment-template/deployment-template.md)
     * [Rollout](user-guide/creating-application/deployment-template/deployment-template.md)
     * [Job/Cronjob](user-guide/creating-application/deployment-template/job-and-cronjob.md)
   * [Workflow](user-guide/creating-application/workflow/README.md)
