@@ -38,7 +38,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 
 ### Dashboard Configurations
 
-```yaml
+```bash
 RECOMMEND_SECURITY_SCANNING=false
 FORCE_SECURITY_SCANNING=false
 HIDE_DISCORD=false
@@ -46,9 +46,9 @@ HIDE_DISCORD=false
 
 |Parameter | Description|
 |-|-|
-|RECOMMEND_SECURITY_SCANNING | By default ```security scanning``` switch will be ```on``` for new build pipeline.. user can turn off|
-|FORCE_SECURITY_SCANNING | By default security scanning switch will be ```on``` for new build pipeline.. user cannot turn off.. for existing build pipelines user cannot make changes in pipeline till ```security scanning``` is enabled|
-|HIDE_DISCORD | Hides discord chat bot from dashboard|
+|RECOMMEND_SECURITY_SCANNING | By default `security scanning` is `enabled` for a new build pipeline. User can turn it off.|
+|FORCE_SECURITY_SCANNING | By default `security scanning` is `enabled` for a new build pipeline. User cannot turn it off for existing build pipelines. User cannot make changes in pipeline if `security scanning` is enabled.|
+|HIDE_DISCORD | Hides discord chat bot from dashboard.|
 
 
 
