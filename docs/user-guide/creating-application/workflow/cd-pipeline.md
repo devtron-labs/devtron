@@ -3,7 +3,7 @@ Once you are done creating your CI pipeline, you can move start building your CD
 
 ## Creating CD Pipeline
 
-![](../../../.gitbook/assets/ca-workflow-cd-add.png)
+![](../images/workflow-cd.jpg)
 
 Click on **“+”** sign on CI Pipeline to attach a CD Pipeline to it. A basic `Create deployment modal` will pop up.
 

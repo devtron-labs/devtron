@@ -6,7 +6,7 @@ Secret objects let you store and manage sensitive information, such as passwords
 
 ## Configure Secret
 
-![](../../.gitbook/assets/add-secret%20%281%29.png)
+![](../../user-guide/creating-application/images/config-maps.jpg)
 
 Click on `Add Secret` to add a new secret.
 

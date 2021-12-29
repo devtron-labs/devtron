@@ -29,7 +29,7 @@ In this field, add the name of your docker repository. The repository that you s
 
 ![](../../.gitbook/assets/docker-configuration-docker-hub.png)
 
-![](../../.gitbook/assets/docker-configure-docker-hub-1.png)
+![](../../user-guide/creating-application/images/docker-build-config-1.jpg)
 
 
 ## Checkout path 

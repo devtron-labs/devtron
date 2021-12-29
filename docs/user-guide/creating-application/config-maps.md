@@ -4,7 +4,8 @@ The ConfigMap API resource holds key-value pairs of the  configuration data that
 
 Click on `Add ConfigMap` to add a config map to your application.
 
-![](../../.gitbook/assets/ad-confgimap%20%283%29.jpg)
+
+![](../../user-guide/creating-application/images/config-maps.jpg)
 
 ## Configure the ConfigMap
 

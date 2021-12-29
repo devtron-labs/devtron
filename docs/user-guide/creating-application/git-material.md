@@ -1,6 +1,6 @@
-# Git Material
+# Git Repository
 
-Git material is used to pull your application source code during the CI step. Select `Git Material` section of the  `App Configuration`. Inside `Git Material` when you click on `Add Git Material` you will see three options as shown below:
+Git Repository is used to pull your application source code during the CI step. Select `Git Repository` section of the  `App Configuration`. Inside `Git Repository` when you click on `Add Git Repository` you will see three options as shown below:
 
 1. Git Provider
 2. Git Repo URL
@@ -24,8 +24,8 @@ Note:
 * Copy the HTTPS/SSH url of the repository
 * Please make sure that you've added your [dockerfile](https://docs.docker.com/engine/reference/builder/) in the repo. 
 
+![](../../user-guide/creating-application/images/git_repo.jpg)
 
-![](../../.gitbook/assets/create-app-git-url.png)
 
 ## 3. Checkout Path
 
@@ -33,7 +33,7 @@ After clicking on checkbox, git checkout path field appears. The git checkout pa
 
 This field is optional in case of a single git repository application and you can leave the path as default. Devtron assigns a directory by itself when the field is left blank. The default value of this field is `./`
 
-![](../../.gitbook/assets/create-app-git-save.png)
+![](../../user-guide/creating-application/images/save_git_repo.jpg)
 
 If you want to go with a multi-git approach, then you need to specify a separate path for each of your repositories. The first repository can be checked out at the default `./` path as explained above. But, for all the rest of the repositories, you need to ensure that you provide unique checkout paths. In failing to do so, you may cause Devtron to checkout multiple repositories in one directory and overwriting files from different repositories on each other.
 
@@ -43,11 +43,11 @@ This checkbox is optional and is used for pulling [git submodules](https://git-s
 
 ## 5. Multi Git:
 
-As we discussed, Devtron also supports multiple git repositories in a single application. To add multiple repositories, click on add material and repeat steps 1 to 3. Repeat the process for every new git repository you add. Ensure that the checkout paths are unique for each.
+As we discussed, Devtron also supports multiple git repositories in a single application. To add multiple repositories, click on add repo and repeat steps 1 to 3. Repeat the process for every new git repository you add. Ensure that the checkout paths are unique for each.
 
 Note: Even if you add multiple repositories, only one image will be created based on the docker file as shown in the [docker build config](docker-build-configuration.md).
 
-## **Why do we need MultiGit support-**
+## **Why do we need Multi Git support-**
 
 Let’s look at this with an example:
 
@@ -62,4 +62,4 @@ Few other examples, where you may want to have multiple repositories for your ap
 ## **How Devtron's 'Checkout Path' works**
 
 The checkout path is used by Devtron to assign a directory to each of your git repositories. Once you provide different checkout paths for your repositories, Devtron will clone your code at those locations and these checkout paths can be referenced in the docker file to create docker image for the application.
-Whenever a change is pushed to any the configured repositories, the CI will be triggered and a new docker image file will be built based on the latest commits of the configured repositories and pushed to the docker registry.
+Whenever a change is pushed to any the configured repositories, the CI will be triggered and a new docker image file will be built based on the latest commits of the configured repositories and pushed to the container registry.

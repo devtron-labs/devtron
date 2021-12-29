@@ -1,26 +1,29 @@
-# Docker Registries
+# Container Registries
 
-The global configuration helps you add your `Docker Registry`. In the Docker registry, you provide credentials of your registry, where your images will be stored. And this will be shown to you as a drop-down on `Docker Build Config` Page.
+The global configuration helps you add your `Container Registry`. In the container registry, you provide credentials of your registry, where your images will be stored. And this will be shown to you as a drop-down on `Docker Build Config` Page.
 
-## Add Docker Registry configuration:
+## Add Container Registry configuration:
 
-Go to the `Docker Registry` section of `Global Configuration`. Click on `Add docker registry`.
+Go to the `Container Registry` section of `Global Configuration`. Click on `Add container registry`.
 
-You will see below the input fields to configure the docker registry.
+You will see below the input fields to configure the container registry.
 
 * Name
 * Registry type
-  * Ecr
+  * ecr
     * AWS region
     * Access key ID
     * Secret access key
+  * docker hub
+    * Username
+    * Password
   * Others
     * Username
     * password
 * Registry URL
 * Set as default
 
-![](../../.gitbook/assets/gc-docker-add%20%283%29.png)
+![](../../user-guide/global-configurations/images/Container_Registry.jpg)
 
 ### Name
 
@@ -28,7 +31,7 @@ Provide a name to your registry, this name will be shown to you in Docker Build 
 
 ### Registry type
 
-Here you can select the type of the Registry. We are supporting two types- `ecr` and `others`. You can select any one of them from the drop-down. By default, this value is `ecr`. If you select ecr then you have to provide some information like- `AWS region, Access Key, and Secret Key`. And if you select others then you have to provide the `Username` and `Password`.
+Here you can select the type of the Registry. We are supporting three types- `docker hub`, `ecr` and `others`. You can select any one of them from the drop-down. By default, this value is `ecr`. If you select ecr then you have to provide some information like- `AWS region, Access Key`, and `Secret Key`. If you select docker hub then you have to provide `Username` and `Password`. And if you select others then you have to provide the `Username` and `Password`.
 
 ### Registry URL
 
@@ -50,7 +53,7 @@ Inside the Access key ID box, provide your AWS access key.
 
 Provide your AWS secret access key ID.
 
-![](../../.gitbook/assets/gc-docker-configure-aws%20%281%29.png)
+![](../../user-guide/global-configurations/images/Container_Registry_ecr.jpg)
 
 ### Registry Type- Docker Hub 
 
@@ -64,7 +67,7 @@ Give the username of the docker hub account you used for creating your registry 
 
 Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) corresponding to your docker hub account.
 
-![](../../.gitbook/assets/gc-docker-configure-docker-hub.png)
+![](../../user-guide/global-configurations/images/Container_Registry_DockerHub.jpg)
 
 ### Registry Type Others:
 
@@ -78,11 +81,11 @@ Give the username of your account, where you have created your registry in.
 
 Give the password corresponding to the username of your registry.
 
-![](../../.gitbook/assets/gc-docker-configure-other%20%282%29.png)
+![](../../user-guide/global-configurations/images/Container_Registry_others.jpg)
 
 ### Set as default:
 
-If you enable the `Set as default` option, then this registry name will be set as default in the `Docker Registry` section inside the `Docker build config` page. This is optional. You can keep it disabled.
+If you enable the `Set as default` option, then this registry name will be set as default in the `Container Registry` section inside the `Docker build config` page. This is optional. You can keep it disabled.
 
 ### Advance Registry Url connection options:
 
@@ -90,9 +93,9 @@ If you enable the `Set as default` option, then this registry name will be set a
 
 * If you enable the `Allow Secure Connection With CA Certificate` option, then you have to upload/provide private CA certificate (ca.crt).
 
-* If the docker registry is insecure (for eg : SSL certificate is expired), then you enable the `Allow Insecure Connection` option.
+* If the container registry is insecure (for eg : SSL certificate is expired), then you enable the `Allow Insecure Connection` option.
 
-Now click on `Save` to save the configuration of the `Docker registry`.
+Now click on `Save` to save the configuration of the `Container registry`.
 
 ### Note:
 
@@ -101,7 +104,7 @@ Some popular registries which can be used using username and password mechanism:
 
 * **Google Container Registry (GCR)** : JSON key file authentication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) for getting username and password for this registry. Please remove all the white spaces from json key and wrap it in single quote while putting in password field.  
 
-![](../../.gitbook/assets/gc-docker-configure-gcr.png)
+![](../../user-guide/global-configurations/images/Container_Registry_gcr.jpg)
 
 * **Google Artifact Registry (GAR)** : JSON key file authentication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key) for getting username and password for this registry. Please remove all the white spaces from json key and wrap it in single quote while putting in password field.
-* **Azure Container Registry (ACR)** : Service principal authentication method can be used to authenticate with username and password. Please follow [link](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) for getting username and password for this registry. 
+* **Azure Container Registry (ACR)** : Service principal authentication method can be used to authenticate with username and password. Please follow [link](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) for getting username and password for this registry.

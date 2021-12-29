@@ -45,7 +45,7 @@ type CiArtifact struct {
 	DeployedTime     time.Time `sql:"-"`
 	Deployed         bool      `sql:"-"`
 	Latest           bool      `sql:"-"`
-	RunningOnParent  bool 	   `sql:"-"`
+	RunningOnParent  bool      `sql:"-"`
 	sql.AuditLog
 }
 
@@ -53,7 +53,7 @@ type CiArtifactRepository interface {
 	Save(artifact *CiArtifact) error
 	Get(id int) (artifact *CiArtifact, err error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
-	GetArtifactsByCDPipeline(cdPipelineId int) ([]CiArtifact, error)
+	GetArtifactsByCDPipeline(cdPipelineId, limit int) ([]CiArtifact, error)
 	FetchArtifactForRollback(cdPipelineId int) ([]CiArtifact, error)
 
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
@@ -110,7 +110,7 @@ func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
 }
 
 //this method takes CD Pipeline id and Returns List of Artifacts Latest By last deployed
-func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId int) ([]CiArtifact, error) {
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limit int) ([]CiArtifact, error) {
 	var artifactsA []CiArtifact
 	var artifactsAB []CiArtifact
 
@@ -189,7 +189,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId int) 
 			}
 		}
 		artifactsAll = append(artifactsAll, a)
-		if len(artifactsAll) >= 10 {
+		if len(artifactsAll) >= limit {
 			break
 		}
 	}
