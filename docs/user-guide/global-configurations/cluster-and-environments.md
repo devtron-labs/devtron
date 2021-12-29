@@ -6,15 +6,9 @@ Select the Cluster & Environment section of global configuration and click on `A
 
 ## Add Cluster:
 
-To add cluster a cluster on devtron, you must have superadmin access.
-Generate the admin token to add the cluster on devtron by running the following command. Please ensure that you have kubectl and jq installed on the bastion that you’re running the command.
+To add a cluster on devtron, you must have superadmin access.
 
-```bash
-curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh && bash kubernetes_export_sa.sh cd-user devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/clusterrole.yaml
-```
 Navigate to the `Global Configurations` → `Clusters and Environments` on devtron and click on `Add Cluster`. Provide the below informations to add your kubernetes cluster:
-
-Provide the below information to add your kubernetes cluster:
 
 1. Name
 2. Kubernetes Cluster Info
@@ -49,7 +43,11 @@ Provide the endpoint/URL of your kubernetes cluster.It is recommended to use a s
 
 * **Bearer token**
 
-Provide your kubernetes cluster’s Bearer token for authentication purposes so that the Devtron tool will be able to talk to your kubernetes cluster and can deploy your application in your kubernetes cluster.
+Provide your kubernetes cluster’s Bearer token for authentication purposes so that the Devtron tool will be able to talk to your kubernetes cluster and can deploy your application in your kubernetes cluster.Generate the admin token to add the cluster on devtron by running the following command. Please ensure that you have kubectl and jq installed on the bastion that you’re running the command.
+
+```bash
+curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh && bash kubernetes_export_sa.sh cd-user devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/clusterrole.yaml
+```
 
 ### 3. Prometheus Info
 
