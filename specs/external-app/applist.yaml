@@ -556,3 +556,10 @@ components:
         mergedValues:
           type: string
           description: merged values
+        readme:
+          type: string
+          description:
+        EnvironmentDetail:
+          type: object
+          $ref: "#/components/schemas/EnvironmentDetail"
+          description: detail of environment where its currently deployed
