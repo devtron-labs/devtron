@@ -20,7 +20,7 @@
 * [Creating Application](user-guide/creating-application/README.md)
   * [Git Repository](user-guide/creating-application/git-material.md)
   * [Docker Build Configuration](user-guide/creating-application/docker-build-configuration.md)
-  * [Deployment Template]
+  * [Deployment Template](user-guide/creating-application/devtron-charts/deployment-template.md)
     * [Rollout](user-guide/creating-application/devtron-charts/deployment-template.md)
     * [Job/Cronjob](user-guide/creating-application/devtron-charts/job-and-cronjob.md)
   * [Workflow](user-guide/creating-application/workflow/README.md)
