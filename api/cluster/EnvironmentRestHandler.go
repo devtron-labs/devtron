@@ -41,7 +41,7 @@ type EnvironmentRestHandler interface {
 	Update(w http.ResponseWriter, r *http.Request)
 	FindById(w http.ResponseWriter, r *http.Request)
 	GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request)
-	GetEnvironmentListForAutocompleteClusterWise(w http.ResponseWriter, r *http.Request)
+	GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request)
 }
 
 type EnvironmentRestHandlerImpl struct {
@@ -286,7 +286,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	common.WriteJsonResp(w, err, grantedEnvironment, http.StatusOK)
 }
 
-func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocompleteClusterWise(w http.ResponseWriter, r *http.Request) {
+func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -304,9 +304,9 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocompleteClusterW
 			//ignore error, apply rbac by default
 		}
 	}
-	environments, err := impl.environmentClusterMappingsService.GetEnvironmentListForAutocompleteGroupByCluster()
+	environments, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown()
 	if err != nil {
-		impl.logger.Errorw("service err, GetEnvironmentListForAutocomplete", "err", err)
+		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

@@ -91,14 +91,14 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 	}
 }
 
-const ClusterName = "default_cluster"
+const DefaultClusterName = "default_cluster"
 const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
 func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error) {
 	host := cluster.ServerUrl
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
-	if cluster.Id == 1 && cluster.ClusterName == ClusterName {
+	if cluster.Id == 1 && cluster.ClusterName == DefaultClusterName {
 		if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
 			impl.logger.Errorw("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
 			return nil, err

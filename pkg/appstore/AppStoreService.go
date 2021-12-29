@@ -316,7 +316,7 @@ func (impl *AppStoreServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chartC
 		return nil, err
 	}
 
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +400,7 @@ func (impl *AppStoreServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartC
 	}
 
 	// modify configmap
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 	if err != nil {
 		return nil, err
 	}
@@ -760,7 +760,7 @@ func (impl *AppStoreServiceImpl) get(href string, chartRepository *repo.ChartRep
 }
 
 func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
-	defaultClusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	defaultClusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 	if err != nil {
 		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", "err", err)
 		return err

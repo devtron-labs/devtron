@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
 	"time"
 )
@@ -66,8 +67,7 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
-	GetEnvironmentListForAutocompleteGroupByCluster() ([]*EnvironmentBean, error)
-	GetAllActiveClusterAndNamespace() ([]*EnvironmentBean, error)
+	GetCombinedEnvironmentListForDropDown() ([]*EnvironmentBean, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -404,10 +404,10 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocompleteGroupByCluster() ([]*EnvironmentBean, error) {
+func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown() ([]*EnvironmentBean, error) {
 	models, err := impl.environmentRepository.FindAllActive()
 	if err != nil {
-		impl.logger.Errorw("error in fetching environment", "err", err)
+		impl.logger.Errorw("error in fetching environments", "err", err)
 	}
 	var environments []*EnvironmentBean
 	for _, model := range models {
@@ -433,30 +433,50 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocompleteGroupByClust
 			})
 		}
 	  `*/
-	/*
-		clusterNamespaces, err := impl.GetAllActiveClusterAndNamespace()
-		if err != nil {
-			impl.logger.Errorw("error in fetching environment", "err", err)
-		}
+
+	clusterNamespaces, err := impl.getAllClusterNamespaceCombination()
+	if err != nil {
+		impl.logger.Errorw("error in fetching clusters namespaces", "err", err)
+		// skip if found error in fetching any cluster namespaces
+	}
+	if clusterNamespaces != nil && len(clusterNamespaces) > 0 {
 		environments = append(environments, clusterNamespaces...)
-	*/
+	}
 	//TODO - dedupe which are already in db
 	return environments, nil
 }
 
-func (impl EnvironmentServiceImpl) GetAllActiveClusterAndNamespace() ([]*EnvironmentBean, error) {
+func (impl EnvironmentServiceImpl) getAllClusterNamespaceCombination() ([]*EnvironmentBean, error) {
 	var beans []*EnvironmentBean
 	models, err := impl.clusterService.FindAllActive()
 	if err != nil {
-		impl.logger.Errorw("error in fetching environment", "err", err)
+		impl.logger.Errorw("error in fetching clusters", "err", err)
 	}
 
 	for _, clusterBean := range models {
-		client, err := impl.K8sUtil.GetClientForInCluster()
-		if err != nil {
-			return nil, err
-		}
-		if clusterBean.ClusterName != "default_cluster" {
+		var client *v1.CoreV1Client
+		if clusterBean.ClusterName == "default_cluster" {
+			/*if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
+				impl.logger.Errorw("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
+				return nil, err
+			} else {
+				content, err := ioutil.ReadFile(TokenFilePath)
+				if err != nil {
+					impl.logger.Errorw("error on reading file", "err", err)
+					return nil, err
+				}
+				bearerToken := string(content)
+				clusterCfg := &util.ClusterConfig{Host: clusterBean.ServerUrl, BearerToken: bearerToken}
+				client, err = impl.K8sUtil.GetClient(clusterCfg)
+				if err != nil {
+					return nil, err
+				}
+			}*/
+			client, err = impl.K8sUtil.GetClientForInCluster()
+			if err != nil {
+				return nil, err
+			}
+		} else {
 			configMap := clusterBean.Config
 			bearerToken := configMap["bearer_token"]
 			clusterCfg := &util.ClusterConfig{Host: clusterBean.ServerUrl, BearerToken: bearerToken}
