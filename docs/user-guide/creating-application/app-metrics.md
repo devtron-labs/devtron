@@ -26,7 +26,7 @@ envoyproxy:
 ```
 
 
-![](../../images/creating-application/app-metrics/app-metrics.png)
+![](../../images/creating-application/app-metrics/app-metrics-1.jpg)
 
 
 ## CPU Usage Metrics
