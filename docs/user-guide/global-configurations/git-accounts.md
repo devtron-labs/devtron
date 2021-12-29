@@ -12,7 +12,7 @@ Git Accounts allow you to connect your code source with Devtron. You’ll be abl
 4. Authentication type
 
 
-![](../../.gitbook/assets/git-accounts-1.png)
+![](../../user-guide/global-configurations/images/git-accounts.jpg)
 
 ### 1. Name
 
@@ -34,19 +34,19 @@ Here you have to provide the type of authentication required by your version con
 
 If you select `Anonymous` then you do not have to provide any username, password/authentication token or SSH key. Just click on `Save` to save your git account provider details.
 
-![](../../.gitbook/assets/git-accounts-2.png)
+![](../../user-guide/global-configurations/images/git-accounts-anonymous.jpg)
 
 * **User Auth**
 
 If you select `User Auth` then you have to provide the `Username` and either of `Password` or `Auth Token` for the authentication of your version controller account. Click on `Save` to save your git account provider details.
 
-![](../../.gitbook/assets/git-accounts-3.png)
+![](../../user-guide/global-configurations/images/git-accounts-user-auth.jpg)
 
 * **SSH Key**
 
 If you choose `SSH Key` then you have to provide the `Private SSH Key` corresponding to the public key added in your version controller account. Click on `Save` to save your git account provider details.
 
-![](../../.gitbook/assets/git-accounts-4.png)
+![](../../user-guide/global-configurations/images/git-accounts-ssh.jpg)
 
 ## Update Git Account
 
