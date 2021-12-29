@@ -94,22 +94,25 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		return nil, err
 	}
 
-	model, err := impl.environmentRepository.FindByName(mappings.Environment)
+	identifier := clusterBean.ClusterName + "__" + mappings.Namespace
+
+	model, err := impl.environmentRepository.FindByNameOrIdentifier(mappings.Environment, identifier)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in finding environment for update", "err", err)
 		return mappings, err
 	}
 	if model.Id > 0 {
-		impl.logger.Warnw("environment already exists", "model", model)
+		impl.logger.Warnw("environment already exists for this cluster and namespace", "model", model)
 		return mappings, fmt.Errorf("environment already exists")
 	}
 
 	model = &repository.Environment{
-		Name:      mappings.Environment,
-		ClusterId: mappings.ClusterId,
-		Active:    mappings.Active,
-		Namespace: mappings.Namespace,
-		Default:   mappings.Default,
+		Name:                  mappings.Environment,
+		ClusterId:             mappings.ClusterId,
+		Active:                mappings.Active,
+		Namespace:             mappings.Namespace,
+		Default:               mappings.Default,
+		EnvironmentIdentifier: identifier,
 	}
 	model.CreatedBy = userId
 	model.UpdatedBy = userId
@@ -359,11 +362,11 @@ func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*EnvironmentBean, er
 	var beans []*EnvironmentBean
 	for _, model := range models {
 		beans = append(beans, &EnvironmentBean{
-			Id:          model.Id,
-			Environment: model.Name,
-			Active: model.Active,
-			Namespace: model.Namespace,
-			Default:   model.Default,
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Active:                model.Active,
+			Namespace:             model.Namespace,
+			Default:               model.Default,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
