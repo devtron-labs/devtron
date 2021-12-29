@@ -637,4 +637,4 @@ spec:
   - name: tests
     configMap:
       name: devtron-grafana-test
-  restartPolicy: Never
+  restartPolicy: OnFailure

@@ -6,7 +6,7 @@ _**Welcome! This is the documentation for Creating Applications**_
 
 **Parts of Documentation**
 
-[Git Material](git-material.md)
+[Git Repository](git-material.md)
 
 [Docker Configuration](docker-build-configuration.md)
 
