@@ -563,7 +563,3 @@ components:
         readme:
           type: string
           description: readme of the chart
-        environmentDetail:
-          type: object
-          $ref: "#/components/schemas/AppEnvironmentDetail"
-          description: detail of environment where its currently deployed
