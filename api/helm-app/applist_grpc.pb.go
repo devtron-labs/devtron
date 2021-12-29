@@ -305,5 +305,5 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "applist.proto",
+	Metadata: "grpc/applist.proto",
 }
