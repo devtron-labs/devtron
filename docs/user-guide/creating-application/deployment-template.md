@@ -1,5 +1,10 @@
+# Devtron Charts
 
-# Deployment Template
+1. [Rollout](deployment-template.md#Rollout-Deployment)
+2. [Job/Cronjob](job-and-cronjob-chart.md)
+3. Knative
+
+# Rollout Deployment
 
 Deployment configuration is the Manifest for the application, it defines the runtime behavior of the application. You can define application behavior by providing information in three sections:
 
@@ -9,7 +14,7 @@ Deployment configuration is the Manifest for the application, it defines the run
 
 ![](../../.gitbook/assets/deployment-template%20%282%29.gif)
 
-### 1. Chart version
+## 1. Chart version
 
 | Key | Descriptions |
 | :--- | :--- |
@@ -21,11 +26,11 @@ One can see multiple chart version options available in the drop-down. you can s
 
 Every chart version has its own YAML file. Helm charts are used to provide specifications for your application. To make it easy to use, we have created templates for the YAML file and have added some variables inside the YAML. You can provide or change the values of these variables as per your requirement.
 
-If you want to see [Application Metrics](deployment-template.md#3-show-application-metrics) \(For example Status codes 2xx, 3xx, 5xx; throughput, and latency\) for your application, then you need to select the latest chart version.
+If you want to see [Application Metrics](deployment-template.md#3.-Show-application-metrics) \(For example Status codes 2xx, 3xx, 5xx; throughput, and latency\) for your application, then you need to select the latest chart version.
 
 Application Metrics is not supported for Chart version older than 3.7 version.
 
-### 2. Yaml file
+## 2. Yaml file
 
 ### Container Ports
 
@@ -652,7 +657,7 @@ waitForSecondsBeforeScalingDown: 30
 ```
 Wait for given period of time before scaling down the container.
 
-### 3. Show application metrics
+## 3. Show application metrics
 
 If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
 
