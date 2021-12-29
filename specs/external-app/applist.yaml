@@ -39,9 +39,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HelmAppDeploymentHistory"
-  /orchestrator/application/values-yaml:
+  /orchestrator/application/release-info:
     get:
-      description: deployment values.yaml
+      description: deployment values.yaml/release-info
       parameters:
         - in: query
           name: appId
@@ -53,7 +53,7 @@ paths:
             type: string
       responses:
         "200":
-          description: deployment history
+          description: release info
           content:
             application/json:
               schema:
@@ -558,7 +558,10 @@ components:
           description: merged values
         readme:
           type: string
-          description:
+          description: readme of the chart
+        appName:
+          type: string
+          description: relase name
         environmentDetail:
           type: object
           $ref: "#/components/schemas/AppEnvironmentDetail"
