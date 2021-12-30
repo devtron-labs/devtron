@@ -7,7 +7,7 @@ Deployment configuration is the Manifest for the application, it defines the run
 2. Yaml file
 3. Show application metrics
 
-![](../../.gitbook/assets/deployment-template%20%282%29.gif)
+![](../../../.gitbook/assets/deployment-template%20%282%29.gif)
 
 ## 1. Chart version
 
@@ -656,7 +656,7 @@ Wait for given period of time before scaling down the container.
 
 If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
 
-![](../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
+![](../../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
 
