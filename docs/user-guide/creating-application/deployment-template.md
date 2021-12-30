@@ -1,4 +1,4 @@
-# Deployment Template
+# Devtron Charts
 
 This documentation consists of the charts available on Devtron.
 
