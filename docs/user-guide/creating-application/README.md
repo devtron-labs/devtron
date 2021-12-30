@@ -10,7 +10,7 @@ _**Welcome! This is the documentation for Creating Applications**_
 
 [Docker Configuration](docker-build-configuration.md)
 
-[Deployment Template](deployment-template.md)
+[Deployment Template](deployment-template/)
 
 [Workflows](workflow/)
 
