@@ -247,9 +247,9 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 				LastDeployedAt: &lastDeployed,
 				ProjectId:      &projectId,
 				EnvironmentDetail: &openapi.AppEnvironmentDetail{
-					Namespace:   &deployedapp.Environment.Namespace,
-					ClusterName: &deployedapp.Environment.ClusterName,
-					ClusterId:   &deployedapp.Environment.ClusterId,
+					Namespace:   &deployedapp.EnvironmentDetail.Namespace,
+					ClusterName: &deployedapp.EnvironmentDetail.ClusterName,
+					ClusterId:   &deployedapp.EnvironmentDetail.ClusterId,
 				},
 			}
 			envName := fmt.Sprintf("%s__%s", deployedapp.Environment.ClusterName, deployedapp.Environment.Namespace)

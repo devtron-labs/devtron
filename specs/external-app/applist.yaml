@@ -39,9 +39,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HelmAppDeploymentHistory"
-  /orchestrator/application/values-yaml:
+  /orchestrator/application/release-info:
     get:
-      description: deployment values.yaml
+      description: deployment values.yaml/release-info
       parameters:
         - in: query
           name: appId
@@ -53,7 +53,7 @@ paths:
             type: string
       responses:
         "200":
-          description: deployment history
+          description: release info
           content:
             application/json:
               schema:
@@ -374,6 +374,10 @@ components:
           type: integer
           description: unique identifier for the project, APP with no project will have id `0`
           example: "12"
+        chartVersion:
+          type: string
+          description: chart version
+          example: 1.2.3
         environmentDetail:
           type: object
           $ref: "#/components/schemas/AppEnvironmentDetail"
@@ -545,7 +549,7 @@ components:
       properties:
         deployedAppDetail:
           type: object
-          $ref: "#/components/schemas/HelmAppDeploymentDetail"
+          $ref: "#/components/schemas/HelmApp"
           description: deployment deils
         defaultValues:
           type: string
@@ -556,3 +560,6 @@ components:
         mergedValues:
           type: string
           description: merged values
+        readme:
+          type: string
+          description: readme of the chart

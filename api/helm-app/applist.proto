@@ -37,8 +37,9 @@ message DeployedAppDetail {
   string appName = 2;
   string chartName = 3;
   string chartAvatar = 4;
-  EnvironmentDetails environment = 5;
+  EnvironmentDetails environmentDetail = 5;
   google.protobuf.Timestamp LastDeployed = 6;
+  string chartVersion = 7;
 }
 message EnvironmentDetails{
   string clusterName = 1;
@@ -164,4 +165,6 @@ message ReleaseInfo{
   string defaultValues = 2;
   string overrideValues = 3;
   string mergedValues = 4;
+  string readme = 5;
 }
+
