@@ -50,7 +50,7 @@ This metrics indicates the  application’s response to client’s request with 
 
 Latency metrics shows the latency for an application. Latency measures the delay between an action and a response.
 
-**99.9th percentile latency**: The maximum latency, in seconds, for the fastest 99.9% of requests. By default the value is 99.9% percentile.
+**99.9th percentile latency**: The maximum latency, in seconds, for the fastest 99.9% of requests.
 
 **99th percentile latency**: The maximum latency, in seconds, for the fastest 99% of requests.
 
