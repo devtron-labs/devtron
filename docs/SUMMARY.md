@@ -30,7 +30,7 @@
   * [Secrets](user-guide/creating-application/secrets.md)
   * [Environment Overrides](user-guide/creating-application/environment-overrides.md)
   * [Application Metrics](user-guide/creating-application/app-metrics.md)
-  * [Job and Cronjob Chart](user-guide/creating-application/job-and-cronjob.md)
+  * [Job and Cronjob Chart](user-guide/creating-application/deployment-template/job-and-cronjob.md)
 * [Cloning Application](user-guide/cloning-application.md)
 * [Deploying Application](user-guide/deploying-application/README.md)
   * [Triggering CI](user-guide/deploying-application/triggering-ci.md)
