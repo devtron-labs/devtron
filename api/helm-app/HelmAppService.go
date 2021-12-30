@@ -14,12 +14,12 @@ import (
 )
 
 type HelmAppService interface {
-	ListHelmApplications(clusterIds []int, w http.ResponseWriter, helmAuth func(token string, object string) bool)
-	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
+	ListHelmApplications(clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
+	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, string, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
-	GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error)
-	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error)
+	GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, string, error)
+	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, string, error)
 }
 type HelmAppServiceImpl struct {
 	Logger         *zap.SugaredLogger
@@ -67,7 +67,7 @@ func (impl *HelmAppServiceImpl) listApplications(clusterIds []int) (ApplicationS
 	return applicatonStream, err
 }
 
-func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.ResponseWriter, helmAuth func(token string, object string) bool) {
+func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool) {
 	appStream, err := impl.listApplications(clusterIds)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "clusters", clusterIds, "err", err)
@@ -76,7 +76,7 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.Re
 		return appStream.Recv()
 	}, err,
 		func(message interface{}) interface{} {
-			return impl.appListRespProtoTransformer(message.(*DeployedAppList), helmAuth)
+			return impl.appListRespProtoTransformer(message.(*DeployedAppList), token, helmAuth)
 		})
 }
 
@@ -157,50 +157,53 @@ func (impl *HelmAppServiceImpl) getClusterConf(clusterId int) (*ClusterConfig, e
 	}
 	return config, nil
 }
-func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
+func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, string, error) {
 	config, err := impl.getClusterConf(app.ClusterId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
-		return nil, err
+		return nil, "", err
 	}
 	req := &AppDetailRequest{
 		ClusterConfig: config,
 		Namespace:     app.Namespace,
 		ReleaseName:   app.ReleaseName,
 	}
+	rbacObject := fmt.Sprintf("undefined/%s__%s/%s", config.ClusterName, app.Namespace, app.ReleaseName)
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
-	return appdetail, err
+	return appdetail, rbacObject, err
 
 }
 
-func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {
+func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, string, error) {
 	config, err := impl.getClusterConf(app.ClusterId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
-		return nil, err
+		return nil, "", err
 	}
 	req := &AppDetailRequest{
 		ClusterConfig: config,
 		Namespace:     app.Namespace,
 		ReleaseName:   app.ReleaseName,
 	}
+	rbacObject := fmt.Sprintf("undefined/%s__%s/%s", config.ClusterName, app.Namespace, app.ReleaseName)
 	history, err := impl.helmAppClient.GetDeploymentHistory(ctx, req)
-	return history, err
+	return history, rbacObject, err
 }
 
-func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error) {
+func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, string, error) {
 	config, err := impl.getClusterConf(app.ClusterId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
-		return nil, err
+		return nil, "", err
 	}
 	req := &AppDetailRequest{
 		ClusterConfig: config,
 		Namespace:     app.Namespace,
 		ReleaseName:   app.ReleaseName,
 	}
+	rbacObject := fmt.Sprintf("undefined/%s__%s/%s", config.ClusterName, app.Namespace, app.ReleaseName)
 	history, err := impl.helmAppClient.GetValuesYaml(ctx, req)
-	return history, err
+	return history, rbacObject, err
 }
 
 type AppIdentifier struct {
@@ -225,7 +228,7 @@ func DecodeAppId(appId string) (*AppIdentifier, error) {
 	}, nil
 }
 
-func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *DeployedAppList, helmAuth func(token string, object string) bool) openapi.AppList {
+func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *DeployedAppList, token string, helmAuth func(token string, object string) bool) openapi.AppList {
 	applicationType := "HELM-APP"
 	appList := openapi.AppList{ClusterIds: &[]int32{deployedApps.ClusterId}, ApplicationType: &applicationType}
 	if deployedApps.Errored {
@@ -250,7 +253,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 				},
 			}
 			envName := fmt.Sprintf("%s__%s", deployedapp.Environment.ClusterName, deployedapp.Environment.Namespace)
-			isValidAuth := helmAuth("", fmt.Sprintf("%s/%s/%s", "unassigned", envName, deployedapp.AppName))
+			isValidAuth := helmAuth(token, fmt.Sprintf("%s/%s/%s", "unassigned", envName, deployedapp.AppName))
 			if isValidAuth {
 				HelmApps = append(HelmApps, helmApp)
 			}

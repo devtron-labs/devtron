@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -53,7 +54,8 @@ func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r
 		}
 		clusterIds = append(clusterIds, j)
 	}
-	handler.helmAppService.ListHelmApplications(clusterIds, w, handler.CheckHelmAuth)
+	token := r.Header.Get("token")
+	handler.helmAppService.ListHelmApplications(clusterIds, w, token, handler.CheckHelmAuth)
 }
 
 func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {
@@ -65,11 +67,18 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appdetail, err := handler.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
+	appdetail, rbacObject, err := handler.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
 	common.WriteJsonResp(w, err, appdetail, http.StatusOK)
 }
 
@@ -125,11 +134,18 @@ func (handler *HelmAppRestHandlerImpl) GetDeploymentHistory(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := handler.helmAppService.GetDeploymentHistory(context.Background(), appIdentifier)
+	res, rbacObject, err := handler.helmAppService.GetDeploymentHistory(context.Background(), appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
@@ -141,11 +157,18 @@ func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := handler.helmAppService.GetValuesYaml(context.Background(), appIdentifier)
+	res, rbacObject, err := handler.helmAppService.GetValuesYaml(context.Background(), appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
