@@ -22,7 +22,7 @@
   * [Docker Build Configuration](user-guide/creating-application/docker-build-configuration.md)
   * [Deployment Template](user-guide/creating-application/deployment-template.md)
     * [Rollout Deployment](user-guide/creating-application/deployment-template/rollout-deployment.md)
-    * [Job/Cronjob](user-guide/creating-application/deployment-template/job-and-cronjob.md)
+    * [Job and Cronjob](user-guide/creating-application/deployment-template/job-and-cronjob.md)
   * [Workflow](user-guide/creating-application/workflow/README.md)
     * [CI Pipeline](user-guide/creating-application/workflow/ci-pipeline.md)
     * [CD Pipeline](user-guide/creating-application/workflow/cd-pipeline.md)
