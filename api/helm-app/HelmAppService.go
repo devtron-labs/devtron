@@ -252,7 +252,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 					ClusterId:   &deployedapp.EnvironmentDetail.ClusterId,
 				},
 			}
-			envName := fmt.Sprintf("%s__%s", deployedapp.Environment.ClusterName, deployedapp.Environment.Namespace)
+			envName := fmt.Sprintf("%s__%s", deployedapp.EnvironmentDetail.ClusterName, deployedapp.EnvironmentDetail.Namespace)
 			isValidAuth := helmAuth(token, fmt.Sprintf("%s/%s/%s", "unassigned", envName, deployedapp.AppName))
 			if isValidAuth {
 				HelmApps = append(HelmApps, helmApp)
