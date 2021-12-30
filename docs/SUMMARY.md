@@ -58,7 +58,7 @@
   * [Manage Notification](user-guide/global-configurations/manage-notification.md)
 * [Bulk Update](user-guide/bulk-update.md)
 * [Command Bar](user-guide/command-bar.md)
-* [Use Cases](user-guide/use-cases/README.md)s
+* [Use Cases](user-guide/use-cases/README.md)
   * [Devtron Generic Helm Chart To Run Cron Job Or One Time Job](user-guide/use-cases/devtron-generic-helm-chart-to-run-cron-job-or-one-time-job.md)
   * [Connect SpringBoot with Mysql Database](user-guide/use-cases/connect-springboot-with-mysql-database.md)
   * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
