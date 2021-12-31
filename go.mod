@@ -106,4 +106,4 @@ require (
 	xorm.io/core v0.7.2 // indirect
 )
 
-replace github.com/devtron-labs/authenticator => github.com/nishant-d/authenticator v0.4.19
+replace github.com/devtron-labs/authenticator => github.com/nishant-d/authenticator v0.4.20
