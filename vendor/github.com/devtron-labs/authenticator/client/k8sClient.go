@@ -19,6 +19,7 @@ package client
 
 import (
 	"flag"
+	"github.com/caarlos0/env/v6"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -32,18 +33,28 @@ import (
 type LocalDevMode bool
 
 type K8sClient struct {
-	devMode LocalDevMode
-	config  *rest.Config
+	runtimeConfig *RuntimeConfig
+	config        *rest.Config
 }
 
-func NewK8sClient(devMode LocalDevMode) (*K8sClient, error) {
-	config, err := getKubeConfig(devMode)
+type RuntimeConfig struct {
+	LocalDevMode LocalDevMode `env:"RUNTIME_CONFIG_LOCAL_DEV" envDefault:"false"`
+}
+
+func GetRuntimeConfig() (*RuntimeConfig, error) {
+	cfg := &RuntimeConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
+func NewK8sClient(runtimeConfig *RuntimeConfig) (*K8sClient, error) {
+	config, err := getKubeConfig(runtimeConfig.LocalDevMode)
 	if err != nil {
 		return nil, err
 	}
 	return &K8sClient{
-		devMode: devMode,
-		config:  config,
+		runtimeConfig: runtimeConfig,
+		config:        config,
 	}, nil
 }
 
