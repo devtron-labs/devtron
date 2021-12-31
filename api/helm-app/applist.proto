@@ -61,6 +61,7 @@ message AppDetail{
   google.protobuf.Timestamp lastDeployed = 6;
   ChartMetadata chartMetadata = 7;
   ResourceTreeResponse resourceTreeResponse = 8;
+  EnvironmentDetails environmentDetails = 9;
 }
 
 message ReleaseStatus {
