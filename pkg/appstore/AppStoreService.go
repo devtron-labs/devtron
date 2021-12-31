@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -800,9 +801,8 @@ var CallbackConfigMap = func (configMaps *v1.ConfigMap) {
 	logger := zap.SugaredLogger{}
 	for filename, binaryData := range configMaps.BinaryData {
 		binaryDataReader := bytes.NewReader(binaryData)
-		chartTemplateService := util.ChartTemplateServiceImpl{}
+		var chartTemplateService util.ChartTemplateServiceImpl
 		dir := chartTemplateService.GetDir()
-
 		var ChartWorkingDir util.ChartWorkingDir
 		chartDir := filepath.Join(string(ChartWorkingDir), dir)
 		err := os.MkdirAll(chartDir, os.ModePerm)
@@ -838,8 +838,12 @@ var CallbackConfigMap = func (configMaps *v1.ConfigMap) {
 
 		var RefChartDir pipeline.RefChartDir
 		refChartDir := filepath.Join(string(RefChartDir), chartLocation)
-
-		err = dirCopy.Copy(refChartDir, chartDir)
+		files, err := ioutil.ReadDir(chartDir)
+		if err != nil {
+			log.Fatal(err)
+		}
+		CurrentChartWorkingDir := filepath.Join(chartDir,files[0].Name())
+		err = dirCopy.Copy(CurrentChartWorkingDir, refChartDir)
 		if err != nil {
 			logger.Errorw("error in copy directory, CallbackConfigMap", "err", err)
 		}

@@ -25,7 +25,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	dirCopy "github.com/otiai10/copy"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -1164,14 +1166,31 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(ChartRefId int) error {
 		return err
 	}
 	location := chartRef.Location
-	if _, err := os.Stat(filepath.Join(string(impl.refChartDir), location)); os.IsNotExist(err) {
+	refChartDir := filepath.Join(string(impl.refChartDir), location)
+	if _, err := os.Stat(refChartDir); os.IsNotExist(err) {
 		chartData := chartRef.ChartData
 		binaryDataReader := bytes.NewReader(chartData)
-		err = util2.ExtractTarGz(binaryDataReader, string(impl.refChartDir))
+		var chartTemplateService util.ChartTemplateServiceImpl
+		dir := chartTemplateService.GetDir()
+
+		var ChartWorkingDir util.ChartWorkingDir
+		RandomChartWorkingDir := filepath.Join(string(ChartWorkingDir),dir)
+		err := os.MkdirAll(RandomChartWorkingDir, os.ModePerm)
+		if err != nil {
+			impl.logger.Errorw("error in creating directory, CallbackConfigMap", "err", err)
+			return err
+		}
+		err = util2.ExtractTarGz(binaryDataReader, RandomChartWorkingDir)
 		if err != nil {
 			return err
 		}
-		time.Sleep(time.Second)
+		files, err := ioutil.ReadDir(RandomChartWorkingDir)
+		if err != nil {
+			log.Fatal(err)
+		}
+		CurrentChartWorkingDir := filepath.Join(RandomChartWorkingDir,files[0].Name())
+		err = dirCopy.Copy(CurrentChartWorkingDir, refChartDir)
+
 		return nil
 	} else {
 		return nil

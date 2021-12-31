@@ -216,7 +216,7 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 }
 
 func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *EnvironmentProperties) (*EnvironmentProperties, error) {
-	chartService := ChartServiceImpl{}
+	var chartService ChartService
 	err := chartService.ExtractChartIfMissing(environmentProperties.ChartRefId)
 	if err != nil{
 		return nil, err
