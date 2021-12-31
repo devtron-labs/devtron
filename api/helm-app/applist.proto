@@ -88,7 +88,7 @@ message ResourceNode {
   string kind = 3;
   string namespace = 4;
   string name = 5;
-  string UID = 6;
+  string uid = 6;
   repeated ResourceRef parentRefs = 7;
   ResourceNetworkingInfo networkingInfo = 8;
   string resourceVersion = 9;
@@ -111,12 +111,12 @@ message ResourceRef {
   string kind = 3;
   string namespace = 4;
   string name = 5;
-  string UID = 6 ;
+  string uid = 6 ;
 }
 
 message PodMetadata {
   string name = 1;
-  string UID = 2 ;
+  string uid = 2 ;
   repeated string containers = 3;
   repeated string initContainers = 4;
   bool isNew = 5;
