@@ -8,7 +8,7 @@ Click on `Global Configurations` -&gt; `Notifications`
 
 Click on `Configurations` and you will see Devtron support two types of configurations `SES Configurations` or `Slack Configurations`.
 
-![](../../user-guide/global-configurations/images/notifications-configurations.jpg)
+![](../../setup/global-configurations/images/notifications-configurations.jpg)
 
 ### **Manage SES Configurations**
 
@@ -52,11 +52,11 @@ Click on `Save` and your slack channel will be added.
 
 Click on `Add New` to receive new notification.
 
-![](../../user-guide/global-configurations/images/notifications-add.jpg)
+![](../../setup/global-configurations/images/notifications-add.jpg)
 
 ### **Manage Slack Notifications**
 
-![](../../user-guide/global-configurations/images/manage-slack-notifications.jpg)
+![](../../setup/global-configurations/images/manage-slack-notifications.jpg)
 
 _**Send To**_
 
@@ -74,7 +74,7 @@ Click on `Save` when you are done with your Slack notification configuration.
 
 ### **Manage SES Notifications**
 
-![](../../user-guide/global-configurations/images/manage-slack-notifications.jpg)
+![](../../setup/global-configurations/images/manage-slack-notifications.jpg)
 
 _**Send To**_
 

@@ -24,7 +24,7 @@ Navigate to the `Global Configurations` → `Clusters and Environments` on devtr
    * TLS Certificate
 
 
-![](../../user-guide/global-configurations/images/cluster-1.jpg)
+![](../../setup/global-configurations/images/cluster-1.jpg)
 
 ### 1. Name
 
@@ -77,11 +77,11 @@ on saving or update a cluster there is a call to fetch k8s version, it will stor
 
 Check the below screenshots to know how it looks like If you select the `Basic` authentication type
 
-![](../../user-guide/global-configurations/images/cluster-2.jpg)
+![](../../setup/global-configurations/images/cluster-2.jpg)
 
 If you select the `Anonymous` authentication type
 
-![](../../user-guide/global-configurations/images/cluster-1.jpg)
+![](../../setup/global-configurations/images/cluster-1.jpg)
 
 Now click on `Save Cluster` to save your cluster information.
 
