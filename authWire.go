@@ -15,3 +15,4 @@ var AuthWireSet = wire.NewSet(
 	middleware.NewSessionManager,
 	middleware.NewUserLogin,
 )
+

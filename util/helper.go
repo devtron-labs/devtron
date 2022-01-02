@@ -18,11 +18,13 @@
 package util
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -118,4 +120,21 @@ func HttpRequest(url string) (map[string]interface{}, error) {
 		return apiRes, err
 	}
 	return nil, err
+}
+
+func KubeCapacity (command string) (json.RawMessage, error){
+	cmd := exec.Command("bash", "-c", command)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		return nil, err
+	}
+	var dat json.RawMessage
+	err = json.Unmarshal(stdout.Bytes(), &dat)
+	if err != nil{
+		return nil, err
+	}
+	return dat, nil
 }

@@ -72,6 +72,7 @@ type MuxRouter struct {
 	testSuitRouter                   TestSuitRouter
 	imageScanRouter                  ImageScanRouter
 	policyRouter                     PolicyRouter
+	kubeCapacityRouter				 KubeCapacityRouter
 	gitOpsConfigRouter               GitOpsConfigRouter
 	dashboardRouter                  dashboard.DashboardRouter
 	attributesRouter                 AttributesRouter
@@ -102,7 +103,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter AppStoreRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
-	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
+	policyRouter PolicyRouter, kubeCapacityRouter KubeCapacityRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter, coreAppRouter CoreAppRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
@@ -140,6 +141,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		testSuitRouter:                   testSuitRouter,
 		imageScanRouter:                  imageScanRouter,
 		policyRouter:                     policyRouter,
+		kubeCapacityRouter:				  kubeCapacityRouter,
 		gitOpsConfigRouter:               gitOpsConfigRouter,
 		attributesRouter:                 attributesRouter,
 		dashboardRouter:                  dashboardRouter,
@@ -264,6 +266,9 @@ func (r MuxRouter) Init() {
 
 	policyRouter := r.Router.PathPrefix("/orchestrator/security/policy").Subrouter()
 	r.policyRouter.InitPolicyRouter(policyRouter)
+
+	kubeCapacityRouter := r.Router.PathPrefix("/orchestrator/kube-capacity").Subrouter()
+	r.kubeCapacityRouter.InitKubeCapacityRouter(kubeCapacityRouter)
 
 	gitOpsRouter := r.Router.PathPrefix("/orchestrator/gitops").Subrouter()
 	r.gitOpsConfigRouter.InitGitOpsConfigRouter(gitOpsRouter)

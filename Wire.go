@@ -553,6 +553,10 @@ func InitializeApp() (*App, error) {
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
 
+		router.NewKubeCapacityRouterImpl,
+		wire.Bind(new(router.KubeCapacityRouter), new(*router.KubeCapacityRouterImpl)),
+		restHandler.NewKubeCapacityRestHandlerImpl,
+		wire.Bind(new(restHandler.KubeCapacityRestHandler), new(*restHandler.KubeCapacityRestHandlerImpl)),
 		grafana.GetConfig,
 		router.NewGrafanaRouterImpl,
 		wire.Bind(new(router.GrafanaRouter), new(*router.GrafanaRouterImpl)),
