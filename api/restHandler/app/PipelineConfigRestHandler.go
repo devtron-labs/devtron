@@ -470,6 +470,8 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.Response
 		common.WriteJsonResp(w, err, "StatusBadRequest", http.StatusBadRequest)
 		return
 	}
+
+	appType := v.Get("appType")
 	handler.Logger.Infow("request payload, GetAppListByTeamIds", "payload", params)
 	var teamIds []int
 	teamIdList := strings.Split(params, ",")
@@ -481,7 +483,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.Response
 		}
 		teamIds = append(teamIds, teamId)
 	}
-	projectWiseApps, err := handler.pipelineBuilder.GetAppListByTeamIds(teamIds)
+	projectWiseApps, err := handler.pipelineBuilder.GetAppListByTeamIds(teamIds, appType)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetAppListByTeamIds", "err", err, "payload", params)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

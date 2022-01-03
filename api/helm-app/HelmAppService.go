@@ -40,6 +40,8 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	}
 }
 
+const UNASSIGNED_PROJECT = "unassigned"
+
 func (impl *HelmAppServiceImpl) listApplications(clusterIds []int) (ApplicationService_ListApplicationsClient, error) {
 	if len(clusterIds) == 0 {
 		return nil, nil
@@ -168,7 +170,7 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 		Namespace:     app.Namespace,
 		ReleaseName:   app.ReleaseName,
 	}
-	rbacObject := fmt.Sprintf("undefined/%s__%s/%s", config.ClusterName, app.Namespace, app.ReleaseName)
+	rbacObject := fmt.Sprintf("%s/%s__%s/%s", UNASSIGNED_PROJECT, config.ClusterName, app.Namespace, app.ReleaseName)
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
 	return appdetail, rbacObject, err
 
@@ -185,7 +187,7 @@ func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *A
 		Namespace:     app.Namespace,
 		ReleaseName:   app.ReleaseName,
 	}
-	rbacObject := fmt.Sprintf("undefined/%s__%s/%s", config.ClusterName, app.Namespace, app.ReleaseName)
+	rbacObject := fmt.Sprintf("%s/%s__%s/%s", UNASSIGNED_PROJECT, config.ClusterName, app.Namespace, app.ReleaseName)
 	history, err := impl.helmAppClient.GetDeploymentHistory(ctx, req)
 	return history, rbacObject, err
 }
@@ -201,7 +203,7 @@ func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdent
 		Namespace:     app.Namespace,
 		ReleaseName:   app.ReleaseName,
 	}
-	rbacObject := fmt.Sprintf("undefined/%s__%s/%s", config.ClusterName, app.Namespace, app.ReleaseName)
+	rbacObject := fmt.Sprintf("%s/%s__%s/%s", UNASSIGNED_PROJECT, config.ClusterName, app.Namespace, app.ReleaseName)
 	history, err := impl.helmAppClient.GetValuesYaml(ctx, req)
 	return history, rbacObject, err
 }
@@ -252,8 +254,8 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 					ClusterId:   &deployedapp.EnvironmentDetail.ClusterId,
 				},
 			}
-			envName := fmt.Sprintf("%s__%s", deployedapp.EnvironmentDetail.ClusterName, deployedapp.EnvironmentDetail.Namespace)
-			isValidAuth := helmAuth(token, fmt.Sprintf("%s/%s/%s", "unassigned", envName, deployedapp.AppName))
+			envIdentifier := fmt.Sprintf("%s__%s", deployedapp.EnvironmentDetail.ClusterName, deployedapp.EnvironmentDetail.Namespace)
+			isValidAuth := helmAuth(token, fmt.Sprintf("%s/%s/%s", UNASSIGNED_PROJECT, envIdentifier, deployedapp.AppName))
 			if isValidAuth {
 				HelmApps = append(HelmApps, helmApp)
 			}

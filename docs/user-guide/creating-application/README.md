@@ -20,3 +20,5 @@ _**Welcome! This is the documentation for Creating Applications**_
 
 [Environment Overrides](environment-overrides.md)
 
+[Application Metrics](app-metrics.md)
+
