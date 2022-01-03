@@ -185,7 +185,7 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {
 	config, err := impl.getClusterConf(app.ClusterId)
 	if err != nil {
-		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
+		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
 	req := &AppDetailRequest{
@@ -200,7 +200,7 @@ func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *A
 func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error) {
 	config, err := impl.getClusterConf(app.ClusterId)
 	if err != nil {
-		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
+		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
 	req := &AppDetailRequest{

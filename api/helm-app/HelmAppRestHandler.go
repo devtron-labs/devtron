@@ -117,7 +117,7 @@ func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *htt
 func (handler *HelmAppRestHandlerImpl) GetDeploymentHistory(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId := vars["appId"]
-	appIdentifier, err := DecodeAppId(appId)
+	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -133,7 +133,7 @@ func (handler *HelmAppRestHandlerImpl) GetDeploymentHistory(w http.ResponseWrite
 func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId := vars["appId"]
-	appIdentifier, err := DecodeAppId(appId)
+	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
