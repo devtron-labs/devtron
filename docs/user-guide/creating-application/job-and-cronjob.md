@@ -1,5 +1,10 @@
 ## Job and Cronjob chart
 
+To select job and cronjob first we have to select the deployment templet . Then after select the dropdown button in which we can select the job and cronjob instead of rollout templet. then after we can continue as mention below .
+To set kind as job in case of a job . To set kind as cronjob in case of a cronjob .
+
+{% embed url="https://youtu.be/hm35lC2vNEM" caption="" %}
+
 ## 1. Job
 
 A Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate. As pods successfully complete, the Job tracks the successful completions. When a specified number of successful completions is reached, the task (ie, Job) is complete. Deleting a Job will clean up the Pods it created. Suspeding a Job will delete its active Pods until the Job is resumed again.
