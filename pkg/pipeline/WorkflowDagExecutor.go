@@ -483,29 +483,21 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				break
 			}
 		}
+
 		gitMaterial, err := impl.materialRepository.FindById(m.GitMaterialId)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("could not fetch git materials", "err", err)
 			return nil, err
 		}
 
-		commitTime, err := convert(ciMaterialCurrent.Modifications[0].ModifiedTime)
-		if err != nil {
-			return nil, err
-		}
 		ciProjectDetail := CiProjectDetails{
 			GitRepository:   ciMaterialCurrent.Material.GitConfiguration.URL,
 			MaterialName:    gitMaterial.Name,
 			CheckoutPath:    gitMaterial.CheckoutPath,
 			FetchSubmodules: gitMaterial.FetchSubmodules,
-			CommitHash:      ciMaterialCurrent.Modifications[0].Revision,
-			Author:          ciMaterialCurrent.Modifications[0].Author,
 			SourceType:      m.Type,
 			SourceValue:     m.Value,
-			GitTag:          ciMaterialCurrent.Modifications[0].Tag,
-			Message:         ciMaterialCurrent.Modifications[0].Message,
 			Type:            string(m.Type),
-			CommitTime:      *commitTime,
 			GitOptions: GitOptions{
 				UserName:      gitMaterial.GitProvider.UserName,
 				Password:      gitMaterial.GitProvider.Password,
@@ -515,8 +507,22 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			},
 		}
 
+		if len(ciMaterialCurrent.Modifications) > 0 {
+			ciProjectDetail.CommitHash = ciMaterialCurrent.Modifications[0].Revision
+			ciProjectDetail.Author = ciMaterialCurrent.Modifications[0].Author
+			ciProjectDetail.GitTag = ciMaterialCurrent.Modifications[0].Tag
+			ciProjectDetail.Message = ciMaterialCurrent.Modifications[0].Message
+			commitTime, err := convert(ciMaterialCurrent.Modifications[0].ModifiedTime)
+			if err != nil {
+				return nil, err
+			}
+			ciProjectDetail.CommitTime = *commitTime
+		} else {
+			impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
+		}
+
 		// set webhook data
-		if m.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+		if m.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
 			webhookData := ciMaterialCurrent.Modifications[0].WebhookData
 			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
 				Id:              webhookData.Id,
