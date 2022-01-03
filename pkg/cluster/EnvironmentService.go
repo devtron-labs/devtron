@@ -24,6 +24,9 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"net/http"
 	"time"
 )
 
@@ -40,6 +43,18 @@ type EnvironmentBean struct {
 	EnvironmentIdentifier string `json:"environmentIdentifier"`
 }
 
+type EnvDto struct {
+	EnvironmentId   int    `json:"environmentId,omitempty" validate:"number"`
+	EnvironmentName string `json:"environmentName,omitempty" validate:"max=50"`
+	Namespace       string `json:"namespace,omitempty" validate:"max=50"`
+}
+
+type ClusterEnvDto struct {
+	ClusterId    int       `json:"clusterId,omitempty"`
+	ClusterName  string    `json:"clusterName,omitempty"`
+	Environments []*EnvDto `json:"environments,omitempty"`
+}
+
 type EnvironmentService interface {
 	FindOne(environment string) (*EnvironmentBean, error)
 	Create(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
@@ -53,13 +68,14 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
+	GetCombinedEnvironmentListForDropDown() ([]*EnvironmentBean, error)
 }
 
 type EnvironmentServiceImpl struct {
-	environmentRepository   repository.EnvironmentRepository
-	logger                  *zap.SugaredLogger
-	clusterService          ClusterService
-	K8sUtil                 *util.K8sUtil
+	environmentRepository repository.EnvironmentRepository
+	logger                *zap.SugaredLogger
+	clusterService        ClusterService
+	K8sUtil               *util.K8sUtil
 	//propertiesConfigService pipeline.PropertiesConfigService
 }
 
@@ -69,10 +85,10 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 //	propertiesConfigService pipeline.PropertiesConfigService,
 ) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
-		environmentRepository:   environmentRepository,
-		logger:                  logger,
-		clusterService:          clusterService,
-		K8sUtil:                 K8sUtil,
+		environmentRepository: environmentRepository,
+		logger:                logger,
+		clusterService:        clusterService,
+		K8sUtil:               K8sUtil,
 		//propertiesConfigService: propertiesConfigService,
 	}
 }
@@ -197,6 +213,7 @@ func (impl EnvironmentServiceImpl) GetAllActive() ([]EnvironmentBean, error) {
 			Id:                    model.Id,
 			Environment:           model.Name,
 			ClusterId:             model.Cluster.Id,
+			ClusterName:           model.Cluster.ClusterName,
 			Active:                model.Active,
 			PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
 			Namespace:             model.Namespace,
@@ -391,5 +408,79 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
+	return beans, nil
+}
+
+func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown() ([]*EnvironmentBean, error) {
+	models, err := impl.environmentRepository.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching environments", "err", err)
+	}
+	var environments []*EnvironmentBean
+	uniqueComboMap := make(map[string]*EnvironmentBean)
+	for _, model := range models {
+		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
+		environment := &EnvironmentBean{
+			Id:          model.Id,
+			Environment: model.Name,
+			Namespace:   model.Namespace,
+			ClusterId:   model.ClusterId,
+			ClusterName: model.Cluster.ClusterName,
+			CdArgoSetup: model.Cluster.CdArgoSetup,
+		}
+		uniqueComboMap[key] = environment
+		environments = append(environments, environment)
+	}
+
+	clusterNamespaces, err := impl.getAllClusterNamespaceCombination()
+	if err != nil {
+		impl.logger.Errorw("error in fetching clusters namespaces", "err", err)
+		// skip if found error in fetching any cluster namespaces
+	}
+	for _, item := range clusterNamespaces {
+		key := fmt.Sprintf("%s__%s", item.ClusterName, item.Namespace)
+		if _, ok := uniqueComboMap[key]; !ok {
+			environments = append(environments, item)
+		}
+	}
+	return environments, nil
+}
+
+func (impl EnvironmentServiceImpl) getAllClusterNamespaceCombination() ([]*EnvironmentBean, error) {
+	var beans []*EnvironmentBean
+	models, err := impl.clusterService.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching clusters", "err", err)
+	}
+
+	for _, clusterBean := range models {
+		var client *v1.CoreV1Client
+		if clusterBean.ClusterName == DefaultClusterName {
+			client, err = impl.K8sUtil.GetClientForInCluster()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			client, err = impl.K8sUtil.GetClientByToken(clusterBean.ServerUrl, clusterBean.Config)
+			if err != nil {
+				return nil, err
+			}
+		}
+		namespaceList, err := impl.K8sUtil.ListNamespaces(client)
+		statusError, _ := err.(*errors2.StatusError)
+		if err != nil && statusError.Status().Code != http.StatusNotFound {
+			impl.logger.Errorw("secret not found", "err", err)
+			return nil, err
+		}
+
+		for _, namespace := range namespaceList.Items {
+			beans = append(beans, &EnvironmentBean{
+				Environment: fmt.Sprintf("%s__%s", clusterBean.ClusterName, namespace.ObjectMeta.Name),
+				Namespace:   namespace.ObjectMeta.Name,
+				ClusterName: clusterBean.ClusterName,
+			})
+		}
+	}
+
 	return beans, nil
 }

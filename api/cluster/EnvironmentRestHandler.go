@@ -41,6 +41,7 @@ type EnvironmentRestHandler interface {
 	Update(w http.ResponseWriter, r *http.Request)
 	FindById(w http.ResponseWriter, r *http.Request)
 	GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request)
+	GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request)
 }
 
 type EnvironmentRestHandlerImpl struct {
@@ -288,4 +289,45 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		grantedEnvironment = make([]request.EnvironmentBean, 0)
 	}
 	common.WriteJsonResp(w, err, grantedEnvironment, http.StatusOK)
+}
+
+func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	environments, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown()
+	if err != nil {
+		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	var clusters []request.ClusterEnvDto
+	grantedEnvironmentMap := make(map[string][]*request.EnvDto)
+	for _, environment := range environments {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(environment.EnvironmentIdentifier)); ok {
+			grantedEnvironmentMap[environment.ClusterName] = append(grantedEnvironmentMap[environment.ClusterName], &request.EnvDto{
+				EnvironmentId:   environment.Id,
+				EnvironmentName: environment.Environment,
+				Namespace:       environment.Namespace,
+			})
+		}
+	}
+	//RBAC enforcer Ends
+
+	for k, v := range grantedEnvironmentMap {
+		clusters = append(clusters, request.ClusterEnvDto{
+			ClusterName:  k,
+			Environments: v,
+		})
+	}
+	if len(clusters) == 0 {
+		clusters = make([]request.ClusterEnvDto, 0)
+	}
+	common.WriteJsonResp(w, err, clusters, http.StatusOK)
 }
