@@ -6,7 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gogo/protobuf/proto"
 	"go.uber.org/zap"
 	"net/http"
@@ -27,17 +27,19 @@ type HelmAppServiceImpl struct {
 	clusterService cluster.ClusterService
 	helmAppClient  HelmAppClient
 	pump           connector.Pump
+	enforcerUtil   rbac.EnforcerUtil
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	helmAppClient HelmAppClient,
-	pump connector.Pump) *HelmAppServiceImpl {
+	pump connector.Pump, enforcerUtil rbac.EnforcerUtil) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		Logger:         Logger,
 		clusterService: clusterService,
 		helmAppClient:  helmAppClient,
 		pump:           pump,
+		enforcerUtil:   enforcerUtil,
 	}
 }
 
@@ -250,8 +252,8 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 					ClusterId:   &deployedapp.EnvironmentDetail.ClusterId,
 				},
 			}
-			envIdentifier := fmt.Sprintf("%s__%s", deployedapp.EnvironmentDetail.ClusterName, deployedapp.EnvironmentDetail.Namespace)
-			isValidAuth := helmAuth(token, fmt.Sprintf("%s/%s/%s", team.UNASSIGNED_PROJECT, envIdentifier, deployedapp.AppName))
+			rbacObject := impl.enforcerUtil.GetHelmObjectByClusterId(int(deployedapp.EnvironmentDetail.ClusterId), deployedapp.EnvironmentDetail.Namespace, deployedapp.AppName)
+			isValidAuth := helmAuth(token, rbacObject)
 			if isValidAuth {
 				HelmApps = append(HelmApps, helmApp)
 			}
