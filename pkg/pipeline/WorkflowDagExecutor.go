@@ -519,6 +519,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			ciProjectDetail.CommitTime = *commitTime
 		} else {
 			impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
+			return nil, fmt.Errorf("modification not found for %d", ciPipeline.Id)
 		}
 
 		// set webhook data
