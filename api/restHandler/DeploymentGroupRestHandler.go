@@ -175,7 +175,7 @@ func (impl *DeploymentGroupRestHandlerImpl) FetchEnvApplicationsForDG(w http.Res
 	finalResp := make([]*deploymentGroup.EnvironmentAppListForDG, 0)
 	for _, item := range result {
 		// RBAC enforcer applying
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
 			passCount := 0
 			for _, app := range item.Apps {
 				resourceName := impl.enforcerUtil.GetAppRBACNameByAppId(app.Id)
