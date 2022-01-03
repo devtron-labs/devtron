@@ -383,15 +383,24 @@ func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, cluster
 	return nil
 }
 
-func (impl K8sUtil) ListNamespaces(client *v12.CoreV1Client) (exists []v1.Namespace, err error) {
+func (impl K8sUtil) ListNamespaces(client *v12.CoreV1Client) ([]v1.Namespace, error) {
 	ns, err := client.Namespaces().List(metav1.ListOptions{})
-	//ns, err := impl.k8sClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
-	impl.logger.Debugw("ns fetch", "res", ns)
 	if errors.IsNotFound(err) {
-		return ns.Items, nil
+		return []v1.Namespace{}, nil
 	} else if err != nil {
-		return ns.Items, err
+		return []v1.Namespace{}, err
 	} else {
 		return ns.Items, nil
 	}
+}
+
+func (impl K8sUtil) GetClientByToken(serverUrl string, token map[string]string) (*v12.CoreV1Client, error) {
+	bearerToken := token["bearer_token"]
+	clusterCfg := &ClusterConfig{Host: serverUrl, BearerToken: bearerToken}
+	client, err := impl.GetClient(clusterCfg)
+	if err != nil {
+		impl.logger.Errorw("error in k8s client", "error", err)
+		return nil, err
+	}
+	return client, nil
 }

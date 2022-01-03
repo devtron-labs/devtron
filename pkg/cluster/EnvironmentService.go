@@ -213,7 +213,7 @@ func (impl EnvironmentServiceImpl) GetAllActive() ([]EnvironmentBean, error) {
 			Id:                    model.Id,
 			Environment:           model.Name,
 			ClusterId:             model.Cluster.Id,
-			ClusterName:        model.Cluster.ClusterName,
+			ClusterName:           model.Cluster.ClusterName,
 			Active:                model.Active,
 			PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
 			Namespace:             model.Namespace,
@@ -420,7 +420,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown() ([]*E
 	uniqueComboMap := make(map[string]*EnvironmentBean)
 	for _, model := range models {
 		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
-		uniqueComboMap[key] = &EnvironmentBean{
+		environment := &EnvironmentBean{
 			Id:          model.Id,
 			Environment: model.Name,
 			Namespace:   model.Namespace,
@@ -428,38 +428,21 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown() ([]*E
 			ClusterName: model.Cluster.ClusterName,
 			CdArgoSetup: model.Cluster.CdArgoSetup,
 		}
+		uniqueComboMap[key] = environment
+		environments = append(environments, environment)
 	}
-	for _, v := range uniqueComboMap {
-		environments = append(environments, v)
-	}
-	/*
-		clumap := make(map[string][]EnvironmentBean)
-		for _, model := range models {
-			clumap[model.Cluster.ClusterName] = append(clumap[model.Cluster.ClusterName], EnvironmentBean{
-				Id:          model.Id,
-				Environment: model.Name,
-				Namespace:   model.Namespace,
-				ClusterId:   model.ClusterId,
-				ClusterName: model.Cluster.ClusterName,
-				CdArgoSetup: model.Cluster.CdArgoSetup,
-			})
-		}
-	  `*/
 
 	clusterNamespaces, err := impl.getAllClusterNamespaceCombination()
 	if err != nil {
 		impl.logger.Errorw("error in fetching clusters namespaces", "err", err)
 		// skip if found error in fetching any cluster namespaces
 	}
-	if clusterNamespaces != nil && len(clusterNamespaces) > 0 {
-		for _, item := range clusterNamespaces {
-			key := fmt.Sprintf("%s__%s", item.ClusterName, item.Namespace)
-			if _, ok := uniqueComboMap[key]; !ok {
-				environments = append(environments, item)
-			}
+	for _, item := range clusterNamespaces {
+		key := fmt.Sprintf("%s__%s", item.ClusterName, item.Namespace)
+		if _, ok := uniqueComboMap[key]; !ok {
+			environments = append(environments, item)
 		}
 	}
-	//TODO - dedupe which are already in db
 	return environments, nil
 }
 
@@ -472,32 +455,13 @@ func (impl EnvironmentServiceImpl) getAllClusterNamespaceCombination() ([]*Envir
 
 	for _, clusterBean := range models {
 		var client *v1.CoreV1Client
-		if clusterBean.ClusterName == "default_cluster" {
-			/*if _, err := os.Stat(TokenFilePath); os.IsNotExist(err) {
-				impl.logger.Errorw("no directory or file exists", "TOKEN_FILE_PATH", TokenFilePath, "err", err)
-				return nil, err
-			} else {
-				content, err := ioutil.ReadFile(TokenFilePath)
-				if err != nil {
-					impl.logger.Errorw("error on reading file", "err", err)
-					return nil, err
-				}
-				bearerToken := string(content)
-				clusterCfg := &util.ClusterConfig{Host: clusterBean.ServerUrl, BearerToken: bearerToken}
-				client, err = impl.K8sUtil.GetClient(clusterCfg)
-				if err != nil {
-					return nil, err
-				}
-			}*/
+		if clusterBean.ClusterName == DefaultClusterName {
 			client, err = impl.K8sUtil.GetClientForInCluster()
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			configMap := clusterBean.Config
-			bearerToken := configMap["bearer_token"]
-			clusterCfg := &util.ClusterConfig{Host: clusterBean.ServerUrl, BearerToken: bearerToken}
-			client, err = impl.K8sUtil.GetClient(clusterCfg)
+			client, err = impl.K8sUtil.GetClientByToken(clusterBean.ServerUrl, clusterBean.Config)
 			if err != nil {
 				return nil, err
 			}

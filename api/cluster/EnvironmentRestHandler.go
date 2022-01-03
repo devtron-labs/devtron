@@ -298,17 +298,6 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 		return
 	}
 
-	v := r.URL.Query()
-	authEnabled := true
-	auth := v.Get("auth")
-	if len(auth) > 0 {
-		authEnabled, err = strconv.ParseBool(auth)
-		if err != nil {
-			authEnabled = true
-			err = nil
-			//ignore error, apply rbac by default
-		}
-	}
 	environments, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown()
 	if err != nil {
 		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
@@ -321,15 +310,7 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 	var clusters []request.ClusterEnvDto
 	grantedEnvironmentMap := make(map[string][]*request.EnvDto)
 	for _, environment := range environments {
-		if authEnabled == true {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(environment.Environment)); ok {
-				grantedEnvironmentMap[environment.ClusterName] = append(grantedEnvironmentMap[environment.ClusterName], &request.EnvDto{
-					EnvironmentId:   environment.Id,
-					EnvironmentName: environment.Environment,
-					Namespace:       environment.Namespace,
-				})
-			}
-		} else {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(environment.Environment)); ok {
 			grantedEnvironmentMap[environment.ClusterName] = append(grantedEnvironmentMap[environment.ClusterName], &request.EnvDto{
 				EnvironmentId:   environment.Id,
 				EnvironmentName: environment.Environment,
