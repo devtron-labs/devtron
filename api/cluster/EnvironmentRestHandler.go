@@ -310,7 +310,7 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 	var clusters []request.ClusterEnvDto
 	grantedEnvironmentMap := make(map[string][]*request.EnvDto)
 	for _, environment := range environments {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(environment.Environment)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(environment.EnvironmentIdentifier)); ok {
 			grantedEnvironmentMap[environment.ClusterName] = append(grantedEnvironmentMap[environment.ClusterName], &request.EnvDto{
 				EnvironmentId:   environment.Id,
 				EnvironmentName: environment.Environment,
