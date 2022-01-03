@@ -478,6 +478,7 @@ func (impl EnvironmentServiceImpl) getAllClusterNamespaceCombination() ([]*Envir
 				Environment: fmt.Sprintf("%s__%s", clusterBean.ClusterName, namespace.ObjectMeta.Name),
 				Namespace:   namespace.ObjectMeta.Name,
 				ClusterName: clusterBean.ClusterName,
+				ClusterId:   clusterBean.Id,
 			})
 		}
 	}
