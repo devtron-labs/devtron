@@ -109,7 +109,7 @@ func (impl EnforcerUtilImpl) GetAppRBACByAppNameAndEnvId(appName string, envId i
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
 	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
 }
 
 func (impl EnforcerUtilImpl) GetAppRBACByAppIdAndPipelineId(appId int, pipelineId int) string {
@@ -125,11 +125,10 @@ func (impl EnforcerUtilImpl) GetAppRBACByAppIdAndPipelineId(appId int, pipelineI
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(application.AppName))
 	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(application.AppName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(application.AppName))
 }
 
 func (impl EnforcerUtilImpl) GetEnvRBACNameByAppId(appId int, envId int) string {
-	//team, err := impl.teamRepository.FindTeamByAppId(appId)
 	application, err := impl.appRepo.FindById(appId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", "")
@@ -139,7 +138,7 @@ func (impl EnforcerUtilImpl) GetEnvRBACNameByAppId(appId int, envId int) string 
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
 	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
 }
 
 func (impl EnforcerUtilImpl) GetTeamRBACByCiPipelineId(pipelineId int) string {
@@ -180,7 +179,7 @@ func (impl EnforcerUtilImpl) GetEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId i
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
 	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
 }
 
 func (impl EnforcerUtilImpl) GetTeamRbacObjectByCiPipelineId(ciPipelineId int) string {
@@ -206,7 +205,7 @@ func (impl EnforcerUtilImpl) GetTeamAndEnvironmentRbacObjectByCDPipelineId(pipel
 		return "", ""
 	}
 	teamRbac := fmt.Sprintf("%s/%s", strings.ToLower(application.Team.Name), strings.ToLower(pipeline.App.AppName))
-	envRbac := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.Environment.Name), strings.ToLower(pipeline.App.AppName))
+	envRbac := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.Environment.EnvironmentIdentifier), strings.ToLower(pipeline.App.AppName))
 	return teamRbac, envRbac
 }
 
@@ -233,7 +232,7 @@ func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsAndEnvironments() (map[int]
 		for _, app := range apps {
 			key := fmt.Sprintf("%d-%d", env.Id, app.Id)
 			if _, ok := envObjects[key]; !ok {
-				envObjects[key] = fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(app.AppName))
+				envObjects[key] = fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(app.AppName))
 			}
 		}
 	}
