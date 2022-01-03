@@ -248,17 +248,17 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) string {
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "")
 	}
-	return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), env.Name, strings.ToLower(application.AppName))
+	return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), env.EnvironmentIdentifier, strings.ToLower(application.AppName))
 }
 
 func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envId int) string {
 	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
 	if err != nil {
-		return fmt.Sprintf("%s/%s/%s", "", "")
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
-		return fmt.Sprintf("%s/%s/%s", "", "")
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), env.Name, strings.ToLower(application.AppName))
+	return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), env.EnvironmentIdentifier, strings.ToLower(application.AppName))
 }
