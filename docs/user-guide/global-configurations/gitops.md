@@ -75,6 +75,6 @@ A personal access token (PAT) is used as an alternate password to authenticate i
 Click on Save to save your gitOps configuration details.
  
 
-![](../../user-guide/global-configurations/images/bit-bucket-cloud)
+![](../../user-guide/global-configurations/images/bit-bucket-cloud.jpg)
 
 > Note: A Green tick will appear on the active gitOps provider.
