@@ -242,11 +242,11 @@ func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsAndEnvironments() (map[int]
 func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) string {
 	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
 	if err != nil {
-		return fmt.Sprintf("%s/%s/%s", "", "")
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
-		return fmt.Sprintf("%s/%s/%s", "", "")
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 	return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), env.EnvironmentIdentifier, strings.ToLower(application.AppName))
 }
