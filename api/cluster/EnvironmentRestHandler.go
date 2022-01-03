@@ -127,7 +127,7 @@ func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.Environment)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.EnvironmentIdentifier)); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -148,7 +148,7 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 	token := r.Header.Get("token")
 	for _, item := range bean {
 		// RBAC enforcer applying
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.Environment)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
 			result = append(result, item)
 		}
 		//RBAC enforcer Ends
@@ -169,7 +169,7 @@ func (impl EnvironmentRestHandlerImpl) GetAllActive(w http.ResponseWriter, r *ht
 	token := r.Header.Get("token")
 	for _, item := range bean {
 		// RBAC enforcer applying
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.Environment)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
 			result = append(result, item)
 		}
 		//RBAC enforcer Ends
@@ -203,7 +203,12 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionUpdate, strings.ToLower(bean.Environment)); !ok {
+	modifiedEnvironment, err := impl.environmentClusterMappingsService.FindById(bean.Id)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionUpdate, strings.ToLower(modifiedEnvironment.EnvironmentIdentifier)); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -234,7 +239,7 @@ func (impl EnvironmentRestHandlerImpl) FindById(w http.ResponseWriter, r *http.R
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.Environment)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.EnvironmentIdentifier)); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -272,7 +277,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	var grantedEnvironment []request.EnvironmentBean
 	for _, item := range environments {
 		if authEnabled == true {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.Environment)); ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
 				grantedEnvironment = append(grantedEnvironment, item)
 			}
 		} else {

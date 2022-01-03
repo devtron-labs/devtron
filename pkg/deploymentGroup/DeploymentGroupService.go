@@ -51,9 +51,10 @@ type CiPipelineResponseForDG struct {
 }
 
 type EnvironmentAppListForDG struct {
-	Id   int                `json:"id"`
-	Name string             `json:"name"`
-	Apps []pipeline.AppBean `json:"apps"`
+	Id                    int                `json:"id"`
+	Name                  string             `json:"name"`
+	EnvironmentIdentifier string             `json:"environmentIdentifier"`
+	Apps                  []pipeline.AppBean `json:"apps"`
 }
 
 type DeploymentGroupTriggerRequest struct {
@@ -321,6 +322,7 @@ func (impl *DeploymentGroupServiceImpl) FetchEnvApplicationsForDG(ciPipelineId i
 		environmentAppListForDG := &EnvironmentAppListForDG{}
 		environmentAppListForDG.Id = e.Id
 		environmentAppListForDG.Name = e.Name
+		environmentAppListForDG.EnvironmentIdentifier = e.EnvironmentIdentifier
 
 		apps, err := impl.appRepository.FindAppsByEnvironmentId(e.Id)
 		if err != nil && !util.IsErrNoRows(err) {
