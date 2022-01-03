@@ -112,13 +112,14 @@ Here is a sample summary JSON which is available under properties:
 | `nonProdAppCount` | total non prod apps created |
 | `userCount` | total user created in the system |
 
-### Dashboard
-Dashboard sends the events to measure dashboard visit of the Devtron tool.
+### Dashboard(Not Collected Anymore)
+<del>Dashboard sends the events to measure dashboard visit of the Devtron tool.</del>
 
-Events which are sent by Orchestrator :
-* `identify`
+<del>Events which are sent by Orchestrator :</del>
+<del>* `identify`</del>
 
-Dashboard sends the `identify` event when user visits the Dashboard for the first time.
+<del>Dashboard sends the `identify` event when user visits the Dashboard for the first time.</del>
+
 
 Where data is sent
 ======================

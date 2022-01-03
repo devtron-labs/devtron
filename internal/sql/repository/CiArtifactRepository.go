@@ -45,6 +45,7 @@ type CiArtifact struct {
 	DeployedTime     time.Time `sql:"-"`
 	Deployed         bool      `sql:"-"`
 	Latest           bool      `sql:"-"`
+	RunningOnParent  bool      `sql:"-"`
 	sql.AuditLog
 }
 
@@ -52,17 +53,18 @@ type CiArtifactRepository interface {
 	Save(artifact *CiArtifact) error
 	Get(id int) (artifact *CiArtifact, err error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
-	GetArtifactsByCDPipeline(cdPipelineId int) ([]CiArtifact, error)
+	GetArtifactsByCDPipeline(cdPipelineId, limit int) ([]CiArtifact, error)
 	FetchArtifactForRollback(cdPipelineId int) ([]CiArtifact, error)
 
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
-	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.CdWorkflowType) ([]CiArtifact, error)
+	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
 	SaveAll(artifacts []*CiArtifact) error
 	GetArtifactsByCiPipelineId(ciPipelineId int) ([]CiArtifact, error)
 	FinDByParentCiArtifactAndCiId(parentCiArtifact int, ciPipelineIds []int) ([]*CiArtifact, error)
 	GetLatest(cdPipelineId int) (int, error)
 	GetByImageDigest(imageDigest string) (artifact *CiArtifact, err error)
 	GetByIds(ids []int) ([]*CiArtifact, error)
+	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -108,7 +110,7 @@ func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
 }
 
 //this method takes CD Pipeline id and Returns List of Artifacts Latest By last deployed
-func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId int) ([]CiArtifact, error) {
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limit int) ([]CiArtifact, error) {
 	var artifactsA []CiArtifact
 	var artifactsAB []CiArtifact
 
@@ -187,14 +189,14 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId int) 
 			}
 		}
 		artifactsAll = append(artifactsAll, a)
-		if len(artifactsAll) >= 10 {
+		if len(artifactsAll) >= limit {
 			break
 		}
 	}
 	return artifactsAll, err
 }
 
-func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.CdWorkflowType) ([]CiArtifact, error) {
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error) {
 	var artifactsA []CiArtifact
 	var artifactsAB []CiArtifact
 
@@ -205,6 +207,9 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPip
 		" INNER JOIN cd_workflow wf on wf.pipeline_id=p.id" +
 		" INNER JOIN cd_workflow_runner wfr on wfr.cd_workflow_id = wf.id" +
 		" WHERE p.id= ? and wfr.workflow_type = ? GROUP BY cia.id, cia.data_source, cia.image ORDER BY cia.id DESC"*/
+
+	//this query gets details for status = Succeeded, this status is only valid
+	//for pre stages & post stages, for deploy stage status will be healthy, degraded, aborted, missing etc
 	queryFetchArtifacts = "SELECT cia.id, cia.data_source, cia.image, cia.image_digest FROM cd_workflow_runner wfr" +
 		" INNER JOIN cd_workflow wf on wf.id=wfr.cd_workflow_id" +
 		" INNER JOIN pipeline p on p.id = wf.pipeline_id" +
@@ -517,6 +522,16 @@ func (impl CiArtifactRepositoryImpl) GetByIds(ids []int) ([]*CiArtifact, error) 
 	err := impl.dbConnection.Model(&artifact).
 		Column("ci_artifact.*").
 		Where("ci_artifact.id in (?) ", pg.In(ids)).
+		Select()
+	return artifact, err
+}
+
+func (impl CiArtifactRepositoryImpl) GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error) {
+	artifact = &CiArtifact{}
+	err = impl.dbConnection.Model(artifact).
+		Column("ci_artifact.*").
+		Join("INNER JOIN cd_workflow cdwf on cdwf.ci_artifact_id = ci_artifact.id").
+		Where("cdwf.id = ? ", cdWorkflowId).
 		Select()
 	return artifact, err
 }

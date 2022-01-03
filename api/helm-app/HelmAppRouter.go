@@ -22,4 +22,10 @@ func (impl *HelmAppRouterImpl) InitAppListRouter(helmRouter *mux.Router) {
 		HandlerFunc(impl.helmAppRestHandler.GetApplicationDetail).Methods("GET")
 	helmRouter.Path("/hibernate").HandlerFunc(impl.helmAppRestHandler.Hibernate).Methods("POST")
 	helmRouter.Path("/unhibernate").HandlerFunc(impl.helmAppRestHandler.UnHibernate).Methods("POST")
+
+	helmRouter.Path("/deployment-history").Queries("appId", "{appId}").
+		HandlerFunc(impl.helmAppRestHandler.GetDeploymentHistory).Methods("GET")
+
+	helmRouter.Path("/release-info").Queries("appId", "{appId}").
+		HandlerFunc(impl.helmAppRestHandler.GetValuesYaml).Methods("GET")
 }

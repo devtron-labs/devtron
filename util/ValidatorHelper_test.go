@@ -164,38 +164,44 @@ func Test_convertMemory(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    float64
+		want    int64
 		wantErr bool
 	}{
 		{
 			name:    "base test",
 			args:    args{memory: "1Gi"},
-			want:    float64(1073741824),
+			want:    1073741824,
 			wantErr: false,
 		},
 		{
-			name:    "base test - scientifc notation",
+			name:    "negative test - scientifc notation",
 			args:    args{memory: "1e2G"},
-			want:    float64(100 * 1000000000),
-			wantErr: false,
+			want:    0,
+			wantErr: true,
 		},
 		{
 			name:    "base test - scientifc notation",
 			args:    args{memory: "1e2"},
-			want:    float64(100),
+			want:    100,
 			wantErr: false,
 		},
 		{
 			name:    "negative test case - Memory1",
 			args:    args{memory: "1.0.1Mi"},
-			want:    float64(0),
+			want:    0,
 			wantErr: true,
 		},
 		{
 			name:    "negative test case - Memory2",
 			args:    args{memory: "-10Mi"},
-			want:    float64(0),
+			want:    0,
 			wantErr: true,
+		},
+		{
+			name:    "negative test case - Memory2",
+			args:    args{memory: "1Ki"},
+			want:    1024,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -218,37 +224,37 @@ func Test_convertCPU(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    float64
+		want    int64
 		wantErr bool
 	}{
 		{
 			name:    "base test with unit",
 			args:    args{cpu: "10m"},
-			want:    float64(0.01),
+			want:    10,
 			wantErr: false,
 		},
 		{
 			name:    "base test without unit",
 			args:    args{cpu: "0.01"},
-			want:    float64(0.01),
+			want:    10,
 			wantErr: false,
 		},
 		{
 			name:    "base test - scientifc notation",
-			args:    args{cpu: "1e2m"},
-			want:    float64(100 * 0.001),
+			args:    args{cpu: "1e2"},
+			want:    100000,
 			wantErr: false,
 		},
 		{
 			name:    "negative test case - Cpu1",
 			args:    args{cpu: "1.0.1"},
-			want:    float64(0),
+			want:    0,
 			wantErr: true,
 		},
 		{
 			name:    "negative test case - Cpu2",
 			args:    args{cpu: "-10m"},
-			want:    float64(0),
+			want:    0,
 			wantErr: true,
 		},
 	}

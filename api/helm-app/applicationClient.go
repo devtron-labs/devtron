@@ -13,6 +13,8 @@ type HelmAppClient interface {
 	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
 	Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
+	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest) (*HelmAppDeploymentHistory, error)
+	GetValuesYaml(ctx context.Context, in *AppDetailRequest) (*ReleaseInfo, error)
 }
 
 type HelmAppClientImpl struct {
@@ -103,4 +105,32 @@ func (impl *HelmAppClientImpl) UnHibernate(ctx context.Context, in *HibernateReq
 		return nil, err
 	}
 	return detail, nil
+}
+
+func (impl *HelmAppClientImpl) GetDeploymentHistory(ctx context.Context, in *AppDetailRequest) (*HelmAppDeploymentHistory, error) {
+	conn, err := impl.getConnection()
+	defer util.Close(conn, impl.logger)
+	if err != nil {
+		return nil, err
+	}
+	applicationClient := NewApplicationServiceClient(conn)
+	history, err := applicationClient.GetDeploymentHistory(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return history, nil
+}
+
+func (impl *HelmAppClientImpl) GetValuesYaml(ctx context.Context, in *AppDetailRequest) (*ReleaseInfo, error) {
+	conn, err := impl.getConnection()
+	defer util.Close(conn, impl.logger)
+	if err != nil {
+		return nil, err
+	}
+	applicationClient := NewApplicationServiceClient(conn)
+	values, err := applicationClient.GetValuesYaml(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return values, nil
 }

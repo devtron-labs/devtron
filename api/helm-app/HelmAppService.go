@@ -22,6 +22,8 @@ type HelmAppService interface {
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	DecodeAppId(appId string) (*AppIdentifier, error)
+	GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error)
+	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error)
 }
 type HelmAppServiceImpl struct {
 	logger         *zap.SugaredLogger
@@ -180,6 +182,36 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 
 }
 
+func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {
+	config, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
+		return nil, err
+	}
+	req := &AppDetailRequest{
+		ClusterConfig: config,
+		Namespace:     app.Namespace,
+		ReleaseName:   app.ReleaseName,
+	}
+	history, err := impl.helmAppClient.GetDeploymentHistory(ctx, req)
+	return history, err
+}
+
+func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error) {
+	config, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
+		return nil, err
+	}
+	req := &AppDetailRequest{
+		ClusterConfig: config,
+		Namespace:     app.Namespace,
+		ReleaseName:   app.ReleaseName,
+	}
+	history, err := impl.helmAppClient.GetValuesYaml(ctx, req)
+	return history, err
+}
+
 type AppIdentifier struct {
 	ClusterId   int    `json:"clusterId"`
 	Namespace   string `json:"namespace"`
@@ -221,9 +253,9 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 				LastDeployedAt: &lastDeployed,
 				ProjectId:      &projectId,
 				EnvironmentDetail: &openapi.AppEnvironmentDetail{
-					Namespace:   &deployedapp.Environment.Namespace,
-					ClusterName: &deployedapp.Environment.ClusterName,
-					ClusterId:   &deployedapp.Environment.ClusterId,
+					Namespace:   &deployedapp.EnvironmentDetail.Namespace,
+					ClusterName: &deployedapp.EnvironmentDetail.ClusterName,
+					ClusterId:   &deployedapp.EnvironmentDetail.ClusterId,
 				},
 			}
 			HelmApps = append(HelmApps, helmApp)

@@ -22,6 +22,8 @@ type ApplicationServiceClient interface {
 	GetAppDetail(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppDetail, error)
 	Hibernate(ctx context.Context, in *HibernateRequest, opts ...grpc.CallOption) (*HibernateResponse, error)
 	UnHibernate(ctx context.Context, in *HibernateRequest, opts ...grpc.CallOption) (*HibernateResponse, error)
+	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*HelmAppDeploymentHistory, error)
+	GetValuesYaml(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*ReleaseInfo, error)
 }
 
 type applicationServiceClient struct {
@@ -91,6 +93,24 @@ func (c *applicationServiceClient) UnHibernate(ctx context.Context, in *Hibernat
 	return out, nil
 }
 
+func (c *applicationServiceClient) GetDeploymentHistory(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*HelmAppDeploymentHistory, error) {
+	out := new(HelmAppDeploymentHistory)
+	err := c.cc.Invoke(ctx, "/ApplicationService/GetDeploymentHistory", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *applicationServiceClient) GetValuesYaml(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*ReleaseInfo, error) {
+	out := new(ReleaseInfo)
+	err := c.cc.Invoke(ctx, "/ApplicationService/GetValuesYaml", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationServiceServer is the server API for ApplicationService service.
 // All implementations must embed UnimplementedApplicationServiceServer
 // for forward compatibility
@@ -99,6 +119,8 @@ type ApplicationServiceServer interface {
 	GetAppDetail(context.Context, *AppDetailRequest) (*AppDetail, error)
 	Hibernate(context.Context, *HibernateRequest) (*HibernateResponse, error)
 	UnHibernate(context.Context, *HibernateRequest) (*HibernateResponse, error)
+	GetDeploymentHistory(context.Context, *AppDetailRequest) (*HelmAppDeploymentHistory, error)
+	GetValuesYaml(context.Context, *AppDetailRequest) (*ReleaseInfo, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
 
@@ -117,6 +139,12 @@ func (UnimplementedApplicationServiceServer) Hibernate(context.Context, *Hiberna
 }
 func (UnimplementedApplicationServiceServer) UnHibernate(context.Context, *HibernateRequest) (*HibernateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UnHibernate not implemented")
+}
+func (UnimplementedApplicationServiceServer) GetDeploymentHistory(context.Context, *AppDetailRequest) (*HelmAppDeploymentHistory, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDeploymentHistory not implemented")
+}
+func (UnimplementedApplicationServiceServer) GetValuesYaml(context.Context, *AppDetailRequest) (*ReleaseInfo, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetValuesYaml not implemented")
 }
 func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
 
@@ -206,6 +234,42 @@ func _ApplicationService_UnHibernate_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_GetDeploymentHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).GetDeploymentHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/GetDeploymentHistory",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).GetDeploymentHistory(ctx, req.(*AppDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ApplicationService_GetValuesYaml_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).GetValuesYaml(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/GetValuesYaml",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).GetValuesYaml(ctx, req.(*AppDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ApplicationService_ServiceDesc is the grpc.ServiceDesc for ApplicationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -225,6 +289,14 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "UnHibernate",
 			Handler:    _ApplicationService_UnHibernate_Handler,
 		},
+		{
+			MethodName: "GetDeploymentHistory",
+			Handler:    _ApplicationService_GetDeploymentHistory_Handler,
+		},
+		{
+			MethodName: "GetValuesYaml",
+			Handler:    _ApplicationService_GetValuesYaml_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -233,5 +305,5 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "applist.proto",
+	Metadata: "grpc/applist.proto",
 }
