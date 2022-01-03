@@ -383,14 +383,14 @@ func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, cluster
 	return nil
 }
 
-func (impl K8sUtil) ListNamespaces(client *v12.CoreV1Client) ([]v1.Namespace, error) {
-	ns, err := client.Namespaces().List(metav1.ListOptions{})
+func (impl K8sUtil) ListNamespaces(client *v12.CoreV1Client) (*v1.NamespaceList, error) {
+	nsList, err := client.Namespaces().List(metav1.ListOptions{})
 	if errors.IsNotFound(err) {
-		return []v1.Namespace{}, nil
+		return nsList, nil
 	} else if err != nil {
-		return []v1.Namespace{}, err
+		return nsList, err
 	} else {
-		return ns.Items, nil
+		return nsList, nil
 	}
 }
 

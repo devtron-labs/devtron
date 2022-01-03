@@ -466,14 +466,14 @@ func (impl EnvironmentServiceImpl) getAllClusterNamespaceCombination() ([]*Envir
 				return nil, err
 			}
 		}
-		namespaces, err := impl.K8sUtil.ListNamespaces(client)
+		namespaceList, err := impl.K8sUtil.ListNamespaces(client)
 		statusError, _ := err.(*errors2.StatusError)
 		if err != nil && statusError.Status().Code != http.StatusNotFound {
 			impl.logger.Errorw("secret not found", "err", err)
 			return nil, err
 		}
 
-		for _, namespace := range namespaces {
+		for _, namespace := range namespaceList.Items {
 			beans = append(beans, &EnvironmentBean{
 				Environment: fmt.Sprintf("%s__%s", clusterBean.ClusterName, namespace.ObjectMeta.Name),
 				Namespace:   namespace.ObjectMeta.Name,
