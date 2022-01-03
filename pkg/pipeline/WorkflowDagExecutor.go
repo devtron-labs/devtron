@@ -483,7 +483,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 				break
 			}
 		}
-
 		gitMaterial, err := impl.materialRepository.FindById(m.GitMaterialId)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("could not fetch git materials", "err", err)
@@ -519,6 +518,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			ciProjectDetail.CommitTime = *commitTime
 		} else {
 			impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
+			return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
 		}
 
 		// set webhook data
