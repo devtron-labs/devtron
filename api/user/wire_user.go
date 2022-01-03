@@ -35,4 +35,7 @@ var UserWireSet = wire.NewSet(
 	casbin.NewEnforcerImpl,
 	wire.Bind(new(casbin.Enforcer), new(*casbin.EnforcerImpl)),
 	casbin.Create,
+
+	user.NewUserCommonServiceImpl,
+	wire.Bind(new(user.UserCommonService), new(*user.UserCommonServiceImpl)),
 )

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -61,20 +60,20 @@ type EnvironmentServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	clusterService          ClusterService
 	K8sUtil                 *util.K8sUtil
-	propertiesConfigService pipeline.PropertiesConfigService
+	//propertiesConfigService pipeline.PropertiesConfigService
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil,
-	propertiesConfigService pipeline.PropertiesConfigService,
+//	propertiesConfigService pipeline.PropertiesConfigService,
 ) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository:   environmentRepository,
 		logger:                  logger,
 		clusterService:          clusterService,
 		K8sUtil:                 K8sUtil,
-		propertiesConfigService: propertiesConfigService,
+		//propertiesConfigService: propertiesConfigService,
 	}
 }
 
@@ -239,10 +238,10 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 		impl.logger.Errorw("error in finding environment for update", "err", err)
 		return mappings, err
 	}
-	isNamespaceChange := false
+	/*isNamespaceChange := false
 	if model.Namespace != mappings.Namespace {
 		isNamespaceChange = true
-	}
+	}*/
 
 	clusterBean, err := impl.clusterService.FindById(mappings.ClusterId)
 	if err != nil {
@@ -267,7 +266,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 		}
 	}
 	//namespace changed, update it on chart env override config as well
-	if isNamespaceChange == true {
+	/*if isNamespaceChange == true {
 		impl.logger.Debug("namespace has modified in request, it will update related config")
 		envPropertiesList, err := impl.propertiesConfigService.GetEnvironmentPropertiesById(mappings.Id)
 		if err != nil {
@@ -283,7 +282,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 				}
 			}
 		}
-	}
+	}*/
 	grafanaDatasourceId := model.GrafanaDatasourceId
 	//grafana datasource create if not exist
 	if len(clusterBean.PrometheusUrl) > 0 && grafanaDatasourceId == 0 {

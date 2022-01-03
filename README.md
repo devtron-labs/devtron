@@ -281,4 +281,4 @@ We are deeply grateful for all our amazing contributors!
 We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose this to us at security@devtron.ai.
 
 ## :bookmark: License
-Devtron is available under the [Apache License, Version 2.0](LICENSE).
+Devtron is available under the [Apache License, Version 2.0](LICENSE)

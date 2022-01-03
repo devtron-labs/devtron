@@ -59,7 +59,7 @@ You can see details of these vulnerabilities by expanding the `Show Source Info`
 
 See the below image.
 
-![](../.gitbook/assets/security-feature-deployed-image.png)
+![](../images/security-features/security-feature-deployed-image-1.png)
 
 Click on the `Show Source Info` option. A window will be expanded with two options- Changes and Security. Click on the Security tab to view details about the vulnerabilities in the code.
 

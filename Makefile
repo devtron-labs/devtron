@@ -42,6 +42,10 @@ docker-build-push: docker-build-image
 	docker tag devtron:${TAG}  ${REGISTRY}/devtron:${TAG}
 	docker push ${REGISTRY}/devtron:${TAG}
 
+#############################################################################
 
+build-all: build
+	make --directory ./cmd/external-app build
 
-
+build-ea:
+	make --directory ./cmd/external-app build

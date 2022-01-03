@@ -1,14 +1,11 @@
-// +build !go1.10
-
 /*
- *
- * Copyright 2020 gRPC authors.
+ * Copyright (c) 2020 Devtron Labs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,14 +15,32 @@
  *
  */
 
-package credentials
+package main
 
 import (
-	"crypto/tls"
-	"net/url"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
-//TODO(ZhenLian): delete this file when we remove Go 1.9 tests.
-func SPIFFEIDFromState(state tls.ConnectionState) *url.URL {
-	return nil
+func main() {
+	app, err := InitializeApp()
+	if err != nil {
+		log.Panic(err)
+	}
+	//     gracefulStop start
+	var gracefulStop = make(chan os.Signal)
+	signal.Notify(gracefulStop, syscall.SIGTERM)
+	signal.Notify(gracefulStop, syscall.SIGINT)
+	go func() {
+		sig := <-gracefulStop
+		fmt.Printf("caught sig: %+v", sig)
+		app.Stop()
+		os.Exit(0)
+	}()
+	//      gracefulStop end
+
+	app.Start()
 }
