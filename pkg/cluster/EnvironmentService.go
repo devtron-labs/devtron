@@ -44,13 +44,13 @@ type EnvironmentBean struct {
 }
 
 type EnvDto struct {
-	EnvironmentId   int    `json:"environmentId,omitempty" validate:"number"`
+	EnvironmentId   int    `json:"environmentId" validate:"number"`
 	EnvironmentName string `json:"environmentName,omitempty" validate:"max=50"`
 	Namespace       string `json:"namespace,omitempty" validate:"max=50"`
 }
 
 type ClusterEnvDto struct {
-	ClusterId    int       `json:"clusterId,omitempty"`
+	ClusterId    int       `json:"clusterId"`
 	ClusterName  string    `json:"clusterName,omitempty"`
 	Environments []*EnvDto `json:"environments,omitempty"`
 }
