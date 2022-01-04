@@ -157,7 +157,8 @@ func InitializeApp() (*App, error) {
 	teamRepositoryImpl := team.NewTeamRepositoryImpl(db)
 	appRepositoryImpl := app.NewAppRepositoryImpl(db)
 	environmentRepositoryImpl := repository3.NewEnvironmentRepositoryImpl(db)
-	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl)
+	clusterRepositoryImpl := repository3.NewClusterRepositoryImpl(db, sugaredLogger)
+	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl)
 	roleGroupRepositoryImpl := repository2.NewRoleGroupRepositoryImpl(db, sugaredLogger)
 	userCommonServiceImpl := user.NewUserCommonServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager)
 	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl)
@@ -247,7 +248,6 @@ func InitializeApp() (*App, error) {
 	ciServiceImpl := pipeline.NewCiServiceImpl(sugaredLogger, workflowServiceImpl, ciPipelineMaterialRepositoryImpl, ciWorkflowRepositoryImpl, ciConfig, eventRESTClientImpl, eventSimpleFactoryImpl, mergeUtil, ciPipelineRepositoryImpl)
 	ciLogServiceImpl := pipeline.NewCiLogServiceImpl(sugaredLogger, ciServiceImpl, ciConfig)
 	ciHandlerImpl := pipeline.NewCiHandlerImpl(sugaredLogger, ciServiceImpl, ciPipelineMaterialRepositoryImpl, gitSensorClientImpl, ciWorkflowRepositoryImpl, workflowServiceImpl, ciLogServiceImpl, ciConfig, ciArtifactRepositoryImpl, userServiceImpl, eventRESTClientImpl, eventSimpleFactoryImpl, ciPipelineRepositoryImpl, appListingRepositoryImpl)
-	clusterRepositoryImpl := repository3.NewClusterRepositoryImpl(db, sugaredLogger)
 	grafanaClientConfig, err := grafana.GetGrafanaClientConfig()
 	if err != nil {
 		return nil, err
@@ -451,8 +451,8 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	helmAppClientImpl := client4.NewHelmAppClientImpl(sugaredLogger, helmClientConfig)
-	helmAppServiceImpl := client4.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImplExtended, helmAppClientImpl, pumpImpl)
-	helmAppRestHandlerImpl := client4.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl)
+	helmAppServiceImpl := client4.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImplExtended, helmAppClientImpl, pumpImpl, enforcerUtilImpl)
+	helmAppRestHandlerImpl := client4.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enforcerImpl, clusterServiceImplExtended, enforcerUtilImpl)
 	helmAppRouterImpl := client4.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
 	muxRouter := router.NewMuxRouter(sugaredLogger, helmRouterImpl, pipelineConfigRouterImpl, migrateDbRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, projectManagementRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusUpdateHandlerImpl, ciEventHandlerImpl, pubSubClient, userRouterImpl, cronBasedEventReceiverImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, testSuitRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImpl, bulkUpdateRouterImpl, webhookListenerRouterImpl, appLabelRouterImpl, coreAppRouterImpl, helmAppRouterImpl)
 	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, versionServiceImpl, enforcer, db, pubSubClient, sessionManager)
