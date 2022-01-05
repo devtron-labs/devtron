@@ -158,7 +158,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterIdAndNamespace(name
 	err := repositoryImpl.dbConnection.
 		Model(&mappings).
 		Where("active = true").
-		Where(" (cluster_id, namespace) in (?)", pg.InMulti(clusterNsPair)).
+		Where(" (cluster_id, namespace) in (?)", pg.InMulti(clusterNsPair...)).
 		Select()
 	return mappings, err
 }

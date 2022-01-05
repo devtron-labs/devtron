@@ -2,10 +2,11 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"time"
 )
 
 type HelmAppClient interface {
@@ -18,8 +19,9 @@ type HelmAppClient interface {
 }
 
 type HelmAppClientImpl struct {
-	logger           *zap.SugaredLogger
-	helmClientConfig *HelmClientConfig
+	logger                   *zap.SugaredLogger
+	helmClientConfig         *HelmClientConfig
+	applicationServiceClient ApplicationServiceClient
 }
 
 func NewHelmAppClientImpl(logger *zap.SugaredLogger, helmClientConfig *HelmClientConfig) *HelmAppClientImpl {
@@ -39,10 +41,27 @@ func GetConfig() (*HelmClientConfig, error) {
 	return cfg, err
 }
 
+func (impl *HelmAppClientImpl) getApplicationClient() (ApplicationServiceClient, error) {
+	if impl.applicationServiceClient == nil {
+		connection, err := impl.getConnection()
+		if err != nil {
+			return nil, err
+		}
+		impl.applicationServiceClient = NewApplicationServiceClient(connection)
+	}
+	return impl.applicationServiceClient, nil
+}
+
 func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithInsecure())
-	conn, err := grpc.Dial(impl.helmClientConfig.Url, opts...)
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	opts = append(opts,
+		grpc.WithBlock(),
+		grpc.WithInsecure(),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
+	)
+	endpoint := fmt.Sprintf("dns:///%s", impl.helmClientConfig.Url)
+	conn, err := grpc.DialContext(ctx, endpoint, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,12 +69,10 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 }
 
 func (impl *HelmAppClientImpl) ListApplication(req *AppListRequest) (ApplicationService_ListApplicationsClient, error) {
-	conn, err := impl.getConnection()
-	//defer util.Close(conn, impl.logger)
+	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
 	}
-	applicationClient := NewApplicationServiceClient(conn)
 	stream, err := applicationClient.ListApplications(context.Background(), req)
 	if err != nil {
 		return nil, err
@@ -66,12 +83,10 @@ func (impl *HelmAppClientImpl) ListApplication(req *AppListRequest) (Application
 ///	GetAppDetail(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppDetail, error)
 
 func (impl *HelmAppClientImpl) GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error) {
-	conn, err := impl.getConnection()
-	defer util.Close(conn, impl.logger)
+	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
 	}
-	applicationClient := NewApplicationServiceClient(conn)
 	detail, err := applicationClient.GetAppDetail(ctx, in)
 	if err != nil {
 		return nil, err
@@ -80,12 +95,10 @@ func (impl *HelmAppClientImpl) GetAppDetail(ctx context.Context, in *AppDetailRe
 }
 
 func (impl *HelmAppClientImpl) Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error) {
-	conn, err := impl.getConnection()
-	defer util.Close(conn, impl.logger)
+	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
 	}
-	applicationClient := NewApplicationServiceClient(conn)
 	detail, err := applicationClient.Hibernate(ctx, in)
 	if err != nil {
 		return nil, err
@@ -94,12 +107,10 @@ func (impl *HelmAppClientImpl) Hibernate(ctx context.Context, in *HibernateReque
 }
 
 func (impl *HelmAppClientImpl) UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error) {
-	conn, err := impl.getConnection()
-	defer util.Close(conn, impl.logger)
+	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
 	}
-	applicationClient := NewApplicationServiceClient(conn)
 	detail, err := applicationClient.UnHibernate(ctx, in)
 	if err != nil {
 		return nil, err
@@ -108,12 +119,10 @@ func (impl *HelmAppClientImpl) UnHibernate(ctx context.Context, in *HibernateReq
 }
 
 func (impl *HelmAppClientImpl) GetDeploymentHistory(ctx context.Context, in *AppDetailRequest) (*HelmAppDeploymentHistory, error) {
-	conn, err := impl.getConnection()
-	defer util.Close(conn, impl.logger)
+	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
 	}
-	applicationClient := NewApplicationServiceClient(conn)
 	history, err := applicationClient.GetDeploymentHistory(ctx, in)
 	if err != nil {
 		return nil, err
@@ -122,12 +131,10 @@ func (impl *HelmAppClientImpl) GetDeploymentHistory(ctx context.Context, in *App
 }
 
 func (impl *HelmAppClientImpl) GetValuesYaml(ctx context.Context, in *AppDetailRequest) (*ReleaseInfo, error) {
-	conn, err := impl.getConnection()
-	defer util.Close(conn, impl.logger)
+	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
 	}
-	applicationClient := NewApplicationServiceClient(conn)
 	values, err := applicationClient.GetValuesYaml(ctx, in)
 	if err != nil {
 		return nil, err
