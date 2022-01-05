@@ -314,9 +314,10 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(environment.EnvironmentIdentifier)); ok {
 			key := fmt.Sprintf("%s__%d", environment.ClusterName, environment.ClusterId)
 			grantedEnvironmentMap[key] = append(grantedEnvironmentMap[key], &request.EnvDto{
-				EnvironmentId:   environment.Id,
-				EnvironmentName: environment.Environment,
-				Namespace:       environment.Namespace,
+				EnvironmentId:         environment.Id,
+				EnvironmentName:       environment.Environment,
+				Namespace:             environment.Namespace,
+				EnvironmentIdentifier: environment.EnvironmentIdentifier,
 			})
 		}
 	}
