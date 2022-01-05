@@ -29,12 +29,12 @@ type HelmAppRestHandlerImpl struct {
 	helmAppService HelmAppService
 	enforcer       casbin.Enforcer
 	clusterService cluster.ClusterService
-	enforcerUtil   rbac.EnforcerUtil
+	enforcerUtil   rbac.EnforcerUtilHelm
 }
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 	helmAppService HelmAppService, enforcer casbin.Enforcer,
-	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtil) *HelmAppRestHandlerImpl {
+	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
 		logger:         logger,
 		helmAppService: helmAppService,
