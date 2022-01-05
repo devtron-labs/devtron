@@ -57,7 +57,6 @@
 * [Security Features](user-guide/security-features.md)
 * [Deleting Application](user-guide/deleting-application.md)
 * [Bulk Update](user-guide/bulk-update.md)
-* [Application Metrics](user-guide/creating-application/app-metrics.md)
 * [Command Bar](user-guide/command-bar.md)
 * [Use Cases](user-guide/use-cases/README.md)
   * [Devtron Generic Helm Chart To Run Cron Job Or One Time Job](user-guide/use-cases/devtron-generic-helm-chart-to-run-cron-job-or-one-time-job.md)

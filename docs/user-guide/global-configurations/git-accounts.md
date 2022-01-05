@@ -54,10 +54,10 @@ You can update your saved git account settings at any point in time. Just click 
 
 Updates can only be made within one Authentication type or one protocol type, i.e. HTTPS(Anonymous or User Auth) & SSH. You can update from Anonymous to User Auth & vice versa, but not from Anonymous/User Auth to SSH or reverse.
 
-![](../../.gitbook/assets/git-accounts-5.png)
+![](../../user-guide/global-configurations/images/git-account-update.jpg)
 
 ### Note:
 
 You can enable and disable your git account settings. If you enable it, then you will be able to see that enabled git account in the drop-down of Git provider.
 
-![](../../.gitbook/assets/git-accounts-6.png)
+![](../../user-guide/global-configurations/images/git-account-enable-disable.jpg)
