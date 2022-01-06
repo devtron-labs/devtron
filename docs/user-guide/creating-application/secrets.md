@@ -74,7 +74,20 @@ You can delete your secret. Click on your secret and click on the `delete sign` 
 
 ## Add External secrets
 
-In some cases, it may be that you already have secrets for your application on some other sources and you want to use that on devtron. 
+In some cases, it may be that you already have secrets for your application on some other sources and you want to use that on devtron. Before adding any external secrets on devtron, `kubernetes-external-secrets` must be installed on devtron. Kubernetes External Secrets allows you to use external secret management systems (e.g., AWS Secrets Manager) to securely add secrets in Kubernetes. 
+
+##### Installing kubernetes-external-secrets using chart
+
+To install the chart with the release named my-release:
+
+```bash
+$ helm install my-release external-secrets/kubernetes-external-secrets
+```
+To install the chart with AWS IAM Roles for Service Accounts:
+
+```bash
+$ helm install my-release external-secrets/kubernetes-external-secrets --set securityContext.fsGroup=65534 --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"='arn:aws:iam::111111111111:role/ROLENAME'
+```
 
 ### AWS Secret Manager
 
@@ -102,3 +115,11 @@ All the required field to pass your data to fetch secrets on devtron are describ
 |`name`| Name for this key in the generated secret |
 |`property`| Property to extract if secret in backend is a JSON object |
 |`isBinary`| Set this to true if configuring an item for a binary file stored else set false |
+
+### Adding secrets in AWS secret manager
+
+To add secrets in AWS secret manager, do the following steps :
+
+Step 1: Go to AWS secret manager console.
+Step 2: Click on `Store a new secret`.
+Step 3: Add and save your secret.
