@@ -221,10 +221,10 @@ Devtron now supports attaching multiple deployment pipelines to a single build p
 
 Please follow the steps mentioned below to create sequential pipelines :
 
-After creating CI/build pipeline, create a CD pipeline by clicking on the `+` sign on CI pipeline and configure the CD pipeline as per your requirements.
-To add another CD Pipeline sequentially after previous one, again click on + sign on the last CD pipeline.
-Similarly, you can add multiple CD pipelines by clicking + sign of the last CD pipeline, each deploying in different environments.
+1. After creating CI/build pipeline, create a CD pipeline by clicking on the `+` sign on CI pipeline and configure the CD pipeline as per your requirements.
+2. To add another CD Pipeline sequentially after previous one, again click on + sign on the last CD pipeline.
+3. Similarly, you can add multiple CD pipelines by clicking + sign of the last CD pipeline, each deploying in different environments.
 
 ![](../images/sequential-workflow.jpg)
 
-Note: Deleting a CD pipeline also deletes all the K8s resources associated with it and will bring a disruption in the deployed micro-service. Before deleting a CD pipeline, please ensure that the associated resources are not being used in any production workload.
+> Note: Deleting a CD pipeline also deletes all the K8s resources associated with it and will bring a disruption in the deployed micro-service. Before deleting a CD pipeline, please ensure that the associated resources are not being used in any production workload.
