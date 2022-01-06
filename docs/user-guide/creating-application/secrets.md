@@ -72,7 +72,7 @@ You can delete your secret. Click on your secret and click on the `delete sign` 
 
 ![](../../.gitbook/assets/delete_secret%20%282%29.png)
 
-## Add External secrets
+## External secrets
 
 In some cases, it may be that you already have secrets for your application on some other sources and you want to use that on devtron. Before adding any external secrets on devtron, `kubernetes-external-secrets` must be installed on devtron. Kubernetes External Secrets allows you to use external secret management systems (e.g., AWS Secrets Manager) to securely add secrets in Kubernetes. 
 
