@@ -123,3 +123,5 @@ To add secrets in AWS secret manager, do the following steps :
 Step 1: Go to AWS secret manager console.
 Step 2: Click on `Store a new secret`.
 Step 3: Add and save your secret.
+
+![](../../images/creating-application/secrets/devtron-ext-secret-aws-secrets-manager.jpg)
