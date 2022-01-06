@@ -80,12 +80,12 @@ In some cases, it may be that you already have secrets for your application on s
 
  To add secrets from secrets from AWS secret manager, navigate to `Secrets` of the application.
 
- ![](../../images/creating-application/secrets/aws-secret-1.jpg)
+ ![](../../images/creating-application/secrets/add-secret.png)
 
 
  Now click on `Add Secret` to add a new secret.
 
- ![](../../images/creating-application/secrets/aws-secret-2.jpg)
+ ![](../../images/creating-application/secrets/aws-secret-1.jpg)
 
  Select `AWS Secret Manager` from dropdown of `Data type`.
 
