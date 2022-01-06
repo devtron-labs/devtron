@@ -8,7 +8,7 @@ import (
 
 // AuthWireSet:	 set of components used to initialise authentication with dex
 var AuthWireSet = wire.NewSet(
-	wire.Value(client.LocalDevMode(false)),
+	client.GetRuntimeConfig,
 	client.NewK8sClient,
 	client.BuildDexConfig,
 	client.GetSettings,

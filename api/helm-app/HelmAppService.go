@@ -7,6 +7,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gogo/protobuf/proto"
 	"go.uber.org/zap"
 	"net/http"
@@ -17,7 +18,7 @@ import (
 const DEFAULT_CLUSTER = "default_cluster"
 
 type HelmAppService interface {
-	ListHelmApplications(clusterIds []int, w http.ResponseWriter)
+	ListHelmApplications(clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
@@ -30,17 +31,19 @@ type HelmAppServiceImpl struct {
 	clusterService cluster.ClusterService
 	helmAppClient  HelmAppClient
 	pump           connector.Pump
+	enforcerUtil   rbac.EnforcerUtilHelm
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	helmAppClient HelmAppClient,
-	pump connector.Pump) *HelmAppServiceImpl {
+	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:         Logger,
 		clusterService: clusterService,
 		helmAppClient:  helmAppClient,
 		pump:           pump,
+		enforcerUtil:   enforcerUtil,
 	}
 }
 
@@ -76,7 +79,7 @@ func (impl *HelmAppServiceImpl) listApplications(clusterIds []int) (ApplicationS
 	return applicatonStream, err
 }
 
-func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.ResponseWriter) {
+func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool) {
 	appStream, err := impl.listApplications(clusterIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app list", "clusters", clusterIds, "err", err)
@@ -85,7 +88,7 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.Re
 		return appStream.Recv()
 	}, err,
 		func(message interface{}) interface{} {
-			return impl.appListRespProtoTransformer(message.(*DeployedAppList))
+			return impl.appListRespProtoTransformer(message.(*DeployedAppList), token, helmAuth)
 		})
 }
 
@@ -234,7 +237,7 @@ func (impl *HelmAppServiceImpl) DecodeAppId(appId string) (*AppIdentifier, error
 	}, nil
 }
 
-func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *DeployedAppList) openapi.AppList {
+func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *DeployedAppList, token string, helmAuth func(token string, object string) bool) openapi.AppList {
 	applicationType := "HELM-APP"
 	appList := openapi.AppList{ClusterIds: &[]int32{deployedApps.ClusterId}, ApplicationType: &applicationType}
 	if deployedApps.Errored {
@@ -258,7 +261,11 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 					ClusterId:   &deployedapp.EnvironmentDetail.ClusterId,
 				},
 			}
-			HelmApps = append(HelmApps, helmApp)
+			rbacObject := impl.enforcerUtil.GetHelmObjectByClusterId(int(deployedapp.EnvironmentDetail.ClusterId), deployedapp.EnvironmentDetail.Namespace, deployedapp.AppName)
+			isValidAuth := helmAuth(token, rbacObject)
+			if isValidAuth {
+				HelmApps = append(HelmApps, helmApp)
+			}
 		}
 		appList.HelmApps = &HelmApps
 

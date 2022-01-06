@@ -39,6 +39,7 @@ const (
 	ResourceTeam   = "team"
 	ResourceAdmin  = "admin"
 	ResourceGlobal = "global-resource"
+	ResourceHelmAppWF = "hawf"
 
 	ActionGet     = "get"
 	ActionCreate  = "create"

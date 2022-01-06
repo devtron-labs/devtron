@@ -1,6 +1,7 @@
 package client
 
 import (
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
 )
 
@@ -14,4 +15,7 @@ var HelmAppWireSet = wire.NewSet(
 	NewHelmAppRouterImpl,
 	wire.Bind(new(HelmAppRouter), new(*HelmAppRouterImpl)),
 	GetConfig,
+	rbac.NewEnforcerUtilHelmImpl,
+	wire.Bind(new(rbac.EnforcerUtilHelm), new(*rbac.EnforcerUtilHelmImpl)),
+
 )

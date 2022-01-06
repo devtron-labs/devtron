@@ -196,7 +196,13 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest 
 		for _, env := range envs {
 			fetchAppListingRequest.Environments = append(fetchAppListingRequest.Environments, env.Id)
 		}
+
 	}
+	if (len(clusterIds)>0 || len(mappings)>0) && len(fetchAppListingRequest.Environments)==0{
+		// no result when no matching cluster and env
+		return []*bean.AppEnvironmentContainer{}, nil
+	}
+
 	appListingFilter := helper.AppListingFilter{
 		Environments:      fetchAppListingRequest.Environments,
 		Statuses:          fetchAppListingRequest.Statuses,
