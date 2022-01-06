@@ -27,13 +27,13 @@ type HelmAppServiceImpl struct {
 	clusterService cluster.ClusterService
 	helmAppClient  HelmAppClient
 	pump           connector.Pump
-	enforcerUtil   rbac.EnforcerUtil
+	enforcerUtil   rbac.EnforcerUtilHelm
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	helmAppClient HelmAppClient,
-	pump connector.Pump, enforcerUtil rbac.EnforcerUtil) *HelmAppServiceImpl {
+	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		Logger:         Logger,
 		clusterService: clusterService,

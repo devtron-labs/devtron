@@ -19,6 +19,7 @@ package cluster
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -311,18 +312,26 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 	grantedEnvironmentMap := make(map[string][]*request.EnvDto)
 	for _, environment := range environments {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(environment.EnvironmentIdentifier)); ok {
-			grantedEnvironmentMap[environment.ClusterName] = append(grantedEnvironmentMap[environment.ClusterName], &request.EnvDto{
-				EnvironmentId:   environment.Id,
-				EnvironmentName: environment.Environment,
-				Namespace:       environment.Namespace,
+			key := fmt.Sprintf("%s__%d", environment.ClusterName, environment.ClusterId)
+			grantedEnvironmentMap[key] = append(grantedEnvironmentMap[key], &request.EnvDto{
+				EnvironmentId:         environment.Id,
+				EnvironmentName:       environment.Environment,
+				Namespace:             environment.Namespace,
+				EnvironmentIdentifier: environment.EnvironmentIdentifier,
 			})
 		}
 	}
 	//RBAC enforcer Ends
 
 	for k, v := range grantedEnvironmentMap {
+		clusterInfo := strings.Split(k, "__")
+		clusterId, err := strconv.Atoi(clusterInfo[1])
+		if err != nil {
+			clusterId = 0
+		}
 		clusters = append(clusters, request.ClusterEnvDto{
-			ClusterName:  k,
+			ClusterName:  clusterInfo[0],
+			ClusterId:    clusterId,
 			Environments: v,
 		})
 	}

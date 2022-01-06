@@ -44,13 +44,14 @@ type EnvironmentBean struct {
 }
 
 type EnvDto struct {
-	EnvironmentId   int    `json:"environmentId,omitempty" validate:"number"`
-	EnvironmentName string `json:"environmentName,omitempty" validate:"max=50"`
-	Namespace       string `json:"namespace,omitempty" validate:"max=50"`
+	EnvironmentId         int    `json:"environmentId" validate:"number"`
+	EnvironmentName       string `json:"environmentName,omitempty" validate:"max=50"`
+	Namespace             string `json:"namespace,omitempty" validate:"max=50"`
+	EnvironmentIdentifier string `json:"environmentIdentifier,omitempty"`
 }
 
 type ClusterEnvDto struct {
-	ClusterId    int       `json:"clusterId,omitempty"`
+	ClusterId    int       `json:"clusterId"`
 	ClusterName  string    `json:"clusterName,omitempty"`
 	Environments []*EnvDto `json:"environments,omitempty"`
 }
@@ -421,12 +422,13 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown() ([]*E
 	for _, model := range models {
 		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
 		environment := &EnvironmentBean{
-			Id:          model.Id,
-			Environment: model.Name,
-			Namespace:   model.Namespace,
-			ClusterId:   model.ClusterId,
-			ClusterName: model.Cluster.ClusterName,
-			CdArgoSetup: model.Cluster.CdArgoSetup,
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Namespace:             model.Namespace,
+			ClusterId:             model.ClusterId,
+			ClusterName:           model.Cluster.ClusterName,
+			CdArgoSetup:           model.Cluster.CdArgoSetup,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		}
 		uniqueComboMap[key] = environment
 		environments = append(environments, environment)
@@ -475,9 +477,11 @@ func (impl EnvironmentServiceImpl) getAllClusterNamespaceCombination() ([]*Envir
 
 		for _, namespace := range namespaceList.Items {
 			beans = append(beans, &EnvironmentBean{
-				Environment: fmt.Sprintf("%s__%s", clusterBean.ClusterName, namespace.ObjectMeta.Name),
-				Namespace:   namespace.ObjectMeta.Name,
-				ClusterName: clusterBean.ClusterName,
+				Environment:           fmt.Sprintf("%s__%s", clusterBean.ClusterName, namespace.ObjectMeta.Name),
+				Namespace:             namespace.ObjectMeta.Name,
+				ClusterName:           clusterBean.ClusterName,
+				ClusterId:             clusterBean.Id,
+				EnvironmentIdentifier: fmt.Sprintf("%s__%s", clusterBean.ClusterName, namespace.ObjectMeta.Name),
 			})
 		}
 	}

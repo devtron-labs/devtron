@@ -43,7 +43,6 @@ type EnforcerUtil interface {
 	GetProjectAdminRBACNameBYAppName(appName string) string
 	GetHelmObject(appId int, envId int) string
 	GetHelmObjectByAppNameAndEnvId(appName string, envId int) string
-	GetHelmObjectByClusterId(clusterId int, namespace string, appName string) string
 }
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
@@ -53,6 +52,7 @@ type EnforcerUtilImpl struct {
 	pipelineRepository    pipelineConfig.PipelineRepository
 	ciPipelineRepository  pipelineConfig.CiPipelineRepository
 	clusterRepository     repository.ClusterRepository
+	*EnforcerUtilHelmImpl
 }
 
 func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
@@ -67,6 +67,10 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 		pipelineRepository:    pipelineRepository,
 		ciPipelineRepository:  ciPipelineRepository,
 		clusterRepository:     clusterRepository,
+		EnforcerUtilHelmImpl: &EnforcerUtilHelmImpl{
+			logger:            logger,
+			clusterRepository: clusterRepository,
+		},
 	}
 }
 
@@ -265,12 +269,4 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 	return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), env.EnvironmentIdentifier, strings.ToLower(application.AppName))
-}
-
-func (impl EnforcerUtilImpl) GetHelmObjectByClusterId(clusterId int, namespace string, appName string) string {
-	cluster, err := impl.clusterRepository.FindById(clusterId)
-	if err != nil {
-		return fmt.Sprintf("%s/%s/%s", "", "", "")
-	}
-	return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName))
 }
