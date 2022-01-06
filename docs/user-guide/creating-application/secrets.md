@@ -6,7 +6,7 @@ Secret objects let you store and manage sensitive information, such as passwords
 
 ## Configure Secret
 
-![](../../user-guide/creating-application/images/config-maps.jpg)
+![](../../user-guide/creating-application/images/secrets.jpg)
 
 Click on `Add Secret` to add a new secret.
 
@@ -17,8 +17,8 @@ Click on `Add Secret` to add a new secret.
 | `Name` | Provide a name to your Secret |
 | `Data Type` | Provide the Data Type of your secret. To know about different Data Types available click on [Data Types](secrets.md#data-types) |
 | `Data Volume` | Specify if there is a need to add a volume that is accessible to the Containers running in a pod. |
-| `Use configmap as Environment Variable` | Select this option if you want to inject Environment Variables in your pods using ConfigMaps. |
-| `Use configmap as Data Volume` | Select this option if you want to configure a Data Volume that is accessible to Containers running in a pod. Ensure that you provide a Volume mount path for the same. |
+| `Use secrets as Environment Variable` | Select this option if you want to inject Environment Variables in your pods using Secrets. |
+| `Use secrets as Data Volume` | Select this option if you want to configure a Data Volume that is accessible to Containers running in a pod. Ensure that you provide a Volume mount path for the same. |
 | `Key-Value` | Provide a key and the corresponding value of the provided key. |
 
 ## Data Types
@@ -72,3 +72,34 @@ You can delete your secret. Click on your secret and click on the `delete sign` 
 
 ![](../../.gitbook/assets/delete_secret%20%282%29.png)
 
+## Add External secrets
+
+In some cases, it may be that you already have secrets for your application on some other sources and you want to use that on devtron. 
+
+### AWS Secret Manager
+
+ To add secrets from secrets from AWS secret manager, navigate to `Secrets` of the application.
+
+ ![](../../images/creating-application/secrets/aws-secrets-1.jpg)
+
+
+ Now click on `Add Secret` to add a new secret.
+
+ ![](../../images/creating-application/secrets/aws-secrets-2.jpg)
+
+ Select `AWS Secret Manager` from dropdown of `Data type`.
+
+ provide a name to your secret.
+
+ Select how you want to use the secret. You many leave it selected as environment variable and also you may leave `Role ARN` empty.
+
+In `Data` section, you will have to provide data in key-value format.
+
+All the required field to pass your data to fetch secrets on devtron are described below :
+
+| Key | Description |
+| :--- | :--- |
+|`key`| Secret key in backend |
+|`name`| Name for this key in the generated secret |
+|`property`| Property to extract if secret in backend is a JSON object |
+|`isBinary`| Set this to true if configuring an item for a binary file stored else set false |
