@@ -221,7 +221,7 @@ Devtron now supports attaching multiple deployment pipelines to a single build p
 
 Please follow the steps mentioned below to create sequential pipelines :
 
-After creating `CI pipeline` or `build pipeline`, create a CD pipeline by clicking on the `+` sign on CI pipeline and configure the CD pipeline as per your requirements.
+After creating CI/build pipeline, create a CD pipeline by clicking on the `+` sign on CI pipeline and configure the CD pipeline as per your requirements.
 To create CD pipeline for some other environment, click on `+` sign on CD pipeline.
 You can add CD pipelines for multiple environments in the sequential pipelines. Also you can add CD pipeline before or after any existing CD pipeline just by clicking `+` sign on CD pipeline according to the required sequence.
 
