@@ -78,21 +78,21 @@ In some cases, it may be that you already have secrets for your application on s
 
 ### AWS Secret Manager
 
- To add secrets from secrets from AWS secret manager, navigate to `Secrets` of the application.
+To add secrets from secrets from AWS secret manager, navigate to `Secrets` of the application and follow the steps mentioned below :
 
- ![](../../images/creating-application/secrets/aws-secret-1.jpg)
+![](../../images/creating-application/secrets/aws-secret-1.jpg)
 
- Now click on `Add Secret` to add a new secret.
+Step 1: Click on `Add Secret` to add a new secret.
 
- ![](../../images/creating-application/secrets/aws-secret-2.jpg)
+![](../../images/creating-application/secrets/aws-secret-2.jpg)
 
- Select `AWS Secret Manager` from dropdown of `Data type`.
+Step 2: Select `AWS Secret Manager` from dropdown of `Data type`.
 
- provide a name to your secret.
+Step 3: Provide a name to your secret.
 
- Select how you want to use the secret. You many leave it selected as environment variable and also you may leave `Role ARN` empty.
+Step 4: Select how you want to use the secret. You many leave it selected as environment variable and also you may leave `Role ARN` empty.
 
-In `Data` section, you will have to provide data in key-value format.
+Step 5: In `Data` section, you will have to provide data in key-value format.
 
 All the required field to pass your data to fetch secrets on devtron are described below :
 
