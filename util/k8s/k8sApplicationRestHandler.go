@@ -2,14 +2,15 @@ package k8s
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
+	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
@@ -30,13 +31,14 @@ type K8sApplicationRestHandlerImpl struct {
 	pump                   connector.Pump
 	terminalSessionHandler terminal.TerminalSessionHandler
 	enforcer               casbin.Enforcer
-	enforcerUtil           rbac.EnforcerUtil
+	enforcerUtil           rbac.EnforcerUtilHelm
+	clusterService         cluster.ClusterService
 }
 
 func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
 	k8sApplicationService K8sApplicationService, pump connector.Pump,
 	terminalSessionHandler terminal.TerminalSessionHandler,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *K8sApplicationRestHandlerImpl {
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtilHelm, clusterService cluster.ClusterService) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                 logger,
 		k8sApplicationService:  k8sApplicationService,
@@ -44,6 +46,7 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
 		terminalSessionHandler: terminalSessionHandler,
 		enforcer:               enforcer,
 		enforcerUtil:           enforcerUtil,
+		clusterService:         clusterService,
 	}
 }
 
@@ -62,7 +65,16 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//TODO : add rbac
+
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
 	resource, err := handler.k8sApplicationService.GetResource(&request)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource", "err", err)
@@ -87,7 +99,14 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//TODO : add rbac
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionUpdate, rbacObject); !ok {
+		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
 	resource, err := handler.k8sApplicationService.UpdateResource(&request)
 	if err != nil {
 		handler.logger.Errorw("error in updating resource", "err", err)
@@ -112,7 +131,14 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//TODO : add rbac
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionDelete, rbacObject); !ok {
+		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
 	resource, err := handler.k8sApplicationService.DeleteResource(&request)
 	if err != nil {
 		handler.logger.Errorw("error in deleting resource", "err", err)
@@ -137,7 +163,14 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//TODO : add rbac
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
 	events, err := handler.k8sApplicationService.ListEvents(&request)
 	if err != nil {
 		handler.logger.Errorw("error in getting events list", "err", err)
@@ -162,7 +195,14 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//TODO : add rbac
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
 	lastEventId := r.Header.Get("Last-Event-ID")
 	isReconnect := false
 	if len(lastEventId) > 0 {
@@ -182,50 +222,27 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
 	request := &terminal.TerminalSessionRequest{}
 	vars := mux.Vars(r)
 	request.ContainerName = vars["container"]
 	request.Namespace = vars["namespace"]
 	request.PodName = vars["pod"]
 	request.Shell = vars["shell"]
-	appId := vars["appId"]
-	envId := vars["environmentId"]
+	//TODO - rbac
 
-	//---------auth
-	id, err := strconv.Atoi(appId)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("appId is not integer"), nil, http.StatusBadRequest)
-		return
-	}
-	eId, err := strconv.Atoi(envId)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("envId is not integer"), nil, http.StatusBadRequest)
-		return
-	}
-	request.AppId = id
-	//TODO : implement resource validation
-	appRbacObject := handler.enforcerUtil.GetAppRBACNameByAppId(id)
-	if appRbacObject == "" {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	envRbacObject := handler.enforcerUtil.GetEnvRBACNameByAppId(id, eId)
-	if envRbacObject == "" {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusBadRequest)
-		return
-	}
-	request.EnvironmentId = eId
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, appRbacObject); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, envRbacObject); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//---------auth end
+	/*	token := r.Header.Get("token")
+		appId := vars["appId"]
+		envId := vars["environmentId"]
 
+		// RBAC enforcer applying
+		rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+		token := r.Header.Get("token")
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionGet, rbacObject); !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+		//RBAC enforcer Ends
+	*/
 	status, message, err := handler.terminalSessionHandler.GetTerminalSession(request)
 	common.WriteJsonResp(w, err, message, status)
 }
