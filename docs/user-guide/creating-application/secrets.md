@@ -72,7 +72,7 @@ There are five Data types that you can use to save your secret.
 
 *Note: The conversion of secrets from various data types to Kubernetes Secrets is done within Devtron and irrespective of the data type, after conversion, the Pods access `secrets` normally.*
 
-## External secrets
+## Kubernetes External Secrets
 
 In some cases, it may be that you already have secrets for your application on some other sources and you want to use that on devtron. Before adding any external secrets on devtron, `kubernetes-external-secrets` must be installed on devtron. Kubernetes External Secrets allows you to use external secret management systems (e.g., AWS Secrets Manager) to securely add secrets in Kubernetes. 
 
