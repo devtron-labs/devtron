@@ -93,15 +93,47 @@ paths:
             text/event-stream:
               schema:
                 $ref: "#/components/schemas/EventsResponseObject"
-  /orchestrator/k8s/pods/logs:
-    post:
+  /orchestrator/k8s/pods/logs/{clusterId}/{releaseName}/{podName}:
+    get:
       description: this api will be used for fetching logs for container.
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ResourceRequestObject'
+      parameters:
+        - name: clusterId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: releaseName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: podName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: containerName
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: namespace
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: follow
+          in: query
+          schema:
+            type: boolean
+        - name: sinceSeconds
+          in: query
+          schema:
+            type: integer
+        - name: tailLines
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: events success
