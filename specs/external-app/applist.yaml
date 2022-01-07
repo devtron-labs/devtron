@@ -261,6 +261,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AppList"
+  /orchestrator/application/desired-manifest:
+    get:
+      description: get desired manifest for an object
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DesiredManifestRequest'
+      responses:
+        "200":
+          description: desired manifest request success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DesiredManifestResponse"
 components:
   schemas:
     appListRequest:
@@ -563,3 +581,44 @@ components:
         readme:
           type: string
           description: readme of the chart
+    DesiredManifestRequest:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: helm app id
+          example: "1|test|testapp"
+        resource:
+          type: object
+          $ref: "#/components/schemas/ResourceIdentifier"
+    ResourceIdentifier:
+      type: object
+      properties:
+        group:
+          type: string
+          description: k8s resource group
+          example: apps
+        kind:
+          type: string
+          description: k8s resource kind
+          example: Deployment
+        version:
+          type: string
+          description: k8s resource version
+          example: v1
+        name:
+          type: string
+          description: k8s resource name
+          example: test-deployment
+        namespace:
+          type: string
+          description: k8s resource ns
+          example: devtron
+    DesiredManifestResponse:
+      type: object
+      properties:
+        manifest:
+          type: string
+          description: desired manifest
+          example: "some manifest"
+

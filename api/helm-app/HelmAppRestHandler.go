@@ -23,6 +23,7 @@ type HelmAppRestHandler interface {
 	UnHibernate(w http.ResponseWriter, r *http.Request)
 	GetDeploymentHistory(w http.ResponseWriter, r *http.Request)
 	GetValuesYaml(w http.ResponseWriter, r *http.Request)
+	GetDesiredManifest(w http.ResponseWriter, r *http.Request)
 }
 type HelmAppRestHandlerImpl struct {
 	logger         *zap.SugaredLogger
@@ -196,6 +197,37 @@ func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *h
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
+
+
+func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter, r *http.Request) {
+	desiredManifestRequest := &openapi.DesiredManifestRequest{}
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(desiredManifestRequest)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	appIdentifier, err := handler.helmAppService.DecodeAppId(*desiredManifestRequest.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	res, err := handler.helmAppService.GetDesiredManifest(context.Background(), appIdentifier, desiredManifestRequest.Resource)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
 
 func (handler *HelmAppRestHandlerImpl) CheckHelmAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionGet, strings.ToLower(object)); !ok {
