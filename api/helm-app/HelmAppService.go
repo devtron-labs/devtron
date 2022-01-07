@@ -25,7 +25,9 @@ type HelmAppService interface {
 	DecodeAppId(appId string) (*AppIdentifier, error)
 	GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error)
 	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error)
+	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
 }
+
 type HelmAppServiceImpl struct {
 	logger         *zap.SugaredLogger
 	clusterService cluster.ClusterService
@@ -214,6 +216,38 @@ func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdent
 	history, err := impl.helmAppClient.GetValuesYaml(ctx, req)
 	return history, err
 }
+
+func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error) {
+	config, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
+		return nil, err
+	}
+
+	req := &ObjectRequest{
+		ClusterConfig: config,
+		ReleaseName: app.ReleaseName,
+		ObjectIdentifier: &ObjectIdentifier{
+			Group: resource.GetGroup(),
+			Kind: resource.GetKind(),
+			Version: resource.GetVersion(),
+			Name: resource.GetName(),
+			Namespace: resource.GetNamespace(),
+		},
+	}
+
+	desiredManifestResponse, err := impl.helmAppClient.GetDesiredManifest(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching desired manifest", "err", err)
+		return nil, err
+	}
+
+	response := &openapi.DesiredManifestResponse{
+		Manifest: &desiredManifestResponse.Manifest,
+	}
+	return response, nil
+}
+
 
 type AppIdentifier struct {
 	ClusterId   int    `json:"clusterId"`
