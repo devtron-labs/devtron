@@ -34,10 +34,8 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 
 	k8sAppRouter.Path("/pods/logs/{clusterId}/{releaseName}/{podName}").
 		Queries("containerName", "{containerName}", "namespace", "{namespace}").
+		//Queries("sinceSeconds", "{sinceSeconds}").
 		Queries("follow", "{follow}").
-		Queries("sinceSeconds", "{sinceSeconds}").
-		Queries("sinceTime.seconds", "{sinceTime.seconds}").
-		Queries("sinceTime.nanos", "{sinceTime.nanos}").
 		Queries("tailLines", "{tailLines}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetPodLogs).Methods("GET")
 
