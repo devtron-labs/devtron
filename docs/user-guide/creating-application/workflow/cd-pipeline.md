@@ -27,7 +27,10 @@ This field will be automatically populated with the `Namespace` corresponding to
 
 Click on `Create Pipeline` to create a CD pipeline. 
 
-> One can have a single CD pipeline connected to a CI pipeline or sequential CD pipelines for multiple environments connected to a CD pipeline in a sequential manner. Each CD pipeline corresponds to only one environment, or in other words, any single environment of an application can have only one CD pipeline in the pipeline sequence. So, the images created by the CI pipeline can be deployed into multiple environments through sequential CD pipelines originating from a single CI pipeline. If you already have one CD pipeline and want to add more, you can add them by clicking on the + sign on CD pipeline as per required sequence and then choosing the environment in which you want to deploy your application. Once a new CD Pipeline is created for the environment of your choosing, you can move ahead and configure the CD pipeline as required. Your CD pipeline can be configured for the pre-deployment stage, the deployment stage, and the post-deployment stage. You can also select the deployment strategy of your choice. You can add your configurations as explained below:
+> One can have a single CD pipeline or multiple CD pipelines connected to the same CI Pipeline. Each CD pipeline corresponds to only one environment, or in other words, any single environment of an application can have only one CD pipeline.
+So, the images created by the CI pipeline can be deployed into multiple environments through different CD pipelines originating from a single CI pipeline.
+If you already have one CD pipeline and want to add more, you can add them by clicking on the `+` sign and then choosing the environment in which you want to deploy your application. Once a new CD Pipeline is created for the environment of your choosing, you can move ahead and configure the CD pipeline as required.
+Your CD pipeline can be configured for the pre-deployment stage, the deployment stage, and the post-deployment stage. You can also select the deployment strategy of your choice. You can add your configurations as explained below:
 
 
 To configure the advance CD option click on `Advance Options` at the bottom.
@@ -216,5 +219,12 @@ It terminates the old version and releases the new one.
 
 Devtron now supports attaching multiple deployment pipelines to a single build pipeline, in its workflow editor. This feature lets you deploy an image first to stage, run tests and then deploy the same image to production.
 
+Please follow the steps mentioned below to create sequential pipelines :
+
+1. After creating CI/build pipeline, create a CD pipeline by clicking on the `+` sign on CI pipeline and configure the CD pipeline as per your requirements.
+2. To add another CD Pipeline sequentially after previous one, again click on + sign on the last CD pipeline.
+3. Similarly, you can add multiple CD pipelines by clicking + sign of the last CD pipeline, each deploying in different environments.
 
 ![](../images/sequential-workflow.jpg)
+
+> Note: Deleting a CD pipeline also deletes all the K8s resources associated with it and will bring a disruption in the deployed micro-service. Before deleting a CD pipeline, please ensure that the associated resources are not being used in any production workload.
