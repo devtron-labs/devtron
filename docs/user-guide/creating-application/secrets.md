@@ -21,18 +21,6 @@ Click on `Add Secret` to add a new secret.
 | `Use secrets as Data Volume` | Select this option if you want to configure a Data Volume that is accessible to Containers running in a pod. Ensure that you provide a Volume mount path for the same. |
 | `Key-Value` | Provide a key and the corresponding value of the provided key. |
 
-## Data Types
-
-There are five Data types that you can use to save your secret.
-
-* **Kubernetes Secret**: The secret that you create using Devtron.
-* **Kubernetes External Secret**: The secret data of your application is fetched by Devtron externally. Then the Kubernetes External Secret is converted to Kubernetes Secret.
-* **AWS Secret Manager**: The secret data of your application is fetched from AWS Secret Manager and then converted to Kubernetes Secret from AWS Secret. 
-* **AWS System Manager**: The secret data for your application is fetched from AWS System Secret Manager and all the secrets stored in AWS System Manager are converted to Kubernetes Secret.
-* **Hashi Corp Vault**: The secret data for your application is fetched from Hashi Corp Vault and the secrets stored in Hashi Corp Vault are converted to Kubernetes Secret.
-
-*Note: The conversion of secrets from various data types to Kubernetes Secrets is done within Devtron and irrespective of the data type, after conversion, the Pods access `secrets` normally.*
-
 ## Volume Mount Path
 
 Specify the Volume Mount folder path in `Volume Mount Path`, a path where the data volume needs to be mounted. This volume will be accessible to the Containers running in a pod.
@@ -71,6 +59,18 @@ Click on `Update Secret` to update your secret.
 You can delete your secret. Click on your secret and click on the `delete sign` to delete your secret.
 
 ![](../../.gitbook/assets/delete_secret%20%282%29.png)
+
+## Data Types
+
+There are five Data types that you can use to save your secret.
+
+* **Kubernetes Secret**: The secret that you create using Devtron.
+* **Kubernetes External Secret**: The secret data of your application is fetched by Devtron externally. Then the Kubernetes External Secret is converted to Kubernetes Secret.
+* **AWS Secret Manager**: The secret data of your application is fetched from AWS Secret Manager and then converted to Kubernetes Secret from AWS Secret. 
+* **AWS System Manager**: The secret data for your application is fetched from AWS System Secret Manager and all the secrets stored in AWS System Manager are converted to Kubernetes Secret.
+* **Hashi Corp Vault**: The secret data for your application is fetched from Hashi Corp Vault and the secrets stored in Hashi Corp Vault are converted to Kubernetes Secret.
+
+*Note: The conversion of secrets from various data types to Kubernetes Secrets is done within Devtron and irrespective of the data type, after conversion, the Pods access `secrets` normally.*
 
 ## External secrets
 
