@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -301,6 +302,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		return
 	}
 
+	authorizedApp := make([]openapi.HelmApp, 0)
 	for _, app := range *res.HelmApps {
 		appName := *app.AppName
 		envId := (*app.EnvironmentDetail).EnvironmentId
@@ -309,8 +311,10 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionGet, object); !ok {
 			continue
 		}
+		authorizedApp = append(authorizedApp, app)
 		//rback block ends here
 	}
+	res.HelmApps = &authorizedApp
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
