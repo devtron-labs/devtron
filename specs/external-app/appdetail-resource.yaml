@@ -52,6 +52,31 @@ paths:
                     description: status
                   result:
                     $ref: '#/components/schemas/ResourceGetResponse'
+  /orchestrator/k8s/resource/delete:
+    post:
+      description: this api will be used for delete any resource.
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: manifest fetch responces
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ResourceGetResponse'
   /orchestrator/k8s/events:
     post:
       description: this api will be used for fetching events for resources.
@@ -60,14 +85,7 @@ paths:
         content:
           application/json:
             schema:
-              allOf:
-                - $ref: '#/components/schemas/ResourceRequestObject'
-                - type: object
-                  required:
-                    - patch
-                  properties:
-                    patch:
-                      type: string
+              $ref: '#/components/schemas/ResourceRequestObject'
       responses:
         "200":
           description: events success
@@ -75,6 +93,22 @@ paths:
             text/event-stream:
               schema:
                 $ref: "#/components/schemas/EventsResponseObject"
+  /orchestrator/k8s/pods/logs:
+    post:
+      description: this api will be used for fetching logs for container.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: events success
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/LogsResponseObject"
 components:
   schemas:
     ResourceRequestObject:
@@ -123,6 +157,8 @@ components:
           properties:
             containerName:
               type: string
+        patch:
+          type: string
     ResourceGetResponse:
       type: object
       properties:
@@ -264,3 +300,19 @@ components:
                     type: string
                   reportingInstance:
                     type: string
+    LogsResponseObject:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              type:
+                type: string
+              data:
+                type: string
+              time:
+                type: string
