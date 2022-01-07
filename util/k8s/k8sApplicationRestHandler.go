@@ -2,8 +2,8 @@ package k8s
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -31,12 +31,13 @@ type K8sApplicationRestHandlerImpl struct {
 	terminalSessionHandler terminal.TerminalSessionHandler
 	enforcer               casbin.Enforcer
 	enforcerUtil           rbac.EnforcerUtil
+	helmAppService         client.HelmAppService
 }
 
 func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
 	k8sApplicationService K8sApplicationService, pump connector.Pump,
 	terminalSessionHandler terminal.TerminalSessionHandler,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *K8sApplicationRestHandlerImpl {
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                 logger,
 		k8sApplicationService:  k8sApplicationService,
@@ -44,6 +45,7 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
 		terminalSessionHandler: terminalSessionHandler,
 		enforcer:               enforcer,
 		enforcerUtil:           enforcerUtil,
+		helmAppService:         helmAppService,
 	}
 }
 
@@ -182,48 +184,22 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
 	request := &terminal.TerminalSessionRequest{}
 	vars := mux.Vars(r)
 	request.ContainerName = vars["container"]
 	request.Namespace = vars["namespace"]
 	request.PodName = vars["pod"]
 	request.Shell = vars["shell"]
-	appId := vars["appId"]
-	envId := vars["environmentId"]
+	request.ApplicationId = vars["applicationId"]
 
 	//---------auth
-	id, err := strconv.Atoi(appId)
+	app, err := handler.helmAppService.DecodeAppId(request.ApplicationId)
 	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("appId is not integer"), nil, http.StatusBadRequest)
+		handler.logger.Errorw("invalid app id", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	eId, err := strconv.Atoi(envId)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("envId is not integer"), nil, http.StatusBadRequest)
-		return
-	}
-	request.AppId = id
-	//TODO : implement resource validation
-	appRbacObject := handler.enforcerUtil.GetAppRBACNameByAppId(id)
-	if appRbacObject == "" {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	envRbacObject := handler.enforcerUtil.GetEnvRBACNameByAppId(id, eId)
-	if envRbacObject == "" {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusBadRequest)
-		return
-	}
-	request.EnvironmentId = eId
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, appRbacObject); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, envRbacObject); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
+	request.ClusterId = app.ClusterId
 	//---------auth end
 
 	status, message, err := handler.terminalSessionHandler.GetTerminalSession(request)

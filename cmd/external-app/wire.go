@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/google/wire"
 )
 
@@ -28,6 +29,8 @@ func InitializeApp() (*App, error) {
 		cluster.ClusterWireSetEa,
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
+		k8s.K8sApplicationWireSet,
+
 
 		NewApp,
 		NewMuxRouter,
