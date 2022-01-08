@@ -244,7 +244,7 @@ kubectl get pods -n devtroncd
 kubectl delete jobs <job1-name> <job2-name> -n devtroncd..[Read More](https://github.com/devtron-labs/devtron/blob/main/Troubleshooting.md#1-how-to-resolve-unauthorized-error-while-trying-to-save-global-configurations-like-hostname-gitops-etc-after-successful-devtron-installation)
 <br><br>
 
-2. What to do if devtron dashboard is not accessible on browser, even after successful completion of all jobs and all pods are in running mode?
+2.What to do if devtron dashboard is not accessible on browser, even after successful completion of all jobs and all pods are in running mode?
 <br>
 A. Check if nats-cluster is created or not, you can check it using the following command:
 ```bash
