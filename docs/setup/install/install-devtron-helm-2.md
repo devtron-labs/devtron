@@ -104,6 +104,7 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 
 ### Cleaning Installer Helm2
 
+Please make sure that you do not have anything inside namespaces devtroncd, devtron-cd devtron-ci and devtron-demo as the below steps will clean everything inside these namespaces
 ```bash
 helm delete devtron --purge
 #Deleting CRDs manually
