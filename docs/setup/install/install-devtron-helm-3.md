@@ -99,8 +99,7 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 
 Please make sure that you do not have anything inside namespaces devtroncd, devtron-cd devtron-ci and devtron-demo as the below steps will clean everything inside these namespaces
 ```
-helm delete devtron --namespace devtroncd
-kubectl delete -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/templates/install.yaml
+helm uninstall devtron --namespace devtroncd
 kubectl delete -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
 kubectl delete ns devtroncd devtron-cd devtron-ci devtron-demo
 ```
