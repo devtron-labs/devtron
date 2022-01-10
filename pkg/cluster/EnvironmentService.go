@@ -27,6 +27,8 @@ import (
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -69,7 +71,7 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
-	GetCombinedEnvironmentListForDropDown() ([]*EnvironmentBean, error)
+	GetCombinedEnvironmentListForDropDown(token string, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -412,26 +414,27 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown() ([]*EnvironmentBean, error) {
+func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token string, auth func(token string, object string) bool) ([]*ClusterEnvDto, error) {
 	models, err := impl.environmentRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching environments", "err", err)
 	}
-	var environments []*EnvironmentBean
-	uniqueComboMap := make(map[string]*EnvironmentBean)
+	uniqueComboMap := make(map[string]bool)
+	grantedEnvironmentMap := make(map[string][]*EnvDto)
 	for _, model := range models {
-		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
-		environment := &EnvironmentBean{
-			Id:                    model.Id,
-			Environment:           model.Name,
-			Namespace:             model.Namespace,
-			ClusterId:             model.ClusterId,
-			ClusterName:           model.Cluster.ClusterName,
-			CdArgoSetup:           model.Cluster.CdArgoSetup,
-			EnvironmentIdentifier: model.EnvironmentIdentifier,
+		isValidAuth := auth(token, model.EnvironmentIdentifier)
+		if !isValidAuth {
+			continue
 		}
-		uniqueComboMap[key] = environment
-		environments = append(environments, environment)
+		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
+		groupKey := fmt.Sprintf("%s__%d", model.Cluster.ClusterName, model.ClusterId)
+		uniqueComboMap[key] = true
+		grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
+			EnvironmentId:         model.Id,
+			EnvironmentName:       model.Name,
+			Namespace:             model.Namespace,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
+		})
 	}
 
 	clusterNamespaces, err := impl.getAllClusterNamespaceCombination()
@@ -440,12 +443,34 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown() ([]*E
 		// skip if found error in fetching any cluster namespaces
 	}
 	for _, item := range clusterNamespaces {
-		key := fmt.Sprintf("%s__%s", item.ClusterName, item.Namespace)
-		if _, ok := uniqueComboMap[key]; !ok {
-			environments = append(environments, item)
+		isValidAuth := auth(token, item.EnvironmentIdentifier)
+		if !isValidAuth {
+			continue
+		}
+		groupKey := fmt.Sprintf("%s__%d", item.ClusterName, item.ClusterId)
+		if _, ok := uniqueComboMap[groupKey]; !ok {
+			grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
+				EnvironmentId:         item.Id,
+				EnvironmentName:       item.Environment,
+				Namespace:             item.Namespace,
+				EnvironmentIdentifier: item.EnvironmentIdentifier,
+			})
 		}
 	}
-	return environments, nil
+	var clusters []*ClusterEnvDto
+	for k, v := range grantedEnvironmentMap {
+		clusterInfo := strings.Split(k, "__")
+		clusterId, err := strconv.Atoi(clusterInfo[1])
+		if err != nil {
+			clusterId = 0
+		}
+		clusters = append(clusters, &ClusterEnvDto{
+			ClusterName:  clusterInfo[0],
+			ClusterId:    clusterId,
+			Environments: v,
+		})
+	}
+	return clusters, nil
 }
 
 func (impl EnvironmentServiceImpl) getAllClusterNamespaceCombination() ([]*EnvironmentBean, error) {

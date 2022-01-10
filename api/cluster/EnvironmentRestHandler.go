@@ -19,7 +19,6 @@ package cluster
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -298,45 +297,23 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
-	environments, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown()
+	token := r.Header.Get("token")
+	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, impl.CheckAuthorizationForGlobalEnvironment)
 	if err != nil {
 		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	token := r.Header.Get("token")
-	// RBAC enforcer applying
-	var clusters []request.ClusterEnvDto
-	grantedEnvironmentMap := make(map[string][]*request.EnvDto)
-	for _, environment := range environments {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(environment.EnvironmentIdentifier)); ok {
-			key := fmt.Sprintf("%s__%d", environment.ClusterName, environment.ClusterId)
-			grantedEnvironmentMap[key] = append(grantedEnvironmentMap[key], &request.EnvDto{
-				EnvironmentId:         environment.Id,
-				EnvironmentName:       environment.Environment,
-				Namespace:             environment.Namespace,
-				EnvironmentIdentifier: environment.EnvironmentIdentifier,
-			})
-		}
-	}
-	//RBAC enforcer Ends
-
-	for k, v := range grantedEnvironmentMap {
-		clusterInfo := strings.Split(k, "__")
-		clusterId, err := strconv.Atoi(clusterInfo[1])
-		if err != nil {
-			clusterId = 0
-		}
-		clusters = append(clusters, request.ClusterEnvDto{
-			ClusterName:  clusterInfo[0],
-			ClusterId:    clusterId,
-			Environments: v,
-		})
-	}
 	if len(clusters) == 0 {
-		clusters = make([]request.ClusterEnvDto, 0)
+		clusters = make([]*request.ClusterEnvDto, 0)
 	}
 	common.WriteJsonResp(w, err, clusters, http.StatusOK)
+}
+
+func (handler EnvironmentRestHandlerImpl) CheckAuthorizationForGlobalEnvironment(token string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(object)); !ok {
+		return false
+	}
+	return true
 }
