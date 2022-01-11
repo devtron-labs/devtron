@@ -143,7 +143,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository,
 	CdConfigHistoryRepository pipelineConfig.CdConfigHistoryRepository,
-	configMapHistoryRepository chartConfig.ConfigMapHistoryRepository) *WorkflowDagExecutorImpl {
+	configMapHistoryRepository chartConfig.ConfigMapHistoryRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:         pipelineRepository,
