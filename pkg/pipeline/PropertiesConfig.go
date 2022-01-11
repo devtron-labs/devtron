@@ -316,6 +316,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		Status:            propertiesRequest.Status,
 		ManualReviewed:    propertiesRequest.ManualReviewed,
 		Namespace:         propertiesRequest.Namespace,
+		TargetEnvironment: propertiesRequest.EnvironmentId,
 		AuditLog:          sql.AuditLog{UpdatedBy: propertiesRequest.UserId, UpdatedOn: time.Now()},
 	}
 
