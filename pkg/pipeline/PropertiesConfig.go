@@ -692,7 +692,7 @@ func (impl PropertiesConfigServiceImpl) ChartEnvHistoryCreate(envProperties *cha
 	historyModel.UpdatedOn = envProperties.UpdatedOn
 	_, err = impl.chartHistoryRepository.CreateEnvHistory(historyModel)
 	if err != nil {
-		impl.logger.Errorw("err in creating history entry for env chart", "err", err)
+		impl.logger.Errorw("err in creating history entry for env chart", "err", err, "history", historyModel)
 		return nil, err
 	}
 	return historyModel, err
