@@ -9,10 +9,10 @@ data:
     kind: ConfigMap
     metadata:
       name: lens-cm
-#    update:
-#      data:
-#        GIT_SENSOR_URL: http://git-sensor-service.devtroncd:80
-#        NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+    #    update:
+    #      data:
+    #        GIT_SENSOR_URL: http://git-sensor-service.devtroncd:80
+    #        NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
     ---
     apiVersion: apps/v1
     kind: Deployment

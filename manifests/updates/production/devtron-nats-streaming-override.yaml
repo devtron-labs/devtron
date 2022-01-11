@@ -22,8 +22,8 @@ data:
                 requests:
                   cpu: 0.01
                   memory: 60Mi
-#             env:
-#             - name: POD_NAME
-#                valueFrom:
-#                  fieldRef:
-#                    fieldPath: metadata.name
+    #             env:
+    #             - name: POD_NAME
+    #                valueFrom:
+    #                  fieldRef:
+    #                    fieldPath: metadata.name
