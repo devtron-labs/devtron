@@ -86,7 +86,7 @@ type PropertiesConfigServiceImpl struct {
 	application                  application.ServiceClient
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository
 	appLevelMetricsRepository    repository.AppLevelMetricsRepository
-	chartHistoryRepository		 chartConfig.ChartHistoryRepository
+	chartHistoryRepository       chartConfig.ChartHistoryRepository
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
@@ -109,7 +109,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		application:                  application,
 		envLevelAppMetricsRepository: envLevelAppMetricsRepository,
 		appLevelMetricsRepository:    appLevelMetricsRepository,
-		chartHistoryRepository: 	  chartHistoryRepository,
+		chartHistoryRepository:       chartHistoryRepository,
 	}
 
 }
@@ -328,9 +328,9 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		return nil, fmt.Errorf("namespace name update not supported")
 	}
 
-	_,err = impl.ChartEnvHistoryCreate(override)
-	if err!=nil{
-		impl.logger.Errorw("error in creating entry for env chart history","err",err,"envOverride",override)
+	_, err = impl.ChartEnvHistoryCreate(override, nil)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for env chart history", "err", err, "envOverride", override)
 		return nil, err
 	}
 	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(oldEnvOverride.Chart.ChartVersion)
@@ -429,9 +429,9 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Char
 			impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
 			return nil, err
 		}
-		_,err = impl.ChartEnvHistoryCreate(envOverride)
-		if err!=nil{
-			impl.logger.Errorw("error in creating entry for env chart history","err",err,"envOverride",envOverride)
+		_, err = impl.ChartEnvHistoryCreate(envOverride, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating entry for env chart history", "err", err, "envOverride", envOverride)
 			return nil, err
 		}
 	}
@@ -663,7 +663,7 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 	return appMetricRequest, err
 }
 
-func (impl PropertiesConfigServiceImpl) ChartEnvHistoryCreate(envProperties *chartConfig.EnvConfigOverride) (historyModel *chartConfig.ChartsEnvHistory, err error) {
+func (impl PropertiesConfigServiceImpl) ChartEnvHistoryCreate(envProperties *chartConfig.EnvConfigOverride, tx *pg.Tx) (historyModel *chartConfig.ChartsEnvHistory, err error) {
 	//fetching latest entry by chartsId
 	oldHistory, err := impl.chartHistoryRepository.GetLatestEnvHistoryByEnvConfigOverrideId(envProperties.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -690,7 +690,11 @@ func (impl PropertiesConfigServiceImpl) ChartEnvHistoryCreate(envProperties *cha
 	historyModel.CreatedOn = envProperties.CreatedOn
 	historyModel.UpdatedBy = envProperties.UpdatedBy
 	historyModel.UpdatedOn = envProperties.UpdatedOn
-	_, err = impl.chartHistoryRepository.CreateEnvHistory(historyModel)
+	if tx != nil {
+		_, err = impl.chartHistoryRepository.CreateEnvHistoryWithTxn(historyModel, tx)
+	} else {
+		_, err = impl.chartHistoryRepository.CreateEnvHistory(historyModel)
+	}
 	if err != nil {
 		impl.logger.Errorw("err in creating history entry for env chart", "err", err, "history", historyModel)
 		return nil, err

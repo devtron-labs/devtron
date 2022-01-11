@@ -33,6 +33,7 @@ type ChartHistoryRepository interface {
 
 	CreateEnvHistory(chart *ChartsEnvHistory) (*ChartsEnvHistory, error)
 	UpdateEnvHistory(chart *ChartsEnvHistory) (*ChartsEnvHistory, error)
+	CreateEnvHistoryWithTxn(chart *ChartsEnvHistory, tx *pg.Tx) (*ChartsEnvHistory, error)
 	GetLatestEnvHistoryByEnvConfigOverrideId(envConfigOverrideId int) (*ChartsEnvHistory, error)
 }
 
@@ -103,6 +104,15 @@ func(impl ChartHistoryRepositoryImpl) UpdateEnvHistory(chart *ChartsEnvHistory) 
 	err := impl.dbConnection.Update(chart)
 	if err != nil {
 		impl.logger.Errorw("err in updating env chart history entry", "err", err)
+		return chart, err
+	}
+	return chart, nil
+}
+
+func(impl ChartHistoryRepositoryImpl) CreateEnvHistoryWithTxn(chart *ChartsEnvHistory, tx *pg.Tx) (*ChartsEnvHistory, error){
+	err := tx.Insert(chart)
+	if err != nil {
+		impl.logger.Errorw("err in creating env chart history entry", "err", err, "history", chart)
 		return chart, err
 	}
 	return chart, nil
