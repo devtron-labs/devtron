@@ -7,7 +7,7 @@ Workflow is a logical sequence of different stages used for continuous integrati
 Click on `New Build Pipeline` to create a new workflow
 
 
-![](../../../.gitbook/assets/ca-workflow-empty.png)
+![](../images/workflow-ci.jpg)
 
 On clicking `New Build Pipeline`. Three options appear as mentioned below:
 

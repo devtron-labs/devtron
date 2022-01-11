@@ -9,10 +9,10 @@ data:
     kind: Secret
     metadata:
       name: devtron-minio
-#    update:
-#      data:
-#        accesskey: ""
-#        secretkey: ""
+    #    update:
+    #      data:
+    #        accesskey: ""
+    #        secretkey: ""
     ---
     apiVersion: apps/v1
     kind: StatefulSet
@@ -31,14 +31,14 @@ data:
     kind: Job
     metadata:
       name: devtron-minio-make-bucket-job
-#    update:
-#      spec:
-#        template:
-#          spec:
-#            containers:
-#            - resources:
-#                requests:
-#                  memory: 128Mi
+    #    update:
+    #      spec:
+    #        template:
+    #          spec:
+    #            containers:
+    #            - resources:
+    #                requests:
+    #                  memory: 128Mi
 
 
 

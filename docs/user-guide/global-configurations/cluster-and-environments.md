@@ -6,7 +6,9 @@ Select the Cluster & Environment section of global configuration and click on `A
 
 ## Add Cluster:
 
-Provide the below information to add your kubernetes cluster:
+To add a cluster on devtron, you must have superadmin access.
+
+Navigate to the `Global Configurations` → `Clusters and Environments` on devtron and click on `Add Cluster`. Provide the below informations to add your kubernetes cluster:
 
 1. Name
 2. Kubernetes Cluster Info
@@ -21,7 +23,8 @@ Provide the below information to add your kubernetes cluster:
    * TLS Key
    * TLS Certificate
 
-![](../../.gitbook/assets/cluster_gc1.png)
+
+![](../../user-guide/global-configurations/images/cluster-1.jpg)
 
 ### 1. Name
 
@@ -41,7 +44,11 @@ Provide the endpoint/URL of your kubernetes cluster.It is recommended to use a s
 
 * **Bearer token**
 
-Provide your kubernetes cluster’s Bearer token for authentication purposes so that the Devtron tool will be able to talk to your kubernetes cluster and can deploy your application in your kubernetes cluster.
+Provide your kubernetes cluster’s Bearer token for authentication purposes so that the Devtron tool will be able to talk to your kubernetes cluster and can deploy your application in your kubernetes cluster.Generate the admin token to add the cluster on devtron by running the following command. Please ensure that you have kubectl and jq installed on the bastion that you’re running the command.
+
+```bash
+curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh && bash kubernetes_export_sa.sh cd-user devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/clusterrole.yaml
+```
 
 ### 3. Prometheus Info
 
@@ -70,11 +77,11 @@ on saving or update a cluster there is a call to fetch k8s version, it will stor
 
 Check the below screenshots to know how it looks like If you select the `Basic` authentication type
 
-![](../../.gitbook/assets/cluster_gc2%20%283%29.png)
+![](../../user-guide/global-configurations/images/cluster-2.jpg)
 
 If you select the `Anonymous` authentication type
 
-![](../../.gitbook/assets/cluster_gc3%20%283%29.png)
+![](../../user-guide/global-configurations/images/cluster-1.jpg)
 
 Now click on `Save Cluster` to save your cluster information.
 

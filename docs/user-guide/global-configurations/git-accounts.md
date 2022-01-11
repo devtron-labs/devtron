@@ -12,7 +12,7 @@ Git Accounts allow you to connect your code source with Devtron. You’ll be abl
 4. Authentication type
 
 
-![](../../.gitbook/assets/git-accounts-1.png)
+![](../../user-guide/global-configurations/images/git-accounts.jpg)
 
 ### 1. Name
 
@@ -34,19 +34,19 @@ Here you have to provide the type of authentication required by your version con
 
 If you select `Anonymous` then you do not have to provide any username, password/authentication token or SSH key. Just click on `Save` to save your git account provider details.
 
-![](../../.gitbook/assets/git-accounts-2.png)
+![](../../user-guide/global-configurations/images/git-accounts-anonymous.jpg)
 
 * **User Auth**
 
 If you select `User Auth` then you have to provide the `Username` and either of `Password` or `Auth Token` for the authentication of your version controller account. Click on `Save` to save your git account provider details.
 
-![](../../.gitbook/assets/git-accounts-3.png)
+![](../../user-guide/global-configurations/images/git-accounts-user-auth.jpg)
 
 * **SSH Key**
 
 If you choose `SSH Key` then you have to provide the `Private SSH Key` corresponding to the public key added in your version controller account. Click on `Save` to save your git account provider details.
 
-![](../../.gitbook/assets/git-accounts-4.png)
+![](../../user-guide/global-configurations/images/git-accounts-ssh.jpg)
 
 ## Update Git Account
 
@@ -54,10 +54,10 @@ You can update your saved git account settings at any point in time. Just click 
 
 Updates can only be made within one Authentication type or one protocol type, i.e. HTTPS(Anonymous or User Auth) & SSH. You can update from Anonymous to User Auth & vice versa, but not from Anonymous/User Auth to SSH or reverse.
 
-![](../../.gitbook/assets/git-accounts-5.png)
+![](../../user-guide/global-configurations/images/git-account-update.jpg)
 
 ### Note:
 
 You can enable and disable your git account settings. If you enable it, then you will be able to see that enabled git account in the drop-down of Git provider.
 
-![](../../.gitbook/assets/git-accounts-6.png)
+![](../../user-guide/global-configurations/images/git-account-enable-disable.jpg)

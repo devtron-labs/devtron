@@ -63,7 +63,7 @@ spec:
             envId: {{ $.Values.env | quote }}
             release: {{ $.Release.Name }}
     {{- if .Values.podLabels }}
-    {{ toYaml .Values.podLabels | indent 8 }}
+{{ toYaml .Values.podLabels | indent 12 }}
     {{- end }}
         spec:
           terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
