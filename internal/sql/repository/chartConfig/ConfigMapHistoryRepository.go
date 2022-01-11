@@ -80,14 +80,14 @@ func (impl ConfigMapHistoryRepositoryImpl) GetLatestGlobalHistoryByAppId(appId i
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) GetLatestGlobalHistoryByAppLevelIdAndConfigType(appLevelId int, configType ConfigType) (*ConfigmapAndSecretGlobalHistory, error) {
-	var model *ConfigmapAndSecretGlobalHistory
+	var model ConfigmapAndSecretGlobalHistory
 	err := impl.dbConnection.Model(&model).Where("config_map_app_level_id = ?", appLevelId).
 		Where("latest = ?", true).Where("data_type = ?", configType).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting latest entry for global CM/CS history", "err", err, "appLevelId", appLevelId, "configType", configType)
-		return model, err
+		return &model, err
 	}
-	return model, nil
+	return &model, nil
 }
 
 //----------------------------------------------
@@ -124,14 +124,14 @@ func (impl ConfigMapHistoryRepositoryImpl) UpdateEnvHistory(model *ConfigmapAndS
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) GetLatestEnvHistoryByEnvLevelIdAndConfigType(envLevelId int, configType ConfigType) (*ConfigmapAndSecretEnvHistory, error) {
-	var model *ConfigmapAndSecretEnvHistory
+	var model ConfigmapAndSecretEnvHistory
 	err := impl.dbConnection.Model(&model).Where("config_map_env_level_id = ?", envLevelId).
 		Where("latest = ?", true).Where("data_type = ?", configType).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting latest entry for env CM/CS history", "err", err, "envLevelId", envLevelId, "configType", configType)
-		return model, err
+		return &model, err
 	}
-	return model, nil
+	return &model, nil
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) GetLatestEnvHistoryByAppIdAndEnvId(appId int, envId int) ([]*ConfigmapAndSecretEnvHistory, error) {

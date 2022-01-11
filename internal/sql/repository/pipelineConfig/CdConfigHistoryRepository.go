@@ -46,28 +46,28 @@ func NewCdConfigHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *p
 func (impl CdConfigHistoryRepositoryImpl) CreateHistory(history *CdConfigHistory) (*CdConfigHistory, error) {
 	err := impl.dbConnection.Insert(history)
 	if err != nil {
-		impl.logger.Errorw("err in creating cd config history entry", "err", err)
+		impl.logger.Errorw("err in creating cd config history entry", "err", err, "history", history)
 		return nil, err
 	}
 	return history, nil
 }
 
 func (impl CdConfigHistoryRepositoryImpl) UpdateHistory(history *CdConfigHistory) (*CdConfigHistory, error) {
-	err := impl.dbConnection.Insert(history)
+	err := impl.dbConnection.Update(history)
 	if err != nil {
-		impl.logger.Errorw("err in updating cd config history entry", "err", err)
+		impl.logger.Errorw("err in updating cd config history entry", "err", err, "history", history)
 		return nil, err
 	}
 	return history, nil
 }
 
 func (impl CdConfigHistoryRepositoryImpl) GetLatestByStageTypeAndPipelineId(stage CdStageType, pipelineId int) (*CdConfigHistory, error) {
-	var scriptHistory *CdConfigHistory
+	var scriptHistory CdConfigHistory
 	err := impl.dbConnection.Model(&scriptHistory).Where("pipeline_id = ?", pipelineId).
 		Where("stage = ?", stage).Where("latest = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting latest entry for cd config history", "err", err, "pipeline_id", pipelineId, "stage", stage)
 		return nil, err
 	}
-	return scriptHistory, nil
+	return &scriptHistory, nil
 }

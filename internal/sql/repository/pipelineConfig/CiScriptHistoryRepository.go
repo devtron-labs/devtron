@@ -54,12 +54,12 @@ func (impl CiScriptHistoryRepositoryImpl) UpdateHistory(history *CiScriptHistory
 }
 
 func (impl CiScriptHistoryRepositoryImpl) GetLatestByCiPipelineScriptsId(ciPipelineScriptsId int) (*CiScriptHistory, error) {
-	var scriptHistory *CiScriptHistory
+	var scriptHistory CiScriptHistory
 	err := impl.dbConnection.Model(&scriptHistory).Where("ci_pipeline_scripts_id = ?", ciPipelineScriptsId).
 		Where("latest = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting latest entry for ci script history", "err", err, "ci_pipeline_scripts_id", ciPipelineScriptsId)
 		return nil, err
 	}
-	return scriptHistory, nil
+	return &scriptHistory, nil
 }

@@ -34,7 +34,7 @@ func NewInstalledAppHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnectio
 func (impl InstalledAppHistoryRepositoryImpl) CreateHistory(history *InstalledAppHistory) (*InstalledAppHistory, error) {
 	err := impl.dbConnection.Insert(history)
 	if err != nil {
-		impl.logger.Errorw("err in creating installed app history entry", "err", err)
+		impl.logger.Errorw("err in creating installed app history entry", "err", err, "history", history)
 		return history, err
 	}
 	return history, nil
@@ -43,7 +43,7 @@ func (impl InstalledAppHistoryRepositoryImpl) CreateHistory(history *InstalledAp
 func (impl InstalledAppHistoryRepositoryImpl) UpdateHistory(history *InstalledAppHistory) (*InstalledAppHistory, error) {
 	err := impl.dbConnection.Update(history)
 	if err != nil {
-		impl.logger.Errorw("err in updating installed app history entry", "err", err)
+		impl.logger.Errorw("err in updating installed app history entry", "err", err, "history", history)
 		return history, err
 	}
 	return history, nil
