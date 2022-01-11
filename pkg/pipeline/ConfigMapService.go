@@ -986,6 +986,11 @@ func (impl ConfigMapServiceImpl) CMGlobalDelete(name string, id int, userId int3
 			impl.logger.Errorw("error while updating at app level", "error", err)
 			return false, err
 		}
+		_, err = impl.CMCSGlobalHistoryCreate(model, chartConfig.CONFIGMAP_TYPE)
+		if err != nil {
+			impl.logger.Errorw("error in creating entry for configmap history", "err", err)
+			return false, err
+		}
 	} else {
 		impl.logger.Debugw("no config map found for delete with this name", "name", name)
 
@@ -1031,6 +1036,11 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDelete(name string, id int, userId
 		_, err = impl.configMapRepository.UpdateEnvLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while updating at env level", "error", err)
+			return false, err
+		}
+		_, err = impl.CMCSEnvHistoryCreate(model, chartConfig.CONFIGMAP_TYPE)
+		if err != nil {
+			impl.logger.Errorw("error in creating entry for configmap env history", "err", err)
 			return false, err
 		}
 	} else {
@@ -1079,6 +1089,11 @@ func (impl ConfigMapServiceImpl) CSGlobalDelete(name string, id int, userId int3
 			impl.logger.Errorw("error while updating at app level", "error", err)
 			return false, err
 		}
+		_, err = impl.CMCSGlobalHistoryCreate(model, chartConfig.SECRET_TYPE)
+		if err != nil {
+			impl.logger.Errorw("error in creating entry for secret history", "err", err)
+			return false, err
+		}
 	} else {
 		impl.logger.Debugw("no config map found for delete with this name", "name", name)
 
@@ -1124,6 +1139,11 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDelete(name string, id int, userId
 		_, err = impl.configMapRepository.UpdateEnvLevel(model)
 		if err != nil {
 			impl.logger.Errorw("error while updating at env level ", "error", err)
+			return false, err
+		}
+		_, err = impl.CMCSEnvHistoryCreate(model, chartConfig.SECRET_TYPE)
+		if err != nil {
+			impl.logger.Errorw("error in creating entry for secret env history", "err", err)
 			return false, err
 		}
 	} else {
