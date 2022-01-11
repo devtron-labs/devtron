@@ -17,13 +17,13 @@ const (
 type ConfigmapAndSecretGlobalHistory struct {
 	TableName           struct{}   `sql:"config_map_global_history" pg:",discard_unknown_columns"`
 	Id                  int        `sql:"id,pk"`
-	ConfigMapAppLevelId int        `sql:"config_map_app_level_id,notnull"`
+	ConfigMapAppLevelId int        `sql:"config_map_app_level_id, notnull"`
 	DataType            ConfigType `sql:"data_type"`
 	Data                string     `sql:"data"`
 	Deployed            bool       `sql:"deployed"`
 	DeployedOn          time.Time  `sql:"deployed_on"`
 	DeployedBy          int32      `sql:"deployed_by"`
-	Latest              bool       `sql:"latest,notnull"`
+	Latest              bool       `sql:"latest, notnull"`
 	sql.AuditLog
 }
 
@@ -95,7 +95,7 @@ func (impl ConfigMapHistoryRepositoryImpl) GetLatestGlobalHistoryByAppLevelIdAnd
 type ConfigmapAndSecretEnvHistory struct {
 	TableName           struct{}   `sql:"config_map_env_history" pg:",discard_unknown_columns"`
 	Id                  int        `sql:"id,pk"`
-	ConfigMapEnvLevelId int        `sql:"config_map_env_level_id,notnull"`
+	ConfigMapEnvLevelId int        `sql:"config_map_env_level_id, notnull"`
 	DataType            ConfigType `sql:"data_type"`
 	Data                string     `sql:"data"`
 	Deployed            bool       `sql:"deployed"`

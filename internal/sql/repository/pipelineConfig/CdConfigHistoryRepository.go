@@ -17,11 +17,11 @@ const (
 type CdConfigHistory struct {
 	tableName            struct{}    `sql:"cd_config_history" pg:",discard_unknown_columns"`
 	Id                   int         `sql:"id,pk"`
-	PipelineId           int         `sql:"pipeline_id"`
+	PipelineId           int         `sql:"pipeline_id, notnull"`
 	Config               string      `sql:"config"`
 	Stage                CdStageType `sql:"stage"`
 	ConfigMapSecretNames string      `sql:"configmap_secret_names"`
-	Latest               bool        `sql:"latest"`
+	Latest               bool        `sql:"latest, notnull"`
 	Deployed             bool        `sql:"deployed"`
 	DeployedOn           time.Time   `sql:"deployed_on"`
 	DeployedBy           int32       `sql:"deployed_by"`

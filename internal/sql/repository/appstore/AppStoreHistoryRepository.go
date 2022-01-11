@@ -10,7 +10,7 @@ import (
 type InstalledAppHistory struct {
 	tableName             struct{}  `sql:"installed_app_history" pg:",discard_unknown_columns"`
 	Id                    int       `sql:"id,pk"`
-	InstalledAppVersionId int       `sql:"installed_app_version_id"`
+	InstalledAppVersionId int       `sql:"installed_app_version_id, notnull"`
 	Values                string    `sql:"values_yaml"`
 	DeployedOn            time.Time `sql:"deployed_on"`
 	DeployedBy            int32     `sql:"deployed_by"`

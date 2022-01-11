@@ -10,14 +10,14 @@ import (
 type ChartsGlobalHistory struct {
 	tableName               struct{}  `sql:"charts_global_history" pg:",discard_unknown_columns"`
 	Id                      int       `sql:"id,pk"`
-	ChartsId                int       `sql:"charts_id"`
+	ChartsId                int       `sql:"charts_id, notnull"`
 	Values                  string    `sql:"values_yaml"`
 	GlobalOverride          string    `sql:"global_override"`
 	ReleaseOverride         string    `sql:"release_override"`
 	PipelineOverride        string    `sql:"pipeline_override"`
 	ImageDescriptorTemplate string    `sql:"image_descriptor_template"`
-	ChartRefId              int       `sql:"chart_ref_id"`
-	Latest                  bool      `sql:"latest,notnull"`
+	ChartRefId              int       `sql:"chart_ref_id, notnull"`
+	Latest                  bool      `sql:"latest, notnull"`
 	//TODO : confirm if deployment details are needed here, since for every environment we will have
 	// a separate entry in env history table
 	Deployed                bool      `sql:"deployed"`
@@ -80,10 +80,10 @@ func (impl ChartHistoryRepositoryImpl) GetLatestGlobalHistoryByChartsId(chartsId
 type ChartsEnvHistory struct {
 	tableName               struct{}  `sql:"charts_env_history" pg:",discard_unknown_columns"`
 	Id                      int       `sql:"id,pk"`
-	EnvConfigOverrideId     int       `sql:"chart_env_config_override_id"`
+	EnvConfigOverrideId     int       `sql:"chart_env_config_override_id, notnull"`
 	TargetEnvironment 		int       `sql:"target_environment"`
 	EnvOverride          	string    `sql:"env_override"`
-	Latest                  bool      `sql:"latest,notnull"`
+	Latest                  bool      `sql:"latest, notnull"`
 	Deployed                bool      `sql:"deployed"`
 	DeployedOn              time.Time `sql:"deployed_on"`
 	DeployedBy              int32     `sql:"deployed_by"`

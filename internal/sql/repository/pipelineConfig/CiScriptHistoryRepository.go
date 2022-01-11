@@ -10,10 +10,10 @@ import (
 type CiScriptHistory struct {
 	tableName           struct{}  `sql:"ci_script_history" pg:",discard_unknown_columns"`
 	Id                  int       `sql:"id,pk"`
-	CiPipelineScriptsId int       `sql:"ci_pipeline_scripts_id"`
+	CiPipelineScriptsId int       `sql:"ci_pipeline_scripts_id, notnull"`
 	Script              string    `sql:"script"`
 	Stage               string    `sql:"stage"`
-	Latest              bool      `sql:"latest"`
+	Latest              bool      `sql:"latest, notnull"`
 	Built               bool      `sql:"built"`
 	BuiltOn             time.Time `sql:"built_on"`
 	BuiltBy             int32     `sql:"built_by"`
