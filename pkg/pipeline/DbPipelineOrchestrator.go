@@ -1039,7 +1039,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean.C
 		impl.logger.Errorw("error in saving cd pipeline", "err", err, "pipeline", pipeline)
 		return 0, err
 	}
-	err = impl.CdConfigHistoryCreate(pipeline)
+	err = impl.CdConfigHistoryCreate(pipeline, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating cd config entry", "err", err, "pipeline", pipeline)
 		return 0, err
@@ -1098,7 +1098,7 @@ func (impl DbPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.CD
 		impl.logger.Errorw("error in updating cd pipeline", "err", err, "pipeline", pipeline)
 		return err
 	}
-	err = impl.CdConfigHistoryCreate(pipeline)
+	err = impl.CdConfigHistoryCreate(pipeline, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating cd config entry", "err", err, "pipeline", pipeline)
 		return err
@@ -1303,7 +1303,7 @@ func (impl DbPipelineOrchestratorImpl) CiScriptHistoryCreate(ciPipelineScript *p
 	return historyModel, err
 }
 
-func (impl DbPipelineOrchestratorImpl) CdConfigHistoryCreate(pipeline *pipelineConfig.Pipeline) error {
+func (impl DbPipelineOrchestratorImpl) CdConfigHistoryCreate(pipeline *pipelineConfig.Pipeline, tx *pg.Tx) error {
 	createPreHistory := false
 	preOldHistory, err := impl.cdConfigHistoryRepository.GetLatestByStageTypeAndPipelineId(pipelineConfig.PRE_CD_TYPE, pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -1322,7 +1322,7 @@ func (impl DbPipelineOrchestratorImpl) CdConfigHistoryCreate(pipeline *pipelineC
 		createPreHistory = true
 	}
 	if createPreHistory {
-		_, err = impl.createCdConfigHistory(pipeline, pipelineConfig.PRE_CD_TYPE)
+		_, err = impl.createCdConfigHistory(pipeline, pipelineConfig.PRE_CD_TYPE, tx)
 		if err != nil {
 			impl.logger.Errorw("err in creating history entry for cd config", "err", err, "stage", pipelineConfig.PRE_CD_TYPE, "pipeline", pipeline)
 			return err
@@ -1346,7 +1346,7 @@ func (impl DbPipelineOrchestratorImpl) CdConfigHistoryCreate(pipeline *pipelineC
 		createPostHistory = true
 	}
 	if createPostHistory {
-		_, err = impl.createCdConfigHistory(pipeline, pipelineConfig.POST_CD_TYPE)
+		_, err = impl.createCdConfigHistory(pipeline, pipelineConfig.POST_CD_TYPE, tx)
 		if err != nil {
 			impl.logger.Errorw("err in creating history entry for cd config", "err", err, "stage", pipelineConfig.POST_CD_TYPE, "pipeline", pipeline)
 			return err
@@ -1354,7 +1354,7 @@ func (impl DbPipelineOrchestratorImpl) CdConfigHistoryCreate(pipeline *pipelineC
 	}
 	return nil
 }
-func (impl DbPipelineOrchestratorImpl) createCdConfigHistory(pipeline *pipelineConfig.Pipeline, stage pipelineConfig.CdStageType) (*pipelineConfig.CdConfigHistory, error) {
+func (impl DbPipelineOrchestratorImpl) createCdConfigHistory(pipeline *pipelineConfig.Pipeline, stage pipelineConfig.CdStageType, tx *pg.Tx) (*pipelineConfig.CdConfigHistory, error) {
 	historyModel := &pipelineConfig.CdConfigHistory{
 		PipelineId: pipeline.Id,
 		Stage:      stage,
@@ -1372,7 +1372,7 @@ func (impl DbPipelineOrchestratorImpl) createCdConfigHistory(pipeline *pipelineC
 		historyModel.Config = pipeline.PostStageConfig
 		historyModel.ConfigMapSecretNames = pipeline.PostStageConfigMapSecretNames
 	}
-	_, err := impl.cdConfigHistoryRepository.CreateHistory(historyModel)
+	_, err := impl.cdConfigHistoryRepository.CreateHistoryWithTxn(historyModel, tx)
 	if err != nil {
 		impl.logger.Errorw("err in creating history entry for cd config", "err", err)
 		return nil, err

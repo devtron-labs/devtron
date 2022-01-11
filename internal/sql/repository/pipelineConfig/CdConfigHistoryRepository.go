@@ -29,7 +29,7 @@ type CdConfigHistory struct {
 }
 
 type CdConfigHistoryRepository interface {
-	CreateHistory(history *CdConfigHistory) (*CdConfigHistory, error)
+	CreateHistoryWithTxn(history *CdConfigHistory, tx *pg.Tx) (*CdConfigHistory, error)
 	UpdateHistory(history *CdConfigHistory) (*CdConfigHistory, error)
 	GetLatestByStageTypeAndPipelineId(stage CdStageType, pipelineId int) (*CdConfigHistory, error)
 }
@@ -43,8 +43,8 @@ func NewCdConfigHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *p
 	return &CdConfigHistoryRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
-func (impl CdConfigHistoryRepositoryImpl) CreateHistory(history *CdConfigHistory) (*CdConfigHistory, error) {
-	err := impl.dbConnection.Insert(history)
+func (impl CdConfigHistoryRepositoryImpl) CreateHistoryWithTxn(history *CdConfigHistory, tx *pg.Tx) (*CdConfigHistory, error) {
+	err := tx.Insert(history)
 	if err != nil {
 		impl.logger.Errorw("err in creating cd config history entry", "err", err, "history", history)
 		return nil, err
