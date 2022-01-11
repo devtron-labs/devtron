@@ -298,7 +298,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		return nil, err
 	}
 	//STEP 9 : creating entry for installed app history
-	_, err = impl.InstalledAppHistoryCreate(installAppVersionRequest)
+	_, err = impl.InstalledAppHistoryCreate(installAppVersionRequest, tx)
 	if err!=nil{
 		impl.logger.Errorw("error in creating install app history entry","err",err,"installAppVersionRequest",installAppVersionRequest)
 		return nil, err
@@ -1387,7 +1387,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionR
 			return nil, err
 		}
 	}
-	_, err = impl.InstalledAppHistoryCreate(installAppVersionRequest)
+	_, err = impl.InstalledAppHistoryCreate(installAppVersionRequest, tx)
 	if err!=nil{
 		impl.logger.Errorw("error in creating install app history entry","err",err,"installAppVersionRequest",installAppVersionRequest)
 		return nil, err
@@ -1670,7 +1670,7 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 	return &ChartGroupInstallAppRes{}, nil
 }
 
-func (impl InstalledAppServiceImpl) InstalledAppHistoryCreate(installAppVersionReq *InstallAppVersionDTO)(history *appstore.InstalledAppHistory, err error){
+func (impl InstalledAppServiceImpl) InstalledAppHistoryCreate(installAppVersionReq *InstallAppVersionDTO, tx *pg.Tx)(history *appstore.InstalledAppHistory, err error){
 	history = &appstore.InstalledAppHistory{
 		InstalledAppVersionId: installAppVersionReq.InstalledAppVersionId,
 		Values: installAppVersionReq.ValuesOverrideYaml,
@@ -1681,7 +1681,7 @@ func (impl InstalledAppServiceImpl) InstalledAppHistoryCreate(installAppVersionR
 	history.CreatedBy = installAppVersionReq.UserId
 	history.UpdatedOn = time.Now()
 	history.UpdatedBy = installAppVersionReq.UserId
-	_, err = impl.installedAppHistoryRepository.CreateHistory(history)
+	_, err = impl.installedAppHistoryRepository.CreateHistory(history, tx)
 	if err != nil{
 		impl.logger.Errorw("error in creating history entry for installed app","err",err,"history",history)
 		return nil, err

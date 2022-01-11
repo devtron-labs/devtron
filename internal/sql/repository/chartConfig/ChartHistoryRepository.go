@@ -94,7 +94,7 @@ type ChartsEnvHistory struct {
 func(impl ChartHistoryRepositoryImpl) CreateEnvHistory(chart *ChartsEnvHistory) (*ChartsEnvHistory, error){
 	err := impl.dbConnection.Insert(chart)
 	if err != nil {
-		impl.logger.Errorw("err in creating env chart history entry", "err", err)
+		impl.logger.Errorw("err in creating env chart history entry", "err", err, "history", chart)
 		return chart, err
 	}
 	return chart, nil

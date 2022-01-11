@@ -18,7 +18,7 @@ type InstalledAppHistory struct {
 }
 
 type InstalledAppHistoryRepository interface {
-	CreateHistory(chart *InstalledAppHistory) (*InstalledAppHistory, error)
+	CreateHistory(chart *InstalledAppHistory, tx *pg.Tx) (*InstalledAppHistory, error)
 	UpdateHistory(chart *InstalledAppHistory) (*InstalledAppHistory, error)
 }
 
@@ -31,8 +31,8 @@ func NewInstalledAppHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnectio
 	return &InstalledAppHistoryRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
-func (impl InstalledAppHistoryRepositoryImpl) CreateHistory(history *InstalledAppHistory) (*InstalledAppHistory, error) {
-	err := impl.dbConnection.Insert(history)
+func (impl InstalledAppHistoryRepositoryImpl) CreateHistory(history *InstalledAppHistory, tx *pg.Tx) (*InstalledAppHistory, error) {
+	err := tx.Insert(history)
 	if err != nil {
 		impl.logger.Errorw("err in creating installed app history entry", "err", err, "history", history)
 		return history, err
