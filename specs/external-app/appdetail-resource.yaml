@@ -141,8 +141,68 @@ paths:
             text/event-stream:
               schema:
                 $ref: "#/components/schemas/LogsResponseObject"
+  /orchestrator/k8s/pod/exec/session/{applicationId}/{namespace}/{pod}/{shell}/{container}:
+    get:
+      description: get session for the terminal
+      parameters:
+        - in: path
+          name: applicationId
+          schema:
+            type: string
+          required: true
+          description: application id
+          example: "2|devtroncd|devtron"
+        - in: path
+          name: namespace
+          schema:
+            type: string
+          required: true
+          description: namespace name
+          example: "devtroncd"
+        - in: path
+          name: pod
+          schema:
+            type: string
+          required: true
+          description: pod name
+          example: inception-58d44d99fd-tfw4s
+        - in: path
+          name: shell
+          schema:
+            type: string
+            oneOf:
+              - "bash"
+              - "sh"
+              - "powershell"
+              - "cmd"
+          required: true
+          description: shell to invoke
+          example: "bash"
+        - in: path
+          name: container
+          schema:
+            type: string
+          required: true
+          description: name of the container
+          example: "devtron"
+      responses:
+        200:
+          description: session id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminalMessage"
 components:
   schemas:
+    TerminalMessage:
+      type: object
+      properties:
+        Op:
+          type: string
+        Data:
+          type: string
+        SessionID:
+          type: string
     ResourceRequestObject:
       type: object
       properties:
