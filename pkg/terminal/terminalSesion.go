@@ -374,7 +374,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	var clusterBean *cluster.ClusterBean
 	var err error
 	if req.ClusterId != 0 {
-		clusterBean, err = impl.clusterService.FindById(req.EnvironmentId)
+		clusterBean, err = impl.clusterService.FindById(req.ClusterId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster detail", "envId", req.EnvironmentId, "err", err)
 			return nil, nil, err

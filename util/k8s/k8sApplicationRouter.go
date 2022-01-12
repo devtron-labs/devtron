@@ -37,7 +37,8 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 
 	k8sAppRouter.Path("/pod/exec/session/{applicationId}/{namespace}/{pod}/{shell}/{container}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetTerminalSession).Methods("GET")
+	k8sAppRouter.PathPrefix("/pod/exec/sockjs/ws").Handler(terminal.CreateAttachHandler("/pod/exec/sockjs/ws"))
 
-	k8sAppRouter.Path("/pod/exec/sockjs/ws/").
-		Handler(terminal.CreateAttachHandler("/api/v1/applications/pod/exec/sockjs/ws/"))
+	/*k8sAppRouter.Path("/pod/exec/sockjs/ws/").
+		Handler(terminal.CreateAttachHandler("/api/v1/applications/pod/exec/sockjs/ws/"))*/
 }
