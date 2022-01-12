@@ -32,7 +32,11 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.Path("/events").
 		HandlerFunc(impl.k8sApplicationRestHandler.ListEvents).Methods("POST")
 
-	k8sAppRouter.Path("/pods/logs").
+	k8sAppRouter.Path("/pods/logs/{clusterId}/{releaseName}/{podName}").
+		Queries("containerName", "{containerName}", "namespace", "{namespace}").
+		//Queries("sinceSeconds", "{sinceSeconds}").
+		Queries("follow", "{follow}").
+		Queries("tailLines", "{tailLines}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetPodLogs).Methods("GET")
 
 	k8sAppRouter.Path("/pod/exec/session/{applicationId}/{namespace}/{pod}/{shell}/{container}").
