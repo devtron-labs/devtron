@@ -10,22 +10,24 @@ import (
 	"github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
 )
 
 type MuxRouter struct {
-	Router            *mux.Router
-	logger            *zap.SugaredLogger
-	ssoLoginRouter    sso.SsoLoginRouter
-	teamRouter        team.TeamRouter
-	UserAuthRouter    user.UserAuthRouter
-	userRouter        user.UserRouter
-	clusterRouter     cluster.ClusterRouter
-	dashboardRouter   dashboard.DashboardRouter
-	helmAppRouter     client.HelmAppRouter
-	environmentRouter cluster.EnvironmentRouter
+	Router               *mux.Router
+	logger               *zap.SugaredLogger
+	ssoLoginRouter       sso.SsoLoginRouter
+	teamRouter           team.TeamRouter
+	UserAuthRouter       user.UserAuthRouter
+	userRouter           user.UserRouter
+	clusterRouter        cluster.ClusterRouter
+	dashboardRouter      dashboard.DashboardRouter
+	helmAppRouter        client.HelmAppRouter
+	environmentRouter    cluster.EnvironmentRouter
+	k8sApplicationRouter k8s.K8sApplicationRouter
 }
 
 func NewMuxRouter(
@@ -38,19 +40,21 @@ func NewMuxRouter(
 	dashboardRouter dashboard.DashboardRouter,
 	helmAppRouter client.HelmAppRouter,
 	environmentRouter cluster.EnvironmentRouter,
+	k8sApplicationRouter k8s.K8sApplicationRouter,
 
 ) *MuxRouter {
 	r := &MuxRouter{
-		Router:            mux.NewRouter(),
-		logger:            logger,
-		ssoLoginRouter:    ssoLoginRouter,
-		teamRouter:        teamRouter,
-		UserAuthRouter:    UserAuthRouter,
-		userRouter:        userRouter,
-		clusterRouter:     clusterRouter,
-		dashboardRouter:   dashboardRouter,
-		helmAppRouter:     helmAppRouter,
-		environmentRouter: environmentRouter,
+		Router:               mux.NewRouter(),
+		logger:               logger,
+		ssoLoginRouter:       ssoLoginRouter,
+		teamRouter:           teamRouter,
+		UserAuthRouter:       UserAuthRouter,
+		userRouter:           userRouter,
+		clusterRouter:        clusterRouter,
+		dashboardRouter:      dashboardRouter,
+		helmAppRouter:        helmAppRouter,
+		environmentRouter:    environmentRouter,
+		k8sApplicationRouter: k8sApplicationRouter,
 	}
 	return r
 }
@@ -107,5 +111,7 @@ func (r *MuxRouter) Init() {
 
 	helmApp := r.Router.PathPrefix("/orchestrator/application").Subrouter()
 	r.helmAppRouter.InitAppListRouter(helmApp)
+	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
+	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
 
 }

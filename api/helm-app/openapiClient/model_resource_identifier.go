@@ -14,8 +14,8 @@ import (
 	"encoding/json"
 )
 
-// HibernateTargetObject struct for HibernateTargetObject
-type HibernateTargetObject struct {
+// ResourceIdentifier struct for ResourceIdentifier
+type ResourceIdentifier struct {
 	// k8s resource group
 	Group *string `json:"group,omitempty"`
 	// k8s resource kind
@@ -28,25 +28,25 @@ type HibernateTargetObject struct {
 	Namespace *string `json:"namespace,omitempty"`
 }
 
-// NewHibernateTargetObject instantiates a new HibernateTargetObject object
+// NewResourceIdentifier instantiates a new ResourceIdentifier object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewHibernateTargetObject() *HibernateTargetObject {
-	this := HibernateTargetObject{}
+func NewResourceIdentifier() *ResourceIdentifier {
+	this := ResourceIdentifier{}
 	return &this
 }
 
-// NewHibernateTargetObjectWithDefaults instantiates a new HibernateTargetObject object
+// NewResourceIdentifierWithDefaults instantiates a new ResourceIdentifier object
 // This constructor will only assign default values to properties that have it defined,
 // but it doesn't guarantee that properties required by API are set
-func NewHibernateTargetObjectWithDefaults() *HibernateTargetObject {
-	this := HibernateTargetObject{}
+func NewResourceIdentifierWithDefaults() *ResourceIdentifier {
+	this := ResourceIdentifier{}
 	return &this
 }
 
 // GetGroup returns the Group field value if set, zero value otherwise.
-func (o *HibernateTargetObject) GetGroup() string {
+func (o *ResourceIdentifier) GetGroup() string {
 	if o == nil || o.Group == nil {
 		var ret string
 		return ret
@@ -56,7 +56,7 @@ func (o *HibernateTargetObject) GetGroup() string {
 
 // GetGroupOk returns a tuple with the Group field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *HibernateTargetObject) GetGroupOk() (*string, bool) {
+func (o *ResourceIdentifier) GetGroupOk() (*string, bool) {
 	if o == nil || o.Group == nil {
 		return nil, false
 	}
@@ -64,7 +64,7 @@ func (o *HibernateTargetObject) GetGroupOk() (*string, bool) {
 }
 
 // HasGroup returns a boolean if a field has been set.
-func (o *HibernateTargetObject) HasGroup() bool {
+func (o *ResourceIdentifier) HasGroup() bool {
 	if o != nil && o.Group != nil {
 		return true
 	}
@@ -73,12 +73,12 @@ func (o *HibernateTargetObject) HasGroup() bool {
 }
 
 // SetGroup gets a reference to the given string and assigns it to the Group field.
-func (o *HibernateTargetObject) SetGroup(v string) {
+func (o *ResourceIdentifier) SetGroup(v string) {
 	o.Group = &v
 }
 
 // GetKind returns the Kind field value if set, zero value otherwise.
-func (o *HibernateTargetObject) GetKind() string {
+func (o *ResourceIdentifier) GetKind() string {
 	if o == nil || o.Kind == nil {
 		var ret string
 		return ret
@@ -88,7 +88,7 @@ func (o *HibernateTargetObject) GetKind() string {
 
 // GetKindOk returns a tuple with the Kind field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *HibernateTargetObject) GetKindOk() (*string, bool) {
+func (o *ResourceIdentifier) GetKindOk() (*string, bool) {
 	if o == nil || o.Kind == nil {
 		return nil, false
 	}
@@ -96,7 +96,7 @@ func (o *HibernateTargetObject) GetKindOk() (*string, bool) {
 }
 
 // HasKind returns a boolean if a field has been set.
-func (o *HibernateTargetObject) HasKind() bool {
+func (o *ResourceIdentifier) HasKind() bool {
 	if o != nil && o.Kind != nil {
 		return true
 	}
@@ -105,12 +105,12 @@ func (o *HibernateTargetObject) HasKind() bool {
 }
 
 // SetKind gets a reference to the given string and assigns it to the Kind field.
-func (o *HibernateTargetObject) SetKind(v string) {
+func (o *ResourceIdentifier) SetKind(v string) {
 	o.Kind = &v
 }
 
 // GetVersion returns the Version field value if set, zero value otherwise.
-func (o *HibernateTargetObject) GetVersion() string {
+func (o *ResourceIdentifier) GetVersion() string {
 	if o == nil || o.Version == nil {
 		var ret string
 		return ret
@@ -120,7 +120,7 @@ func (o *HibernateTargetObject) GetVersion() string {
 
 // GetVersionOk returns a tuple with the Version field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *HibernateTargetObject) GetVersionOk() (*string, bool) {
+func (o *ResourceIdentifier) GetVersionOk() (*string, bool) {
 	if o == nil || o.Version == nil {
 		return nil, false
 	}
@@ -128,7 +128,7 @@ func (o *HibernateTargetObject) GetVersionOk() (*string, bool) {
 }
 
 // HasVersion returns a boolean if a field has been set.
-func (o *HibernateTargetObject) HasVersion() bool {
+func (o *ResourceIdentifier) HasVersion() bool {
 	if o != nil && o.Version != nil {
 		return true
 	}
@@ -137,12 +137,12 @@ func (o *HibernateTargetObject) HasVersion() bool {
 }
 
 // SetVersion gets a reference to the given string and assigns it to the Version field.
-func (o *HibernateTargetObject) SetVersion(v string) {
+func (o *ResourceIdentifier) SetVersion(v string) {
 	o.Version = &v
 }
 
 // GetName returns the Name field value if set, zero value otherwise.
-func (o *HibernateTargetObject) GetName() string {
+func (o *ResourceIdentifier) GetName() string {
 	if o == nil || o.Name == nil {
 		var ret string
 		return ret
@@ -152,7 +152,7 @@ func (o *HibernateTargetObject) GetName() string {
 
 // GetNameOk returns a tuple with the Name field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *HibernateTargetObject) GetNameOk() (*string, bool) {
+func (o *ResourceIdentifier) GetNameOk() (*string, bool) {
 	if o == nil || o.Name == nil {
 		return nil, false
 	}
@@ -160,7 +160,7 @@ func (o *HibernateTargetObject) GetNameOk() (*string, bool) {
 }
 
 // HasName returns a boolean if a field has been set.
-func (o *HibernateTargetObject) HasName() bool {
+func (o *ResourceIdentifier) HasName() bool {
 	if o != nil && o.Name != nil {
 		return true
 	}
@@ -169,12 +169,12 @@ func (o *HibernateTargetObject) HasName() bool {
 }
 
 // SetName gets a reference to the given string and assigns it to the Name field.
-func (o *HibernateTargetObject) SetName(v string) {
+func (o *ResourceIdentifier) SetName(v string) {
 	o.Name = &v
 }
 
 // GetNamespace returns the Namespace field value if set, zero value otherwise.
-func (o *HibernateTargetObject) GetNamespace() string {
+func (o *ResourceIdentifier) GetNamespace() string {
 	if o == nil || o.Namespace == nil {
 		var ret string
 		return ret
@@ -184,7 +184,7 @@ func (o *HibernateTargetObject) GetNamespace() string {
 
 // GetNamespaceOk returns a tuple with the Namespace field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *HibernateTargetObject) GetNamespaceOk() (*string, bool) {
+func (o *ResourceIdentifier) GetNamespaceOk() (*string, bool) {
 	if o == nil || o.Namespace == nil {
 		return nil, false
 	}
@@ -192,7 +192,7 @@ func (o *HibernateTargetObject) GetNamespaceOk() (*string, bool) {
 }
 
 // HasNamespace returns a boolean if a field has been set.
-func (o *HibernateTargetObject) HasNamespace() bool {
+func (o *ResourceIdentifier) HasNamespace() bool {
 	if o != nil && o.Namespace != nil {
 		return true
 	}
@@ -201,11 +201,11 @@ func (o *HibernateTargetObject) HasNamespace() bool {
 }
 
 // SetNamespace gets a reference to the given string and assigns it to the Namespace field.
-func (o *HibernateTargetObject) SetNamespace(v string) {
+func (o *ResourceIdentifier) SetNamespace(v string) {
 	o.Namespace = &v
 }
 
-func (o HibernateTargetObject) MarshalJSON() ([]byte, error) {
+func (o ResourceIdentifier) MarshalJSON() ([]byte, error) {
 	toSerialize := map[string]interface{}{}
 	if o.Group != nil {
 		toSerialize["group"] = o.Group
@@ -225,38 +225,40 @@ func (o HibernateTargetObject) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toSerialize)
 }
 
-type NullableHibernateTargetObject struct {
-	value *HibernateTargetObject
+type NullableResourceIdentifier struct {
+	value *ResourceIdentifier
 	isSet bool
 }
 
-func (v NullableHibernateTargetObject) Get() *HibernateTargetObject {
+func (v NullableResourceIdentifier) Get() *ResourceIdentifier {
 	return v.value
 }
 
-func (v *NullableHibernateTargetObject) Set(val *HibernateTargetObject) {
+func (v *NullableResourceIdentifier) Set(val *ResourceIdentifier) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullableHibernateTargetObject) IsSet() bool {
+func (v NullableResourceIdentifier) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullableHibernateTargetObject) Unset() {
+func (v *NullableResourceIdentifier) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullableHibernateTargetObject(val *HibernateTargetObject) *NullableHibernateTargetObject {
-	return &NullableHibernateTargetObject{value: val, isSet: true}
+func NewNullableResourceIdentifier(val *ResourceIdentifier) *NullableResourceIdentifier {
+	return &NullableResourceIdentifier{value: val, isSet: true}
 }
 
-func (v NullableHibernateTargetObject) MarshalJSON() ([]byte, error) {
+func (v NullableResourceIdentifier) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullableHibernateTargetObject) UnmarshalJSON(src []byte) error {
+func (v *NullableResourceIdentifier) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

@@ -122,7 +122,7 @@ func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 	var cluster []Cluster
 	err := impl.dbConnection.
 		Model(&cluster).
-		Where("id in(?)", pg.In( id)).
+		Where("id in(?)", pg.In(id)).
 		Select()
 	return cluster, err
 }

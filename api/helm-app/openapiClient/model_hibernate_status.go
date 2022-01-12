@@ -19,7 +19,7 @@ type HibernateStatus struct {
 	// operation was success or not
 	Success *bool `json:"success,omitempty"`
 	// failure cause, empty is success
-	ErrorMessage *string `json:"errorMessage,omitempty"`
+	ErrorMessage *string                `json:"errorMessage,omitempty"`
 	TargetObject *HibernateTargetObject `json:"targetObject,omitempty"`
 }
 
@@ -185,5 +185,3 @@ func (v *NullableHibernateStatus) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

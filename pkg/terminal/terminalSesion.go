@@ -285,8 +285,12 @@ type TerminalSessionRequest struct {
 	Namespace     string
 	PodName       string
 	ContainerName string
+	//ApplicationId is helm app Id
+	ApplicationId string
 	EnvironmentId int
 	AppId         int
+	//ClusterId is optional
+	ClusterId int
 }
 
 // WaitForTerminal is called from apihandler.handleAttach as a goroutine
@@ -357,7 +361,7 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 		bound:    make(chan error),
 		sizeChan: make(chan remotecommand.TerminalSize),
 	})
-	config, client, err := impl.getClientConfig(req.EnvironmentId)
+	config, client, err := impl.getClientConfig(req)
 	if err != nil {
 		impl.logger.Errorw("error in fetching config", "err", err)
 		return http.StatusInternalServerError, nil, err
@@ -366,13 +370,25 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 	return http.StatusOK, &TerminalMessage{SessionID: sessionID}, nil
 }
 
-func (impl *TerminalSessionHandlerImpl) getClientConfig(envId int) (*rest.Config, *kubernetes.Clientset, error) {
-	cluster, err := impl.environmentService.FindClusterByEnvId(envId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching cluster detail", "envId", envId, "err", err)
-		return nil, nil, err
+func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
+	var clusterBean *cluster.ClusterBean
+	var err error
+	if req.ClusterId != 0 {
+		clusterBean, err = impl.clusterService.FindById(req.ClusterId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching cluster detail", "envId", req.EnvironmentId, "err", err)
+			return nil, nil, err
+		}
+	} else if req.EnvironmentId != 0 {
+		clusterBean, err = impl.environmentService.FindClusterByEnvId(req.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching cluster detail", "envId", req.EnvironmentId, "err", err)
+			return nil, nil, err
+		}
+	} else {
+		return nil, nil, fmt.Errorf("not able to find cluster-config")
 	}
-	config, err := impl.clusterService.GetClusterConfig(cluster)
+	config, err := impl.clusterService.GetClusterConfig(clusterBean)
 	if err != nil {
 		impl.logger.Errorw("error in config", "err", err)
 		return nil, nil, err

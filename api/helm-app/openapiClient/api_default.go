@@ -527,32 +527,32 @@ func (a *DefaultApiService) OrchestratorApplicationClusterEnvDetailsGetExecute(r
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiOrchestratorApplicationDeploymentHostoryGetRequest struct {
+type ApiOrchestratorApplicationDeploymentHistoryGetRequest struct {
 	ctx _context.Context
 	ApiService *DefaultApiService
 	appId *string
 }
 
 // project ids
-func (r ApiOrchestratorApplicationDeploymentHostoryGetRequest) AppId(appId string) ApiOrchestratorApplicationDeploymentHostoryGetRequest {
+func (r ApiOrchestratorApplicationDeploymentHistoryGetRequest) AppId(appId string) ApiOrchestratorApplicationDeploymentHistoryGetRequest {
 	r.appId = &appId
 	return r
 }
 
-func (r ApiOrchestratorApplicationDeploymentHostoryGetRequest) Execute() ([]HelmAppDeploymentDetail, *_nethttp.Response, error) {
-	return r.ApiService.OrchestratorApplicationDeploymentHostoryGetExecute(r)
+func (r ApiOrchestratorApplicationDeploymentHistoryGetRequest) Execute() ([]HelmAppDeploymentDetail, *_nethttp.Response, error) {
+	return r.ApiService.OrchestratorApplicationDeploymentHistoryGetExecute(r)
 }
 
 /*
-OrchestratorApplicationDeploymentHostoryGet Method for OrchestratorApplicationDeploymentHostoryGet
+OrchestratorApplicationDeploymentHistoryGet Method for OrchestratorApplicationDeploymentHistoryGet
 
 deployment history of helm app
 
  @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiOrchestratorApplicationDeploymentHostoryGetRequest
+ @return ApiOrchestratorApplicationDeploymentHistoryGetRequest
 */
-func (a *DefaultApiService) OrchestratorApplicationDeploymentHostoryGet(ctx _context.Context) ApiOrchestratorApplicationDeploymentHostoryGetRequest {
-	return ApiOrchestratorApplicationDeploymentHostoryGetRequest{
+func (a *DefaultApiService) OrchestratorApplicationDeploymentHistoryGet(ctx _context.Context) ApiOrchestratorApplicationDeploymentHistoryGetRequest {
+	return ApiOrchestratorApplicationDeploymentHistoryGetRequest{
 		ApiService: a,
 		ctx: ctx,
 	}
@@ -560,7 +560,7 @@ func (a *DefaultApiService) OrchestratorApplicationDeploymentHostoryGet(ctx _con
 
 // Execute executes the request
 //  @return []HelmAppDeploymentDetail
-func (a *DefaultApiService) OrchestratorApplicationDeploymentHostoryGetExecute(r ApiOrchestratorApplicationDeploymentHostoryGetRequest) ([]HelmAppDeploymentDetail, *_nethttp.Response, error) {
+func (a *DefaultApiService) OrchestratorApplicationDeploymentHistoryGetExecute(r ApiOrchestratorApplicationDeploymentHistoryGetRequest) ([]HelmAppDeploymentDetail, *_nethttp.Response, error) {
 	var (
 		localVarHTTPMethod   = _nethttp.MethodGet
 		localVarPostBody     interface{}
@@ -568,12 +568,12 @@ func (a *DefaultApiService) OrchestratorApplicationDeploymentHostoryGetExecute(r
 		localVarReturnValue  []HelmAppDeploymentDetail
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationDeploymentHostoryGet")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationDeploymentHistoryGet")
 	if err != nil {
 		return localVarReturnValue, nil, GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/orchestrator/application/deployment-hostory"
+	localVarPath := localBasePath + "/orchestrator/application/deployment-history"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := _neturl.Values{}
@@ -600,6 +600,113 @@ func (a *DefaultApiService) OrchestratorApplicationDeploymentHostoryGetExecute(r
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := _ioutil.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = _ioutil.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiOrchestratorApplicationDesiredManifestGetRequest struct {
+	ctx _context.Context
+	ApiService *DefaultApiService
+	desiredManifestRequest *DesiredManifestRequest
+}
+
+func (r ApiOrchestratorApplicationDesiredManifestGetRequest) DesiredManifestRequest(desiredManifestRequest DesiredManifestRequest) ApiOrchestratorApplicationDesiredManifestGetRequest {
+	r.desiredManifestRequest = &desiredManifestRequest
+	return r
+}
+
+func (r ApiOrchestratorApplicationDesiredManifestGetRequest) Execute() ([]DesiredManifestResponse, *_nethttp.Response, error) {
+	return r.ApiService.OrchestratorApplicationDesiredManifestGetExecute(r)
+}
+
+/*
+OrchestratorApplicationDesiredManifestGet Method for OrchestratorApplicationDesiredManifestGet
+
+get desired manifest for an object
+
+ @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiOrchestratorApplicationDesiredManifestGetRequest
+*/
+func (a *DefaultApiService) OrchestratorApplicationDesiredManifestGet(ctx _context.Context) ApiOrchestratorApplicationDesiredManifestGetRequest {
+	return ApiOrchestratorApplicationDesiredManifestGetRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return []DesiredManifestResponse
+func (a *DefaultApiService) OrchestratorApplicationDesiredManifestGetExecute(r ApiOrchestratorApplicationDesiredManifestGetRequest) ([]DesiredManifestResponse, *_nethttp.Response, error) {
+	var (
+		localVarHTTPMethod   = _nethttp.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []DesiredManifestResponse
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationDesiredManifestGet")
+	if err != nil {
+		return localVarReturnValue, nil, GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/orchestrator/application/desired-manifest"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := _neturl.Values{}
+	localVarFormParams := _neturl.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.desiredManifestRequest
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -855,6 +962,116 @@ func (a *DefaultApiService) OrchestratorApplicationPostExecute(r ApiOrchestrator
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
+type ApiOrchestratorApplicationReleaseInfoGetRequest struct {
+	ctx _context.Context
+	ApiService *DefaultApiService
+	appId *string
+}
+
+// project ids
+func (r ApiOrchestratorApplicationReleaseInfoGetRequest) AppId(appId string) ApiOrchestratorApplicationReleaseInfoGetRequest {
+	r.appId = &appId
+	return r
+}
+
+func (r ApiOrchestratorApplicationReleaseInfoGetRequest) Execute() (ReleaseInfo, *_nethttp.Response, error) {
+	return r.ApiService.OrchestratorApplicationReleaseInfoGetExecute(r)
+}
+
+/*
+OrchestratorApplicationReleaseInfoGet Method for OrchestratorApplicationReleaseInfoGet
+
+deployment values.yaml/release-info
+
+ @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiOrchestratorApplicationReleaseInfoGetRequest
+*/
+func (a *DefaultApiService) OrchestratorApplicationReleaseInfoGet(ctx _context.Context) ApiOrchestratorApplicationReleaseInfoGetRequest {
+	return ApiOrchestratorApplicationReleaseInfoGetRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return ReleaseInfo
+func (a *DefaultApiService) OrchestratorApplicationReleaseInfoGetExecute(r ApiOrchestratorApplicationReleaseInfoGetRequest) (ReleaseInfo, *_nethttp.Response, error) {
+	var (
+		localVarHTTPMethod   = _nethttp.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  ReleaseInfo
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationReleaseInfoGet")
+	if err != nil {
+		return localVarReturnValue, nil, GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/orchestrator/application/release-info"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := _neturl.Values{}
+	localVarFormParams := _neturl.Values{}
+	if r.appId == nil {
+		return localVarReturnValue, nil, reportError("appId is required and must be specified")
+	}
+
+	localVarQueryParams.Add("appId", parameterToString(*r.appId, ""))
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := _ioutil.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = _ioutil.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
 type ApiOrchestratorApplicationUnhibernatePostRequest struct {
 	ctx _context.Context
 	ApiService *DefaultApiService
@@ -925,116 +1142,6 @@ func (a *DefaultApiService) OrchestratorApplicationUnhibernatePostExecute(r ApiO
 	}
 	// body params
 	localVarPostBody = r.hibernateRequest
-	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
-	if err != nil {
-		return localVarReturnValue, nil, err
-	}
-
-	localVarHTTPResponse, err := a.client.callAPI(req)
-	if err != nil || localVarHTTPResponse == nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	localVarBody, err := _ioutil.ReadAll(localVarHTTPResponse.Body)
-	localVarHTTPResponse.Body.Close()
-	localVarHTTPResponse.Body = _ioutil.NopCloser(bytes.NewBuffer(localVarBody))
-	if err != nil {
-		return localVarReturnValue, localVarHTTPResponse, err
-	}
-
-	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := GenericOpenAPIError{
-			body:  localVarBody,
-			error: localVarHTTPResponse.Status,
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
-	if err != nil {
-		newErr := GenericOpenAPIError{
-			body:  localVarBody,
-			error: err.Error(),
-		}
-		return localVarReturnValue, localVarHTTPResponse, newErr
-	}
-
-	return localVarReturnValue, localVarHTTPResponse, nil
-}
-
-type ApiOrchestratorApplicationValuesYamlGetRequest struct {
-	ctx _context.Context
-	ApiService *DefaultApiService
-	appId *string
-}
-
-// project ids
-func (r ApiOrchestratorApplicationValuesYamlGetRequest) AppId(appId string) ApiOrchestratorApplicationValuesYamlGetRequest {
-	r.appId = &appId
-	return r
-}
-
-func (r ApiOrchestratorApplicationValuesYamlGetRequest) Execute() (ReleaseInfo, *_nethttp.Response, error) {
-	return r.ApiService.OrchestratorApplicationValuesYamlGetExecute(r)
-}
-
-/*
-OrchestratorApplicationValuesYamlGet Method for OrchestratorApplicationValuesYamlGet
-
-deployment values.yaml
-
- @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiOrchestratorApplicationValuesYamlGetRequest
-*/
-func (a *DefaultApiService) OrchestratorApplicationValuesYamlGet(ctx _context.Context) ApiOrchestratorApplicationValuesYamlGetRequest {
-	return ApiOrchestratorApplicationValuesYamlGetRequest{
-		ApiService: a,
-		ctx: ctx,
-	}
-}
-
-// Execute executes the request
-//  @return ReleaseInfo
-func (a *DefaultApiService) OrchestratorApplicationValuesYamlGetExecute(r ApiOrchestratorApplicationValuesYamlGetRequest) (ReleaseInfo, *_nethttp.Response, error) {
-	var (
-		localVarHTTPMethod   = _nethttp.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  ReleaseInfo
-	)
-
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationValuesYamlGet")
-	if err != nil {
-		return localVarReturnValue, nil, GenericOpenAPIError{error: err.Error()}
-	}
-
-	localVarPath := localBasePath + "/orchestrator/application/values-yaml"
-
-	localVarHeaderParams := make(map[string]string)
-	localVarQueryParams := _neturl.Values{}
-	localVarFormParams := _neturl.Values{}
-	if r.appId == nil {
-		return localVarReturnValue, nil, reportError("appId is required and must be specified")
-	}
-
-	localVarQueryParams.Add("appId", parameterToString(*r.appId, ""))
-	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{}
-
-	// set Content-Type header
-	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
-	if localVarHTTPContentType != "" {
-		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
-	}
-
-	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/json"}
-
-	// set Accept header
-	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
-	if localVarHTTPHeaderAccept != "" {
-		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err

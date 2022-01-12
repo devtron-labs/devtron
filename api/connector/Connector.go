@@ -18,6 +18,7 @@
 package connector
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -30,6 +31,7 @@ import (
 	"google.golang.org/grpc/status"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
@@ -41,7 +43,8 @@ type Pump interface {
 	StartStream(w http.ResponseWriter, recv func() (proto.Message, error), err error)
 	StartStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, recv func() (*application.LogEntry, error), err error)
 	StartMessage(w http.ResponseWriter, resp proto.Message, perr error)
-	StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{})interface{})
+	StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{}) interface{})
+	StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, stream io.ReadCloser, err error)
 }
 
 type PumpImpl struct {
@@ -51,6 +54,72 @@ type PumpImpl struct {
 func NewPumpImpl(logger *zap.SugaredLogger) *PumpImpl {
 	return &PumpImpl{
 		logger: logger,
+	}
+}
+
+func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, stream io.ReadCloser, err error) {
+	f, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)
+	}
+	if err != nil {
+		http.Error(w, errors.Details(err), http.StatusInternalServerError)
+	}
+
+	if isReconnect {
+		err := impl.sendEvent(nil, []byte("RECONNECT_STREAM"), []byte("RECONNECT_STREAM"), w)
+		if err != nil {
+			impl.logger.Errorw("error in writing data over sse", "err", err)
+			return
+		}
+	}
+	// heartbeat start
+	ticker := time.NewTicker(30 * time.Second)
+	done := make(chan bool)
+	var mux sync.Mutex
+	go func() error {
+		for {
+			select {
+			case <-done:
+				return nil
+			case t := <-ticker.C:
+				mux.Lock()
+				err := impl.sendEvent(nil, []byte("PING"), []byte(t.String()), w)
+				mux.Unlock()
+				if err != nil {
+					impl.logger.Errorw("error in writing PING over sse", "err", err)
+					return err
+				}
+				f.Flush()
+			}
+		}
+	}()
+	defer func() {
+		ticker.Stop()
+		done <- true
+	}()
+
+	// heartbeat end
+	for {
+		sc := bufio.NewScanner(stream)
+		for sc.Scan() {
+			log := sc.Text()
+			a := regexp.MustCompile(" ")
+			splitLog := a.Split(log, 2)
+			timeParsed, err := time.Parse(time.RFC3339, splitLog[0])
+			if err != nil {
+				impl.logger.Errorw("error in writing data over sse", "err", err)
+				return
+			}
+			mux.Lock()
+			err = impl.sendEvent([]byte(strconv.FormatInt(timeParsed.UnixNano(), 10)), nil, []byte(splitLog[1]), w)
+			mux.Unlock()
+			if err != nil {
+				impl.logger.Errorw("error in writing data over sse", "err", err)
+				return
+			}
+			f.Flush()
+		}
 	}
 }
 
@@ -200,8 +269,7 @@ func (impl PumpImpl) StartStream(w http.ResponseWriter, recv func() (proto.Messa
 	}
 }
 
-
-func (impl PumpImpl) StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{})interface{}) {
+func (impl PumpImpl) StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{}) interface{}) {
 	f, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)

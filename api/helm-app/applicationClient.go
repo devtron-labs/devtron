@@ -16,6 +16,7 @@ type HelmAppClient interface {
 	UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest) (*HelmAppDeploymentHistory, error)
 	GetValuesYaml(ctx context.Context, in *AppDetailRequest) (*ReleaseInfo, error)
+	GetDesiredManifest(ctx context.Context, in *ObjectRequest) (*DesiredManifestResponse, error)
 }
 
 type HelmAppClientImpl struct {
@@ -140,4 +141,16 @@ func (impl *HelmAppClientImpl) GetValuesYaml(ctx context.Context, in *AppDetailR
 		return nil, err
 	}
 	return values, nil
+}
+
+func (impl *HelmAppClientImpl) GetDesiredManifest(ctx context.Context, in *ObjectRequest) (*DesiredManifestResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	manifest, err := applicationClient.GetDesiredManifest(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return manifest, nil
 }

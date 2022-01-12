@@ -1008,6 +1008,7 @@ k8s.io/klog
 ## explicit
 k8s.io/kube-openapi/pkg/common
 # k8s.io/utils v0.0.0-20191010214722-8d271d903fe4
+## explicit
 k8s.io/utils/buffer
 k8s.io/utils/integer
 k8s.io/utils/pointer

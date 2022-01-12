@@ -17,7 +17,7 @@ import (
 // HibernateRequest struct for HibernateRequest
 type HibernateRequest struct {
 	// helm app id
-	AppId *string `json:"appId,omitempty"`
+	AppId     *string                  `json:"appId,omitempty"`
 	Resources *[]HibernateTargetObject `json:"resources,omitempty"`
 }
 
@@ -148,5 +148,3 @@ func (v *NullableHibernateRequest) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

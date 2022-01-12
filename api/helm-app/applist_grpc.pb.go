@@ -24,6 +24,7 @@ type ApplicationServiceClient interface {
 	UnHibernate(ctx context.Context, in *HibernateRequest, opts ...grpc.CallOption) (*HibernateResponse, error)
 	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*HelmAppDeploymentHistory, error)
 	GetValuesYaml(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*ReleaseInfo, error)
+	GetDesiredManifest(ctx context.Context, in *ObjectRequest, opts ...grpc.CallOption) (*DesiredManifestResponse, error)
 }
 
 type applicationServiceClient struct {
@@ -111,6 +112,15 @@ func (c *applicationServiceClient) GetValuesYaml(ctx context.Context, in *AppDet
 	return out, nil
 }
 
+func (c *applicationServiceClient) GetDesiredManifest(ctx context.Context, in *ObjectRequest, opts ...grpc.CallOption) (*DesiredManifestResponse, error) {
+	out := new(DesiredManifestResponse)
+	err := c.cc.Invoke(ctx, "/ApplicationService/GetDesiredManifest", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationServiceServer is the server API for ApplicationService service.
 // All implementations must embed UnimplementedApplicationServiceServer
 // for forward compatibility
@@ -121,6 +131,7 @@ type ApplicationServiceServer interface {
 	UnHibernate(context.Context, *HibernateRequest) (*HibernateResponse, error)
 	GetDeploymentHistory(context.Context, *AppDetailRequest) (*HelmAppDeploymentHistory, error)
 	GetValuesYaml(context.Context, *AppDetailRequest) (*ReleaseInfo, error)
+	GetDesiredManifest(context.Context, *ObjectRequest) (*DesiredManifestResponse, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
 
@@ -145,6 +156,9 @@ func (UnimplementedApplicationServiceServer) GetDeploymentHistory(context.Contex
 }
 func (UnimplementedApplicationServiceServer) GetValuesYaml(context.Context, *AppDetailRequest) (*ReleaseInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetValuesYaml not implemented")
+}
+func (UnimplementedApplicationServiceServer) GetDesiredManifest(context.Context, *ObjectRequest) (*DesiredManifestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDesiredManifest not implemented")
 }
 func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
 
@@ -270,6 +284,24 @@ func _ApplicationService_GetValuesYaml_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_GetDesiredManifest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ObjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).GetDesiredManifest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/GetDesiredManifest",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).GetDesiredManifest(ctx, req.(*ObjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ApplicationService_ServiceDesc is the grpc.ServiceDesc for ApplicationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -296,6 +328,10 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetValuesYaml",
 			Handler:    _ApplicationService_GetValuesYaml_Handler,
+		},
+		{
+			MethodName: "GetDesiredManifest",
+			Handler:    _ApplicationService_GetDesiredManifest_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

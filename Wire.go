@@ -75,9 +75,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/terminal"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/session"
 	"github.com/google/wire"
@@ -95,6 +95,7 @@ func InitializeApp() (*App, error) {
 		cluster.ClusterWireSet,
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
+		k8s.K8sApplicationWireSet,
 
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
@@ -550,8 +551,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(security2.CvePolicyRepository), new(*security2.CvePolicyRepositoryImpl)),
 		appstore2.NewClusterInstalledAppsRepositoryImpl,
 		wire.Bind(new(appstore2.ClusterInstalledAppsRepository), new(*appstore2.ClusterInstalledAppsRepositoryImpl)),
-		terminal.NewTerminalSessionHandlerImpl,
-		wire.Bind(new(terminal.TerminalSessionHandler), new(*terminal.TerminalSessionHandlerImpl)),
+
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
 
@@ -634,6 +634,8 @@ func InitializeApp() (*App, error) {
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
+
+
 	)
 	return &App{}, nil
 }

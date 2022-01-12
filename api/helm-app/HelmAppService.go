@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gogo/protobuf/proto"
@@ -14,16 +15,21 @@ import (
 	"strings"
 )
 
+const DEFAULT_CLUSTER = "default_cluster"
+
 type HelmAppService interface {
 	ListHelmApplications(clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
+	DecodeAppId(appId string) (*AppIdentifier, error)
 	GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error)
 	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error)
+	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
 }
+
 type HelmAppServiceImpl struct {
-	Logger         *zap.SugaredLogger
+	logger         *zap.SugaredLogger
 	clusterService cluster.ClusterService
 	helmAppClient  HelmAppClient
 	pump           connector.Pump
@@ -35,12 +41,17 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	helmAppClient HelmAppClient,
 	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
-		Logger:         Logger,
+		logger:         Logger,
 		clusterService: clusterService,
 		helmAppClient:  helmAppClient,
 		pump:           pump,
 		enforcerUtil:   enforcerUtil,
 	}
+}
+
+type ResourceRequestBean struct {
+	AppId      string                     `json:"appId"`
+	K8sRequest application.K8sRequestBean `json:"k8sRequest"`
 }
 
 func (impl *HelmAppServiceImpl) listApplications(clusterIds []int) (ApplicationService_ListApplicationsClient, error) {
@@ -49,7 +60,7 @@ func (impl *HelmAppServiceImpl) listApplications(clusterIds []int) (ApplicationS
 	}
 	clusters, err := impl.clusterService.FindByIds(clusterIds)
 	if err != nil {
-		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
+		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
 	req := &AppListRequest{}
@@ -73,7 +84,7 @@ func (impl *HelmAppServiceImpl) listApplications(clusterIds []int) (ApplicationS
 func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool) {
 	appStream, err := impl.listApplications(clusterIds)
 	if err != nil {
-		impl.Logger.Errorw("error in fetching app list", "clusters", clusterIds, "err", err)
+		impl.logger.Errorw("error in fetching app list", "clusters", clusterIds, "err", err)
 	}
 	impl.pump.StartStreamWithTransformer(w, func() (proto.Message, error) {
 		return appStream.Recv()
@@ -149,7 +160,7 @@ func (impl *HelmAppServiceImpl) UnHibernateApplication(ctx context.Context, app 
 func (impl *HelmAppServiceImpl) getClusterConf(clusterId int) (*ClusterConfig, error) {
 	cluster, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
-		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
+		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
 	config := &ClusterConfig{
@@ -163,7 +174,7 @@ func (impl *HelmAppServiceImpl) getClusterConf(clusterId int) (*ClusterConfig, e
 func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
 	config, err := impl.getClusterConf(app.ClusterId)
 	if err != nil {
-		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
+		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
 	req := &AppDetailRequest{
@@ -179,7 +190,7 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {
 	config, err := impl.getClusterConf(app.ClusterId)
 	if err != nil {
-		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
+		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
 	req := &AppDetailRequest{
@@ -194,7 +205,7 @@ func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *A
 func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error) {
 	config, err := impl.getClusterConf(app.ClusterId)
 	if err != nil {
-		impl.Logger.Errorw("error in fetching cluster detail", "err", err)
+		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
 	req := &AppDetailRequest{
@@ -206,13 +217,45 @@ func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdent
 	return history, err
 }
 
-type AppIdentifier struct {
-	ClusterId   int
-	Namespace   string
-	ReleaseName string
+func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error) {
+	config, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
+		return nil, err
+	}
+
+	req := &ObjectRequest{
+		ClusterConfig: config,
+		ReleaseName: app.ReleaseName,
+		ObjectIdentifier: &ObjectIdentifier{
+			Group: resource.GetGroup(),
+			Kind: resource.GetKind(),
+			Version: resource.GetVersion(),
+			Name: resource.GetName(),
+			Namespace: resource.GetNamespace(),
+		},
+	}
+
+	desiredManifestResponse, err := impl.helmAppClient.GetDesiredManifest(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching desired manifest", "err", err)
+		return nil, err
+	}
+
+	response := &openapi.DesiredManifestResponse{
+		Manifest: &desiredManifestResponse.Manifest,
+	}
+	return response, nil
 }
 
-func DecodeAppId(appId string) (*AppIdentifier, error) {
+
+type AppIdentifier struct {
+	ClusterId   int    `json:"clusterId"`
+	Namespace   string `json:"namespace"`
+	ReleaseName string `json:"releaseName"`
+}
+
+func (impl *HelmAppServiceImpl) DecodeAppId(appId string) (*AppIdentifier, error) {
 	component := strings.Split(appId, "|")
 	if len(component) != 3 {
 		return nil, fmt.Errorf("malformed app id %s", appId)

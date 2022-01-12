@@ -23,6 +23,7 @@ service ApplicationService {
   rpc UnHibernate(HibernateRequest) returns (HibernateResponse){}
   rpc GetDeploymentHistory(AppDetailRequest) returns (HelmAppDeploymentHistory){}
   rpc GetValuesYaml(AppDetailRequest) returns (ReleaseInfo){}
+  rpc GetDesiredManifest(ObjectRequest) returns (DesiredManifestResponse){}
 }
 
 message DeployedAppList {
@@ -169,3 +170,12 @@ message ReleaseInfo{
   string readme = 5;
 }
 
+message ObjectRequest {
+  ClusterConfig clusterConfig = 1;
+  ObjectIdentifier objectIdentifier = 2;
+  string releaseName = 3;
+}
+
+message DesiredManifestResponse {
+  string manifest = 1;
+}

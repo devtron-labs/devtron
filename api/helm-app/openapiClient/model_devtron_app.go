@@ -21,7 +21,7 @@ type DevtronApp struct {
 	// unique identifier for app
 	AppId *string `json:"appId,omitempty"`
 	// unique identifier for the project
-	ProjectId *int32 `json:"projectId,omitempty"`
+	ProjectId          *int32                  `json:"projectId,omitempty"`
 	EnvironmentDetails *[]AppEnvironmentDetail `json:"environmentDetails,omitempty"`
 }
 
@@ -222,5 +222,3 @@ func (v *NullableDevtronApp) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

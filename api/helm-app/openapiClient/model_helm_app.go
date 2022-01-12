@@ -28,7 +28,7 @@ type HelmApp struct {
 	// url/location of the chart icon
 	ChartAvatar *string `json:"chartAvatar,omitempty"`
 	// unique identifier for the project, APP with no project will have id `0`
-	ProjectId *int32 `json:"projectId,omitempty"`
+	ProjectId         *int32                `json:"projectId,omitempty"`
 	EnvironmentDetail *AppEnvironmentDetail `json:"environmentDetail,omitempty"`
 }
 
@@ -334,5 +334,3 @@ func (v *NullableHelmApp) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-
