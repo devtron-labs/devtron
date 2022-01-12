@@ -300,7 +300,7 @@ func (impl DbPipelineOrchestratorImpl) patchCiScripts(userId int32, pipeline *be
 			}
 		}
 		//creating history entry
-		_, err := impl.CiScriptHistoryCreate(ciPipelineScript)
+		_, err := impl.CiScriptHistoryCreate(ciPipelineScript, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
 			return err
@@ -324,7 +324,7 @@ func (impl DbPipelineOrchestratorImpl) patchCiScripts(userId int32, pipeline *be
 			}
 		}
 		//creating history entry
-		_, err := impl.CiScriptHistoryCreate(ciPipelineScript)
+		_, err := impl.CiScriptHistoryCreate(ciPipelineScript, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
 			return err
@@ -445,7 +445,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 				return nil, err
 			}
 			//creating history entry
-			_, err := impl.CiScriptHistoryCreate(ciPipelineScript)
+			_, err = impl.CiScriptHistoryCreate(ciPipelineScript, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
 				return nil, err
@@ -461,7 +461,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 				return nil, err
 			}
 			//creating history entry
-			_, err := impl.CiScriptHistoryCreate(ciPipelineScript)
+			_, err = impl.CiScriptHistoryCreate(ciPipelineScript, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
 				return nil, err
@@ -1268,7 +1268,7 @@ func (impl DbPipelineOrchestratorImpl) GetByEnvOverrideId(envOverrideId int) (*b
 	return cdPipelines, nil
 }
 
-func (impl DbPipelineOrchestratorImpl) CiScriptHistoryCreate(ciPipelineScript *pipelineConfig.CiPipelineScript) (historyModel *pipelineConfig.CiScriptHistory, err error) {
+func (impl DbPipelineOrchestratorImpl) CiScriptHistoryCreate(ciPipelineScript *pipelineConfig.CiPipelineScript, tx *pg.Tx) (historyModel *pipelineConfig.CiScriptHistory, err error) {
 	//fetching latest entry by chartsId
 	oldHistory, err := impl.ciScriptHistoryRepository.GetLatestByCiPipelineScriptsId(ciPipelineScript.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -1295,7 +1295,7 @@ func (impl DbPipelineOrchestratorImpl) CiScriptHistoryCreate(ciPipelineScript *p
 	historyModel.CreatedOn = ciPipelineScript.CreatedOn
 	historyModel.UpdatedBy = ciPipelineScript.UpdatedBy
 	historyModel.UpdatedOn = ciPipelineScript.UpdatedOn
-	_, err = impl.ciScriptHistoryRepository.CreateHistory(historyModel)
+	_, err = impl.ciScriptHistoryRepository.CreateHistoryWithTxn(historyModel, tx)
 	if err != nil {
 		impl.logger.Errorw("err in creating history entry for ci script", "err", err)
 		return nil, err

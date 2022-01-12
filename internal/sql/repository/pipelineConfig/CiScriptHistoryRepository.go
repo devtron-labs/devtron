@@ -21,7 +21,7 @@ type CiScriptHistory struct {
 }
 
 type CiScriptHistoryRepository interface {
-	CreateHistory(history *CiScriptHistory) (*CiScriptHistory, error)
+	CreateHistoryWithTxn(history *CiScriptHistory, tx *pg.Tx) (*CiScriptHistory, error)
 	UpdateHistory(history *CiScriptHistory) (*CiScriptHistory, error)
 	GetLatestByCiPipelineScriptsId(ciPipelineScriptsId int) (*CiScriptHistory, error)
 }
@@ -35,8 +35,8 @@ func NewCiScriptHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *p
 	return &CiScriptHistoryRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
-func (impl CiScriptHistoryRepositoryImpl) CreateHistory(history *CiScriptHistory) (*CiScriptHistory, error) {
-	err := impl.dbConnection.Insert(history)
+func (impl CiScriptHistoryRepositoryImpl) CreateHistoryWithTxn(history *CiScriptHistory, tx *pg.Tx) (*CiScriptHistory, error) {
+	err := tx.Insert(history)
 	if err != nil {
 		impl.logger.Errorw("err in creating ci script history entry", "err", err)
 		return nil, err
