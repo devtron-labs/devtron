@@ -31,7 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -87,7 +86,6 @@ type MuxRouter struct {
 	appLabelsRouter                  AppLabelRouter
 	coreAppRouter                    CoreAppRouter
 	helmAppRouter                    client.HelmAppRouter
-	k8sApplicationRouter             k8s.K8sApplicationRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -108,7 +106,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
-	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter) *MuxRouter {
+	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -158,7 +156,6 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		appLabelsRouter:                  appLabelsRouter,
 		coreAppRouter:                    coreAppRouter,
 		helmAppRouter:                    helmAppRouter,
-		k8sApplicationRouter:             k8sApplicationRouter,
 	}
 	return r
 }
@@ -305,7 +302,4 @@ func (r MuxRouter) Init() {
 
 	helmApp := r.Router.PathPrefix("/orchestrator/application").Subrouter()
 	r.helmAppRouter.InitAppListRouter(helmApp)
-
-	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
-	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
 }
