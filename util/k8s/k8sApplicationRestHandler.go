@@ -271,7 +271,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 	request.Shell = vars["shell"]
 	request.ApplicationId = vars["applicationId"]
 
-	//---------auth
 	app, err := handler.helmAppService.DecodeAppId(request.ApplicationId)
 	if err != nil {
 		handler.logger.Errorw("invalid app id", "err", err)
@@ -279,7 +278,15 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		return
 	}
 	request.ClusterId = app.ClusterId
-	//---------auth end
+
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(app.ClusterId, app.Namespace, app.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmAppWF, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
 
 	status, message, err := handler.terminalSessionHandler.GetTerminalSession(request)
 	common.WriteJsonResp(w, err, message, status)
