@@ -1,6 +1,6 @@
 # Application Metrics
 
-Application metrics can be enabled to see your application's metrics.
+Application metrics can be enabled to see your application's metrics. You can enable/disable application metrics using `Show application metrics` toogle switch available just below the deployment template. By default this is disabled.
 
 ## Standard Metrics
 
