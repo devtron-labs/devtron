@@ -9,11 +9,11 @@ data:
     kind: Ingress
     metadata: 
       name: devtron-ingress
-#    update:
-#      metadata:
-#        annotations:
-#          owner: app1
-#      spec:
-#        rules:
-#        - http:
-#            host: http://change-me
+    #    update:
+    #      metadata:
+    #        annotations:
+    #          owner: app1
+    #      spec:
+    #        rules:
+    #        - http:
+    #            host: http://change-me

@@ -69,10 +69,11 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 
 
 ### Cleaning Devtron installer
-Please make sure that you do not have anything inside namespace devtroncd as the below steps will clean everything inside namespace devtroncd
+Please make sure that you do not have anything inside namespaces devtroncd, devtron-cd devtron-ci and devtron-demo as the below steps will clean everything inside these namespaces
 ```bash
 kubectl delete -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/install/devtron-installer.yaml
 kubectl delete -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/templates/install.yaml
 kubectl delete -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
-kubectl delete ns devtroncd
+kubectl delete -n argo -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/workflow.yaml
+kubectl delete ns devtroncd devtron-cd devtron-ci devtron-demo
 ```

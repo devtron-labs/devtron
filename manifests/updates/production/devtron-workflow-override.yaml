@@ -21,15 +21,15 @@ data:
                 requests:
                   cpu: 0.01
                   memory: 30Mi
-#            - env:
-#              - name: ARGO_NAMESPACE
-#                valueFrom:
-#                  fieldRef:
-#                    apiVersion: v1
-#                    fieldPath: metadata.namespace
-#              - name: IN_CLUSTER
-#                value: "true"
-#              - name: ENABLE_WEB_CONSOLE
-#                value: "false"
-#              - name: BASE_HREF
-#                value: /
+    #            - env:
+    #              - name: ARGO_NAMESPACE
+    #                valueFrom:
+    #                  fieldRef:
+    #                    apiVersion: v1
+    #                    fieldPath: metadata.namespace
+    #              - name: IN_CLUSTER
+    #                value: "true"
+    #              - name: ENABLE_WEB_CONSOLE
+    #                value: "false"
+    #              - name: BASE_HREF
+    #                value: /

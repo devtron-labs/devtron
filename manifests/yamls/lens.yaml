@@ -188,7 +188,7 @@ metadata:
  name: lens-hpa
 spec:
  scaleTargetRef:
-   apiVersion: v1
+   apiVersion: apps/v1
    kind: Deployment
    name: lens
  minReplicas: 1
@@ -210,7 +210,7 @@ metadata:
  name: lens-hpa
 spec:
  scaleTargetRef:
-   apiVersion: v1
+   apiVersion: apps/v1
    kind: Deployment
    name: lens
  minReplicas: 1

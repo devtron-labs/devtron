@@ -158,7 +158,7 @@ You have provided all the details required to create a CI pipeline, now click on
 
 You can also update any configuration of an already created CI Pipeline, except the pipeline name. The pipeline name can not be edited.
 
-![](../../../.gitbook/assets/update_pipeline_ci%20%282%29.jpg)
+![](../images/update-ci.jpg)
 
 Click on your CI Pipeline, to update your CI Pipeline. A window will be popped up with all the details of the current pipeline.
 
