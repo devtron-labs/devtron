@@ -72,9 +72,22 @@ There are five Data types that you can use to save your secret.
 
 *Note: The conversion of secrets from various data types to Kubernetes Secrets is done within Devtron and irrespective of the data type, after conversion, the Pods access `secrets` normally.*
 
-## External secrets
+## External Secrets
 
-In some cases, it may be that you already have secrets for your application on some other sources and you want to use that on devtron. Before adding any external secrets on devtron, `kubernetes-external-secrets` must be installed on devtron. Kubernetes External Secrets allows you to use external secret management systems (e.g., AWS Secrets Manager) to securely add secrets in Kubernetes. 
+In some cases, it may be that you already have secrets for your application on some other sources and you want to use that on devtron. External secrets are fetched by devtron externally and then converted to kubernetes secrets. 
+
+### Kubernetes External Secret
+
+The secret that is already created and stored in the environment and being used by devtron externally is referred here as `Kubernetes External Secret`. For this option, devtron will not create any secret by itself but they can be used within the pods. Before adding secret from kubernetes external secret, please make sure that secret with the same name is present in the environment. To add secret from kubernetes external secret, follow the steps mentioned below:
+
+1. Navigate to `Secrets` of the application.
+2. Click on `Add Secret` to add a new secret.
+3. Select `Kubernetes External Secret` from dropdown of `Data type`.
+4. Provide a name to your secret. Devtron will search secret in the environment with the same name that you mention here. 
+
+### AWS Secret Manager
+
+Before adding any external secrets on devtron, `kubernetes-external-secrets` must be installed on devtron. Kubernetes External Secrets allows you to use external secret management systems (e.g., AWS Secrets Manager) to securely add secrets in Kubernetes.
 
 #### Installing kubernetes-external-secrets Using Chart
 
@@ -88,24 +101,23 @@ To install the chart with AWS IAM Roles for Service Accounts:
 ```bash
 $ helm install my-release external-secrets/kubernetes-external-secrets --set securityContext.fsGroup=65534 --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"='arn:aws:iam::111111111111:role/ROLENAME'
 ```
+#### Adding Secrets From AWS Secret Manager
 
-### AWS Secret Manager
-
-To add secrets from secrets from AWS secret manager, navigate to `Secrets` of the application and follow the steps mentioned below :
+To add secrets from AWS secret manager, navigate to `Secrets` of the application and follow the steps mentioned below :
 
 ![](../../images/creating-application/secrets/aws-secret-1.jpg)
 
-Step 1: Click on `Add Secret` to add a new secret.
+1. Click on `Add Secret` to add a new secret.
 
 ![](../../images/creating-application/secrets/aws-secret-2.jpg)
 
-Step 2: Select `AWS Secret Manager` from dropdown of `Data type`.
+2. Select `AWS Secret Manager` from dropdown of `Data type`.
 
-Step 3: Provide a name to your secret.
+3. Provide a name to your secret.
 
-Step 4: Select how you want to use the secret. You many leave it selected as environment variable and also you may leave `Role ARN` empty.
+4. Select how you want to use the secret. You many leave it selected as environment variable and also you may leave `Role ARN` empty.
 
-Step 5: In `Data` section, you will have to provide data in key-value format.
+5. In `Data` section, you will have to provide data in key-value format.
 
 All the required field to pass your data to fetch secrets on devtron are described below :
 
@@ -116,7 +128,7 @@ All the required field to pass your data to fetch secrets on devtron are describ
 |`property`| Property to extract if secret in backend is a JSON object |
 |`isBinary`| Set this to true if configuring an item for a binary file stored else set false |
 
-### Adding Secrets in AWS Secret Manager
+#### Adding Secrets in AWS Secret Manager
 
 To add secrets in AWS secret manager, do the following steps :
 
