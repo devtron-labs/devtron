@@ -1,4 +1,4 @@
-package pipelineConfig
+package history
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -13,7 +13,6 @@ type CiScriptHistory struct {
 	CiPipelineScriptsId int       `sql:"ci_pipeline_scripts_id, notnull"`
 	Script              string    `sql:"script"`
 	Stage               string    `sql:"stage"`
-	Latest              bool      `sql:"latest, notnull"`
 	Built               bool      `sql:"built"`
 	BuiltOn             time.Time `sql:"built_on"`
 	BuiltBy             int32     `sql:"built_by"`
@@ -22,8 +21,8 @@ type CiScriptHistory struct {
 
 type CiScriptHistoryRepository interface {
 	CreateHistoryWithTxn(history *CiScriptHistory, tx *pg.Tx) (*CiScriptHistory, error)
+	CreateHistory(history *CiScriptHistory) (*CiScriptHistory, error)
 	UpdateHistory(history *CiScriptHistory) (*CiScriptHistory, error)
-	GetLatestByCiPipelineScriptsId(ciPipelineScriptsId int) (*CiScriptHistory, error)
 }
 
 type CiScriptHistoryRepositoryImpl struct {
@@ -43,23 +42,19 @@ func (impl CiScriptHistoryRepositoryImpl) CreateHistoryWithTxn(history *CiScript
 	}
 	return history, nil
 }
-
-func (impl CiScriptHistoryRepositoryImpl) UpdateHistory(history *CiScriptHistory) (*CiScriptHistory, error) {
+func (impl CiScriptHistoryRepositoryImpl) CreateHistory(history *CiScriptHistory) (*CiScriptHistory, error) {
 	err := impl.dbConnection.Insert(history)
+	if err != nil {
+		impl.logger.Errorw("err in creating ci script history entry", "err", err)
+		return nil, err
+	}
+	return history, nil
+}
+func (impl CiScriptHistoryRepositoryImpl) UpdateHistory(history *CiScriptHistory) (*CiScriptHistory, error) {
+	err := impl.dbConnection.Update(history)
 	if err != nil {
 		impl.logger.Errorw("err in updating ci script history entry", "err", err)
 		return nil, err
 	}
 	return history, nil
-}
-
-func (impl CiScriptHistoryRepositoryImpl) GetLatestByCiPipelineScriptsId(ciPipelineScriptsId int) (*CiScriptHistory, error) {
-	var scriptHistory CiScriptHistory
-	err := impl.dbConnection.Model(&scriptHistory).Where("ci_pipeline_scripts_id = ?", ciPipelineScriptsId).
-		Where("latest = ?", true).Select()
-	if err != nil {
-		impl.logger.Errorw("err in getting latest entry for ci script history", "err", err, "ci_pipeline_scripts_id", ciPipelineScriptsId)
-		return nil, err
-	}
-	return &scriptHistory, nil
 }

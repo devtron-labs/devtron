@@ -101,33 +101,34 @@ type PipelineBuilder interface {
 }
 
 type PipelineBuilderImpl struct {
-	logger                        *zap.SugaredLogger
-	dbPipelineOrchestrator        DbPipelineOrchestrator
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
-	materialRepo                  pipelineConfig.MaterialRepository
-	appRepo                       app2.AppRepository
-	pipelineRepository            pipelineConfig.PipelineRepository
-	propertiesConfigService       PropertiesConfigService
-	ciTemplateRepository          pipelineConfig.CiTemplateRepository
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	application                   application.ServiceClient
-	chartRepository               chartConfig.ChartRepository
-	ciArtifactRepository          repository.CiArtifactRepository
-	ecrConfig                     *EcrConfig
-	envConfigOverrideRepository   chartConfig.EnvConfigOverrideRepository
-	environmentRepository         repository2.EnvironmentRepository
-	pipelineConfigRepository      chartConfig.PipelineConfigRepository
-	mergeUtil                     util.MergeUtil
-	appWorkflowRepository         appWorkflow.AppWorkflowRepository
-	ciConfig                      *CiConfig
-	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	appService                    app.AppService
-	imageScanResultRepository     security.ImageScanResultRepository
-	GitFactory                    *util.GitFactory
-	ArgoK8sClient                 argocdServer.ArgoK8sClient
-	attributesService             attributes.AttributesService
-	aCDAuthConfig                 *util3.ACDAuthConfig
-	gitOpsRepository              repository.GitOpsConfigRepository
+	logger                         *zap.SugaredLogger
+	dbPipelineOrchestrator         DbPipelineOrchestrator
+	dockerArtifactStoreRepository  repository.DockerArtifactStoreRepository
+	materialRepo                   pipelineConfig.MaterialRepository
+	appRepo                        app2.AppRepository
+	pipelineRepository             pipelineConfig.PipelineRepository
+	propertiesConfigService        PropertiesConfigService
+	ciTemplateRepository           pipelineConfig.CiTemplateRepository
+	ciPipelineRepository           pipelineConfig.CiPipelineRepository
+	application                    application.ServiceClient
+	chartRepository                chartConfig.ChartRepository
+	ciArtifactRepository           repository.CiArtifactRepository
+	ecrConfig                      *EcrConfig
+	envConfigOverrideRepository    chartConfig.EnvConfigOverrideRepository
+	environmentRepository          repository2.EnvironmentRepository
+	pipelineConfigRepository       chartConfig.PipelineConfigRepository
+	mergeUtil                      util.MergeUtil
+	appWorkflowRepository          appWorkflow.AppWorkflowRepository
+	ciConfig                       *CiConfig
+	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
+	appService                     app.AppService
+	imageScanResultRepository      security.ImageScanResultRepository
+	GitFactory                     *util.GitFactory
+	ArgoK8sClient                  argocdServer.ArgoK8sClient
+	attributesService              attributes.AttributesService
+	aCDAuthConfig                  *util3.ACDAuthConfig
+	gitOpsRepository               repository.GitOpsConfigRepository
+	pipelineStrategyHistoryService PipelineStrategyHistoryService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -154,35 +155,37 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	imageScanResultRepository security.ImageScanResultRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	GitFactory *util.GitFactory, attributesService attributes.AttributesService,
-	aCDAuthConfig *util3.ACDAuthConfig, gitOpsRepository repository.GitOpsConfigRepository) *PipelineBuilderImpl {
+	aCDAuthConfig *util3.ACDAuthConfig, gitOpsRepository repository.GitOpsConfigRepository,
+	pipelineStrategyHistoryService PipelineStrategyHistoryService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
-		logger:                        logger,
-		dbPipelineOrchestrator:        dbPipelineOrchestrator,
-		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
-		materialRepo:                  materialRepo,
-		appService:                    appService,
-		appRepo:                       pipelineGroupRepo,
-		pipelineRepository:            pipelineRepository,
-		propertiesConfigService:       propertiesConfigService,
-		ciTemplateRepository:          ciTemplateRepository,
-		ciPipelineRepository:          ciPipelineRepository,
-		application:                   application,
-		chartRepository:               chartRepository,
-		ciArtifactRepository:          ciArtifactRepository,
-		ecrConfig:                     ecrConfig,
-		envConfigOverrideRepository:   envConfigOverrideRepository,
-		environmentRepository:         environmentRepository,
-		pipelineConfigRepository:      pipelineConfigRepository,
-		mergeUtil:                     mergeUtil,
-		appWorkflowRepository:         appWorkflowRepository,
-		ciConfig:                      ciConfig,
-		cdWorkflowRepository:          cdWorkflowRepository,
-		imageScanResultRepository:     imageScanResultRepository,
-		ArgoK8sClient:                 ArgoK8sClient,
-		GitFactory:                    GitFactory,
-		attributesService:             attributesService,
-		aCDAuthConfig:                 aCDAuthConfig,
-		gitOpsRepository:              gitOpsRepository,
+		logger:                         logger,
+		dbPipelineOrchestrator:         dbPipelineOrchestrator,
+		dockerArtifactStoreRepository:  dockerArtifactStoreRepository,
+		materialRepo:                   materialRepo,
+		appService:                     appService,
+		appRepo:                        pipelineGroupRepo,
+		pipelineRepository:             pipelineRepository,
+		propertiesConfigService:        propertiesConfigService,
+		ciTemplateRepository:           ciTemplateRepository,
+		ciPipelineRepository:           ciPipelineRepository,
+		application:                    application,
+		chartRepository:                chartRepository,
+		ciArtifactRepository:           ciArtifactRepository,
+		ecrConfig:                      ecrConfig,
+		envConfigOverrideRepository:    envConfigOverrideRepository,
+		environmentRepository:          environmentRepository,
+		pipelineConfigRepository:       pipelineConfigRepository,
+		mergeUtil:                      mergeUtil,
+		appWorkflowRepository:          appWorkflowRepository,
+		ciConfig:                       ciConfig,
+		cdWorkflowRepository:           cdWorkflowRepository,
+		imageScanResultRepository:      imageScanResultRepository,
+		ArgoK8sClient:                  ArgoK8sClient,
+		GitFactory:                     GitFactory,
+		attributesService:              attributesService,
+		aCDAuthConfig:                  aCDAuthConfig,
+		gitOpsRepository:               gitOpsRepository,
+		pipelineStrategyHistoryService: pipelineStrategyHistoryService,
 	}
 }
 
@@ -1261,6 +1264,13 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
 			return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
 		}
+		//creating history entry for strategy
+		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving strategy history entry", "err", err)
+			return 0, err
+		}
+
 	}
 
 	err = tx.Commit()
@@ -1351,6 +1361,12 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				impl.logger.Errorw("error in updating strategy", "strategy", item.DeploymentTemplate)
 				return fmt.Errorf("pipeline updated but failed to update one strategy")
 			}
+			//creating history entry for strategy
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving strategy history entry", "err", err)
+				return err
+			}
 		} else {
 			strategy := &chartConfig.PipelineStrategy{
 				PipelineId: pipeline.Id,
@@ -1364,6 +1380,12 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 			if err != nil {
 				impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
 				return fmt.Errorf("pipeline created but failed to add strategy")
+			}
+			//creating history entry for strategy
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving strategy history entry", "err", err)
+				return err
 			}
 		}
 	}
@@ -1687,14 +1709,14 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 					impl.logger.Errorw("Error in parsing artifact material info", "err", err)
 				}
 				ciArtifact := bean.CiArtifactBean{
-					Id:                     wfr.CdWorkflow.CiArtifact.Id,
-					Image:                  wfr.CdWorkflow.CiArtifact.Image,
-					ImageDigest:            wfr.CdWorkflow.CiArtifact.ImageDigest,
-					MaterialInfo:           mInfo,
-					RunningOnParent:        runningOnParent,
-					Latest:                 latest,
-					Scanned:                wfr.CdWorkflow.CiArtifact.Scanned,
-					ScanEnabled:            wfr.CdWorkflow.CiArtifact.ScanEnabled,
+					Id:              wfr.CdWorkflow.CiArtifact.Id,
+					Image:           wfr.CdWorkflow.CiArtifact.Image,
+					ImageDigest:     wfr.CdWorkflow.CiArtifact.ImageDigest,
+					MaterialInfo:    mInfo,
+					RunningOnParent: runningOnParent,
+					Latest:          latest,
+					Scanned:         wfr.CdWorkflow.CiArtifact.Scanned,
+					ScanEnabled:     wfr.CdWorkflow.CiArtifact.ScanEnabled,
 				}
 				if !parent {
 					ciArtifact.Deployed = true
@@ -1730,12 +1752,12 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, ciAr
 				impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
 			}
 			ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
-				Id:                     artifact.Id,
-				Image:                  artifact.Image,
-				ImageDigest:            artifact.ImageDigest,
-				MaterialInfo:           mInfo,
-				ScanEnabled:            artifact.ScanEnabled,
-				Scanned:                artifact.Scanned,
+				Id:           artifact.Id,
+				Image:        artifact.Image,
+				ImageDigest:  artifact.ImageDigest,
+				MaterialInfo: mInfo,
+				ScanEnabled:  artifact.ScanEnabled,
+				Scanned:      artifact.Scanned,
 			})
 		}
 	}

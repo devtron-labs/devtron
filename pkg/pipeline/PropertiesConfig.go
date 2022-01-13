@@ -86,7 +86,7 @@ type PropertiesConfigServiceImpl struct {
 	application                  application.ServiceClient
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository
 	appLevelMetricsRepository    repository.AppLevelMetricsRepository
-	chartHistoryRepository       chartConfig.ChartHistoryRepository
+	chartsHistoryService         ChartsHistoryService
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
@@ -98,7 +98,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	application application.ServiceClient,
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	chartHistoryRepository chartConfig.ChartHistoryRepository) *PropertiesConfigServiceImpl {
+	chartsHistoryService ChartsHistoryService) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
 		logger:                       logger,
 		envConfigRepo:                envConfigRepo,
@@ -109,7 +109,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		application:                  application,
 		envLevelAppMetricsRepository: envLevelAppMetricsRepository,
 		appLevelMetricsRepository:    appLevelMetricsRepository,
-		chartHistoryRepository:       chartHistoryRepository,
+		chartsHistoryService:         chartsHistoryService,
 	}
 
 }
@@ -329,7 +329,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		return nil, fmt.Errorf("namespace name update not supported")
 	}
 
-	_, err = impl.ChartEnvHistoryCreate(override, nil)
+	err = impl.chartsHistoryService.CreateChartsHistoryFromEnvOverrideCharts(override, nil)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for env chart history", "err", err, "envOverride", override)
 		return nil, err
@@ -430,7 +430,7 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Char
 			impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
 			return nil, err
 		}
-		_, err = impl.ChartEnvHistoryCreate(envOverride, tx)
+		err = impl.chartsHistoryService.CreateChartsHistoryFromEnvOverrideCharts(envOverride, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for env chart history", "err", err, "envOverride", envOverride)
 			return nil, err
@@ -662,43 +662,4 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 		}
 	}
 	return appMetricRequest, err
-}
-
-func (impl PropertiesConfigServiceImpl) ChartEnvHistoryCreate(envProperties *chartConfig.EnvConfigOverride, tx *pg.Tx) (historyModel *chartConfig.ChartsEnvHistory, err error) {
-	//fetching latest entry by chartsId
-	oldHistory, err := impl.chartHistoryRepository.GetLatestEnvHistoryByEnvConfigOverrideId(envProperties.Id)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching chart history entry by chartsId", "err", err, "envConfigOverrideId", envProperties.Id)
-		return nil, err
-	} else if err == nil {
-		//setting latest to false
-		oldHistory.Latest = false
-		_, err = impl.chartHistoryRepository.UpdateEnvHistory(oldHistory)
-		if err != nil {
-			impl.logger.Errorw("error in updating chart env history entry", "err", err, "history", oldHistory)
-			return nil, err
-		}
-	}
-	//creating new entry
-	historyModel = &chartConfig.ChartsEnvHistory{
-		EnvConfigOverrideId: envProperties.Id,
-		TargetEnvironment:   envProperties.TargetEnvironment,
-		EnvOverride:         envProperties.EnvOverrideValues,
-		Latest:              true,
-		Deployed:            false,
-	}
-	historyModel.CreatedBy = envProperties.CreatedBy
-	historyModel.CreatedOn = envProperties.CreatedOn
-	historyModel.UpdatedBy = envProperties.UpdatedBy
-	historyModel.UpdatedOn = envProperties.UpdatedOn
-	if tx != nil {
-		_, err = impl.chartHistoryRepository.CreateEnvHistoryWithTxn(historyModel, tx)
-	} else {
-		_, err = impl.chartHistoryRepository.CreateEnvHistory(historyModel)
-	}
-	if err != nil {
-		impl.logger.Errorw("err in creating history entry for env chart", "err", err, "history", historyModel)
-		return nil, err
-	}
-	return historyModel, err
 }

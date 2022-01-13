@@ -52,6 +52,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internal/sql/repository/history"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -632,16 +633,32 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 	//	util2.NewGoJsonSchemaCustomFormatChecker,
 
-		chartConfig.NewConfigMapHistoryRepositoryImpl,
-		wire.Bind(new(chartConfig.ConfigMapHistoryRepository),new(*chartConfig.ConfigMapHistoryRepositoryImpl)),
-		chartConfig.NewChartHistoryRepositoryImpl,
-		wire.Bind(new(chartConfig.ChartHistoryRepository),new(*chartConfig.ChartHistoryRepositoryImpl)),
-		appstore2.NewInstalledAppHistoryRepositoryImpl,
-		wire.Bind(new(appstore2.InstalledAppHistoryRepository),new(*appstore2.InstalledAppHistoryRepositoryImpl)),
-		pipelineConfig.NewCiScriptHistoryRepositoryImpl,
-		wire.Bind(new(pipelineConfig.CiScriptHistoryRepository),new(*pipelineConfig.CiScriptHistoryRepositoryImpl)),
-		pipelineConfig.NewCdConfigHistoryRepositoryImpl,
-		wire.Bind(new(pipelineConfig.CdConfigHistoryRepository),new(*pipelineConfig.CdConfigHistoryRepositoryImpl)),
+		history.NewConfigMapHistoryRepositoryImpl,
+		wire.Bind(new(history.ConfigMapHistoryRepository),new(*history.ConfigMapHistoryRepositoryImpl)),
+		history.NewChartHistoryRepositoryImpl,
+		wire.Bind(new(history.ChartHistoryRepository),new(*history.ChartHistoryRepositoryImpl)),
+		history.NewInstalledAppHistoryRepositoryImpl,
+		wire.Bind(new(history.InstalledAppHistoryRepository),new(*history.InstalledAppHistoryRepositoryImpl)),
+		history.NewCiScriptHistoryRepositoryImpl,
+		wire.Bind(new(history.CiScriptHistoryRepository),new(*history.CiScriptHistoryRepositoryImpl)),
+		history.NewCdConfigHistoryRepositoryImpl,
+		wire.Bind(new(history.CdConfigHistoryRepository),new(*history.CdConfigHistoryRepositoryImpl)),
+		history.NewPipelineStrategyHistoryRepositoryImpl,
+		wire.Bind(new(history.PipelineStrategyHistoryRepository),new(*history.PipelineStrategyHistoryRepositoryImpl)),
+		pipeline.NewCdConfigHistoryServiceImpl,
+		wire.Bind(new(pipeline.CdConfigHistoryService),new(*pipeline.CdConfigHistoryServiceImpl)),
+		pipeline.NewCiScriptHistoryServiceImpl,
+		wire.Bind(new(pipeline.CiScriptHistoryService),new(*pipeline.CiScriptHistoryServiceImpl)),
+		pipeline.NewChartsHistoryServiceImpl,
+		wire.Bind(new(pipeline.ChartsHistoryService),new(*pipeline.ChartsHistoryServiceImpl)),
+		pipeline.NewConfigMapHistoryServiceImpl,
+		wire.Bind(new(pipeline.ConfigMapHistoryService),new(*pipeline.ConfigMapHistoryServiceImpl)),
+		pipeline.NewPipelineStrategyHistoryServiceImpl,
+		wire.Bind(new(pipeline.PipelineStrategyHistoryService),new(*pipeline.PipelineStrategyHistoryServiceImpl)),
+		appstore.NewInstalledAppHistoryServiceImpl,
+		wire.Bind(new(appstore.InstalledAppHistoryService),new(*appstore.InstalledAppHistoryServiceImpl)),
+		commonService.NewDeploymentTriggerHistoryServiceImpl,
+		wire.Bind(new(commonService.DeploymentTriggerHistoryService),new(*commonService.DeploymentTriggerHistoryServiceImpl)),
 	//	AuthWireSet,
 	)
 	return &App{}, nil

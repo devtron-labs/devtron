@@ -1,4 +1,4 @@
-package appstore
+package history
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"

@@ -18,8 +18,8 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -84,6 +84,7 @@ type PipelineRepository interface {
 	FindActiveByAppIdAndEnvironmentIdV2() (pipelines []*Pipeline, err error)
 	GetConnection() *pg.DB
 	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
+	FindAllPipelinesByChartsOverride(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 }
 
 type CiArtifactDTO struct {
@@ -316,6 +317,21 @@ func (impl PipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []*P
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*").
 		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
+		Select()
+	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverride(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.*").
+		Join("inner join charts on pipeline.app_id = charts.app_id").
+		Join("inner join chart_env_config_override ceco on charts.id = ceco.chart_id").
+		Where("pipeline.app_id = ?", appId).
+		Where("charts.id = ?", chartId).
+		Where("ceco.is_override = ?", chartOverridden).
+		Where("pipeline.deleted = ?", false).
+		Where("ceco.active = ?", true).
+		Where("charts.active = ?", true).
 		Select()
 	return pipelines, err
 }
