@@ -256,6 +256,14 @@ kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/man
 ```
 - Wait util all nats pods are created, and the pods are in running condition. Once complete, delete devtron and dashboard pods. Then you should be able to access the devtron dashboard without any issues.
 - If your problem is still not resolved, you can post your query in our [discord](https://discord.gg/jsRG5qx2gp) channel
+<br><br>
+
+3.Not able to see deployment metrics on production environment or Not able to enable application-metrics or Not able to deploy the app after creating a configmap or secret with data-volume option enabled
+<br>
+A. Update the rollout crds to latest version, run the following command
+```bash
+kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/rollout.yaml -n devtroncd
+```
 
 ### Troubleshooting:
 - For Installation Troubleshooting, check this [documentation](https://docs.devtron.ai/setup/install)

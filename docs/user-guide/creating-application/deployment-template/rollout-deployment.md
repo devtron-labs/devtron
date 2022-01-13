@@ -713,7 +713,7 @@ kedaAutoscaling:
         query: envoy_cluster_upstream_rq{appId="300", cluster_name="300-0", container="envoy",}
         threshold: "50"
   triggerAuthentication:
-    enabled: true
+    enabled: false
     name:
     spec: {}
   authenticationRef: {}

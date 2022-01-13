@@ -9,7 +9,7 @@ This installation will use Minio for storing build logs and cache.
 kubectl create namespace devtroncd
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/crds/crd-devtron.yaml
 helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --namespace devtroncd --set installer.source=gitee
+helm install devtron devtron/devtron-operator --namespace devtroncd
 ```
 {% endtab %}
 
@@ -104,8 +104,11 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 
 ### Cleaning Installer Helm2
 
+Please make sure that you do not have anything inside namespaces devtroncd, devtron-cd devtron-ci and devtron-demo as the below steps will clean everything inside these namespaces
 ```bash
 helm delete devtron --purge
 #Deleting CRDs manually
-kubectl delete -f https://raw.githubusercontent.com/devtron-labs/devtron-installation-script/main/charts/devtron/crds/crd-devtron.yaml
+kubectl delete -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/crds/crd-devtron.yaml
+kubectl delete -n argo -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/workflow.yaml
+kubectl delete ns devtroncd devtron-cd devtron-ci devtron-demo
 ```

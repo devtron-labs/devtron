@@ -18,7 +18,7 @@ Select the Chart Repository section of global configuration and click on `Add Re
 
 Provide a `Name` to your Chart Repository. This name is added as prefix to the name of the chart in the listing on the helm chart section of application.
 
-![](../../user-guide/global-configurations/images/chart-repository-name-highlight.jpg)
+![](../../user-guide/global-configurations/images/chart-repo-name-highlight.jpg)
 
 ### 2. URL
 

@@ -26,6 +26,28 @@ spec:
   selector:
     app: guard
 ---
+# Legacy HPA api in case autoscaling/v2beta2 is unavailable
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+ name: guard-hpa
+spec:
+ scaleTargetRef:
+   apiVersion: apps/v1
+   kind: Deployment
+   name: guard
+ minReplicas: 1
+ maxReplicas: 4
+ metrics:
+   - type: Resource
+     resource:
+       name: memory
+       targetAverageUtilization: 80
+   - type: Resource
+     resource:
+       name: cpu
+       targetAverageUtilization: 90
+---
 # Source: guard/templates/hpa.yaml
 apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
@@ -35,10 +57,10 @@ metadata:
     release: devtron
 spec:
   scaleTargetRef:
-    apiVersion: v1
+    apiVersion: apps/v1
     kind: Deployment
-    name: devtron-guard
-  minReplicas: 2
+    name: guard
+  minReplicas: 1
   maxReplicas: 4
   metrics:
     - type: Resource
