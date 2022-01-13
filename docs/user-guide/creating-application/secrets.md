@@ -72,7 +72,11 @@ There are five Data types that you can use to save your secret.
 
 *Note: The conversion of secrets from various data types to Kubernetes Secrets is done within Devtron and irrespective of the data type, after conversion, the Pods access `secrets` normally.*
 
+<<<<<<< HEAD
 ## External Secrets
+=======
+## Kubernetes External Secrets
+>>>>>>> 584cd4ea7bbc69ee8d8088028433c5c42f8a6fca
 
 In some cases, it may be that you already have secrets for your application on some other sources and you want to use that on devtron. External secrets are fetched by devtron externally and then converted to kubernetes secrets. 
 
