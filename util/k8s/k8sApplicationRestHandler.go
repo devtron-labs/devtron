@@ -22,6 +22,7 @@ import (
 
 type K8sApplicationRestHandler interface {
 	GetResource(w http.ResponseWriter, r *http.Request)
+	CreateResource(w http.ResponseWriter, r *http.Request)
 	UpdateResource(w http.ResponseWriter, r *http.Request)
 	DeleteResource(w http.ResponseWriter, r *http.Request)
 	ListEvents(w http.ResponseWriter, r *http.Request)
@@ -84,6 +85,38 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	resource, err := handler.k8sApplicationService.GetResource(&request)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource", "err", err)
+		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resource, http.StatusOK)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var request ResourceRequestBean
+	err := decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	if err != nil || !valid {
+		handler.logger.Errorw("error in validating resource request", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
+		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	resource, err := handler.k8sApplicationService.CreateResource(&request)
+	if err != nil {
+		handler.logger.Errorw("error in creating resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
 		return
 	}

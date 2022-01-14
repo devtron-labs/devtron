@@ -23,6 +23,9 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.Path("/resource").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetResource).Methods("POST")
 
+	k8sAppRouter.Path("/resource/create").
+		HandlerFunc(impl.k8sApplicationRestHandler.CreateResource).Methods("POST")
+
 	k8sAppRouter.Path("/resource").
 		HandlerFunc(impl.k8sApplicationRestHandler.UpdateResource).Methods("PUT")
 

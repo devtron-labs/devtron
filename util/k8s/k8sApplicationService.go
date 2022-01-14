@@ -16,6 +16,7 @@ const DEFAULT_CLUSTER = "default_cluster"
 
 type K8sApplicationService interface {
 	GetResource(request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
+	CreateResource(request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
 	UpdateResource(request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
 	DeleteResource(request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
 	ListEvents(request *ResourceRequestBean) (*application.EventsResponse, error)
@@ -58,6 +59,21 @@ func (impl *K8sApplicationServiceImpl) GetResource(request *ResourceRequestBean)
 	resp, err := impl.k8sClientService.GetResource(restConfig, request.K8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource", "err", err, "request", request)
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (impl *K8sApplicationServiceImpl) CreateResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
+	//getting rest config by clusterId
+	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
+		return nil, err
+	}
+	resp, err := impl.k8sClientService.CreateResource(restConfig, request.K8sRequest)
+	if err != nil {
+		impl.logger.Errorw("error in updating resource", "err", err, "request", request)
 		return nil, err
 	}
 	return resp, nil
