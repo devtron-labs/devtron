@@ -141,8 +141,8 @@ type ChartServiceImpl struct {
 	environmentRepository     repository4.EnvironmentRepository
 	pipelineRepository        pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
-	client               *http.Client
-	chartsHistoryService history.ChartsHistoryService
+	client                    *http.Client
+	chartsHistoryService      history.ChartsHistoryService
 }
 
 func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,

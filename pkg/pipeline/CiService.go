@@ -48,8 +48,8 @@ type CiServiceImpl struct {
 	eventClient                  client.EventClient
 	eventFactory                 client.EventFactory
 	mergeUtil                    *util.MergeUtil
-	ciPipelineRepository   pipelineConfig.CiPipelineRepository
-	ciScriptHistoryService history.CiScriptHistoryService
+	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	ciScriptHistoryService       history.CiScriptHistoryService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,

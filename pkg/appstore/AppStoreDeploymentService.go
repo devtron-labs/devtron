@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
@@ -116,8 +117,8 @@ type InstalledAppServiceImpl struct {
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
-	gitOpsRepository           repository3.GitOpsConfigRepository
-	installedAppHistoryService InstalledAppHistoryService
+	gitOpsRepository                     repository3.GitOpsConfigRepository
+	installedAppHistoryService           history.InstalledAppHistoryService
 }
 
 func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -141,7 +142,7 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 	clusterInstalledAppsRepository appstore.ClusterInstalledAppsRepository,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository,
-	installedAppHistoryService InstalledAppHistoryService) (*InstalledAppServiceImpl, error) {
+	installedAppHistoryService history.InstalledAppHistoryService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		chartRepository:                      chartRepository,
 		logger:                               logger,
@@ -298,7 +299,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		return nil, err
 	}
 	//STEP 9 : creating entry for installed app history
-	_, err = impl.installedAppHistoryService.CreateInstalledAppHistory(installAppVersionRequest, tx)
+	_, err = impl.installedAppHistoryService.CreateInstalledAppHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating install app history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err
@@ -1387,7 +1388,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionR
 			return nil, err
 		}
 	}
-	_, err = impl.installedAppHistoryService.CreateInstalledAppHistory(installAppVersionRequest, tx)
+	_, err = impl.installedAppHistoryService.CreateInstalledAppHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating install app history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err

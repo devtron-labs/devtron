@@ -2,6 +2,8 @@ package history
 
 import "encoding/json"
 
+// duplicate structs below, because importing from pkg/pipeline was resulting in circular dependency
+
 type ConfigsList struct {
 	ConfigData []*ConfigData `json:"maps"`
 }

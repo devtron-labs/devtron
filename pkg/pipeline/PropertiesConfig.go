@@ -86,8 +86,8 @@ type PropertiesConfigServiceImpl struct {
 	dbPipelineOrchestrator       DbPipelineOrchestrator
 	application                  application.ServiceClient
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository
-	appLevelMetricsRepository repository.AppLevelMetricsRepository
-	chartsHistoryService      history.ChartsHistoryService
+	appLevelMetricsRepository    repository.AppLevelMetricsRepository
+	chartsHistoryService         history.ChartsHistoryService
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,

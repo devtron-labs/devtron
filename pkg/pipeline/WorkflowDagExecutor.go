@@ -89,8 +89,8 @@ type WorkflowDagExecutorImpl struct {
 	eventClient                client.EventClient
 	cvePolicyRepository        security.CvePolicyRepository
 	scanResultRepository       security.ImageScanResultRepository
-	appWorkflowRepository  appWorkflow.AppWorkflowRepository
-	cdConfigHistoryService history2.CdConfigHistoryService
+	appWorkflowRepository      appWorkflow.AppWorkflowRepository
+	cdConfigHistoryService     history2.CdConfigHistoryService
 }
 
 type CiArtifactDTO struct {

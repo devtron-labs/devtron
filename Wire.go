@@ -656,8 +656,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history2.ConfigMapHistoryService),new(*history2.ConfigMapHistoryServiceImpl)),
 		history2.NewPipelineStrategyHistoryServiceImpl,
 		wire.Bind(new(history2.PipelineStrategyHistoryService),new(*history2.PipelineStrategyHistoryServiceImpl)),
-		appstore.NewInstalledAppHistoryServiceImpl,
-		wire.Bind(new(appstore.InstalledAppHistoryService),new(*appstore.InstalledAppHistoryServiceImpl)),
+		history2.NewInstalledAppHistoryServiceImpl,
+		wire.Bind(new(history2.InstalledAppHistoryService),new(*history2.InstalledAppHistoryServiceImpl)),
 	//	AuthWireSet,
 	)
 	return &App{}, nil

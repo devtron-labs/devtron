@@ -374,7 +374,7 @@ func InitializeApp() (*App, error) {
 	chartGroupDeploymentRepositoryImpl := chartGroup.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
 	clusterInstalledAppsRepositoryImpl := appstore.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
 	installedAppHistoryRepositoryImpl := history.NewInstalledAppHistoryRepositoryImpl(sugaredLogger, db)
-	installedAppHistoryServiceImpl := appstore2.NewInstalledAppHistoryServiceImpl(sugaredLogger, installedAppHistoryRepositoryImpl)
+	installedAppHistoryServiceImpl := history2.NewInstalledAppHistoryServiceImpl(sugaredLogger, installedAppHistoryRepositoryImpl)
 	installedAppServiceImpl, err := appstore2.NewInstalledAppServiceImpl(chartRepositoryImpl, sugaredLogger, chartRepoRepositoryImpl, utilMergeUtil, pipelineConfigRepositoryImpl, configMapRepositoryImpl, installedAppRepositoryImpl, chartTemplateServiceImpl, refChartProxyDir, repositoryServiceClientImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, serviceClientImpl, appStoreValuesServiceImpl, pubSubClient, tokenCache, chartGroupDeploymentRepositoryImpl, environmentServiceImpl, clusterInstalledAppsRepositoryImpl, argoK8sClientImpl, gitFactory, acdAuthConfig, gitOpsConfigRepositoryImpl, installedAppHistoryServiceImpl)
 	if err != nil {
 		return nil, err

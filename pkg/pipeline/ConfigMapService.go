@@ -149,8 +149,8 @@ type ConfigMapServiceImpl struct {
 	configMapRepository         chartConfig.ConfigMapRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	commonService               commonService.CommonService
-	appRepository           app.AppRepository
-	configMapHistoryService history2.ConfigMapHistoryService
+	appRepository               app.AppRepository
+	configMapHistoryService     history2.ConfigMapHistoryService
 }
 
 func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,

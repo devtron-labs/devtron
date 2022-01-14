@@ -61,41 +61,41 @@ import (
 )
 
 type AppServiceImpl struct {
-	environmentConfigRepository     chartConfig.EnvConfigOverrideRepository
-	pipelineOverrideRepository      chartConfig.PipelineOverrideRepository
-	mergeUtil                       *MergeUtil
-	logger                          *zap.SugaredLogger
-	ciArtifactRepository            repository.CiArtifactRepository
-	pipelineRepository              pipelineConfig.PipelineRepository
-	gitFactory                      *GitFactory
-	dbMigrationConfigRepository     pipelineConfig.DbMigrationConfigRepository
-	eventClient                     client.EventClient
-	eventFactory                    client.EventFactory
-	acdClient                       application.ServiceClient
-	tokenCache                      *util3.TokenCache
-	acdAuthConfig                   *util3.ACDAuthConfig
-	enforcer                        casbin.Enforcer
-	enforcerUtil                    rbac.EnforcerUtil
-	user                            user.UserService
-	appListingRepository            repository.AppListingRepository
-	appRepository                   app.AppRepository
-	envRepository                   repository2.EnvironmentRepository
-	pipelineConfigRepository        chartConfig.PipelineConfigRepository
-	configMapRepository             chartConfig.ConfigMapRepository
-	chartRepository                 chartConfig.ChartRepository
-	appRepo                         app.AppRepository
-	appLevelMetricsRepository       repository.AppLevelMetricsRepository
-	envLevelMetricsRepository       repository.EnvLevelAppMetricsRepository
-	ciPipelineMaterialRepository    pipelineConfig.CiPipelineMaterialRepository
-	cdWorkflowRepository            pipelineConfig.CdWorkflowRepository
-	commonService                   commonService.CommonService
-	imageScanDeployInfoRepository   security.ImageScanDeployInfoRepository
-	imageScanHistoryRepository      security.ImageScanHistoryRepository
-	ArgoK8sClient                   argocdServer.ArgoK8sClient
-	gitOpsRepository                repository.GitOpsConfigRepository
+	environmentConfigRepository    chartConfig.EnvConfigOverrideRepository
+	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
+	mergeUtil                      *MergeUtil
+	logger                         *zap.SugaredLogger
+	ciArtifactRepository           repository.CiArtifactRepository
+	pipelineRepository             pipelineConfig.PipelineRepository
+	gitFactory                     *GitFactory
+	dbMigrationConfigRepository    pipelineConfig.DbMigrationConfigRepository
+	eventClient                    client.EventClient
+	eventFactory                   client.EventFactory
+	acdClient                      application.ServiceClient
+	tokenCache                     *util3.TokenCache
+	acdAuthConfig                  *util3.ACDAuthConfig
+	enforcer                       casbin.Enforcer
+	enforcerUtil                   rbac.EnforcerUtil
+	user                           user.UserService
+	appListingRepository           repository.AppListingRepository
+	appRepository                  app.AppRepository
+	envRepository                  repository2.EnvironmentRepository
+	pipelineConfigRepository       chartConfig.PipelineConfigRepository
+	configMapRepository            chartConfig.ConfigMapRepository
+	chartRepository                chartConfig.ChartRepository
+	appRepo                        app.AppRepository
+	appLevelMetricsRepository      repository.AppLevelMetricsRepository
+	envLevelMetricsRepository      repository.EnvLevelAppMetricsRepository
+	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
+	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
+	commonService                  commonService.CommonService
+	imageScanDeployInfoRepository  security.ImageScanDeployInfoRepository
+	imageScanHistoryRepository     security.ImageScanHistoryRepository
+	ArgoK8sClient                  argocdServer.ArgoK8sClient
+	gitOpsRepository               repository.GitOpsConfigRepository
 	pipelineStrategyHistoryService history.PipelineStrategyHistoryService
-	configMapHistoryService history.ConfigMapHistoryService
-	chartsHistoryService history.ChartsHistoryService
+	configMapHistoryService        history.ConfigMapHistoryService
+	chartsHistoryService           history.ChartsHistoryService
 }
 
 type AppService interface {
@@ -136,40 +136,40 @@ func NewAppService(
 	configMapHistoryService history.ConfigMapHistoryService,
 	chartsHistoryService history.ChartsHistoryService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
-		environmentConfigRepository:     environmentConfigRepository,
-		mergeUtil:                       mergeUtil,
-		pipelineOverrideRepository:      pipelineOverrideRepository,
-		logger:                          logger,
-		ciArtifactRepository:            ciArtifactRepository,
-		pipelineRepository:              pipelineRepository,
-		dbMigrationConfigRepository:     dbMigrationConfigRepository,
-		eventClient:                     eventClient,
-		eventFactory:                    eventFactory,
-		acdClient:                       acdClient,
-		tokenCache:                      cache,
-		acdAuthConfig:                   authConfig,
-		enforcer:                        enforcer,
-		enforcerUtil:                    enforcerUtil,
-		user:                            user,
-		appListingRepository:            appListingRepository,
-		appRepository:                   appRepository,
-		envRepository:                   envRepository,
-		pipelineConfigRepository:        pipelineConfigRepository,
-		configMapRepository:             configMapRepository,
-		chartRepository:                 chartRepository,
-		appLevelMetricsRepository:       appLevelMetricsRepository,
-		envLevelMetricsRepository:       envLevelMetricsRepository,
-		ciPipelineMaterialRepository:    ciPipelineMaterialRepository,
-		cdWorkflowRepository:            cdWorkflowRepository,
-		commonService:                   commonService,
-		imageScanDeployInfoRepository:   imageScanDeployInfoRepository,
-		imageScanHistoryRepository:      imageScanHistoryRepository,
-		ArgoK8sClient:                   ArgoK8sClient,
-		gitFactory:                      gitFactory,
-		gitOpsRepository:                gitOpsRepository,
+		environmentConfigRepository:    environmentConfigRepository,
+		mergeUtil:                      mergeUtil,
+		pipelineOverrideRepository:     pipelineOverrideRepository,
+		logger:                         logger,
+		ciArtifactRepository:           ciArtifactRepository,
+		pipelineRepository:             pipelineRepository,
+		dbMigrationConfigRepository:    dbMigrationConfigRepository,
+		eventClient:                    eventClient,
+		eventFactory:                   eventFactory,
+		acdClient:                      acdClient,
+		tokenCache:                     cache,
+		acdAuthConfig:                  authConfig,
+		enforcer:                       enforcer,
+		enforcerUtil:                   enforcerUtil,
+		user:                           user,
+		appListingRepository:           appListingRepository,
+		appRepository:                  appRepository,
+		envRepository:                  envRepository,
+		pipelineConfigRepository:       pipelineConfigRepository,
+		configMapRepository:            configMapRepository,
+		chartRepository:                chartRepository,
+		appLevelMetricsRepository:      appLevelMetricsRepository,
+		envLevelMetricsRepository:      envLevelMetricsRepository,
+		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
+		cdWorkflowRepository:           cdWorkflowRepository,
+		commonService:                  commonService,
+		imageScanDeployInfoRepository:  imageScanDeployInfoRepository,
+		imageScanHistoryRepository:     imageScanHistoryRepository,
+		ArgoK8sClient:                  ArgoK8sClient,
+		gitFactory:                     gitFactory,
+		gitOpsRepository:               gitOpsRepository,
 		pipelineStrategyHistoryService: pipelineStrategyHistoryService,
-		configMapHistoryService: configMapHistoryService,
-		chartsHistoryService: chartsHistoryService,
+		configMapHistoryService:        configMapHistoryService,
+		chartsHistoryService:           chartsHistoryService,
 	}
 	return appServiceImpl
 }

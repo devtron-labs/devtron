@@ -78,9 +78,9 @@ type DbPipelineOrchestratorImpl struct {
 	envRepository                repository2.EnvironmentRepository
 	attributesService            attributes.AttributesService
 	appListingRepository         repository.AppListingRepository
-	appLabelsService       app.AppLabelService
-	cdConfigHistoryService history2.CdConfigHistoryService
-	ciScriptHistoryService history2.CiScriptHistoryService
+	appLabelsService             app.AppLabelService
+	cdConfigHistoryService       history2.CdConfigHistoryService
+	ciScriptHistoryService       history2.CiScriptHistoryService
 }
 
 func NewDbPipelineOrchestrator(

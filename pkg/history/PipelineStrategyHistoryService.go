@@ -53,7 +53,6 @@ func (impl PipelineStrategyHistoryServiceImpl) CreatePipelineStrategyHistory(pip
 	return historyModel, err
 }
 
-
 func (impl PipelineStrategyHistoryServiceImpl) CreateStrategyHistoryForDeploymentTrigger(pipelineStrategy *chartConfig.PipelineStrategy, deployedOn time.Time, deployedBy int32) error {
 	//creating new entry
 	historyModel := &history.PipelineStrategyHistory{

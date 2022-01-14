@@ -24,9 +24,9 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_charts_history;
 CREATE TABLE "public"."charts_history"
 (
     "id"                            integer NOT NULL DEFAULT nextval('id_seq_charts_history'::regclass),
-    "pipeline_id"                      integer NOT NULL,
+    "pipeline_id"                   integer NOT NULL,
     "target_environment"            integer,
-    "image_descriptor_template"                      text NOT NULL,
+    "image_descriptor_template"     text NOT NULL,
     "template"                      text NOT NULL,
     "deployed"                      bool,
     "deployed_on"                   timestamptz,

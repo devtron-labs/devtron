@@ -1,4 +1,4 @@
-package appstore
+package history
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/history"
@@ -9,7 +9,7 @@ import (
 )
 
 type InstalledAppHistoryService interface {
-	CreateInstalledAppHistory(installAppVersionReq *InstallAppVersionDTO, tx *pg.Tx) (historyModel *history.InstalledAppHistory, err error)
+	CreateInstalledAppHistory(installedAppVersionId int, values string, userId int32, tx *pg.Tx) (historyModel *history.InstalledAppHistory, err error)
 }
 
 type InstalledAppHistoryServiceImpl struct {
@@ -24,17 +24,17 @@ func NewInstalledAppHistoryServiceImpl(logger *zap.SugaredLogger, installedAppHi
 	}
 }
 
-func (impl InstalledAppHistoryServiceImpl) CreateInstalledAppHistory(installAppVersionReq *InstallAppVersionDTO, tx *pg.Tx) (historyModel *history.InstalledAppHistory, err error) {
+func (impl InstalledAppHistoryServiceImpl) CreateInstalledAppHistory(installedAppVersionId int, values string, userId int32, tx *pg.Tx) (historyModel *history.InstalledAppHistory, err error) {
 	historyModel = &history.InstalledAppHistory{
-		InstalledAppVersionId: installAppVersionReq.InstalledAppVersionId,
-		Values:                installAppVersionReq.ValuesOverrideYaml,
-		DeployedBy:            installAppVersionReq.UserId,
+		InstalledAppVersionId: installedAppVersionId,
+		Values:                values,
+		DeployedBy:            userId,
 		DeployedOn:            time.Now(),
 		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
-			CreatedBy: installAppVersionReq.UserId,
+			CreatedBy: userId,
 			UpdatedOn: time.Now(),
-			UpdatedBy: installAppVersionReq.UserId,
+			UpdatedBy: userId,
 		},
 	}
 	_, err = impl.installedAppHistoryRepository.CreateHistory(historyModel, tx)
