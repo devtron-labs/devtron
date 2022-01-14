@@ -28,6 +28,7 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	history2 "github.com/devtron-labs/devtron/pkg/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"path"
 	"strconv"
@@ -77,9 +78,9 @@ type DbPipelineOrchestratorImpl struct {
 	envRepository                repository2.EnvironmentRepository
 	attributesService            attributes.AttributesService
 	appListingRepository         repository.AppListingRepository
-	appLabelsService             app.AppLabelService
-	cdConfigHistoryService       CdConfigHistoryService
-	ciScriptHistoryService       CiScriptHistoryService
+	appLabelsService       app.AppLabelService
+	cdConfigHistoryService history2.CdConfigHistoryService
+	ciScriptHistoryService history2.CiScriptHistoryService
 }
 
 func NewDbPipelineOrchestrator(
@@ -95,8 +96,8 @@ func NewDbPipelineOrchestrator(
 	attributesService attributes.AttributesService,
 	appListingRepository repository.AppListingRepository,
 	appLabelsService app.AppLabelService,
-	cdConfigHistoryService CdConfigHistoryService,
-	ciScriptHistoryService CiScriptHistoryService) *DbPipelineOrchestratorImpl {
+	cdConfigHistoryService history2.CdConfigHistoryService,
+	ciScriptHistoryService history2.CiScriptHistoryService) *DbPipelineOrchestratorImpl {
 	return &DbPipelineOrchestratorImpl{
 		appRepository:                pipelineGroupRepository,
 		logger:                       logger,

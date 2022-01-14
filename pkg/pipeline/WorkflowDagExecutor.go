@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	history2 "github.com/devtron-labs/devtron/pkg/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -88,8 +89,8 @@ type WorkflowDagExecutorImpl struct {
 	eventClient                client.EventClient
 	cvePolicyRepository        security.CvePolicyRepository
 	scanResultRepository       security.ImageScanResultRepository
-	appWorkflowRepository      appWorkflow.AppWorkflowRepository
-	cdConfigHistoryService     CdConfigHistoryService
+	appWorkflowRepository  appWorkflow.AppWorkflowRepository
+	cdConfigHistoryService history2.CdConfigHistoryService
 }
 
 type CiArtifactDTO struct {
@@ -143,7 +144,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	cdConfigHistoryService CdConfigHistoryService) *WorkflowDagExecutorImpl {
+	cdConfigHistoryService history2.CdConfigHistoryService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:         pipelineRepository,
 		cdWorkflowRepository:       cdWorkflowRepository,

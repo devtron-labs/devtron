@@ -1,4 +1,4 @@
-package pipeline
+package history
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/history"

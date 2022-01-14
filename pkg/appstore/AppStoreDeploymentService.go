@@ -116,8 +116,8 @@ type InstalledAppServiceImpl struct {
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
-	gitOpsRepository                     repository3.GitOpsConfigRepository
-	installedAppHistoryService           InstalledAppHistoryService
+	gitOpsRepository           repository3.GitOpsConfigRepository
+	installedAppHistoryService InstalledAppHistoryService
 }
 
 func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,

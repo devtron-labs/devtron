@@ -23,6 +23,7 @@ import (
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
@@ -128,7 +129,7 @@ type PipelineBuilderImpl struct {
 	attributesService              attributes.AttributesService
 	aCDAuthConfig                  *util3.ACDAuthConfig
 	gitOpsRepository               repository.GitOpsConfigRepository
-	pipelineStrategyHistoryService PipelineStrategyHistoryService
+	pipelineStrategyHistoryService history.PipelineStrategyHistoryService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -156,7 +157,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	GitFactory *util.GitFactory, attributesService attributes.AttributesService,
 	aCDAuthConfig *util3.ACDAuthConfig, gitOpsRepository repository.GitOpsConfigRepository,
-	pipelineStrategyHistoryService PipelineStrategyHistoryService) *PipelineBuilderImpl {
+	pipelineStrategyHistoryService history.PipelineStrategyHistoryService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                         logger,
 		dbPipelineOrchestrator:         dbPipelineOrchestrator,

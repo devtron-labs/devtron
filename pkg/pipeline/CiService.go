@@ -19,6 +19,7 @@ package pipeline
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/history"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -47,15 +48,15 @@ type CiServiceImpl struct {
 	eventClient                  client.EventClient
 	eventFactory                 client.EventFactory
 	mergeUtil                    *util.MergeUtil
-	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	ciScriptHistoryService       CiScriptHistoryService
+	ciPipelineRepository   pipelineConfig.CiPipelineRepository
+	ciScriptHistoryService history.CiScriptHistoryService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, ciConfig *CiConfig, eventClient client.EventClient,
 	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	ciScriptHistoryService CiScriptHistoryService) *CiServiceImpl {
+	ciScriptHistoryService history.CiScriptHistoryService) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                       Logger,
 		workflowService:              workflowService,

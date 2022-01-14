@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 
@@ -85,8 +86,8 @@ type PropertiesConfigServiceImpl struct {
 	dbPipelineOrchestrator       DbPipelineOrchestrator
 	application                  application.ServiceClient
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository
-	appLevelMetricsRepository    repository.AppLevelMetricsRepository
-	chartsHistoryService         ChartsHistoryService
+	appLevelMetricsRepository repository.AppLevelMetricsRepository
+	chartsHistoryService      history.ChartsHistoryService
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
@@ -98,7 +99,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	application application.ServiceClient,
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	chartsHistoryService ChartsHistoryService) *PropertiesConfigServiceImpl {
+	chartsHistoryService history.ChartsHistoryService) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
 		logger:                       logger,
 		envConfigRepo:                envConfigRepo,

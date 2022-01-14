@@ -1,4 +1,4 @@
-package pipeline
+package history
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -7,11 +7,13 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type ChartsHistoryService interface {
 	CreateChartsHistoryFromGlobalCharts(chart *chartConfig.Chart, tx *pg.Tx) error
 	CreateChartsHistoryFromEnvOverrideCharts(envOverride *chartConfig.EnvConfigOverride, tx *pg.Tx) error
+	CreateChartsHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error
 }
 
 type ChartsHistoryServiceImpl struct {
@@ -108,4 +110,38 @@ func (impl ChartsHistoryServiceImpl) CreateChartsHistoryFromEnvOverrideCharts(en
 		}
 	}
 	return err
+}
+
+func (impl ChartsHistoryServiceImpl) CreateChartsHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error {
+	historyModel := &history.ChartsHistory{
+		PipelineId:              pipeline.Id,
+		ImageDescriptorTemplate: renderedImageTemplate,
+		Deployed:                true,
+		DeployedBy:              deployedBy,
+		DeployedOn:              deployedOn,
+	}
+	if envOverride.IsOverride {
+		historyModel.Template = envOverride.EnvOverrideValues
+		historyModel.AuditLog = sql.AuditLog{
+			CreatedOn: envOverride.CreatedOn,
+			CreatedBy: envOverride.CreatedBy,
+			UpdatedOn: envOverride.UpdatedOn,
+			UpdatedBy: envOverride.UpdatedBy,
+		}
+	} else {
+		historyModel.Template = envOverride.Chart.GlobalOverride
+		historyModel.AuditLog = sql.AuditLog{
+			CreatedOn: envOverride.Chart.CreatedOn,
+			CreatedBy: envOverride.Chart.CreatedBy,
+			UpdatedOn: envOverride.Chart.UpdatedOn,
+			UpdatedBy: envOverride.Chart.UpdatedBy,
+		}
+	}
+	//creating new entry
+	_, err := impl.chartHistoryRepository.CreateHistory(historyModel)
+	if err != nil {
+		impl.logger.Errorw("err in creating history entry for charts", "err", err, "history", historyModel)
+		return err
+	}
+	return nil
 }

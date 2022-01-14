@@ -69,6 +69,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/event"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
+	history2 "github.com/devtron-labs/devtron/pkg/history"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -645,20 +646,18 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history.CdConfigHistoryRepository),new(*history.CdConfigHistoryRepositoryImpl)),
 		history.NewPipelineStrategyHistoryRepositoryImpl,
 		wire.Bind(new(history.PipelineStrategyHistoryRepository),new(*history.PipelineStrategyHistoryRepositoryImpl)),
-		pipeline.NewCdConfigHistoryServiceImpl,
-		wire.Bind(new(pipeline.CdConfigHistoryService),new(*pipeline.CdConfigHistoryServiceImpl)),
-		pipeline.NewCiScriptHistoryServiceImpl,
-		wire.Bind(new(pipeline.CiScriptHistoryService),new(*pipeline.CiScriptHistoryServiceImpl)),
-		pipeline.NewChartsHistoryServiceImpl,
-		wire.Bind(new(pipeline.ChartsHistoryService),new(*pipeline.ChartsHistoryServiceImpl)),
-		pipeline.NewConfigMapHistoryServiceImpl,
-		wire.Bind(new(pipeline.ConfigMapHistoryService),new(*pipeline.ConfigMapHistoryServiceImpl)),
-		pipeline.NewPipelineStrategyHistoryServiceImpl,
-		wire.Bind(new(pipeline.PipelineStrategyHistoryService),new(*pipeline.PipelineStrategyHistoryServiceImpl)),
+		history2.NewCdConfigHistoryServiceImpl,
+		wire.Bind(new(history2.CdConfigHistoryService),new(*history2.CdConfigHistoryServiceImpl)),
+		history2.NewCiScriptHistoryServiceImpl,
+		wire.Bind(new(history2.CiScriptHistoryService),new(*history2.CiScriptHistoryServiceImpl)),
+		history2.NewChartsHistoryServiceImpl,
+		wire.Bind(new(history2.ChartsHistoryService),new(*history2.ChartsHistoryServiceImpl)),
+		history2.NewConfigMapHistoryServiceImpl,
+		wire.Bind(new(history2.ConfigMapHistoryService),new(*history2.ConfigMapHistoryServiceImpl)),
+		history2.NewPipelineStrategyHistoryServiceImpl,
+		wire.Bind(new(history2.PipelineStrategyHistoryService),new(*history2.PipelineStrategyHistoryServiceImpl)),
 		appstore.NewInstalledAppHistoryServiceImpl,
 		wire.Bind(new(appstore.InstalledAppHistoryService),new(*appstore.InstalledAppHistoryServiceImpl)),
-		commonService.NewDeploymentTriggerHistoryServiceImpl,
-		wire.Bind(new(commonService.DeploymentTriggerHistoryService),new(*commonService.DeploymentTriggerHistoryServiceImpl)),
 	//	AuthWireSet,
 	)
 	return &App{}, nil

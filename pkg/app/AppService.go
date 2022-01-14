@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -92,7 +93,9 @@ type AppServiceImpl struct {
 	imageScanHistoryRepository      security.ImageScanHistoryRepository
 	ArgoK8sClient                   argocdServer.ArgoK8sClient
 	gitOpsRepository                repository.GitOpsConfigRepository
-	deploymentTriggerHistoryService commonService.DeploymentTriggerHistoryService
+	pipelineStrategyHistoryService history.PipelineStrategyHistoryService
+	configMapHistoryService history.ConfigMapHistoryService
+	chartsHistoryService history.ChartsHistoryService
 }
 
 type AppService interface {
@@ -129,8 +132,9 @@ func NewAppService(
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *GitFactory, gitOpsRepository repository.GitOpsConfigRepository,
-	deploymentTriggerHistoryService commonService.DeploymentTriggerHistoryService,
-) *AppServiceImpl {
+	pipelineStrategyHistoryService history.PipelineStrategyHistoryService,
+	configMapHistoryService history.ConfigMapHistoryService,
+	chartsHistoryService history.ChartsHistoryService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:     environmentConfigRepository,
 		mergeUtil:                       mergeUtil,
@@ -163,7 +167,9 @@ func NewAppService(
 		ArgoK8sClient:                   ArgoK8sClient,
 		gitFactory:                      gitFactory,
 		gitOpsRepository:                gitOpsRepository,
-		deploymentTriggerHistoryService: deploymentTriggerHistoryService,
+		pipelineStrategyHistoryService: pipelineStrategyHistoryService,
+		configMapHistoryService: configMapHistoryService,
+		chartsHistoryService: chartsHistoryService,
 	}
 	return appServiceImpl
 }
@@ -1120,9 +1126,9 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	if err != nil {
 		return 0, 0, err
 	}
-	err = impl.deploymentTriggerHistoryService.CreateHistoriesForDeploymentTrigger(pipeline, strategy, envOverride, overrideJson, pipelineOverride.UpdatedOn, pipelineOverride.UpdatedBy)
+	err = impl.CreateHistoriesForDeploymentTrigger(pipeline, strategy, envOverride, overrideJson, pipelineOverride.UpdatedOn, pipelineOverride.UpdatedBy)
 	if err != nil {
-		impl.logger.Errorw("error in creating history entries for dfeployment trigger", "err", err)
+		impl.logger.Errorw("error in creating history entries for deployment trigger", "err", err)
 		return 0, 0, err
 	}
 	return override.PipelineReleaseCounter, override.Id, nil
@@ -1322,4 +1328,24 @@ func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName s
 	}
 
 	return merged
+}
+
+func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error {
+	//creating history for deployment template
+	err := impl.chartsHistoryService.CreateChartsHistoryForDeploymentTrigger(pipeline, envOverride, renderedImageTemplate, deployedOn, deployedBy)
+	if err != nil {
+		impl.logger.Errorw("error in creating charts history for deployment trigger", "err", err)
+		return err
+	}
+	err = impl.configMapHistoryService.CreateConfigMapHistoryForDeploymentTrigger(pipeline, deployedOn, deployedBy)
+	if err != nil {
+		impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
+		return err
+	}
+	err = impl.pipelineStrategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy)
+	if err != nil {
+		impl.logger.Errorw("error in creating strategy history for deployment trigger", "err", err)
+		return err
+	}
+	return nil
 }

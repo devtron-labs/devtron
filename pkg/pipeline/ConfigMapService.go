@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/history"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	history2 "github.com/devtron-labs/devtron/pkg/history"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -148,8 +149,8 @@ type ConfigMapServiceImpl struct {
 	configMapRepository         chartConfig.ConfigMapRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	commonService               commonService.CommonService
-	appRepository               app.AppRepository
-	configMapHistoryService     ConfigMapHistoryService
+	appRepository           app.AppRepository
+	configMapHistoryService history2.ConfigMapHistoryService
 }
 
 func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -159,7 +160,7 @@ func NewConfigMapServiceImpl(chartRepository chartConfig.ChartRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	commonService commonService.CommonService, appRepository app.AppRepository,
-	configMapHistoryService ConfigMapHistoryService) *ConfigMapServiceImpl {
+	configMapHistoryService history2.ConfigMapHistoryService) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
 		chartRepository:             chartRepository,
 		logger:                      logger,

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"io/ioutil"
 	"net/http"
@@ -140,8 +141,8 @@ type ChartServiceImpl struct {
 	environmentRepository     repository4.EnvironmentRepository
 	pipelineRepository        pipelineConfig.PipelineRepository
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository
-	client                    *http.Client
-	chartsHistoryService      ChartsHistoryService
+	client               *http.Client
+	chartsHistoryService history.ChartsHistoryService
 }
 
 func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
@@ -161,7 +162,7 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
 	client *http.Client,
-	chartsHistoryService ChartsHistoryService) *ChartServiceImpl {
+	chartsHistoryService history.ChartsHistoryService) *ChartServiceImpl {
 	return &ChartServiceImpl{
 		chartRepository:           chartRepository,
 		logger:                    logger,
