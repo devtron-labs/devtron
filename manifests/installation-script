@@ -265,15 +265,15 @@ log("setup grafana");
 
 grafanadeployment = kubectl get deployment -n devtroncd devtron-grafana;
 grafanastatus = jsonSelect(grafanadeployment, "status.readyReplicas");
-
 if !grafanastatus {
 log("Grafana is unhealthy, waiting for it to become healthy");
 sleep50;
 }
 
-grafanahealth = kubectl -n devtroncd get deploy devtron-grafana -o jsonpath='{.status.readyReplicas}'
+grafanadeployment = kubectl get deployment -n devtroncd devtron-grafana;
+grafanastatus = jsonSelect(grafanadeployment, "status.readyReplicas");
 if !grafanastatus {
-log("Grafana is unhealthy, waiting for it to become healthy");
+log("Grafana is unhealthy, again waiting for it to become healthy");
 sleep50;
 }
 
