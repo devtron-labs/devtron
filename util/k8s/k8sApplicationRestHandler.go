@@ -1,9 +1,11 @@
 package k8s
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -100,12 +102,6 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
-	if err != nil || !valid {
-		handler.logger.Errorw("error in validating resource request", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 	// RBAC enforcer applying
 	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 	token := r.Header.Get("token")
@@ -113,6 +109,34 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
+	//TODO : confirm resource validation removal
+	//valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	//if err != nil || !valid {
+	//	handler.logger.Errorw("error in validating resource request", "err", err)
+	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//	return
+	//}
+	resourceIdentifier := &openapi.ResourceIdentifier{
+		Name:      &request.K8sRequest.ResourceIdentifier.Name,
+		Namespace: &request.K8sRequest.ResourceIdentifier.Namespace,
+		Group:     &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group,
+		Version:   &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Version,
+		Kind:      &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind,
+	}
+	manifestRes, err := handler.helmAppService.GetDesiredManifest(context.Background(), request.AppIdentifier, resourceIdentifier)
+	if err != nil {
+		handler.logger.Errorw("error in getting desired manifest for validation", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	manifest, manifestOk := manifestRes.GetManifestOk()
+	if manifestOk == false || len(*manifest) == 0 {
+		handler.logger.Debugw("invalid request, desired manifest not found", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//updating desired manifest into request object
+	request.K8sRequest.Patch = *manifest
 	//RBAC enforcer Ends
 	resource, err := handler.k8sApplicationService.CreateResource(&request)
 	if err != nil {

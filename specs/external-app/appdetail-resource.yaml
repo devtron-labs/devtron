@@ -52,6 +52,31 @@ paths:
                     description: status
                   result:
                     $ref: '#/components/schemas/ResourceGetResponse'
+  /orchestrator/k8s/resource/create:
+    post:
+      description: this api will be used for applying desired manifest
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: create resource response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ResourceGetResponse'
   /orchestrator/k8s/resource/delete:
     post:
       description: this api will be used for delete any resource.
