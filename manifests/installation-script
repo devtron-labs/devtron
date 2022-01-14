@@ -263,9 +263,20 @@ kubeYamlDelete(grafana, filter=`networking.k8s.io/Ingress/devtroncd/devtron-graf
 grafana = kubectl apply -n devtroncd grafana -u grafanaOverride;
 log("setup grafana");
 
+grafanahealth = kubectl -n devtroncd get deploy devtron-grafana -o jsonpath='{.status.readyReplicas}'
+if !grafanahealth {
+log("Grafana is unhealthy, waiting for it to become healthy");
+sleep50;
+}
+
+grafanahealth = kubectl -n devtroncd get deploy devtron-grafana -o jsonpath='{.status.readyReplicas}'
+if !grafanahealth {
+log("Grafana is unhealthy, waiting for it to become healthy");
+sleep50;
+}
+
 if !hasgrafana {
 	createOrgScript = shebang + `
-	sleep 50
 	ORG_ID=$( curl -d '{"name":"devtron-metrics-view"}' -H "Content-Type: application/json" -X POST '` + grafanaUrlWithPwd + `/api/orgs' )
 	echo $ORG_ID
 	`;
