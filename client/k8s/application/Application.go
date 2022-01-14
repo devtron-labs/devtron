@@ -94,7 +94,7 @@ func (impl K8sClientServiceImpl) CreateResource(restConfig *rest.Config, request
 	var createObj map[string]interface{}
 	err = json.Unmarshal([]byte(request.Patch), &createObj)
 	if err != nil {
-		impl.logger.Errorw("error in json un-marshaling patch string for creating resource ", "err", err)
+		impl.logger.Errorw("error in json un-marshaling patch(manifest) string for creating resource", "err", err,"manifest",request.Patch)
 		return nil, err
 	}
 	resourceIdentifier := request.ResourceIdentifier

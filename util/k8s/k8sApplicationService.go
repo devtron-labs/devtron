@@ -73,7 +73,7 @@ func (impl *K8sApplicationServiceImpl) CreateResource(request *ResourceRequestBe
 	}
 	resp, err := impl.k8sClientService.CreateResource(restConfig, request.K8sRequest)
 	if err != nil {
-		impl.logger.Errorw("error in updating resource", "err", err, "request", request)
+		impl.logger.Errorw("error in creating resource", "err", err, "request", request)
 		return nil, err
 	}
 	return resp, nil

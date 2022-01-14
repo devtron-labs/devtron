@@ -109,6 +109,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
+	//RBAC enforcer Ends
 	//TODO : confirm resource validation removal
 	//valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
 	//if err != nil || !valid {
@@ -137,7 +138,6 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 	}
 	//updating desired manifest into request object
 	request.K8sRequest.Patch = *manifest
-	//RBAC enforcer Ends
 	resource, err := handler.k8sApplicationService.CreateResource(&request)
 	if err != nil {
 		handler.logger.Errorw("error in creating resource", "err", err)
