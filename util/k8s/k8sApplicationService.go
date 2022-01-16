@@ -2,8 +2,10 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"go.uber.org/zap"
@@ -65,6 +67,26 @@ func (impl *K8sApplicationServiceImpl) GetResource(request *ResourceRequestBean)
 }
 
 func (impl *K8sApplicationServiceImpl) CreateResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
+	resourceIdentifier := &openapi.ResourceIdentifier{
+		Name:      &request.K8sRequest.ResourceIdentifier.Name,
+		Namespace: &request.K8sRequest.ResourceIdentifier.Namespace,
+		Group:     &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group,
+		Version:   &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Version,
+		Kind:      &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind,
+	}
+	manifestRes, err := impl.helmAppService.GetDesiredManifest(context.Background(), request.AppIdentifier, resourceIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting desired manifest for validation", "err", err)
+		return nil, err
+	}
+	manifest, manifestOk := manifestRes.GetManifestOk()
+	if manifestOk == false || len(*manifest) == 0 {
+		impl.logger.Debugw("invalid request, desired manifest not found", "err", err)
+		return nil, fmt.Errorf("no manifest found for this request")
+	}
+	//updating desired manifest into request object
+	request.K8sRequest.Patch = *manifest
+
 	//getting rest config by clusterId
 	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
