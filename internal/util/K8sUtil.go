@@ -39,10 +39,6 @@ import (
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 )
-
-type K8sUtilimpl interface {
-}
-
 type K8sUtil struct {
 	logger *zap.SugaredLogger
 }
