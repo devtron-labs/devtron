@@ -325,20 +325,19 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 					} else {
 						continue
 					}
-				}
-
-				if roleModel.Id > 0 {
-					//new role ids in new array, add it
-					roleGroupMappingModel := &repository2.RoleGroupRoleMapping{RoleGroupId: request.Id, RoleId: roleModel.Id}
-					roleGroupMappingModel.CreatedBy = request.UserId
-					roleGroupMappingModel.UpdatedBy = request.UserId
-					roleGroupMappingModel.CreatedOn = time.Now()
-					roleGroupMappingModel.UpdatedOn = time.Now()
-					roleGroupMappingModel, err = impl.roleGroupRepository.CreateRoleGroupRoleMapping(roleGroupMappingModel, tx)
-					if err != nil {
-						return nil, err
+					if roleModel.Id > 0 {
+						//new role ids in new array, add it
+						roleGroupMappingModel := &repository2.RoleGroupRoleMapping{RoleGroupId: request.Id, RoleId: roleModel.Id}
+						roleGroupMappingModel.CreatedBy = request.UserId
+						roleGroupMappingModel.UpdatedBy = request.UserId
+						roleGroupMappingModel.CreatedOn = time.Now()
+						roleGroupMappingModel.UpdatedOn = time.Now()
+						roleGroupMappingModel, err = impl.roleGroupRepository.CreateRoleGroupRoleMapping(roleGroupMappingModel, tx)
+						if err != nil {
+							return nil, err
+						}
+						policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(roleGroup.CasbinName), Obj: casbin2.Object(roleModel.Role)})
 					}
-					policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(roleGroup.CasbinName), Obj: casbin2.Object(roleModel.Role)})
 				}
 			}
 		}

@@ -509,20 +509,19 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 						} else {
 							continue
 						}
-					}
-
-					//new role ids in new array, add it
-					if roleModel.Id > 0 {
-						userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
-						userRoleModel.CreatedBy = userInfo.UserId
-						userRoleModel.UpdatedBy = userInfo.UserId
-						userRoleModel.CreatedOn = time.Now()
-						userRoleModel.UpdatedOn = time.Now()
-						userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
-						if err != nil {
-							return nil, err
+						//new role ids in new array, add it
+						if roleModel.Id > 0 {
+							userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
+							userRoleModel.CreatedBy = userInfo.UserId
+							userRoleModel.UpdatedBy = userInfo.UserId
+							userRoleModel.CreatedOn = time.Now()
+							userRoleModel.UpdatedOn = time.Now()
+							userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
+							if err != nil {
+								return nil, err
+							}
+							addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
 						}
-						addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
 					}
 
 				}
