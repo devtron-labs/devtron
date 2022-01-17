@@ -423,7 +423,6 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 		}
 		existingRoleIds := make(map[int]repository2.UserRoleModel)
 		eliminatedRoleIds := make(map[int]*repository2.UserRoleModel)
-
 		for i := range userRoleModels {
 			existingRoleIds[userRoleModels[i].RoleId] = *userRoleModels[i]
 			eliminatedRoleIds[userRoleModels[i].RoleId] = userRoleModels[i]
@@ -509,7 +508,11 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 						} else {
 							continue
 						}
-						//new role ids in new array, add it
+					}
+					if _, ok := existingRoleIds[roleModel.Id]; ok {
+						//Adding policies which is removed
+						addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+					} else {
 						if roleModel.Id > 0 {
 							userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
 							userRoleModel.CreatedBy = userInfo.UserId
@@ -523,7 +526,6 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 							addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
 						}
 					}
-
 				}
 			}
 		}

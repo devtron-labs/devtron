@@ -325,6 +325,12 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 					} else {
 						continue
 					}
+				}
+
+				if _, ok := existingRoles[roleModel.Id]; ok {
+					//Adding policies which is removed
+					policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(roleGroup.CasbinName), Obj: casbin2.Object(roleModel.Role)})
+				} else {
 					if roleModel.Id > 0 {
 						//new role ids in new array, add it
 						roleGroupMappingModel := &repository2.RoleGroupRoleMapping{RoleGroupId: request.Id, RoleId: roleModel.Id}
