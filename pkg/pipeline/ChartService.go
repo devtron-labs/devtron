@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	dirCopy "github.com/otiai10/copy"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -189,6 +188,7 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]json.RawMessage, error) {
 	err := impl.ExtractChartIfMissing(chartRefId)
 	if err != nil {
+		impl.logger.Errorw("error in getting missing chart for chartRefId","err",err,"chartRefId")
 		return nil, err
 	}
 
@@ -231,6 +231,7 @@ type AppMetricsEnabled struct {
 func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
 	err := impl.ExtractChartIfMissing(templateRequest.ChartRefId)
 	if err != nil {
+		impl.logger.Errorw("error in getting missing chart for chartRefId","err",err,"chartRefId")
 		return nil, err
 	}
 	chartMeta, err := impl.getChartMetaData(templateRequest)
@@ -385,6 +386,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
 	err := impl.ExtractChartIfMissing(templateRequest.ChartRefId)
 	if err != nil {
+		impl.logger.Errorw("error in getting missing chart for chartRefId","err",err,"chartRefId")
 		return nil, err
 	}
 
@@ -1163,6 +1165,7 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 func (impl ChartServiceImpl) ExtractChartIfMissing(ChartRefId int) error {
 	chartRef, err := impl.chartRefRepository.FindById(ChartRefId)
 	if err != nil {
+		impl.logger.Errorw("error in finding ref chart by id", "err", err)
 		return err
 	}
 	location := chartRef.Location
@@ -1182,18 +1185,20 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(ChartRefId int) error {
 		}
 		err = util2.ExtractTarGz(binaryDataReader, RandomChartWorkingDir)
 		if err != nil {
+			impl.logger.Errorw("error in extracting binary data of charts","err",err)
 			return err
 		}
 		files, err := ioutil.ReadDir(RandomChartWorkingDir)
 		if err != nil {
-			log.Fatal(err)
+			impl.logger.Errorw("error in reading err dir", "err", err)
+			return err
 		}
-		CurrentChartWorkingDir := filepath.Join(RandomChartWorkingDir,files[0].Name())
+		CurrentChartWorkingDir := filepath.Join(RandomChartWorkingDir, files[0].Name())
 		err = dirCopy.Copy(CurrentChartWorkingDir, refChartDir)
-
-		return nil
-	} else {
-		return nil
+		if err!=nil{
+			impl.logger.Errorw("error in copying chart from temp dir to ref chart dir","err",err)
+			return err
+		}
 	}
-
+	return nil
 }

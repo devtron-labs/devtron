@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -792,9 +791,9 @@ func (impl *AppStoreServiceImpl) TriggerChartSyncManual() error {
 	return nil
 }
 
-var CallbackConfigMap = func (configMaps *v1.ConfigMap) {
+var CallbackConfigMap = func(configMaps *v1.ConfigMap) {
 	annotations, ok := configMaps.Annotations["charts.devtron.ai/data"]
-	if !ok || annotations != "mount"{
+	if !ok || annotations != "mount" {
 		return
 	}
 
@@ -840,9 +839,9 @@ var CallbackConfigMap = func (configMaps *v1.ConfigMap) {
 		refChartDir := filepath.Join(string(RefChartDir), chartLocation)
 		files, err := ioutil.ReadDir(chartDir)
 		if err != nil {
-			log.Fatal(err)
+			logger.Errorw("error in reading chart directory", "err", err)
 		}
-		CurrentChartWorkingDir := filepath.Join(chartDir,files[0].Name())
+		CurrentChartWorkingDir := filepath.Join(chartDir, files[0].Name())
 		err = dirCopy.Copy(CurrentChartWorkingDir, refChartDir)
 		if err != nil {
 			logger.Errorw("error in copy directory, CallbackConfigMap", "err", err)
