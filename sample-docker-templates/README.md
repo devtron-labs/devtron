@@ -1,7 +1,7 @@
 # Sample Docker Templates
 
 This directory contains sample Dockerfile templates for different languages and
-frameworks which can be used for furthur containerizing the application and deploy
+frameworks which can be used for further containerizing the application and deploy
 it in production environment. The template contains a generic approach for building
 containerized application with server config files included in it.
 

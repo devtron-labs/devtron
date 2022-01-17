@@ -8,7 +8,7 @@ This documentation consists of the Global Configurations available in Devtron.
 
 [Git Accounts](git-accounts.md)
 
-[Docker Registries](docker-registries.md)
+[Container Registries](docker-registries.md)
 
 [Chart Repositories](chart-repo.md)
 

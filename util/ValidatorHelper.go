@@ -2,6 +2,8 @@ package util
 
 import (
 	"errors"
+	"fmt"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"math"
 	"regexp"
 	"strconv"
@@ -58,45 +60,28 @@ func validateAndBuildResourcesAssignment(dat map[string]interface{}, validationK
 	return test
 }
 
-func MemoryToNumber(memory string) (float64, error) {
-	if memoryParser == nil {
-		re, _ := regexp.Compile(MemoryRegex)
-		memoryParser = &resourceParser{
-			name:    "memory",
-			pattern: MemoryRegex,
-			regex:   re,
-			conversions: map[string]float64{
-				"E":  float64(1000000000000000000),
-				"P":  float64(1000000000000000),
-				"T":  float64(1000000000000),
-				"G":  float64(1000000000),
-				"M":  float64(1000000),
-				"K":  float64(1000),
-				"Ei": float64(1152921504606846976),
-				"Pi": float64(1125899906842624),
-				"Ti": float64(1099511627776),
-				"Gi": float64(1073741824),
-				"Mi": float64(1048576),
-				"Ki": float64(1024),
-			},
-		}
+func MemoryToNumber(memory string) (int64, error) {
+	quantity, err := resource.ParseQuantity(memory)
+	if err != nil {
+		return 0, err
 	}
-	return convertResource(memoryParser, memory)
-}
-func CpuToNumber(cpu string) (float64, error) {
-	if cpuParser == nil {
-		re, _ := regexp.Compile(CpuRegex)
-		cpuParser = &resourceParser{
-			name:    "cpu",
-			pattern: CpuRegex,
-			regex:   re,
-			conversions: map[string]float64{
-				"m": .001,
-			},
-		}
+	if quantity.Value() < 0 {
+		return 0, fmt.Errorf("value cannot be negative")
 	}
-	return convertResource(cpuParser, cpu)
+	return quantity.Value(), nil
 }
+
+func CpuToNumber(cpu string) (int64, error) {
+	quantity, err := resource.ParseQuantity(cpu)
+	if err != nil {
+		return 0, err
+	}
+	if quantity.MilliValue() < 0 {
+		return 0, fmt.Errorf("value cannot be negative")
+	}
+	return quantity.MilliValue(), nil
+}
+
 func convertResource(rp *resourceParser, resource string) (float64, error) {
 	matches := rp.regex.FindAllStringSubmatch(resource, -1)
 	if len(matches) == 0 {
@@ -273,12 +258,8 @@ func (f CpuChecker) IsFormat(input interface{}) bool {
 	if !ok {
 		return false
 	}
-
-	if CpuUnitChecker.MatchString(asString) {
-		return true
-	} else {
-		return false
-	}
+	quantity, err := resource.ParseQuantity(asString)
+	return err == nil && quantity.Value() > 0
 }
 
 func (f MemoryChecker) IsFormat(input interface{}) bool {
@@ -289,12 +270,8 @@ func (f MemoryChecker) IsFormat(input interface{}) bool {
 	if !ok {
 		return false
 	}
-
-	if MemoryUnitChecker.MatchString(asString) {
-		return true
-	} else {
-		return false
-	}
+	quantity, err := resource.ParseQuantity(asString)
+	return err == nil && quantity.Value() > 0
 }
 
 type (

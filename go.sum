@@ -488,8 +488,8 @@ github.com/nats-io/stan.go v0.4.5/go.mod h1:Ji7mK6gRZJSH1nc3ZJH6vi7zn/QnZhpR9Arm
 github.com/nats-io/stan.go v0.5.0 h1:ZaSPMb6jnDXsSlOACynJrUiB3Evleg3ZyyX+rnf3TlQ=
 github.com/nats-io/stan.go v0.5.0/go.mod h1:dYqB+vMN3C2F9pT1FRQpg9eHbjPj6mP0yYuyBNuXHZE=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
-github.com/nishant-d/authenticator v0.4.19 h1:C9IZYSkXVYg7RcOzPDDMxvV3L6PnQfL/jkqZi9ilG6U=
-github.com/nishant-d/authenticator v0.4.19/go.mod h1:xm245WtNv0IrRh4PIeeQCNj4YPOcYe683/YBG3Wsd3w=
+github.com/nishant-d/authenticator v0.4.20 h1:5oQCykopEzjUy59EdBOZ8/2zg0PlXFndPACgcNLWBkM=
+github.com/nishant-d/authenticator v0.4.20/go.mod h1:cCro6RXcQXchb7ne18o84Y4mLCFn2flt6YdIamHJfh8=
 github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d/go.mod h1:YUTz3bUH2ZwIWBy3CJBeOBEugqcmXREj14T+iG/4k4U=
 github.com/onsi/ginkgo v0.0.0-20170829012221-11459a886d9c/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=

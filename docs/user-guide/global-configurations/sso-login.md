@@ -34,7 +34,7 @@ Only single SSO login configuration can be active at one time. Whenever you crea
 
 URL and redirectURI should be same as provided in screenshots except domain substring.
 
-![](../../.gitbook/assets/sso-config.jpg)
+![](../../user-guide/global-configurations/images/sso-login.jpg)
 
 Click on `Save` bottom for creating and activating sso login on bottom right of the configuration.
 

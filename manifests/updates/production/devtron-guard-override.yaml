@@ -21,11 +21,11 @@ data:
                 requests:
                   cpu: 0.01
                   memory: 30Mi
-#             env:
-#              - name: CONFIG_HASH
-#                value: give-value
-#              - name: SECRET_HASH
-#                value: give-value
-#              - name: DEVTRON_APP_NAME
-#                value: guard
+    #             env:
+    #              - name: CONFIG_HASH
+    #                value: give-value
+    #              - name: SECRET_HASH
+    #                value: give-value
+    #              - name: DEVTRON_APP_NAME
+    #                value: guard
 

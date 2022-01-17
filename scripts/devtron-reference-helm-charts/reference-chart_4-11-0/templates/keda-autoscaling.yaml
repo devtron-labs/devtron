@@ -11,9 +11,15 @@ spec:
 {{- if $.Values.kedaAutoscaling.envSourceContainerName }}
     envSourceContainerName: {{ $.Values.kedaAutoscaling.envSourceContainerName }}
 {{- end }}
+{{- if $.Values.kedaAutoscaling.pollingInterval }}
   pollingInterval: {{ $.Values.kedaAutoscaling.pollingInterval }}
+{{- end }}
+{{- if $.Values.kedaAutoscaling.cooldownPeriod }}
   cooldownPeriod: {{ $.Values.kedaAutoscaling.cooldownPeriod }}
+{{- end }}
+{{- if $.Values.kedaAutoscaling.idleReplicaCount }}
   idleReplicaCount: {{ $.Values.kedaAutoscaling.idleReplicaCount }}
+{{- end }}
   minReplicaCount: {{ $.Values.kedaAutoscaling.minReplicaCount }}
   maxReplicaCount: {{ $.Values.kedaAutoscaling.maxReplicaCount }}
 {{- if $.Values.kedaAutoscaling.fallback }}
