@@ -66,6 +66,14 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
+	if err != nil {
+		handler.logger.Errorw("error in decoding appId","err",err,"appId",request.AppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//setting appIdentifier value in request
+	request.AppIdentifier = appIdentifier
 	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
 	if err != nil || !valid {
 		handler.logger.Errorw("error in validating resource request", "err", err)
@@ -100,6 +108,14 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
+	if err != nil {
+		handler.logger.Errorw("error in decoding appId","err",err,"appId",request.AppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//setting appIdentifier value in request
+	request.AppIdentifier = appIdentifier
 	// RBAC enforcer applying
 	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 	token := r.Header.Get("token")
@@ -108,13 +124,6 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 		return
 	}
 	//RBAC enforcer Ends
-	//TODO : confirm resource validation removal
-	//valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
-	//if err != nil || !valid {
-	//	handler.logger.Errorw("error in validating resource request", "err", err)
-	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//	return
-	//}
 	resource, err := handler.k8sApplicationService.CreateResource(&request)
 	if err != nil {
 		handler.logger.Errorw("error in creating resource", "err", err)
@@ -133,6 +142,14 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
+	if err != nil {
+		handler.logger.Errorw("error in decoding appId","err",err,"appId",request.AppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//setting appIdentifier value in request
+	request.AppIdentifier = appIdentifier
 	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
 	if err != nil || !valid {
 		handler.logger.Errorw("error in validating resource request", "err", err)
@@ -165,6 +182,14 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
+	if err != nil {
+		handler.logger.Errorw("error in decoding appId","err",err,"appId",request.AppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//setting appIdentifier value in request
+	request.AppIdentifier = appIdentifier
 	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
 	if err != nil || !valid {
 		handler.logger.Errorw("error in validating resource request", "err", err)
@@ -197,6 +222,14 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
+	if err != nil {
+		handler.logger.Errorw("error in decoding appId","err",err,"appId",request.AppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//setting appIdentifier value in request
+	request.AppIdentifier = appIdentifier
 	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
 	if err != nil || !valid {
 		handler.logger.Errorw("error in validating resource request", "err", err)
@@ -223,14 +256,9 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	vars := mux.Vars(r)
-	releaseName := vars["releaseName"]
 	podName := vars["podName"]
 	containerName := v.Get("containerName")
-	namespace := v.Get("namespace")
-	clusterId, err := strconv.Atoi(vars["clusterId"])
-	if err != nil {
-		clusterId = 0
-	}
+	appId := v.Get("appId")
 	/*sinceSeconds, err := strconv.Atoi(v.Get("sinceSeconds"))
 	if err != nil {
 		sinceSeconds = 0
@@ -243,16 +271,18 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 	if err != nil {
 		tailLines = 0
 	}
+	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
+	if err != nil {
+		handler.logger.Errorw("error in decoding appId","err",err,"appId",appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	request := &ResourceRequestBean{
-		AppIdentifier: &client.AppIdentifier{
-			ClusterId:   clusterId,
-			Namespace:   namespace,
-			ReleaseName: releaseName,
-		},
+		AppIdentifier: appIdentifier,
 		K8sRequest: &application.K8sRequestBean{
 			ResourceIdentifier: application.ResourceIdentifier{
 				Name:             podName,
-				Namespace:        namespace,
+				Namespace:        appIdentifier.Namespace,
 				GroupVersionKind: schema.GroupVersionKind{},
 			},
 			PodLogsRequest: application.PodLogsRequest{

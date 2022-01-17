@@ -19,7 +19,7 @@ import (
 
 type K8sClientService interface {
 	GetResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
-	CreateResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
+	CreateResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (resp *ManifestResponse, err error)
 	UpdateResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
 	DeleteResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
 	ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error)
@@ -85,14 +85,14 @@ func (impl K8sClientServiceImpl) GetResource(restConfig *rest.Config, request *K
 	return &ManifestResponse{*resp}, nil
 }
 
-func (impl K8sClientServiceImpl) CreateResource(restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
+func (impl K8sClientServiceImpl) CreateResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error) {
 	resourceIf, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, err
 	}
 	var createObj map[string]interface{}
-	err = json.Unmarshal([]byte(request.Patch), &createObj)
+	err = json.Unmarshal([]byte(manifest), &createObj)
 	if err != nil {
 		impl.logger.Errorw("error in json un-marshaling patch(manifest) string for creating resource", "err", err,"manifest",request.Patch)
 		return nil, err

@@ -47,7 +47,8 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 }
 
 type ResourceRequestBean struct {
-	AppIdentifier *client.AppIdentifier       `json:"appIdentifier"`
+	AppId         string                      `json:"appId"`
+	AppIdentifier *client.AppIdentifier       `json:"-"`
 	K8sRequest    *application.K8sRequestBean `json:"k8sRequest"`
 }
 
@@ -84,8 +85,6 @@ func (impl *K8sApplicationServiceImpl) CreateResource(request *ResourceRequestBe
 		impl.logger.Debugw("invalid request, desired manifest not found", "err", err)
 		return nil, fmt.Errorf("no manifest found for this request")
 	}
-	//updating desired manifest into request object
-	request.K8sRequest.Patch = *manifest
 
 	//getting rest config by clusterId
 	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
@@ -93,7 +92,7 @@ func (impl *K8sApplicationServiceImpl) CreateResource(request *ResourceRequestBe
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
 	}
-	resp, err := impl.k8sClientService.CreateResource(restConfig, request.K8sRequest)
+	resp, err := impl.k8sClientService.CreateResource(restConfig, request.K8sRequest, *manifest)
 	if err != nil {
 		impl.logger.Errorw("error in creating resource", "err", err, "request", request)
 		return nil, err
