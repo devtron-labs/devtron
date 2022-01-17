@@ -137,7 +137,6 @@ paths:
           required: true
           schema:
             type: string
-            description: pipe separated values of - clusterId, namespace, releaseName(in the same order)
         - name: follow
           in: query
           schema:
@@ -224,7 +223,6 @@ components:
       properties:
         appId:
           type: string
-          description: pipe separated values of - clusterId, namespace, releaseName(in the same order)
         k8sRequest:
           $ref: '#/components/schemas/K8sRequestObject'
     K8sRequestObject:
