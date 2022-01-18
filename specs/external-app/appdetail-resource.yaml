@@ -52,6 +52,31 @@ paths:
                     description: status
                   result:
                     $ref: '#/components/schemas/ResourceGetResponse'
+  /orchestrator/k8s/resource/create:
+    post:
+      description: this api will be used for applying desired manifest
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: create resource response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ResourceGetResponse'
   /orchestrator/k8s/resource/delete:
     post:
       description: this api will be used for delete any resource.
@@ -93,20 +118,10 @@ paths:
             text/event-stream:
               schema:
                 $ref: "#/components/schemas/EventsResponseObject"
-  /orchestrator/k8s/pods/logs/{clusterId}/{releaseName}/{podName}:
+  /orchestrator/k8s/pods/logs/{podName}:
     get:
       description: this api will be used for fetching logs for container.
       parameters:
-        - name: clusterId
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: releaseName
-          in: path
-          required: true
-          schema:
-            type: string
         - name: podName
           in: path
           required: true
@@ -117,7 +132,7 @@ paths:
           required: true
           schema:
             type: string
-        - name: namespace
+        - name: appId
           in: query
           required: true
           schema:
@@ -206,23 +221,10 @@ components:
     ResourceRequestObject:
       type: object
       properties:
-        appIdentifier:
-          $ref: '#/components/schemas/AppIdentifierObject'
+        appId:
+          type: string
         k8sRequest:
           $ref: '#/components/schemas/K8sRequestObject'
-    AppIdentifierObject:
-      type: object
-      properties:
-        clusterId:
-          type: number
-        namespace:
-          type: string
-        releaseName:
-          type: string
-      required:
-        - clusterId
-        - namespace
-        - releaseName
     K8sRequestObject:
       type: object
       properties:

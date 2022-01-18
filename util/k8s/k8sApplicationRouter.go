@@ -23,6 +23,9 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.Path("/resource").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetResource).Methods("POST")
 
+	k8sAppRouter.Path("/resource/create").
+		HandlerFunc(impl.k8sApplicationRestHandler.CreateResource).Methods("POST")
+
 	k8sAppRouter.Path("/resource").
 		HandlerFunc(impl.k8sApplicationRestHandler.UpdateResource).Methods("PUT")
 
@@ -32,8 +35,8 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.Path("/events").
 		HandlerFunc(impl.k8sApplicationRestHandler.ListEvents).Methods("POST")
 
-	k8sAppRouter.Path("/pods/logs/{clusterId}/{releaseName}/{podName}").
-		Queries("containerName", "{containerName}", "namespace", "{namespace}").
+	k8sAppRouter.Path("/pods/logs/{podName}").
+		Queries("containerName", "{containerName}", "appId", "{appId}").
 		//Queries("sinceSeconds", "{sinceSeconds}").
 		Queries("follow", "{follow}").
 		Queries("tailLines", "{tailLines}").
