@@ -1,7 +1,7 @@
 # Table of contents
 
 ## Devtron
-* [Introduction](README.md)
+* [Introduction](setup/install/README.md)
 
 * [Setup](setup/install/README.md)
   * [Installing Devtron](setup/install/README.md)
