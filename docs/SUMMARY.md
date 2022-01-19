@@ -11,7 +11,6 @@
     * [Installation Configurations](setup/install/installation-configuration.md)
     * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
     * [Ingress setup for devtron installation](setup/install/ingress-setup.md)
-<!-- * [Start Using devtron](setup/start-using.md) -->
   * [Global Configurations](user-guide/global-configurations/README.md)
     * [GitOps](user-guide/global-configurations/gitops.md)
     * [Git Accounts](user-guide/global-configurations/git-accounts.md)
