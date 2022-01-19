@@ -1,0 +1,1 @@
+DROP TABLE "public"."auth_policy" CASCADE;

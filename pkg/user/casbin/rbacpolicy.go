@@ -27,6 +27,7 @@ const (
 	ResourceUser              = "user"
 	ResourceNotification      = "notification"
 	ResourceTemplate          = "template"
+	ResourceTerminal          = "terminal"
 
 	ResourceProjects     = "projects"
 	ResourceApplications = "applications"

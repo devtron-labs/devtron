@@ -130,7 +130,9 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	userAuthRepositoryImpl := repository2.NewUserAuthRepositoryImpl(db, sugaredLogger)
+	authPolicyRepositoryImpl := repository2.NewAuthPolicyRepositoryImpl(db, sugaredLogger)
+	authRoleRepositoryImpl := repository2.NewAuthRoleRepositoryImpl(db, sugaredLogger)
+	userAuthRepositoryImpl := repository2.NewUserAuthRepositoryImpl(db, sugaredLogger, authPolicyRepositoryImpl, authRoleRepositoryImpl)
 	runtimeConfig, err := client2.GetRuntimeConfig()
 	if err != nil {
 		return nil, err
