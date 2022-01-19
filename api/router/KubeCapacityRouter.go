@@ -40,5 +40,6 @@ func (impl KubeCapacityRouterImpl) InitKubeCapacityRouter(configRouter *mux.Rout
 	configRouter.Path("/util").HandlerFunc(impl.kubeCapacityRestHandler.KubeCapacityUtilization).Methods("GET")
 	configRouter.Path("/available").HandlerFunc(impl.kubeCapacityRestHandler.AvailableResources).Methods("GET")
 	configRouter.Path("/pods-util").HandlerFunc(impl.kubeCapacityRestHandler.PodsAndUtil).Methods("GET")
-
+	configRouter.Path("/get-nodes").HandlerFunc(impl.kubeCapacityRestHandler.GetNodes).Methods("GET")
+	configRouter.Path("/get-pods").HandlerFunc(impl.kubeCapacityRestHandler.GetPodsOfNodes).Methods("GET")
 }
