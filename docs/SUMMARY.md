@@ -1,7 +1,10 @@
 # Table of contents
 
-## Devtron
+## Overview
 * [Introduction](README.md)
+
+## Offerings
+### Devtron
 
 * [Setup](setup/install/README.md)
   * [Installing Devtron](setup/install/README.md)
@@ -63,7 +66,7 @@
     * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
 * [Telemetry Overview](user-guide/telemetry.md)
 
-## Hyperion
+### Hyperion
 * [Introduction](hyperion/README.md)
 * [Setup](hyperion/setup/install/README.md)
   * [Global Configurations](hyperion/user-guide/global-configurations/README.md)
