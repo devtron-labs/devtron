@@ -77,6 +77,8 @@ Get updates on Devtron's development and chat with the project maintainers, cont
 
 ### Why Hyperion?
 Hyperion is a lightweight Dashboard for Kubernetes deployments. Packed with full-fleged debugging features enabled with resource grouping for easier debugging for Development and Infra team.
+You can also upgrade to Devtron from Hyperion to enjoy full stack features of Devtron.
+
 
 ### Hyperion Features
 
