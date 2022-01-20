@@ -1,4 +1,4 @@
-# Table of contents
+# Summary
 
 ## Overview
 * [Introduction](README.md)
@@ -25,8 +25,6 @@
     * [Manage Notification](user-guide/global-configurations/manage-notification.md)
   * [Devtron Upgrade](setup/upgrade/README.md)
     * [0.2.x-0.3.x](setup/upgrade/devtron-upgrade-0.2.x-0.3.x.md)
-
-
 * [User Guide](user-guide/creating-application/README.md)
   * [Creating Application](user-guide/creating-application/README.md)
     * [Git Repository](user-guide/creating-application/git-material.md)
