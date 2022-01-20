@@ -3,7 +3,6 @@
 ## Overview
 * [Introduction](README.md)
 
-## Offerings
 ### Devtron
 
 * [Setup](setup/install/README.md)
