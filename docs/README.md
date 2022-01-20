@@ -1,8 +1,7 @@
-# Introduction
+# Overview
 
+## Devtron
 Devtron is an open source software delivery workflow for Kubernetes written in go.
-
-[Website](https://devtron.ai/) · [Blog](https://devtron.ai/blog/) · [Join Discord](https://discord.gg/jsRG5qx2gp) · [Twitter](https://twitter.com/DevtronL)
 
 ## Why Devtron?
 
@@ -10,9 +9,9 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 ![](.gitbook/assets/preview%20%281%29%20%282%29.gif)
 
-### Some of the benefits  provided by devtron are:
+### Devtron Features:
 
-#### Zero code software delivery workflow
+#### Zero code software delivery workflow for Kubernetes
 
 * Workflow which understands the domain of **Kubernetes, testing, CD, SecOps** so that you dont have to write scripts
 * Reusable and composable components so that workflows are easy to contruct and reason through
@@ -32,12 +31,12 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 #### Application debugging dashboard
 
-* One place for all historical kubernetes events 
-* Access all manifests securely for eg secret obfuscation 
-* _**Application metrics**_ for cpu, ram, http status code and latency with comparison between new and old 
-* _**Advanced logging**_ with grep and json search 
-* Intelligent _**correlation between events, logs**_ for faster triangulation of issue 
-* Auto issue identification 
+* One place for all historical kubernetes events
+* Access all manifests securely for eg secret obfuscation
+* _**Application metrics**_ for cpu, ram, http status code and latency with comparison between new and old
+* _**Advanced logging**_ with grep and json search
+* Intelligent _**correlation between events, logs**_ for faster triangulation of issue
+* Auto issue identification
 
 #### Enterprise Grade security and compliances
 
@@ -69,10 +68,30 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 
 Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
 
-* Join the [Discord Community](https://discord.gg/jsRG5qx2gp) 
+* Join the [Discord Community](https://discord.gg/jsRG5qx2gp)
 * Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
 * Raise feature requests, suggest enhancements, report bugs at [GitHub issues](https://github.com/devtron-labs/devtron/issues)
 * Read the [Devtron blog](https://devtron.ai/blog/)
+
+## Hyperion
+
+### Why Hyperion?
+Hyperion is a lightweight Dashboard for Kubernetes deployments. Packed with full-fleged debugging features enabled with resource grouping for easier debugging for Development and Infra team.
+
+### Hyperion Features
+
+#### Application-level resource grouping for easier Debugging
+Hyperion groups your deployed microservices and displays them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Hyperion UI and even edit them!
+
+#### Centralized Access Management
+Give access to users on Project, Environment and App level and control the level of access with customizable View only and Edit access.
+
+#### Manage and observe Multiple Clusters
+Manage access of all the Kubernetes clusters (hosted on multiple cloud/on-prem) right from one Hyperion setup.
+
+#### View and Edit Kubernetes Manifests
+View and Edit all Kubernetes resources right from the Hyperion dashboard.
+
 
 ## Contribute
 
