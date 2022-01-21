@@ -76,14 +76,7 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
 * It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/).
 * application metrics only works for k8s 1.16+
 
-## Community
 
-Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
-
-* Join the [Discord Community](https://discord.gg/jsRG5qx2gp)
-* Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
-* Raise feature requests, suggest enhancements, report bugs at [GitHub issues](https://github.com/devtron-labs/devtron/issues)
-* Read the [Devtron blog](https://devtron.ai/blog/)
 
 ## Hyperion
 
@@ -119,3 +112,11 @@ We at Devtron take security and our users' trust very seriously. If you believe 
 
 Devtron is available under the [Apache License, Version 2.0](https://github.com/devtron-labs/devtron/blob/main/LICENSE)
 
+## Community
+
+Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
+
+* Join the [Discord Community](https://discord.gg/jsRG5qx2gp)
+* Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
+* Raise feature requests, suggest enhancements, report bugs at [GitHub issues](https://github.com/devtron-labs/devtron/issues)
+* Read the [Devtron blog](https://devtron.ai/blog/)
