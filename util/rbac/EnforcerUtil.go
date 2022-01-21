@@ -258,7 +258,7 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) string {
 	}
 	environmentIdentifier := env.EnvironmentIdentifier
 	//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
-	if !strings.Contains(env.EnvironmentIdentifier, "__") {
+	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
 	}
 	return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier, strings.ToLower(application.AppName))
@@ -275,7 +275,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 	}
 	environmentIdentifier := env.EnvironmentIdentifier
 	//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
-	if !strings.Contains(env.EnvironmentIdentifier, "__") {
+	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
 	}
 	return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier, strings.ToLower(application.AppName))
