@@ -1,6 +1,6 @@
 # Overview
 
-## Devtron
+## Devtron 🚀
 Devtron leverages popular open source tools to provide a No-Code SaaS like experience for creating Software Delivery workflows for Kubernetes.
 
 
@@ -76,9 +76,9 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
 * It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/).
 * application metrics only works for k8s 1.16+
 
+---
 
-
-## Hyperion
+## Hyperion 🦹
 
 ### Why Hyperion?
 Hyperion is a lightweight Dashboard for Kubernetes deployments. Packed with full-fleged debugging features enabled with resource grouping for easier debugging for Development and Infra team.
@@ -88,17 +88,20 @@ You can also upgrade to Devtron from Hyperion to enjoy full stack features of De
 ### Hyperion Features
 
 #### Application-level resource grouping for easier Debugging
-Hyperion groups your deployed microservices and displays them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Hyperion UI and even edit them!
+- Hyperion groups your deployed microservices and displays them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Hyperion UI and even edit them!
 
 #### Centralized Access Management
-Give access to users on Project, Environment and App level and control the level of access with customizable View only and Edit access.
+- Give access to users on Project, Environment and App level and control the level of access with customizable View only and Edit access.
 
 #### Manage and observe Multiple Clusters
-Manage access of all the Kubernetes clusters (hosted on multiple cloud/on-prem) right from one Hyperion setup.
+- Manage access of all the Kubernetes clusters (hosted on multiple cloud/on-prem) right from one Hyperion setup.
 
 #### View and Edit Kubernetes Manifests
-View and Edit all Kubernetes resources right from the Hyperion dashboard.
+- View and Edit all Kubernetes resources right from the Hyperion dashboard.
 
+
+---
+***
 
 ## Contribute
 
