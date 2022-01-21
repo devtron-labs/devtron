@@ -1,13 +1,23 @@
 # Overview
 
 ## Devtron
-Devtron is an open source software delivery workflow for Kubernetes written in go.
+Devtron leverages popular open source tools to provide a No-Code SaaS like experience for creating Software Delivery workflows for Kubernetes.
+![](.gitbook/assets/preview%20%281%29%20%282%29.gif)
 
 ## Why Devtron?
 
-It is designed as a self-serve platform for operationalizing and maintaining applications \(AppOps\) on Kubernetes in a developer friendly way.
+We have seen various tools that are used to greatly increase the ease of using Kubernetes. However, using these tools simultaneously is painful, and hard to use. This is due to the fact these tools don't talk to each other for managing different aspects of application lifecycle; including CI, CD, security, cost, observability, stabilization.
 
-![](.gitbook/assets/preview%20%281%29%20%282%29.gif)
+Thus, we built Devtron to solve this problem!
+
+<p align="center"><img src="https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/readme-comic.png"></p>
+
+Devtron is an open source modular product providing 'seamless', 'implementation agnostic uniform interface', integrated  with open source, and commercial tools across the entire life cycle. This is all achieved while focusing on a slick User Experience, including a self-serve model.
+<br>
+You can efficiently handle Security, Stability, Cost, and more in a unified experience.
+
+
+
 
 ### Devtron Features:
 
@@ -64,6 +74,14 @@ It is designed as a self-serve platform for operationalizing and maintaining app
 * It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/).
 * application metrics only works for k8s 1.16+
 
+## Community
+
+Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
+
+* Join the [Discord Community](https://discord.gg/jsRG5qx2gp)
+* Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
+* Raise feature requests, suggest enhancements, report bugs at [GitHub issues](https://github.com/devtron-labs/devtron/issues)
+* Read the [Devtron blog](https://devtron.ai/blog/)
 
 ## Hyperion
 
@@ -86,14 +104,6 @@ Manage access of all the Kubernetes clusters (hosted on multiple cloud/on-prem) 
 #### View and Edit Kubernetes Manifests
 View and Edit all Kubernetes resources right from the Hyperion dashboard.
 
-## Community
-
-Get updates on Devtron's development and chat with the project maintainers, contributors and community members.
-
-* Join the [Discord Community](https://discord.gg/jsRG5qx2gp)
-* Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
-* Raise feature requests, suggest enhancements, report bugs at [GitHub issues](https://github.com/devtron-labs/devtron/issues)
-* Read the [Devtron blog](https://devtron.ai/blog/)
 
 ## Contribute
 
