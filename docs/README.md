@@ -3,7 +3,7 @@
 ## Devtron 🚀
 Devtron leverages popular open source tools to provide a No-Code SaaS like experience for creating Software Delivery workflows for Kubernetes.
 
-> Do check the [Devtron Installation Guide](setup/install/README.md)
+> Do check the [Devtron Installation Guide ⎈](setup/install/README.md)
 
 
 ![](.gitbook/assets/preview%20%281%29%20%282%29.gif)
@@ -87,7 +87,7 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
 Hyperion is a lightweight Dashboard for Kubernetes deployments. Packed with full-fleged debugging features enabled with resource grouping for easier debugging for Development and Infra team.
 You can also upgrade to Devtron from Hyperion to enjoy full stack features of Devtron.
 
-> Do check the [Hyperion Installation Guide](hyperion/setup/install/README.md)
+> Do check the [Hyperion Installation Guide ⎈](hyperion/setup/install/README.md)
 
 ### Hyperion Features
 
