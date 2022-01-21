@@ -227,6 +227,7 @@ func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *App
 	req := &ObjectRequest{
 		ClusterConfig: config,
 		ReleaseName: app.ReleaseName,
+		ReleaseNamespace: app.Namespace,
 		ObjectIdentifier: &ObjectIdentifier{
 			Group: resource.GetGroup(),
 			Kind: resource.GetKind(),
