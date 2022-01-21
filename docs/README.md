@@ -104,13 +104,6 @@ View and Edit all Kubernetes resources right from the Hyperion dashboard.
 
 Check out our [contributing guidelines](https://github.com/devtron-labs/devtron/blob/main/CONTRIBUTING.md). Included are directions for opening issues, coding standards, and notes on our development processes.
 
-## Vulnerability Reporting
-
-We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose by contacting us at security@devtron.ai.
-
-## License
-
-Devtron is available under the [Apache License, Version 2.0](https://github.com/devtron-labs/devtron/blob/main/LICENSE)
 
 ## Community
 
@@ -120,3 +113,11 @@ Get updates on Devtron's development and chat with the project maintainers, cont
 * Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
 * Raise feature requests, suggest enhancements, report bugs at [GitHub issues](https://github.com/devtron-labs/devtron/issues)
 * Read the [Devtron blog](https://devtron.ai/blog/)
+
+## Vulnerability Reporting
+
+We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose by contacting us at security@devtron.ai.
+
+## License
+
+Devtron is available under the [Apache License, Version 2.0](https://github.com/devtron-labs/devtron/blob/main/LICENSE)
