@@ -59,6 +59,9 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 	opts = append(opts,
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(20*1024*1024),
+		),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	)
 	endpoint := fmt.Sprintf("dns:///%s", impl.helmClientConfig.Url)
