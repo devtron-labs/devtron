@@ -39,7 +39,7 @@ type UserAuthRouterImpl struct {
 	clientApp       *oidc.ClientApp
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userService user.UserService, dexConfig *client.DexConfig) (*UserAuthRouterImpl, error) {
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userService user.UserService, dexConfig *client.DexConfig, sClient *client.K8sClient) (*UserAuthRouterImpl, error) {
 	router := &UserAuthRouterImpl{
 		userAuthHandler: userAuthHandler,
 		logger:          logger,
@@ -51,6 +51,23 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHa
 	}
 	router.dexProxy = dexProxy
 	router.clientApp = oidcClient
+	configUpdate, err := sClient.ConfigUpdateNotify()
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		cofigUpdate := <-configUpdate
+		if cofigUpdate {
+			logger.Infow("dex config update detected")
+			dexConfig, err := client.BuildDexConfig(sClient)
+			if err != nil {
+				logger.Errorw("error in building updated dex config", "err", err)
+			}
+			oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, userService.UserExists, router.RedirectUrlSanitiser)
+			router.dexProxy = dexProxy
+			router.clientApp = oidcClient
+		}
+	}()
 	return router, nil
 }
 
