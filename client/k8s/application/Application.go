@@ -73,7 +73,7 @@ func (impl K8sClientServiceImpl) GetResource(restConfig *rest.Config, request *K
 	}
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.Unstructured
-	if len(resourceIdentifier.Namespace) > 0 && !namespaced {
+	if len(resourceIdentifier.Namespace) > 0 && namespaced {
 		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Get(resourceIdentifier.Name, metav1.GetOptions{})
 	} else {
 		resp, err = resourceIf.Get(resourceIdentifier.Name, metav1.GetOptions{})
@@ -99,7 +99,7 @@ func (impl K8sClientServiceImpl) CreateResource(restConfig *rest.Config, request
 	}
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.Unstructured
-	if len(resourceIdentifier.Namespace) > 0 && !namespaced {
+	if len(resourceIdentifier.Namespace) > 0 && namespaced {
 		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Create(&unstructured.Unstructured{Object: createObj}, metav1.CreateOptions{})
 	} else {
 		resp, err = resourceIf.Create(&unstructured.Unstructured{Object: createObj}, metav1.CreateOptions{})
@@ -125,7 +125,7 @@ func (impl K8sClientServiceImpl) UpdateResource(restConfig *rest.Config, request
 	}
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.Unstructured
-	if len(resourceIdentifier.Namespace) > 0 && !namespaced {
+	if len(resourceIdentifier.Namespace) > 0 && namespaced {
 		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Update(&unstructured.Unstructured{Object: updateObj}, metav1.UpdateOptions{})
 	} else {
 		resp, err = resourceIf.Update(&unstructured.Unstructured{Object: updateObj}, metav1.UpdateOptions{})
@@ -144,7 +144,7 @@ func (impl K8sClientServiceImpl) DeleteResource(restConfig *rest.Config, request
 	}
 	resourceIdentifier := request.ResourceIdentifier
 	var obj *unstructured.Unstructured
-	if len(resourceIdentifier.Namespace) > 0 && !namespaced {
+	if len(resourceIdentifier.Namespace) > 0 && namespaced {
 		obj, err = resourceIf.Namespace(resourceIdentifier.Namespace).Get(request.ResourceIdentifier.Name, metav1.GetOptions{})
 		if err != nil {
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
