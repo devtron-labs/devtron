@@ -66,14 +66,14 @@ type EventsResponse struct {
 }
 
 func (impl K8sClientServiceImpl) GetResource(restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
-	resourceIf, err := impl.GetResourceIf(restConfig, request)
+	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, err
 	}
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.Unstructured
-	if len(resourceIdentifier.Namespace) > 0 {
+	if len(resourceIdentifier.Namespace) > 0 && namespaced {
 		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Get(resourceIdentifier.Name, metav1.GetOptions{})
 	} else {
 		resp, err = resourceIf.Get(resourceIdentifier.Name, metav1.GetOptions{})
@@ -86,7 +86,7 @@ func (impl K8sClientServiceImpl) GetResource(restConfig *rest.Config, request *K
 }
 
 func (impl K8sClientServiceImpl) CreateResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error) {
-	resourceIf, err := impl.GetResourceIf(restConfig, request)
+	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, err
@@ -94,12 +94,12 @@ func (impl K8sClientServiceImpl) CreateResource(restConfig *rest.Config, request
 	var createObj map[string]interface{}
 	err = json.Unmarshal([]byte(manifest), &createObj)
 	if err != nil {
-		impl.logger.Errorw("error in json un-marshaling patch(manifest) string for creating resource", "err", err,"manifest",request.Patch)
+		impl.logger.Errorw("error in json un-marshaling patch(manifest) string for creating resource", "err", err, "manifest", request.Patch)
 		return nil, err
 	}
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.Unstructured
-	if len(resourceIdentifier.Namespace) > 0 {
+	if len(resourceIdentifier.Namespace) > 0 && namespaced {
 		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Create(&unstructured.Unstructured{Object: createObj}, metav1.CreateOptions{})
 	} else {
 		resp, err = resourceIf.Create(&unstructured.Unstructured{Object: createObj}, metav1.CreateOptions{})
@@ -112,7 +112,7 @@ func (impl K8sClientServiceImpl) CreateResource(restConfig *rest.Config, request
 }
 
 func (impl K8sClientServiceImpl) UpdateResource(restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
-	resourceIf, err := impl.GetResourceIf(restConfig, request)
+	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, err
@@ -125,7 +125,7 @@ func (impl K8sClientServiceImpl) UpdateResource(restConfig *rest.Config, request
 	}
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.Unstructured
-	if len(resourceIdentifier.Namespace) > 0 {
+	if len(resourceIdentifier.Namespace) > 0 && namespaced {
 		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Update(&unstructured.Unstructured{Object: updateObj}, metav1.UpdateOptions{})
 	} else {
 		resp, err = resourceIf.Update(&unstructured.Unstructured{Object: updateObj}, metav1.UpdateOptions{})
@@ -137,14 +137,14 @@ func (impl K8sClientServiceImpl) UpdateResource(restConfig *rest.Config, request
 	return &ManifestResponse{*resp}, nil
 }
 func (impl K8sClientServiceImpl) DeleteResource(restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
-	resourceIf, err := impl.GetResourceIf(restConfig, request)
+	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, err
 	}
 	resourceIdentifier := request.ResourceIdentifier
 	var obj *unstructured.Unstructured
-	if len(resourceIdentifier.Namespace) > 0 {
+	if len(resourceIdentifier.Namespace) > 0 && namespaced {
 		obj, err = resourceIf.Namespace(resourceIdentifier.Namespace).Get(request.ResourceIdentifier.Name, metav1.GetOptions{})
 		if err != nil {
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
@@ -167,8 +167,17 @@ func (impl K8sClientServiceImpl) DeleteResource(restConfig *rest.Config, request
 }
 
 func (impl K8sClientServiceImpl) ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error) {
+	_, namespaced, err := impl.GetResourceIf(restConfig, request)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
+		return nil, err
+	}
+
 	resourceIdentifier := request.ResourceIdentifier
 	resourceIdentifier.GroupVersionKind.Kind = "List"
+	if !namespaced {
+		resourceIdentifier.Namespace = "default"
+	}
 	eventsClient, err := v1.NewForConfig(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting client for resource", "err", err)
@@ -220,25 +229,25 @@ func (impl K8sClientServiceImpl) GetPodLogs(restConfig *rest.Config, request *K8
 	return stream, nil
 }
 
-func (impl K8sClientServiceImpl) GetResourceIf(restConfig *rest.Config, request *K8sRequestBean) (resourceIf dynamic.NamespaceableResourceInterface, err error) {
+func (impl K8sClientServiceImpl) GetResourceIf(restConfig *rest.Config, request *K8sRequestBean) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
 	resourceIdentifier := request.ResourceIdentifier
 	dynamicIf, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
-		return nil, err
+		return nil, false, err
 	}
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "err", err)
-		return nil, err
+		return nil, false, err
 	}
 	apiResource, err := ServerResourceForGroupVersionKind(discoveryClient, resourceIdentifier.GroupVersionKind)
 	if err != nil {
 		impl.logger.Errorw("error in getting server resource", "err", err)
-		return nil, err
+		return nil, false, err
 	}
 	resource := resourceIdentifier.GroupVersionKind.GroupVersion().WithResource(apiResource.Name)
-	return dynamicIf.Resource(resource), nil
+	return dynamicIf.Resource(resource), apiResource.Namespaced, nil
 }
 
 func ServerResourceForGroupVersionKind(discoveryClient discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
