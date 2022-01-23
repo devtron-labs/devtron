@@ -56,6 +56,7 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHa
 		return nil, err
 	}
 	go func() {
+		logger.Info("watching for dex config update notification")
 		cofigUpdate := <-configUpdate
 		if cofigUpdate {
 			logger.Infow("dex config update detected")
