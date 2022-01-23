@@ -57,16 +57,19 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHa
 	}
 	go func() {
 		logger.Info("watching for dex config update notification")
-		cofigUpdate := <-configUpdate
-		if cofigUpdate {
-			logger.Infow("dex config update detected")
-			dexConfig, err := client.BuildDexConfig(sClient)
-			if err != nil {
-				logger.Errorw("error in building updated dex config", "err", err)
+		for {
+			cofigUpdate := <-configUpdate
+			logger.Infow("config update received", "status", cofigUpdate)
+			if cofigUpdate {
+				logger.Infow("dex config update detected")
+				dexConfig, err := client.BuildDexConfig(sClient)
+				if err != nil {
+					logger.Errorw("error in building updated dex config", "err", err)
+				}
+				oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, userService.UserExists, router.RedirectUrlSanitiser)
+				router.dexProxy = dexProxy
+				router.clientApp = oidcClient
 			}
-			oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, userService.UserExists, router.RedirectUrlSanitiser)
-			router.dexProxy = dexProxy
-			router.clientApp = oidcClient
 		}
 	}()
 	return router, nil
