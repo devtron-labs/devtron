@@ -359,7 +359,7 @@ if !hasPostgresql {
 }
 #argocd
 hasArgocd = kubectl get deployment argocd-server -n devtroncd;
-hasargocdSecret = kubectl get secret argocd-secret -n devtroncd;
+
 helmRepo = `- name: incubator
   type: helm
   url: https://charts.helm.sh/incubator
@@ -407,13 +407,11 @@ kubeYamlEdit(argocd, `data.policy\.default`, `role:admin`, `/ConfigMap//argocd-r
 kubeYamlEdit(argocd, `subjects.0.namespace`, "devtroncd", `rbac.authorization.k8s.io/ClusterRoleBinding//argocd-application-controller`);
 kubeYamlEdit(argocd, `subjects.0.namespace`, "devtroncd", `rbac.authorization.k8s.io/ClusterRoleBinding//argocd-server`);
 if hasArgocd {
+	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-cm`);
 	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-rbac-cm`);
+	kubeYamlDelete(argocd, filter=`/Secret//argocd-secret`);
 	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-ssh-known-hosts-cm`);
 	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-tls-certs-cm`);
-}
-if hasargocdSecret{
-	kubeYamlDelete(argocd, filter=`/Secret//argocd-secret`);
-	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-cm`);
 }
 argocd = kubectl apply -n devtroncd argocd -u argocdOverride;
 pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json" -p argocdResource;
