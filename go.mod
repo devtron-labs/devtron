@@ -32,6 +32,7 @@ require (
 	github.com/go-playground/universal-translator v0.16.0 // indirect
 	github.com/go-redis/cache v6.4.0+incompatible // indirect
 	github.com/go-redis/redis v6.15.6+incompatible // indirect
+	github.com/go-resty/resty/v2 v2.7.0
 	github.com/go-xorm/xorm v0.7.9 // indirect
 	github.com/gobuffalo/envy v1.7.1 // indirect
 	github.com/gobuffalo/packr v1.30.1 // indirect

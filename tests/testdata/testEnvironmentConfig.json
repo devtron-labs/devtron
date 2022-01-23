@@ -1,0 +1,23 @@
+{
+  "testEnv" : "envName",
+  "environment" : [
+    {
+      "envName" : "testEnv",
+      "baseServerUrl" : "url",
+      "loginUserName" : "userName",
+      "loginUserPwd" : "password"
+    },
+    {
+      "envName" : "testEnv1",
+      "baseServerUrl" : "url",
+      "loginUserName" : "userName",
+      "loginUserPwd" : "password"
+    },
+    {
+      "envName" : "testEnv2",
+      "baseServerUrl" : "url",
+      "loginUserName" : "userName",
+      "loginUserPwd" : "password"
+    }
+  ]
+}
