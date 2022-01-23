@@ -485,19 +485,22 @@ func (impl EnvironmentServiceImpl) getAllClusterNamespaceCombination() ([]*Envir
 		if clusterBean.ClusterName == DefaultClusterName {
 			client, err = impl.K8sUtil.GetClientForInCluster()
 			if err != nil {
-				return nil, err
+				continue
+				//return nil, err
 			}
 		} else {
 			client, err = impl.K8sUtil.GetClientByToken(clusterBean.ServerUrl, clusterBean.Config)
 			if err != nil {
-				return nil, err
+				continue
+				//return nil, err
 			}
 		}
 		namespaceList, err := impl.K8sUtil.ListNamespaces(client)
 		statusError, _ := err.(*errors2.StatusError)
-		if err != nil && statusError.Status().Code != http.StatusNotFound {
-			impl.logger.Errorw("secret not found", "err", err)
-			return nil, err
+		if err != nil && statusError != nil && statusError.Status().Code != http.StatusNotFound {
+			impl.logger.Errorw("namespaces not found", "err", err)
+			continue
+			//return nil, err
 		}
 
 		for _, namespace := range namespaceList.Items {
