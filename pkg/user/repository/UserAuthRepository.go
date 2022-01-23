@@ -37,14 +37,15 @@ type UserAuthRepository interface {
 	GetRolesByUserId(userId int32) ([]RoleModel, error)
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
-	GetRoleByFilter(entity string, team string, app string, env string, act string) (RoleModel, error)
+	GetRoleByFilter(entity string, team string, app string, env string, act string, accessType string) (RoleModel, error)
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 
 	CreateDefaultPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error)
+	CreateDefaultHelmPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	CreateDefaultPoliciesForGlobalEntity(entity string, entityName string, action string, tx *pg.Tx) (bool, error)
-	CreateUpdateDefaultPoliciesForSuperAdmin(tx *pg.Tx) (bool, error)
+	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 }
 
@@ -66,6 +67,7 @@ type RoleModel struct {
 	EntityName  string   `sql:"entity_name"`
 	Environment string   `sql:"environment"`
 	Action      string   `sql:"action"`
+	AccessType  string   `sql:"access_type"`
 	sql.AuditLog
 }
 
@@ -129,8 +131,8 @@ func (impl UserAuthRepositoryImpl) GetAllRole() ([]RoleModel, error) {
 	}
 	return models, nil
 }
-func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, app string, env string, act string) (RoleModel, error) {
-	var models RoleModel
+func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, app string, env string, act string, accessType string) (RoleModel, error) {
+	var model RoleModel
 	EMPTY := ""
 	/*if act == "admin" {
 		act = "*"
@@ -139,41 +141,76 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, a
 	var err error
 	if len(entity) > 0 && len(app) > 0 && act == "update" {
 		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.entity_name=? AND role.action=?"
-		_, err = impl.dbConnection.Query(&models, query, entity, app, act)
+		if len(accessType) == 0 {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type='" + accessType + "'"
+		}
+		_, err = impl.dbConnection.Query(&model, query, entity, app, act)
 	} else if len(entity) > 0 && app == "" {
 		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.action=?"
-		_, err = impl.dbConnection.Query(&models, query, entity, act)
+		if len(accessType) == 0 {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type='"+accessType+"'"
+		}
+		_, err = impl.dbConnection.Query(&model, query, entity, act)
 	} else {
 		if len(team) > 0 && len(app) > 0 && len(env) > 0 && len(act) > 0 {
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND role.environment=? AND role.action=?"
-			_, err = impl.dbConnection.Query(&models, query, team, app, env, act)
+			if len(accessType) == 0 {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='"+accessType+"'"
+			}
+			_, err = impl.dbConnection.Query(&model, query, team, app, env, act)
 		} else if len(team) > 0 && app == "" && len(env) > 0 && len(act) > 0 {
 			query := "SELECT role.* FROM roles role WHERE role.team=? AND coalesce(role.entity_name,'')=? AND role.environment=? AND role.action=?"
-			_, err = impl.dbConnection.Query(&models, query, team, EMPTY, env, act)
+			if len(accessType) == 0 {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='"+accessType+"'"
+			}
+			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, env, act)
 		} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
 			//this is applicable for all environment of a team
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND coalesce(role.environment,'')=? AND role.action=?"
-			_, err = impl.dbConnection.Query(&models, query, team, app, EMPTY, act)
+			if len(accessType) == 0 {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='"+accessType+"'"
+			}
+			_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY, act)
 		} else if len(team) > 0 && app == "" && env == "" && len(act) > 0 {
 			//this is applicable for all environment of a team
 			query := "SELECT role.* FROM roles role WHERE role.team = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
-			_, err = impl.dbConnection.Query(&models, query, team, EMPTY, EMPTY, act)
+			if len(accessType) == 0 {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='"+accessType+"'"
+			}
+			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, EMPTY, act)
 		} else if team == "" && app == "" && env == "" && len(act) > 0 {
 			//this is applicable for super admin, all env, all team, all app
 			query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
-			_, err = impl.dbConnection.Query(&models, query, EMPTY, EMPTY, EMPTY, act)
+			if len(accessType) == 0 {
+				query = query + " and role.access_type is NULL"
+			} else {
+				query += " and role.access_type='"+accessType+"'"
+			}
+			_, err = impl.dbConnection.Query(&model, query, EMPTY, EMPTY, EMPTY, act)
 		} else if team == "" && app == "" && env == "" && act == "" {
-			return models, nil
+			return model, nil
 		} else {
-			return models, nil
+			return model, nil
 		}
 	}
 
 	if err != nil {
 		impl.Logger.Errorw("exception while fetching roles", "err", err)
-		return models, err
+		return model, err
 	}
-	return models, nil
+	return model, nil
 }
 
 func (impl UserAuthRepositoryImpl) CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error) {
@@ -298,10 +335,10 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 	casbin.AddPolicy(policiesView.Data)
 
 	//Creating ROLES
-	roleManager := "{\r\n    \"role\": \"role:manager_<TEAM>_<ENV>_<APP>\",\r\n    \"casbinSubjects\": [\r\n        \"role:manager_<TEAM>_<ENV>_<APP>\"\r\n    ],\r\n    \"team\": \"<TEAM>\",\r\n    \"entityName\": \"<APP>\",\r\n    \"environment\": \"<ENV>\",\r\n    \"action\": \"manager\"\r\n}"
-	roleAdmin := "{\n    \"role\": \"role:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"admin\"\n}"
-	roleTrigger := "{\n    \"role\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:trigger_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"trigger\"\n}"
-	roleView := "{\n    \"role\": \"role:view_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:view_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"view\"\n}"
+	roleManager := "{\r\n    \"role\": \"role:manager_<TEAM>_<ENV>_<APP>\",\r\n    \"casbinSubjects\": [\r\n        \"role:manager_<TEAM>_<ENV>_<APP>\"\r\n    ],\r\n    \"team\": \"<TEAM>\",\r\n    \"entityName\": \"<APP>\",\r\n    \"environment\": \"<ENV>\",\r\n    \"action\": \"manager\",\r\n    \"access_type\": \"\"\n}"
+	roleAdmin := "{\n    \"role\": \"role:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"admin\",\n    \"access_type\": \"\"\n}"
+	roleTrigger := "{\n    \"role\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:trigger_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"trigger\",\n    \"access_type\": \"\"\n}"
+	roleView := "{\n    \"role\": \"role:view_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:view_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"view\",\n    \"access_type\": \"\"\n}"
 	roleManager = strings.ReplaceAll(roleManager, "<TEAM>", team)
 	roleManager = strings.ReplaceAll(roleManager, "<ENV>", env)
 	roleManager = strings.ReplaceAll(roleManager, "<APP>", entityName)
@@ -347,6 +384,137 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 		return false, err
 	}
 	_, err = impl.createRole(&roleTriggerData, transaction)
+	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
+		return false, err
+	}
+
+	var roleViewData bean.RoleData
+	err = json.Unmarshal([]byte(roleView), &roleViewData)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		return false, err
+	}
+	_, err = impl.createRole(&roleViewData, transaction)
+	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
+		return false, err
+	}
+
+	err = transaction.Commit()
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (impl UserAuthRepositoryImpl) CreateDefaultHelmPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error) {
+	transaction, err := impl.dbConnection.Begin()
+	if err != nil {
+		return false, err
+	}
+	adminPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"helm-app:admin_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"helm-app\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"<TEAM_OBJ>/<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"helm-app:admin_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"helm-app:admin_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        }\r\n    ]\r\n}"
+	editPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"helm-app:edit_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"helm-app\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>/<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"helm-app:edit_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"helm-app\",\r\n            \"act\": \"update\",\r\n            \"obj\": \"<TEAM_OBJ>/<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"helm-app:edit_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"helm-app:edit_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        }\r\n    ]\r\n}"
+	viewPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"helm-app:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"helm-app\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>/<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"helm-app:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"helm-app:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        }\r\n    ]\r\n}"
+
+	adminPolicies = strings.ReplaceAll(adminPolicies, "<TEAM>", team)
+	adminPolicies = strings.ReplaceAll(adminPolicies, "<ENV>", env)
+	adminPolicies = strings.ReplaceAll(adminPolicies, "<APP>", entityName)
+
+	editPolicies = strings.ReplaceAll(editPolicies, "<TEAM>", team)
+	editPolicies = strings.ReplaceAll(editPolicies, "<ENV>", env)
+	editPolicies = strings.ReplaceAll(editPolicies, "<APP>", entityName)
+
+	viewPolicies = strings.ReplaceAll(viewPolicies, "<TEAM>", team)
+	viewPolicies = strings.ReplaceAll(viewPolicies, "<ENV>", env)
+	viewPolicies = strings.ReplaceAll(viewPolicies, "<APP>", entityName)
+
+	//for START in Casbin Object
+	teamObj := team
+	envObj := env
+	appObj := entityName
+	if teamObj == "" {
+		teamObj = "*"
+	}
+	if envObj == "" {
+		envObj = "*"
+	}
+	if appObj == "" {
+		appObj = "*"
+	}
+	adminPolicies = strings.ReplaceAll(adminPolicies, "<TEAM_OBJ>", teamObj)
+	adminPolicies = strings.ReplaceAll(adminPolicies, "<ENV_OBJ>", envObj)
+	adminPolicies = strings.ReplaceAll(adminPolicies, "<APP_OBJ>", appObj)
+
+	editPolicies = strings.ReplaceAll(editPolicies, "<TEAM_OBJ>", teamObj)
+	editPolicies = strings.ReplaceAll(editPolicies, "<ENV_OBJ>", envObj)
+	editPolicies = strings.ReplaceAll(editPolicies, "<APP_OBJ>", appObj)
+
+	viewPolicies = strings.ReplaceAll(viewPolicies, "<TEAM_OBJ>", teamObj)
+	viewPolicies = strings.ReplaceAll(viewPolicies, "<ENV_OBJ>", envObj)
+	viewPolicies = strings.ReplaceAll(viewPolicies, "<APP_OBJ>", appObj)
+	//for START in Casbin Object Ends Here
+
+	var policiesAdmin bean.PolicyRequest
+	err = json.Unmarshal([]byte(adminPolicies), &policiesAdmin)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		return false, err
+	}
+	impl.Logger.Debugw("add policy request", "policies", policiesAdmin)
+	casbin.AddPolicy(policiesAdmin.Data)
+
+	var policiesEdit bean.PolicyRequest
+	err = json.Unmarshal([]byte(editPolicies), &policiesEdit)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		return false, err
+	}
+	impl.Logger.Debugw("add policy request", "policies", policiesEdit)
+	casbin.AddPolicy(policiesEdit.Data)
+
+	var policiesView bean.PolicyRequest
+	err = json.Unmarshal([]byte(viewPolicies), &policiesView)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		return false, err
+	}
+	impl.Logger.Debugw("add policy request", "policies", policiesView)
+	casbin.AddPolicy(policiesView.Data)
+
+	//Creating ROLES
+	roleAdmin := "{\n    \"role\": \"helm-app:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"helm-app:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"admin\",\n    \"accessType\": \"helm-app\"\n}"
+	roleEdit := "{\n    \"role\": \"helm-app:edit_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"helm-app:edit_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"edit\",\n    \"accessType\": \"helm-app\"\n}"
+	roleView := "{\n    \"role\": \"helm-app:view_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"helm-app:view_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"view\",\n    \"accessType\": \"helm-app\"\n}"
+
+	roleAdmin = strings.ReplaceAll(roleAdmin, "<TEAM>", team)
+	roleAdmin = strings.ReplaceAll(roleAdmin, "<ENV>", env)
+	roleAdmin = strings.ReplaceAll(roleAdmin, "<APP>", entityName)
+
+	roleEdit = strings.ReplaceAll(roleEdit, "<TEAM>", team)
+	roleEdit = strings.ReplaceAll(roleEdit, "<ENV>", env)
+	roleEdit = strings.ReplaceAll(roleEdit, "<APP>", entityName)
+
+	roleView = strings.ReplaceAll(roleView, "<TEAM>", team)
+	roleView = strings.ReplaceAll(roleView, "<ENV>", env)
+	roleView = strings.ReplaceAll(roleView, "<APP>", entityName)
+
+	var roleAdminData bean.RoleData
+	err = json.Unmarshal([]byte(roleAdmin), &roleAdminData)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		return false, err
+	}
+	_, err = impl.createRole(&roleAdminData, transaction)
+	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
+		return false, err
+	}
+
+	var roleEditData bean.RoleData
+	err = json.Unmarshal([]byte(roleEdit), &roleEditData)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		return false, err
+	}
+	_, err = impl.createRole(&roleEditData, transaction)
 	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
 		return false, err
 	}
@@ -474,25 +642,14 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	return true, nil
 }
 
-func (impl UserAuthRepositoryImpl) CreateUpdateDefaultPoliciesForSuperAdmin(tx *pg.Tx) (bool, error) {
+func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error) {
 	transaction, err := impl.dbConnection.Begin()
 	if err != nil {
 		return false, err
 	}
 
-	managerPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:super-admin___\",\r\n            \"res\": \"cluster\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"*\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:super-admin___\",\r\n            \"res\": \"git\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"*\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:super-admin___\",\r\n            \"res\": \"admin\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"*\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:super-admin___\",\r\n            \"res\": \"migrate\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"*\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:super-admin___\",\r\n            \"res\": \"applications\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"*\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:super-admin___\",\r\n            \"res\": \"environment\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"*\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:super-admin___\",\r\n            \"res\": \"team\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"*\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:super-admin___\",\r\n            \"res\": \"user\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"*\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:super-admin___\",\r\n            \"res\": \"notification\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"*\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:super-admin___\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"*\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:super-admin___\",\r\n            \"res\": \"chart-group\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"*\"\r\n        }\r\n    ]\r\n}"
-
-	var policiesManager bean.PolicyRequest
-	err = json.Unmarshal([]byte(managerPolicies), &policiesManager)
-	if err != nil {
-		impl.Logger.Errorw("decode err", "err", err)
-		return false, err
-	}
-	impl.Logger.Debugw("add policy request", "policies", policiesManager)
-	casbin.AddPolicy(policiesManager.Data)
-
 	//Creating ROLES
-	roleModel, err := impl.GetRoleByFilter("", "", "", "", "super-admin")
+	roleModel, err := impl.GetRoleByFilter("", "", "", "", "super-admin", "")
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("Error in fetching role by filter", "err", err)
 		return false, err
@@ -526,6 +683,7 @@ func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx
 		EntityName:  roleData.EntityName,
 		Environment: roleData.Environment,
 		Action:      roleData.Action,
+		AccessType:  roleData.AccessType,
 	}
 	roleModel, err := impl.CreateRole(roleModel, tx)
 	if err != nil || roleModel == nil {

@@ -429,6 +429,7 @@ func WhitelistChecker(url string) bool {
 	prefixUrls := []string{
 		"/orchestrator/webhook/ext-ci/",
 		"/orchestrator/api/vi/pod/exec/ws",
+		"/orchestrator/k8s/pod/exec/sockjs/ws",
 		"/orchestrator/api/dex",
 		"/orchestrator/auth/callback",
 		"/orchestrator/auth/login",

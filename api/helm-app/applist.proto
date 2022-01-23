@@ -1,0 +1,182 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+
+option go_package = "github.com/devtron-labs/go-helm-client/bean/grpc/client";
+
+message ClusterConfig {
+  string apiServerUrl = 1;
+  string token = 2;
+  int32 clusterId = 3;
+  string clusterName = 4;
+}
+
+message AppListRequest {
+  repeated ClusterConfig clusters = 1;
+}
+
+service ApplicationService {
+  rpc ListApplications(AppListRequest) returns (stream DeployedAppList){}
+  rpc GetAppDetail(AppDetailRequest) returns (AppDetail){}
+  rpc Hibernate(HibernateRequest) returns (HibernateResponse){}
+  rpc UnHibernate(HibernateRequest) returns (HibernateResponse){}
+  rpc GetDeploymentHistory(AppDetailRequest) returns (HelmAppDeploymentHistory){}
+  rpc GetValuesYaml(AppDetailRequest) returns (ReleaseInfo){}
+  rpc GetDesiredManifest(ObjectRequest) returns (DesiredManifestResponse){}
+}
+
+message DeployedAppList {
+  repeated DeployedAppDetail DeployedAppDetail = 1;
+  int32 clusterId = 2;
+  string errorMsg = 3;
+  bool errored = 4;
+}
+
+message DeployedAppDetail {
+  string appId = 1;
+  string appName = 2;
+  string chartName = 3;
+  string chartAvatar = 4;
+  EnvironmentDetails environmentDetail = 5;
+  google.protobuf.Timestamp LastDeployed = 6;
+  string chartVersion = 7;
+}
+message EnvironmentDetails{
+  string clusterName = 1;
+  int32 clusterId = 2;
+  string namespace = 3;
+}
+
+//---------------app detail-------
+
+message AppDetailRequest {
+  ClusterConfig clusterConfig = 1;
+  string namespace = 2;
+  string ReleaseName = 3;
+}
+
+message AppDetail{
+  string applicationStatus = 1;
+  ReleaseStatus releaseStatus = 2;
+  google.protobuf.Timestamp lastDeployed = 6;
+  ChartMetadata chartMetadata = 7;
+  ResourceTreeResponse resourceTreeResponse = 8;
+  EnvironmentDetails environmentDetails = 9;
+}
+
+message ReleaseStatus {
+  string status = 1;
+  string message = 2;
+  string description = 3;
+}
+
+message ChartMetadata {
+  string chartName = 1;
+  string chartVersion = 2;
+  string home = 3;
+  repeated string sources = 4;
+  string description = 5;
+}
+
+message ResourceTreeResponse {
+  repeated ResourceNode nodes = 1;
+  repeated .PodMetadata podMetadata = 2;
+}
+
+message ResourceNode {
+  string group = 1;
+  string version = 2;
+  string kind = 3;
+  string namespace = 4;
+  string name = 5;
+  string uid = 6;
+  repeated ResourceRef parentRefs = 7;
+  ResourceNetworkingInfo networkingInfo = 8;
+  string resourceVersion = 9;
+  HealthStatus health = 10;
+  bool isHibernated = 11;
+  bool canBeHibernated = 12;
+}
+
+message HealthStatus {
+  string status = 1;
+  string message = 2;
+}
+message ResourceNetworkingInfo {
+  map<string, string> labels = 1;
+}
+
+message ResourceRef {
+  string group = 1;
+  string version = 2;
+  string kind = 3;
+  string namespace = 4;
+  string name = 5;
+  string uid = 6 ;
+}
+
+message PodMetadata {
+  string name = 1;
+  string uid = 2 ;
+  repeated string containers = 3;
+  repeated string initContainers = 4;
+  bool isNew = 5;
+}
+
+//--------hibernate
+
+message HibernateRequest {
+  ClusterConfig clusterConfig = 1;
+  repeated ObjectIdentifier objectIdentifier = 2;
+}
+
+message ObjectIdentifier {
+  string group = 1;
+  string kind = 2;
+  string version = 3;
+  string name = 4;
+  string namespace = 5;
+}
+
+message HibernateStatus{
+  ObjectIdentifier targetObject = 1;
+  bool success = 2;
+  string errorMsg = 3;
+}
+
+message HibernateResponse{
+  repeated HibernateStatus  status = 1;
+}
+//------------------- deployment history
+
+message  HelmAppDeploymentDetail {
+  ChartMetadata chartMetadata = 1;
+  string manifest = 2;
+  repeated string dockerImages = 3;
+  int32 version = 4;
+  google.protobuf.Timestamp deployedAt = 5;
+}
+
+message HelmAppDeploymentHistory {
+  repeated HelmAppDeploymentDetail deploymentHistory = 1;
+}
+
+message ReleaseInfo{
+  DeployedAppDetail deployedAppDetail = 1;
+  string defaultValues = 2;
+  string overrideValues = 3;
+  string mergedValues = 4;
+  string readme = 5;
+}
+
+message ObjectRequest {
+  ClusterConfig clusterConfig = 1;
+  ObjectIdentifier objectIdentifier = 2;
+  string releaseName = 3;
+  string releaseNamespace = 4;
+}
+
+message DesiredManifestResponse {
+  string manifest = 1;
+}

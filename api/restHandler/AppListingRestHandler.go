@@ -129,6 +129,12 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	_, _, err = fetchAppListingRequest.GetNamespaceClusterMapping()
+	if err != nil {
+		handler.logger.Errorw("request err, GetNamespaceClusterMapping", "err", err, "payload", fetchAppListingRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
 	var dg *deploymentGroup.DeploymentGroupDTO
 	if fetchAppListingRequest.DeploymentGroupId > 0 {

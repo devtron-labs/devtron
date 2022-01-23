@@ -24,7 +24,9 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/juju/errors"
 	"gopkg.in/go-playground/validator.v9"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
+	"strconv"
 )
 
 //use of writeJsonRespStructured is preferable. it api exists due to historical reason
@@ -70,7 +72,13 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 			errorsResp = append(errorsResp, errorResp)
 		}
 		response.Errors = errorsResp
-	} else {
+	} else if errStatus, ok := err.(*errors2.StatusError);ok{
+		apiErr := &util.ApiError{}
+		apiErr.Code = strconv.Itoa(int(errStatus.ErrStatus.Code))
+		apiErr.InternalMessage = errStatus.Error()
+		apiErr.UserMessage = errStatus.Error()
+		response.Errors = []*util.ApiError{apiErr}
+	} else{
 		apiErr := &util.ApiError{}
 		apiErr.Code = "000" // 000=unknown
 		apiErr.InternalMessage = errors.Details(err)

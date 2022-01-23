@@ -123,6 +123,10 @@ type InstalledAppsWithChartDetails struct {
 	Id                           int       `json:"id"`
 	EnvironmentId                int       `json:"environment_id"`
 	Deprecated                   bool      `json:"deprecated"`
+	ClusterName                  string    `json:"clusterName"`
+	Namespace                    string    `json:"namespace"`
+	TeamId                       int       `json:"teamId"`
+	ClusterId                    int       `json:"clusterId"`
 }
 
 type InstalledAppAndEnvDetails struct {
@@ -223,11 +227,13 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *AppStoreFilte
 	var query string
 	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name,"
 	query = query + " env.environment_name, env.id as environment_id, a.app_name, asav.icon, asav.name as app_store_application_name,"
+	query = query + " env.namespace, cluster.cluster_name, a.team_id, cluster.id as cluster_id, "
 	query = query + " asav.id as app_store_application_version_id, ia.id , asav.deprecated"
 	query = query + " from installed_app_versions iav"
 	query = query + " inner join installed_apps ia on iav.installed_app_id = ia.id"
 	query = query + " inner join app a on a.id = ia.app_id"
 	query = query + " inner join environment env on ia.environment_id = env.id"
+	query = query + " inner join cluster on env.cluster_id = cluster.id"
 	query = query + " inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id"
 	query = query + " inner join app_store aps on aps.id = asav.app_store_id"
 	query = query + " inner join chart_repo ch on ch.id = aps.chart_repo_id"
@@ -246,6 +252,9 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *AppStoreFilte
 	}
 	if len(filter.EnvIds) > 0 {
 		query = query + " AND env.id IN (" + sqlIntSeq(filter.EnvIds) + ")"
+	}
+	if len(filter.ClusterIds) > 0 {
+		query = query + " AND cluster.id IN (" + sqlIntSeq(filter.ClusterIds) + ")"
 	}
 	query = query + " ORDER BY aps.name ASC"
 	if filter.Size > 0 {

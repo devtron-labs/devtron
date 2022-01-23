@@ -38,4 +38,12 @@ var ClusterWireSetEa = wire.NewSet(
 	wire.Bind(new(ClusterRestHandler), new(*ClusterRestHandlerImpl)),
 	NewClusterRouterImpl,
 	wire.Bind(new(ClusterRouter), new(*ClusterRouterImpl)),
+	repository.NewEnvironmentRepositoryImpl,
+	wire.Bind(new(repository.EnvironmentRepository), new(*repository.EnvironmentRepositoryImpl)),
+	cluster.NewEnvironmentServiceImpl,
+	wire.Bind(new(cluster.EnvironmentService), new(*cluster.EnvironmentServiceImpl)),
+	NewEnvironmentRestHandlerImpl,
+	wire.Bind(new(EnvironmentRestHandler), new(*EnvironmentRestHandlerImpl)),
+	NewEnvironmentRouterImpl,
+	wire.Bind(new(EnvironmentRouter), new(*EnvironmentRouterImpl)),
 )

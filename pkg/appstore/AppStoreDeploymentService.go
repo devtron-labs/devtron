@@ -20,6 +20,7 @@ package appstore
 import (
 	"bytes"
 	"context"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -65,14 +66,16 @@ import (
 	"k8s.io/helm/pkg/proto/hapi/chart"
 )
 
-const DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT string = "devtron"
-const CLUSTER_COMPONENT_DIR_PATH string = "/cluster/component"
+const (
+	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
+	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
+)
 
 type InstalledAppService interface {
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO) (*InstallAppVersionDTO, error)
 	GetInstalledApp(id int) (*InstallAppVersionDTO, error)
 	GetInstalledAppVersion(id int) (*InstallAppVersionDTO, error)
-	GetAll(filter *appstore.AppStoreFilter) ([]InstalledAppsResponse, error)
+	GetAll(filter *appstore.AppStoreFilter) (openapi.AppList, error)
 	GetAllInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request, token string, appStoreId int) ([]InstalledAppsResponse, error)
 	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *InstallAppVersionDTO) (*InstallAppVersionDTO, error)
 
@@ -493,29 +496,51 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int) (*InstallAppV
 	return installAppVersion, err
 }
 
-func (impl InstalledAppServiceImpl) GetAll(filter *appstore.AppStoreFilter) ([]InstalledAppsResponse, error) {
+func (impl InstalledAppServiceImpl) GetAll(filter *appstore.AppStoreFilter) (openapi.AppList, error) {
+	applicationType := "DEVTRON-CHART-STORE"
+	var clusterIdsConverted []int32
+	for _, clusterId := range filter.ClusterIds {
+		clusterIdsConverted = append(clusterIdsConverted, int32(clusterId))
+	}
+	installedAppsResponse := openapi.AppList{
+		ApplicationType: &applicationType,
+		ClusterIds:      &clusterIdsConverted,
+	}
 	installedApps, err := impl.installedAppRepository.GetAllInstalledApps(filter)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Error(err)
-		return nil, err
+		return installedAppsResponse, err
 	}
-	var installedAppsResponse []InstalledAppsResponse
+	var helmAppsResponse []openapi.HelmApp
 	for _, a := range installedApps {
-		installedAppRes := InstalledAppsResponse{
-			AppStoreApplicationName:      a.AppStoreApplicationName,
-			ChartName:                    a.ChartRepoName,
-			EnvironmentName:              a.EnvironmentName,
-			Icon:                         a.Icon,
-			AppName:                      a.AppName,
-			DeployedAt:                   a.UpdatedOn,
-			EnvironmentId:                a.EnvironmentId,
-			InstalledAppVersionId:        a.InstalledAppVersionId,
-			AppStoreApplicationVersionId: a.AppStoreApplicationVersionId,
-			InstalledAppsId:              a.Id,
-			Deprecated:                   a.Deprecated,
+		appLocal := a // copied data from here because value is passed as reference
+		if appLocal.TeamId == 0 {
+			//skipping entries for empty projectId
+			continue
 		}
-		installedAppsResponse = append(installedAppsResponse, installedAppRes)
+		appId := strconv.Itoa(appLocal.Id)
+		projectId := int32(appLocal.TeamId)
+		envId := int32(appLocal.EnvironmentId)
+		clusterId := int32(appLocal.ClusterId)
+		environmentDetails := openapi.AppEnvironmentDetail{
+			EnvironmentName: &appLocal.EnvironmentName,
+			EnvironmentId:   &envId,
+			Namespace:       &appLocal.Namespace,
+			ClusterName:     &appLocal.ClusterName,
+			ClusterId:       &clusterId,
+		}
+		helmAppResp := openapi.HelmApp{
+			AppName:           &appLocal.AppName,
+			ChartName:         &appLocal.AppStoreApplicationName,
+			AppId:             &appId,
+			ProjectId:         &projectId,
+			EnvironmentDetail: &environmentDetails,
+			ChartAvatar:       &appLocal.Icon,
+			LastDeployedAt:    &appLocal.UpdatedOn,
+		}
+		helmAppsResponse = append(helmAppsResponse, helmAppResp)
 	}
+	installedAppsResponse.HelmApps = &helmAppsResponse
 	return installedAppsResponse, nil
 }
 

@@ -150,7 +150,7 @@ components:
           description: Unique id of user
         email_id:
           type: string
-          description: Unique valid email-id of user
+          description: Unique valid email-id of user, comma separated emails ids for multiple users
         groups:
           type: array
           items:
@@ -169,7 +169,7 @@ components:
       properties:
         entity:
           type: string
-          description: global entity name, i.e chart-group, git, docker, cluster etc. if this key is present than field team, application and environment are ignored.
+          description: global entity name, i.e chart-group, git, docker, cluster etc. if this key is present than field team, application and environment are ignored, here empty entity means Devtron apps permission.
           enum:
             - chart-group
             - docker
@@ -188,6 +188,10 @@ components:
         action:
           type: string
           description: action is type of role, i.e manager, admin, trigger, view, etc.
+        accessType:
+          type: string
+          enum: ["", "helm-app"]
+          description: accessType difine permission type "devtron-app"=devtron app work flow, "helm-app"=helm app work flow. based on this flag data categoriesed into devtron and helm permission tabs in user auth section.
 
 
 

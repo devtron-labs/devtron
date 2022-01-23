@@ -20,18 +20,20 @@ package repository
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 )
 
 type Environment struct {
-	tableName           struct{} `sql:"environment" pg:",discard_unknown_columns"`
-	Id                  int      `sql:"id,pk"`
-	Name                string   `sql:"environment_name"`
-	ClusterId           int      `sql:"cluster_id"`
-	Cluster             *Cluster
-	Active              bool   `sql:"active,notnull"`
-	Default             bool   `sql:"default,notnull"`
-	GrafanaDatasourceId int    `sql:"grafana_datasource_id"`
-	Namespace           string `sql:"namespace"`
+	tableName             struct{} `sql:"environment" pg:",discard_unknown_columns"`
+	Id                    int      `sql:"id,pk"`
+	Name                  string   `sql:"environment_name"`
+	ClusterId             int      `sql:"cluster_id"`
+	Cluster               *Cluster
+	Active                bool   `sql:"active,notnull"`
+	Default               bool   `sql:"default,notnull"`
+	GrafanaDatasourceId   int    `sql:"grafana_datasource_id"`
+	Namespace             string `sql:"namespace"`
+	EnvironmentIdentifier string `sql:"environment_identifier"`
 	sql.AuditLog
 }
 
@@ -44,9 +46,13 @@ type EnvironmentRepository interface {
 	FindById(id int) (*Environment, error)
 	Update(mappings *Environment) error
 	FindByName(name string) (*Environment, error)
+	FindByIdentifier(identifier string) (*Environment, error)
+	FindByNameOrIdentifier(name string, identifier string) (*Environment, error)
 	FindByClusterId(clusterId int) ([]*Environment, error)
 	FindByIds(ids []*int) ([]*Environment, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*Environment, error)
+	FindByClusterIdAndNamespace(namespaceClusterPair []*ClusterNamespacePair) ([]*Environment, error)
+	FindByClusterIds(clusterIds []int) ([]*Environment, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB) *EnvironmentRepositoryImpl {
@@ -96,6 +102,31 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByName(name string) (*Enviro
 	return environment, err
 }
 
+func (repositoryImpl EnvironmentRepositoryImpl) FindByIdentifier(identifier string) (*Environment, error) {
+	environment := &Environment{}
+	err := repositoryImpl.dbConnection.
+		Model(environment).
+		Where("environment_identifier = ?", identifier).
+		Where("active = ?", true).
+		Limit(1).
+		Select()
+	return environment, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindByNameOrIdentifier(name string, identifier string) (*Environment, error) {
+	environment := &Environment{}
+	err := repositoryImpl.dbConnection.
+		Model(environment).
+		Where("active = ?", true).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			query = query.Where("environment_identifier = ?", identifier).WhereOr("environment_name = ?", name)
+			return query, nil
+		}).
+		Limit(1).
+		Select()
+	return environment, err
+}
+
 func (repositoryImpl EnvironmentRepositoryImpl) Create(mappings *Environment) error {
 	return repositoryImpl.dbConnection.Insert(mappings)
 }
@@ -107,6 +138,36 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindAll() ([]Environment, error)
 		Column("environment.*", "Cluster").
 		Join("inner join cluster c on environment.cluster_id = c.id").
 		Where("environment.active = ?", true).
+		Select()
+	return mappings, err
+}
+
+type ClusterNamespacePair struct {
+	ClusterId     int
+	NamespaceName string
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterIdAndNamespace(namespaceClusterPair []*ClusterNamespacePair) ([]*Environment, error) {
+	var mappings []*Environment
+	var clusterNsPair []interface{}
+	for _, _pair := range namespaceClusterPair {
+		if len(_pair.NamespaceName) > 0 {
+			clusterNsPair = append(clusterNsPair, []interface{}{_pair.ClusterId, _pair.NamespaceName})
+		}
+	}
+	err := repositoryImpl.dbConnection.
+		Model(&mappings).
+		Where("active = true").
+		Where(" (cluster_id, namespace) in (?)", pg.InMulti(clusterNsPair...)).
+		Select()
+	return mappings, err
+}
+func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterIds(clusterIds []int) ([]*Environment, error) {
+	var mappings []*Environment
+	err := repositoryImpl.dbConnection.
+		Model(&mappings).
+		Where("active = true").
+		Where(" cluster_id in (?)", pg.In(clusterIds)).
 		Select()
 	return mappings, err
 }
@@ -150,8 +211,8 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterId(clusterId int) (
 	return mappings, err
 }
 
-func (repo EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Environment, error) {
+func (repositoryImpl EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Environment, error) {
 	var apps []*Environment
-	err := repo.dbConnection.Model(&apps).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
+	err := repositoryImpl.dbConnection.Model(&apps).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
 	return apps, err
 }
