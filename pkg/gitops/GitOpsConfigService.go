@@ -278,6 +278,9 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		}
 		updatedData := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
 		data := cm.Data
+		if data == nil {
+			data = make(map[string]string, 0)
+		}
 		data["repository.credentials"] = updatedData["repository.credentials"]
 		cm.Data = data
 		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
