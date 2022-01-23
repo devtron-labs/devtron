@@ -68,7 +68,7 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHa
 				}
 				oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, userService.UserExists, router.RedirectUrlSanitiser)
 				router.dexProxy = dexProxy
-				router.clientApp = oidcClient
+				router.clientApp.UpdateConfig(oidcClient)
 			}
 		}
 	}()
