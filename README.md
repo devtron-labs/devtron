@@ -57,6 +57,7 @@
 
 Devtron is a Web-Based CI/CD Platform for Kubernetes. It integrates various OpenSource tools to provide a modular CI/CD platform that also includes Security Scanning, GitOps, Access Control, and Debugging/Observability.
 
+
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
 ## :tada: Features
