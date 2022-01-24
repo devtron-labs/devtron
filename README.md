@@ -1,9 +1,9 @@
 
 <p align="center"><img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
-<h1 align= "center">Heroku-like Platform for Kubernetes.</h1>
+<h1 align= "center">Web based CI/CD Platform for Kubernetes</h1>
 </p>
 
-<p align="center">Devtron leverages popular open source tools to provide a No-Code SaaS like experience for Kubernetes.
+<p align="center">A Web based CI/CD platform leveraging open source tools to provide a No-Code SaaS-like experience for Kubernetes.
 <br>
 <a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
 <br>
@@ -40,10 +40,10 @@
 
 - [Devtron?](https://github.com/devtron-labs/devtron#bulb-devtron)
 - [Features](https://github.com/devtron-labs/devtron#tada-features)
-- [Trusted By](https://github.com/devtron-labs/devtron#muscle-Trusted-By)
 - [Architecture](https://github.com/devtron-labs/devtron#globe_with_meridians-Architecture)
 - [Getting Started](https://github.com/devtron-labs/devtron#rocket-getting-started)
 - [Documentation](https://docs.devtron.ai/)
+- [Trusted By](https://github.com/devtron-labs/devtron#muscle-Trusted-By)
 - [Videos](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
@@ -55,16 +55,9 @@
 
 ### Why use it?
 
-We have seen various tools that are used to greatly increase the ease of using Kubernetes. However, using these tools simultaneously is painful, and hard to use. This is due to the fact these tools don't talk to each other for managing different aspects of application lifecycle; including CI, CD, security, cost, observability, stabilization.
- 
-Thus, we built Devtron to solve this problem!
+Devtron is a Web-Based CICD Platform for Kubernetes. It integrates various OpenSource tools to provide a modular CICD platform that also includes Security Scanning, GitOps, Access Control, and Debugging/Observability.
 
 <p align="center"><img src="./assets/readme-comic.png"></p>
-
-Devtron is an open source modular product providing 'seamless', 'implementation agnostic uniform interface', integrated  with open source, and commercial tools across the entire life cycle. This is all achieved while focusing on a slick User Experience, including a self-serve model. 
-<br>
-You can efficiently handle Security, Stability, Cost, and more in a unified experience.
-
 
 ## :tada: Features
 <br>
@@ -130,23 +123,16 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
 
 </details>
 
-## :muscle: Trusted By
-Devtron has been trusted by the Enterprises and community all across the globe.
+### :blue_heart: We Support:
+In addition to the features, we love supporting platforms that devs find easy to work with.
+<br>
+<p align="center"><img src="./assets/we-support.jpg"></p>
 
-- [Delhivery:](https://www.delhivery.com/) Delhivery Limited is one the largest and most profitable logistics company in India
-- [BharatPe:](https://bharatpe.com/) Bharatpe is a business utility app to accept payments transactions in settlements.
-- [Livspace:](https://www.livspace.com/in) Livspace is one-stop shop for all things home interiors and renovation services.
-- [Moglix:](https://www.moglix.com/) It is an Asia-based B2B commerce company intensively inclined towards B2B procurement of industrial supplies
-- [Xoxoday:](https://www.xoxoday.com/) Xoxoday helps to send rewards, perks & incentives to employees, customers and partners.<br>
 
 ## :globe_with_meridians: Architecture:
 <br>
 <img src="./assets/Architecture.jpg">
 
-### :blue_heart: We Support:
-In addition to the features, we love supporting platforms that devs find easy to work with.
-<br>
-<p align="center"><img src="./assets/we-support.jpg"></p>
 
 ## :rocket: Getting Started
 
@@ -182,6 +168,15 @@ For admin login, use the username:`admin`. And for the password, run the followi
 ```bash
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
+
+## :muscle: Trusted By
+Devtron has been trusted by the Enterprises and community all across the globe.
+
+- [Delhivery:](https://www.delhivery.com/) Delhivery Limited is one the largest and most profitable logistics company in India
+- [BharatPe:](https://bharatpe.com/) Bharatpe is a business utility app to accept payments transactions in settlements.
+- [Livspace:](https://www.livspace.com/in) Livspace is one-stop shop for all things home interiors and renovation services.
+- [Moglix:](https://www.moglix.com/) It is an Asia-based B2B commerce company intensively inclined towards B2B procurement of industrial supplies
+- [Xoxoday:](https://www.xoxoday.com/) Xoxoday helps to send rewards, perks & incentives to employees, customers and partners.<br>
 
 ## :video_camera: Videos:
 
