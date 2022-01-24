@@ -1,9 +1,9 @@
 
 <p align="center"><img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
-<h1 align= "center">Heroku-like Platform for Kubernetes.</h1>
+<h1 align= "center">Web based CI-CD Platform for Kubernetes</h1>
 </p>
 
-<p align="center">Devtron leverages popular open source tools to provide a No-Code SaaS like experience for Kubernetes.
+<p align="center">A Web based CI-CD platform leveraging open source tools to provide a No-Code SaaS-like experience for Kubernetes.
 <br>
 <a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
 <br>
