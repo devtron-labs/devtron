@@ -72,7 +72,7 @@ func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, 
 	env, err := impl.environmentRepository.FindByClusterId(deleteRequest.Id)
 	if !(env == nil && err == pg.ErrNoRows) {
 		impl.logger.Errorw("err in deleting cluster, found env in this cluster", "clusterName", deleteRequest.ClusterName, "err", err)
-		return fmt.Errorf(" Please delete all related pipelines before deleting this environment : %w", err)
+		return fmt.Errorf(" Please delete all related environments before deleting this cluster : %w", err)
 	}
 	err = impl.clusterService.DeleteFromDb(deleteRequest, userId)
 	if err != nil {
