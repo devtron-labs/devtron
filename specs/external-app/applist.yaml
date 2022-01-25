@@ -1,0 +1,624 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/application:
+    post:
+      description: this api gives all external application+ devtron helm chart applications.
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HelmAppListRequest'
+      responses:
+        "200":
+          description: all application responces
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/AppList"
+  /orchestrator/application/deployment-history:
+    get:
+      description: deployment history of helm app
+      parameters:
+        - in: query
+          name: appId
+          example: "12|helm-app|cluster1-ns1"
+          description: project ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: deployment history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelmAppDeploymentHistory"
+  /orchestrator/application/release-info:
+    get:
+      description: deployment values.yaml/release-info
+      parameters:
+        - in: query
+          name: appId
+          example: "12|helm-app|cluster1-ns1"
+          description: project ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: release info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReleaseInfo"
+  /orchestrator/application/hibernate:
+    post:
+      description: hibernate the app
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HibernateRequest'
+      responses:
+        "200":
+          description: hibernate success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HibernateStatus"
+  /orchestrator/application/unhibernate:
+    post:
+      description: un hibernate the app
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HibernateRequest'
+      responses:
+        "200":
+          description: hibernate success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HibernateStatus"
+  /orchestrator/application/cluster-env-details: #TODO change url location, move to cluster
+    get:
+      description: "returns cluster environment namespace mappings"
+      responses:
+        "200":
+          description: all cluster-env mapping
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClusterEnvironmentDetailList"
+  /orchestrator/app/list/:
+    get:
+      description: this api gives all devtron applications.
+      parameters:
+        - in: query
+          name: projectIds
+          example: [ 12, 13 ]
+          description: project ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: array
+            items:
+              type: integer
+        - in: query
+          name: clusterIds
+          example: [ 16, 13 ]
+          description: cluster ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: array
+            items:
+              type: integer
+        - in: query
+          name: environmentIds
+          required: true
+          example: [ 56,45 ]
+          description: environment ids
+          allowEmptyValue: true
+          schema:
+            type: array
+            items:
+              type: integer
+        - in: query
+          name: offset
+          example: 2
+          description: offser
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+        - in: query
+          name: size
+          example: 20
+          description: size
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+        - in: query
+          name: sortOrder
+          example: "ASC"
+          description: sortOrder
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+            enum:
+              - "ASC"
+              - "DESC"
+        - in: query
+          name: sortBy
+          example: "appNameSort"
+          description: sortBy
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+            enum:
+              - "appNameSort"
+      responses:
+        "200":
+          description: all application responces
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppList"
+  /orchestrator/app-store/installed-apps/:
+    get:
+      description: this api gives all chart-store applications.
+      parameters:
+        - in: query
+          name: envIds
+          example: [ 1, 2 ]
+          description: environment ids
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: array
+            items:
+              type: integer
+        - in: query
+          name: clusterIds
+          example: [ 16, 13 ]
+          description: cluster ids
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: array
+            items:
+              type: integer
+        - in: query
+          name: onlyDeprecated
+          example: false
+          description: deprecated flag
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: boolean
+        - in: query
+          name: chartRepoIds
+          example: [ 10, 12 ]
+          description: size
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          example: 2
+          description: offser
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+        - in: query
+          name: size
+          example: 20
+          description: size
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+        - in: query
+          name: appStoreName
+          example: "appStoreName"
+          description: app store name
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: string
+        - in: query
+          name: sortBy
+          example: "appName"
+          description: app name
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: all application responces
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppList"
+  /orchestrator/application/desired-manifest:
+    get:
+      description: get desired manifest for an object
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DesiredManifestRequest'
+      responses:
+        "200":
+          description: desired manifest request success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DesiredManifestResponse"
+components:
+  schemas:
+    appListRequest:
+      type: object
+      properties:
+        projectIds:
+          type: array
+          description: project ids
+          items:
+            type: integer
+            format: int64
+          example: [ 1, 2, 3 ]
+        clusterIds:
+          type: array
+          description: cluster ids
+          items:
+            type: integer
+            format: int64
+          example: [ 1, 2, 3 ]
+        namespaces:
+          type: array
+          description: namespace ID
+          items:
+            type: string
+          example: [ "devtroncd", "devtron-ci" ]
+        environmentIds:
+          type: array
+          description: environemnt ids
+          items:
+            type: integer
+            format: int64
+          example: [ 1, 2, 3 ]
+    AppEnvironmentDetail:
+      allOf:
+        - $ref: "#/components/schemas/EnvironmentDetail"
+        - type: object
+          properties:
+            clusterName:
+              type: string
+              description: cluster corresponding to the environemt where application is deployed
+              example: "qa-cluster"
+            clusterId:
+              type: integer
+              description: clusterId corresponding to the environemt where application is deployed
+              example: "12"
+    EnvironmentDetail:
+      type: object
+      properties:
+        environmentName:
+          type: string
+          description: name of the environemnt
+          example: "devtroncd"
+        environmentId:
+          type: integer
+          description: "id in which app is deployed"
+          example: 56
+        namespace:
+          type: string
+          description: namespace corresponding to the environemnt
+          example: "devtroncd"
+        isPrduction:
+          type: boolean
+          description: if given environemnt is marked as production or not, nullable
+    ClusterEnvironmentDetail:
+      type: object
+      properties:
+        clusterName:
+          type: string
+          description: name of the cluster
+          example: "demo cluster"
+        clusterID:
+          type: integer
+          description: id of the cluster
+        environments:
+          type: array
+          description: "environments in that cluster"
+          items:
+            type: object
+            $ref: "#/components/schemas/EnvironmentDetail"
+    ClusterEnvironmentDetailList:
+      type: array
+      description: list of cluster env detail object
+      items:
+        type: object
+        $ref: "#/components/schemas/ClusterEnvironmentDetail"
+    HelmApp:
+      type: object
+      properties:
+        lastDeployedAt:
+          type: string
+          format: date-time
+          example: "2021-12-15T05:44:05Z"
+          description: time when this application was last deployed/updated
+        appName:
+          type: string
+          description: name of the helm application/helm release name
+          example: "demo-app"
+        appId:
+          type: string
+          description: unique identifier for app
+          example: "12|helm-app|cluster1-ns1"
+        chartName:
+          type: string
+          description: name of the chart
+          example: "nginx, fluentd"
+        chartAvatar:
+          type: string
+          description: url/location of the chart icon
+          example: https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Nginx_logo.svg/500px-Nginx_logo.svg.png
+        projectId:
+          type: integer
+          description: unique identifier for the project, APP with no project will have id `0`
+          example: "12"
+        chartVersion:
+          type: string
+          description: chart version
+          example: 1.2.3
+        environmentDetail:
+          type: object
+          $ref: "#/components/schemas/AppEnvironmentDetail"
+    AppList:
+      type: object
+      properties:
+        clusterIds:
+          type: array
+          description: clusters to which result corresponds
+          example: [ 1, 2 ]
+          items:
+            type: integer
+        applicationType:
+          description: application type inside the array
+          type: string
+          enum: [ DEVTRON-CHART-STORE, DEVTRON-APP ,HELM-APP ]
+        errored:
+          type: boolean
+          description: if data fetch for that cluster produced error
+          example: false
+        errorMsg:
+          type: string
+          description: error msg if client failed to fetch
+          example: cluster not rechable
+        helmApps:
+          type: array
+          description: all helm app list, EA+ devtronapp
+          items:
+            type: object
+            $ref: "#/components/schemas/HelmApp"
+        devtronApps:
+          type: array
+          description: all helm app list, EA+ devtronapp
+          items:
+            type: object
+            $ref: "#/components/schemas/DevtronApp"
+    DevtronApp:
+      type: object
+      properties:
+        appName:
+          type: string
+          description: name of the helm application/helm release name
+          example: "demo-app"
+        appId:
+          type: string
+          description: unique identifier for app
+          example: "12,helm-app|cluster1-ns1"
+        projectId:
+          type: integer
+          description: unique identifier for the project
+          example: "12"
+        environmentDetails:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppEnvironmentDetail"
+    HelmAppListRequest:
+      type: object
+      properties:
+        clusterIds:
+          type: array
+          description: cluster ids
+          items:
+            type: integer
+            format: int64
+          example: [ 1, 2, 3 ]
+    HibernateTargetObject:
+      type: object
+      properties:
+        group:
+          type: string
+          description: k8s resource group
+          example: apps
+        kind:
+          type: string
+          description: k8s resource kind
+          example: Deployment
+        version:
+          type: string
+          description: k8s resource version
+          example: v1
+        name:
+          type: string
+          description: k8s resource name
+          example: test-deployment
+        namespace:
+          type: string
+          description: k8s resource ns
+          example: devtron
+    HibernateRequest:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: helm app id
+          example: "1|test|testapp"
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/HibernateTargetObject"
+    HibernateStatus:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: operation was success or not
+          example: true
+        errorMessage:
+          type: string
+          description: failure cause, empty is success
+          example: resource doesn't exists
+        targetObject:
+          type: object
+          $ref: "#/components/schemas/HibernateTargetObject"
+    ChartMetadata:
+      type: object
+      properties:
+        chartName:
+          type: string
+          description: name of the chart
+          example: envoy
+        chartVersion:
+          type: string
+          description: version of the helm chart
+          example: v1.2.3
+        home:
+          type: string
+          description: chart home
+          example: nginx.com
+        sources:
+          type: array
+          description: source of the helm chart
+          example: [ nginx.com ]
+          items:
+            type: string
+        description:
+          type: string
+          description: description of the helm chart
+          example: description of the helm chart
+    HelmAppDeploymentDetail:
+      type: object
+      properties:
+        chartMetadata:
+          type: object
+          $ref: "#/components/schemas/ChartMetadata"
+          description: metadata of the chart
+        manifest:
+          type: string
+          description: final manifest of the chart
+        dockerImages:
+          type: array
+          description: docker images presrnt insise the chart
+          items:
+            type: string
+        version:
+          type: int
+          description: deployment version of the helm chart
+          example: 12
+        deployedAt:
+          type: string
+          format: date-time
+          example: "2021-12-15T05:44:05Z"
+    HelmAppDeploymentHistory:
+      type: array
+      description: deployment history
+      items:
+        $ref: "#/components/schemas/HelmAppDeploymentDetail"
+    ReleaseInfo:
+      type: object
+      properties:
+        deployedAppDetail:
+          type: object
+          $ref: "#/components/schemas/HelmApp"
+          description: deployment deils
+        defaultValues:
+          type: string
+          description: default chat values
+        overrideValues:
+          type: string
+          description: overrides passed by user
+        mergedValues:
+          type: string
+          description: merged values
+        readme:
+          type: string
+          description: readme of the chart
+    DesiredManifestRequest:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: helm app id
+          example: "1|test|testapp"
+        resource:
+          type: object
+          $ref: "#/components/schemas/ResourceIdentifier"
+    ResourceIdentifier:
+      type: object
+      properties:
+        group:
+          type: string
+          description: k8s resource group
+          example: apps
+        kind:
+          type: string
+          description: k8s resource kind
+          example: Deployment
+        version:
+          type: string
+          description: k8s resource version
+          example: v1
+        name:
+          type: string
+          description: k8s resource name
+          example: test-deployment
+        namespace:
+          type: string
+          description: k8s resource ns
+          example: devtron
+    DesiredManifestResponse:
+      type: object
+      properties:
+        manifest:
+          type: string
+          description: desired manifest
+          example: "some manifest"
+

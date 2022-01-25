@@ -37,9 +37,10 @@ const (
 	ResourceAutocomplete = "autocomplete"
 	ResourceChartGroup   = "chart-group"
 
-	ResourceTeam   = "team"
-	ResourceAdmin  = "admin"
-	ResourceGlobal = "global-resource"
+	ResourceTeam    = "team"
+	ResourceAdmin   = "admin"
+	ResourceGlobal  = "global-resource"
+	ResourceHelmApp = "helm-app"
 
 	ActionGet     = "get"
 	ActionCreate  = "create"

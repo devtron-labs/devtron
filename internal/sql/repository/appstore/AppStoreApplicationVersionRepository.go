@@ -93,6 +93,7 @@ type AppStoreFilter struct {
 	Size              int    `json:"size"`
 	EnvIds            []int  `json:"envIds"`
 	OnlyDeprecated    bool   `json:"onlyDeprecated"`
+	ClusterIds        []int  `json:"clusterIds"`
 }
 
 type ChartRepoSearch struct {
