@@ -19,6 +19,7 @@ package cluster
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
@@ -79,12 +80,13 @@ type EnvironmentServiceImpl struct {
 	logger                *zap.SugaredLogger
 	clusterService        ClusterService
 	K8sUtil               *util.K8sUtil
+	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
-	K8sUtil *util.K8sUtil,
+	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
 //	propertiesConfigService pipeline.PropertiesConfigService,
 ) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
@@ -92,6 +94,7 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		logger:                logger,
 		clusterService:        clusterService,
 		K8sUtil:               K8sUtil,
+		k8sInformerFactory:    k8sInformerFactory,
 		//propertiesConfigService: propertiesConfigService,
 	}
 }
@@ -427,7 +430,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 			continue
 		}
 		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
-		groupKey := fmt.Sprintf("%s__%d", model.Cluster.ClusterName, model.ClusterId)
+		groupKey := fmt.Sprintf("%s__%d", model.Cluster.ClusterName, 1)
 		uniqueComboMap[key] = true
 		grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
 			EnvironmentId:         model.Id,
@@ -437,24 +440,30 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		})
 	}
 
-	clusterNamespaces, err := impl.getAllClusterNamespaceCombination()
-	if err != nil {
-		impl.logger.Errorw("error in fetching clusters namespaces", "err", err)
-		// skip if found error in fetching any cluster namespaces
-	}
-	for _, item := range clusterNamespaces {
-		isValidAuth := auth(token, item.EnvironmentIdentifier)
-		if !isValidAuth {
-			continue
+	informerNamspaceList := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
+	for cluster, namespaces := range informerNamspaceList {
+		clusterInfo := strings.Split(cluster, "__")
+		clusterId, err := strconv.Atoi(clusterInfo[1])
+		if err != nil {
+			clusterId = 0
 		}
-		groupKey := fmt.Sprintf("%s__%d", item.ClusterName, item.ClusterId)
-		if _, ok := uniqueComboMap[groupKey]; !ok {
-			grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
-				EnvironmentId:         item.Id,
-				EnvironmentName:       item.Environment,
-				Namespace:             item.Namespace,
-				EnvironmentIdentifier: item.EnvironmentIdentifier,
-			})
+		clusterName := clusterInfo[1]
+		for _, namespace := range namespaces {
+			environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
+			// auth enforcer
+			isValidAuth := auth(token, environmentIdentifier)
+			if !isValidAuth {
+				continue
+			}
+			//deduplication for cluster and namespace combination
+			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
+			if _, ok := uniqueComboMap[groupKey]; !ok {
+				grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
+					EnvironmentName:       environmentIdentifier,
+					Namespace:             namespace,
+					EnvironmentIdentifier: environmentIdentifier,
+				})
+			}
 		}
 	}
 	var clusters []*ClusterEnvDto
