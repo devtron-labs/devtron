@@ -42,7 +42,7 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/grafana"
 	jClient "github.com/devtron-labs/devtron/client/jira"
-	"github.com/devtron-labs/devtron/client/k8s/informer"
+	k8s2 "github.com/devtron-labs/devtron/client/k8s"
 	"github.com/devtron-labs/devtron/client/lens"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
@@ -97,7 +97,7 @@ func InitializeApp() (*App, error) {
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
-
+		k8s2.K8sWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -635,11 +635,6 @@ func InitializeApp() (*App, error) {
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
-
-		informer.NewGlobalMapClusterNamespace,
-		informer.NewK8sInformerFactoryImpl,
-		wire.Bind(new(informer.K8sInformerFactory), new(*informer.K8sInformerFactoryImpl)),
-
 	)
 	return &App{}, nil
 }
