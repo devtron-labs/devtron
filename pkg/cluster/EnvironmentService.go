@@ -418,9 +418,11 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 }
 
 func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token string, auth func(token string, object string) bool) ([]*ClusterEnvDto, error) {
+	var clusters []*ClusterEnvDto
 	models, err := impl.environmentRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching environments", "err", err)
+		return clusters, err
 	}
 	uniqueComboMap := make(map[string]bool)
 	grantedEnvironmentMap := make(map[string][]*EnvDto)
@@ -428,10 +430,11 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		// auth enforcer applied here
 		isValidAuth := auth(token, model.EnvironmentIdentifier)
 		if !isValidAuth {
+			impl.logger.Debugw("authentication for env failed", "object", model.EnvironmentIdentifier)
 			continue
 		}
 		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
-		groupKey := fmt.Sprintf("%s__%d", model.Cluster.ClusterName, 1)
+		groupKey := fmt.Sprintf("%s__%d", model.Cluster.ClusterName, model.ClusterId)
 		uniqueComboMap[key] = true
 		grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
 			EnvironmentId:         model.Id,
@@ -444,6 +447,10 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 	namespaceListGroupByClusters := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
 	for cluster, namespaces := range namespaceListGroupByClusters {
 		clusterInfo := strings.Split(cluster, "__")
+		if len(clusterInfo) != 2 {
+			impl.logger.Warnw("something went wrong in cluster id and name", "cluster", cluster)
+			continue
+		}
 		clusterId, err := strconv.Atoi(clusterInfo[1])
 		if err != nil {
 			clusterId = 0
@@ -454,6 +461,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 			// auth enforcer applied here
 			isValidAuth := auth(token, environmentIdentifier)
 			if !isValidAuth {
+				impl.logger.Debugw("authentication for env failed", "object", environmentIdentifier)
 				continue
 			}
 			//deduplication for cluster and namespace combination
@@ -469,7 +477,6 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 	}
 
 	//final result builds here, namespace group by clusters
-	var clusters []*ClusterEnvDto
 	for k, v := range grantedEnvironmentMap {
 		clusterInfo := strings.Split(k, "__")
 		clusterId, err := strconv.Atoi(clusterInfo[1])
