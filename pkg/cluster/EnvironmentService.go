@@ -425,6 +425,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 	uniqueComboMap := make(map[string]bool)
 	grantedEnvironmentMap := make(map[string][]*EnvDto)
 	for _, model := range models {
+		// auth enforcer applied here
 		isValidAuth := auth(token, model.EnvironmentIdentifier)
 		if !isValidAuth {
 			continue
@@ -440,17 +441,17 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		})
 	}
 
-	informerNamspaceList := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
-	for cluster, namespaces := range informerNamspaceList {
+	namespaceListGroupByClusters := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
+	for cluster, namespaces := range namespaceListGroupByClusters {
 		clusterInfo := strings.Split(cluster, "__")
 		clusterId, err := strconv.Atoi(clusterInfo[1])
 		if err != nil {
 			clusterId = 0
 		}
-		clusterName := clusterInfo[1]
+		clusterName := clusterInfo[0]
 		for _, namespace := range namespaces {
 			environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
-			// auth enforcer
+			// auth enforcer applied here
 			isValidAuth := auth(token, environmentIdentifier)
 			if !isValidAuth {
 				continue
@@ -466,6 +467,8 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 			}
 		}
 	}
+
+	//final result builds here, namespace group by clusters
 	var clusters []*ClusterEnvDto
 	for k, v := range grantedEnvironmentMap {
 		clusterInfo := strings.Split(k, "__")
@@ -482,6 +485,9 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 	return clusters, nil
 }
 
+/*
+deprecated
+*/
 func (impl EnvironmentServiceImpl) getAllClusterNamespaceCombination() ([]*EnvironmentBean, error) {
 	var beans []*EnvironmentBean
 	models, err := impl.clusterService.FindAllActive()

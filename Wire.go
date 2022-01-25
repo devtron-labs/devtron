@@ -636,6 +636,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
 
+		informer.NewGlobalMapClusterNamespace,
 		informer.NewK8sInformerFactoryImpl,
 		wire.Bind(new(informer.K8sInformerFactory), new(*informer.K8sInformerFactoryImpl)),
 
