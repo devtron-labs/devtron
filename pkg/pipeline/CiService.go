@@ -341,6 +341,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		WorkflowNamePrefix:       strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
 		PipelineName:             pipeline.Name,
 		PipelineId:               pipeline.Id,
+		DockerRegistryId:         pipeline.CiTemplate.DockerRegistry.Id,
 		DockerRegistryType:       string(pipeline.CiTemplate.DockerRegistry.RegistryType),
 		DockerImageTag:           dockerImageTag,
 		DockerRegistryURL:        pipeline.CiTemplate.DockerRegistry.RegistryURL,
