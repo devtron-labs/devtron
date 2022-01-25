@@ -1,6 +1,6 @@
 # Job and Cronjob chart
 
-**You also can use devtron genric helm chart to run job or one time cronjob instead to use job and cronjob chart. Follow the given link to use genric helm chart.** To know more about this, please follow the [documentation](https://docs.devtron.ai/user-guide/use-cases/devtron-generic-helm-chart-to-run-cron-job-or-one-time-job).
+**You also can use devtron genric helm chart to run job or one time cronjob instead to use job and cronjob chart. Follow the given link to use genric helm chart.** To know more about this, please follow the [documentation](https://docs.devtron.ai/user-guide/use-cases/devtron-generic-helm-chart-to-run-cron-job-or-one-time-job)..
 
 ## 1. Job
 
