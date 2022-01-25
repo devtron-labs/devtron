@@ -1,5 +1,7 @@
 # Devtron Generic Helm Chart To Run Cron Job Or One Time Job
 
+**NOTE:You also can use job and cronjob chart instead to use devtron genric helm chart to run job or one time cronjob. Follow the given link to use job and cronjob chart.** To know more about this, please follow the [documentation](https://docs.devtron.ai/user-guide/creating-application/deployment-template/job-and-cronjob).
+
 ## Using Devtron-generic-Helm Chart to run Cron Job or One Time job
 
 You can discover over 200 Charts from the Devtron Chart store to perform different tasks such as to deploy a YAML file.
