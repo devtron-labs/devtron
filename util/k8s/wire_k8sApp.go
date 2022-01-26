@@ -2,6 +2,7 @@ package k8s
 
 import (
 	application2 "github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/google/wire"
 )
@@ -17,4 +18,8 @@ var K8sApplicationWireSet = wire.NewSet(
 	wire.Bind(new(application2.K8sClientService), new(*application2.K8sClientServiceImpl)),
 	terminal.NewTerminalSessionHandlerImpl,
 	wire.Bind(new(terminal.TerminalSessionHandler), new(*terminal.TerminalSessionHandlerImpl)),
+
+	informer.NewGlobalMapClusterNamespace,
+	informer.NewK8sInformerFactoryImpl,
+	wire.Bind(new(informer.K8sInformerFactory), new(*informer.K8sInformerFactoryImpl)),
 )

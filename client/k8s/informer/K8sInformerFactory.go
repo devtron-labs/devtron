@@ -1,7 +1,6 @@
 package informer
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,11 +9,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"sync"
 	"time"
-)
-
-var (
-//GlobalMapClusterNamespace map[string]map[string]string
 )
 
 func NewGlobalMapClusterNamespace() map[string]map[string]string {
@@ -42,7 +38,21 @@ func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, clusterService reposit
 }
 
 func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[string]map[string]string {
-	return impl.globalMapClusterNamespace
+	copiedClusterNamespaces := make(map[string]map[string]string)
+	for key, value := range impl.globalMapClusterNamespace {
+		for _, namespace := range value {
+			if _, ok := copiedClusterNamespaces[key]; !ok {
+				allNamespaces := make(map[string]string)
+				allNamespaces[namespace] =namespace
+				copiedClusterNamespaces[key]=allNamespaces
+			} else {
+				allNamespaces := copiedClusterNamespaces[key]
+				allNamespaces[namespace] =namespace
+				copiedClusterNamespaces[key]=allNamespaces
+			}
+		}
+	}
+	return copiedClusterNamespaces
 }
 
 func (impl *K8sInformerFactoryImpl) buildInformer() map[string]map[string]string {
@@ -51,6 +61,7 @@ func (impl *K8sInformerFactoryImpl) buildInformer() map[string]map[string]string
 		impl.logger.Errorw("error in fetching clusters", "err", err)
 		return impl.globalMapClusterNamespace
 	}
+	var mutex sync.Mutex
 	for _, clusterBean := range models {
 		bearerToken := clusterBean.Config["bearer_token"]
 		c := &rest.Config{
@@ -58,14 +69,14 @@ func (impl *K8sInformerFactoryImpl) buildInformer() map[string]map[string]string
 			BearerToken:     bearerToken,
 			TLSClientConfig: rest.TLSClientConfig{Insecure: true},
 		}
-		impl.buildInformerAndNamespaceList(clusterBean.ClusterName, clusterBean.Id, c)
+		impl.buildInformerAndNamespaceList(clusterBean.ClusterName, c, &mutex)
 	}
 
 	//TODO - if cluster added or deleted, manage informer respectively
 	return impl.globalMapClusterNamespace
 }
 
-func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, clusterId int, config *rest.Config) map[string]map[string]string {
+func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, config *rest.Config, mutex *sync.Mutex) map[string]map[string]string {
 	clusterClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		impl.logger.Errorw("error in create k8s config", "err", err)
@@ -73,30 +84,32 @@ func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName st
 	}
 	informerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(clusterClient, time.Minute)
 	nsInformenr := informerFactory.Core().V1().Namespaces()
-	impl.logger.Infow(clusterName, "ns informer", nsInformenr.Informer())
+	impl.logger.Debugw(clusterName, "ns informer", nsInformenr.Informer())
 	nsInformenr.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			impl.logger.Debugw("add event handler", "cluster", clusterName, "object", obj.(metav1.Object))
 			if mobject, ok := obj.(metav1.Object); ok {
-				clusterKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
-				if _, ok := impl.globalMapClusterNamespace[clusterKey]; !ok {
+				mutex.Lock()
+				if _, ok := impl.globalMapClusterNamespace[clusterName]; !ok {
 					allNamespaces := make(map[string]string)
 					allNamespaces[mobject.GetName()] = mobject.GetName()
-					impl.globalMapClusterNamespace[clusterKey] = allNamespaces
+					impl.globalMapClusterNamespace[clusterName] = allNamespaces
 				} else {
-					allNamespaces := impl.globalMapClusterNamespace[clusterKey]
+					allNamespaces := impl.globalMapClusterNamespace[clusterName]
 					allNamespaces[mobject.GetName()] = mobject.GetName()
-					impl.globalMapClusterNamespace[clusterKey] = allNamespaces
+					impl.globalMapClusterNamespace[clusterName] = allNamespaces
 				}
+				mutex.Unlock()
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			if mobject, ok := obj.(metav1.Object); ok {
-				clusterKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
-				if _, ok := impl.globalMapClusterNamespace[clusterKey]; ok {
+				if _, ok := impl.globalMapClusterNamespace[clusterName]; ok {
+					mutex.Lock()
 					allNamespaces := impl.globalMapClusterNamespace[clusterName]
 					delete(allNamespaces, mobject.GetName())
-					impl.globalMapClusterNamespace[clusterKey] = allNamespaces
+					impl.globalMapClusterNamespace[clusterName] = allNamespaces
+					mutex.Unlock()
 				}
 			}
 		},

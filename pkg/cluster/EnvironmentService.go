@@ -418,11 +418,20 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 }
 
 func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token string, auth func(token string, object string) bool) ([]*ClusterEnvDto, error) {
-	var clusters []*ClusterEnvDto
+	var namespaceGroupByClusterResponse []*ClusterEnvDto
+	clusterModels, err := impl.clusterService.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching clusters", "err", err)
+		return namespaceGroupByClusterResponse, err
+	}
+	clusterMap := make(map[string]int)
+	for _, item := range clusterModels {
+		clusterMap[item.ClusterName] = item.Id
+	}
 	models, err := impl.environmentRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching environments", "err", err)
-		return clusters, err
+		return namespaceGroupByClusterResponse, err
 	}
 	uniqueComboMap := make(map[string]bool)
 	grantedEnvironmentMap := make(map[string][]*EnvDto)
@@ -445,17 +454,8 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 	}
 
 	namespaceListGroupByClusters := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
-	for cluster, namespaces := range namespaceListGroupByClusters {
-		clusterInfo := strings.Split(cluster, "__")
-		if len(clusterInfo) != 2 {
-			impl.logger.Warnw("something went wrong in cluster id and name", "cluster", cluster)
-			continue
-		}
-		clusterId, err := strconv.Atoi(clusterInfo[1])
-		if err != nil {
-			clusterId = 0
-		}
-		clusterName := clusterInfo[0]
+	for clusterName, namespaces := range namespaceListGroupByClusters {
+		clusterId:=clusterMap[clusterName]
 		for _, namespace := range namespaces {
 			environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
 			// auth enforcer applied here
@@ -483,13 +483,13 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		if err != nil {
 			clusterId = 0
 		}
-		clusters = append(clusters, &ClusterEnvDto{
+		namespaceGroupByClusterResponse = append(namespaceGroupByClusterResponse, &ClusterEnvDto{
 			ClusterName:  clusterInfo[0],
 			ClusterId:    clusterId,
 			Environments: v,
 		})
 	}
-	return clusters, nil
+	return namespaceGroupByClusterResponse, nil
 }
 
 /*

@@ -13,7 +13,6 @@ import (
 	"github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
-	k8s2 "github.com/devtron-labs/devtron/client/k8s"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -31,7 +30,6 @@ func InitializeApp() (*App, error) {
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
-		k8s2.K8sWireSet,
 
 		NewApp,
 		NewMuxRouter,
