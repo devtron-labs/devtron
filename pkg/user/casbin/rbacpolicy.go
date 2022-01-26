@@ -49,4 +49,5 @@ const (
 	ActionSync    = "sync"
 	ActionTrigger = "trigger"
 	ActionNotify  = "notify"
+	ActionExec    = "exec"
 )

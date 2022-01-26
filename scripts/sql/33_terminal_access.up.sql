@@ -140,7 +140,7 @@ INSERT INTO "public"."auth_policy" ("id", "role_type", "policy", "created_on", "
             "type": "p",
             "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
             "res": "terminal",
-            "act": "get",
+            "act": "exec",
             "obj": "{{.EnvObj}}/{{.AppObj}}"
         },
     ]
@@ -246,6 +246,7 @@ INSERT INTO "public"."auth_role" ("id", "role_type", "role", "created_on", "crea
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
     "action": "manager"
+    "access_type": ""
 }', 'now()', '1', 'now()', '1'),
 ('2', 'admin', '{
     "role": "role:admin_{{.Team}}_{{.Env}}_{{.App}}",
@@ -256,6 +257,7 @@ INSERT INTO "public"."auth_role" ("id", "role_type", "role", "created_on", "crea
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
     "action": "admin"
+    "access_type": ""
 }
 ', 'now()', '1', 'now()', '1'),
 ('3', 'trigger', '{
@@ -267,6 +269,7 @@ INSERT INTO "public"."auth_role" ("id", "role_type", "role", "created_on", "crea
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
     "action": "trigger"
+    "access_type": ""
 }', 'now()', '1', 'now()', '1'),
 ('4', 'view', '{
     "role": "role:view_{{.Team}}_{{.Env}}_{{.App}}",
@@ -277,6 +280,7 @@ INSERT INTO "public"."auth_role" ("id", "role_type", "role", "created_on", "crea
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
     "action": "view"
+    "access_type": ""
 }', 'now()', '1', 'now()', '1'),
 ('5', 'entitySpecificAdmin', '{
     "role": "role:{{.Entity}}_admin",

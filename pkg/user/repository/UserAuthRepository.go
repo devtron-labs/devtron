@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"golang.org/x/oauth2"
 	"strings"
 )
 
@@ -37,6 +38,7 @@ type UserAuthRepository interface {
 	GetRolesByUserId(userId int32) ([]RoleModel, error)
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
+	GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error)
 	GetRoleByFilter(entity string, team string, app string, env string, act string, accessType string) (RoleModel, error)
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
@@ -151,6 +153,19 @@ func (impl UserAuthRepositoryImpl) GetAllRole() ([]RoleModel, error) {
 	}
 	return models, nil
 }
+
+func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error) {
+	var models []RoleModel
+	err := impl.dbConnection.Model(&models).Where("action = ?", action).
+		Where("access_type = ?", accessType).
+		Select()
+	if err != nil {
+		impl.Logger.Error("err in getting role by action", "err", err, "action", action, "accessType", oauth2.AccessTypeOffline)
+		return models, err
+	}
+	return models, nil
+}
+
 func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, app string, env string, act string, accessType string) (RoleModel, error) {
 	var model RoleModel
 	EMPTY := ""
@@ -908,4 +923,54 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 	casbin.AddPolicy(policiesView.Data)
 
 	return true, nil
+}
+
+func (impl UserAuthRepositoryImpl) UpdatePolicyForTerminalAccess(){
+
+	//getting all roles for trigger action
+	//TODO: confirm if to include access-type: helm-app or not
+	roles, err := impl.GetRolesByActionAndAccessType(string(TRIGGER_TYPE), "")
+	if err!=nil {
+		impl.Logger.Errorw("error in getting roles for trigger action", "err", err)
+	}
+	triggerPoliciesDb, err := impl.authPolicyRepository.GetPolicyByRoleType(TRIGGER_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting policy by roleType", "err", err, "roleType", TRIGGER_TYPE)
+	}
+	for _, role := range roles{
+		teamObj := role.Team
+		envObj := role.Environment
+		appObj := role.EntityName
+		if teamObj == "" {
+			teamObj = "*"
+		}
+		if envObj == "" {
+			envObj = "*"
+		}
+		if appObj == "" {
+			appObj = "*"
+		}
+
+		rolePolicyDetails := RolePolicyDetails{
+			Team:    role.Team,
+			App:     role.Environment,
+			Env:     role.EntityName,
+			TeamObj: teamObj,
+			EnvObj:  envObj,
+			AppObj:  appObj,
+		}
+		//getting updated trigger policies
+		triggerPolicies, err := util.Tprintf(triggerPoliciesDb, rolePolicyDetails)
+		if err != nil {
+			impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", TRIGGER_TYPE)
+		}
+		//adding policy to casbin
+		var policiesTrigger bean.PolicyRequest
+		err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
+		if err != nil {
+			impl.Logger.Errorw("error in un-marshaling policy", "err", err)
+		}
+		impl.Logger.Debugw("add policy to casbin", "policies", policiesTrigger)
+		casbin.AddPolicy(policiesTrigger.Data)
+	}
 }

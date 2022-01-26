@@ -127,8 +127,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWri
 	}
 	request.EnvironmentId = eId
 	var valid bool
-	//TODO: update terminal enforcer
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionGet, envRbacObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, envRbacObject); !ok {
 		appRbacOk := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, appRbacObject)
 		envRbacOk := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, envRbacObject)
 		if appRbacOk && envRbacOk{
