@@ -12,7 +12,7 @@ To deploy any chart or chart group, visit the `Charts` section and then select t
 
 Click on `README.md` to get more idea about the configurations of the chart.
 
-![](../../images/deploy-chart/overview-of-charts/custom.jpg)
+![](../../images/deploy-chart/overview-of-charts/custom1.jpg)
 
 Select the Chart Version that you want to use and Chart Value, you can either use the Default Values or Custom Values.
 
