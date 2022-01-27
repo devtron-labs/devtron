@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -77,17 +78,19 @@ type ClusterService interface {
 }
 
 type ClusterServiceImpl struct {
-	clusterRepository repository.ClusterRepository
-	logger            *zap.SugaredLogger
-	K8sUtil           *util.K8sUtil
+	clusterRepository  repository.ClusterRepository
+	logger             *zap.SugaredLogger
+	K8sUtil            *util.K8sUtil
+	K8sInformerFactory informer.K8sInformerFactory
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
-	K8sUtil *util.K8sUtil) *ClusterServiceImpl {
+	K8sUtil *util.K8sUtil, K8sInformerFactory informer.K8sInformerFactory) *ClusterServiceImpl {
 	return &ClusterServiceImpl{
-		clusterRepository: repository,
-		logger:            logger,
-		K8sUtil:           K8sUtil,
+		clusterRepository:  repository,
+		logger:             logger,
+		K8sUtil:            K8sUtil,
+		K8sInformerFactory: K8sInformerFactory,
 	}
 }
 
@@ -170,6 +173,9 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		}
 	}
 	bean.Id = model.Id
+
+	//on successful creation of new cluster, update informer cache for namespace group by cluster
+	impl.K8sInformerFactory.BuildInformerForSingleCluster(model.Id)
 	return bean, err
 }
 

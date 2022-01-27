@@ -25,6 +25,7 @@ type K8sInformerFactoryImpl struct {
 }
 type K8sInformerFactory interface {
 	GetLatestNamespaceListGroupByCLuster() map[string]map[string]string
+	BuildInformerForSingleCluster(clusterId int)
 }
 
 func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, clusterService repository.ClusterRepository, globalMapClusterNamespace map[string]map[string]string) *K8sInformerFactoryImpl {
@@ -43,37 +44,55 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 		for _, namespace := range value {
 			if _, ok := copiedClusterNamespaces[key]; !ok {
 				allNamespaces := make(map[string]string)
-				allNamespaces[namespace] =namespace
-				copiedClusterNamespaces[key]=allNamespaces
+				allNamespaces[namespace] = namespace
+				copiedClusterNamespaces[key] = allNamespaces
 			} else {
 				allNamespaces := copiedClusterNamespaces[key]
-				allNamespaces[namespace] =namespace
-				copiedClusterNamespaces[key]=allNamespaces
+				allNamespaces[namespace] = namespace
+				copiedClusterNamespaces[key] = allNamespaces
 			}
 		}
 	}
 	return copiedClusterNamespaces
 }
 
-func (impl *K8sInformerFactoryImpl) buildInformer() map[string]map[string]string {
+func (impl *K8sInformerFactoryImpl) BuildInformerForSingleCluster(clusterId int) {
+	model, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster", "err", err)
+		return
+	}
+	var mutex sync.Mutex
+	bearerToken := model.Config["bearer_token"]
+	c := &rest.Config{
+		Host:            model.ServerUrl,
+		BearerToken:     bearerToken,
+		TLSClientConfig: rest.TLSClientConfig{Insecure: true},
+	}
+	impl.buildInformerAndNamespaceList(model.ClusterName, c, &mutex)
+
+	//TODO - if cluster added or deleted, manage informer respectively
+	return
+}
+
+func (impl *K8sInformerFactoryImpl) buildInformer() {
 	models, err := impl.clusterService.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching clusters", "err", err)
-		return impl.globalMapClusterNamespace
+		return
 	}
 	var mutex sync.Mutex
-	for _, clusterBean := range models {
-		bearerToken := clusterBean.Config["bearer_token"]
+	for _, model := range models {
+		bearerToken := model.Config["bearer_token"]
 		c := &rest.Config{
-			Host:            clusterBean.ServerUrl,
+			Host:            model.ServerUrl,
 			BearerToken:     bearerToken,
 			TLSClientConfig: rest.TLSClientConfig{Insecure: true},
 		}
-		impl.buildInformerAndNamespaceList(clusterBean.ClusterName, c, &mutex)
+		impl.buildInformerAndNamespaceList(model.ClusterName, c, &mutex)
 	}
-
 	//TODO - if cluster added or deleted, manage informer respectively
-	return impl.globalMapClusterNamespace
+	return
 }
 
 func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, config *rest.Config, mutex *sync.Mutex) map[string]map[string]string {
@@ -83,9 +102,9 @@ func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName st
 		return impl.globalMapClusterNamespace
 	}
 	informerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(clusterClient, time.Minute)
-	nsInformenr := informerFactory.Core().V1().Namespaces()
-	impl.logger.Debugw(clusterName, "ns informer", nsInformenr.Informer())
-	nsInformenr.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	nsInformer := informerFactory.Core().V1().Namespaces()
+	impl.logger.Debugw(clusterName, "ns informer", nsInformer.Informer())
+	nsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			impl.logger.Debugw("add event handler", "cluster", clusterName, "object", obj.(metav1.Object))
 			if mobject, ok := obj.(metav1.Object); ok {
@@ -103,11 +122,11 @@ func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName st
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			if mobject, ok := obj.(metav1.Object); ok {
+			if object, ok := obj.(metav1.Object); ok {
 				if _, ok := impl.globalMapClusterNamespace[clusterName]; ok {
 					mutex.Lock()
 					allNamespaces := impl.globalMapClusterNamespace[clusterName]
-					delete(allNamespaces, mobject.GetName())
+					delete(allNamespaces, object.GetName())
 					impl.globalMapClusterNamespace[clusterName] = allNamespaces
 					mutex.Unlock()
 				}
