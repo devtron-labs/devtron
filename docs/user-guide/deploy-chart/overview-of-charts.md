@@ -14,7 +14,7 @@ Select `Discover` and then select the chart that you want to use.
 
 Click on `README.md` to get more idea about the configurations of the chart.
 
-![](../../.gitbook/assets/custom%20%283%29%20%284%29.jpg)
+![](../../images/deploy-chart/overview-of-charts/custom.png)
 
 Select the Chart Version that you want to use and Chart Value, you can either use the Default Values or Custom Values.
 
@@ -29,7 +29,7 @@ The configuration values can be edited in the section given below Chart Version.
 | `Environment` | Environment of the app to be deployed |
 | `Chart Version` | Version of the chart to be used |
 
-![](../../.gitbook/assets/depchart4config.jpg)
+![](../../images/deploy-chart/overview-of-charts/deploy-chart.png)
 
 Readme.md present on the left can be used by the user to set configuration values.
 
@@ -37,9 +37,9 @@ Readme.md present on the left can be used by the user to set configuration value
 
 Click on `Deploy Chart` to deploy the chart.
 
-![](../../.gitbook/assets/depchartdeployedredo%20%282%29.jpg)
+![](../../images/deploy-chart/overview-of-charts/values.png)
 
-You can see the status of the chart deployed. Click on `Values.Yaml` to reconfigure the deployment.
+To see the status and details of the chart deployed by clicking on `App Details` and click on `Values` to reconfigure the deployment.
 
 ![](../../images/deploy-chart/overview-of-charts/update-and-deploy.png)
 
@@ -50,7 +50,7 @@ Select Update And Deploy to update new settings.
 
 You can use the default values or create Custom value by clicking on `Create Custom`.
 
-![](../../.gitbook/assets/custom%20%283%29.jpg)
+![](../../images/deploy-chart/overview-of-charts/custom.png)
 
 You can name your Custom Value, select the Chart Version and change the configurations in YAML file.
 
