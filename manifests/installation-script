@@ -266,6 +266,7 @@ log("setup grafana");
 if !hasgrafana {
 	createOrgScript = shebang + `
 	sleep 50
+	sleep 50
 	ORG_ID=$( curl -d '{"name":"devtron-metrics-view"}' -H "Content-Type: application/json" -X POST '` + grafanaUrlWithPwd + `/api/orgs' )
 	echo $ORG_ID
 	`;
