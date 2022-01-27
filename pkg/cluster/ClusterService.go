@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -86,12 +87,14 @@ type ClusterServiceImpl struct {
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, K8sInformerFactory informer.K8sInformerFactory) *ClusterServiceImpl {
-	return &ClusterServiceImpl{
+	clusterService := &ClusterServiceImpl{
 		clusterRepository:  repository,
 		logger:             logger,
 		K8sUtil:            K8sUtil,
 		K8sInformerFactory: K8sInformerFactory,
 	}
+	clusterService.buildInformer()
+	return clusterService
 }
 
 const DefaultClusterName = "default_cluster"
@@ -175,7 +178,14 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	bean.Id = model.Id
 
 	//on successful creation of new cluster, update informer cache for namespace group by cluster
-	impl.K8sInformerFactory.BuildInformerForSingleCluster(model.Id)
+	bearerToken := model.Config["bearer_token"]
+	clusterInfo := &bean2.ClusterInfo{
+		ClusterId:   model.Id,
+		ClusterName: model.ClusterName,
+		BearerToken: bearerToken,
+		ServerUrl:   model.ServerUrl,
+	}
+	impl.K8sInformerFactory.BuildInformerForSingleCluster(clusterInfo)
 	return bean, err
 }
 
@@ -391,4 +401,23 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 func (impl *ClusterServiceImpl) CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error) {
 	impl.logger.Errorw("CreateGrafanaDataSource not inplementd in ClusterServiceImpl")
 	return 0, fmt.Errorf("method not implemented")
+}
+
+func (impl *ClusterServiceImpl) buildInformer() {
+	models, err := impl.clusterRepository.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching clusters", "err", err)
+		return
+	}
+	var clusterInfo []*bean2.ClusterInfo
+	for _, model := range models {
+		bearerToken := model.Config["bearer_token"]
+		clusterInfo = append(clusterInfo, &bean2.ClusterInfo{
+			ClusterId:   model.Id,
+			ClusterName: model.ClusterName,
+			BearerToken: bearerToken,
+			ServerUrl:   model.ServerUrl,
+		})
+	}
+	impl.K8sInformerFactory.BuildInformer(clusterInfo)
 }

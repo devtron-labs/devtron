@@ -1,7 +1,7 @@
 package informer
 
 import (
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/api/bean"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -20,21 +20,20 @@ func NewGlobalMapClusterNamespace() map[string]map[string]string {
 
 type K8sInformerFactoryImpl struct {
 	logger                    *zap.SugaredLogger
-	clusterService            repository.ClusterRepository
 	globalMapClusterNamespace map[string]map[string]string
 }
+
 type K8sInformerFactory interface {
 	GetLatestNamespaceListGroupByCLuster() map[string]map[string]string
-	BuildInformerForSingleCluster(clusterId int)
+	BuildInformerForSingleCluster(clusterInfo *bean.ClusterInfo)
+	BuildInformer(clusterInfo []*bean.ClusterInfo)
 }
 
-func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, clusterService repository.ClusterRepository, globalMapClusterNamespace map[string]map[string]string) *K8sInformerFactoryImpl {
+func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]string) *K8sInformerFactoryImpl {
 	informerFactory := &K8sInformerFactoryImpl{
 		logger:                    logger,
-		clusterService:            clusterService,
 		globalMapClusterNamespace: globalMapClusterNamespace,
 	}
-	informerFactory.buildInformer()
 	return informerFactory
 }
 
@@ -56,40 +55,27 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 	return copiedClusterNamespaces
 }
 
-func (impl *K8sInformerFactoryImpl) BuildInformerForSingleCluster(clusterId int) {
-	model, err := impl.clusterService.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching cluster", "err", err)
-		return
-	}
+func (impl *K8sInformerFactoryImpl) BuildInformerForSingleCluster(clusterInfo *bean.ClusterInfo) {
 	var mutex sync.Mutex
-	bearerToken := model.Config["bearer_token"]
 	c := &rest.Config{
-		Host:            model.ServerUrl,
-		BearerToken:     bearerToken,
+		Host:            clusterInfo.ServerUrl,
+		BearerToken:     clusterInfo.BearerToken,
 		TLSClientConfig: rest.TLSClientConfig{Insecure: true},
 	}
-	impl.buildInformerAndNamespaceList(model.ClusterName, c, &mutex)
-
+	impl.buildInformerAndNamespaceList(clusterInfo.ClusterName, c, &mutex)
 	//TODO - if cluster added or deleted, manage informer respectively
 	return
 }
 
-func (impl *K8sInformerFactoryImpl) buildInformer() {
-	models, err := impl.clusterService.FindAllActive()
-	if err != nil {
-		impl.logger.Errorw("error in fetching clusters", "err", err)
-		return
-	}
+func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInfo) {
 	var mutex sync.Mutex
-	for _, model := range models {
-		bearerToken := model.Config["bearer_token"]
+	for _, info := range clusterInfo {
 		c := &rest.Config{
-			Host:            model.ServerUrl,
-			BearerToken:     bearerToken,
+			Host:            info.ServerUrl,
+			BearerToken:     info.BearerToken,
 			TLSClientConfig: rest.TLSClientConfig{Insecure: true},
 		}
-		impl.buildInformerAndNamespaceList(model.ClusterName, c, &mutex)
+		impl.buildInformerAndNamespaceList(info.ClusterName, c, &mutex)
 	}
 	//TODO - if cluster added or deleted, manage informer respectively
 	return
@@ -109,6 +95,7 @@ func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName st
 			impl.logger.Debugw("add event handler", "cluster", clusterName, "object", obj.(metav1.Object))
 			if mobject, ok := obj.(metav1.Object); ok {
 				mutex.Lock()
+				defer mutex.Unlock()
 				if _, ok := impl.globalMapClusterNamespace[clusterName]; !ok {
 					allNamespaces := make(map[string]string)
 					allNamespaces[mobject.GetName()] = mobject.GetName()
@@ -118,17 +105,18 @@ func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName st
 					allNamespaces[mobject.GetName()] = mobject.GetName()
 					impl.globalMapClusterNamespace[clusterName] = allNamespaces
 				}
-				mutex.Unlock()
+				//mutex.Unlock()
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			if object, ok := obj.(metav1.Object); ok {
+				mutex.Lock()
+				defer mutex.Unlock()
 				if _, ok := impl.globalMapClusterNamespace[clusterName]; ok {
-					mutex.Lock()
 					allNamespaces := impl.globalMapClusterNamespace[clusterName]
 					delete(allNamespaces, object.GetName())
 					impl.globalMapClusterNamespace[clusterName] = allNamespaces
-					mutex.Unlock()
+					//mutex.Unlock()
 				}
 			}
 		},
