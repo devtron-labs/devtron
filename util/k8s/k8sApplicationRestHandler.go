@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	errors2 "github.com/juju/errors"
@@ -96,6 +97,19 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
 		return
 	}
+
+	// Obfuscate secret if user does not have edit access
+	canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
+	if !canUpdate && resource != nil {
+		modifiedManifest , err := k8sObjectsUtil.HideValuesIfSecret(&resource.Manifest)
+		if err != nil {
+			handler.logger.Errorw("error in hiding secret values", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		resource.Manifest = *modifiedManifest
+	}
+
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
 }
 
