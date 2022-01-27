@@ -16,7 +16,6 @@
  * Some of the code has been taken from argocd, for them argocd licensing terms apply
  */
 
-
 package middleware
 
 import (

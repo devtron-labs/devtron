@@ -39,11 +39,34 @@ type UserAuthRouterImpl struct {
 	clientApp       *oidc.ClientApp
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userService user.UserService, dexConfig *client.DexConfig) (*UserAuthRouterImpl, error) {
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userService user.UserService, dexConfig *client.DexConfig, sClient *client.K8sClient) (*UserAuthRouterImpl, error) {
 	router := &UserAuthRouterImpl{
 		userAuthHandler: userAuthHandler,
 		logger:          logger,
 	}
+	//----
+	configUpdate, err := sClient.ConfigUpdateNotify()
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		logger.Info("watching for dex config update notification")
+		for {
+			cofigUpdate := <-configUpdate
+			logger.Infow("config update received", "status", cofigUpdate)
+			if cofigUpdate {
+				logger.Infow("dex config update detected")
+				dexConfig, err := client.BuildDexConfig(sClient)
+				if err != nil {
+					logger.Errorw("error in building updated dex config", "err", err)
+				}
+				oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, userService.UserExists, router.RedirectUrlSanitiser)
+				router.dexProxy = dexProxy
+				router.clientApp.UpdateConfig(oidcClient)
+			}
+		}
+	}()
+	//--------
 	logger.Infow("auth starting with dex conf", "conf", dexConfig)
 	oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, userService.UserExists, router.RedirectUrlSanitiser)
 	if err != nil {
