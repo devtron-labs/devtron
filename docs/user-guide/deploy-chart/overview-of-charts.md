@@ -48,7 +48,7 @@ Select Update And Deploy to update new settings.
 
 You can use the default values or create Custom value by clicking on `Create Custom`.
 
-![](../../images/deploy-chart/overview-of-charts/custom.jpg)
+![](../../images/deploy-chart/overview-of-charts/custom1.jpg)
 
 You can name your Custom Value, select the Chart Version and change the configurations in YAML file.
 
