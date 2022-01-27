@@ -115,7 +115,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 	var artifactsAB []CiArtifact
 
 	queryFetchArtifacts := ""
-	queryFetchArtifacts = "SELECT cia.id, cia.data_source, cia.image, cia.image_digest FROM ci_artifact cia" +
+	queryFetchArtifacts = "SELECT cia.id, cia.data_source, cia.image, cia.image_digest, cia.scan_enabled, cia.scanned FROM ci_artifact cia" +
 		" INNER JOIN ci_pipeline cp on cp.id=cia.pipeline_id" +
 		" INNER JOIN pipeline p on p.ci_pipeline_id = cp.id" +
 		" WHERE p.id= ? ORDER BY cia.id DESC"
