@@ -18,9 +18,15 @@ func NewGlobalMapClusterNamespace() map[string]map[string]string {
 	return globalMapClusterNamespace
 }
 
+func NewMutex() *sync.Mutex {
+	var mutex sync.Mutex
+	return &mutex
+}
+
 type K8sInformerFactoryImpl struct {
 	logger                    *zap.SugaredLogger
-	globalMapClusterNamespace map[string]map[string]string
+	globalMapClusterNamespace map[string]map[string]string // {"cluster1":{"ns1":"ns1"},{"ns2":"ns2"}}
+	mutex                     *sync.Mutex
 }
 
 type K8sInformerFactory interface {
@@ -29,10 +35,12 @@ type K8sInformerFactory interface {
 	BuildInformer(clusterInfo []*bean.ClusterInfo)
 }
 
-func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]string) *K8sInformerFactoryImpl {
+func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]string,
+	mutex *sync.Mutex) *K8sInformerFactoryImpl {
 	informerFactory := &K8sInformerFactoryImpl{
 		logger:                    logger,
 		globalMapClusterNamespace: globalMapClusterNamespace,
+		mutex:                     mutex,
 	}
 	return informerFactory
 }
@@ -56,14 +64,12 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 }
 
 func (impl *K8sInformerFactoryImpl) BuildInformerForSingleCluster(clusterInfo *bean.ClusterInfo) {
-	var mutex sync.Mutex
 	c := &rest.Config{
 		Host:            clusterInfo.ServerUrl,
 		BearerToken:     clusterInfo.BearerToken,
 		TLSClientConfig: rest.TLSClientConfig{Insecure: true},
 	}
-	impl.buildInformerAndNamespaceList(clusterInfo.ClusterName, c, &mutex)
-	//TODO - if cluster added or deleted, manage informer respectively
+	impl.buildInformerAndNamespaceList(clusterInfo.ClusterName, c, impl.mutex)
 	return
 }
 
@@ -77,7 +83,6 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 		}
 		impl.buildInformerAndNamespaceList(info.ClusterName, c, &mutex)
 	}
-	//TODO - if cluster added or deleted, manage informer respectively
 	return
 }
 

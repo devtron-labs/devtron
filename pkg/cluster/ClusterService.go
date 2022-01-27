@@ -372,6 +372,19 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 
 	bean.Id = model.Id
+
+	// check weather config modified or not, if yes create informer with updated config
+	dbConfig := model.Config["bearer_token"]
+	requestConfig := bean.Config["bearer_token"]
+	if bean.ServerUrl != model.ServerUrl || dbConfig != requestConfig {
+		clusterInfo := &bean2.ClusterInfo{
+			ClusterId:   model.Id,
+			ClusterName: model.ClusterName,
+			BearerToken: dbConfig,
+			ServerUrl:   model.ServerUrl,
+		}
+		impl.K8sInformerFactory.BuildInformerForSingleCluster(clusterInfo)
+	}
 	return bean, err
 }
 
