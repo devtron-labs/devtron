@@ -8,11 +8,11 @@ Both methods are mentioned in the given document.
 
 ### Deploying Chart
 
-![](../../.gitbook/assets/deploy-chart-store.jpg)
+![](../../images/deploy-chart/overview-of-charts/chart-store.png)
 
-Select Discover and then select the chart that you want to use.
+Select `Discover` and then select the chart that you want to use.
 
-Click on README.MD to get more idea about the configurations of the chart.
+Click on `README.md` to get more idea about the configurations of the chart.
 
 ![](../../.gitbook/assets/custom%20%283%29%20%284%29.jpg)
 
@@ -31,9 +31,9 @@ The configuration values can be edited in the section given below Chart Version.
 
 ![](../../.gitbook/assets/depchart4config.jpg)
 
-ReadMe.md present on the left can be used by the user to set configuration values.
+Readme.md present on the left can be used by the user to set configuration values.
 
-![](../../.gitbook/assets/depchart4readme.jpg)
+![](../../images/deploy-chart/overview-of-charts/readme.png)
 
 Click on `Deploy Chart` to deploy the chart.
 
@@ -41,7 +41,7 @@ Click on `Deploy Chart` to deploy the chart.
 
 You can see the status of the chart deployed. Click on `Values.Yaml` to reconfigure the deployment.
 
-![](../../.gitbook/assets/depchartreconfig.jpg)
+![](../../images/deploy-chart/overview-of-charts/update-and-deploy.png)
 
 Configuration values can be edited over here by the help of ReadMe.md.
 
