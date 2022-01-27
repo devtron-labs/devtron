@@ -2,15 +2,13 @@
 
 ## Deploying Charts
 
-Charts can be deployed individually or by creating a group of Charts.
-
-Both methods are mentioned in the given document.
+Charts can be deployed individually or by creating a group of Charts. Both methods are mentioned here.
 
 ### Deploying Chart
 
-![](../../images/deploy-chart/overview-of-charts/chart-store.png)
+To deploy any chart or chart group, visit the `Charts` section and then select the chart that you want to use.
 
-Select `Discover` and then select the chart that you want to use.
+![](../../images/deploy-chart/overview-of-charts/chart-store.png)
 
 Click on `README.md` to get more idea about the configurations of the chart.
 
@@ -39,11 +37,11 @@ Click on `Deploy Chart` to deploy the chart.
 
 ![](../../images/deploy-chart/overview-of-charts/values.png)
 
-To see the status and details of the chart deployed by clicking on `App Details` and click on `Values` to reconfigure the deployment.
+Click on `App Details` to see the status and details of the chart deployed  and click on `Values` to reconfigure the deployment.
 
 ![](../../images/deploy-chart/overview-of-charts/update-and-deploy.png)
 
-Configuration values can be edited over here by the help of ReadMe.md.
+Configuration values can be edited over here by the help of Readme.md .
 
 Select Update And Deploy to update new settings.
 ### Custom Values
