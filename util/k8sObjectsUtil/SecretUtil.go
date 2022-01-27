@@ -3,10 +3,38 @@ package k8sObjectsUtil
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/yaml"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"strings"
 )
+
+
+func HideValuesIfSecretForWholeYamlInput(wholeYamlFileContent string) (string, error) {
+	manifests, err := yamlUtil.SplitYAMLs([]byte(wholeYamlFileContent))
+	if err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	for _, manifest := range manifests {
+		modifiedManifest, err := HideValuesIfSecret(manifest.DeepCopy())
+		if err != nil {
+			return "", err
+		}
+		yamlStr, err := yaml.Marshal(modifiedManifest.UnstructuredContent())
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(util.YamlSeparator)
+		sb.WriteString(string(yamlStr))
+	}
+
+	return sb.String(), nil
+}
 
 
 func HideValuesIfSecretForManifestStringInput(manifest string, kind string, group string) (string, error) {
