@@ -8,11 +8,11 @@ Charts can be deployed individually or by creating a group of Charts. Both metho
 
 To deploy any chart or chart group, visit the `Charts` section and then select the chart that you want to use.
 
-![](../../images/deploy-chart/overview-of-charts/chart-store.png)
+![](../../images/deploy-chart/overview-of-charts/chart-store.jpg)
 
 Click on `README.md` to get more idea about the configurations of the chart.
 
-![](../../images/deploy-chart/overview-of-charts/custom.png)
+![](../../images/deploy-chart/overview-of-charts/custom.jpg)
 
 Select the Chart Version that you want to use and Chart Value, you can either use the Default Values or Custom Values.
 
@@ -27,19 +27,19 @@ The configuration values can be edited in the section given below Chart Version.
 | `Environment` | Environment of the app to be deployed |
 | `Chart Version` | Version of the chart to be used |
 
-![](../../images/deploy-chart/overview-of-charts/deploy-chart.png)
+![](../../images/deploy-chart/overview-of-charts/deploy-chart.jpg)
 
 Readme.md present on the left can be used by the user to set configuration values.
 
-![](../../images/deploy-chart/overview-of-charts/readme.png)
+![](../../images/deploy-chart/overview-of-charts/readme.jpg)
 
 Click on `Deploy Chart` to deploy the chart.
 
-![](../../images/deploy-chart/overview-of-charts/values.png)
+![](../../images/deploy-chart/overview-of-charts/values.jpg)
 
 Click on `App Details` to see the status and details of the chart deployed  and click on `Values` to reconfigure the deployment.
 
-![](../../images/deploy-chart/overview-of-charts/update-and-deploy.png)
+![](../../images/deploy-chart/overview-of-charts/update-and-deploy.jpg)
 
 Configuration values can be edited over here by the help of Readme.md .
 
@@ -48,7 +48,7 @@ Select Update And Deploy to update new settings.
 
 You can use the default values or create Custom value by clicking on `Create Custom`.
 
-![](../../images/deploy-chart/overview-of-charts/custom.png)
+![](../../images/deploy-chart/overview-of-charts/custom.jpg)
 
 You can name your Custom Value, select the Chart Version and change the configurations in YAML file.
 
