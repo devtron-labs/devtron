@@ -41,10 +41,11 @@ type UserAuthRouterImpl struct {
 	sessionManager  *middleware.SessionManager
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userService user.UserService, dexConfig *client.DexConfig, sClient *client.K8sClient) (*UserAuthRouterImpl, error) {
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userService user.UserService, dexConfig *client.DexConfig, sClient *client.K8sClient, sessionManager *middleware.SessionManager) (*UserAuthRouterImpl, error) {
 	router := &UserAuthRouterImpl{
 		userAuthHandler: userAuthHandler,
 		logger:          logger,
+		sessionManager:  sessionManager,
 	}
 	//----
 	configUpdate, err := sClient.ConfigUpdateNotify()
