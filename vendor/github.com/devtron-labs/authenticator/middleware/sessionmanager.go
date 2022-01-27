@@ -81,6 +81,9 @@ func NewSessionManager(settings *oidc.Settings, config *client.DexConfig) *Sessi
 func (mgr *SessionManager) GetUserSessionDuration() time.Duration {
 	return mgr.settings.UserSessionDuration
 }
+func (mgr *SessionManager) UpdateSettings(settings *oidc.Settings) {
+	mgr.settings = settings
+}
 
 // Create creates a new token for a given subject (user) and returns it as a string.
 // Passing a value of `0` for secondsBeforeExpiry creates a token that never expires.

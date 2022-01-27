@@ -19,6 +19,7 @@ package user
 
 import (
 	"github.com/devtron-labs/authenticator/client"
+	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -37,6 +38,7 @@ type UserAuthRouterImpl struct {
 	userAuthHandler UserAuthHandler
 	dexProxy        func(writer http.ResponseWriter, request *http.Request)
 	clientApp       *oidc.ClientApp
+	sessionManager  *middleware.SessionManager
 }
 
 func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userService user.UserService, dexConfig *client.DexConfig, sClient *client.K8sClient) (*UserAuthRouterImpl, error) {
@@ -63,6 +65,11 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHa
 				oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, userService.UserExists, router.RedirectUrlSanitiser)
 				router.dexProxy = dexProxy
 				router.clientApp.UpdateConfig(oidcClient)
+				settings, err := client.GetSettings(dexConfig)
+				if err != nil {
+					logger.Errorw("error in updating settings", "err", err)
+				}
+				router.sessionManager.UpdateSettings(settings)
 			}
 		}
 	}()
