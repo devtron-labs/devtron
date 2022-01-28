@@ -1685,6 +1685,116 @@ func (x *DesiredManifestResponse) GetManifest() string {
 	return ""
 }
 
+type UninstallReleaseResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+}
+
+func (x *UninstallReleaseResponse) Reset() {
+	*x = UninstallReleaseResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_grpc_applist_proto_msgTypes[24]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *UninstallReleaseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UninstallReleaseResponse) ProtoMessage() {}
+
+func (x *UninstallReleaseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_grpc_applist_proto_msgTypes[24]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UninstallReleaseResponse.ProtoReflect.Descriptor instead.
+func (*UninstallReleaseResponse) Descriptor() ([]byte, []int) {
+	return file_grpc_applist_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *UninstallReleaseResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+type ReleaseIdentifier struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ClusterConfig    *ClusterConfig `protobuf:"bytes,1,opt,name=clusterConfig,proto3" json:"clusterConfig,omitempty"`
+	ReleaseName      string         `protobuf:"bytes,2,opt,name=releaseName,proto3" json:"releaseName,omitempty"`
+	ReleaseNamespace string         `protobuf:"bytes,3,opt,name=releaseNamespace,proto3" json:"releaseNamespace,omitempty"`
+}
+
+func (x *ReleaseIdentifier) Reset() {
+	*x = ReleaseIdentifier{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_grpc_applist_proto_msgTypes[25]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReleaseIdentifier) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReleaseIdentifier) ProtoMessage() {}
+
+func (x *ReleaseIdentifier) ProtoReflect() protoreflect.Message {
+	mi := &file_grpc_applist_proto_msgTypes[25]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReleaseIdentifier.ProtoReflect.Descriptor instead.
+func (*ReleaseIdentifier) Descriptor() ([]byte, []int) {
+	return file_grpc_applist_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ReleaseIdentifier) GetClusterConfig() *ClusterConfig {
+	if x != nil {
+		return x.ClusterConfig
+	}
+	return nil
+}
+
+func (x *ReleaseIdentifier) GetReleaseName() string {
+	if x != nil {
+		return x.ReleaseName
+	}
+	return ""
+}
+
+func (x *ReleaseIdentifier) GetReleaseNamespace() string {
+	if x != nil {
+		return x.ReleaseNamespace
+	}
+	return ""
+}
+
 var File_grpc_applist_proto protoreflect.FileDescriptor
 
 var file_grpc_applist_proto_rawDesc = []byte{
@@ -1935,7 +2045,20 @@ var file_grpc_applist_proto_rawDesc = []byte{
 	0x44, 0x65, 0x73, 0x69, 0x72, 0x65, 0x64, 0x4d, 0x61, 0x6e, 0x69, 0x66, 0x65, 0x73, 0x74, 0x52,
 	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x6d, 0x61, 0x6e, 0x69, 0x66,
 	0x65, 0x73, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x6d, 0x61, 0x6e, 0x69, 0x66,
-	0x65, 0x73, 0x74, 0x32, 0xac, 0x03, 0x0a, 0x12, 0x41, 0x70, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74,
+	0x65, 0x73, 0x74, 0x22, 0x34, 0x0a, 0x18, 0x55, 0x6e, 0x69, 0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c,
+	0x52, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
+	0x18, 0x0a, 0x07, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08,
+	0x52, 0x07, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x22, 0x97, 0x01, 0x0a, 0x11, 0x52, 0x65,
+	0x6c, 0x65, 0x61, 0x73, 0x65, 0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x66, 0x69, 0x65, 0x72, 0x12,
+	0x34, 0x0a, 0x0d, 0x63, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72,
+	0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x0d, 0x63, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x43,
+	0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x20, 0x0a, 0x0b, 0x72, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65,
+	0x4e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x72, 0x65, 0x6c, 0x65,
+	0x61, 0x73, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x2a, 0x0a, 0x10, 0x72, 0x65, 0x6c, 0x65, 0x61,
+	0x73, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x10, 0x72, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70,
+	0x61, 0x63, 0x65, 0x32, 0xf1, 0x03, 0x0a, 0x12, 0x41, 0x70, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74,
 	0x69, 0x6f, 0x6e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x39, 0x0a, 0x10, 0x4c, 0x69,
 	0x73, 0x74, 0x41, 0x70, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x0f,
 	0x2e, 0x41, 0x70, 0x70, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
@@ -1962,11 +2085,15 @@ var file_grpc_applist_proto_rawDesc = []byte{
 	0x6e, 0x69, 0x66, 0x65, 0x73, 0x74, 0x12, 0x0e, 0x2e, 0x4f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x52,
 	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x44, 0x65, 0x73, 0x69, 0x72, 0x65, 0x64,
 	0x4d, 0x61, 0x6e, 0x69, 0x66, 0x65, 0x73, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x22, 0x00, 0x42, 0x39, 0x5a, 0x37, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d,
-	0x2f, 0x64, 0x65, 0x76, 0x74, 0x72, 0x6f, 0x6e, 0x2d, 0x6c, 0x61, 0x62, 0x73, 0x2f, 0x67, 0x6f,
-	0x2d, 0x68, 0x65, 0x6c, 0x6d, 0x2d, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x2f, 0x62, 0x65, 0x61,
-	0x6e, 0x2f, 0x67, 0x72, 0x70, 0x63, 0x2f, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x62, 0x06, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x22, 0x00, 0x12, 0x43, 0x0a, 0x10, 0x55, 0x6e, 0x69, 0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x52,
+	0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x12, 0x12, 0x2e, 0x52, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65,
+	0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x66, 0x69, 0x65, 0x72, 0x1a, 0x19, 0x2e, 0x55, 0x6e, 0x69,
+	0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x52, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x39, 0x5a, 0x37, 0x67, 0x69, 0x74, 0x68, 0x75,
+	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x64, 0x65, 0x76, 0x74, 0x72, 0x6f, 0x6e, 0x2d, 0x6c, 0x61,
+	0x62, 0x73, 0x2f, 0x67, 0x6f, 0x2d, 0x68, 0x65, 0x6c, 0x6d, 0x2d, 0x63, 0x6c, 0x69, 0x65, 0x6e,
+	0x74, 0x2f, 0x62, 0x65, 0x61, 0x6e, 0x2f, 0x67, 0x72, 0x70, 0x63, 0x2f, 0x63, 0x6c, 0x69, 0x65,
+	0x6e, 0x74, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1981,7 +2108,7 @@ func file_grpc_applist_proto_rawDescGZIP() []byte {
 	return file_grpc_applist_proto_rawDescData
 }
 
-var file_grpc_applist_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_grpc_applist_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_grpc_applist_proto_goTypes = []interface{}{
 	(*ClusterConfig)(nil),            // 0: ClusterConfig
 	(*AppListRequest)(nil),           // 1: AppListRequest
@@ -2007,17 +2134,19 @@ var file_grpc_applist_proto_goTypes = []interface{}{
 	(*ReleaseInfo)(nil),              // 21: ReleaseInfo
 	(*ObjectRequest)(nil),            // 22: ObjectRequest
 	(*DesiredManifestResponse)(nil),  // 23: DesiredManifestResponse
-	nil,                              // 24: ResourceNetworkingInfo.LabelsEntry
-	(*timestamp.Timestamp)(nil),      // 25: google.protobuf.Timestamp
+	(*UninstallReleaseResponse)(nil), // 24: UninstallReleaseResponse
+	(*ReleaseIdentifier)(nil),        // 25: ReleaseIdentifier
+	nil,                              // 26: ResourceNetworkingInfo.LabelsEntry
+	(*timestamp.Timestamp)(nil),      // 27: google.protobuf.Timestamp
 }
 var file_grpc_applist_proto_depIdxs = []int32{
 	0,  // 0: AppListRequest.clusters:type_name -> ClusterConfig
 	3,  // 1: DeployedAppList.DeployedAppDetail:type_name -> DeployedAppDetail
 	4,  // 2: DeployedAppDetail.environmentDetail:type_name -> EnvironmentDetails
-	25, // 3: DeployedAppDetail.LastDeployed:type_name -> google.protobuf.Timestamp
+	27, // 3: DeployedAppDetail.LastDeployed:type_name -> google.protobuf.Timestamp
 	0,  // 4: AppDetailRequest.clusterConfig:type_name -> ClusterConfig
 	7,  // 5: AppDetail.releaseStatus:type_name -> ReleaseStatus
-	25, // 6: AppDetail.lastDeployed:type_name -> google.protobuf.Timestamp
+	27, // 6: AppDetail.lastDeployed:type_name -> google.protobuf.Timestamp
 	8,  // 7: AppDetail.chartMetadata:type_name -> ChartMetadata
 	9,  // 8: AppDetail.resourceTreeResponse:type_name -> ResourceTreeResponse
 	4,  // 9: AppDetail.environmentDetails:type_name -> EnvironmentDetails
@@ -2026,36 +2155,39 @@ var file_grpc_applist_proto_depIdxs = []int32{
 	13, // 12: ResourceNode.parentRefs:type_name -> ResourceRef
 	12, // 13: ResourceNode.networkingInfo:type_name -> ResourceNetworkingInfo
 	11, // 14: ResourceNode.health:type_name -> HealthStatus
-	24, // 15: ResourceNetworkingInfo.labels:type_name -> ResourceNetworkingInfo.LabelsEntry
+	26, // 15: ResourceNetworkingInfo.labels:type_name -> ResourceNetworkingInfo.LabelsEntry
 	0,  // 16: HibernateRequest.clusterConfig:type_name -> ClusterConfig
 	16, // 17: HibernateRequest.objectIdentifier:type_name -> ObjectIdentifier
 	16, // 18: HibernateStatus.targetObject:type_name -> ObjectIdentifier
 	17, // 19: HibernateResponse.status:type_name -> HibernateStatus
 	8,  // 20: HelmAppDeploymentDetail.chartMetadata:type_name -> ChartMetadata
-	25, // 21: HelmAppDeploymentDetail.deployedAt:type_name -> google.protobuf.Timestamp
+	27, // 21: HelmAppDeploymentDetail.deployedAt:type_name -> google.protobuf.Timestamp
 	19, // 22: HelmAppDeploymentHistory.deploymentHistory:type_name -> HelmAppDeploymentDetail
 	3,  // 23: ReleaseInfo.deployedAppDetail:type_name -> DeployedAppDetail
 	0,  // 24: ObjectRequest.clusterConfig:type_name -> ClusterConfig
 	16, // 25: ObjectRequest.objectIdentifier:type_name -> ObjectIdentifier
-	1,  // 26: ApplicationService.ListApplications:input_type -> AppListRequest
-	5,  // 27: ApplicationService.GetAppDetail:input_type -> AppDetailRequest
-	15, // 28: ApplicationService.Hibernate:input_type -> HibernateRequest
-	15, // 29: ApplicationService.UnHibernate:input_type -> HibernateRequest
-	5,  // 30: ApplicationService.GetDeploymentHistory:input_type -> AppDetailRequest
-	5,  // 31: ApplicationService.GetValuesYaml:input_type -> AppDetailRequest
-	22, // 32: ApplicationService.GetDesiredManifest:input_type -> ObjectRequest
-	2,  // 33: ApplicationService.ListApplications:output_type -> DeployedAppList
-	6,  // 34: ApplicationService.GetAppDetail:output_type -> AppDetail
-	18, // 35: ApplicationService.Hibernate:output_type -> HibernateResponse
-	18, // 36: ApplicationService.UnHibernate:output_type -> HibernateResponse
-	20, // 37: ApplicationService.GetDeploymentHistory:output_type -> HelmAppDeploymentHistory
-	21, // 38: ApplicationService.GetValuesYaml:output_type -> ReleaseInfo
-	23, // 39: ApplicationService.GetDesiredManifest:output_type -> DesiredManifestResponse
-	33, // [33:40] is the sub-list for method output_type
-	26, // [26:33] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	0,  // 26: ReleaseIdentifier.clusterConfig:type_name -> ClusterConfig
+	1,  // 27: ApplicationService.ListApplications:input_type -> AppListRequest
+	5,  // 28: ApplicationService.GetAppDetail:input_type -> AppDetailRequest
+	15, // 29: ApplicationService.Hibernate:input_type -> HibernateRequest
+	15, // 30: ApplicationService.UnHibernate:input_type -> HibernateRequest
+	5,  // 31: ApplicationService.GetDeploymentHistory:input_type -> AppDetailRequest
+	5,  // 32: ApplicationService.GetValuesYaml:input_type -> AppDetailRequest
+	22, // 33: ApplicationService.GetDesiredManifest:input_type -> ObjectRequest
+	25, // 34: ApplicationService.UninstallRelease:input_type -> ReleaseIdentifier
+	2,  // 35: ApplicationService.ListApplications:output_type -> DeployedAppList
+	6,  // 36: ApplicationService.GetAppDetail:output_type -> AppDetail
+	18, // 37: ApplicationService.Hibernate:output_type -> HibernateResponse
+	18, // 38: ApplicationService.UnHibernate:output_type -> HibernateResponse
+	20, // 39: ApplicationService.GetDeploymentHistory:output_type -> HelmAppDeploymentHistory
+	21, // 40: ApplicationService.GetValuesYaml:output_type -> ReleaseInfo
+	23, // 41: ApplicationService.GetDesiredManifest:output_type -> DesiredManifestResponse
+	24, // 42: ApplicationService.UninstallRelease:output_type -> UninstallReleaseResponse
+	35, // [35:43] is the sub-list for method output_type
+	27, // [27:35] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_grpc_applist_proto_init() }
@@ -2352,6 +2484,30 @@ func file_grpc_applist_proto_init() {
 				return nil
 			}
 		}
+		file_grpc_applist_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*UninstallReleaseResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_grpc_applist_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ReleaseIdentifier); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -2359,7 +2515,7 @@ func file_grpc_applist_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_grpc_applist_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   25,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -279,6 +279,25 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/DesiredManifestResponse"
+  /orchestrator/application/delete:
+    delete:
+      description: delete application
+      parameters:
+        - in: query
+          name: appId
+          example: "12|helm-app|cluster1-ns1"
+          description: application Id
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: delete application request response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UninstallReleaseResponse"
 components:
   schemas:
     appListRequest:
@@ -621,4 +640,11 @@ components:
           type: string
           description: desired manifest
           example: "some manifest"
+    UninstallReleaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
 
