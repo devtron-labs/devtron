@@ -238,7 +238,7 @@ INSERT INTO "public"."default_auth_role" ("id", "role_type", "role", "created_on
     "team": "{{.Team}}",
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
-    "action": "manager"
+    "action": "manager",
     "access_type": ""
 }', 'now()', '1', 'now()', '1'),
 ('2', 'admin', '{
@@ -249,10 +249,9 @@ INSERT INTO "public"."default_auth_role" ("id", "role_type", "role", "created_on
     "team": "{{.Team}}",
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
-    "action": "admin"
+    "action": "admin",
     "access_type": ""
-}
-', 'now()', '1', 'now()', '1'),
+}', 'now()', '1', 'now()', '1'),
 ('3', 'trigger', '{
     "role": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
     "casbinSubjects": [
@@ -261,7 +260,7 @@ INSERT INTO "public"."default_auth_role" ("id", "role_type", "role", "created_on
     "team": "{{.Team}}",
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
-    "action": "trigger"
+    "action": "trigger",
     "access_type": ""
 }', 'now()', '1', 'now()', '1'),
 ('4', 'view', '{
@@ -272,7 +271,7 @@ INSERT INTO "public"."default_auth_role" ("id", "role_type", "role", "created_on
     "team": "{{.Team}}",
     "entityName": "{{.App}}",
     "environment": "{{.Env}}",
-    "action": "view"
+    "action": "view",
     "access_type": ""
 }', 'now()', '1', 'now()', '1'),
 ('5', 'entitySpecificAdmin', '{
@@ -285,8 +284,7 @@ INSERT INTO "public"."default_auth_role" ("id", "role_type", "role", "created_on
     "application": "",
     "environment": "",
     "action": "admin"
-}
-', 'now()', '1', 'now()', '1'),
+}', 'now()', '1', 'now()', '1'),
 ('6', 'entitySpecificView', '{
     "role": "role:{{.Entity}}_view",
     "casbinSubjects": [
