@@ -57,12 +57,21 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 
 func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInfo) {
 	for _, info := range clusterInfo {
-		c := &rest.Config{
-			Host:            info.ServerUrl,
-			BearerToken:     info.BearerToken,
-			TLSClientConfig: rest.TLSClientConfig{Insecure: true},
+		if info.ClusterName == "default_cluster" {
+			c, err := rest.InClusterConfig()
+			if err != nil {
+				impl.logger.Errorw("error in fetch default cluster config", "err", err)
+				return
+			}
+			impl.buildInformerAndNamespaceList(info.ClusterName, c, &impl.mutex)
+		} else {
+			c := &rest.Config{
+				Host:            info.ServerUrl,
+				BearerToken:     info.BearerToken,
+				TLSClientConfig: rest.TLSClientConfig{Insecure: true},
+			}
+			impl.buildInformerAndNamespaceList(info.ClusterName, c, &impl.mutex)
 		}
-		impl.buildInformerAndNamespaceList(info.ClusterName, c, &impl.mutex)
 	}
 	return
 }
