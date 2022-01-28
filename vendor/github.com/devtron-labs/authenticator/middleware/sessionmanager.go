@@ -81,6 +81,7 @@ func NewSessionManager(settings *oidc.Settings, config *client.DexConfig) *Sessi
 func (mgr *SessionManager) GetUserSessionDuration() time.Duration {
 	return mgr.settings.UserSessionDuration
 }
+
 func (mgr *SessionManager) UpdateSettings(settings *oidc.Settings) {
 	mgr.settings = settings
 }
