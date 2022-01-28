@@ -97,6 +97,7 @@ func (mgr *SessionManager) UpdateSettings(settings *oidc.Settings, config *clien
 		},
 	}
 	mgr.client.Transport = oidc.NewDexRewriteURLRoundTripper(config.DexServerAddress, mgr.client.Transport)
+	mgr.prov = nil //reset provider
 }
 
 // Create creates a new token for a given subject (user) and returns it as a string.

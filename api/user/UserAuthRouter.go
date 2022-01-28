@@ -70,11 +70,7 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHa
 				if err != nil {
 					logger.Errorw("error in updating settings", "err", err)
 				}
-				dexConf, err := sClient.GetServerSettings()
-				if err != nil {
-					logger.Errorw("error in updating settings", "err", err)
-				}
-				router.sessionManager.UpdateSettings(settings, dexConf)
+				router.sessionManager.UpdateSettings(settings, dexConfig)
 			}
 		}
 	}()
