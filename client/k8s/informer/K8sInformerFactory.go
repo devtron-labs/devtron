@@ -13,49 +13,41 @@ import (
 	"time"
 )
 
-func NewGlobalMapClusterNamespace() map[string]map[string]string {
-	globalMapClusterNamespace := make(map[string]map[string]string)
+func NewGlobalMapClusterNamespace() map[string]map[string]bool {
+	globalMapClusterNamespace := make(map[string]map[string]bool)
 	return globalMapClusterNamespace
-}
-
-func NewMutex() *sync.Mutex {
-	var mutex sync.Mutex
-	return &mutex
 }
 
 type K8sInformerFactoryImpl struct {
 	logger                    *zap.SugaredLogger
-	globalMapClusterNamespace map[string]map[string]string // {"cluster1":{"ns1":"ns1"},{"ns2":"ns2"}}
-	mutex                     *sync.Mutex
+	globalMapClusterNamespace map[string]map[string]bool // {"cluster1":{"ns1":true","ns2":true"}}
+	mutex                     sync.Mutex
 }
 
 type K8sInformerFactory interface {
-	GetLatestNamespaceListGroupByCLuster() map[string]map[string]string
-	BuildInformerForSingleCluster(clusterInfo *bean.ClusterInfo)
+	GetLatestNamespaceListGroupByCLuster() map[string]map[string]bool
 	BuildInformer(clusterInfo []*bean.ClusterInfo)
 }
 
-func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]string,
-	mutex *sync.Mutex) *K8sInformerFactoryImpl {
+func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool) *K8sInformerFactoryImpl {
 	informerFactory := &K8sInformerFactoryImpl{
 		logger:                    logger,
 		globalMapClusterNamespace: globalMapClusterNamespace,
-		mutex:                     mutex,
 	}
 	return informerFactory
 }
 
-func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[string]map[string]string {
-	copiedClusterNamespaces := make(map[string]map[string]string)
+func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[string]map[string]bool {
+	copiedClusterNamespaces := make(map[string]map[string]bool)
 	for key, value := range impl.globalMapClusterNamespace {
-		for _, namespace := range value {
+		for namespace, v := range value {
 			if _, ok := copiedClusterNamespaces[key]; !ok {
-				allNamespaces := make(map[string]string)
-				allNamespaces[namespace] = namespace
+				allNamespaces := make(map[string]bool)
+				allNamespaces[namespace] = v
 				copiedClusterNamespaces[key] = allNamespaces
 			} else {
 				allNamespaces := copiedClusterNamespaces[key]
-				allNamespaces[namespace] = namespace
+				allNamespaces[namespace] = v
 				copiedClusterNamespaces[key] = allNamespaces
 			}
 		}
@@ -63,30 +55,19 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 	return copiedClusterNamespaces
 }
 
-func (impl *K8sInformerFactoryImpl) BuildInformerForSingleCluster(clusterInfo *bean.ClusterInfo) {
-	c := &rest.Config{
-		Host:            clusterInfo.ServerUrl,
-		BearerToken:     clusterInfo.BearerToken,
-		TLSClientConfig: rest.TLSClientConfig{Insecure: true},
-	}
-	impl.buildInformerAndNamespaceList(clusterInfo.ClusterName, c, impl.mutex)
-	return
-}
-
 func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInfo) {
-	var mutex sync.Mutex
 	for _, info := range clusterInfo {
 		c := &rest.Config{
 			Host:            info.ServerUrl,
 			BearerToken:     info.BearerToken,
 			TLSClientConfig: rest.TLSClientConfig{Insecure: true},
 		}
-		impl.buildInformerAndNamespaceList(info.ClusterName, c, &mutex)
+		impl.buildInformerAndNamespaceList(info.ClusterName, c, &impl.mutex)
 	}
 	return
 }
 
-func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, config *rest.Config, mutex *sync.Mutex) map[string]map[string]string {
+func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, config *rest.Config, mutex *sync.Mutex) map[string]map[string]bool {
 	clusterClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		impl.logger.Errorw("error in create k8s config", "err", err)
@@ -95,6 +76,8 @@ func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName st
 	informerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(clusterClient, time.Minute)
 	nsInformer := informerFactory.Core().V1().Namespaces()
 	impl.logger.Debugw(clusterName, "ns informer", nsInformer.Informer())
+	allNamespaces := make(map[string]bool)
+	impl.globalMapClusterNamespace[clusterName] = allNamespaces
 	nsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			impl.logger.Debugw("add event handler", "cluster", clusterName, "object", obj.(metav1.Object))
@@ -102,12 +85,12 @@ func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName st
 				mutex.Lock()
 				defer mutex.Unlock()
 				if _, ok := impl.globalMapClusterNamespace[clusterName]; !ok {
-					allNamespaces := make(map[string]string)
-					allNamespaces[mobject.GetName()] = mobject.GetName()
+					allNamespaces := make(map[string]bool)
+					allNamespaces[mobject.GetName()] = true
 					impl.globalMapClusterNamespace[clusterName] = allNamespaces
 				} else {
 					allNamespaces := impl.globalMapClusterNamespace[clusterName]
-					allNamespaces[mobject.GetName()] = mobject.GetName()
+					allNamespaces[mobject.GetName()] = true
 					impl.globalMapClusterNamespace[clusterName] = allNamespaces
 				}
 				//mutex.Unlock()

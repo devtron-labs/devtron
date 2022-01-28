@@ -19,7 +19,6 @@ var K8sApplicationWireSet = wire.NewSet(
 	terminal.NewTerminalSessionHandlerImpl,
 	wire.Bind(new(terminal.TerminalSessionHandler), new(*terminal.TerminalSessionHandlerImpl)),
 
-	informer.NewMutex,
 	informer.NewGlobalMapClusterNamespace,
 	informer.NewK8sInformerFactoryImpl,
 	wire.Bind(new(informer.K8sInformerFactory), new(*informer.K8sInformerFactoryImpl)),

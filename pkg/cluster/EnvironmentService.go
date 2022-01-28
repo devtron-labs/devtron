@@ -456,7 +456,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 	namespaceListGroupByClusters := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
 	for clusterName, namespaces := range namespaceListGroupByClusters {
 		clusterId := clusterMap[clusterName]
-		for _, namespace := range namespaces {
+		for namespace := range namespaces {
 			environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
 			// auth enforcer applied here
 			isValidAuth := auth(token, environmentIdentifier)

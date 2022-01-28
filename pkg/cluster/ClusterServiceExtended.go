@@ -43,7 +43,7 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 			K8sInformerFactory: K8sInformerFactory,
 		},
 	}
-	clusterServiceExt.buildInformer()
+	go clusterServiceExt.buildInformer()
 	return clusterServiceExt
 }
 

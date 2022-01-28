@@ -93,7 +93,7 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 		K8sUtil:            K8sUtil,
 		K8sInformerFactory: K8sInformerFactory,
 	}
-	clusterService.buildInformer()
+	go clusterService.buildInformer()
 	return clusterService
 }
 
@@ -185,7 +185,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		BearerToken: bearerToken,
 		ServerUrl:   model.ServerUrl,
 	}
-	impl.K8sInformerFactory.BuildInformerForSingleCluster(clusterInfo)
+	impl.K8sInformerFactory.BuildInformer([]*bean2.ClusterInfo{clusterInfo})
 	return bean, err
 }
 
@@ -383,7 +383,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 			BearerToken: dbConfig,
 			ServerUrl:   model.ServerUrl,
 		}
-		impl.K8sInformerFactory.BuildInformerForSingleCluster(clusterInfo)
+		impl.K8sInformerFactory.BuildInformer([]*bean2.ClusterInfo{clusterInfo})
 	}
 	return bean, err
 }
