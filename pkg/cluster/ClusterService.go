@@ -330,6 +330,13 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		return nil, fmt.Errorf("cluster already exists")
 	}
 
+	// check weather config modified or not, if yes create informer with updated config
+	dbConfig := model.Config["bearer_token"]
+	requestConfig := bean.Config["bearer_token"]
+	hasChangedInConfig := false
+	if bean.ServerUrl != model.ServerUrl || dbConfig != requestConfig {
+		hasChangedInConfig = true
+	}
 	model.ClusterName = bean.ClusterName
 	model.ServerUrl = bean.ServerUrl
 	model.PrometheusEndpoint = bean.PrometheusUrl
@@ -373,10 +380,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 
 	bean.Id = model.Id
 
-	// check weather config modified or not, if yes create informer with updated config
-	dbConfig := model.Config["bearer_token"]
-	requestConfig := bean.Config["bearer_token"]
-	if bean.ServerUrl != model.ServerUrl || dbConfig != requestConfig {
+	if hasChangedInConfig {
 		clusterInfo := &bean2.ClusterInfo{
 			ClusterId:   model.Id,
 			ClusterName: model.ClusterName,
