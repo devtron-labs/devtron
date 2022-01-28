@@ -97,7 +97,6 @@ func InitializeApp() (*App, error) {
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
-
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,

@@ -31,7 +31,6 @@ func InitializeApp() (*App, error) {
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
 
-
 		NewApp,
 		NewMuxRouter,
 
