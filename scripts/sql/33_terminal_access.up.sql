@@ -1,9 +1,9 @@
 -- Sequence and defined type
-CREATE SEQUENCE IF NOT EXISTS id_seq_auth_policy;
+CREATE SEQUENCE IF NOT EXISTS id_seq_default_auth_policy;
 
 -- Table Definition
-CREATE TABLE "public"."auth_policy" (
-                                          "id" int NOT NULL DEFAULT nextval('id_seq_auth_policy'::regclass),
+CREATE TABLE "public"."default_auth_policy" (
+                                          "id" int NOT NULL DEFAULT nextval('id_seq_default_auth_policy'::regclass),
                                           "role_type" varchar(250) NOT NULL,
                                           "policy" text NOT NULL,
                                           "created_on" timestamptz,
@@ -13,7 +13,7 @@ CREATE TABLE "public"."auth_policy" (
                                           PRIMARY KEY ("id")
 );
 
-INSERT INTO "public"."auth_policy" ("id", "role_type", "policy", "created_on", "created_by", "updated_on", "updated_by") VALUES
+INSERT INTO "public"."default_auth_policy" ("id", "role_type", "policy", "created_on", "created_by", "updated_on", "updated_by") VALUES
 ('1', 'manager', '{
     "data": [
         {
@@ -89,7 +89,7 @@ INSERT INTO "public"."auth_policy" ("id", "role_type", "policy", "created_on", "
             "res": "global-environment",
             "act": "get",
             "obj": "{{.EnvObj}}"
-        }
+        },
     ]
 }', 'now()', '1', 'now()', '1'),
 ('3', 'trigger', '{
@@ -222,11 +222,11 @@ INSERT INTO "public"."auth_policy" ("id", "role_type", "policy", "created_on", "
 
 
 -- Sequence and defined type
-CREATE SEQUENCE IF NOT EXISTS id_seq_auth_role;
+CREATE SEQUENCE IF NOT EXISTS id_seq_default_auth_role;
 
 -- Table Definition
-CREATE TABLE "public"."auth_role" (
-                                        "id" int NOT NULL DEFAULT nextval('id_seq_auth_role'::regclass),
+CREATE TABLE "public"."default_auth_role" (
+                                        "id" int NOT NULL DEFAULT nextval('id_seq_default_auth_role'::regclass),
                                         "role_type" varchar(250) NOT NULL,
                                         "role" text NOT NULL,
                                         "created_on" timestamptz,
@@ -236,7 +236,7 @@ CREATE TABLE "public"."auth_role" (
                                         PRIMARY KEY ("id")
 );
 
-INSERT INTO "public"."auth_role" ("id", "role_type", "role", "created_on", "created_by", "updated_on", "updated_by") VALUES
+INSERT INTO "public"."default_auth_role" ("id", "role_type", "role", "created_on", "created_by", "updated_on", "updated_by") VALUES
 ('1', 'manager', '{
     "role": "role:manager_{{.Team}}_{{.Env}}_{{.App}}",
     "casbinSubjects": [

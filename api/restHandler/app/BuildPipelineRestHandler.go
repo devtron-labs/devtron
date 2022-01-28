@@ -266,8 +266,13 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	resMessage := "allowed for all pipelines"
 	response := make(map[string]string)
 	if len(unauthorizedPipelines) > 0 {
-		resMessage = "not authorized for few pipelines, will not effected"
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
 	}
+	//TODO : update auth for case with no cd pipelines
+	//if len(authorizedPipelines) == 0{
+	//	//user has no automatic ci pipeline
+	//}
 	//RBAC CHECK CD PIPELINE - FOR USER
 
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)

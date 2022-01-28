@@ -137,11 +137,9 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	authPolicyRepositoryImpl := repository2.NewAuthPolicyRepositoryImpl(db, sugaredLogger)
-	authRoleRepositoryImpl := repository2.NewAuthRoleRepositoryImpl(db, sugaredLogger)
-	userAuthRepositoryImpl := repository2.NewUserAuthRepositoryImpl(db, sugaredLogger, authPolicyRepositoryImpl, authRoleRepositoryImpl)
-	//calling below method for updating trigger policies for terminal access
-	userAuthRepositoryImpl.UpdatePolicyForTerminalAccess()
+	defaultAuthPolicyRepositoryImpl := repository2.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
+	defaultAuthRoleRepositoryImpl := repository2.NewDefaultAuthRoleRepositoryImpl(db, sugaredLogger)
+	userAuthRepositoryImpl := repository2.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
 	runtimeConfig, err := client2.GetRuntimeConfig()
 	if err != nil {
 		return nil, err

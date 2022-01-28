@@ -21,30 +21,30 @@ const (
 	ROLE_SPECIFIC_TYPE         RoleType = "roleSpecific"
 )
 
-type AuthPolicyRepository interface {
-	CreatePolicy(policy *AuthPolicy) (*AuthPolicy, error)
-	UpdatePolicy(policy *AuthPolicy) (*AuthPolicy, error)
+type DefaultAuthPolicyRepository interface {
+	CreatePolicy(policy *DefaultAuthPolicy) (*DefaultAuthPolicy, error)
+	UpdatePolicyByRoleType(policy string, roleType RoleType) (*DefaultAuthPolicy, error)
 	GetPolicyByRoleType(roleType RoleType) (policy string, err error)
 }
 
-type AuthPolicy struct {
-	TableName struct{} `sql:"auth_policy" pg:",discard_unknown_columns"`
+type DefaultAuthPolicy struct {
+	TableName struct{} `sql:"default_auth_policy" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id,pk"`
 	RoleType  string   `sql:"role_type,notnull"`
 	Policy    string   `sql:"policy,notnull"`
 	sql.AuditLog
 }
 
-type AuthPolicyRepositoryImpl struct {
+type DefaultAuthPolicyRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 }
 
-func NewAuthPolicyRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *AuthPolicyRepositoryImpl {
-	return &AuthPolicyRepositoryImpl{dbConnection: dbConnection, logger: logger}
+func NewDefaultAuthPolicyRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *DefaultAuthPolicyRepositoryImpl {
+	return &DefaultAuthPolicyRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
-func (impl AuthPolicyRepositoryImpl) CreatePolicy(policy *AuthPolicy) (*AuthPolicy, error) {
+func (impl DefaultAuthPolicyRepositoryImpl) CreatePolicy(policy *DefaultAuthPolicy) (*DefaultAuthPolicy, error) {
 	err := impl.dbConnection.Insert(policy)
 	if err != nil {
 		impl.logger.Error("error in creating auth policy", "err", err)
@@ -53,17 +53,19 @@ func (impl AuthPolicyRepositoryImpl) CreatePolicy(policy *AuthPolicy) (*AuthPoli
 	return policy, nil
 }
 
-func (impl AuthPolicyRepositoryImpl) UpdatePolicy(policy *AuthPolicy) (*AuthPolicy, error) {
-	err := impl.dbConnection.Update(policy)
+func (impl DefaultAuthPolicyRepositoryImpl) UpdatePolicyByRoleType(policy string, roleType RoleType) (*DefaultAuthPolicy, error) {
+	var model DefaultAuthPolicy
+	_, err := impl.dbConnection.Model(&model).Set("policy = ?", policy).
+		Where("role = ?", roleType).Update()
 	if err != nil {
 		impl.logger.Error("error in updating auth policy", "err", err)
-		return policy, err
+		return &model, err
 	}
-	return policy, nil
+	return &model, nil
 }
 
-func (impl AuthPolicyRepositoryImpl) GetPolicyByRoleType(roleType RoleType) (policy string, err error) {
-	var model AuthPolicy
+func (impl DefaultAuthPolicyRepositoryImpl) GetPolicyByRoleType(roleType RoleType) (policy string, err error) {
+	var model DefaultAuthPolicy
 	err = impl.dbConnection.Model(&model).Where("role = ?", roleType).Select()
 	if err != nil {
 		impl.logger.Error("error in getting policy by roleType", "err", err, "roleType", roleType)
