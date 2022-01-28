@@ -280,6 +280,8 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
 		}
 	}
 	//RBAC CHECK CD PIPELINE - FOR USER
