@@ -49,7 +49,7 @@ func (impl DefaultAuthRoleRepositoryImpl) UpdateRole(role *DefaultAuthRole) (*De
 
 func (impl DefaultAuthRoleRepositoryImpl) GetRoleByRoleType(roleType RoleType) (role string, err error) {
 	var model DefaultAuthRole
-	err = impl.dbConnection.Model(&model).Where("role = ?", roleType).Select()
+	err = impl.dbConnection.Model(&model).Where("role_type = ?", roleType).Select()
 	if err != nil {
 		impl.logger.Error("error in getting role by roleType", "err", err, "roleType", roleType)
 		return "", err

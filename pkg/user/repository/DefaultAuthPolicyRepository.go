@@ -56,7 +56,7 @@ func (impl DefaultAuthPolicyRepositoryImpl) CreatePolicy(policy *DefaultAuthPoli
 func (impl DefaultAuthPolicyRepositoryImpl) UpdatePolicyByRoleType(policy string, roleType RoleType) (*DefaultAuthPolicy, error) {
 	var model DefaultAuthPolicy
 	_, err := impl.dbConnection.Model(&model).Set("policy = ?", policy).
-		Where("role = ?", roleType).Update()
+		Where("role_type = ?", roleType).Update()
 	if err != nil {
 		impl.logger.Error("error in updating auth policy", "err", err)
 		return &model, err
@@ -66,7 +66,7 @@ func (impl DefaultAuthPolicyRepositoryImpl) UpdatePolicyByRoleType(policy string
 
 func (impl DefaultAuthPolicyRepositoryImpl) GetPolicyByRoleType(roleType RoleType) (policy string, err error) {
 	var model DefaultAuthPolicy
-	err = impl.dbConnection.Model(&model).Where("role = ?", roleType).Select()
+	err = impl.dbConnection.Model(&model).Where("role_type = ?", roleType).Select()
 	if err != nil {
 		impl.logger.Error("error in getting policy by roleType", "err", err, "roleType", roleType)
 		return "", err
