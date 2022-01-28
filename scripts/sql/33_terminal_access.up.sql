@@ -136,13 +136,6 @@ INSERT INTO "public"."default_auth_policy" ("id", "role_type", "policy", "create
             "act": "get",
             "obj": "{{.TeamObj}}"
         },
-        {
-            "type": "p",
-            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
-            "res": "terminal",
-            "act": "exec",
-            "obj": "{{.EnvObj}}/{{.AppObj}}"
-        },
     ]
 }', 'now()', '1', 'now()', '1'),
 ('4', 'view', '{
