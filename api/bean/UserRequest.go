@@ -53,6 +53,7 @@ type RoleFilter struct {
 	EntityName  string `json:"entityName"`
 	Environment string `json:"environment"`
 	Action      string `json:"action"`
+	AccessType  string `json:"accessType"`
 }
 
 type Role struct {
@@ -68,6 +69,7 @@ type RoleData struct {
 	EntityName  string `json:"entityName"`
 	Environment string `json:"environment"`
 	Action      string `json:"action"`
+	AccessType  string `json:"accessType"`
 }
 
 type SSOLoginDto struct {
@@ -92,3 +94,4 @@ const (
 )
 
 const SUPERADMIN = "role:super-admin___"
+const APP_ACCESS_TYPE_HELM = "helm-app"

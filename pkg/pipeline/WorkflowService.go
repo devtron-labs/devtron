@@ -61,6 +61,7 @@ type WorkflowRequest struct {
 	PipelineName             string             `json:"pipelineName"`
 	PipelineId               int                `json:"pipelineId"`
 	DockerImageTag           string             `json:"dockerImageTag"`
+	DockerRegistryId         string             `json:"dockerRegistryId"`
 	DockerRegistryType       string             `json:"dockerRegistryType"`
 	DockerRegistryURL        string             `json:"dockerRegistryURL"`
 	DockerConnection         string             `json:"dockerConnection"`

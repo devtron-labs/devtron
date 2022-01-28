@@ -45,6 +45,7 @@ const (
 	TimeoutSlow = 30 * time.Second
 	TimeoutLazy = 60 * time.Second
 	HIBERNATING = "HIBERNATING"
+	SUCCEEDED = "Succeeded"
 )
 
 type ServiceClient interface {

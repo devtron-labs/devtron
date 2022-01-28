@@ -194,7 +194,10 @@ components:
         action:
           type: string
           description: action is type of role, i.e manager, admin, trigger, view, etc.
-
+        accessType:
+          type: string
+          enum: ["", "helm-app"]
+          description: accessType difine permission type dawf=devtron app work flow, helm-app=helm app work flow. based on this flag data categoriesed into devtron and helm permission tabs in user auth role group section.
 
 
     Error:

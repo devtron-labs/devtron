@@ -27,7 +27,7 @@ data:
     kind: Secret
     metadata:
       name: clair
-#    update:
-#      data:
-#        config.yaml: |-
-#          replace-me with key/secret 
+    #    update:
+    #      data:
+    #        config.yaml: |-
+    #          replace-me with key/secret 

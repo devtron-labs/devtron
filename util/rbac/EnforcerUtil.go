@@ -41,6 +41,8 @@ type EnforcerUtil interface {
 	GetTeamAndEnvironmentRbacObjectByCDPipelineId(pipelineId int) (string, string)
 	GetRbacObjectsForAllAppsAndEnvironments() (map[int]string, map[string]string)
 	GetProjectAdminRBACNameBYAppName(appName string) string
+	GetHelmObject(appId int, envId int) string
+	GetHelmObjectByAppNameAndEnvId(appName string, envId int) string
 }
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
@@ -49,11 +51,14 @@ type EnforcerUtilImpl struct {
 	environmentRepository repository.EnvironmentRepository
 	pipelineRepository    pipelineConfig.PipelineRepository
 	ciPipelineRepository  pipelineConfig.CiPipelineRepository
+	clusterRepository     repository.ClusterRepository
+	*EnforcerUtilHelmImpl
 }
 
 func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
 	appRepo app.AppRepository, environmentRepository repository.EnvironmentRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository) *EnforcerUtilImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	clusterRepository repository.ClusterRepository) *EnforcerUtilImpl {
 	return &EnforcerUtilImpl{
 		logger:                logger,
 		teamRepository:        teamRepository,
@@ -61,6 +66,11 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 		environmentRepository: environmentRepository,
 		pipelineRepository:    pipelineRepository,
 		ciPipelineRepository:  ciPipelineRepository,
+		clusterRepository:     clusterRepository,
+		EnforcerUtilHelmImpl: &EnforcerUtilHelmImpl{
+			logger:            logger,
+			clusterRepository: clusterRepository,
+		},
 	}
 }
 
@@ -107,7 +117,7 @@ func (impl EnforcerUtilImpl) GetAppRBACByAppNameAndEnvId(appName string, envId i
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
 	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
 }
 
 func (impl EnforcerUtilImpl) GetAppRBACByAppIdAndPipelineId(appId int, pipelineId int) string {
@@ -123,11 +133,10 @@ func (impl EnforcerUtilImpl) GetAppRBACByAppIdAndPipelineId(appId int, pipelineI
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(application.AppName))
 	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(application.AppName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(application.AppName))
 }
 
 func (impl EnforcerUtilImpl) GetEnvRBACNameByAppId(appId int, envId int) string {
-	//team, err := impl.teamRepository.FindTeamByAppId(appId)
 	application, err := impl.appRepo.FindById(appId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", "")
@@ -137,7 +146,7 @@ func (impl EnforcerUtilImpl) GetEnvRBACNameByAppId(appId int, envId int) string 
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
 	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
 }
 
 func (impl EnforcerUtilImpl) GetTeamRBACByCiPipelineId(pipelineId int) string {
@@ -178,7 +187,7 @@ func (impl EnforcerUtilImpl) GetEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId i
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
 	}
-	return fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(appName))
+	return fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
 }
 
 func (impl EnforcerUtilImpl) GetTeamRbacObjectByCiPipelineId(ciPipelineId int) string {
@@ -204,7 +213,7 @@ func (impl EnforcerUtilImpl) GetTeamAndEnvironmentRbacObjectByCDPipelineId(pipel
 		return "", ""
 	}
 	teamRbac := fmt.Sprintf("%s/%s", strings.ToLower(application.Team.Name), strings.ToLower(pipeline.App.AppName))
-	envRbac := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.Environment.Name), strings.ToLower(pipeline.App.AppName))
+	envRbac := fmt.Sprintf("%s/%s", strings.ToLower(pipeline.Environment.EnvironmentIdentifier), strings.ToLower(pipeline.App.AppName))
 	return teamRbac, envRbac
 }
 
@@ -231,9 +240,45 @@ func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsAndEnvironments() (map[int]
 		for _, app := range apps {
 			key := fmt.Sprintf("%d-%d", env.Id, app.Id)
 			if _, ok := envObjects[key]; !ok {
-				envObjects[key] = fmt.Sprintf("%s/%s", strings.ToLower(env.Name), strings.ToLower(app.AppName))
+				envObjects[key] = fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(app.AppName))
 			}
 		}
 	}
 	return appObjects, envObjects
+}
+
+func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	env, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	environmentIdentifier := env.EnvironmentIdentifier
+	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
+	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
+	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
+		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
+	}*/
+	return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier, strings.ToLower(application.AppName))
+}
+
+func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envId int) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	env, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	environmentIdentifier := env.EnvironmentIdentifier
+	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
+	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
+	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
+		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
+	}*/
+	return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier, strings.ToLower(application.AppName))
 }

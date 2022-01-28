@@ -9,10 +9,10 @@ data:
     kind: Secret
     metadata:
       name: devtron-minio
-#    update:
-#      data:
-#        accesskey: ""
-#        secretkey: ""
+    #    update:
+    #      data:
+    #        accesskey: ""
+    #        secretkey: ""
     ---
     apiVersion: apps/v1
     kind: Deployment

@@ -25,4 +25,5 @@ const (
 	KubernetesExternalSecret            string = "KubernetesExternalSecret"
 	ConfigMapSecretUsageTypeEnvironment string = "environment"
 	ConfigMapSecretUsageTypeVolume      string = "volume"
+	YamlSeparator                       string = "---\n"
 )

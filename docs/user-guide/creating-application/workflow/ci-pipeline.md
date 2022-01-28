@@ -2,7 +2,7 @@
 
 CI Pipeline can be created in three different ways, Continuous Integration, Linked CI Pipeline and Incoming Webhook. Each of these methods have different use-cases which can be used according to the needs of the organization. Let’s begin with Continuous Integration.
 
-![](../../../.gitbook/assets/ci-pipeline-1.png)
+![](../images/workflow-ci.jpg)
 
 ## A. Continuous Integration
 
@@ -158,7 +158,7 @@ You have provided all the details required to create a CI pipeline, now click on
 
 You can also update any configuration of an already created CI Pipeline, except the pipeline name. The pipeline name can not be edited.
 
-![](../../../.gitbook/assets/update_pipeline_ci%20%282%29.jpg)
+![](../images/update-ci.jpg)
 
 Click on your CI Pipeline, to update your CI Pipeline. A window will be popped up with all the details of the current pipeline.
 

@@ -9,10 +9,10 @@ data:
     kind: ConfigMap
     metadata:
       name: argocd-ssh-known-hosts-cm
- #   update:
- #     data:
- #       ssh_known_hosts: |
- #         ssh-public-key
+    #   update:
+    #     data:
+    #       ssh_known_hosts: |
+    #         ssh-public-key
     ---
     apiVersion: apps/v1
     kind: Deployment

@@ -128,17 +128,18 @@ type VerifyImageResponse struct {
 }
 
 type ScanEvent struct {
-	Image        string `json:"image"`
-	ImageDigest  string `json:"imageDigest"`
-	AppId        int    `json:"appId"`
-	EnvId        int    `json:"envId"`
-	PipelineId   int    `json:"pipelineId"`
-	CiArtifactId int    `json:"ciArtifactId"`
-	UserId       int    `json:"userId"`
-	AccessKey    string `json:"accessKey"`
-	SecretKey    string `json:"secretKey"`
-	Token        string `json:"token"`
-	AwsRegion    string `json:"awsRegion"`
+	Image            string `json:"image"`
+	ImageDigest      string `json:"imageDigest"`
+	AppId            int    `json:"appId"`
+	EnvId            int    `json:"envId"`
+	PipelineId       int    `json:"pipelineId"`
+	CiArtifactId     int    `json:"ciArtifactId"`
+	UserId           int    `json:"userId"`
+	AccessKey        string `json:"accessKey"`
+	SecretKey        string `json:"secretKey"`
+	Token            string `json:"token"`
+	AwsRegion        string `json:"awsRegion"`
+	DockerRegistryId string `json:"dockerRegistryId"`
 }
 
 func (impl *PolicyServiceImpl) SendEventToClairUtility(event *ScanEvent) error {
@@ -226,7 +227,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 				impl.logger.Errorw("error in fetching docker reg ", "err", err)
 				return nil, err
 			}
-			scanEvent.AwsRegion = dockerReg.DockerRegistry.AWSRegion
+			scanEvent.DockerRegistryId = dockerReg.DockerRegistry.Id
 			err = impl.SendEventToClairUtility(scanEvent)
 			if err != nil {
 				impl.logger.Errorw("error in send event to image scanner ", "err", err)
@@ -269,7 +270,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		}
 		err = impl.imageScanObjectMetaRepository.Save(imageScanObjectMeta)
 		if err != nil {
-			impl.logger.Errorw("error in updataing imageScanObjectMetaRepository info", "err", err)
+			impl.logger.Errorw("error in updating imageScanObjectMetaRepository info", "err", err)
 			return imageBlockedCves, nil
 		}
 		typeId = imageScanObjectMeta.Id

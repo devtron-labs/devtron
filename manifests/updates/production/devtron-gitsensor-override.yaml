@@ -9,10 +9,10 @@ data:
     kind: ConfigMap
     metadata:
       name: git-sensor-cm
-#    update:
-#      data:
-#        PG_ADDR: postgresql-postgresql.devtroncd
-#        PG_USER: change-me
+    #    update:
+    #      data:
+    #        PG_ADDR: postgresql-postgresql.devtroncd
+    #        PG_USER: change-me
     ---
     apiVersion: apps/v1
     kind: StatefulSet

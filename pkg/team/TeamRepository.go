@@ -47,6 +47,7 @@ type TeamRepositoryImpl struct {
 func NewTeamRepositoryImpl(dbConnection *pg.DB) *TeamRepositoryImpl {
 	return &TeamRepositoryImpl{dbConnection: dbConnection}
 }
+const UNASSIGNED_PROJECT = "unassigned"
 
 func (impl TeamRepositoryImpl) Save(team *Team) error {
 	err := impl.dbConnection.Insert(team)

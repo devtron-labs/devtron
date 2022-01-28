@@ -192,7 +192,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		return nil, err
 	}
 
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,6 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 	if err != nil {
 		return nil, err
 	}
-
 	secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
 	statusError, _ := err.(*errors.StatusError)
 	if err != nil && statusError.Status().Code != http.StatusNotFound {
@@ -279,6 +278,9 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		}
 		updatedData := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
 		data := cm.Data
+		if data == nil {
+			data = make(map[string]string, 0)
+		}
 		data["repository.credentials"] = updatedData["repository.credentials"]
 		cm.Data = data
 		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
@@ -366,7 +368,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	}
 	request.Id = model.Id
 
-	clusterBean, err := impl.clusterService.FindOne(cluster.ClusterName)
+	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 	if err != nil {
 		return err
 	}
