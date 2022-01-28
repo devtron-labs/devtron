@@ -7,6 +7,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
+	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -22,24 +23,28 @@ type ClusterServiceImplExtended struct {
 	grafanaClient          grafana.GrafanaClient
 	installedAppRepository appstore.InstalledAppRepository
 	clusterServiceCD       cluster2.ServiceClient
+	K8sInformerFactory     informer.K8sInformerFactory
 	*ClusterServiceImpl
 }
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository appstore.InstalledAppRepository,
 	K8sUtil *util.K8sUtil,
-	clusterServiceCD cluster2.ServiceClient) *ClusterServiceImplExtended {
-	return &ClusterServiceImplExtended{
+	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory) *ClusterServiceImplExtended {
+	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:  environmentRepository,
 		grafanaClient:          grafanaClient,
 		installedAppRepository: installedAppRepository,
 		clusterServiceCD:       clusterServiceCD,
 		ClusterServiceImpl: &ClusterServiceImpl{
-			clusterRepository: repository,
-			logger:            logger,
-			K8sUtil:           K8sUtil,
+			clusterRepository:  repository,
+			logger:             logger,
+			K8sUtil:            K8sUtil,
+			K8sInformerFactory: K8sInformerFactory,
 		},
 	}
+	go clusterServiceExt.buildInformer()
+	return clusterServiceExt
 }
 
 func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {

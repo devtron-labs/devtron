@@ -20,6 +20,8 @@ package cluster
 import (
 	"context"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -77,18 +79,22 @@ type ClusterService interface {
 }
 
 type ClusterServiceImpl struct {
-	clusterRepository repository.ClusterRepository
-	logger            *zap.SugaredLogger
-	K8sUtil           *util.K8sUtil
+	clusterRepository  repository.ClusterRepository
+	logger             *zap.SugaredLogger
+	K8sUtil            *util.K8sUtil
+	K8sInformerFactory informer.K8sInformerFactory
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
-	K8sUtil *util.K8sUtil) *ClusterServiceImpl {
-	return &ClusterServiceImpl{
-		clusterRepository: repository,
-		logger:            logger,
-		K8sUtil:           K8sUtil,
+	K8sUtil *util.K8sUtil, K8sInformerFactory informer.K8sInformerFactory) *ClusterServiceImpl {
+	clusterService := &ClusterServiceImpl{
+		clusterRepository:  repository,
+		logger:             logger,
+		K8sUtil:            K8sUtil,
+		K8sInformerFactory: K8sInformerFactory,
 	}
+	go clusterService.buildInformer()
+	return clusterService
 }
 
 const DefaultClusterName = "default_cluster"
@@ -170,6 +176,16 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		}
 	}
 	bean.Id = model.Id
+
+	//on successful creation of new cluster, update informer cache for namespace group by cluster
+	bearerToken := model.Config["bearer_token"]
+	clusterInfo := &bean2.ClusterInfo{
+		ClusterId:   model.Id,
+		ClusterName: model.ClusterName,
+		BearerToken: bearerToken,
+		ServerUrl:   model.ServerUrl,
+	}
+	impl.K8sInformerFactory.BuildInformer([]*bean2.ClusterInfo{clusterInfo})
 	return bean, err
 }
 
@@ -314,6 +330,13 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		return nil, fmt.Errorf("cluster already exists")
 	}
 
+	// check weather config modified or not, if yes create informer with updated config
+	dbConfig := model.Config["bearer_token"]
+	requestConfig := bean.Config["bearer_token"]
+	hasChangedInConfig := false
+	if bean.ServerUrl != model.ServerUrl || dbConfig != requestConfig {
+		hasChangedInConfig = true
+	}
 	model.ClusterName = bean.ClusterName
 	model.ServerUrl = bean.ServerUrl
 	model.PrometheusEndpoint = bean.PrometheusUrl
@@ -356,6 +379,16 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 
 	bean.Id = model.Id
+
+	if hasChangedInConfig {
+		clusterInfo := &bean2.ClusterInfo{
+			ClusterId:   model.Id,
+			ClusterName: model.ClusterName,
+			BearerToken: dbConfig,
+			ServerUrl:   model.ServerUrl,
+		}
+		impl.K8sInformerFactory.BuildInformer([]*bean2.ClusterInfo{clusterInfo})
+	}
 	return bean, err
 }
 
@@ -385,4 +418,23 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 func (impl *ClusterServiceImpl) CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error) {
 	impl.logger.Errorw("CreateGrafanaDataSource not inplementd in ClusterServiceImpl")
 	return 0, fmt.Errorf("method not implemented")
+}
+
+func (impl *ClusterServiceImpl) buildInformer() {
+	models, err := impl.clusterRepository.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching clusters", "err", err)
+		return
+	}
+	var clusterInfo []*bean2.ClusterInfo
+	for _, model := range models {
+		bearerToken := model.Config["bearer_token"]
+		clusterInfo = append(clusterInfo, &bean2.ClusterInfo{
+			ClusterId:   model.Id,
+			ClusterName: model.ClusterName,
+			BearerToken: bearerToken,
+			ServerUrl:   model.ServerUrl,
+		})
+	}
+	impl.K8sInformerFactory.BuildInformer(clusterInfo)
 }

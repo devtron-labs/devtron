@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -171,6 +172,21 @@ func (handler *HelmAppRestHandlerImpl) GetDeploymentHistory(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	// Obfuscate secrets if user does not have edit access
+	canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
+	if !canUpdate && res != nil && res.DeploymentHistory != nil {
+		for _, deployment := range res.DeploymentHistory {
+			modifiedManifest , err := k8sObjectsUtil.HideValuesIfSecretForWholeYamlInput(deployment.Manifest)
+			if err != nil {
+				handler.logger.Errorw("error in hiding secret values", "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+			deployment.Manifest = modifiedManifest
+		}
+	}
+
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
@@ -224,6 +240,19 @@ func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	// Obfuscate secret if user does not have edit access
+	canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
+	if !canUpdate && res != nil && res.Manifest != nil {
+		modifiedManifest , err := k8sObjectsUtil.HideValuesIfSecretForManifestStringInput(*res.Manifest, *desiredManifestRequest.Resource.Kind, *desiredManifestRequest.Resource.Group)
+		if err != nil {
+			handler.logger.Errorw("error in hiding secret values", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		res.Manifest = &modifiedManifest
+	}
+
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
