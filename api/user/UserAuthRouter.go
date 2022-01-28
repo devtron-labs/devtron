@@ -71,6 +71,7 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHa
 					logger.Errorw("error in updating settings", "err", err)
 				}
 				router.sessionManager.UpdateSettings(settings)
+				sClient.GetServerSettings()
 			}
 		}
 	}()
