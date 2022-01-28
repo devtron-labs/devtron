@@ -89,7 +89,7 @@ INSERT INTO "public"."default_auth_policy" ("id", "role_type", "policy", "create
             "res": "global-environment",
             "act": "get",
             "obj": "{{.EnvObj}}"
-        },
+        }
     ]
 }', 'now()', '1', 'now()', '1'),
 ('3', 'trigger', '{
@@ -135,7 +135,7 @@ INSERT INTO "public"."default_auth_policy" ("id", "role_type", "policy", "create
             "res": "team",
             "act": "get",
             "obj": "{{.TeamObj}}"
-        },
+        }
     ]
 }', 'now()', '1', 'now()', '1'),
 ('4', 'view', '{
