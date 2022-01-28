@@ -232,7 +232,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	handler.Logger.Infow("request payload, TriggerCiPipeline", "payload", ciTriggerRequest)
 
 	//RBAC CHECK CD PIPELINE - FOR USER
-	pipelines, err := handler.pipelineRepository.FindAutomaticByCiPipelineId(ciTriggerRequest.PipelineId)
+	pipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
 	var authorizedPipelines []pipelineConfig.Pipeline
 	var unauthorizedPipelines []pipelineConfig.Pipeline
 	//fetching user only for getting token
@@ -269,10 +269,19 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//TODO : update auth for case with no cd pipelines
-	//if len(authorizedPipelines) == 0{
-	//	//user has no automatic ci pipeline
-	//}
+	if len(authorizedPipelines) == 0{
+		//user has no cd pipeline
+		ciPipeline, err := handler.ciPipelineRepository.FindById(ciTriggerRequest.PipelineId)
+		if err != nil {
+			handler.Logger.Errorw("err in finding ci pipeline, TriggerCiPipeline", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+			handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		}
+	}
 	//RBAC CHECK CD PIPELINE - FOR USER
 
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
