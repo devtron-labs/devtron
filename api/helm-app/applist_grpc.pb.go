@@ -30,6 +30,7 @@ type ApplicationServiceClient interface {
 	GetValuesYaml(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*ReleaseInfo, error)
 	GetDesiredManifest(ctx context.Context, in *ObjectRequest, opts ...grpc.CallOption) (*DesiredManifestResponse, error)
 	UninstallRelease(ctx context.Context, in *ReleaseIdentifier, opts ...grpc.CallOption) (*UninstallReleaseResponse, error)
+	UpgradeRelease(ctx context.Context, in *UpgradeReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error)
 }
 
 type applicationServiceClient struct {
@@ -135,6 +136,15 @@ func (c *applicationServiceClient) UninstallRelease(ctx context.Context, in *Rel
 	return out, nil
 }
 
+func (c *applicationServiceClient) UpgradeRelease(ctx context.Context, in *UpgradeReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error) {
+	out := new(UpgradeReleaseResponse)
+	err := c.cc.Invoke(ctx, "/ApplicationService/UpgradeRelease", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationServiceServer is the server API for ApplicationService service.
 // All implementations must embed UnimplementedApplicationServiceServer
 // for forward compatibility
@@ -147,6 +157,7 @@ type ApplicationServiceServer interface {
 	GetValuesYaml(context.Context, *AppDetailRequest) (*ReleaseInfo, error)
 	GetDesiredManifest(context.Context, *ObjectRequest) (*DesiredManifestResponse, error)
 	UninstallRelease(context.Context, *ReleaseIdentifier) (*UninstallReleaseResponse, error)
+	UpgradeRelease(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
 
@@ -177,6 +188,9 @@ func (UnimplementedApplicationServiceServer) GetDesiredManifest(context.Context,
 }
 func (UnimplementedApplicationServiceServer) UninstallRelease(context.Context, *ReleaseIdentifier) (*UninstallReleaseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UninstallRelease not implemented")
+}
+func (UnimplementedApplicationServiceServer) UpgradeRelease(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpgradeRelease not implemented")
 }
 func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
 
@@ -338,6 +352,24 @@ func _ApplicationService_UninstallRelease_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_UpgradeRelease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpgradeReleaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).UpgradeRelease(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/UpgradeRelease",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).UpgradeRelease(ctx, req.(*UpgradeReleaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ApplicationService_ServiceDesc is the grpc.ServiceDesc for ApplicationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -372,6 +404,10 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UninstallRelease",
 			Handler:    _ApplicationService_UninstallRelease_Handler,
+		},
+		{
+			MethodName: "UpgradeRelease",
+			Handler:    _ApplicationService_UpgradeRelease_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
