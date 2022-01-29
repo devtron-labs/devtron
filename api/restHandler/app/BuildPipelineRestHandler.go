@@ -267,24 +267,24 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	response := make(map[string]string)
 	if len(unauthorizedPipelines) > 0 {
 		resMessage = "some pipelines not authorized"
-		//common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		//return
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
 	}
-	//if len(authorizedPipelines) == 0{
-	//	//user has no cd pipeline
-	//	ciPipeline, err := handler.ciPipelineRepository.FindById(ciTriggerRequest.PipelineId)
-	//	if err != nil {
-	//		handler.Logger.Errorw("err in finding ci pipeline, TriggerCiPipeline", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
-	//		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-	//		return
-	//	}
-	//	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
-	//	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-	//		handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-	//		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-	//		return
-	//	}
-	//}
+	if len(authorizedPipelines) == 0{
+		//user has no cd pipeline
+		ciPipeline, err := handler.ciPipelineRepository.FindById(ciTriggerRequest.PipelineId)
+		if err != nil {
+			handler.Logger.Errorw("err in finding ci pipeline, TriggerCiPipeline", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+			handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
 	//RBAC CHECK CD PIPELINE - FOR USER
 
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
