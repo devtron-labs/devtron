@@ -158,9 +158,16 @@ func (impl UserAuthRepositoryImpl) GetAllRole() ([]RoleModel, error) {
 
 func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error) {
 	var models []RoleModel
-	err := impl.dbConnection.Model(&models).Where("action = ?", action).
-		Where("access_type = ?", accessType).
-		Select()
+	var err error
+	if accessType == "" {
+		err = impl.dbConnection.Model(&models).Where("action = ?", action).
+			Where("access_type is NULL").
+			Select()
+	} else{
+		err = impl.dbConnection.Model(&models).Where("action = ?", action).
+			Where("access_type = ?", accessType).
+			Select()
+	}
 	if err != nil {
 		impl.Logger.Error("err in getting role by action", "err", err, "action", action, "accessType", oauth2.AccessTypeOffline)
 		return models, err
