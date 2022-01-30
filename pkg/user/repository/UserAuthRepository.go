@@ -1002,20 +1002,16 @@ func (impl UserAuthRepositoryImpl) UpdateDefaultPolicyByRoleType(newPolicy strin
 			EnvObj:  envObj,
 			AppObj:  appObj,
 		}
-		var addedPoliciesNew []casbin.Policy
-		addedPoliciesNew = addedPolicies
-		if len(addedPoliciesNew) > 0 {
-			addedPolicyReq, err := impl.GetUpdatedAddedOrDeletedPolicies(addedPoliciesNew, rolePolicyDetails)
+		if len(addedPolicies) > 0 {
+			addedPolicyReq, err := impl.GetUpdatedAddedOrDeletedPolicies(addedPolicies, rolePolicyDetails)
 			if err != nil {
 				impl.Logger.Errorw("error in getting updated added policies", "err", err)
 				return err
 			}
 			addedPolicyFinal.Data = append(addedPolicyFinal.Data, addedPolicyReq.Data...)
 		}
-		var deletedPoliciesNew []casbin.Policy
-		deletedPoliciesNew = deletedPolicies
-		if len(deletedPoliciesNew) > 0 {
-			deletedPolicyReq, err := impl.GetUpdatedAddedOrDeletedPolicies(deletedPoliciesNew, rolePolicyDetails)
+		if len(deletedPolicies) > 0 {
+			deletedPolicyReq, err := impl.GetUpdatedAddedOrDeletedPolicies(deletedPolicies, rolePolicyDetails)
 			if err != nil {
 				impl.Logger.Errorw("error in getting updated deleted policies", "err", err)
 				return err
