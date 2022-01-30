@@ -1015,8 +1015,12 @@ func (impl UserAuthRepositoryImpl) UpdateDefaultPolicyByRoleType(newPolicy strin
 		}
 	}
 	//updating all policies(for all roles) in casbin
-	casbin.AddPolicy(addedPolicies)
-	casbin.RemovePolicy(deletedPolicies)
+	if len(addedPolicyFinal.Data) > 0 {
+		casbin.AddPolicy(addedPolicyFinal.Data)
+	}
+	if len(deletedPolicyFinal.Data) > 0 {
+		casbin.RemovePolicy(deletedPolicyFinal.Data)
+	}
 	return nil
 }
 
