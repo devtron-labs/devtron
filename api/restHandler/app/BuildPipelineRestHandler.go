@@ -235,14 +235,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	pipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
 	var authorizedPipelines []pipelineConfig.Pipeline
 	var unauthorizedPipelines []pipelineConfig.Pipeline
-	//fetching user only for getting token
-	triggeredBy, err := handler.userAuthService.GetById(ciTriggerRequest.TriggeredBy)
-	if err != nil {
-		handler.Logger.Errorw("service err, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	token := triggeredBy.AccessToken
+	token := r.Header.Get("token")
 	for _, p := range pipelines {
 		pass := 0
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(p.AppId)

@@ -126,7 +126,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWri
 		return
 	}
 	request.EnvironmentId = eId
-	var valid bool
+	valid := false
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, envRbacObject); !ok {
 		appRbacOk := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, appRbacObject)
 		envRbacOk := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, envRbacObject)
