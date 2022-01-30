@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"golang.org/x/oauth2"
 	"strings"
 )
 
@@ -169,7 +168,7 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 			Select()
 	}
 	if err != nil {
-		impl.Logger.Error("err in getting role by action", "err", err, "action", action, "accessType", oauth2.AccessTypeOffline)
+		impl.Logger.Error("err in getting role by action", "err", err, "action", action, "accessType", accessType)
 		return models, err
 	}
 	return models, nil
