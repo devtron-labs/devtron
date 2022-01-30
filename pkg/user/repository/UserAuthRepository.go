@@ -1002,17 +1002,20 @@ func (impl UserAuthRepositoryImpl) UpdateDefaultPolicyByRoleType(newPolicy strin
 			EnvObj:  envObj,
 			AppObj:  appObj,
 		}
-
-		if len(addedPolicies) > 0 {
-			addedPolicyReq, err := impl.GetUpdatedAddedOrDeletedPolicies(addedPolicies, rolePolicyDetails)
+		var addedPoliciesNew []casbin.Policy
+		addedPoliciesNew = addedPolicies
+		if len(addedPoliciesNew) > 0 {
+			addedPolicyReq, err := impl.GetUpdatedAddedOrDeletedPolicies(addedPoliciesNew, rolePolicyDetails)
 			if err != nil {
 				impl.Logger.Errorw("error in getting updated added policies", "err", err)
 				return err
 			}
 			addedPolicyFinal.Data = append(addedPolicyFinal.Data, addedPolicyReq.Data...)
 		}
-		if len(deletedPolicies) > 0 {
-			deletedPolicyReq, err := impl.GetUpdatedAddedOrDeletedPolicies(deletedPolicies, rolePolicyDetails)
+		var deletedPoliciesNew []casbin.Policy
+		deletedPoliciesNew = deletedPolicies
+		if len(deletedPoliciesNew) > 0 {
+			deletedPolicyReq, err := impl.GetUpdatedAddedOrDeletedPolicies(deletedPoliciesNew, rolePolicyDetails)
 			if err != nil {
 				impl.Logger.Errorw("error in getting updated deleted policies", "err", err)
 				return err
@@ -1080,23 +1083,25 @@ func (impl UserAuthRepositoryImpl) GetDiffBetweenPolicies(oldPolicy string, newP
 }
 
 func (impl UserAuthRepositoryImpl) GetUpdatedAddedOrDeletedPolicies(policies []casbin.Policy, rolePolicyDetails RolePolicyDetails) (bean.PolicyRequest, error) {
+	var policyResp bean.PolicyRequest
 	var policyReq bean.PolicyRequest
 	policyReq.Data = policies
 	policy, err := json.Marshal(policyReq)
 	if err != nil {
 		impl.Logger.Errorw("error in marshaling policy", "err", err)
-		return policyReq, err
+		return policyResp, err
 	}
 	//getting updated policy
 	updatedPolicy, err := util.Tprintf(string(policy), rolePolicyDetails)
 	if err != nil {
 		impl.Logger.Errorw("error in getting updated policy", "err", err)
-		return policyReq, err
+		return policyResp, err
 	}
-	err = json.Unmarshal([]byte(updatedPolicy), &policyReq)
+
+	err = json.Unmarshal([]byte(updatedPolicy), &policyResp)
 	if err != nil {
 		impl.Logger.Errorw("error in un-marshaling policy", "err", err)
-		return policyReq, err
+		return policyResp, err
 	}
-	return policyReq, nil
+	return policyResp, nil
 }
