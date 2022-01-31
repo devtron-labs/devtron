@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -51,7 +52,7 @@ type TeamRestHandlerImpl struct {
 	validator       *validator.Validate
 	enforcer        casbin.Enforcer
 	userAuthService user.UserAuthService
-	//deleteService   delete2.DeleteService
+	deleteServiceEA   delete2.DeleteServiceEA
 }
 
 func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
@@ -59,7 +60,7 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	userService user.UserService,
 	enforcer casbin.Enforcer,
 	validator *validator.Validate, userAuthService user.UserAuthService,
-	//deleteService delete2.DeleteService
+	deleteServiceEA delete2.DeleteServiceEA,
 ) *TeamRestHandlerImpl {
 	return &TeamRestHandlerImpl{
 		logger:          logger,
@@ -68,7 +69,7 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 		validator:       validator,
 		enforcer:        enforcer,
 		userAuthService: userAuthService,
-		//deleteService:   deleteService,
+		deleteServiceEA:   deleteServiceEA,
 	}
 }
 
@@ -220,12 +221,12 @@ func (impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	//rbac ends
-	//err = impl.deleteService.DeleteTeam(&deleteRequest)
-	//if err != nil {
-	//	impl.logger.Errorw("service err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
-	//	common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-	//	return
-	//}
+	err = impl.deleteServiceEA.DeleteTeam(&deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("service err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	common.WriteJsonResp(w, err, PROJECT_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 

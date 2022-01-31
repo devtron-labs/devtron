@@ -335,7 +335,7 @@ func InitializeApp() (*App, error) {
 	appStoreApplicationVersionRepositoryImpl := appstore.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	versionServiceImpl := argocdServer.NewVersionServiceImpl(argoCDSettings, sugaredLogger)
 	appStoreServiceImpl := appstore2.NewAppStoreServiceImpl(sugaredLogger, appStoreRepositoryImpl, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, userServiceImpl, chartRepoRepositoryImpl, k8sUtil, clusterServiceImplExtended, environmentServiceImpl, versionServiceImpl, acdAuthConfig, httpClient)
-	deleteServiceImpl := delete2.NewDeleteServiceImpl(sugaredLogger, teamServiceImpl, appRepositoryImpl, materialRepositoryImpl, gitRegistryConfigImpl, environmentRepositoryImpl, clusterServiceImplExtended, pipelineRepositoryImpl, environmentServiceImpl, ciTemplateRepositoryImpl, dockerRegistryConfigImpl, installedAppRepositoryImpl, appStoreServiceImpl)
+	deleteServiceImpl := delete2.NewDeleteServiceImpl(sugaredLogger, materialRepositoryImpl, gitRegistryConfigImpl, ciTemplateRepositoryImpl, dockerRegistryConfigImpl, installedAppRepositoryImpl, appStoreServiceImpl)
 	gitProviderRestHandlerImpl := restHandler.NewGitProviderRestHandlerImpl(dockerRegistryConfigImpl, sugaredLogger, gitRegistryConfigImpl, dbConfigServiceImpl, userServiceImpl, validate, enforcerImpl, teamServiceImpl, deleteServiceImpl)
 	gitProviderRouterImpl := router.NewGitProviderRouterImpl(gitProviderRestHandlerImpl)
 	gitHostRepositoryImpl := repository.NewGitHostRepositoryImpl(db)
