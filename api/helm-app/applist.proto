@@ -24,6 +24,8 @@ service ApplicationService {
   rpc GetDeploymentHistory(AppDetailRequest) returns (HelmAppDeploymentHistory){}
   rpc GetValuesYaml(AppDetailRequest) returns (ReleaseInfo){}
   rpc GetDesiredManifest(ObjectRequest) returns (DesiredManifestResponse){}
+  rpc UninstallRelease(ReleaseIdentifier) returns (UninstallReleaseResponse){}
+  rpc UpgradeRelease(UpgradeReleaseRequest) returns (UpgradeReleaseResponse){}
 }
 
 message DeployedAppList {
@@ -179,4 +181,23 @@ message ObjectRequest {
 
 message DesiredManifestResponse {
   string manifest = 1;
+}
+
+message UninstallReleaseResponse {
+  bool success = 1;
+}
+
+message ReleaseIdentifier {
+  ClusterConfig clusterConfig = 1;
+  string releaseName = 2;
+  string releaseNamespace = 3;
+}
+
+message UpgradeReleaseRequest {
+  ReleaseIdentifier releaseIdentifier = 1;
+  string valuesYaml = 2;
+}
+
+message UpgradeReleaseResponse {
+  bool success = 1;
 }

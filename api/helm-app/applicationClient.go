@@ -17,6 +17,8 @@ type HelmAppClient interface {
 	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest) (*HelmAppDeploymentHistory, error)
 	GetValuesYaml(ctx context.Context, in *AppDetailRequest) (*ReleaseInfo, error)
 	GetDesiredManifest(ctx context.Context, in *ObjectRequest) (*DesiredManifestResponse, error)
+	DeleteApplication(ctx context.Context, in *ReleaseIdentifier) (*UninstallReleaseResponse, error)
+	UpdateApplication(ctx context.Context, in *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
 }
 
 type HelmAppClientImpl struct {
@@ -152,6 +154,30 @@ func (impl *HelmAppClientImpl) GetDesiredManifest(ctx context.Context, in *Objec
 		return nil, err
 	}
 	manifest, err := applicationClient.GetDesiredManifest(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return manifest, nil
+}
+
+func (impl *HelmAppClientImpl) DeleteApplication(ctx context.Context, in *ReleaseIdentifier) (*UninstallReleaseResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	manifest, err := applicationClient.UninstallRelease(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return manifest, nil
+}
+
+func (impl *HelmAppClientImpl) UpdateApplication(ctx context.Context, in *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	manifest, err := applicationClient.UpgradeRelease(ctx, in)
 	if err != nil {
 		return nil, err
 	}

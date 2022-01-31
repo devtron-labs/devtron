@@ -26,6 +26,8 @@ type HelmAppService interface {
 	GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error)
 	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error)
 	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
+	DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error)
+	UpdateApplication(ctx context.Context, app *AppIdentifier, request *openapi.UpdateReleaseRequest) (*openapi.UpdateReleaseResponse, error)
 }
 
 type HelmAppServiceImpl struct {
@@ -245,6 +247,61 @@ func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *App
 
 	response := &openapi.DesiredManifestResponse{
 		Manifest: &desiredManifestResponse.Manifest,
+	}
+	return response, nil
+}
+
+
+func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error) {
+	config, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
+		return nil, err
+	}
+
+	req := &ReleaseIdentifier{
+		ClusterConfig: config,
+		ReleaseName: app.ReleaseName,
+		ReleaseNamespace: app.Namespace,
+	}
+
+	deleteApplicationResponse, err := impl.helmAppClient.DeleteApplication(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in deleting helm application", "err", err)
+		return nil, err
+	}
+
+	response := &openapi.UninstallReleaseResponse{
+		Success: &deleteApplicationResponse.Success,
+	}
+	return response, nil
+}
+
+
+func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppIdentifier, request *openapi.UpdateReleaseRequest) (*openapi.UpdateReleaseResponse, error) {
+	config, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
+		return nil, err
+	}
+
+	req := &UpgradeReleaseRequest{
+		ReleaseIdentifier: &ReleaseIdentifier{
+			ClusterConfig: config,
+			ReleaseName: app.ReleaseName,
+			ReleaseNamespace: app.Namespace,
+		},
+		ValuesYaml: request.GetValuesYaml(),
+	}
+
+	updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in updating helm application", "err", err)
+		return nil, err
+	}
+
+	response := &openapi.UpdateReleaseResponse{
+		Success: &updateApplicationResponse.Success,
 	}
 	return response, nil
 }
