@@ -1,10 +1,5 @@
 # Chart Operations 
 
-## Introduction
-
-Discover, Create, Deploy, Update, Upgrade, Delete App store applications.
-
-
 ## 1. Discover the chart from the Chart Store
 
 Select the `Charts` section from the left pane, you will be landed to the `Chart Store` page. 
@@ -67,6 +62,7 @@ After update or upgrade you again will land on `App Detail` page for `Helm Apps`
 
 ## 5. App Store Detail and Delete Charts
 
-By clicking on `View Chart` in `Chart Used` section on `App Details` page, it will redirect you to app store detail page where you can see number of instances installed by this chart and also you can delete chart instance from here.
+By clicking on `View Chart` in `Chart Used` section on `App Details` page of `Helm Apps`, it will redirect you to `Chart Details` page where you can see number of instances installed by this chart and also you can delete chart instance from here.
+
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-8.jpg)
