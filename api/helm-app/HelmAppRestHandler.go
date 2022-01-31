@@ -25,7 +25,10 @@ type HelmAppRestHandler interface {
 	GetDeploymentHistory(w http.ResponseWriter, r *http.Request)
 	GetValuesYaml(w http.ResponseWriter, r *http.Request)
 	GetDesiredManifest(w http.ResponseWriter, r *http.Request)
+	DeleteApplication(w http.ResponseWriter, r *http.Request)
+	UpdateApplication(w http.ResponseWriter, r *http.Request)
 }
+
 type HelmAppRestHandlerImpl struct {
 	logger         *zap.SugaredLogger
 	helmAppService HelmAppService
@@ -251,6 +254,60 @@ func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter,
 			return
 		}
 		res.Manifest = &modifiedManifest
+	}
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId := vars["appId"]
+	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	res, err := handler.helmAppService.DeleteApplication(context.Background(), appIdentifier)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, r *http.Request) {
+	updateReleaseRequest := &openapi.UpdateReleaseRequest{}
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(updateReleaseRequest)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	appIdentifier, err := handler.helmAppService.DecodeAppId(*updateReleaseRequest.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	res, err := handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, updateReleaseRequest)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
