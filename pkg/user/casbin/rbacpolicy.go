@@ -27,6 +27,7 @@ const (
 	ResourceUser              = "user"
 	ResourceNotification      = "notification"
 	ResourceTemplate          = "template"
+	ResourceTerminal          = "terminal"
 
 	ResourceProjects     = "projects"
 	ResourceApplications = "applications"
@@ -48,4 +49,5 @@ const (
 	ActionSync    = "sync"
 	ActionTrigger = "trigger"
 	ActionNotify  = "notify"
+	ActionExec    = "exec"
 )

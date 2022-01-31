@@ -126,11 +126,17 @@ func (impl ArgoApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWri
 		return
 	}
 	request.EnvironmentId = eId
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, appRbacObject); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
+	valid := false
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, envRbacObject); !ok {
+		appRbacOk := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, appRbacObject)
+		envRbacOk := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, envRbacObject)
+		if appRbacOk && envRbacOk{
+			valid = true
+		}
+	} else{
+		valid = true
 	}
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, envRbacObject); !ok {
+	if !valid {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
