@@ -12,10 +12,6 @@ import (
 )
 
 type DeleteServiceExtendedImpl struct {
-	logger                *zap.SugaredLogger
-	teamService           team.TeamService
-	clusterService        cluster.ClusterService
-	environmentService    cluster.EnvironmentService
 	appRepository         app.AppRepository
 	environmentRepository repository.EnvironmentRepository
 	pipelineRepository    pipelineConfig.PipelineRepository
