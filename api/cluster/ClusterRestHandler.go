@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strconv"
@@ -55,7 +54,7 @@ type ClusterRestHandlerImpl struct {
 	userService    user.UserService
 	validator      *validator.Validate
 	enforcer       casbin.Enforcer
-	deleteService delete2.DeleteService
+	//deleteService delete2.DeleteService
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
@@ -63,14 +62,15 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	userService user.UserService,
 	validator *validator.Validate,
 	enforcer casbin.Enforcer,
-	deleteService delete2.DeleteService) *ClusterRestHandlerImpl {
+	//deleteService delete2.DeleteService
+	) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
 		clusterService: clusterService,
 		logger:         logger,
 		userService:    userService,
 		validator:      validator,
 		enforcer:       enforcer,
-		deleteService: deleteService,
+		//deleteService: deleteService,
 	}
 }
 
@@ -321,11 +321,11 @@ func (impl ClusterRestHandlerImpl)DeleteFromDb(w http.ResponseWriter, r *http.Re
 		return
 	}
 	//RBAC enforcer Ends
-	err = impl.deleteService.DeleteCluster(&bean, userId)
-	if err!= nil{
-		impl.logger.Errorw("error in deleting cluster","err",err,"id",bean.Id,"name",bean.ClusterName)
-		common.WriteJsonResp(w, err, nil, http.StatusOK)
-		return
-	}
+	//err = impl.deleteService.DeleteCluster(&bean, userId)
+	//if err!= nil{
+	//	impl.logger.Errorw("error in deleting cluster","err",err,"id",bean.Id,"name",bean.ClusterName)
+	//	common.WriteJsonResp(w, err, nil, http.StatusOK)
+	//	return
+	//}
 	common.WriteJsonResp(w, err, CLUSTER_DELETE_SUCCESS_RESP, http.StatusOK)
 }
