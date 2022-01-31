@@ -151,11 +151,11 @@ func MatchKeyByPart(key1 string, key2 string) bool {
 					valid = false
 				}
 			} else if len(key1Val) > j {
-				if key1Val[:j] == key2Val[:j] {
+				if key1Val[:j] != key2Val[:j] {
 					valid = false
 				}
 			} else {
-				if key1Val == key2Val[:j] {
+				if key1Val != key2Val[:j] {
 					valid = false
 				}
 			}
