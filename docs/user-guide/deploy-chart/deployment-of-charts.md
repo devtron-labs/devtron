@@ -1,5 +1,9 @@
 # Chart Operations 
 
+## Introduction
+
+Discover, Create, Deploy, Update, Upgrade, Delete charts.
+
 ## 1. Discover the chart from the Chart Store
 
 Select the `Charts` section from the left pane, you will be landed to the `Chart Store` page. 
@@ -7,7 +11,7 @@ Search `nginx` or any other charts in search filter.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-1.jpg)
 
-Click on chart and it will land you to the app store detail page where you can see number of instances deployed by using the same chart.
+Click on chart and it will redirect you to `Chart Details` page where you can see number of instances deployed by using the same chart.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-2.jpg)
 
@@ -60,7 +64,7 @@ After update or upgrade you again will land on `App Detail` page for `Helm Apps`
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-7.jpg)
 
-## 5. App Store Detail and Delete Charts
+## 5. Chart Details and Delete Charts
 
 By clicking on `View Chart` in `Chart Used` section on `App Details` page of `Helm Apps`, it will redirect you to `Chart Details` page where you can see number of instances installed by this chart and also you can delete chart instance from here.
 
