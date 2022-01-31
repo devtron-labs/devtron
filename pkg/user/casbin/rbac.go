@@ -138,30 +138,27 @@ func MatchKeyByPart(key1 string, key2 string) bool {
 
 	for i, key2Val := range key2Vals {
 		key1Val := key1Vals[i]
-		valid := true
+
 		if key2Val == "" || key1Val == "" {
 			//empty values are not allowed in any key
-			valid = false
+			return false
 		} else {
 			// getting index of "*" in key2, will check values of key1 accordingly
 			//for example - key2Val = a/bc*/d & key1Val = a/bcd/d, in this case "bc" will be checked in key1Val(upto index of "*")
 			j := strings.Index(key2Val, "*")
 			if j == -1 {
 				if key1Val != key2Val {
-					valid = false
+					return false
 				}
 			} else if len(key1Val) > j {
 				if key1Val[:j] != key2Val[:j] {
-					valid = false
+					return false
 				}
 			} else {
 				if key1Val != key2Val[:j] {
-					valid = false
+					return false
 				}
 			}
-		}
-		if !valid {
-			return false
 		}
 	}
 	return true
