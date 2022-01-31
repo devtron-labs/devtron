@@ -635,8 +635,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
 
-		delete2.NewDeleteServiceImpl,
-		wire.Bind(new(delete2.DeleteService),new(*delete2.DeleteServiceImpl)),
+		delete2.NewDeleteServiceExtendedImpl,
+		wire.Bind(new(delete2.DeleteService),new(*delete2.DeleteServiceExtendedImpl)),
 	)
 	return &App{}, nil
 }

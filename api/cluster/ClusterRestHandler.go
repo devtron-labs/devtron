@@ -55,7 +55,7 @@ type ClusterRestHandlerImpl struct {
 	userService    user.UserService
 	validator      *validator.Validate
 	enforcer       casbin.Enforcer
-	deleteServiceEA delete2.DeleteServiceEA
+	deleteService delete2.DeleteService
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
@@ -63,7 +63,7 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	userService user.UserService,
 	validator *validator.Validate,
 	enforcer casbin.Enforcer,
-	deleteServiceEA delete2.DeleteServiceEA,
+	deleteService delete2.DeleteService,
 	) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
 		clusterService: clusterService,
@@ -71,7 +71,7 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 		userService:    userService,
 		validator:      validator,
 		enforcer:       enforcer,
-		deleteServiceEA: deleteServiceEA,
+		deleteService: deleteService,
 	}
 }
 
@@ -322,7 +322,7 @@ func (impl ClusterRestHandlerImpl)DeleteFromDb(w http.ResponseWriter, r *http.Re
 		return
 	}
 	//RBAC enforcer Ends
-	err = impl.deleteServiceEA.DeleteCluster(&bean, userId)
+	err = impl.deleteService.DeleteCluster(&bean, userId)
 	if err!= nil{
 		impl.logger.Errorw("error in deleting cluster","err",err,"id",bean.Id,"name",bean.ClusterName)
 		common.WriteJsonResp(w, err, nil, http.StatusOK)

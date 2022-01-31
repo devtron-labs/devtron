@@ -44,8 +44,8 @@ func InitializeApp() (*App, error) {
 		connector.NewPumpImpl,
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
 
-		delete2.NewDeleteServiceEAImpl,
-		wire.Bind(new(delete2.DeleteServiceEA), new(*delete2.DeleteServiceEAImpl)),
+		delete2.NewDeleteServiceImpl,
+		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceImpl)),
 	)
 	return &App{}, nil
 }

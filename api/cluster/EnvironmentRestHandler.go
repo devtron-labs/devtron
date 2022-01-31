@@ -54,12 +54,12 @@ type EnvironmentRestHandlerImpl struct {
 	userService                       user.UserService
 	validator                         *validator.Validate
 	enforcer                          casbin.Enforcer
-	deleteServiceEA                     delete2.DeleteServiceEA
+	deleteService                     delete2.DeleteService
 }
 
 func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer,
-	deleteServiceEA delete2.DeleteServiceEA,
+	deleteService delete2.DeleteService,
 ) *EnvironmentRestHandlerImpl {
 	return &EnvironmentRestHandlerImpl{
 		environmentClusterMappingsService: svc,
@@ -67,7 +67,7 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 		userService:                       userService,
 		validator:                         validator,
 		enforcer:                          enforcer,
-		deleteServiceEA:                     deleteServiceEA,
+		deleteService:                     deleteService,
 	}
 }
 
@@ -356,7 +356,7 @@ func (impl EnvironmentRestHandlerImpl) Delete(w http.ResponseWriter, r *http.Req
 		return
 	}
 	//RBAC enforcer Ends
-	err = impl.deleteServiceEA.DeleteEnvironment(&bean, userId)
+	err = impl.deleteService.DeleteEnvironment(&bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Delete", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

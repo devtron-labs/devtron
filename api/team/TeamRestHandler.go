@@ -52,7 +52,7 @@ type TeamRestHandlerImpl struct {
 	validator       *validator.Validate
 	enforcer        casbin.Enforcer
 	userAuthService user.UserAuthService
-	deleteServiceEA   delete2.DeleteServiceEA
+	deleteService   delete2.DeleteService
 }
 
 func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
@@ -60,7 +60,7 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	userService user.UserService,
 	enforcer casbin.Enforcer,
 	validator *validator.Validate, userAuthService user.UserAuthService,
-	deleteServiceEA delete2.DeleteServiceEA,
+	deleteService delete2.DeleteService,
 ) *TeamRestHandlerImpl {
 	return &TeamRestHandlerImpl{
 		logger:          logger,
@@ -69,7 +69,7 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 		validator:       validator,
 		enforcer:        enforcer,
 		userAuthService: userAuthService,
-		deleteServiceEA:   deleteServiceEA,
+		deleteService:   deleteService,
 	}
 }
 
@@ -221,7 +221,7 @@ func (impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	//rbac ends
-	err = impl.deleteServiceEA.DeleteTeam(&deleteRequest)
+	err = impl.deleteService.DeleteTeam(&deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

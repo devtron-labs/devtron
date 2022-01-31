@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -80,7 +81,14 @@ func InitializeApp() (*App, error) {
 	loginService := middleware.NewUserLogin(sessionManager, k8sClient)
 	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, loginService, sugaredLogger, userRepositoryImpl)
 	teamServiceImpl := team.NewTeamServiceImpl(sugaredLogger, teamRepositoryImpl, userAuthServiceImpl)
-	teamRestHandlerImpl := team2.NewTeamRestHandlerImpl(sugaredLogger, teamServiceImpl, userServiceImpl, enforcerImpl, validate, userAuthServiceImpl)
+	clusterRepositoryImpl := repository2.NewClusterRepositoryImpl(db, sugaredLogger)
+	v := informer.NewGlobalMapClusterNamespace()
+	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v)
+	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sUtil, k8sInformerFactoryImpl)
+	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db)
+	environmentServiceImpl := cluster.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, userAuthServiceImpl)
+	deleteServiceImpl := delete2.NewDeleteServiceImpl(sugaredLogger, teamServiceImpl, clusterServiceImpl, environmentServiceImpl)
+	teamRestHandlerImpl := team2.NewTeamRestHandlerImpl(sugaredLogger, teamServiceImpl, userServiceImpl, enforcerImpl, validate, userAuthServiceImpl, deleteServiceImpl)
 	teamRouterImpl := team2.NewTeamRouterImpl(teamRestHandlerImpl)
 	userAuthHandlerImpl := user2.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger)
 	userAuthRouterImpl, err := user2.NewUserAuthRouterImpl(sugaredLogger, userAuthHandlerImpl, userServiceImpl, dexConfig)
@@ -90,11 +98,7 @@ func InitializeApp() (*App, error) {
 	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl)
 	userRestHandlerImpl := user2.NewUserRestHandlerImpl(userServiceImpl, validate, sugaredLogger, enforcerImpl, roleGroupServiceImpl)
 	userRouterImpl := user2.NewUserRouterImpl(userRestHandlerImpl)
-	clusterRepositoryImpl := repository2.NewClusterRepositoryImpl(db, sugaredLogger)
-	v := informer.NewGlobalMapClusterNamespace()
-	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v)
-	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sUtil, k8sInformerFactoryImpl)
-	clusterRestHandlerImpl := cluster2.NewClusterRestHandlerImpl(clusterServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl)
+	clusterRestHandlerImpl := cluster2.NewClusterRestHandlerImpl(clusterServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceImpl)
 	clusterRouterImpl := cluster2.NewClusterRouterImpl(clusterRestHandlerImpl)
 	dashboardConfig, err := dashboard.GetConfig()
 	if err != nil {
@@ -111,9 +115,7 @@ func InitializeApp() (*App, error) {
 	helmAppServiceImpl := client2.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImpl, helmAppClientImpl, pumpImpl, enforcerUtilHelmImpl)
 	helmAppRestHandlerImpl := client2.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enforcerImpl, clusterServiceImpl, enforcerUtilHelmImpl)
 	helmAppRouterImpl := client2.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
-	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db)
-	environmentServiceImpl := cluster.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, userAuthServiceImpl)
-	environmentRestHandlerImpl := cluster2.NewEnvironmentRestHandlerImpl(environmentServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl)
+	environmentRestHandlerImpl := cluster2.NewEnvironmentRestHandlerImpl(environmentServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceImpl)
 	environmentRouterImpl := cluster2.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
 	k8sClientServiceImpl := application.NewK8sClientServiceImpl(sugaredLogger, clusterRepositoryImpl)
 	k8sApplicationServiceImpl := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, pumpImpl, k8sClientServiceImpl, helmAppServiceImpl)
