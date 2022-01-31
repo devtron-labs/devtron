@@ -100,6 +100,8 @@ func (e *EnforcerImpl) enforce(enf *casbin.Enforcer, rvals ...interface{}) bool 
 		email = sub
 	}
 	rvals[0] = strings.ToLower(email)
+	//adding our key matching func - MatchKeyFunc, to enforcer
+	enf.AddFunction("matchKey", MatchKeyFunc)
 	return enf.Enforce(rvals...)
 }
 
@@ -109,5 +111,49 @@ func (e *EnforcerImpl) enforceByEmail(enf *casbin.Enforcer, rvals ...interface{}
 	if len(rvals) == 0 {
 		return false
 	}
+	//adding our key matching func - MatchKeyFunc, to enforcer
+	enf.AddFunction("matchKey", MatchKeyFunc)
 	return enf.Enforce(rvals...)
+}
+
+
+// MatchKeyFunc is the wrapper of our own customised MatchKey Func
+func MatchKeyFunc(args ...interface{}) (interface{}, error) {
+	name1 := args[0].(string)
+	name2 := args[1].(string)
+
+	return bool(MatchKey(name1, name2)), nil
+}
+
+// MatchKey checks whether values in key1 matches all values of key2(values are obtained by splitting key by "/")
+// For example - key1 =  "a/b/c" matches key2 = "a/*/c" but not matches for key2 = "a/*/d"
+func MatchKey(key1 string, key2 string) bool {
+
+	key1Vals := strings.Split(key1, "/")
+	key2Vals := strings.Split(key2, "/")
+
+	if (len(key1Vals) != len(key2Vals)) && len(key1Vals) > 0 {
+		//values in keys must be equal and should be more than zero
+		return false
+	}
+
+	for i, key2Val := range key2Vals{
+		if key2Val == "" || key1Vals[i] == ""{
+			//empty values are not allowed in any key
+			return false
+		}
+		if key2Val == "*"{
+			//key2Val allows all values of key1Val
+			continue
+		} else {
+			//key2Val should be an exact match of key1Val for it to be true
+			if key2Val == key1Vals[i]{
+				continue
+			} else{
+				//key2 value and key1 value do not match, no need to check further
+				return false
+			}
+		}
+	}
+	return true
 }
