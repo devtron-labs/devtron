@@ -101,7 +101,7 @@ func (e *EnforcerImpl) enforce(enf *casbin.Enforcer, rvals ...interface{}) bool 
 	}
 	rvals[0] = strings.ToLower(email)
 	//adding our key matching func - MatchKeyFunc, to enforcer
-	enf.AddFunction("matchKey", MatchKeyFunc)
+	enf.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
 	return enf.Enforce(rvals...)
 }
 
@@ -112,22 +112,22 @@ func (e *EnforcerImpl) enforceByEmail(enf *casbin.Enforcer, rvals ...interface{}
 		return false
 	}
 	//adding our key matching func - MatchKeyFunc, to enforcer
-	enf.AddFunction("matchKey", MatchKeyFunc)
+	enf.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
 	return enf.Enforce(rvals...)
 }
 
 
-// MatchKeyFunc is the wrapper of our own customised MatchKey Func
-func MatchKeyFunc(args ...interface{}) (interface{}, error) {
+// MatchKeyByPartFunc is the wrapper of our own customised MatchKeyByPart Func
+func MatchKeyByPartFunc(args ...interface{}) (interface{}, error) {
 	name1 := args[0].(string)
 	name2 := args[1].(string)
 
-	return bool(MatchKey(name1, name2)), nil
+	return bool(MatchKeyByPart(name1, name2)), nil
 }
 
-// MatchKey checks whether values in key1 matches all values of key2(values are obtained by splitting key by "/")
+// MatchKeyByPart checks whether values in key1 matches all values of key2(values are obtained by splitting key by "/")
 // For example - key1 =  "a/b/c" matches key2 = "a/*/c" but not matches for key2 = "a/*/d"
-func MatchKey(key1 string, key2 string) bool {
+func MatchKeyByPart(key1 string, key2 string) bool {
 
 	key1Vals := strings.Split(key1, "/")
 	key2Vals := strings.Split(key2, "/")
@@ -138,21 +138,31 @@ func MatchKey(key1 string, key2 string) bool {
 	}
 
 	for i, key2Val := range key2Vals{
-		if key2Val == "" || key1Vals[i] == ""{
+		key1Val := key1Vals[i]
+		valid := true
+		if key2Val == "" || key1Val == ""{
 			//empty values are not allowed in any key
-			return false
-		}
-		if key2Val == "*"{
-			//key2Val allows all values of key1Val
-			continue
+			valid = false
 		} else {
-			//key2Val should be an exact match of key1Val for it to be true
-			if key2Val == key1Vals[i]{
-				continue
-			} else{
-				//key2 value and key1 value do not match, no need to check further
-				return false
+			// getting index of "*" in key2, will check values of key1 accordingly
+			//for example - key2Val = a/bc*/d & key1Val = a/bcd/d, in this case "bc" will be checked in key1Val(upto index of "*")
+			j := strings.Index(key2Val, "*")
+			if j == -1 {
+				if key1Val != key2Val{
+					valid = false
+				}
+			} else if len(key1Val) > j {
+				if key1Val[:j] == key2Val[:j]{
+					valid = false
+				}
+			} else {
+				if key1Val == key2Val[:j] {
+					valid = false
+				}
 			}
+		}
+		if !valid {
+			return false
 		}
 	}
 	return true
