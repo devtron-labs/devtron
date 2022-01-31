@@ -47,15 +47,15 @@ type DockerRegRestHandler interface {
 	DeleteDockerRegistryConfig(w http.ResponseWriter, r *http.Request)
 }
 type DockerRegRestHandlerImpl struct {
-	dockerRegistryConfig pipeline.DockerRegistryConfig
-	logger               *zap.SugaredLogger
-	gitRegistryConfig    pipeline.GitRegistryConfig
-	dbConfigService      pipeline.DbConfigService
-	userAuthService      user.UserService
-	validator            *validator.Validate
-	enforcer             casbin.Enforcer
-	teamService          team.TeamService
-	deleteService        delete2.DeleteService
+	dockerRegistryConfig  pipeline.DockerRegistryConfig
+	logger                *zap.SugaredLogger
+	gitRegistryConfig     pipeline.GitRegistryConfig
+	dbConfigService       pipeline.DbConfigService
+	userAuthService       user.UserService
+	validator             *validator.Validate
+	enforcer              casbin.Enforcer
+	teamService           team.TeamService
+	deleteServiceFullMode delete2.DeleteServiceFullMode
 }
 
 const secureWithCert = "secure-with-cert"
@@ -65,17 +65,17 @@ func NewDockerRegRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryCon
 	gitRegistryConfig pipeline.GitRegistryConfig,
 	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
-	deleteService delete2.DeleteService) *DockerRegRestHandlerImpl {
+	deleteServiceFullMode delete2.DeleteServiceFullMode) *DockerRegRestHandlerImpl {
 	return &DockerRegRestHandlerImpl{
-		dockerRegistryConfig: dockerRegistryConfig,
-		logger:               logger,
-		gitRegistryConfig:    gitRegistryConfig,
-		dbConfigService:      dbConfigService,
-		userAuthService:      userAuthService,
-		validator:            validator,
-		enforcer:             enforcer,
-		teamService:          teamService,
-		deleteService:        deleteService,
+		dockerRegistryConfig:  dockerRegistryConfig,
+		logger:                logger,
+		gitRegistryConfig:     gitRegistryConfig,
+		dbConfigService:       dbConfigService,
+		userAuthService:       userAuthService,
+		validator:             validator,
+		enforcer:              enforcer,
+		teamService:           teamService,
+		deleteServiceFullMode: deleteServiceFullMode,
 	}
 }
 
@@ -293,7 +293,7 @@ func (impl DockerRegRestHandlerImpl) DeleteDockerRegistryConfig(w http.ResponseW
 		return
 	}
 	//RBAC enforcer Ends
-	err = impl.deleteService.DeleteDockerRegistryConfig(&bean)
+	err = impl.deleteServiceFullMode.DeleteDockerRegistryConfig(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, DeleteDockerRegistryConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

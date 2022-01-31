@@ -44,15 +44,15 @@ type GitProviderRestHandler interface {
 }
 
 type GitProviderRestHandlerImpl struct {
-	dockerRegistryConfig pipeline.DockerRegistryConfig
-	logger               *zap.SugaredLogger
-	gitRegistryConfig    pipeline.GitRegistryConfig
-	dbConfigService      pipeline.DbConfigService
-	userAuthService      user.UserService
-	validator            *validator.Validate
-	enforcer             casbin.Enforcer
-	teamService          team.TeamService
-	deleteService        delete2.DeleteService
+	dockerRegistryConfig  pipeline.DockerRegistryConfig
+	logger                *zap.SugaredLogger
+	gitRegistryConfig     pipeline.GitRegistryConfig
+	dbConfigService       pipeline.DbConfigService
+	userAuthService       user.UserService
+	validator             *validator.Validate
+	enforcer              casbin.Enforcer
+	teamService           team.TeamService
+	deleteServiceFullMode delete2.DeleteServiceFullMode
 }
 
 func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
@@ -60,17 +60,17 @@ func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryC
 	gitRegistryConfig pipeline.GitRegistryConfig,
 	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
-	deleteService delete2.DeleteService) *GitProviderRestHandlerImpl {
+	deleteServiceFullMode delete2.DeleteServiceFullMode) *GitProviderRestHandlerImpl {
 	return &GitProviderRestHandlerImpl{
-		dockerRegistryConfig: dockerRegistryConfig,
-		logger:               logger,
-		gitRegistryConfig:    gitRegistryConfig,
-		dbConfigService:      dbConfigService,
-		userAuthService:      userAuthService,
-		validator:            validator,
-		enforcer:             enforcer,
-		teamService:          teamService,
-		deleteService: deleteService,
+		dockerRegistryConfig:  dockerRegistryConfig,
+		logger:                logger,
+		gitRegistryConfig:     gitRegistryConfig,
+		dbConfigService:       dbConfigService,
+		userAuthService:       userAuthService,
+		validator:             validator,
+		enforcer:              enforcer,
+		teamService:           teamService,
+		deleteServiceFullMode: deleteServiceFullMode,
 	}
 }
 
@@ -206,7 +206,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl GitProviderRestHandlerImpl) DeleteGitRepoConfig(w http.ResponseWriter, r *http.Request){
+func (impl GitProviderRestHandlerImpl) DeleteGitRepoConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -235,7 +235,7 @@ func (impl GitProviderRestHandlerImpl) DeleteGitRepoConfig(w http.ResponseWriter
 		return
 	}
 	//RBAC enforcer Ends
-	err = impl.deleteService.DeleteGitProvider(&bean)
+	err = impl.deleteServiceFullMode.DeleteGitProvider(&bean)
 	if err != nil {
 		impl.logger.Errorw("error in deleting git account", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

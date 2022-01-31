@@ -12,9 +12,6 @@ type DeleteService interface {
 	DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error
 	DeleteEnvironment(deleteRequest *cluster.EnvironmentBean, userId int32) error
 	DeleteTeam(deleteRequest *team.TeamRequest) error
-	DeleteGitProvider(deleteRequest *pipeline.GitRegistry) error
-	DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error
-	DeleteChartRepo(deleteRequest *appstore2.ChartRepoDto) error
 }
 
 type DeleteServiceImpl struct {

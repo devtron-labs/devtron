@@ -62,34 +62,34 @@ type AppStoreRestHandler interface {
 }
 
 type AppStoreRestHandlerImpl struct {
-	Logger           *zap.SugaredLogger
-	appStoreService  appstore.AppStoreService
-	userAuthService  user.UserService
-	teamService      team.TeamService
-	enforcer         casbin.Enforcer
-	acdServiceClient application.ServiceClient
-	enforcerUtil     rbac.EnforcerUtil
-	validator        *validator.Validate
-	client           *http.Client
-	deleteService    delete2.DeleteService
+	Logger                *zap.SugaredLogger
+	appStoreService       appstore.AppStoreService
+	userAuthService       user.UserService
+	teamService           team.TeamService
+	enforcer              casbin.Enforcer
+	acdServiceClient      application.ServiceClient
+	enforcerUtil          rbac.EnforcerUtil
+	validator             *validator.Validate
+	client                *http.Client
+	deleteServiceFullMode delete2.DeleteServiceFullMode
 }
 
 func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appStoreService appstore.AppStoreService,
 	acdServiceClient application.ServiceClient, teamService team.TeamService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil,
 	validator *validator.Validate, client *http.Client,
-	deleteService delete2.DeleteService) *AppStoreRestHandlerImpl {
+	deleteServiceFullMode delete2.DeleteServiceFullMode) *AppStoreRestHandlerImpl {
 	return &AppStoreRestHandlerImpl{
-		Logger:           Logger,
-		appStoreService:  appStoreService,
-		userAuthService:  userAuthService,
-		teamService:      teamService,
-		acdServiceClient: acdServiceClient,
-		enforcer:         enforcer,
-		enforcerUtil:     enforcerUtil,
-		validator:        validator,
-		client:           client,
-		deleteService:    deleteService,
+		Logger:                Logger,
+		appStoreService:       appStoreService,
+		userAuthService:       userAuthService,
+		teamService:           teamService,
+		acdServiceClient:      acdServiceClient,
+		enforcer:              enforcer,
+		enforcerUtil:          enforcerUtil,
+		validator:             validator,
+		client:                client,
+		deleteServiceFullMode: deleteServiceFullMode,
 	}
 }
 
@@ -504,7 +504,7 @@ func (handler *AppStoreRestHandlerImpl) DeleteChartRepo(w http.ResponseWriter, r
 	//rbac ends here
 	request.UserId = userId
 	handler.Logger.Infow("request payload, DeleteChartRepo", "payload", request)
-	err = handler.deleteService.DeleteChartRepo(request)
+	err = handler.deleteServiceFullMode.DeleteChartRepo(request)
 	if err != nil {
 		handler.Logger.Errorw("err in deleting chart repo", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

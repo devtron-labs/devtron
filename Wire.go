@@ -637,6 +637,8 @@ func InitializeApp() (*App, error) {
 
 		delete2.NewDeleteServiceExtendedImpl,
 		wire.Bind(new(delete2.DeleteService),new(*delete2.DeleteServiceExtendedImpl)),
+		delete2.NewDeleteServiceFullModeImpl,
+		wire.Bind(new(delete2.DeleteServiceFullMode),new(*delete2.DeleteServiceFullModeImpl)),
 	)
 	return &App{}, nil
 }
