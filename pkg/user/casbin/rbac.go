@@ -128,11 +128,17 @@ func MatchKeyByPartFunc(args ...interface{}) (interface{}, error) {
 // For example - key1 =  "a/b/c" matches key2 = "a/*/c" but not matches for key2 = "a/*/d"
 func MatchKeyByPart(key1 string, key2 string) bool {
 
+	if key2 == "*"{
+		//policy must be for super-admin role or global-env action
+		//no need to check further
+		return true
+	}
+
 	key1Vals := strings.Split(key1, "/")
 	key2Vals := strings.Split(key2, "/")
 
-	if (len(key1Vals) != len(key2Vals)) && len(key1Vals) > 0 {
-		//values in keys must be equal and should be more than zero
+	if (len(key1Vals) != len(key2Vals)) || len(key1Vals) == 0 {
+		//values in keys should be more than zero and must be equal
 		return false
 	}
 
