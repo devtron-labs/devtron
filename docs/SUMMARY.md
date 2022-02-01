@@ -63,7 +63,7 @@
   * [Telemetry Overview](user-guide/telemetry.md)
 
 ### Hyperion
-* [Introduction](https://app.gitbook.com/s/OpAp5DD600zTDhXaZRLa/#hyperion)
+* [Introduction](hyperion/README.md)
 * [Install Hyperion](hyperion/setup/install.md)
   * [Global Configurations](hyperion/user-guide/global-configurations/README.md)
 * [User Guide](hyperion/user-guide/creating-application/README.md)
