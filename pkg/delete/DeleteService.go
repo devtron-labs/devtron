@@ -1,9 +1,7 @@
 package delete
 
 import (
-	appstore2 "github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"go.uber.org/zap"
 )
@@ -47,6 +45,7 @@ func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *cluster.Environme
 	err := impl.environmentService.Delete(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting environment", "err", err, "deleteRequest", deleteRequest)
+		return err
 	}
 	return nil
 }
@@ -56,17 +55,5 @@ func (impl DeleteServiceImpl) DeleteTeam(deleteRequest *team.TeamRequest) error 
 		impl.logger.Errorw("error in deleting team", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
-	return nil
-}
-
-// TODO : confirm for methods below (only being used in extended class)
-
-func (impl DeleteServiceImpl) DeleteGitProvider(deleteRequest *pipeline.GitRegistry) error {
-	return nil
-}
-func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *pipeline.DockerArtifactStoreBean) error {
-	return nil
-}
-func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *appstore2.ChartRepoDto) error {
 	return nil
 }

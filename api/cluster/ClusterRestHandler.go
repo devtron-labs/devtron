@@ -55,7 +55,7 @@ type ClusterRestHandlerImpl struct {
 	userService    user.UserService
 	validator      *validator.Validate
 	enforcer       casbin.Enforcer
-	deleteService delete2.DeleteService
+	deleteService  delete2.DeleteService
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
@@ -64,14 +64,14 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	validator *validator.Validate,
 	enforcer casbin.Enforcer,
 	deleteService delete2.DeleteService,
-	) *ClusterRestHandlerImpl {
+) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
 		clusterService: clusterService,
 		logger:         logger,
 		userService:    userService,
 		validator:      validator,
 		enforcer:       enforcer,
-		deleteService: deleteService,
+		deleteService:  deleteService,
 	}
 }
 
@@ -292,7 +292,7 @@ func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter,
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (impl ClusterRestHandlerImpl)DeleteFromDb(w http.ResponseWriter, r *http.Request){
+func (impl ClusterRestHandlerImpl) DeleteFromDb(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -323,9 +323,9 @@ func (impl ClusterRestHandlerImpl)DeleteFromDb(w http.ResponseWriter, r *http.Re
 	}
 	//RBAC enforcer Ends
 	err = impl.deleteService.DeleteCluster(&bean, userId)
-	if err!= nil{
-		impl.logger.Errorw("error in deleting cluster","err",err,"id",bean.Id,"name",bean.ClusterName)
-		common.WriteJsonResp(w, err, nil, http.StatusOK)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster", "err", err, "id", bean.Id, "name", bean.ClusterName)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, CLUSTER_DELETE_SUCCESS_RESP, http.StatusOK)
