@@ -63,8 +63,8 @@
   * [Telemetry Overview](user-guide/telemetry.md)
 
 ### Hyperion
-* [Introduction](hyperion/README.md)
-* [Setup](hyperion/setup/install/README.md)
+* [Introduction](hyperion/README.md#hyperion)
+* [Setup](hyperion/setup/install.md)
   * [Global Configurations](hyperion/user-guide/global-configurations/README.md)
 * [User Guide](hyperion/user-guide/creating-application/README.md)
-* [Upgrade to Devtron](hyperion/setup/upgrade/README.md)
+* [Upgrade to Devtron](hyperion/setup/upgrade-to-devtron.md)

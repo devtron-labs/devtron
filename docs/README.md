@@ -1,7 +1,7 @@
 # Overview
 
 ## Devtron 🚀
-Devtron leverages popular open source tools to provide a No-Code SaaS like experience for creating Software Delivery workflows for Kubernetes.
+Devtron leverages popular open source tools to provide a No-Code SaaS like experience for creating Software Delivery workflows for Kubernetes. Devtron integrates seamlessly with multiple open-source tools to provide you an ecosystem for Kubernetes software delivery workflow, debugging, monitoring and holistic access management for the entire team.
 
 > Do check the [Devtron Installation Guide ⎈](setup/install/README.md)
 
@@ -77,7 +77,7 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
 ## Compatibility notes
 
 * It uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/).
-* application metrics only works for k8s 1.16+
+* Application metrics only works for k8s 1.16+
 
 ---
 
