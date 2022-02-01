@@ -69,7 +69,7 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
-	GetCombinedEnvironmentListForDropDown(token string, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
+	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 }
 
@@ -415,7 +415,7 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token string, auth func(token string, object string) bool) ([]*ClusterEnvDto, error) {
+func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(token string, object string) bool) ([]*ClusterEnvDto, error) {
 	var namespaceGroupByClusterResponse []*ClusterEnvDto
 	clusterModels, err := impl.clusterService.FindAllActive()
 	if err != nil {
@@ -434,11 +434,14 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 	uniqueComboMap := make(map[string]bool)
 	grantedEnvironmentMap := make(map[string][]*EnvDto)
 	for _, model := range models {
-		// auth enforcer applied here
-		isValidAuth := auth(token, model.EnvironmentIdentifier)
-		if !isValidAuth {
-			impl.logger.Debugw("authentication for env failed", "object", model.EnvironmentIdentifier)
-			continue
+		// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
+		if !isActionUserSuperAdmin {
+			// auth enforcer applied here
+			isValidAuth := auth(token, model.EnvironmentIdentifier)
+			if !isValidAuth {
+				impl.logger.Debugw("authentication for env failed", "object", model.EnvironmentIdentifier)
+				continue
+			}
 		}
 		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
 		groupKey := fmt.Sprintf("%s__%d", model.Cluster.ClusterName, model.ClusterId)
@@ -455,16 +458,19 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 	for clusterName, namespaces := range namespaceListGroupByClusters {
 		clusterId := clusterMap[clusterName]
 		for namespace := range namespaces {
-			environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
-			// auth enforcer applied here
-			isValidAuth := auth(token, environmentIdentifier)
-			if !isValidAuth {
-				impl.logger.Debugw("authentication for env failed", "object", environmentIdentifier)
-				continue
-			}
 			//deduplication for cluster and namespace combination
 			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
 			if _, ok := uniqueComboMap[groupKey]; !ok {
+				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
+				// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
+				if !isActionUserSuperAdmin {
+					// auth enforcer applied here
+					isValidAuth := auth(token, environmentIdentifier)
+					if !isValidAuth {
+						impl.logger.Debugw("authentication for env failed", "object", environmentIdentifier)
+						continue
+					}
+				}
 				grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
 					EnvironmentName:       environmentIdentifier,
 					Namespace:             namespace,
@@ -533,16 +539,16 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 			continue
 		}
 		for namespace := range namespaces {
-			environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
-			// auth enforcer applied here
-			isValidAuth := auth(token, environmentIdentifier)
-			if !isValidAuth {
-				impl.logger.Debugw("authentication for env failed", "object", environmentIdentifier)
-				continue
-			}
 			//deduplication for cluster and namespace combination
 			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
 			if _, ok := uniqueComboMap[groupKey]; !ok {
+				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
+				// auth enforcer applied here
+				isValidAuth := auth(token, environmentIdentifier)
+				if !isValidAuth {
+					impl.logger.Debugw("authentication for env failed", "object", environmentIdentifier)
+					continue
+				}
 				grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
 					EnvironmentName:       environmentIdentifier,
 					Namespace:             namespace,

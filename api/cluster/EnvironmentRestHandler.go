@@ -298,14 +298,18 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	isActionUserSuperAdmin, err := impl.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
+		return
+	}
 	token := r.Header.Get("token")
-	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, impl.CheckAuthorizationForGlobalEnvironment)
+	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, isActionUserSuperAdmin, impl.CheckAuthorizationForGlobalEnvironment)
 	if err != nil {
 		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	if len(clusters) == 0 {
 		clusters = make([]*request.ClusterEnvDto, 0)
 	}
