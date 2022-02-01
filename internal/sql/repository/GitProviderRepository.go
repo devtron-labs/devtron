@@ -88,7 +88,8 @@ func (impl GitProviderRepositoryImpl) FindAllActiveForAutocomplete() ([]GitProvi
 
 func (impl GitProviderRepositoryImpl) FindAll() ([]GitProvider, error) {
 	var providers []GitProvider
-	err := impl.dbConnection.Model(&providers).Select()
+	err := impl.dbConnection.Model(&providers).
+		Where("active = ?", true).Select()
 	return providers, err
 }
 
