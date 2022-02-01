@@ -65,5 +65,8 @@ func (impl EnvironmentRouterImpl) InitEnvironmentClusterMappingsRouter(environme
 	environmentClusterMappingsRouter.Path("/autocomplete/helm").
 		Methods("GET").
 		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetCombinedEnvironmentListForDropDown)
+	environmentClusterMappingsRouter.Path("/namespace/autocomplete").
+		Methods("GET").
+		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetCombinedEnvironmentListForDropDownByClusterIds)
 
 }

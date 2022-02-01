@@ -42,6 +42,7 @@ type EnvironmentRestHandler interface {
 	FindById(w http.ResponseWriter, r *http.Request)
 	GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request)
+	GetCombinedEnvironmentListForDropDownByClusterIds(w http.ResponseWriter, r *http.Request)
 }
 
 type EnvironmentRestHandlerImpl struct {
@@ -316,4 +317,39 @@ func (handler EnvironmentRestHandlerImpl) CheckAuthorizationForGlobalEnvironment
 		return false
 	}
 	return true
+}
+
+func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByClusterIds(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	v := r.URL.Query()
+	clusterIdString := v.Get("ids")
+	var clusterIds []int
+	if clusterIdString != "" {
+		clusterIdSlices := strings.Split(clusterIdString, ",")
+		for _, clusterId := range clusterIdSlices {
+			id, err := strconv.Atoi(clusterId)
+			if err != nil {
+				impl.logger.Errorw("request err, GetCombinedEnvironmentListForDropDownByClusterIds", "err", err, "clusterIdString", clusterIdString)
+				common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
+				return
+			}
+			clusterIds = append(clusterIds, id)
+		}
+	}
+	token := r.Header.Get("token")
+	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDownByClusterIds(token, clusterIds, impl.CheckAuthorizationForGlobalEnvironment)
+	if err != nil {
+		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	if len(clusters) == 0 {
+		clusters = make([]*request.ClusterEnvDto, 0)
+	}
+	common.WriteJsonResp(w, err, clusters, http.StatusOK)
 }
