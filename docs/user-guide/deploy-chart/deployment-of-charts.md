@@ -60,13 +60,13 @@ For upgrade click on `Repo/Chart` field and search any chart name like `nginx-in
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-6.jpg)
 
 
-After update or upgrade you again will land on `App Detail` where you can check pods and service name.
+After update or upgrade you again will land on `App Detail` page, where you can check pods and service name.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-7.jpg)
 
 ## 5. Chart Details and Delete Charts
 
-By clicking on `View Chart` in `Chart Used` section on `App Details`, it will redirect you to `Chart Details` page where you can see number of instances installed by this chart and also you can delete chart instance from here.
+By clicking on `View Chart` in `Chart Used` section on `App Details` page, it will redirect you to `Chart Details` page where you can see number of instances installed by this chart and also you can delete chart instance from here.
 
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-8.jpg)
