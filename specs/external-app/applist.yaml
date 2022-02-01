@@ -316,6 +316,34 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UpdateReleaseResponse"
+  /orchestrator/application/deployment-detail:
+    get:
+      description: deployment details of helm app
+      parameters:
+        - in: query
+          name: appId
+          example: "12|helm-app|cluster1-ns1"
+          description: project ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+        - in: query
+          name: version
+          example: 1
+          description: deployment version
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: deployment detail response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelmAppDeploymentManifestDetail"
 components:
   schemas:
     appListRequest:
@@ -578,9 +606,6 @@ components:
           type: object
           $ref: "#/components/schemas/ChartMetadata"
           description: metadata of the chart
-        manifest:
-          type: string
-          description: final manifest of the chart
         dockerImages:
           type: array
           description: docker images presrnt insise the chart
@@ -683,4 +708,15 @@ components:
           type: boolean
           description: success or failure
           example: true
+    HelmAppDeploymentManifestDetail:
+      type: object
+      properties:
+        manifest:
+          type: string
+          description: manifest of deployment
+          example: "abcd"
+        valuesYaml:
+          type: string
+          description: values YAML of deployment
+          example: "abcd"
 
