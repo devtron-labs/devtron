@@ -67,4 +67,4 @@
 * [Setup](hyperion/setup/install.md)
   * [Global Configurations](hyperion/user-guide/global-configurations/README.md)
 * [User Guide](hyperion/user-guide/creating-application/README.md)
-* [Upgrade to Devtron](hyperion/setup/upgrade-to-devtron.md)
+* [Upgrade to Devtron Full mode](hyperion/setup/upgrade-to-devtron.md)

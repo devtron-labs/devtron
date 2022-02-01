@@ -3,7 +3,7 @@
 To install Helm3, please check [Installing Helm3](https://helm.sh/docs/intro/install/)
 
 {% tabs %}
-{% tab title="Upgrade to Devtron Full mode with default configurations" %}
+{% tab title="Upgrade with default configurations" %}
 This installation will use Minio for storing build logs and cache.
 
 ```bash
@@ -11,7 +11,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd --set instal
 ```
 {% endtab %}
 
-{% tab title="Upgrade to Devtron Full mode with AWS S3 Buckets" %}
+{% tab title="Upgrade with AWS S3" %}
 This installation will use AWS s3 buckets for storing build logs and cache
 
 ```bash
@@ -25,7 +25,7 @@ helm upgrade devtron devtron/devtron-operator --create-namespace --namespace dev
 ```
 {% endtab %}
 
-{% tab title="Install with Azure Blob Storage" %}
+{% tab title="Upgrade with Azure Blob Storage" %}
 This installation will use Azure Blob Storage for storing build logs and cache
 
 ```bash
