@@ -4,8 +4,6 @@ To install Helm3, please check [Installing Helm3](https://helm.sh/docs/intro/ins
 
 {% tabs %}
 {% tab title="Install with default configurations" %}
-This installation will use Minio for storing build logs and cache.
-
 ```bash
 helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd --set installer.mode=hyperion
