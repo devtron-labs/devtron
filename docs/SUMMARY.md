@@ -63,7 +63,7 @@
   * [Telemetry Overview](user-guide/telemetry.md)
 
 ### Hyperion
-* [Introduction](README.md#why-hyperion)
+* [Introduction](README.md#hyperion)
 * [Install Hyperion](hyperion/setup/install.md)
   * [Global Configurations](hyperion/user-guide/global-configurations/README.md)
 * [User Guide](hyperion/user-guide/creating-application/README.md)
