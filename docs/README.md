@@ -81,13 +81,13 @@ You can efficiently handle Security, Stability, Cost, and more in a unified expe
 
 ---
 
-## Hyperion
+## Hyperion 🦹
 
 ### Why Hyperion?
 Hyperion is a lightweight Dashboard for Kubernetes deployments. Packed with full-fleged debugging features enabled with resource grouping for easier debugging for Development and Infra team.
 You can also upgrade to Devtron from Hyperion to enjoy full stack features of Devtron.
 
-> Do check the [Hyperion Installation Guide ⎈](hyperion/setup/install/README.md)
+> Do check the [Hyperion Installation Guide ⎈](hyperion/setup/install.md)
 
 ### Hyperion Features
 
