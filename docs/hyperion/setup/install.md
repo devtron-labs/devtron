@@ -13,16 +13,13 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 {% endtab %}
 {% endtabs %}
 
-For those countries/users where Github is blocked , you can use Gitee as the installation source.
+For those countries/users where Github is blocked , you can download the [Hyperion Helm chart](https://s3-ap-southeast-1.amazonaws.com/devtron.ai/devtron-operator-latest.tgz)
 
-{% tabs %}
-{% tab title="Install with Gitee" %}
+
 ```bash
-helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd --set installer.mode=hyperion --set installer.source=gitee
+wget https://s3-ap-southeast-1.amazonaws.com/devtron.ai/devtron-operator-latest.tgz
+helm install devtron devtron-operator-latest.tgz --create-namespace --namespace devtroncd --set installer.mode=hyperion
 ```
-{% endtab %}
-{% endtabs %}
 
 [//]: # (If you are planning to use Hyperion for `production deployments`, please refer to our recommended overrides for [Devtron Installation]&#40;override-default-devtron-installation-configs.md&#41;.)
 
