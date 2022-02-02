@@ -55,7 +55,12 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccountName: devtron
       containers:
+      - name: devtron-rollout
+        image: quay.io/bitnami/kubectl:latest
+        command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
+      initContainers:
       - name: postgresql-migrate-casbin
         image: quay.io/devtron/migrator:6687f572-133-2208
         env:
@@ -82,6 +87,10 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        resources:
+          requests:
+            cpu: 0.5
+            memory: 500Mi
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
