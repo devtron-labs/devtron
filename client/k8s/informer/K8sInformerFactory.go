@@ -61,7 +61,7 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 			c, err := rest.InClusterConfig()
 			if err != nil {
 				impl.logger.Errorw("error in fetch default cluster config", "err", err)
-				return
+				continue
 			}
 			impl.buildInformerAndNamespaceList(info.ClusterName, c, &impl.mutex)
 		} else {
@@ -84,7 +84,6 @@ func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName st
 	}
 	informerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(clusterClient, time.Minute)
 	nsInformer := informerFactory.Core().V1().Namespaces()
-	impl.logger.Debugw(clusterName, "ns informer", nsInformer.Informer())
 	allNamespaces := make(map[string]bool)
 	impl.globalMapClusterNamespace[clusterName] = allNamespaces
 	nsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
