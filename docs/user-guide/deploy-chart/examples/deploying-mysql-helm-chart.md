@@ -45,7 +45,7 @@ Click on `Deploy Chart` to deploy the Chart.
 
 ## 3. Check the Status of Deployment
 
-After clicking on `Deploy` you will redirected to app details page where you can see deployment status of the chart. The Status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
+After clicking on `Deploy` you will be redirected to app details page where you can see deployment status of the chart. The Status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mysql-helm-chart/mysql-5.jpg)
 
