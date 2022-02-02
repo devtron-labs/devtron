@@ -57,7 +57,7 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("GET").
 		HandlerFunc(impl.clusterRestHandler.FindAllForAutoComplete)
 
-	clusterRouter.Path("/delete").
-		Methods("POST").
-		HandlerFunc(impl.clusterRestHandler.DeleteFromDb)
+	clusterRouter.Path("").
+		Methods("DELETE").
+		HandlerFunc(impl.clusterRestHandler.DeleteCluster)
 }
