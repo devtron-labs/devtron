@@ -381,6 +381,9 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	bean.Id = model.Id
 
 	if hasChangedInConfig {
+		//before creating new informer for cluster, close existing one
+		impl.K8sInformerFactory.CleanNamespaceInformer(model.ClusterName)
+		//create new informer for cluster with new config
 		clusterInfo := &bean2.ClusterInfo{
 			ClusterId:   model.Id,
 			ClusterName: model.ClusterName,
