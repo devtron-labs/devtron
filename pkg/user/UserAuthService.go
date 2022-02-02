@@ -23,9 +23,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/casbin/casbin"
 	"github.com/devtron-labs/authenticator/middleware"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"github.com/casbin/casbin"
 	"log"
 	"math/rand"
 	"net/http"
@@ -37,10 +37,10 @@ import (
 	"github.com/coreos/go-oidc"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
-	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth"
+	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
@@ -557,6 +557,10 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 		return err
 	}
 
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
 	// deleting policies in casbin for deleted roles
 	var casbinDeleteFailed []bool
 	for _, roleModel := range roleModels {
@@ -566,6 +570,5 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 			casbinDeleteFailed = append(casbinDeleteFailed, success)
 		}
 	}
-	//TODO : confirm if information of casbin deletion failure is to be send to user
 	return nil
 }
