@@ -570,6 +570,5 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 			casbinDeleteFailed = append(casbinDeleteFailed, success)
 		}
 	}
-	//TODO : confirm if information of casbin deletion failure is to be send to user
 	return nil
 }
