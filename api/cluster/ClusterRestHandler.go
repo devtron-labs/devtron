@@ -46,7 +46,7 @@ type ClusterRestHandler interface {
 	Update(w http.ResponseWriter, r *http.Request)
 
 	FindAllForAutoComplete(w http.ResponseWriter, r *http.Request)
-	DeleteFromDb(w http.ResponseWriter, r *http.Request)
+	DeleteCluster(w http.ResponseWriter, r *http.Request)
 }
 
 type ClusterRestHandlerImpl struct {
@@ -292,7 +292,7 @@ func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter,
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (impl ClusterRestHandlerImpl) DeleteFromDb(w http.ResponseWriter, r *http.Request) {
+func (impl ClusterRestHandlerImpl) DeleteCluster(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -307,7 +307,7 @@ func (impl ClusterRestHandlerImpl) DeleteFromDb(w http.ResponseWriter, r *http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Errorw("request payload, Update", "payload", bean)
+	impl.logger.Debugw("request payload, Update", "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validate err, Delete", "error", err, "payload", bean)

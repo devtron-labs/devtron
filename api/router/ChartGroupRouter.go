@@ -50,6 +50,6 @@ func (impl *ChartGroupRouterImpl) initChartGroupRouter(chartGroupRouter *mux.Rou
 
 	chartGroupRouter.Path("/list/min").
 		HandlerFunc(impl.ChartGroupRestHandler.GetChartGroupListMin).Methods("GET")
-	chartGroupRouter.Path("/delete").
-		HandlerFunc(impl.ChartGroupRestHandler.DeleteChartGroup).Methods("POST")
+	chartGroupRouter.Path("").
+		HandlerFunc(impl.ChartGroupRestHandler.DeleteChartGroup).Methods("DELETE")
 }

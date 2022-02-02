@@ -45,7 +45,7 @@ type EnvironmentRestHandler interface {
 	FindById(w http.ResponseWriter, r *http.Request)
 	GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request)
-	Delete(w http.ResponseWriter, r *http.Request)
+	DeleteEnvironment(w http.ResponseWriter, r *http.Request)
 }
 
 type EnvironmentRestHandlerImpl struct {
@@ -326,7 +326,7 @@ func (handler EnvironmentRestHandlerImpl) CheckAuthorizationForGlobalEnvironment
 	return true
 }
 
-func (impl EnvironmentRestHandlerImpl) Delete(w http.ResponseWriter, r *http.Request) {
+func (impl EnvironmentRestHandlerImpl) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -340,7 +340,7 @@ func (impl EnvironmentRestHandlerImpl) Delete(w http.ResponseWriter, r *http.Req
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Errorw("request payload, Delete", "payload", bean)
+	impl.logger.Debugw("request payload, Delete", "payload", bean)
 
 	err = impl.validator.Struct(bean)
 	if err != nil {

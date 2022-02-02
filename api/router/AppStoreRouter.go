@@ -107,8 +107,8 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 		HandlerFunc(router.appStoreRestHandler.UpdateChartRepo).Methods("POST")
 	configRouter.Path("/repo/validate").
 		HandlerFunc(router.appStoreRestHandler.ValidateChartRepo).Methods("POST")
-	configRouter.Path("/repo/delete").
-		HandlerFunc(router.appStoreRestHandler.DeleteChartRepo).Methods("POST")
+	configRouter.Path("/repo").
+		HandlerFunc(router.appStoreRestHandler.DeleteChartRepo).Methods("DELETE")
 
 	configRouter.Path("/cluster-component/install/{clusterId}").
 		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")

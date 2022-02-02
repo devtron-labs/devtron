@@ -65,8 +65,8 @@ func (impl EnvironmentRouterImpl) InitEnvironmentClusterMappingsRouter(environme
 	environmentClusterMappingsRouter.Path("/autocomplete/helm").
 		Methods("GET").
 		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetCombinedEnvironmentListForDropDown)
-	environmentClusterMappingsRouter.Path("/delete").
-		Methods("POST").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.Delete)
+	environmentClusterMappingsRouter.Path("").
+		Methods("DELETE").
+		HandlerFunc(impl.environmentClusterMappingsRestHandler.DeleteEnvironment)
 
 }
