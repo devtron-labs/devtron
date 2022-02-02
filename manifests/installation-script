@@ -270,6 +270,7 @@ log("setup grafana");
 if !hasgrafana {
 	createOrgScript = shebang + `
 	sleep 50
+  sleep 50
 	ORG_ID=$( curl -d '{"name":"devtron-metrics-view"}' -H "Content-Type: application/json" -X POST '` + grafanaUrlWithPwd + `/api/orgs' )
 	echo $ORG_ID
 	`;
@@ -364,15 +365,12 @@ if !hasPostgresql {
 #argocd
 hasArgocd = kubectl get deployment argocd-server -n devtroncd;
 hasargocdSecret = kubectl get secret argocd-secret -n devtroncd;
-helmRepo = `- name: incubator
+helmRepo = `- name: fluent
   type: helm
-  url: https://charts.helm.sh/incubator
-- name: devtron-charts
+  url: https://fluent.github.io/helm-charts
+- name: devtron
   type: helm
-  url: https://devtron-charts.s3.us-east-2.amazonaws.com/charts
-- name: stable
-  type: helm
-  url: https://charts.helm.sh/stable
+  url: https://helm.devtron.ai
 - name: nginx-ingress
   type: helm
   url: https://kubernetes.github.io/ingress-nginx
