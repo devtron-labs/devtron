@@ -22,7 +22,6 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
@@ -581,19 +580,14 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 }
 
 func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int32) error {
-	existingTeam, err := impl.environmentRepository.FindById(deleteReq.Id)
+	existingEnv, err := impl.environmentRepository.FindById(deleteReq.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", deleteReq.Id)
 		return err
 	}
-	deleteRequest := &repository.Environment{
-		Name:      deleteReq.Environment,
-		Id:        deleteReq.Id,
-		Active:    deleteReq.Active,
-		ClusterId: deleteReq.ClusterId,
-		Default:   deleteReq.Default,
-		AuditLog:  sql.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: userId},
-	}
+	deleteRequest := existingEnv
+	deleteRequest.UpdatedOn = time.Now()
+	deleteRequest.UpdatedBy = userId
 	err = impl.environmentRepository.MarkEnvironmentDeleted(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting environment", "envId", deleteReq.Id, "envName", deleteReq.Environment)
