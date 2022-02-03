@@ -327,20 +327,6 @@ func (handler *HelmAppRestHandlerImpl) GetDeploymentDetail(w http.ResponseWriter
 		return
 	}
 
-	//// Obfuscate secrets if user does not have edit access
-	//canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
-	//if !canUpdate && res != nil && res.DeploymentHistory != nil {
-	//	for _, deployment := range res.DeploymentHistory {
-	//		modifiedManifest , err := k8sObjectsUtil.HideValuesIfSecretForWholeYamlInput(deployment.Manifest)
-	//		if err != nil {
-	//			handler.logger.Errorw("error in hiding secret values", "err", err)
-	//			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-	//			return
-	//		}
-	//		deployment.Manifest = modifiedManifest
-	//	}
-	//}
-
 	// Obfuscate secrets if user does not have edit access
 	canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
 	if !canUpdate && res != nil && res.Manifest != nil {
