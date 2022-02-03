@@ -5,3 +5,5 @@ ALTER TABLE chart_repo ADD COLUMN deleted bool NOT NULL DEFAULT FALSE;
 ALTER TABLE slack_config ADD COLUMN deleted bool NOT NULL DEFAULT FALSE;
 
 ALTER TABLE ses_config ADD COLUMN deleted bool NOT NULL DEFAULT FALSE;
+
+ALTER TABLE team DROP CONSTRAINT team_name_key;
