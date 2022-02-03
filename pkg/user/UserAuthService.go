@@ -551,16 +551,18 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 	}
 
 	//deleting roles
-	err = impl.userAuthRepository.DeleteRoles(roleModels, tx)
-	if err != nil {
-		impl.logger.Errorw(fmt.Sprintf("error in deleting roles for %s:%s", entityType, entityName), "err", err, "name", entityName)
-		return err
+	if len(roleModels) > 0 {
+		err = impl.userAuthRepository.DeleteRoles(roleModels, tx)
+		if err != nil {
+			impl.logger.Errorw(fmt.Sprintf("error in deleting roles for %s:%s", entityType, entityName), "err", err, "name", entityName)
+			return err
+		}
+		err = tx.Commit()
+		if err != nil {
+			return err
+		}
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
 	// deleting policies in casbin for deleted roles
 	var casbinDeleteFailed []bool
 	for _, roleModel := range roleModels {

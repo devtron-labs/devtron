@@ -805,8 +805,9 @@ func (impl UserAuthRepositoryImpl) GetRolesForChartGroup(chartGroupName string) 
 }
 
 func (impl UserAuthRepositoryImpl) DeleteRoles(roles []*RoleModel, tx *pg.Tx) error {
-	err := tx.Delete(roles)
+	err := tx.Delete(&roles)
 	if err != nil {
+		impl.Logger.Errorw("error in deleting roles", "err", err)
 		return err
 	}
 	return nil

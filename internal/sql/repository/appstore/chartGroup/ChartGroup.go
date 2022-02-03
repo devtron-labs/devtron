@@ -29,6 +29,7 @@ type ChartGroup struct {
 	Id          int      `sql:"id,pk"`
 	Name        string   `sql:"name"`
 	Description string   `sql:"description,notnull"`
+	Active      bool	 `sql:"active"`
 	sql.AuditLog
 	ChartGroupEntries []*ChartGroupEntry
 }
@@ -97,9 +98,10 @@ func (impl *ChartGroupReposotoryImpl) GetAll(max int) ([]*ChartGroup, error) {
 }
 
 func (impl *ChartGroupReposotoryImpl) MarkChartGroupDeleted(chartGroupId int) error {
-	var ChartGroup ChartGroup
-	err := impl.dbConnection.Model(&ChartGroup).
+	var chartGroup ChartGroup
+	_, err := impl.dbConnection.Model(&chartGroup).
 		Where("id = ?",chartGroupId).
-		Set("active = ?",false).Select()
+		Set("active = ?",false).
+		Update()
 	return err
 }
