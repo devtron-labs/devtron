@@ -87,7 +87,7 @@ func (impl CiTemplateRepositoryImpl) FindByAppId(appId int) (ciTemplate *CiTempl
 }
 
 func (impl CiTemplateRepositoryImpl) FindByDockerRegistryId(dockerRegistryId string) (ciTemplates []*CiTemplate, err error){
-	err = impl.dbConnection.Model(ciTemplates).
+	err = impl.dbConnection.Model(&ciTemplates).
 		Where("docker_registry_id =? ", dockerRegistryId).
 		Where("active = ?", true).
 		Select()
