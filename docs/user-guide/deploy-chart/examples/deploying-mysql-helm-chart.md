@@ -2,19 +2,21 @@
 
 ## Introduction
 
-stable/mysql Helm chart bootstraps a single node MySQL deployment on a Kubernetes cluster using the Helm package manager.
+`stable/mysql` Helm chart bootstraps a single node MySQL deployment on a Kubernetes cluster using the Helm package manager.
 
-![](../../../.gitbook/assets/mysql%20%281%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mysql-helm-chart/mysql-1.jpg)
 
-## 1. Discover the chart from the Chart Store
+## 1. Discover MySQL chart from Chart Store
 
-Select the `Charts` section from the left pane, you will be landed to the `Chart Store` page. Click on `Discover` and find `stable/mongodb-replicaset` Helm Chart.
+Select `Charts` from the left panel to visit the `Chart Store` page. You will see numerous of charts on the page from which you have to find `stable/mysql` chart. You also can use the search bar to search the MySQL chart.
 
-![](../../../.gitbook/assets/chart21.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mysql-helm-chart/mysql-2.jpg)
 
 ## 2. Configure the Chart
 
-After selecting the stable/mysql Helm chart, click on `Deploy`.
+After selecting the `stable/mysql` Helm chart, click on `Deploy`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mysql-helm-chart/mysql-3.jpg)
 
 Enter the following details, to deploy MySQL chart:
 
@@ -24,13 +26,11 @@ Enter the following details, to deploy MySQL chart:
 | `Project` | Select the name of your Project in which you want to deploy the chart |
 | `Environment` | Select the environment in which you want to deploy the chart |
 | `Chart Version` | Select the latest Chart Version |
-| `Chart Value` | Select the latest default value or create a custom value |
+| `Chart Value` | Select the default value or create a custom value |
 
 ### Configure `values.yaml`
 
 Set the following parameters in the chart, to be later used to connect MySQL with your Django Application.
-
-![](../../../.gitbook/assets/chart3%20%281%29.jpg)
 
 | Parameters | Description |
 | :--- | :--- |
@@ -39,25 +39,22 @@ Set the following parameters in the chart, to be later used to connect MySQL wit
 | `mysqluser` | Username of new user to create |
 | `mysqlPassword` | Password for the new user. Ignored if existing secret is provided |
 
-![](../../../.gitbook/assets/chart4o.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mysql-helm-chart/mysql-4.jpg)
 
-Click on `Deploy` to deploy the Chart.
+Click on `Deploy Chart` to deploy the Chart.
 
 ## 3. Check the Status of Deployment
 
-After clicking on `Deploy` you will land on a page, that shows the Status of the deployment of the Chart.
+After clicking on `Deploy` you will be redirected to app details page where you can see deployment status of the chart. The Status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
 
-The Status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
-
-![](../../../.gitbook/assets/sql1%20%281%29.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mysql-helm-chart/mysql-5.jpg)
 
 In case the Status, of the deployment is `Degraded` or takes a long time to get deployed.
-
 Click on the `Status` or check the logs of the pods to debug the issue.
 
 ## 4. Extract the Service Name
 
 Copy the service name, it will be used to connect your application to MySQL.
 
-![](../../../.gitbook/assets/sql2.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mysql-helm-chart/mysql-6.jpg)
 
