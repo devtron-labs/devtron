@@ -33,6 +33,7 @@ type EnforcerUtil interface {
 	GetAppRBACNameByAppId(appId int) string
 	GetAppRBACByAppNameAndEnvId(appName string, envId int) string
 	GetAppRBACByAppIdAndPipelineId(appId int, pipelineId int) string
+	GetTeamEnvRBACNameByAppId(appId int, envId int) string
 	GetEnvRBACNameByAppId(appId int, envId int) string
 	GetTeamRBACByCiPipelineId(pipelineId int) string
 	GetEnvRBACArrayByAppId(appId int) []string
@@ -147,6 +148,20 @@ func (impl EnforcerUtilImpl) GetEnvRBACNameByAppId(appId int, envId int) string 
 		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
 	}
 	return fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
+}
+
+func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByAppId(appId int, envId int) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	var appName = application.AppName
+	var teamName = application.Team.Name
+	env, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), "", strings.ToLower(appName))
+	}
+	return fmt.Sprintf("%s/%s/%s", strings.ToLower(teamName), strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
 }
 
 func (impl EnforcerUtilImpl) GetTeamRBACByCiPipelineId(pipelineId int) string {
