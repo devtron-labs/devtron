@@ -75,6 +75,7 @@ func (impl GitProviderRepositoryImpl) ProviderExists(url string) (bool, error) {
 	exists, err := impl.dbConnection.
 		Model(provider).
 		Where("url = ?", url).
+		Where("active = ?", true).
 		Exists()
 	return exists, err
 }
