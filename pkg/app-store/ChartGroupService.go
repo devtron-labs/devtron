@@ -15,15 +15,14 @@
  *
  */
 
-package appstore
+package app_store
 
 import (
+	app_store "github.com/devtron-labs/devtron/pkg/app-store/repository"
+	"github.com/devtron-labs/devtron/pkg/app-store/repository/chartGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"time"
-
-	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
 	"go.uber.org/zap"
+	"time"
 )
 
 type ChartGroupServiceImpl struct {
@@ -31,14 +30,14 @@ type ChartGroupServiceImpl struct {
 	chartGroupRepository            chartGroup.ChartGroupReposotory
 	Logger                          *zap.SugaredLogger
 	chartGroupDeploymentRepository  chartGroup.ChartGroupDeploymentRepository
-	installedAppRepository          appstore.InstalledAppRepository
-	appStoreVersionValuesRepository appstore.AppStoreVersionValuesRepository
+	installedAppRepository          app_store.InstalledAppRepository
+	appStoreVersionValuesRepository app_store.AppStoreVersionValuesRepository
 }
 
 func NewChartGroupServiceImpl(chartGroupEntriesRepository chartGroup.ChartGroupEntriesRepository,
 	chartGroupRepository chartGroup.ChartGroupReposotory,
 	Logger *zap.SugaredLogger, chartGroupDeploymentRepository chartGroup.ChartGroupDeploymentRepository,
-	installedAppRepository appstore.InstalledAppRepository, appStoreVersionValuesRepository appstore.AppStoreVersionValuesRepository) *ChartGroupServiceImpl {
+	installedAppRepository app_store.InstalledAppRepository, appStoreVersionValuesRepository app_store.AppStoreVersionValuesRepository) *ChartGroupServiceImpl {
 	return &ChartGroupServiceImpl{
 		chartGroupEntriesRepository:     chartGroupEntriesRepository,
 		chartGroupRepository:            chartGroupRepository,

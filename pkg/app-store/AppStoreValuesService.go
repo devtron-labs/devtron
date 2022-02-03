@@ -15,14 +15,12 @@
  *
  */
 
-package appstore
+package app_store
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/user"
+	app_store "github.com/devtron-labs/devtron/pkg/app-store/repository"
 	"go.uber.org/zap"
 	"time"
 )
@@ -38,70 +36,26 @@ type AppStoreValuesService interface {
 	GetSelectedChartMetaData(req *ChartMetaDataRequestWrapper) ([]*ChartMetaDataResponse, error)
 }
 
-const REFERENCE_TYPE_DEFAULT string = "DEFAULT"
-const REFERENCE_TYPE_TEMPLATE string = "TEMPLATE"
-const REFERENCE_TYPE_DEPLOYED string = "DEPLOYED"
-const REFERENCE_TYPE_EXISTING string = "EXISTING"
-
-type AppStoreVersionValuesDTO struct {
-	Id                int    `json:"id,omitempty"`
-	AppStoreVersionId int    `json:"appStoreVersionId,omitempty,notnull"`
-	Name              string `json:"name,omitempty"`
-	Values            string `json:"values,omitempty"` //yaml format user value
-	ChartVersion      string `json:"chartVersion,omitempty"`
-	EnvironmentName   string `json:"environmentName,omitempty"`
-	UserId            int32  `json:"-"`
-}
-
-type AppStoreVersionValuesCategoryWiseDTO struct {
-	Values []*AppStoreVersionValuesDTO `json:"values"`
-	Kind   string                      `json:"kind"`
-}
-
-type AppSotoreVersionDTOWrapper struct {
-	Values []*AppStoreVersionValuesCategoryWiseDTO `json:"values"`
-}
-
-type ValuesListCategory struct {
-	Id                int             `json:"id,omitempty"`
-	AppStoreVersionId int             `json:"appStoreVersionId,omitempty,notnull"`
-	ReferenceId       int             `json:"referenceId,omitempty,notnull"`
-	Name              string          `json:"name,omitempty"`
-	ValuesOverride    json.RawMessage `json:"valuesOverride,omitempty"` //json format user value
-}
-
-type ValuesCategoryResponse struct {
-	ReferenceType      json.RawMessage      `json:"referenceType,omitempty"` //json format user value
-	ValuesListCategory []ValuesListCategory `json:"valuesListCategory,omitempty"`
-}
-
 type AppStoreValuesServiceImpl struct {
 	logger                          *zap.SugaredLogger
-	appStoreRepository              appstore.AppStoreRepository
-	appStoreApplicationRepository   appstore.AppStoreApplicationVersionRepository
-	installedAppRepository          appstore.InstalledAppRepository
-	userService                     user.UserService
-	appStoreVersionValuesRepository appstore.AppStoreVersionValuesRepository
-	mergeUtil                       util.MergeUtil
+	appStoreApplicationRepository   app_store.AppStoreApplicationVersionRepository
+	installedAppRepository          app_store.InstalledAppRepository
+	appStoreVersionValuesRepository app_store.AppStoreVersionValuesRepository
 }
 
-func NewAppStoreValuesServiceImpl(logger *zap.SugaredLogger, appStoreRepository appstore.AppStoreRepository,
-	appStoreApplicationRepository appstore.AppStoreApplicationVersionRepository, installedAppRepository appstore.InstalledAppRepository,
-	userService user.UserService, appStoreVersionValuesRepository appstore.AppStoreVersionValuesRepository,
-	mergeUtil util.MergeUtil) *AppStoreValuesServiceImpl {
+func NewAppStoreValuesServiceImpl(logger *zap.SugaredLogger,
+	appStoreApplicationRepository app_store.AppStoreApplicationVersionRepository, installedAppRepository app_store.InstalledAppRepository,
+	appStoreVersionValuesRepository app_store.AppStoreVersionValuesRepository) *AppStoreValuesServiceImpl {
 	return &AppStoreValuesServiceImpl{
 		logger:                          logger,
-		appStoreRepository:              appStoreRepository,
 		appStoreApplicationRepository:   appStoreApplicationRepository,
 		installedAppRepository:          installedAppRepository,
-		userService:                     userService,
 		appStoreVersionValuesRepository: appStoreVersionValuesRepository,
-		mergeUtil:                       mergeUtil,
 	}
 }
 
 func (impl AppStoreValuesServiceImpl) CreateAppStoreVersionValues(request *AppStoreVersionValuesDTO) (*AppStoreVersionValuesDTO, error) {
-	model := &appstore.AppStoreVersionValues{
+	model := &app_store.AppStoreVersionValues{
 		Name:                         request.Name,
 		ValuesYaml:                   request.Values,
 		AppStoreApplicationVersionId: request.AppStoreVersionId,
@@ -320,7 +274,7 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreIdAndReferenceType(app
 }
 
 //converts db object to bean
-func (impl AppStoreValuesServiceImpl) adapter(values *appstore.AppStoreVersionValues) (*AppStoreVersionValuesDTO, error) {
+func (impl AppStoreValuesServiceImpl) adapter(values *app_store.AppStoreVersionValues) (*AppStoreVersionValuesDTO, error) {
 
 	version := ""
 	if values.AppStoreApplicationVersion != nil {

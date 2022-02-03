@@ -15,7 +15,7 @@
  *
  */
 
-package restHandler
+package app_store
 
 import (
 	"encoding/json"

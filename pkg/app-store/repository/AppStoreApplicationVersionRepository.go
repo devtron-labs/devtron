@@ -15,7 +15,7 @@
  *
  */
 
-package appstore
+package app_store
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"

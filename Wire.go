@@ -21,6 +21,7 @@
 package main
 
 import (
+	chart_repository "github.com/devtron-labs/devtron/api/chart-repository"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -96,6 +97,7 @@ func InitializeApp() (*App, error) {
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
+		chart_repository.ChartRepositoryWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -134,8 +136,6 @@ func InitializeApp() (*App, error) {
 		bulkUpdate.NewBulkUpdateRepository,
 		wire.Bind(new(bulkUpdate.BulkUpdateRepository), new(*bulkUpdate.BulkUpdateRepositoryImpl)),
 
-		chartConfig.NewChartRepository,
-		wire.Bind(new(chartConfig.ChartRepository), new(*chartConfig.ChartRepositoryImpl)),
 		chartConfig.NewEnvConfigOverrideRepository,
 		wire.Bind(new(chartConfig.EnvConfigOverrideRepository), new(*chartConfig.EnvConfigOverrideRepositoryImpl)),
 		chartConfig.NewPipelineOverrideRepository,

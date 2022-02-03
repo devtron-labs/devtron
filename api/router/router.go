@@ -19,6 +19,8 @@ package router
 
 import (
 	"encoding/json"
+	app_store "github.com/devtron-labs/devtron/api/app-store"
+	chart_repository "github.com/devtron-labs/devtron/api/chart-repository"
 	"github.com/devtron-labs/devtron/api/cluster"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -66,7 +68,8 @@ type MuxRouter struct {
 	cronBasedEventReceiver           pubsub.CronBasedEventReceiver
 	ChartRefRouter                   ChartRefRouter
 	ConfigMapRouter                  ConfigMapRouter
-	AppStoreRouter                   AppStoreRouter
+	AppStoreRouter                   app_store.AppStoreRouter
+	ChartRepositoryRouter            chart_repository.ChartRepositoryRouter
 	ReleaseMetricsRouter             ReleaseMetricsRouter
 	deploymentGroupRouter            DeploymentGroupRouter
 	chartGroupRouter                 ChartGroupRouter
@@ -103,7 +106,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
 	appUpdateHandler pubsub.ApplicationStatusUpdateHandler,
 	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClient, UserRouter user.UserRouter, cronBasedEventReceiver pubsub.CronBasedEventReceiver,
-	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter AppStoreRouter,
+	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter app_store.AppStoreRouter, chartRepositoryRouter chart_repository.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
@@ -138,6 +141,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		ChartRefRouter:                   ChartRefRouter,
 		ConfigMapRouter:                  ConfigMapRouter,
 		AppStoreRouter:                   AppStoreRouter,
+		ChartRepositoryRouter:            chartRepositoryRouter,
 		ReleaseMetricsRouter:             ReleaseMetricsRouter,
 		deploymentGroupRouter:            deploymentGroupRouter,
 		batchOperationRouter:             batchOperationRouter,
@@ -251,7 +255,11 @@ func (r MuxRouter) Init() {
 	r.ConfigMapRouter.initConfigMapRouter(configMapRouter)
 
 	appStoreRouter := r.Router.PathPrefix("/orchestrator/app-store").Subrouter()
-	r.AppStoreRouter.initAppStoreRouter(appStoreRouter)
+	r.AppStoreRouter.Init(appStoreRouter)
+
+	chartRepoRouter := r.Router.PathPrefix("/orchestrator/chart-repo").Subrouter()
+	r.ChartRepositoryRouter.Init(chartRepoRouter)
+
 	deploymentMetricsRouter := r.Router.PathPrefix("/orchestrator/deployment-metrics").Subrouter()
 	r.ReleaseMetricsRouter.initReleaseMetricsRouter(deploymentMetricsRouter)
 

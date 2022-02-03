@@ -1,4 +1,4 @@
-package appstore
+package chart_repository
 
 import (
 	"bytes"
