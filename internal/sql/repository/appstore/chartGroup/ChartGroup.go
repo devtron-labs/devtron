@@ -92,7 +92,7 @@ func (impl *ChartGroupReposotoryImpl) GetAll(max int) ([]*ChartGroup, error) {
 	if max > 0 {
 		query = query.Limit(max)
 	}
-	err := query.Select()
+	err := query.Where("active = ?", true).Select()
 	return chartGroups, err
 }
 
