@@ -814,5 +814,10 @@ func (impl *AppStoreServiceImpl) DeleteChartRepo(request *ChartRepoDto) error {
 		impl.logger.Errorw("error in deleting chart repo", "err", err)
 		return err
 	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in tx commit, DeleteChartRepo", "err", err)
+		return err
+	}
 	return nil
 }
