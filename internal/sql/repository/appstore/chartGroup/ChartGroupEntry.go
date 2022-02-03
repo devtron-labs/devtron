@@ -107,10 +107,10 @@ func (impl *ChartGroupEntriesRepositoryImpl) FindEntriesWithChartMetaByChartGrou
 
 func (impl *ChartGroupEntriesRepositoryImpl) MarkChartGroupEntriesDeleted(chartGroupId []int) ([]*ChartGroupEntry, error) {
 	var chartGroupEntries []*ChartGroupEntry
-	err := impl.dbConnection.Model(&chartGroupEntries).
+	_, err := impl.dbConnection.Model(&chartGroupEntries).
 		Where("id in (?)", pg.In(chartGroupId)).
 		Set("deleted = ", true).
-		Select()
+		Update()
 	return chartGroupEntries, err
 }
 
