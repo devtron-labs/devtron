@@ -112,6 +112,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveForAutocomplete() ([]
 func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, error) {
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
+		Where("active = ?", true).
 		//Column("id", "plugin_id","registry_url", "registry_type","aws_accesskey_id","aws_secret_accesskey","aws_region","username","password","is_default","active").
 		Select()
 	return providers, err
