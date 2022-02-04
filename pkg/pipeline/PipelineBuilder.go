@@ -600,6 +600,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		Id:                originalCiConf.Id,
 		DockerRepository:  originalCiConf.DockerRepository,
 		DockerRegistryId:  originalCiConf.DockerRegistry,
+		Active: 		   true,
 	}
 
 	err = impl.ciTemplateRepository.Update(ciTemplate)
