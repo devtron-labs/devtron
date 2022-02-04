@@ -803,7 +803,6 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 		return
 	}
 	impl.logger.Infow("request payload, DeleteNotificationChannelConfig", "err", err, "payload", channelReq)
-	token := r.Header.Get("token")
 	if util.Slack == channelReq.Channel {
 		var deleteReq *notifier.SlackConfigDto
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
@@ -820,19 +819,13 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 			return
 		}
 
-		//RBAC starts
-		teams, err := impl.teamService.FindByIds([]*int{&deleteReq.TeamId})
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		// RBAC enforcer applying
+		token := r.Header.Get("token")
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
+			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
 		}
-		for _, item := range teams {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
-				common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-				return
-			}
-		}
-		//RBAC ends
+		//RBAC enforcer Ends
 
 		cErr := impl.slackService.DeleteNotificationConfig(deleteReq, userId)
 		if cErr != nil {
