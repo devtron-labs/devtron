@@ -310,7 +310,7 @@ func (impl *NotificationSettingsRepositoryImpl) FetchNotificationSettingGroupBy(
 
 func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsByConfigIdAndConfigType(configId int, configType string) ([]NotificationSettings, error) {
 	var notificationSettings []NotificationSettings
-	err := impl.dbConnection.Model(notificationSettings).Where("config::text like ?","%dest\":\""+configType+"%").
+	err := impl.dbConnection.Model(&notificationSettings).Where("config::text like ?","%dest\":\""+configType+"%").
 		Where("config::text like ?","%configId\":" + strconv.Itoa(configId)+"%").Select()
 	if err != nil {
 		return nil, err
