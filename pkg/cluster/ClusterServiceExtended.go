@@ -222,6 +222,10 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		}
 		return nil, err
 	}
+
+	if bean.HasConfigOrUrlChanged {
+		impl.ClusterServiceImpl.SyncNsInformer(bean)
+	}
 	return bean, err
 }
 
@@ -323,5 +327,8 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 		return nil, err
 
 	}
+	//on successful creation of new cluster, update informer cache for namespace group by cluster
+	impl.SyncNsInformer(bean)
+	
 	return clusterBean, nil
 }

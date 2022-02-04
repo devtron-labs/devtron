@@ -20,6 +20,7 @@ data:
   HOTJAR_ENABLED: "false"
   SENTRY_ENABLED: "false"
   SENTRY_ENV: PRODUCTION
+  APPLICATION_METRICS_ENABLED: "true"
 ---
 # Source: dashboard/templates/sidecar-configmap.yaml
 apiVersion: v1
