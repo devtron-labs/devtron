@@ -40,9 +40,9 @@ type SESNotificationService interface {
 }
 
 type SESNotificationServiceImpl struct {
-	logger        *zap.SugaredLogger
-	teamService   team.TeamService
-	sesRepository repository.SESNotificationRepository
+	logger                         *zap.SugaredLogger
+	teamService                    team.TeamService
+	sesRepository                  repository.SESNotificationRepository
 	notificationSettingsRepository repository.NotificationSettingsRepository
 }
 
@@ -81,9 +81,9 @@ type NotificationRecipientListingResponse struct {
 func NewSESNotificationServiceImpl(logger *zap.SugaredLogger, sesRepository repository.SESNotificationRepository,
 	teamService team.TeamService, notificationSettingsRepository repository.NotificationSettingsRepository) *SESNotificationServiceImpl {
 	return &SESNotificationServiceImpl{
-		logger:        logger,
-		teamService:   teamService,
-		sesRepository: sesRepository,
+		logger:                         logger,
+		teamService:                    teamService,
+		sesRepository:                  sesRepository,
 		notificationSettingsRepository: notificationSettingsRepository,
 	}
 }
@@ -258,9 +258,13 @@ func (impl *SESNotificationServiceImpl) DeleteNotificationConfig(deleteReq *SESC
 		impl.logger.Errorw("No matching entry found for delete", "err", err, "id", deleteReq.Id)
 		return err
 	}
-	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id,SES_CONFIG_TYPE)
-	if !(notifications==nil && err == pg.ErrNoRows){
-		impl.logger.Errorw("found notifications using this config, cannot delete","config",deleteReq)
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, SES_CONFIG_TYPE)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in deleting ses config", "config", deleteReq)
+		return err
+	}
+	if notifications != nil {
+		impl.logger.Errorw("found notifications using this config, cannot delete", "config", deleteReq)
 		return fmt.Errorf(" Please delete all notifications using this config before deleting")
 	}
 	existingConfig.UpdatedOn = time.Now()
@@ -268,7 +272,7 @@ func (impl *SESNotificationServiceImpl) DeleteNotificationConfig(deleteReq *SESC
 	//deleting slack config
 	err = impl.sesRepository.MarkSESConfigDeleted(existingConfig)
 	if err != nil {
-		impl.logger.Errorw("error in deleting slack config", "err", err, "id", existingConfig.Id)
+		impl.logger.Errorw("error in deleting ses config", "err", err, "id", existingConfig.Id)
 		return err
 	}
 	return nil

@@ -273,7 +273,11 @@ func (impl *SlackNotificationServiceImpl) DeleteNotificationConfig(deleteReq *Sl
 		return err
 	}
 	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, SLACK_CONFIG_TYPE)
-	if !(notifications == nil && err == pg.ErrNoRows) {
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in deleting slack config", "config", deleteReq)
+		return err
+	}
+	if notifications != nil {
 		impl.logger.Errorw("found notifications using this config, cannot delete", "config", deleteReq)
 		return fmt.Errorf(" Please delete all notifications using this config before deleting")
 	}
