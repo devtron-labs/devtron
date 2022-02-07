@@ -14,6 +14,8 @@
 <a href="https://discord.gg/jsRG5qx2gp">Join Discord</a>
 ·
 <a href="https://twitter.com/DevtronL">Twitter</a>
+.
+<a href="https://www.youtube.com/channel/UCAHRp9qp0z1y9MMtQlcFtcw">YouTube</a>
 
 
 </p>
@@ -25,7 +27,6 @@
 <a href="http://golang.org"><img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go"></a>
 <a href="http://devtron.ai/"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
 <a href="https://twitter.com/intent/tweet?text=Devtron%20helps%20in%20simplifying%20software delivery%20workflow%20for%20Kubernetes,%20check%20it%20out!!%20&hashtags=OpenSource,Kubernetes,DevOps,CICD,go&url=https://github.com/devtron-labs/devtron%0a"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Tweet"></a>
- 
 
  
 <!--</p>
@@ -40,7 +41,7 @@
 
 - [Devtron?](https://github.com/devtron-labs/devtron#bulb-devtron)
 - [Full Devtron Experience](https://github.com/devtron-labs/devtron#tada-Full-Devtron-Experience)
-- [Hyperion](https://github.com/devtron-labs/devtron#globe_with_meridians-Hyperion)
+- [Hyperion](https://github.com/devtron-labs/devtron#tada-featuresfor-hyperion)
 - [Documentation](https://docs.devtron.ai/)
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
@@ -57,12 +58,14 @@ Devtron is a Web-Based CI/CD Platform for Kubernetes. It integrates various Open
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
 <b> Devtron is built in a modular approach. These modules can be installed independently: </b>
-- Full Devtron Experience - This option gives you all the features of Devtron as a Full Experience providing you with CI, CD, security, cost, observability, stabilization. Consists of all the modules stated below.
-- [Hyperion](https://github.com/devtron-labs/devtron#globe_with_meridians-Hyperion) - A Web-based module to manage helm apps. Install Hyperion -> manage, Observe helm apps of all your clusters. This module is also a great way to manage existing helm apps and gradually understand how Devtron fits into your workflow. You can always switch to Full Devtron Experience for all the features.
+- [Full Devtron Experience](https://github.com/devtron-labs/devtron#tada-Full-Devtron-Experience) - This option gives you all the features of Devtron as a Full Experience providing you with CI, CD, security, cost, observability, stabilization. All the modules stated below are included here.
+- [Hyperion](https://github.com/devtron-labs/devtron#tada-featuresfor-hyperion) - Devtron's Web-based module to manage helm apps that can be installed seperately. Install Hyperion -> manage, Observe helm apps of all your clusters. This module is also a great way to manage existing helm apps and gradually understand how Devtron fits into your workflow. You can always switch to Full Devtron Experience for all the features.
 
 ## :computer: Full Devtron Experience
 
-### :tada: Features
+Full Devtron Experience gives you everything that Devtron has to offer. It is a full feldged web based CI/CD platform that provides many festures on top of it.
+
+## :tada: Features
 <br>
 <img src="./assets/preview.gif">
 <br>
@@ -126,23 +129,23 @@ Devtron is a Web-Based CI/CD Platform for Kubernetes. It integrates various Open
 
 </details>
 
-#### :blue_heart: We Support:
+### :blue_heart: We Support:
 In addition to the features, we love supporting platforms that devs find easy to work with.
 <br>
 <p align="center"><img src="./assets/we-support.jpg"></p>
 
 
-### :globe_with_meridians: Architecture:
+## :globe_with_meridians: Architecture:
 <br>
 <img src="./assets/Architecture.jpg">
 
 
-### :rocket: Getting Started
+## :rocket: Getting Started
 
 #### You can follow our detailed installation guide, using Devtron and other key functionalities of devtron, in our
 [Devtron Documentation](https://docs.devtron.ai/)
 
-#### Quick installation with default settings
+### Quick installation with default settings
 
 This installation will use Minio for storing build logs and cache.
 
@@ -155,7 +158,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 [devtron installation documentation](https://docs.devtron.ai/setup/install)
 
 
-#### :key: Access Devtron dashboard
+### :key: Access Devtron dashboard
 
 By default, Devtron creates a loadbalancer. Use the following command to get the dashboard url:
 
@@ -172,14 +175,105 @@ For admin login, use the username:`admin`. And for the password, run the followi
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
-## :muscle: Trusted By
-Devtron has been trusted by the Enterprises and community all across the globe.
+## :memo: Compatibility notes
 
-- [Delhivery:](https://www.delhivery.com/) Delhivery Limited is one the largest and most profitable logistics company in India
-- [BharatPe:](https://bharatpe.com/) Bharatpe is a business utility app to accept payments transactions in settlements.
-- [Livspace:](https://www.livspace.com/in) Livspace is one-stop shop for all things home interiors and renovation services.
-- [Moglix:](https://www.moglix.com/) It is an Asia-based B2B commerce company intensively inclined towards B2B procurement of industrial supplies
-- [Xoxoday:](https://www.xoxoday.com/) Xoxoday helps to send rewards, perks & incentives to employees, customers and partners.<br>
+### Current build: 
+
+- Devtron uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
+- Application metrics only works for k8s 1.16+
+
+
+## 🦹 Hyperion
+
+<details>
+ <summary> <b> Hyperion is one of devtron's Web-based modules to manage helm apps that can be installed seperately too. It helps you observe, manage and debug the applications deployed through Helm across multiple clusters minimizing Kubernetes Complexities. Please expand this column to find Hyperion's features and to get Started with it:</b></summary>
+<br>
+
+
+## :tada: Features(For Hyperion)
+ 
+<details><summary> <b> Application-level resource grouping for easier Debugging </b></summary>
+<br>
+
+- Hyperion groups your deployed microservices and displays them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Hyperion UI and even edit them!
+
+</details>
+ 
+<details><summary> <b>  Centralized Access Management </b></summary>
+<br>
+ 
+- Give access to users on Project, Environment and App level and control the level of access with customizable View only and Edit access.
+</details>
+ 
+<details><summary> <b>  Manage and observe Multiple Clusters </b></summary>
+<br>
+ 
+- Manage access of all the Kubernetes clusters (hosted on multiple cloud/on-prem) right from a single Hyperion setup.
+
+</details>
+ 
+<details><summary> <b> View and Edit Kubernetes Manifests </b></summary>
+<br>
+ 
+ - View and Edit all Kubernetes resources right from the Hyperion dashboard.
+
+</details>
+
+#### Side Note:
+
+Hyperion module is also a great way to understand how Devtron can fit into your workflow without actually installing apps through Devtron. You can always switch to Full Devtron Experience for all the features. [Just a Couple of Commands away.](https://github.com/devtron-labs/devtron#rocket-getting-started)
+ 
+## :rocket: Getting Started(For Hyperion)
+
+### Install Hyperion using Helm3
+
+To install Helm3, please check [Installing Helm3](https://helm.sh/docs/intro/install/)
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd --set installer.mode=hyperion
+```
+
+For those countries/users where Github is blocked , you can download the [Hyperion Helm chart](https://s3-ap-southeast-1.amazonaws.com/devtron.ai/devtron-operator-latest.tgz)
+
+
+```bash
+wget https://s3-ap-southeast-1.amazonaws.com/devtron.ai/devtron-operator-latest.tgz
+helm install devtron devtron-operator-latest.tgz --create-namespace --namespace devtroncd --set installer.mode=hyperion
+```
+
+### Access Hyperion dashboard
+
+If you did not provide a **BASE\_URL** during install or have used the default installation, Devtron creates a loadbalancer for you on its own. Use the following command to get the dashboard url.
+
+```text
+kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+```
+
+You will get result something like below
+
+```text
+[test2@server ~]$ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+[map[hostname:aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com]]
+```
+
+The hostname mentioned here \( aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com \) is the Loadbalancer URL where you can access the Devtron dashboard.
+ 
+### Hyperion Admin credentials
+
+For admin login use username:`admin` and for password run the following command.
+
+```bash
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+```
+
+#### If you want to perform CI/CD, App creation present in Full Devtron Experience you are always few commands away:
+ 
+[Getting Started for Full Devtron Experience](https://github.com/devtron-labs/devtron#rocket-getting-started)
+
+ 
+</details>
+
 
 ## :video_camera: Videos:
 
@@ -188,12 +282,6 @@ Devtron has been trusted by the Enterprises and community all across the globe.
 - [Running an application on Devtron](https://youtu.be/bA6zgjPD_yA?t=2927)
 - [Devtron Demo](https://youtu.be/ekxHV2Gje-E?t=7856)
 
-## :memo: Compatibility notes
-
-### Current build: 
-
-- Devtron uses modified version of [argo rollout](https://argoproj.github.io/argo-rollouts/)
-- Application metrics only works for k8s 1.16+
 
 ## :busts_in_silhouette: Community
 
@@ -211,24 +299,27 @@ Get updates on Devtron's development and chat with the project maintainers, cont
     >
 </a>
  </p>
+ 
+## :muscle: Trusted By
 
-## :sparkling_heart: Love What You See!
+<details>
+ <summary> <b> Devtron has been trusted by the Enterprises and community all across the globe: </b></summary>
+<br>
 
-If you are loving what we are doing, please consider giving us a star.
-<br>
-[![GitHub stars](https://img.shields.io/github/stars/devtron-labs/devtron)](https://github.com/devtron-labs/devtron/stargazers)
-<br>
-Or you can tweet about us: 
-<br>
-<a href="https://twitter.com/intent/tweet?text=Devtron%20helps%20in%20simplifying%20software delivery%20workflow%20for%20Kubernetes,%20check%20it%20out!!%20&hashtags=OpenSource,Kubernetes,DevOps,CICD,go&url=https://github.com/devtron-labs/devtron%0a"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Tweet"></a>
-<br>
-Your token of gratitude will go a long way helping us reach more developers like you. :heart: :smile:
+- [Delhivery:](https://www.delhivery.com/) Delhivery Limited is one the largest and most profitable logistics company in India
+- [BharatPe:](https://bharatpe.com/) Bharatpe is a business utility app to accept payments transactions in settlements.
+- [Livspace:](https://www.livspace.com/in) Livspace is one-stop shop for all things home interiors and renovation services.
+- [Moglix:](https://www.moglix.com/) It is an Asia-based B2B commerce company intensively inclined towards B2B procurement of industrial supplies
+- [Xoxoday:](https://www.xoxoday.com/) Xoxoday helps to send rewards, perks & incentives to employees, customers and partners.<br>
 
-Or you can do one better and Contribute 👏
+</details>
+
+
 
 ## :question: FAQ & Troubleshooting:
 ### FAQ:
-1. How to resolve unauthorized error/s, while trying to save global configurations like hostname, GitOps etc. after successful devtron installation
+
+<b>1.How to resolve unauthorized error/s, while trying to save global configurations like hostname, GitOps etc. after successful devtron installation</b>
 <br>
 A. This occurs most of the time because any one or multiple jobs get failed during installation. To resolve this, you'll need to first check which jobs have failed. Follow these steps:
 
@@ -242,7 +333,7 @@ kubectl get pods -n devtroncd
 kubectl delete jobs <job1-name> <job2-name> -n devtroncd..[Read More](https://github.com/devtron-labs/devtron/blob/main/Troubleshooting.md#1-how-to-resolve-unauthorized-error-while-trying-to-save-global-configurations-like-hostname-gitops-etc-after-successful-devtron-installation)
 <br><br>
 
-2.What to do if devtron dashboard is not accessible on browser, even after successful completion of all jobs and all pods are in running mode?
+<b>2.What to do if devtron dashboard is not accessible on browser, even after successful completion of all jobs and all pods are in running mode?</b>
 <br>
 A. Check if nats-cluster is created or not, you can check it using the following command:
 ```bash
@@ -256,7 +347,7 @@ kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/man
 - If your problem is still not resolved, you can post your query in our [discord](https://discord.gg/jsRG5qx2gp) channel
 <br><br>
 
-3.Not able to see deployment metrics on production environment or Not able to enable application-metrics or Not able to deploy the app after creating a configmap or secret with data-volume option enabled
+<b>3.Not able to see deployment metrics on production environment or Not able to enable application-metrics or Not able to deploy the app after creating a configmap or secret with data-volume option enabled</b>
 <br>
 A. Update the rollout crds to latest version, run the following command
 ```bash
