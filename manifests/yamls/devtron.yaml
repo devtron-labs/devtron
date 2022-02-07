@@ -88,7 +88,7 @@ data:
   GRAFANA_HOST: "devtron-grafana.devtroncd"
   GRAFANA_PORT: "80"
   GRAFANA_NAMESPACE: "devtroncd"
-  HELM_CLIENT_URL: symbiote-service.devtroncd:50051
+  HELM_CLIENT_URL: kubelink-service.devtroncd:50051
 
 ---
 apiVersion: v1
