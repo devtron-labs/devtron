@@ -39,15 +39,11 @@
 ## :book: Menu
 
 - [Devtron?](https://github.com/devtron-labs/devtron#bulb-devtron)
-- [Features](https://github.com/devtron-labs/devtron#tada-features)
-- [Architecture](https://github.com/devtron-labs/devtron#globe_with_meridians-Architecture)
-- [Getting Started](https://github.com/devtron-labs/devtron#rocket-getting-started)
+- [Full Devtron Experience](https://github.com/devtron-labs/devtron#tada-Full-Devtron-Experience)
+- [Hyperion](https://github.com/devtron-labs/devtron#globe_with_meridians-Hyperion)
 - [Documentation](https://docs.devtron.ai/)
-- [Trusted By](https://github.com/devtron-labs/devtron#muscle-Trusted-By)
-- [Videos](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
-- [Love what you see!](https://github.com/devtron-labs/devtron#sparkling_heart-love-what-you-see)
 - [FAQ & Troubleshooting](https://github.com/devtron-labs/devtron#question-faq--troubleshooting)
 - [Contribute](https://github.com/devtron-labs/devtron#handshake-contribute)
 
@@ -60,7 +56,13 @@ Devtron is a Web-Based CI/CD Platform for Kubernetes. It integrates various Open
 
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
-## :tada: Features
+<b> Devtron is built in a modular approach. These modules can be installed independently: </b>
+- Full Devtron Experience - This option gives you all the features of Devtron as a Full Experience providing you with CI, CD, security, cost, observability, stabilization. Consists of all the modules stated below.
+- [Hyperion](https://github.com/devtron-labs/devtron#globe_with_meridians-Hyperion) - A Web-based module to manage helm apps. Install Hyperion -> manage, Observe helm apps of all your clusters. This module is also a great way to manage existing helm apps and gradually understand how Devtron fits into your workflow. You can always switch to Full Devtron Experience for all the features.
+
+## :computer: Full Devtron Experience
+
+### :tada: Features
 <br>
 <img src="./assets/preview.gif">
 <br>
@@ -124,18 +126,18 @@ Devtron is a Web-Based CI/CD Platform for Kubernetes. It integrates various Open
 
 </details>
 
-### :blue_heart: We Support:
+#### :blue_heart: We Support:
 In addition to the features, we love supporting platforms that devs find easy to work with.
 <br>
 <p align="center"><img src="./assets/we-support.jpg"></p>
 
 
-## :globe_with_meridians: Architecture:
+### :globe_with_meridians: Architecture:
 <br>
 <img src="./assets/Architecture.jpg">
 
 
-## :rocket: Getting Started
+### :rocket: Getting Started
 
 #### You can follow our detailed installation guide, using Devtron and other key functionalities of devtron, in our
 [Devtron Documentation](https://docs.devtron.ai/)
