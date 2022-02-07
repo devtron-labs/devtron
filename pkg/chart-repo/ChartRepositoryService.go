@@ -15,7 +15,7 @@
  *
  */
 
-package chart_repository
+package chart_repo
 
 import (
 	"bytes"
@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
-	chart_repository "github.com/devtron-labs/devtron/pkg/chart-repository/repository"
+	chart_repo_repository "github.com/devtron-labs/devtron/pkg/chart-repo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
@@ -42,26 +42,26 @@ import (
 )
 
 type ChartRepositoryService interface {
-	CreateChartRepo(request *ChartRepoDto) (*chart_repository.ChartRepo, error)
-	UpdateChartRepo(request *ChartRepoDto) (*chart_repository.ChartRepo, error)
+	CreateChartRepo(request *ChartRepoDto) (*chart_repo_repository.ChartRepo, error)
+	UpdateChartRepo(request *ChartRepoDto) (*chart_repo_repository.ChartRepo, error)
 	GetChartRepoById(id int) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoDto, error)
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
-	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chart_repository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
-	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chart_repository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
+	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chart_repo_repository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
+	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chart_repo_repository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
 }
 
 type ChartRepositoryServiceImpl struct {
 	logger         *zap.SugaredLogger
-	repoRepository chart_repository.ChartRepoRepository
+	repoRepository chart_repo_repository.ChartRepoRepository
 	K8sUtil        *util.K8sUtil
 	clusterService cluster.ClusterService
 	aCDAuthConfig  *util2.ACDAuthConfig
 	client         *http.Client
 }
 
-func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chart_repository.ChartRepoRepository, K8sUtil *util.K8sUtil, clusterService cluster.ClusterService,
+func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chart_repo_repository.ChartRepoRepository, K8sUtil *util.K8sUtil, clusterService cluster.ClusterService,
 	aCDAuthConfig *util2.ACDAuthConfig, client *http.Client) *ChartRepositoryServiceImpl {
 	return &ChartRepositoryServiceImpl{
 		logger:         logger,
@@ -73,7 +73,7 @@ func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository cha
 	}
 }
 
-func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chart_repository.ChartRepo, error) {
+func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (*chart_repo_repository.ChartRepo, error) {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -82,7 +82,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	chartRepo := &chart_repository.ChartRepo{AuditLog: sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId}}
+	chartRepo := &chart_repo_repository.ChartRepo{AuditLog: sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId}}
 	chartRepo.Name = request.Name
 	chartRepo.Url = request.Url
 	chartRepo.AuthMode = request.AuthMode
@@ -143,7 +143,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	return chartRepo, nil
 }
 
-func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chart_repository.ChartRepo, error) {
+func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chart_repo_repository.ChartRepo, error) {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -310,7 +310,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateChartRepo(request *ChartRepoDto)
 	return &detailedErrorHelmRepoValidation
 }
 
-func (impl *ChartRepositoryServiceImpl) ValidateAndCreateChartRepo(request *ChartRepoDto) (*chart_repository.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
+func (impl *ChartRepositoryServiceImpl) ValidateAndCreateChartRepo(request *ChartRepoDto) (*chart_repo_repository.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
 	validationResult := impl.ValidateChartRepo(request)
 	if validationResult.CustomErrMsg != ValidationSuccessMsg {
 		return nil, nil, validationResult
@@ -329,7 +329,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndCreateChartRepo(request *Char
 	return chartRepo, err, validationResult
 }
 
-func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chart_repository.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
+func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chart_repo_repository.ChartRepo, error, *DetailedErrorHelmRepoValidation) {
 	validationResult := impl.ValidateChartRepo(request)
 	if validationResult.CustomErrMsg != ValidationSuccessMsg {
 		return nil, nil, validationResult

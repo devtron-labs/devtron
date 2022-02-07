@@ -18,7 +18,7 @@
 package app_store_discover_repository
 
 import (
-	chart_repository "github.com/devtron-labs/devtron/pkg/chart-repository/repository"
+	chart_repository "github.com/devtron-labs/devtron/pkg/chart-repo/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"

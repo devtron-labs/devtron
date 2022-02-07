@@ -1,4 +1,4 @@
-package chart_repository
+package chart_repo
 
 import "github.com/devtron-labs/devtron/internal/sql/repository"
 

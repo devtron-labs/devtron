@@ -9,7 +9,7 @@ import (
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/middleware"
 	app_store_discover2 "github.com/devtron-labs/devtron/api/app-store/discover"
-	chart_repository3 "github.com/devtron-labs/devtron/api/chart-repository"
+	chart_repo2 "github.com/devtron-labs/devtron/api/chart-repo"
 	cluster2 "github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
@@ -22,8 +22,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app-store/discover"
 	"github.com/devtron-labs/devtron/pkg/app-store/discover/repository"
-	chart_repository2 "github.com/devtron-labs/devtron/pkg/chart-repository"
-	"github.com/devtron-labs/devtron/pkg/chart-repository/repository"
+	"github.com/devtron-labs/devtron/pkg/chart-repo"
+	"github.com/devtron-labs/devtron/pkg/chart-repo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -127,15 +127,15 @@ func InitializeApp() (*App, error) {
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger)
 	k8sApplicationRestHandlerImpl := k8s.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, enforcerImpl, enforcerUtilHelmImpl, clusterServiceImpl, helmAppServiceImpl)
 	k8sApplicationRouterImpl := k8s.NewK8sApplicationRouterImpl(k8sApplicationRestHandlerImpl)
-	chartRepoRepositoryImpl := chart_repository.NewChartRepoRepositoryImpl(db)
+	chartRepoRepositoryImpl := chart_repo_repository.NewChartRepoRepositoryImpl(db)
 	acdAuthConfig, err := util2.GetACDAuthConfig()
 	if err != nil {
 		return nil, err
 	}
 	httpClient := util.NewHttpClient()
-	chartRepositoryServiceImpl := chart_repository2.NewChartRepositoryServiceImpl(sugaredLogger, chartRepoRepositoryImpl, k8sUtil, clusterServiceImpl, acdAuthConfig, httpClient)
-	chartRepositoryRestHandlerImpl := chart_repository3.NewChartRepositoryRestHandlerImpl(sugaredLogger, userServiceImpl, chartRepositoryServiceImpl, enforcerImpl, validate)
-	chartRepositoryRouterImpl := chart_repository3.NewChartRepositoryRouterImpl(chartRepositoryRestHandlerImpl)
+	chartRepositoryServiceImpl := chart_repo.NewChartRepositoryServiceImpl(sugaredLogger, chartRepoRepositoryImpl, k8sUtil, clusterServiceImpl, acdAuthConfig, httpClient)
+	chartRepositoryRestHandlerImpl := chart_repo2.NewChartRepositoryRestHandlerImpl(sugaredLogger, userServiceImpl, chartRepositoryServiceImpl, enforcerImpl, validate)
+	chartRepositoryRouterImpl := chart_repo2.NewChartRepositoryRouterImpl(chartRepositoryRestHandlerImpl)
 	appStoreApplicationVersionRepositoryImpl := app_store_discover_repository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	appStoreServiceImpl := app_store_discover.NewAppStoreServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl)
 	appStoreRestHandlerImpl := app_store_discover2.NewAppStoreRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreServiceImpl, enforcerImpl)

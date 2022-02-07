@@ -1,6 +1,7 @@
 //go:build wireinject
 // +build wireinject
 
+
 /*
  * Copyright (c) 2020 Devtron Labs
  *
@@ -23,7 +24,7 @@ package main
 import (
 	app_store_rest_handler "github.com/devtron-labs/devtron/api/app-store"
 	app_store_discover "github.com/devtron-labs/devtron/api/app-store/discover"
-	chart_repository "github.com/devtron-labs/devtron/api/chart-repository"
+	chart_repo "github.com/devtron-labs/devtron/api/chart-repo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -99,7 +100,7 @@ func InitializeApp() (*App, error) {
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
-		chart_repository.ChartRepositoryWireSet,
+		chart_repo.ChartRepositoryWireSet,
 		app_store_discover.AppStoreDiscoverWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,

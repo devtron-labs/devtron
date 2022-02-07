@@ -1,12 +1,13 @@
 //go:build wireinject
 // +build wireinject
 
+
 package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	app_store_discover "github.com/devtron-labs/devtron/api/app-store/discover"
-	chart_repository "github.com/devtron-labs/devtron/api/chart-repository"
+	chart_repo "github.com/devtron-labs/devtron/api/chart-repo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -17,9 +18,9 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/google/wire"
-	util2 "github.com/devtron-labs/devtron/pkg/util"
 )
 
 func InitializeApp() (*App, error) {
@@ -33,7 +34,7 @@ func InitializeApp() (*App, error) {
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
-		chart_repository.ChartRepositoryWireSet,
+		chart_repo.ChartRepositoryWireSet,
 		app_store_discover.AppStoreDiscoverWireSet,
 
 

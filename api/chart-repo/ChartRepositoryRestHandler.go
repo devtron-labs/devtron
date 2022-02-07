@@ -15,14 +15,14 @@
  *
  */
 
-package chart_repository
+package chart_repo
 
 import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
-	chart_repository "github.com/devtron-labs/devtron/pkg/chart-repository"
+	chart_repo "github.com/devtron-labs/devtron/pkg/chart-repo"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -43,13 +43,13 @@ type ChartRepositoryRestHandler interface {
 
 type ChartRepositoryRestHandlerImpl struct {
 	Logger                 *zap.SugaredLogger
-	chartRepositoryService chart_repository.ChartRepositoryService
+	chartRepositoryService chart_repo.ChartRepositoryService
 	userAuthService        user.UserService
 	enforcer               casbin.Enforcer
 	validator              *validator.Validate
 }
 
-func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, chartRepositoryService chart_repository.ChartRepositoryService,
+func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, chartRepositoryService chart_repo.ChartRepositoryService,
 	enforcer casbin.Enforcer, validator *validator.Validate) *ChartRepositoryRestHandlerImpl {
 	return &ChartRepositoryRestHandlerImpl{
 		Logger:                 Logger,
@@ -106,7 +106,7 @@ func (handler *ChartRepositoryRestHandlerImpl) CreateChartRepo(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request *chart_repository.ChartRepoDto
+	var request *chart_repo.ChartRepoDto
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, CreateChartRepo", "err", err, "payload", request)
@@ -131,7 +131,7 @@ func (handler *ChartRepositoryRestHandlerImpl) CreateChartRepo(w http.ResponseWr
 	request.UserId = userId
 	handler.Logger.Infow("request payload, CreateChartRepo", "payload", request)
 	res, err, validationResult := handler.chartRepositoryService.ValidateAndCreateChartRepo(request)
-	if validationResult.CustomErrMsg != chart_repository.ValidationSuccessMsg {
+	if validationResult.CustomErrMsg != chart_repo.ValidationSuccessMsg {
 		common.WriteJsonResp(w, nil, validationResult, http.StatusOK)
 		return
 	}
@@ -150,7 +150,7 @@ func (handler *ChartRepositoryRestHandlerImpl) UpdateChartRepo(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request *chart_repository.ChartRepoDto
+	var request *chart_repo.ChartRepoDto
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, UpdateChartRepo", "err", err, "payload", request)
@@ -175,7 +175,7 @@ func (handler *ChartRepositoryRestHandlerImpl) UpdateChartRepo(w http.ResponseWr
 	request.UserId = userId
 	handler.Logger.Infow("request payload, UpdateChartRepo", "payload", request)
 	res, err, validationResult := handler.chartRepositoryService.ValidateAndUpdateChartRepo(request)
-	if validationResult.CustomErrMsg != chart_repository.ValidationSuccessMsg {
+	if validationResult.CustomErrMsg != chart_repo.ValidationSuccessMsg {
 		common.WriteJsonResp(w, nil, validationResult, http.StatusOK)
 		return
 	}
@@ -194,7 +194,7 @@ func (handler *ChartRepositoryRestHandlerImpl) ValidateChartRepo(w http.Response
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request *chart_repository.ChartRepoDto
+	var request *chart_repo.ChartRepoDto
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, ValidateChartRepo", "err", err, "payload", request)
