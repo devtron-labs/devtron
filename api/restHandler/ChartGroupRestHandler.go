@@ -21,10 +21,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/appstore"
+	"github.com/devtron-labs/devtron/pkg/app-store"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -33,24 +32,22 @@ import (
 )
 
 type ChartGroupRestHandlerImpl struct {
-	ChartGroupService appstore.ChartGroupService
+	ChartGroupService app_store.ChartGroupService
 	Logger            *zap.SugaredLogger
 	userAuthService   user.UserService
 	enforcer          casbin.Enforcer
-	enforcerUtil      rbac.EnforcerUtil
 	validator         *validator.Validate
 }
 
-func NewChartGroupRestHandlerImpl(ChartGroupService appstore.ChartGroupService,
+func NewChartGroupRestHandlerImpl(ChartGroupService app_store.ChartGroupService,
 	Logger *zap.SugaredLogger, userAuthService user.UserService,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, validator *validator.Validate) *ChartGroupRestHandlerImpl {
+	enforcer casbin.Enforcer, validator *validator.Validate) *ChartGroupRestHandlerImpl {
 	return &ChartGroupRestHandlerImpl{
 		ChartGroupService: ChartGroupService,
 		Logger:            Logger,
 		userAuthService:   userAuthService,
 		validator:         validator,
 		enforcer:          enforcer,
-		enforcerUtil:      enforcerUtil,
 	}
 }
 
@@ -71,7 +68,7 @@ func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request appstore.ChartGroupBean
+	var request app_store.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, CreateChartGroup", "err", err, "payload", request)
@@ -112,7 +109,7 @@ func (impl *ChartGroupRestHandlerImpl) UpdateChartGroup(w http.ResponseWriter, r
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request appstore.ChartGroupBean
+	var request app_store.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, UpdateChartGroup", "err", err, "payload", request)
@@ -153,7 +150,7 @@ func (impl *ChartGroupRestHandlerImpl) SaveChartGroupEntries(w http.ResponseWrit
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request appstore.ChartGroupBean
+	var request app_store.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, SaveChartGroupEntries", "err", err, "payload", request)

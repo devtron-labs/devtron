@@ -9,8 +9,9 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/util"
+	app_store_bean "github.com/devtron-labs/devtron/pkg/app-store/bean"
+	"github.com/devtron-labs/devtron/pkg/app-store/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	"net/http"
@@ -21,14 +22,14 @@ import (
 type ClusterServiceImplExtended struct {
 	environmentRepository  repository.EnvironmentRepository
 	grafanaClient          grafana.GrafanaClient
-	installedAppRepository appstore.InstalledAppRepository
+	installedAppRepository app_store_repository.InstalledAppRepository
 	clusterServiceCD       cluster2.ServiceClient
 	K8sInformerFactory     informer.K8sInformerFactory
 	*ClusterServiceImpl
 }
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
-	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository appstore.InstalledAppRepository,
+	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository app_store_repository.InstalledAppRepository,
 	K8sUtil *util.K8sUtil,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
@@ -57,7 +58,7 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	for _, cluster := range beans {
 		clusterIds = append(clusterIds, cluster.Id)
 	}
-	clusterComponentsMap := make(map[int][]*appstore.InstalledAppVersions)
+	clusterComponentsMap := make(map[int][]*app_store_repository.InstalledAppVersions)
 	charts, err := impl.installedAppRepository.GetInstalledAppVersionByClusterIdsV2(clusterIds)
 	if err != nil {
 		impl.logger.Errorw("error on fetching installed apps for cluster ids", "err", err, "clusterIds", clusterIds)
@@ -65,7 +66,7 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	}
 	for _, item := range charts {
 		if _, ok := clusterComponentsMap[item.InstalledApp.Environment.ClusterId]; !ok {
-			var charts []*appstore.InstalledAppVersions
+			var charts []*app_store_repository.InstalledAppVersions
 			charts = append(charts, item)
 			clusterComponentsMap[item.InstalledApp.Environment.ClusterId] = charts
 		} else {
@@ -94,12 +95,12 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 				defaultClusterComponent.ComponentName = chart.AppStoreApplicationVersion.AppStore.Name
 				defaultClusterComponent.Status = chart.InstalledApp.Status.String()
 				defaultClusterComponents = append(defaultClusterComponents, defaultClusterComponent)
-				if chart.InstalledApp.Status == appstore.QUE_ERROR || chart.InstalledApp.Status == appstore.TRIGGER_ERROR ||
-					chart.InstalledApp.Status == appstore.DEQUE_ERROR || chart.InstalledApp.Status == appstore.GIT_ERROR ||
-					chart.InstalledApp.Status == appstore.ACD_ERROR {
+				if chart.InstalledApp.Status == app_store_bean.QUE_ERROR || chart.InstalledApp.Status == app_store_bean.TRIGGER_ERROR ||
+					chart.InstalledApp.Status == app_store_bean.DEQUE_ERROR || chart.InstalledApp.Status == app_store_bean.GIT_ERROR ||
+					chart.InstalledApp.Status == app_store_bean.ACD_ERROR {
 					failed = true
 				}
-				if chart.InstalledApp.Status == appstore.DEPLOY_SUCCESS {
+				if chart.InstalledApp.Status == app_store_bean.DEPLOY_SUCCESS {
 					chartPass = chartPass + 1
 				}
 			}
