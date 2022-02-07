@@ -79,6 +79,7 @@ gitSensor_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/gitsensor.yaml";
 guard_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/guard.yaml";
 postgresql_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/postgresql.yaml";
 imageScanner_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/image-scanner.yaml";
+kubelink_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/kubelink.yaml";
 kubewatch_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/kubewatch.yaml";
 lens_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/lens.yaml";
 migrator_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/migrator.yaml";
@@ -111,6 +112,7 @@ gitSensor = download(gitSensor_raw);
 guard = download(guard_raw);
 postgresql = download(postgresql_raw);
 imageScanner = download(imageScanner_raw);
+kubelink = download(kubelink_raw);
 kubewatch = download(kubewatch_raw);
 lens = download(lens_raw);
 migrator = download(migrator_raw);
@@ -139,6 +141,7 @@ gitSensorOverride = kubectl get cm -n devtroncd git-sensor-override-cm;
 guardOverride = kubectl get cm -n devtroncd guard-override-cm;
 postgresqlOverride = kubectl get cm -n devtroncd postgresql-override-cm;
 imageScannerOverride = kubectl get cm -n devtroncd image-scanner-override-cm;
+kubelinkOverride = kubectl get cm -n devtroncd kubelink-override-cm;
 kubewatchOverride = kubectl get cm -n devtroncd kubewatch-override-cm;
 lensOverride = kubectl get cm -n devtroncd lens-override-cm;
 migratorOverride = kubectl get cm -n devtroncd migrator-override-cm;
@@ -166,6 +169,7 @@ gitSensorOverride = jsonSelect(gitSensorOverride, "data.override");
 guardOverride = jsonSelect(guardOverride, "data.override");
 postgresqlOverride = jsonSelect(postgresqlOverride, "data.override");
 imageScannerOverride = jsonSelect(imageScannerOverride, "data.override");
+kubelinkOverride = jsonSelect(kubelinkOverride, "data.override");
 kubewatchOverride = jsonSelect(kubewatchOverride, "data.override");
 lensOverride = jsonSelect(lensOverride, "data.override");
 migratorOverride = jsonSelect(migratorOverride, "data.override");
@@ -360,16 +364,13 @@ if !hasPostgresql {
 }
 #argocd
 hasArgocd = kubectl get deployment argocd-server -n devtroncd;
-
-helmRepo = `- name: incubator
+hasargocdSecret = kubectl get secret argocd-secret -n devtroncd;
+helmRepo = `- name: fluent
   type: helm
-  url: https://charts.helm.sh/incubator
-- name: devtron-charts
+  url: https://fluent.github.io/helm-charts
+- name: devtron
   type: helm
-  url: https://devtron-charts.s3.us-east-2.amazonaws.com/charts
-- name: stable
-  type: helm
-  url: https://charts.helm.sh/stable
+  url: https://helm.devtron.ai
 - name: nginx-ingress
   type: helm
   url: https://kubernetes.github.io/ingress-nginx
@@ -408,11 +409,13 @@ kubeYamlEdit(argocd, `data.policy\.default`, `role:admin`, `/ConfigMap//argocd-r
 kubeYamlEdit(argocd, `subjects.0.namespace`, "devtroncd", `rbac.authorization.k8s.io/ClusterRoleBinding//argocd-application-controller`);
 kubeYamlEdit(argocd, `subjects.0.namespace`, "devtroncd", `rbac.authorization.k8s.io/ClusterRoleBinding//argocd-server`);
 if hasArgocd {
-	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-cm`);
 	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-rbac-cm`);
-	kubeYamlDelete(argocd, filter=`/Secret//argocd-secret`);
 	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-ssh-known-hosts-cm`);
 	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-tls-certs-cm`);
+}
+if hasargocdSecret{
+	kubeYamlDelete(argocd, filter=`/Secret//argocd-secret`);
+	kubeYamlDelete(argocd, filter=`/ConfigMap//argocd-cm`);
 }
 argocd = kubectl apply -n devtroncd argocd -u argocdOverride;
 pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json" -p argocdResource;
@@ -614,6 +617,8 @@ gitSensor = kubectl apply -n devtroncd gitSensor -u gitSensorOverride;
 log("executed git sensor setup");
 imageScanner = kubectl apply -n devtroncd imageScanner -u imageScannerOverride;
 log("executed image scanner setup");
+kubelink = kubectl apply -n devtroncd kubelink -u kubelinkOverride;
+log("executed kubelink setup");
 kubewatch = kubectl apply -n devtroncd kubewatch -u kubewatchOverride;
 log("executed kubewatch setup");
 lens = kubectl apply -n devtroncd lens -u lensOverride;

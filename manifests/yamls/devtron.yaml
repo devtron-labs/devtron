@@ -88,6 +88,7 @@ data:
   GRAFANA_HOST: "devtron-grafana.devtroncd"
   GRAFANA_PORT: "80"
   GRAFANA_NAMESPACE: "devtroncd"
+  HELM_CLIENT_URL: kubelink-service.devtroncd:50051
 
 ---
 apiVersion: v1
@@ -153,7 +154,7 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: "quay.io/devtron/test:a905c93e-280-6438"
+          image: "quay.io/devtron/devtron:aea18b05-2-6536"
           imagePullPolicy: IfNotPresent
           ports:
             - name: devtron
