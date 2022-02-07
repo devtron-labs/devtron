@@ -15,17 +15,18 @@
  *
  */
 
-package app_store
+package app_store_repository
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	app_store_bean "github.com/devtron-labs/devtron/pkg/app-store/bean"
+	app_store_discover_repository "github.com/devtron-labs/devtron/pkg/app-store/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"strconv"
-	"time"
-
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strconv"
+	"time"
 )
 
 type InstalledAppRepository interface {
@@ -36,7 +37,7 @@ type InstalledAppRepository interface {
 	GetInstalledApp(id int) (*InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
-	GetAllInstalledApps(filter *AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
+	GetAllInstalledApps(filter *app_store_bean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
 	GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
 	GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error)
@@ -62,34 +63,13 @@ func NewInstalledAppRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.D
 	return &InstalledAppRepositoryImpl{dbConnection: dbConnection, Logger: Logger}
 }
 
-type AppstoreDeploymentStatus int
-
-const (
-	WF_UNKNOWN AppstoreDeploymentStatus = iota
-	REQUEST_ACCEPTED
-	ENQUEUED
-	QUE_ERROR
-	DEQUE_ERROR
-	TRIGGER_ERROR
-	DEPLOY_SUCCESS
-	DEPLOY_INIT
-	GIT_ERROR
-	GIT_SUCCESS
-	ACD_ERROR
-	ACD_SUCCESS
-)
-
-func (a AppstoreDeploymentStatus) String() string {
-	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "DEQUE_ERROR", "TRIGGER_ERROR", "DEPLOY_SUCCESS", "DEPLOY_INIT", "GIT_ERROR", "GIT_SUCCESS", "ACD_ERROR", "ACD_SUCCESS"}[a]
-}
-
 type InstalledApps struct {
-	TableName     struct{}                 `sql:"installed_apps" pg:",discard_unknown_columns"`
-	Id            int                      `sql:"id,pk"`
-	AppId         int                      `sql:"app_id,notnull"`
-	EnvironmentId int                      `sql:"environment_id,notnull"`
-	Active        bool                     `sql:"active, notnull"`
-	Status        AppstoreDeploymentStatus `sql:"status"`
+	TableName     struct{}                                `sql:"installed_apps" pg:",discard_unknown_columns"`
+	Id            int                                     `sql:"id,pk"`
+	AppId         int                                     `sql:"app_id,notnull"`
+	EnvironmentId int                                     `sql:"environment_id,notnull"`
+	Active        bool                                    `sql:"active, notnull"`
+	Status        app_store_bean.AppstoreDeploymentStatus `sql:"status"`
 	App           app.App
 	Environment   repository.Environment
 	sql.AuditLog
@@ -106,7 +86,7 @@ type InstalledAppVersions struct {
 	ReferenceValueKind           string   `sql:"reference_value_kind"`
 	sql.AuditLog
 	InstalledApp               InstalledApps
-	AppStoreApplicationVersion AppStoreApplicationVersion
+	AppStoreApplicationVersion app_store_discover_repository.AppStoreApplicationVersion
 }
 
 type InstalledAppsWithChartDetails struct {
@@ -222,7 +202,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*Insta
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *AppStoreFilter) ([]InstalledAppsWithChartDetails, error) {
+func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *app_store_bean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error) {
 	var installedAppsWithChartDetails []InstalledAppsWithChartDetails
 	var query string
 	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name,"
@@ -271,7 +251,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *AppStoreFilte
 
 func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error) {
 	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
-	var queryTemp string = "select env.environment_name, env.id as environment_id, a.app_name, ia.updated_on, u.email_id, asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id " +
+	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, ia.updated_on, u.email_id, asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id " +
 		" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id" +
 		" inner join app a on a.id = ia.app_id " +
 		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id " +

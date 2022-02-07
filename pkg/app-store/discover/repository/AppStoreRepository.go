@@ -15,7 +15,7 @@
  *
  */
 
-package app_store
+package app_store_discover_repository
 
 import (
 	chart_repository "github.com/devtron-labs/devtron/pkg/chart-repository/repository"

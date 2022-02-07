@@ -15,9 +15,10 @@
  *
  */
 
-package app_store
+package app_store_repository
 
 import (
+	app_store_discover_repository "github.com/devtron-labs/devtron/pkg/app-store/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -51,7 +52,7 @@ type AppStoreVersionValues struct {
 	ReferenceType                string   `sql:"reference_type"`
 	Deleted                      bool     `sql:"deleted,notnull"`
 	sql.AuditLog
-	AppStoreApplicationVersion *AppStoreApplicationVersion
+	AppStoreApplicationVersion *app_store_discover_repository.AppStoreApplicationVersion
 }
 
 func (impl AppStoreVersionValuesRepositoryImpl) CreateAppStoreVersionValues(model *AppStoreVersionValues) (*AppStoreVersionValues, error) {

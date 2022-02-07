@@ -15,39 +15,38 @@
  *
  */
 
-package app_store
+package app_store_bean
 
 import (
 	"encoding/json"
-	app_store "github.com/devtron-labs/devtron/pkg/app-store/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"time"
 )
 
 //v1
 type InstallAppVersionDTO struct {
-	Id                      int                                `json:"id,omitempty"`
-	AppId                   int                                `json:"appId,omitempty"`
-	AppName                 string                             `json:"appName,omitempty"`
-	TeamId                  int                                `json:"teamId,omitempty"`
-	EnvironmentId           int                                `json:"environmentId,omitempty"`
-	InstalledAppId          int                                `json:"installedAppId,omitempty,notnull"`
-	InstalledAppVersionId   int                                `json:"installedAppVersionId,omitempty,notnull"`
-	AppStoreVersion         int                                `json:"appStoreVersion,omitempty,notnull"`
-	ValuesOverrideYaml      string                             `json:"valuesOverrideYaml,omitempty"`
-	Readme                  string                             `json:"readme,omitempty"`
-	UserId                  int32                              `json:"-"`
-	ReferenceValueId        int                                `json:"referenceValueId, omitempty" validate:"required,number"`
-	ReferenceValueKind      string                             `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
-	ACDAppName              string                             `json:"-"`
-	Environment             *repository2.Environment           `json:"-"`
-	ChartGroupEntryId       int                                `json:"-"`
-	DefaultClusterComponent bool                               `json:"-"`
-	Status                  app_store.AppstoreDeploymentStatus `json:"-"`
-	AppStoreId              int                                `json:"appStoreId"`
-	AppStoreName            string                             `json:"appStoreName"`
-	Deprecated              bool                               `json:"deprecated"`
-	ForceDelete             bool                               `json:"-"`
+	Id                      int                      `json:"id,omitempty"`
+	AppId                   int                      `json:"appId,omitempty"`
+	AppName                 string                   `json:"appName,omitempty"`
+	TeamId                  int                      `json:"teamId,omitempty"`
+	EnvironmentId           int                      `json:"environmentId,omitempty"`
+	InstalledAppId          int                      `json:"installedAppId,omitempty,notnull"`
+	InstalledAppVersionId   int                      `json:"installedAppVersionId,omitempty,notnull"`
+	AppStoreVersion         int                      `json:"appStoreVersion,omitempty,notnull"`
+	ValuesOverrideYaml      string                   `json:"valuesOverrideYaml,omitempty"`
+	Readme                  string                   `json:"readme,omitempty"`
+	UserId                  int32                    `json:"-"`
+	ReferenceValueId        int                      `json:"referenceValueId, omitempty" validate:"required,number"`
+	ReferenceValueKind      string                   `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
+	ACDAppName              string                   `json:"-"`
+	Environment             *repository2.Environment `json:"-"`
+	ChartGroupEntryId       int                      `json:"-"`
+	DefaultClusterComponent bool                     `json:"-"`
+	Status                  AppstoreDeploymentStatus `json:"-"`
+	AppStoreId              int                      `json:"appStoreId"`
+	AppStoreName            string                   `json:"appStoreName"`
+	Deprecated              bool                     `json:"deprecated"`
+	ForceDelete             bool                     `json:"-"`
 }
 
 /// bean for v2
@@ -200,4 +199,62 @@ type AppStoreVersionsResponse struct {
 type ReadmeRes struct {
 	AppStoreApplicationVersionId int    `json:"appStoreApplicationVersionId"`
 	Readme                       string `json:"readme"`
+}
+
+type AppStoreWithVersion struct {
+	Id                           int       `json:"id"`
+	AppStoreApplicationVersionId int       `json:"appStoreApplicationVersionId"`
+	Name                         string    `json:"name"`
+	ChartRepoId                  int       `json:"chart_repo_id"`
+	ChartName                    string    `json:"chart_name"`
+	Icon                         string    `json:"icon"`
+	Active                       bool      `json:"active"`
+	ChartGitLocation             string    `json:"chart_git_location"`
+	CreatedOn                    time.Time `json:"created_on"`
+	UpdatedOn                    time.Time `json:"updated_on"`
+	Version                      string    `json:"version"`
+	Deprecated                   bool      `json:"deprecated"`
+}
+
+type AppStoreFilter struct {
+	ChartRepoId       []int  `json:"chartRepoId"`
+	AppStoreName      string `json:"appStoreName"`
+	AppName           string `json:"appName"`
+	IncludeDeprecated bool   `json:"includeDeprecated"`
+	Offset            int    `json:"offset"`
+	Size              int    `json:"size"`
+	EnvIds            []int  `json:"envIds"`
+	OnlyDeprecated    bool   `json:"onlyDeprecated"`
+	ClusterIds        []int  `json:"clusterIds"`
+}
+
+type ChartRepoSearch struct {
+	AppStoreApplicationVersionId int    `json:"appStoreApplicationVersionId"`
+	ChartId                      int    `json:"chartId"`
+	ChartName                    string `json:"chartName"`
+	ChartRepoId                  int    `json:"chartRepoId"`
+	ChartRepoName                string `json:"chartRepoName"`
+	Version                      string `json:"version"`
+	Deprecated                   bool   `json:"deprecated"`
+}
+
+type AppstoreDeploymentStatus int
+
+const (
+	WF_UNKNOWN AppstoreDeploymentStatus = iota
+	REQUEST_ACCEPTED
+	ENQUEUED
+	QUE_ERROR
+	DEQUE_ERROR
+	TRIGGER_ERROR
+	DEPLOY_SUCCESS
+	DEPLOY_INIT
+	GIT_ERROR
+	GIT_SUCCESS
+	ACD_ERROR
+	ACD_SUCCESS
+)
+
+func (a AppstoreDeploymentStatus) String() string {
+	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "DEQUE_ERROR", "TRIGGER_ERROR", "DEPLOY_SUCCESS", "DEPLOY_INIT", "GIT_ERROR", "GIT_SUCCESS", "ACD_ERROR", "ACD_SUCCESS"}[a]
 }

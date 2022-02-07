@@ -5,6 +5,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	app_store_discover "github.com/devtron-labs/devtron/api/app-store/discover"
 	chart_repository "github.com/devtron-labs/devtron/api/chart-repository"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -32,6 +33,7 @@ func InitializeApp() (*App, error) {
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
 		chart_repository.ChartRepositoryWireSet,
+		app_store_discover.AppStoreDiscoverWireSet,
 
 		NewApp,
 		NewMuxRouter,

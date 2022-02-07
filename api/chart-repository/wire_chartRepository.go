@@ -9,6 +9,8 @@ import (
 var ChartRepositoryWireSet = wire.NewSet(
 	chart_repository_repo.NewChartRepoRepositoryImpl,
 	wire.Bind(new(chart_repository_repo.ChartRepoRepository), new(*chart_repository_repo.ChartRepoRepositoryImpl)),
+	chart_repository_repo.NewChartRefRepositoryImpl,
+	wire.Bind(new(chart_repository_repo.ChartRefRepository), new(*chart_repository_repo.ChartRefRepositoryImpl)),
 	chart_repository_service.NewChartRepositoryServiceImpl,
 	wire.Bind(new(chart_repository_service.ChartRepositoryService), new(*chart_repository_service.ChartRepositoryServiceImpl)),
 	NewChartRepositoryRestHandlerImpl,
