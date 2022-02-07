@@ -19,14 +19,12 @@ package cluster
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -71,7 +69,8 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
-	GetCombinedEnvironmentListForDropDown(token string, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
+	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
+	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -79,12 +78,13 @@ type EnvironmentServiceImpl struct {
 	logger                *zap.SugaredLogger
 	clusterService        ClusterService
 	K8sUtil               *util.K8sUtil
+	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
-	K8sUtil *util.K8sUtil,
+	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
 //	propertiesConfigService pipeline.PropertiesConfigService,
 ) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
@@ -92,6 +92,7 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		logger:                logger,
 		clusterService:        clusterService,
 		K8sUtil:               K8sUtil,
+		k8sInformerFactory:    k8sInformerFactory,
 		//propertiesConfigService: propertiesConfigService,
 	}
 }
@@ -414,16 +415,110 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token string, auth func(token string, object string) bool) ([]*ClusterEnvDto, error) {
+func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(token string, object string) bool) ([]*ClusterEnvDto, error) {
+	var namespaceGroupByClusterResponse []*ClusterEnvDto
+	clusterModels, err := impl.clusterService.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching clusters", "err", err)
+		return namespaceGroupByClusterResponse, err
+	}
+	clusterMap := make(map[string]int)
+	for _, item := range clusterModels {
+		clusterMap[item.ClusterName] = item.Id
+	}
 	models, err := impl.environmentRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching environments", "err", err)
+		return namespaceGroupByClusterResponse, err
 	}
 	uniqueComboMap := make(map[string]bool)
 	grantedEnvironmentMap := make(map[string][]*EnvDto)
 	for _, model := range models {
+		// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
+		if !isActionUserSuperAdmin {
+			// auth enforcer applied here
+			isValidAuth := auth(token, model.EnvironmentIdentifier)
+			if !isValidAuth {
+				impl.logger.Debugw("authentication for env failed", "object", model.EnvironmentIdentifier)
+				continue
+			}
+		}
+		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
+		groupKey := fmt.Sprintf("%s__%d", model.Cluster.ClusterName, model.ClusterId)
+		uniqueComboMap[key] = true
+		grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
+			EnvironmentId:         model.Id,
+			EnvironmentName:       model.Name,
+			Namespace:             model.Namespace,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
+		})
+	}
+
+	namespaceListGroupByClusters := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
+	for clusterName, namespaces := range namespaceListGroupByClusters {
+		clusterId := clusterMap[clusterName]
+		for namespace := range namespaces {
+			//deduplication for cluster and namespace combination
+			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
+			if _, ok := uniqueComboMap[groupKey]; !ok {
+				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
+				// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
+				if !isActionUserSuperAdmin {
+					// auth enforcer applied here
+					isValidAuth := auth(token, environmentIdentifier)
+					if !isValidAuth {
+						impl.logger.Debugw("authentication for env failed", "object", environmentIdentifier)
+						continue
+					}
+				}
+				grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
+					EnvironmentName:       environmentIdentifier,
+					Namespace:             namespace,
+					EnvironmentIdentifier: environmentIdentifier,
+				})
+			}
+		}
+	}
+
+	//final result builds here, namespace group by clusters
+	for k, v := range grantedEnvironmentMap {
+		clusterInfo := strings.Split(k, "__")
+		clusterId, err := strconv.Atoi(clusterInfo[1])
+		if err != nil {
+			clusterId = 0
+		}
+		namespaceGroupByClusterResponse = append(namespaceGroupByClusterResponse, &ClusterEnvDto{
+			ClusterName:  clusterInfo[0],
+			ClusterId:    clusterId,
+			Environments: v,
+		})
+	}
+	return namespaceGroupByClusterResponse, nil
+}
+
+func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error) {
+	var namespaceGroupByClusterResponse []*ClusterEnvDto
+	clusterModels, err := impl.clusterService.FindByIds(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching clusters", "err", err)
+		return namespaceGroupByClusterResponse, err
+	}
+	clusterMap := make(map[string]int)
+	for _, item := range clusterModels {
+		clusterMap[item.ClusterName] = item.Id
+	}
+	models, err := impl.environmentRepository.FindByClusterIds(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environments", "err", err)
+		return namespaceGroupByClusterResponse, err
+	}
+	uniqueComboMap := make(map[string]bool)
+	grantedEnvironmentMap := make(map[string][]*EnvDto)
+	for _, model := range models {
+		// auth enforcer applied here
 		isValidAuth := auth(token, model.EnvironmentIdentifier)
 		if !isValidAuth {
+			impl.logger.Debugw("authentication for env failed", "object", model.EnvironmentIdentifier)
 			continue
 		}
 		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
@@ -437,82 +532,44 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		})
 	}
 
-	clusterNamespaces, err := impl.getAllClusterNamespaceCombination()
-	if err != nil {
-		impl.logger.Errorw("error in fetching clusters namespaces", "err", err)
-		// skip if found error in fetching any cluster namespaces
-	}
-	for _, item := range clusterNamespaces {
-		isValidAuth := auth(token, item.EnvironmentIdentifier)
-		if !isValidAuth {
+	namespaceListGroupByClusters := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
+	for clusterName, namespaces := range namespaceListGroupByClusters {
+		clusterId := clusterMap[clusterName]
+		if clusterId == 0 {
 			continue
 		}
-		groupKey := fmt.Sprintf("%s__%d", item.ClusterName, item.ClusterId)
-		if _, ok := uniqueComboMap[groupKey]; !ok {
-			grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
-				EnvironmentId:         item.Id,
-				EnvironmentName:       item.Environment,
-				Namespace:             item.Namespace,
-				EnvironmentIdentifier: item.EnvironmentIdentifier,
-			})
+		for namespace := range namespaces {
+			//deduplication for cluster and namespace combination
+			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
+			if _, ok := uniqueComboMap[groupKey]; !ok {
+				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
+				// auth enforcer applied here
+				isValidAuth := auth(token, environmentIdentifier)
+				if !isValidAuth {
+					impl.logger.Debugw("authentication for env failed", "object", environmentIdentifier)
+					continue
+				}
+				grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
+					EnvironmentName:       environmentIdentifier,
+					Namespace:             namespace,
+					EnvironmentIdentifier: environmentIdentifier,
+				})
+			}
 		}
 	}
-	var clusters []*ClusterEnvDto
+
+	//final result builds here, namespace group by clusters
 	for k, v := range grantedEnvironmentMap {
 		clusterInfo := strings.Split(k, "__")
 		clusterId, err := strconv.Atoi(clusterInfo[1])
 		if err != nil {
 			clusterId = 0
 		}
-		clusters = append(clusters, &ClusterEnvDto{
+		namespaceGroupByClusterResponse = append(namespaceGroupByClusterResponse, &ClusterEnvDto{
 			ClusterName:  clusterInfo[0],
 			ClusterId:    clusterId,
 			Environments: v,
 		})
 	}
-	return clusters, nil
-}
-
-func (impl EnvironmentServiceImpl) getAllClusterNamespaceCombination() ([]*EnvironmentBean, error) {
-	var beans []*EnvironmentBean
-	models, err := impl.clusterService.FindAllActive()
-	if err != nil {
-		impl.logger.Errorw("error in fetching clusters", "err", err)
-	}
-
-	for _, clusterBean := range models {
-		var client *v1.CoreV1Client
-		if clusterBean.ClusterName == DefaultClusterName {
-			client, err = impl.K8sUtil.GetClientForInCluster()
-			if err != nil {
-				continue
-				//return nil, err
-			}
-		} else {
-			client, err = impl.K8sUtil.GetClientByToken(clusterBean.ServerUrl, clusterBean.Config)
-			if err != nil {
-				continue
-				//return nil, err
-			}
-		}
-		namespaceList, err := impl.K8sUtil.ListNamespaces(client)
-		statusError, _ := err.(*errors2.StatusError)
-		if err != nil && statusError != nil && statusError.Status().Code != http.StatusNotFound {
-			impl.logger.Errorw("namespaces not found", "err", err)
-			continue
-			//return nil, err
-		}
-
-		for _, namespace := range namespaceList.Items {
-			beans = append(beans, &EnvironmentBean{
-				Environment:           fmt.Sprintf("%s__%s", clusterBean.ClusterName, namespace.ObjectMeta.Name),
-				Namespace:             namespace.ObjectMeta.Name,
-				ClusterName:           clusterBean.ClusterName,
-				ClusterId:             clusterBean.Id,
-				EnvironmentIdentifier: fmt.Sprintf("%s__%s", clusterBean.ClusterName, namespace.ObjectMeta.Name),
-			})
-		}
-	}
-
-	return beans, nil
+	return namespaceGroupByClusterResponse, nil
 }

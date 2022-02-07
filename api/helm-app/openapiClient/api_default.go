@@ -527,6 +527,116 @@ func (a *DefaultApiService) OrchestratorApplicationClusterEnvDetailsGetExecute(r
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
+type ApiOrchestratorApplicationDeleteDeleteRequest struct {
+	ctx _context.Context
+	ApiService *DefaultApiService
+	appId *string
+}
+
+// application Id
+func (r ApiOrchestratorApplicationDeleteDeleteRequest) AppId(appId string) ApiOrchestratorApplicationDeleteDeleteRequest {
+	r.appId = &appId
+	return r
+}
+
+func (r ApiOrchestratorApplicationDeleteDeleteRequest) Execute() (UninstallReleaseResponse, *_nethttp.Response, error) {
+	return r.ApiService.OrchestratorApplicationDeleteDeleteExecute(r)
+}
+
+/*
+OrchestratorApplicationDeleteDelete Method for OrchestratorApplicationDeleteDelete
+
+delete application
+
+ @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiOrchestratorApplicationDeleteDeleteRequest
+*/
+func (a *DefaultApiService) OrchestratorApplicationDeleteDelete(ctx _context.Context) ApiOrchestratorApplicationDeleteDeleteRequest {
+	return ApiOrchestratorApplicationDeleteDeleteRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return UninstallReleaseResponse
+func (a *DefaultApiService) OrchestratorApplicationDeleteDeleteExecute(r ApiOrchestratorApplicationDeleteDeleteRequest) (UninstallReleaseResponse, *_nethttp.Response, error) {
+	var (
+		localVarHTTPMethod   = _nethttp.MethodDelete
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  UninstallReleaseResponse
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationDeleteDelete")
+	if err != nil {
+		return localVarReturnValue, nil, GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/orchestrator/application/delete"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := _neturl.Values{}
+	localVarFormParams := _neturl.Values{}
+	if r.appId == nil {
+		return localVarReturnValue, nil, reportError("appId is required and must be specified")
+	}
+
+	localVarQueryParams.Add("appId", parameterToString(*r.appId, ""))
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := _ioutil.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = _ioutil.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
 type ApiOrchestratorApplicationDeploymentHistoryGetRequest struct {
 	ctx _context.Context
 	ApiService *DefaultApiService
@@ -1142,6 +1252,113 @@ func (a *DefaultApiService) OrchestratorApplicationUnhibernatePostExecute(r ApiO
 	}
 	// body params
 	localVarPostBody = r.hibernateRequest
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := _ioutil.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = _ioutil.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiOrchestratorApplicationUpdatePutRequest struct {
+	ctx _context.Context
+	ApiService *DefaultApiService
+	updateReleaseRequest *UpdateReleaseRequest
+}
+
+func (r ApiOrchestratorApplicationUpdatePutRequest) UpdateReleaseRequest(updateReleaseRequest UpdateReleaseRequest) ApiOrchestratorApplicationUpdatePutRequest {
+	r.updateReleaseRequest = &updateReleaseRequest
+	return r
+}
+
+func (r ApiOrchestratorApplicationUpdatePutRequest) Execute() ([]UpdateReleaseResponse, *_nethttp.Response, error) {
+	return r.ApiService.OrchestratorApplicationUpdatePutExecute(r)
+}
+
+/*
+OrchestratorApplicationUpdatePut Method for OrchestratorApplicationUpdatePut
+
+update the application
+
+ @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiOrchestratorApplicationUpdatePutRequest
+*/
+func (a *DefaultApiService) OrchestratorApplicationUpdatePut(ctx _context.Context) ApiOrchestratorApplicationUpdatePutRequest {
+	return ApiOrchestratorApplicationUpdatePutRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return []UpdateReleaseResponse
+func (a *DefaultApiService) OrchestratorApplicationUpdatePutExecute(r ApiOrchestratorApplicationUpdatePutRequest) ([]UpdateReleaseResponse, *_nethttp.Response, error) {
+	var (
+		localVarHTTPMethod   = _nethttp.MethodPut
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []UpdateReleaseResponse
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationUpdatePut")
+	if err != nil {
+		return localVarReturnValue, nil, GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/orchestrator/application/update"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := _neturl.Values{}
+	localVarFormParams := _neturl.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.updateReleaseRequest
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err

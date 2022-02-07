@@ -166,8 +166,9 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterIds(clusterIds []in
 	var mappings []*Environment
 	err := repositoryImpl.dbConnection.
 		Model(&mappings).
-		Where("active = true").
-		Where(" cluster_id in (?)", pg.In(clusterIds)).
+		Column("environment.*", "Cluster").
+		Where("environment.active = true").
+		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
 		Select()
 	return mappings, err
 }

@@ -279,6 +279,43 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/DesiredManifestResponse"
+  /orchestrator/application/delete:
+    delete:
+      description: delete application
+      parameters:
+        - in: query
+          name: appId
+          example: "12|helm-app|cluster1-ns1"
+          description: application Id
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: delete application request response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UninstallReleaseResponse"
+  /orchestrator/application/update:
+    put:
+      description: update the application
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReleaseRequest'
+      responses:
+        "200":
+          description: application update success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UpdateReleaseResponse"
 components:
   schemas:
     appListRequest:
@@ -621,4 +658,29 @@ components:
           type: string
           description: desired manifest
           example: "some manifest"
+    UninstallReleaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
+    UpdateReleaseRequest:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: helm app id
+          example: "1|test|testapp"
+        valuesYaml:
+          type: string
+          description: updated values yaml string
+          example: ""
+    UpdateReleaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
 
