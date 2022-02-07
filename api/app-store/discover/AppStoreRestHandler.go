@@ -23,7 +23,6 @@ import (
 	app_store_discover "github.com/devtron-labs/devtron/pkg/app-store/discover"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -44,17 +43,15 @@ type AppStoreRestHandlerImpl struct {
 	appStoreService  app_store_discover.AppStoreService
 	userAuthService  user.UserService
 	enforcer         casbin.Enforcer
-	enforcerUtil     rbac.EnforcerUtil
 }
 
 func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appStoreService app_store_discover.AppStoreService,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *AppStoreRestHandlerImpl {
+	enforcer casbin.Enforcer) *AppStoreRestHandlerImpl {
 	return &AppStoreRestHandlerImpl{
 		Logger:           Logger,
 		appStoreService:  appStoreService,
 		userAuthService:  userAuthService,
 		enforcer:         enforcer,
-		enforcerUtil:     enforcerUtil,
 	}
 }
 

@@ -19,6 +19,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/google/wire"
+	util2 "github.com/devtron-labs/devtron/pkg/util"
 )
 
 func InitializeApp() (*App, error) {
@@ -35,12 +36,15 @@ func InitializeApp() (*App, error) {
 		chart_repository.ChartRepositoryWireSet,
 		app_store_discover.AppStoreDiscoverWireSet,
 
+
 		NewApp,
 		NewMuxRouter,
 
 		util.NewSugardLogger,
 		util.NewK8sUtil,
 		util.IntValidator,
+		util2.GetACDAuthConfig,
+		util.NewHttpClient,
 
 		//acd session client bind with authenticator login
 		wire.Bind(new(session.ServiceClient), new(*middleware.LoginService)),
