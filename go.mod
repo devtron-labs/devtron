@@ -90,6 +90,7 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.uber.org/multierr v1.2.0 // indirect
 	go.uber.org/zap v1.10.0
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	google.golang.org/grpc v1.33.1
 	google.golang.org/protobuf v1.25.0
@@ -106,6 +107,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20190918143330-0270cf2f1c1d // indirect
 	k8s.io/utils v0.0.0-20191010214722-8d271d903fe4
 	mellium.im/sasl v0.2.1 // indirect
+	sigs.k8s.io/yaml v1.3.0
 	xorm.io/core v0.7.2 // indirect
 )
 
