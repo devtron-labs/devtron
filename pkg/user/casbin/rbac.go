@@ -100,6 +100,8 @@ func (e *EnforcerImpl) enforce(enf *casbin.Enforcer, rvals ...interface{}) bool 
 		email = sub
 	}
 	rvals[0] = strings.ToLower(email)
+	//adding our key matching func - MatchKeyFunc, to enforcer
+	enf.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
 	return enf.Enforce(rvals...)
 }
 
@@ -109,5 +111,61 @@ func (e *EnforcerImpl) enforceByEmail(enf *casbin.Enforcer, rvals ...interface{}
 	if len(rvals) == 0 {
 		return false
 	}
+	//adding our key matching func - MatchKeyFunc, to enforcer
+	enf.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
 	return enf.Enforce(rvals...)
+}
+
+// MatchKeyByPartFunc is the wrapper of our own customised MatchKeyByPart Func
+func MatchKeyByPartFunc(args ...interface{}) (interface{}, error) {
+	name1 := args[0].(string)
+	name2 := args[1].(string)
+
+	return bool(MatchKeyByPart(name1, name2)), nil
+}
+
+// MatchKeyByPart checks whether values in key1 matches all values of key2(values are obtained by splitting key by "/")
+// For example - key1 =  "a/b/c" matches key2 = "a/*/c" but not matches for key2 = "a/*/d"
+func MatchKeyByPart(key1 string, key2 string) bool {
+
+	if key2 == "*"{
+		//policy must be for super-admin role or global-env action
+		//no need to check further
+		return true
+	}
+
+	key1Vals := strings.Split(key1, "/")
+	key2Vals := strings.Split(key2, "/")
+
+	if (len(key1Vals) != len(key2Vals)) || len(key1Vals) == 0 {
+		//values in keys should be more than zero and must be equal
+		return false
+	}
+
+	for i, key2Val := range key2Vals {
+		key1Val := key1Vals[i]
+
+		if key2Val == "" || key1Val == "" {
+			//empty values are not allowed in any key
+			return false
+		} else {
+			// getting index of "*" in key2, will check values of key1 accordingly
+			//for example - key2Val = a/bc*/d & key1Val = a/bcd/d, in this case "bc" will be checked in key1Val(upto index of "*")
+			j := strings.Index(key2Val, "*")
+			if j == -1 {
+				if key1Val != key2Val {
+					return false
+				}
+			} else if len(key1Val) > j {
+				if key1Val[:j] != key2Val[:j] {
+					return false
+				}
+			} else {
+				if key1Val != key2Val[:j] {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }

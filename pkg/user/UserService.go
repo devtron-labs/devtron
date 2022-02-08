@@ -49,6 +49,7 @@ type UserService interface {
 	IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
 	UserExists(emailId string) bool
+	UpdateTriggerPolicyForTerminalAccess() (err error)
 }
 
 type UserServiceImpl struct {
@@ -958,4 +959,13 @@ func (impl UserServiceImpl) GetByIdIncludeDeleted(id int32) (*bean.UserInfo, err
 		EmailId: model.EmailId,
 	}
 	return response, nil
+}
+
+func (impl UserServiceImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
+	err = impl.userAuthRepository.UpdateTriggerPolicyForTerminalAccess()
+	if err != nil {
+		impl.logger.Errorw("error in updating policy for terminal access to trigger role", "err", err)
+		return err
+	}
+	return nil
 }

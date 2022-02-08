@@ -51,6 +51,7 @@ type UserRestHandler interface {
 	DeleteRoleGroup(w http.ResponseWriter, r *http.Request)
 	CheckUserRoles(w http.ResponseWriter, r *http.Request)
 	SyncOrchestratorToCasbin(w http.ResponseWriter, r *http.Request)
+	UpdateTriggerPolicyForTerminalAccess(w http.ResponseWriter, r *http.Request)
 }
 
 type userNamePassword struct {
@@ -687,4 +688,30 @@ func (handler UserRestHandlerImpl) SyncOrchestratorToCasbin(w http.ResponseWrite
 		return
 	}
 	common.WriteJsonResp(w, err, flag, http.StatusOK)
+}
+
+func (handler UserRestHandlerImpl) UpdateTriggerPolicyForTerminalAccess(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		handler.logger.Errorw("unauthorized user, UpdateTriggerPolicyForTerminalAccess", "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		handler.logger.Errorw("unauthorized user, UpdateTriggerPolicyForTerminalAccess", "userId", userId)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	err = handler.userService.UpdateTriggerPolicyForTerminalAccess()
+	if err != nil {
+		handler.logger.Errorw("error in updating trigger policy for terminal access", "err", err)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, "Trigger policy updated successfully.", http.StatusOK)
 }

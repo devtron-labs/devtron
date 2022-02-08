@@ -22,13 +22,14 @@ package repository
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	"strings"
-
+	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
 )
 
 type UserAuthRepository interface {
@@ -37,6 +38,7 @@ type UserAuthRepository interface {
 	GetRolesByUserId(userId int32) ([]RoleModel, error)
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
+	GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error)
 	GetRoleByFilter(entity string, team string, app string, env string, act string, accessType string) (RoleModel, error)
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
@@ -47,15 +49,25 @@ type UserAuthRepository interface {
 	CreateDefaultPoliciesForGlobalEntity(entity string, entityName string, action string, tx *pg.Tx) (bool, error)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
+	UpdateTriggerPolicyForTerminalAccess() error
 }
 
 type UserAuthRepositoryImpl struct {
-	dbConnection *pg.DB
-	Logger       *zap.SugaredLogger
+	dbConnection                *pg.DB
+	Logger                      *zap.SugaredLogger
+	defaultAuthPolicyRepository DefaultAuthPolicyRepository
+	defaultAuthRoleRepository   DefaultAuthRoleRepository
 }
 
-func NewUserAuthRepositoryImpl(dbConnection *pg.DB, Logger *zap.SugaredLogger) *UserAuthRepositoryImpl {
-	return &UserAuthRepositoryImpl{dbConnection: dbConnection, Logger: Logger}
+func NewUserAuthRepositoryImpl(dbConnection *pg.DB, Logger *zap.SugaredLogger,
+	defaultAuthPolicyRepository DefaultAuthPolicyRepository,
+	defaultAuthRoleRepository DefaultAuthRoleRepository) *UserAuthRepositoryImpl {
+	return &UserAuthRepositoryImpl{
+		dbConnection:                dbConnection,
+		Logger:                      Logger,
+		defaultAuthPolicyRepository: defaultAuthPolicyRepository,
+		defaultAuthRoleRepository:   defaultAuthRoleRepository,
+	}
 }
 
 type RoleModel struct {
@@ -69,6 +81,17 @@ type RoleModel struct {
 	Action      string   `sql:"action"`
 	AccessType  string   `sql:"access_type"`
 	sql.AuditLog
+}
+
+type RolePolicyDetails struct {
+	Team       string
+	Env        string
+	App        string
+	TeamObj    string
+	EnvObj     string
+	AppObj     string
+	Entity     string
+	EntityName string
 }
 
 func (impl UserAuthRepositoryImpl) CreateRole(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error) {
@@ -131,6 +154,26 @@ func (impl UserAuthRepositoryImpl) GetAllRole() ([]RoleModel, error) {
 	}
 	return models, nil
 }
+
+func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error) {
+	var models []RoleModel
+	var err error
+	if accessType == "" {
+		err = impl.dbConnection.Model(&models).Where("action = ?", action).
+			Where("access_type is NULL").
+			Select()
+	} else{
+		err = impl.dbConnection.Model(&models).Where("action = ?", action).
+			Where("access_type = ?", accessType).
+			Select()
+	}
+	if err != nil {
+		impl.Logger.Error("err in getting role by action", "err", err, "action", action, "accessType", accessType)
+		return models, err
+	}
+	return models, nil
+}
+
 func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, app string, env string, act string, accessType string) (RoleModel, error) {
 	var model RoleModel
 	EMPTY := ""
@@ -152,7 +195,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, a
 		if len(accessType) == 0 {
 			query = query + " and role.access_type is NULL"
 		} else {
-			query += " and role.access_type='"+accessType+"'"
+			query += " and role.access_type='" + accessType + "'"
 		}
 		_, err = impl.dbConnection.Query(&model, query, entity, act)
 	} else {
@@ -161,7 +204,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, a
 			if len(accessType) == 0 {
 				query = query + " and role.access_type is NULL"
 			} else {
-				query += " and role.access_type='"+accessType+"'"
+				query += " and role.access_type='" + accessType + "'"
 			}
 			_, err = impl.dbConnection.Query(&model, query, team, app, env, act)
 		} else if len(team) > 0 && app == "" && len(env) > 0 && len(act) > 0 {
@@ -169,7 +212,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, a
 			if len(accessType) == 0 {
 				query = query + " and role.access_type is NULL"
 			} else {
-				query += " and role.access_type='"+accessType+"'"
+				query += " and role.access_type='" + accessType + "'"
 			}
 			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, env, act)
 		} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
@@ -178,7 +221,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, a
 			if len(accessType) == 0 {
 				query = query + " and role.access_type is NULL"
 			} else {
-				query += " and role.access_type='"+accessType+"'"
+				query += " and role.access_type='" + accessType + "'"
 			}
 			_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY, act)
 		} else if len(team) > 0 && app == "" && env == "" && len(act) > 0 {
@@ -187,7 +230,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, a
 			if len(accessType) == 0 {
 				query = query + " and role.access_type is NULL"
 			} else {
-				query += " and role.access_type='"+accessType+"'"
+				query += " and role.access_type='" + accessType + "'"
 			}
 			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, EMPTY, act)
 		} else if team == "" && app == "" && env == "" && len(act) > 0 {
@@ -196,7 +239,7 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, a
 			if len(accessType) == 0 {
 				query = query + " and role.access_type is NULL"
 			} else {
-				query += " and role.access_type='"+accessType+"'"
+				query += " and role.access_type='" + accessType + "'"
 			}
 			_, err = impl.dbConnection.Query(&model, query, EMPTY, EMPTY, EMPTY, act)
 		} else if team == "" && app == "" && env == "" && act == "" {
@@ -246,26 +289,27 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 		return false, err
 	}
 
-	managerPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:manager_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"applications\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"<TEAM_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:manager_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"environment\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:manager_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:manager_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"user\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:manager_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"notification\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:manager_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        }\r\n    ]\r\n}"
-	adminPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:admin_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"applications\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"<TEAM_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:admin_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"environment\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:admin_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:admin_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        }\r\n    ]\r\n}"
-	triggerPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"applications\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"applications\",\r\n            \"act\": \"trigger\",\r\n            \"obj\": \"<TEAM_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"environment\",\r\n            \"act\": \"trigger\",\r\n            \"obj\": \"<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        }\r\n    ]\r\n}"
-	viewPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"applications\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        }\r\n    ]\r\n}"
-
-	managerPolicies = strings.ReplaceAll(managerPolicies, "<TEAM>", team)
-	managerPolicies = strings.ReplaceAll(managerPolicies, "<ENV>", env)
-	managerPolicies = strings.ReplaceAll(managerPolicies, "<APP>", entityName)
-
-	adminPolicies = strings.ReplaceAll(adminPolicies, "<TEAM>", team)
-	adminPolicies = strings.ReplaceAll(adminPolicies, "<ENV>", env)
-	adminPolicies = strings.ReplaceAll(adminPolicies, "<APP>", entityName)
-
-	triggerPolicies = strings.ReplaceAll(triggerPolicies, "<TEAM>", team)
-	triggerPolicies = strings.ReplaceAll(triggerPolicies, "<ENV>", env)
-	triggerPolicies = strings.ReplaceAll(triggerPolicies, "<APP>", entityName)
-
-	viewPolicies = strings.ReplaceAll(viewPolicies, "<TEAM>", team)
-	viewPolicies = strings.ReplaceAll(viewPolicies, "<ENV>", env)
-	viewPolicies = strings.ReplaceAll(viewPolicies, "<APP>", entityName)
+	//getting policies from db
+	managerPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(MANAGER_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", MANAGER_TYPE)
+		return false, err
+	}
+	adminPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(ADMIN_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ADMIN_TYPE)
+		return false, err
+	}
+	triggerPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(TRIGGER_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", TRIGGER_TYPE)
+		return false, err
+	}
+	viewPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(VIEW_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", VIEW_TYPE)
+		return false, err
+	}
 
 	//for START in Casbin Object
 	teamObj := team
@@ -280,21 +324,44 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 	if appObj == "" {
 		appObj = "*"
 	}
-	managerPolicies = strings.ReplaceAll(managerPolicies, "<TEAM_OBJ>", teamObj)
-	managerPolicies = strings.ReplaceAll(managerPolicies, "<ENV_OBJ>", envObj)
-	managerPolicies = strings.ReplaceAll(managerPolicies, "<APP_OBJ>", appObj)
 
-	adminPolicies = strings.ReplaceAll(adminPolicies, "<TEAM_OBJ>", teamObj)
-	adminPolicies = strings.ReplaceAll(adminPolicies, "<ENV_OBJ>", envObj)
-	adminPolicies = strings.ReplaceAll(adminPolicies, "<APP_OBJ>", appObj)
+	rolePolicyDetails := RolePolicyDetails{
+		Team:    team,
+		App:     entityName,
+		Env:     env,
+		TeamObj: teamObj,
+		EnvObj:  envObj,
+		AppObj:  appObj,
+	}
 
-	triggerPolicies = strings.ReplaceAll(triggerPolicies, "<TEAM_OBJ>", teamObj)
-	triggerPolicies = strings.ReplaceAll(triggerPolicies, "<ENV_OBJ>", envObj)
-	triggerPolicies = strings.ReplaceAll(triggerPolicies, "<APP_OBJ>", appObj)
+	//getting updated manager policies
+	managerPolicies, err := util.Tprintf(managerPoliciesDb, rolePolicyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", MANAGER_TYPE)
+		return false, err
+	}
 
-	viewPolicies = strings.ReplaceAll(viewPolicies, "<TEAM_OBJ>", teamObj)
-	viewPolicies = strings.ReplaceAll(viewPolicies, "<ENV_OBJ>", envObj)
-	viewPolicies = strings.ReplaceAll(viewPolicies, "<APP_OBJ>", appObj)
+	//getting updated admin policies
+	adminPolicies, err := util.Tprintf(adminPoliciesDb, rolePolicyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ADMIN_TYPE)
+		return false, err
+	}
+
+	//getting updated trigger policies
+	triggerPolicies, err := util.Tprintf(triggerPoliciesDb, rolePolicyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", TRIGGER_TYPE)
+		return false, err
+	}
+
+	//getting updated view policies
+	viewPolicies, err := util.Tprintf(viewPoliciesDb, rolePolicyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", VIEW_TYPE)
+		return false, err
+	}
+
 	//for START in Casbin Object Ends Here
 
 	var policiesManager bean.PolicyRequest
@@ -335,25 +402,55 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName
 	casbin.AddPolicy(policiesView.Data)
 
 	//Creating ROLES
-	roleManager := "{\r\n    \"role\": \"role:manager_<TEAM>_<ENV>_<APP>\",\r\n    \"casbinSubjects\": [\r\n        \"role:manager_<TEAM>_<ENV>_<APP>\"\r\n    ],\r\n    \"team\": \"<TEAM>\",\r\n    \"entityName\": \"<APP>\",\r\n    \"environment\": \"<ENV>\",\r\n    \"action\": \"manager\",\r\n    \"access_type\": \"\"\n}"
-	roleAdmin := "{\n    \"role\": \"role:admin_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:admin_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"admin\",\n    \"access_type\": \"\"\n}"
-	roleTrigger := "{\n    \"role\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:trigger_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"trigger\",\n    \"access_type\": \"\"\n}"
-	roleView := "{\n    \"role\": \"role:view_<TEAM>_<ENV>_<APP>\",\n    \"casbinSubjects\": [\n        \"role:view_<TEAM>_<ENV>_<APP>\"\n    ],\n    \"team\": \"<TEAM>\",\n    \"entityName\": \"<APP>\",\n    \"environment\": \"<ENV>\",\n    \"action\": \"view\",\n    \"access_type\": \"\"\n}"
-	roleManager = strings.ReplaceAll(roleManager, "<TEAM>", team)
-	roleManager = strings.ReplaceAll(roleManager, "<ENV>", env)
-	roleManager = strings.ReplaceAll(roleManager, "<APP>", entityName)
+	//getting roles from db
+	roleManagerDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(MANAGER_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default role by roleType", "err", err, "roleType", MANAGER_TYPE)
+		return false, err
+	}
+	roleAdminDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(ADMIN_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default role by roleType", "err", err, "roleType", ADMIN_TYPE)
+		return false, err
+	}
+	roleTriggerDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(TRIGGER_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default role by roleType", "err", err, "roleType", TRIGGER_TYPE)
+		return false, err
+	}
+	roleViewDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(VIEW_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default role by roleType", "err", err, "roleType", VIEW_TYPE)
+		return false, err
+	}
 
-	roleAdmin = strings.ReplaceAll(roleAdmin, "<TEAM>", team)
-	roleAdmin = strings.ReplaceAll(roleAdmin, "<ENV>", env)
-	roleAdmin = strings.ReplaceAll(roleAdmin, "<APP>", entityName)
+	//getting updated manager role
+	roleManager, err := util.Tprintf(roleManagerDb, rolePolicyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated role", "err", err, "roleType", MANAGER_TYPE)
+		return false, err
+	}
 
-	roleTrigger = strings.ReplaceAll(roleTrigger, "<TEAM>", team)
-	roleTrigger = strings.ReplaceAll(roleTrigger, "<ENV>", env)
-	roleTrigger = strings.ReplaceAll(roleTrigger, "<APP>", entityName)
+	//getting updated admin role
+	roleAdmin, err := util.Tprintf(roleAdminDb, rolePolicyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated role", "err", err, "roleType", ADMIN_TYPE)
+		return false, err
+	}
 
-	roleView = strings.ReplaceAll(roleView, "<TEAM>", team)
-	roleView = strings.ReplaceAll(roleView, "<ENV>", env)
-	roleView = strings.ReplaceAll(roleView, "<APP>", entityName)
+	//getting updated trigger role
+	roleTrigger, err := util.Tprintf(roleTriggerDb, rolePolicyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated role", "err", err, "roleType", TRIGGER_TYPE)
+		return false, err
+	}
+
+	//getting updated view role
+	roleView, err := util.Tprintf(roleViewDb, rolePolicyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated role", "err", err, "roleType", VIEW_TYPE)
+		return false, err
+	}
 
 	var roleManagerData bean.RoleData
 	err = json.Unmarshal([]byte(roleManager), &roleManagerData)
@@ -544,11 +641,37 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	}
 	// Rollback tx on error.
 	defer transaction.Rollback()
-	entityAllPolicy := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:<ENTITY>_admin\",\r\n            \"res\": \"<ENTITY>\",\r\n            \"act\": \"*\",\r\n            \"obj\": \"*\"\r\n        }\r\n    ]\r\n}"
-	entityViewPolicy := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:<ENTITY>_view\",\r\n            \"res\": \"<ENTITY>\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"*\"\r\n        }\r\n    ]\r\n}"
 
-	entityAllPolicy = strings.ReplaceAll(entityAllPolicy, "<ENTITY>", entity)
-	entityViewPolicy = strings.ReplaceAll(entityViewPolicy, "<ENTITY>", entity)
+	//getting policies from db
+	entityAllPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(ENTITY_ALL_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ENTITY_ALL_TYPE)
+		return false, err
+	}
+	entityViewPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(ENTITY_VIEW_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ENTITY_VIEW_TYPE)
+		return false, err
+	}
+
+	policyDetails := RolePolicyDetails{
+		Entity:     entity,
+		EntityName: entityName,
+	}
+
+	//getting updated entityAll policies
+	entityAllPolicy, err := util.Tprintf(entityAllPolicyDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ENTITY_ALL_TYPE)
+		return false, err
+	}
+
+	//getting updated entityView policies
+	entityViewPolicy, err := util.Tprintf(entityViewPolicyDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ENTITY_VIEW_TYPE)
+		return false, err
+	}
 
 	//for START in Casbin Object Ends Here
 	var policiesAdmin bean.PolicyRequest
@@ -569,9 +692,19 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	impl.Logger.Debugw("add policy request", "policies", policiesView)
 	casbin.AddPolicy(policiesView.Data)
 
-	entitySpecificPolicy := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:<ENTITY>_<ENTITY_NAME>_specific\",\r\n            \"res\": \"<ENTITY>\",\r\n            \"act\": \"update\",\r\n            \"obj\": \"<ENTITY_NAME>\"\r\n        },\r\n       {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:<ENTITY>_<ENTITY_NAME>_specific\",\r\n            \"res\": \"<ENTITY>\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENTITY_NAME>\"\r\n        }\r\n    ]\r\n}"
-	entitySpecificPolicy = strings.ReplaceAll(entitySpecificPolicy, "<ENTITY>", entity)
-	entitySpecificPolicy = strings.ReplaceAll(entitySpecificPolicy, "<ENTITY_NAME>", entityName)
+	//getting policy from db
+	entitySpecificPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(ENTITY_SPECIFIC_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ENTITY_SPECIFIC_TYPE)
+		return false, err
+	}
+
+	//getting updated entitySpecific policies
+	entitySpecificPolicy, err := util.Tprintf(entitySpecificPolicyDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ENTITY_SPECIFIC_TYPE)
+		return false, err
+	}
 
 	var policiesSpecific bean.PolicyRequest
 	err = json.Unmarshal([]byte(entitySpecificPolicy), &policiesSpecific)
@@ -584,10 +717,34 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	//CASBIN ENDS
 
 	//Creating ROLES
-	roleAdmin := "{\r\n    \"role\": \"role:<ENTITY>_admin\",\r\n    \"casbinSubjects\": [\r\n        \"role:<ENTITY>_admin\"\r\n    ],\r\n    \"entity\": \"<ENTITY>\",\r\n    \"team\": \"\",\r\n    \"application\": \"\",\r\n    \"environment\": \"\",\r\n    \"action\": \"admin\"\r\n}"
-	roleAdmin = strings.ReplaceAll(roleAdmin, "<ENTITY>", entity)
-	roleView := "{\r\n    \"role\": \"role:<ENTITY>_view\",\r\n    \"casbinSubjects\": [\r\n        \"role:<ENTITY>_view\"\r\n    ],\r\n    \"entity\": \"<ENTITY>\",\r\n    \"team\": \"\",\r\n    \"application\": \"\",\r\n    \"environment\": \"\",\r\n    \"action\": \"view\"\r\n}"
-	roleView = strings.ReplaceAll(roleView, "<ENTITY>", entity)
+
+	//getting role from db
+	entitySpecificAdminDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(ENTITY_SPECIFIC_ADMIN_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ENTITY_SPECIFIC_ADMIN_TYPE)
+		return false, err
+	}
+
+	//getting updated role
+	roleAdmin, err := util.Tprintf(entitySpecificAdminDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ENTITY_SPECIFIC_ADMIN_TYPE)
+		return false, err
+	}
+
+	//getting role from db
+	entitySpecificViewDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(ENTITY_SPECIFIC_VIEW_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ENTITY_SPECIFIC_VIEW_TYPE)
+		return false, err
+	}
+
+	//getting updated role
+	roleView, err := util.Tprintf(entitySpecificViewDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ENTITY_SPECIFIC_VIEW_TYPE)
+		return false, err
+	}
 
 	var roleAdminData bean.RoleData
 	err = json.Unmarshal([]byte(roleAdmin), &roleAdminData)
@@ -617,9 +774,19 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 		}
 	}
 
-	roleSpecific := "{\r\n    \"role\": \"role:<ENTITY>_<ENTITY_NAME>_specific\",\r\n    \"casbinSubjects\": [\r\n        \"role:<ENTITY>_<ENTITY_NAME>_specific\"\r\n    ],\r\n    \"entity\": \"<ENTITY>\",\r\n    \"team\": \"\",\r\n    \"entityName\": \"<ENTITY_NAME>\",\r\n    \"environment\": \"\",\r\n    \"action\": \"update\"\r\n}"
-	roleSpecific = strings.ReplaceAll(roleSpecific, "<ENTITY>", entity)
-	roleSpecific = strings.ReplaceAll(roleSpecific, "<ENTITY_NAME>", entityName)
+	//getting role from db
+	roleSpecificDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(ROLE_SPECIFIC_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ROLE_SPECIFIC_TYPE)
+		return false, err
+	}
+
+	//getting updated role
+	roleSpecific, err := util.Tprintf(roleSpecificDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ROLE_SPECIFIC_TYPE)
+		return false, err
+	}
 
 	var roleSpecificData bean.RoleData
 	err = json.Unmarshal([]byte(roleSpecific), &roleSpecificData)
@@ -694,16 +861,17 @@ func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx
 
 func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error) {
 
-	triggerPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"applications\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"applications\",\r\n            \"act\": \"trigger\",\r\n            \"obj\": \"<TEAM_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"environment\",\r\n            \"act\": \"trigger\",\r\n            \"obj\": \"<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:trigger_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        }\r\n    ]\r\n}"
-	viewPolicies := "{\r\n    \"data\": [\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"applications\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>/<APP_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"global-environment\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<ENV_OBJ>\"\r\n        },\r\n        {\r\n            \"type\": \"p\",\r\n            \"sub\": \"role:view_<TEAM>_<ENV>_<APP>\",\r\n            \"res\": \"team\",\r\n            \"act\": \"get\",\r\n            \"obj\": \"<TEAM_OBJ>\"\r\n        }\r\n    ]\r\n}"
-
-	triggerPolicies = strings.ReplaceAll(triggerPolicies, "<TEAM>", team)
-	triggerPolicies = strings.ReplaceAll(triggerPolicies, "<ENV>", env)
-	triggerPolicies = strings.ReplaceAll(triggerPolicies, "<APP>", entityName)
-
-	viewPolicies = strings.ReplaceAll(viewPolicies, "<TEAM>", team)
-	viewPolicies = strings.ReplaceAll(viewPolicies, "<ENV>", env)
-	viewPolicies = strings.ReplaceAll(viewPolicies, "<APP>", entityName)
+	//getting policies from db
+	triggerPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(TRIGGER_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", TRIGGER_TYPE)
+		return false, err
+	}
+	viewPoliciesDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(VIEW_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", VIEW_TYPE)
+		return false, err
+	}
 
 	//for START in Casbin Object
 	teamObj := team
@@ -719,17 +887,33 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 		appObj = "*"
 	}
 
-	triggerPolicies = strings.ReplaceAll(triggerPolicies, "<TEAM_OBJ>", teamObj)
-	triggerPolicies = strings.ReplaceAll(triggerPolicies, "<ENV_OBJ>", envObj)
-	triggerPolicies = strings.ReplaceAll(triggerPolicies, "<APP_OBJ>", appObj)
+	policyDetails := RolePolicyDetails{
+		Team:    team,
+		App:     entityName,
+		Env:     env,
+		TeamObj: teamObj,
+		EnvObj:  envObj,
+		AppObj:  appObj,
+	}
 
-	viewPolicies = strings.ReplaceAll(viewPolicies, "<TEAM_OBJ>", teamObj)
-	viewPolicies = strings.ReplaceAll(viewPolicies, "<ENV_OBJ>", envObj)
-	viewPolicies = strings.ReplaceAll(viewPolicies, "<APP_OBJ>", appObj)
+	//getting updated trigger policies
+	triggerPolicies, err := util.Tprintf(triggerPoliciesDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", TRIGGER_TYPE)
+		return false, err
+	}
+
+	//getting updated view policies
+	viewPolicies, err := util.Tprintf(viewPoliciesDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", VIEW_TYPE)
+		return false, err
+	}
+
 	//for START in Casbin Object Ends Here
 
 	var policiesTrigger bean.PolicyRequest
-	err := json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
+	err = json.Unmarshal([]byte(triggerPolicies), &policiesTrigger)
 	if err != nil {
 		impl.Logger.Errorw("decode err", "err", err)
 		return false, err
@@ -747,4 +931,225 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 	casbin.AddPolicy(policiesView.Data)
 
 	return true, nil
+}
+
+func (impl UserAuthRepositoryImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
+	newTriggerPolicy := `{
+    "data": [
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "applications",
+            "act": "get",
+            "obj": "{{.TeamObj}}/{{.AppObj}}"
+        },
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "applications",
+            "act": "trigger",
+            "obj": "{{.TeamObj}}/{{.AppObj}}"
+        },
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "environment",
+            "act": "trigger",
+            "obj": "{{.EnvObj}}/{{.AppObj}}"
+        },
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "environment",
+            "act": "get",
+            "obj": "{{.EnvObj}}/{{.AppObj}}"
+        },
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "global-environment",
+            "act": "get",
+            "obj": "{{.EnvObj}}"
+        },
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "team",
+            "act": "get",
+            "obj": "{{.TeamObj}}"
+        },
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "terminal",
+            "act": "exec",
+            "obj": "{{.TeamObj}}/{{.EnvObj}}/{{.AppObj}}"
+        }
+    ]
+}`
+	err = impl.UpdateDefaultPolicyByRoleType(newTriggerPolicy, TRIGGER_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in updating default policy for trigger role", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl UserAuthRepositoryImpl) GetDefaultPolicyByRoleType(roleType RoleType) (policy string, err error) {
+	policy, err = impl.defaultAuthPolicyRepository.GetPolicyByRoleType(roleType)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by role type", "err", err, "roleType", roleType)
+		return "", err
+	}
+	return policy, nil
+}
+
+func (impl UserAuthRepositoryImpl) UpdateDefaultPolicyByRoleType(newPolicy string, roleType RoleType) (err error) {
+	//getting all roles by role type
+	roles, err := impl.GetRolesByActionAndAccessType(string(roleType), "")
+	if err != nil {
+		impl.Logger.Errorw("error in getting roles for trigger action", "err", err)
+		return err
+	}
+	oldPolicy, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(roleType)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", roleType)
+		return err
+	}
+
+	//updating new policy in db
+	_, err = impl.defaultAuthPolicyRepository.UpdatePolicyByRoleType(newPolicy, roleType)
+	if err != nil {
+		impl.Logger.Errorw("error in updating default policy by roleType", "err", err, "roleType", roleType)
+		return err
+	}
+
+	//getting diff between new and old policy(policies deleted/added)
+	addedPolicies, deletedPolicies, err := impl.GetDiffBetweenPolicies(oldPolicy, newPolicy)
+	if err != nil {
+		impl.Logger.Errorw("error in getting diff between old and new policy", "err", err)
+		return err
+	}
+	var addedPolicyFinal bean.PolicyRequest
+	var deletedPolicyFinal bean.PolicyRequest
+	for _, role := range roles {
+		teamObj := role.Team
+		envObj := role.Environment
+		appObj := role.EntityName
+		if teamObj == "" {
+			teamObj = "*"
+		}
+		if envObj == "" {
+			envObj = "*"
+		}
+		if appObj == "" {
+			appObj = "*"
+		}
+
+		rolePolicyDetails := RolePolicyDetails{
+			Team:    role.Team,
+			Env:     role.Environment,
+			App:     role.EntityName,
+			TeamObj: teamObj,
+			EnvObj:  envObj,
+			AppObj:  appObj,
+		}
+		if len(addedPolicies) > 0 {
+			addedPolicyReq, err := impl.GetUpdatedAddedOrDeletedPolicies(addedPolicies, rolePolicyDetails)
+			if err != nil {
+				impl.Logger.Errorw("error in getting updated added policies", "err", err)
+				return err
+			}
+			addedPolicyFinal.Data = append(addedPolicyFinal.Data, addedPolicyReq.Data...)
+		}
+		if len(deletedPolicies) > 0 {
+			deletedPolicyReq, err := impl.GetUpdatedAddedOrDeletedPolicies(deletedPolicies, rolePolicyDetails)
+			if err != nil {
+				impl.Logger.Errorw("error in getting updated deleted policies", "err", err)
+				return err
+			}
+			deletedPolicyFinal.Data = append(deletedPolicyFinal.Data, deletedPolicyReq.Data...)
+		}
+	}
+	//updating all policies(for all roles) in casbin
+	if len(addedPolicyFinal.Data) > 0 {
+		casbin.AddPolicy(addedPolicyFinal.Data)
+	}
+	if len(deletedPolicyFinal.Data) > 0 {
+		casbin.RemovePolicy(deletedPolicyFinal.Data)
+	}
+	return nil
+}
+
+func (impl UserAuthRepositoryImpl) GetDiffBetweenPolicies(oldPolicy string, newPolicy string) (addedPolicies []casbin.Policy, deletedPolicies []casbin.Policy, err error) {
+	var oldPolicyObj bean.PolicyRequest
+	err = json.Unmarshal([]byte(oldPolicy), &oldPolicyObj)
+	if err != nil {
+		impl.Logger.Errorw("error in un-marshaling old policy", "err", err)
+		return addedPolicies, deletedPolicies, err
+	}
+
+	var newPolicyObj bean.PolicyRequest
+	err = json.Unmarshal([]byte(newPolicy), &newPolicyObj)
+	if err != nil {
+		impl.Logger.Errorw("error in un-marshaling new policy", "err", err)
+		return addedPolicies, deletedPolicies, err
+	}
+
+	oldPolicyMap := make(map[string]bool)
+	for _, oldPolicyData := range oldPolicyObj.Data {
+		//converting all fields of data to a string
+		data := fmt.Sprintf("type:%s,sub:%s,res:%s,act:%s,obj:%s", oldPolicyData.Type, oldPolicyData.Sub, oldPolicyData.Res, oldPolicyData.Act, oldPolicyData.Obj)
+		//creating entry for data, keeping false because if present in new policy
+		//then will be set to true and will not be included in deletedPolicies
+		oldPolicyMap[data] = false
+	}
+
+	for _, newPolicyData := range newPolicyObj.Data {
+		//converting all fields of data to a string
+		data := fmt.Sprintf("type:%s,sub:%s,res:%s,act:%s,obj:%s", newPolicyData.Type, newPolicyData.Sub, newPolicyData.Res, newPolicyData.Act, newPolicyData.Obj)
+
+		if _, ok := oldPolicyMap[data]; !ok {
+			//data not present in old policy, to be included in addedPolicies
+			addedPolicies = append(addedPolicies, newPolicyData)
+		} else {
+			//data present in old policy; set old policy to true, so it does not get included in deletedPolicies
+			oldPolicyMap[data] = true
+		}
+	}
+
+	//check oldPolicies for updating deletedPolicies
+	for _, oldPolicyData := range oldPolicyObj.Data {
+		data := fmt.Sprintf("type:%s,sub:%s,res:%s,act:%s,obj:%s", oldPolicyData.Type, oldPolicyData.Sub, oldPolicyData.Res, oldPolicyData.Act, oldPolicyData.Obj)
+		if presentInNew := oldPolicyMap[data]; !presentInNew {
+			//data not present in old policy, to be included in addedPolicies
+			deletedPolicies = append(deletedPolicies, oldPolicyData)
+		}
+	}
+
+	return addedPolicies, deletedPolicies, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetUpdatedAddedOrDeletedPolicies(policies []casbin.Policy, rolePolicyDetails RolePolicyDetails) (bean.PolicyRequest, error) {
+	var policyResp bean.PolicyRequest
+	var policyReq bean.PolicyRequest
+	policyReq.Data = policies
+	policy, err := json.Marshal(policyReq)
+	if err != nil {
+		impl.Logger.Errorw("error in marshaling policy", "err", err)
+		return policyResp, err
+	}
+	//getting updated policy
+	updatedPolicy, err := util.Tprintf(string(policy), rolePolicyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policy", "err", err)
+		return policyResp, err
+	}
+
+	err = json.Unmarshal([]byte(updatedPolicy), &policyResp)
+	if err != nil {
+		impl.Logger.Errorw("error in un-marshaling policy", "err", err)
+		return policyResp, err
+	}
+	return policyResp, nil
 }
