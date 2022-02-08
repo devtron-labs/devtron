@@ -4,7 +4,6 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -22,11 +21,13 @@ type K8sInformerFactoryImpl struct {
 	logger                    *zap.SugaredLogger
 	globalMapClusterNamespace map[string]map[string]bool // {"cluster1":{"ns1":true","ns2":true"}}
 	mutex                     sync.Mutex
+	informerStopper           map[string]chan struct{}
 }
 
 type K8sInformerFactory interface {
 	GetLatestNamespaceListGroupByCLuster() map[string]map[string]bool
 	BuildInformer(clusterInfo []*bean.ClusterInfo)
+	CleanNamespaceInformer(clusterName string)
 }
 
 func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool) *K8sInformerFactoryImpl {
@@ -34,6 +35,7 @@ func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamesp
 		logger:                    logger,
 		globalMapClusterNamespace: globalMapClusterNamespace,
 	}
+	informerFactory.informerStopper = make(map[string]chan struct{})
 	return informerFactory
 }
 
@@ -77,6 +79,8 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 }
 
 func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, config *rest.Config, mutex *sync.Mutex) map[string]map[string]bool {
+	allNamespaces := make(map[string]bool)
+	impl.globalMapClusterNamespace[clusterName] = allNamespaces
 	clusterClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		impl.logger.Errorw("error in create k8s config", "err", err)
@@ -84,8 +88,7 @@ func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName st
 	}
 	informerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(clusterClient, time.Minute)
 	nsInformer := informerFactory.Core().V1().Namespaces()
-	allNamespaces := make(map[string]bool)
-	impl.globalMapClusterNamespace[clusterName] = allNamespaces
+	stopper := make(chan struct{})
 	nsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			impl.logger.Debugw("add event handler", "cluster", clusterName, "object", obj.(metav1.Object))
@@ -117,6 +120,16 @@ func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName st
 			}
 		},
 	})
-	informerFactory.Start(wait.NeverStop)
+	informerFactory.Start(stopper)
+	impl.informerStopper[clusterName] = stopper
 	return impl.globalMapClusterNamespace
+}
+
+func (impl *K8sInformerFactoryImpl) CleanNamespaceInformer(clusterName string) {
+	stopper := impl.informerStopper[clusterName]
+	if stopper != nil {
+		close(stopper)
+		delete(impl.informerStopper, clusterName)
+	}
+	return
 }

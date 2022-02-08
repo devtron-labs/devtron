@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubelink
+  labels:
+    app: kubelink
+    chart: kubelink-4.11.1
+spec:
+  selector:
+    matchLabels:
+      app: kubelink
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: kubelink
+    spec:
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      serviceAccount: devtron
+      containers:
+        - name: kubelink
+          image: quay.io/devtron/kubelink:a34c8f30-283-6744
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: app
+              containerPort: 50051
+              protocol: TCP
+          env:
+            - name: CONFIG_HASH
+              value: d79e473c6352af87345c540cbbe1307c4cdc5a014f3393d3d46ff194442179e0
+            - name: SECRET_HASH
+              value: 552efd3342e616f7ff4a7d2fffd4879809af5efabeda4c1a8597aeafefcb017d
+            - name: DEVTRON_APP_NAME
+              value: kubelink
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+  revisionHistoryLimit: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: kubelink
+  name: kubelink-service
+  namespace: devtroncd
+spec:
+  ports:
+    - name: app
+      port: 50051
+      protocol: TCP
+      targetPort: app
+  selector:
+    app: kubelink
+  sessionAffinity: None
+  type: ClusterIP
