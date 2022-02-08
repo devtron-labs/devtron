@@ -40,7 +40,7 @@
 ## :book: Menu
 
 - [Devtron?](https://github.com/devtron-labs/devtron#bulb-devtron)
-- [Full Devtron Experience](https://github.com/devtron-labs/devtron#tada-Full-Devtron-Experience)
+- [Devtron](https://github.com/devtron-labs/devtron#tada-Full-Devtron-Experience)
 - [Hyperion](https://github.com/devtron-labs/devtron#tada-featuresfor-hyperion)
 - [Documentation](https://docs.devtron.ai/)
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
@@ -58,12 +58,12 @@ Devtron is a Web-Based CI/CD Platform for Kubernetes. It integrates various Open
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
 <b> Devtron is built in a modular approach. These modules can be installed independently: </b>
-- [Full Devtron Experience](https://github.com/devtron-labs/devtron#tada-Full-Devtron-Experience) - This option gives you all the features of Devtron as a Full Experience providing you with CI, CD, security, cost, observability, stabilization. All the modules stated below are included here.
+- [Devtron](https://github.com/devtron-labs/devtron#tada-Full-Devtron-Experience) - This option gives you all the features of Devtron as a Full Experience providing you with CI, CD, security, cost, observability, stabilization. All the modules stated below are included here.
 - [Hyperion](https://github.com/devtron-labs/devtron#tada-featuresfor-hyperion) - Devtron's Web-based module to manage helm apps that can be installed seperately. Install Hyperion -> manage, Observe helm apps of all your clusters. This module is also a great way to manage existing helm apps and gradually understand how Devtron fits into your workflow. You can always switch to Full Devtron Experience for all the features.
 
-## :computer: Full Devtron Experience
+## :computer: Devtron
 
-Full Devtron Experience gives you everything that Devtron has to offer. It is a full feldged web based CI/CD platform that provides many festures on top of it.
+Devtron provides a full feldged web based CI/CD platform including features like Security Scanning, GitOps, Access Control, and Debugging/Observability. Modules like Hyperion are included as additional modules here.
 
 ## :tada: Features
 <br>
@@ -142,7 +142,7 @@ In addition to the features, we love supporting platforms that devs find easy to
 
 ## :rocket: Getting Started
 
-#### You can follow our detailed installation guide, using Devtron and other key functionalities of devtron, in our
+#### You can follow our detailed installation guide, using Devtron and other key functionalities, in our
 [Devtron Documentation](https://docs.devtron.ai/)
 
 ### Quick installation with default settings
@@ -186,7 +186,7 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 ## 🦹 Hyperion
 
 <details>
- <summary> <b> Hyperion is one of devtron's Web-based modules to manage helm apps that can be installed seperately too. It helps you observe, manage and debug the applications deployed through Helm across multiple clusters minimizing Kubernetes Complexities. Please expand this column to find Hyperion's features and to get Started with it:</b></summary>
+ <summary> <b> Hyperion is one of Devtron's Web-based modules to manage helm apps that can be installed seperately too. It helps you observe, manage and debug the applications deployed through Helm across multiple clusters minimizing Kubernetes Complexities. Please expand this column to find Hyperion's features and to get Started with it:</b></summary>
 <br>
 
 
@@ -195,14 +195,15 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 <details><summary> <b> Application-level resource grouping for easier Debugging </b></summary>
 <br>
 
-- Hyperion groups your deployed microservices and displays them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Hyperion UI and even edit them!
+- Hyperion groups your deployed Helm charts and display them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Hyperion UI and even edit them!
 
 </details>
  
 <details><summary> <b>  Centralized Access Management </b></summary>
 <br>
  
-- Give access to users and controls level of access(Change this) on Project, Environment and App level and control the level of access with customizable View only and Edit access.
+- Control and Give customizable view-only, Edit access to users on Project, Environment and App level.
+ 
 </details>
  
 <details><summary> <b>  Manage and observe Multiple Clusters </b></summary>
