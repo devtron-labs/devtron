@@ -145,6 +145,10 @@ func (impl ArgoApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWri
 	} else{
 		valid = true
 	}
+	//checking rbac for charts
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, teamEnvRbacObject); ok {
+		valid = true
+	}
 	//if both the new rbac(trigger access) and old rbac fails then user is forbidden to access terminal
 	if !valid {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
