@@ -40,6 +40,8 @@ func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamesp
 }
 
 func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[string]map[string]bool {
+	impl.mutex.Lock()
+	defer impl.mutex.Unlock()
 	copiedClusterNamespaces := make(map[string]map[string]bool)
 	for key, value := range impl.globalMapClusterNamespace {
 		for namespace, v := range value {
@@ -126,6 +128,8 @@ func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName st
 }
 
 func (impl *K8sInformerFactoryImpl) CleanNamespaceInformer(clusterName string) {
+	impl.mutex.Lock()
+	defer impl.mutex.Unlock()
 	stopper := impl.informerStopper[clusterName]
 	if stopper != nil {
 		close(stopper)
