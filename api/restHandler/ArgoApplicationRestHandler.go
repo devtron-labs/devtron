@@ -115,11 +115,13 @@ func (impl ArgoApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWri
 		return
 	}
 	request.AppId = id
+	//below method is for getting new object, i.e. team/env/app for new trigger policy
 	teamEnvRbacObject := impl.enforcerUtil.GetTeamEnvRBACNameByAppId(id, eId)
 	if teamEnvRbacObject == "" {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
+	//below methods are for getting old objects for old policies (admin, manager roles)
 	appRbacObject := impl.enforcerUtil.GetAppRBACNameByAppId(id)
 	if appRbacObject == "" {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -132,6 +134,8 @@ func (impl ArgoApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWri
 	}
 	request.EnvironmentId = eId
 	valid := false
+
+	//checking if the user has access of terminal with new trigger policy, if not then will check old rbac
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, teamEnvRbacObject); !ok {
 		appRbacOk := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, appRbacObject)
 		envRbacOk := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, envRbacObject)
@@ -141,6 +145,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWri
 	} else{
 		valid = true
 	}
+	//if both the new rbac(trigger access) and old rbac fails then user is forbidden to access terminal
 	if !valid {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return

@@ -934,7 +934,59 @@ func (impl UserAuthRepositoryImpl) SyncOrchestratorToCasbin(team string, entityN
 }
 
 func (impl UserAuthRepositoryImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
-	newTriggerPolicy := "{\n    \"data\": [\n        {\n            \"type\": \"p\",\n            \"sub\": \"role:trigger_{{.Team}}_{{.Env}}_{{.App}}\",\n            \"res\": \"applications\",\n            \"act\": \"get\",\n            \"obj\": \"{{.TeamObj}}/{{.AppObj}}\"\n        },\n        {\n            \"type\": \"p\",\n            \"sub\": \"role:trigger_{{.Team}}_{{.Env}}_{{.App}}\",\n            \"res\": \"applications\",\n            \"act\": \"trigger\",\n            \"obj\": \"{{.TeamObj}}/{{.AppObj}}\"\n        },\n        {\n            \"type\": \"p\",\n            \"sub\": \"role:trigger_{{.Team}}_{{.Env}}_{{.App}}\",\n            \"res\": \"environment\",\n            \"act\": \"trigger\",\n            \"obj\": \"{{.EnvObj}}/{{.AppObj}}\"\n        },\n        {\n            \"type\": \"p\",\n            \"sub\": \"role:trigger_{{.Team}}_{{.Env}}_{{.App}}\",\n            \"res\": \"environment\",\n            \"act\": \"get\",\n            \"obj\": \"{{.EnvObj}}/{{.AppObj}}\"\n        },\n        {\n            \"type\": \"p\",\n            \"sub\": \"role:trigger_{{.Team}}_{{.Env}}_{{.App}}\",\n            \"res\": \"global-environment\",\n            \"act\": \"get\",\n            \"obj\": \"{{.EnvObj}}\"\n        },\n        {\n            \"type\": \"p\",\n            \"sub\": \"role:trigger_{{.Team}}_{{.Env}}_{{.App}}\",\n            \"res\": \"team\",\n            \"act\": \"get\",\n            \"obj\": \"{{.TeamObj}}\"\n        },\n        {\n            \"type\": \"p\",\n            \"sub\": \"role:trigger_{{.Team}}_{{.Env}}_{{.App}}\",\n            \"res\": \"terminal\",\n            \"act\": \"exec\",\n            \"obj\": \"{{.TeamObj}}/{{.EnvObj}}/{{.AppObj}}\"\n        }\n    ]\n}"
+	newTriggerPolicy := `{
+    "data": [
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "applications",
+            "act": "get",
+            "obj": "{{.TeamObj}}/{{.AppObj}}"
+        },
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "applications",
+            "act": "trigger",
+            "obj": "{{.TeamObj}}/{{.AppObj}}"
+        },
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "environment",
+            "act": "trigger",
+            "obj": "{{.EnvObj}}/{{.AppObj}}"
+        },
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "environment",
+            "act": "get",
+            "obj": "{{.EnvObj}}/{{.AppObj}}"
+        },
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "global-environment",
+            "act": "get",
+            "obj": "{{.EnvObj}}"
+        },
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "team",
+            "act": "get",
+            "obj": "{{.TeamObj}}"
+        },
+        {
+            "type": "p",
+            "sub": "role:trigger_{{.Team}}_{{.Env}}_{{.App}}",
+            "res": "terminal",
+            "act": "exec",
+            "obj": "{{.TeamObj}}/{{.EnvObj}}/{{.AppObj}}"
+        }
+    ]
+}`
 	err = impl.UpdateDefaultPolicyByRoleType(newTriggerPolicy, TRIGGER_TYPE)
 	if err != nil {
 		impl.Logger.Errorw("error in updating default policy for trigger role", "err", err)

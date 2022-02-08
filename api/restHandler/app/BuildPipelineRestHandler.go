@@ -235,25 +235,18 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	pipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
 	if err!= nil{
 		handler.Logger.Errorw("error in finding ccd pipelines by ciPipelineId", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 	var authorizedPipelines []pipelineConfig.Pipeline
 	var unauthorizedPipelines []pipelineConfig.Pipeline
 	token := r.Header.Get("token")
 	for _, p := range pipelines {
-		pass := 0
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(p.AppId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-			handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		} else {
-			pass += 1
-		}
+		appRbacOk := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
 		object = handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(p.AppId, p.Id)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
-			handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		} else {
-			pass += 1
-		}
-		if pass == 2 {
+		envRbacOk := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object)
+		if appRbacOk && envRbacOk {
 			authorizedPipelines = append(authorizedPipelines, *p)
 		} else {
 			unauthorizedPipelines = append(unauthorizedPipelines, *p)
