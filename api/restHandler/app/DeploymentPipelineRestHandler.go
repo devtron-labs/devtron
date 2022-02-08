@@ -438,6 +438,15 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	schema, readme, err := handler.chartService.GetSchemaAndReadmeForDefaultTemplate(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	env.Schema = schema
+	env.Readme = string(readme)
 	common.WriteJsonResp(w, err, env, http.StatusOK)
 }
 
@@ -478,6 +487,13 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		return
 	}
 
+	schema, readme, err := handler.chartService.GetSchemaAndReadmeForDefaultTemplate(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	if pg.ErrNoRows == err {
 		appOverride, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
 		if err != nil {
@@ -485,6 +501,8 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
+		appOverride["schema"] = schema
+		appOverride["readme"] = readme
 		mapB, _ := json.Marshal(appOverride)
 		if err != nil {
 			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
@@ -513,7 +531,8 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 				template.Latest = templateRequested.Latest
 			}
 		}
-
+		template.Schema = schema
+		template.Readme = string(readme)
 		bytes, err := json.Marshal(template)
 		if err != nil {
 			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)

@@ -63,6 +63,8 @@ type TemplateRequest struct {
 	ChartRefId              int             `json:"chartRefId,omitempty"  validate:"number"`
 	Latest                  bool            `json:"latest"`
 	IsAppMetricsEnabled     bool            `json:"isAppMetricsEnabled"`
+	Schema                  json.RawMessage `json:"schema"`
+	Readme			  		string			`json:"readme"`
 	UserId                  int32           `json:"-"`
 }
 
@@ -122,6 +124,7 @@ type ChartService interface {
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
 	DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
+	GetSchemaAndReadmeForDefaultTemplate(chartRefId int) (schema []byte, readme []byte, err error)
 }
 type ChartServiceImpl struct {
 	chartRepository           chartConfig.ChartRepository
@@ -181,6 +184,26 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 		appLevelMetricsRepository: appLevelMetricsRepository,
 		client:                    client,
 	}
+}
+
+func (impl ChartServiceImpl) GetSchemaAndReadmeForDefaultTemplate(chartRefId int) ([]byte, []byte, error) {
+	refChart, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	if err != nil {
+		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+		return nil, nil,  err
+	}
+	schemaByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "schema.json")))
+	if err != nil {
+		impl.logger.Errorw("error in reading schema.json file for refChart", "err", err, "chartRefId", chartRefId)
+		return nil, nil,  err
+	}
+	readmeByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "README.md")))
+	if err != nil {
+		impl.logger.Errorw("error in reading readme file for refChart", "err", err, "chartRefId", chartRefId)
+		return nil, nil,  err
+	}
+
+	return schemaByte, readmeByte, nil
 }
 
 func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]json.RawMessage, error) {
