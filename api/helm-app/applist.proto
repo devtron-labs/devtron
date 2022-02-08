@@ -26,6 +26,7 @@ service ApplicationService {
   rpc GetDesiredManifest(ObjectRequest) returns (DesiredManifestResponse){}
   rpc UninstallRelease(ReleaseIdentifier) returns (UninstallReleaseResponse){}
   rpc UpgradeRelease(UpgradeReleaseRequest) returns (UpgradeReleaseResponse){}
+  rpc GetDeploymentDetail(DeploymentDetailRequest) returns (DeploymentDetailResponse){}
 }
 
 message DeployedAppList {
@@ -154,10 +155,9 @@ message HibernateResponse{
 
 message  HelmAppDeploymentDetail {
   ChartMetadata chartMetadata = 1;
-  string manifest = 2;
-  repeated string dockerImages = 3;
-  int32 version = 4;
-  google.protobuf.Timestamp deployedAt = 5;
+  repeated string dockerImages = 2;
+  int32 version = 3;
+  google.protobuf.Timestamp deployedAt = 4;
 }
 
 message HelmAppDeploymentHistory {
@@ -200,4 +200,14 @@ message UpgradeReleaseRequest {
 
 message UpgradeReleaseResponse {
   bool success = 1;
+}
+
+message DeploymentDetailRequest {
+  ReleaseIdentifier releaseIdentifier = 1;
+  int32 deploymentVersion = 2;
+}
+
+message DeploymentDetailResponse {
+  string manifest = 1;
+  string valuesYaml = 2;
 }
