@@ -68,5 +68,5 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 	userAuthRouter.Path("/sync/orchestratortocasbin").
 		HandlerFunc(router.userRestHandler.SyncOrchestratorToCasbin).Methods("GET")
 	userAuthRouter.Path("/update/trigger/terminal").
-		HandlerFunc(router.userRestHandler.UpdateTriggerPolicyForTerminalAccess).Methods("GET")
+		HandlerFunc(router.userRestHandler.UpdateTriggerPolicyForTerminalAccess).Methods("PUT")
 }
