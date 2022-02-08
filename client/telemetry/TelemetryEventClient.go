@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -41,6 +42,7 @@ type TelemetryEventClientImpl struct {
 
 type TelemetryEventClient interface {
 	GetTelemetryMetaInfo() (*TelemetryMetaInfo, error)
+	SendTelemtryInstallEventEA() (*TelemetryEventType, error)
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
@@ -90,16 +92,35 @@ type TelemetryEventDto struct {
 	DevtronVersion string             `json:"devtronVersion,omitempty"`
 }
 
+type TelemetryEventEA struct {
+	UCID           string             `json:"ucid"` //unique client id
+	Timestamp      time.Time          `json:"timestamp"`
+	EventMessage   string             `json:"eventMessage,omitempty"`
+	EventType      TelemetryEventType `json:"eventType"`
+	Summary        string             `json:"summary,omitempty"`
+	ServerVersion  string             `json:"serverVersion,omitempty"`
+	DevtronVersion string             `json:"devtronVersion,omitempty"`
+}
+
 type SummaryDto struct {
-	ProdAppCount            int `json:"prodAppCount,omitempty"`
-	NonProdAppCount         int `json:"nonProdAppCount,omitempty"`
-	UserCount               int `json:"userCount,omitempty"`
-	EnvironmentCount        int `json:"environmentCount,omitempty"`
-	ClusterCount            int `json:"clusterCount,omitempty"`
-	CiCountPerDay           int `json:"ciCountPerDay,omitempty"`
-	CdCountPerDay           int `json:"cdCountPerDay,omitempty"`
-	HelmChartCount          int `json:"helmChartCount,omitempty"`
-	SecurityScanCountPerDay int `json:"securityScanCountPerDay,omitempty"`
+	ProdAppCount            int    `json:"prodAppCount,omitempty"`
+	NonProdAppCount         int    `json:"nonProdAppCount,omitempty"`
+	UserCount               int    `json:"userCount,omitempty"`
+	EnvironmentCount        int    `json:"environmentCount,omitempty"`
+	ClusterCount            int    `json:"clusterCount,omitempty"`
+	CiCountPerDay           int    `json:"ciCountPerDay,omitempty"`
+	CdCountPerDay           int    `json:"cdCountPerDay,omitempty"`
+	HelmChartCount          int    `json:"helmChartCount,omitempty"`
+	SecurityScanCountPerDay int    `json:"securityScanCountPerDay,omitempty"`
+	DevtronVersion          string `json:"devtronVersion,omitempty"`
+	DevtronMode             string `json:"devtronMode,omitempty"`
+}
+
+type SummaryEA struct {
+	UserCount      int    `json:"userCount,omitempty"`
+	ClusterCount   int    `json:"clusterCount,omitempty"`
+	DevtronVersion string `json:"devtronVersion,omitempty"`
+	DevtronMode    string `json:"devtronMode,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -190,7 +211,30 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		return
 	}
 
-	summery := &SummaryDto{
+	devtronVersion := util.GetDevtronVersion()
+
+	//if devtronVersion.ServerMode == "FULL" {
+	//	summary := &SummaryDto{
+	//		ProdAppCount:     prodApps,
+	//		NonProdAppCount:  nonProdApps,
+	//		UserCount:        len(users),
+	//		EnvironmentCount: len(environments),
+	//		ClusterCount:     len(clusters),
+	//		CiCountPerDay:    len(ciPipeline),
+	//		CdCountPerDay:    len(cdPipeline),
+	//		DevtronVersion:   argo.GetVersion().Version,
+	//		DevtronMode:      devtronVersion.ServerMode,
+	//	}
+	//	payload.Summary = summary
+	//}else{
+	//	summary := &SummaryEA{
+	//		UserCount:      len(users),
+	//		ClusterCount:   len(clusters),
+	//		DevtronVersion: argo.GetVersion().Version,
+	//		DevtronMode:    devtronVersion.ServerMode,
+	//	}
+	//}
+	summary := &SummaryDto{
 		ProdAppCount:     prodApps,
 		NonProdAppCount:  nonProdApps,
 		UserCount:        len(users),
@@ -198,8 +242,11 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		ClusterCount:     len(clusters),
 		CiCountPerDay:    len(ciPipeline),
 		CdCountPerDay:    len(cdPipeline),
+		DevtronVersion:   argo.GetVersion().Version,
+		DevtronMode:      devtronVersion.ServerMode,
 	}
-	payload.Summary = summery
+	payload.Summary = summary
+
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)
@@ -297,6 +344,34 @@ func (impl *TelemetryEventClientImpl) GetTelemetryMetaInfo() (*TelemetryMetaInfo
 		ApiKey: PosthogEncodedApiKey,
 	}
 	return data, err
+}
+
+func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEventType, error) {
+	ucid, err := impl.getUCID()
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return nil, err
+	}
+
+	if impl.PosthogClient.Client == nil {
+		impl.logger.Warn("no posthog client found, creating new")
+		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
+		if err == nil {
+			impl.PosthogClient.Client = client
+		}
+	}
+	if impl.PosthogClient.Client != nil {
+		err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
+			DistinctId: ucid,
+			Event:      string(InstallationSuccess),
+		})
+		if err != nil {
+			impl.logger.Errorw("HeartbeatEventForTelemetry, failed to push event", "error", err)
+			return nil, err
+		}
+
+	}
+	return nil, nil
 }
 
 type TelemetryMetaInfo struct {

@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
@@ -49,6 +50,8 @@ type App struct {
 	// used for local dev only
 	serveTls        bool
 	sessionManager2 *authMiddleware.SessionManager
+	telemetry       telemetry.TelemetryEventClient
+	//configMap            restHandler.ConfigMapRestHandlerImpl
 }
 
 func NewApp(router *router.MuxRouter,
@@ -59,6 +62,7 @@ func NewApp(router *router.MuxRouter,
 	db *pg.DB,
 	pubsubClient *pubsub.PubSubClient,
 	sessionManager2 *authMiddleware.SessionManager,
+	telemetry telemetry.TelemetryEventClient,
 ) *App {
 	//check argo connection
 	err := versionService.CheckVersion()
@@ -74,6 +78,8 @@ func NewApp(router *router.MuxRouter,
 		pubsubClient:    pubsubClient,
 		serveTls:        false,
 		sessionManager2: sessionManager2,
+		telemetry:       telemetry,
+		//configMap:		 restHandler.ConfigMapRestHandlerImpl{},
 	}
 	return app
 }
@@ -100,6 +106,10 @@ func (app *App) Start() {
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.server = server
 	var err error
+	_, err = app.telemetry.SendTelemtryInstallEventEA()
+	if err != nil {
+		app.Logger.Infow("telemetry installation success event failed", "err", err)
+	}
 	if app.serveTls {
 		cert, err := tls.LoadX509KeyPair(
 			"localhost.crt",
