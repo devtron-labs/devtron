@@ -20,6 +20,8 @@ package util
 import (
 	"encoding/json"
 	error2 "errors"
+	"flag"
+	"github.com/devtron-labs/authenticator/client"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	batchV1 "k8s.io/api/batch/v1"
@@ -31,11 +33,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"os/user"
+	"path/filepath"
 	"time"
 )
 
 type K8sUtil struct {
-	logger *zap.SugaredLogger
+	logger        *zap.SugaredLogger
+	runTimeConfig *client.RuntimeConfig
 }
 
 type ClusterConfig struct {
@@ -43,8 +49,8 @@ type ClusterConfig struct {
 	BearerToken string
 }
 
-func NewK8sUtil(logger *zap.SugaredLogger) *K8sUtil {
-	return &K8sUtil{logger: logger}
+func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sUtil {
+	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig}
 }
 
 func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
@@ -65,13 +71,31 @@ func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clie
 	return client, err
 }
 
+func (impl K8sUtil) getKubeConfig(devMode client.LocalDevMode) (*rest.Config, error) {
+	if devMode {
+		usr, err := user.Current()
+		if err != nil {
+			return nil, err
+		}
+		kubeconfig := flag.String("kubeconfig-authenticator", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		flag.Parse()
+		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			return nil, err
+		}
+		return restConfig, nil
+	} else {
+		restConfig, err := rest.InClusterConfig()
+		if err != nil {
+			return nil, err
+		}
+		return restConfig, nil
+	}
+}
+
 func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 	// creates the in-cluster config
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error", "error", err)
-		return nil, err
-	}
+	config, err := impl.getKubeConfig(impl.runTimeConfig.LocalDevMode)
 	// creates the clientset
 	clientset, err := v12.NewForConfig(config)
 	if err != nil {

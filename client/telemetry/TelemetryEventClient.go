@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo"
-	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -39,7 +38,6 @@ type TelemetryEventClientImpl struct {
 	PosthogClient        *PosthogClient
 	ciPipelineRepository pipelineConfig.CiPipelineRepository
 	pipelineRepository   pipelineConfig.PipelineRepository
-	runTimeConfig        client.RuntimeConfig
 }
 
 type TelemetryEventClient interface {
@@ -51,7 +49,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	environmentService cluster.EnvironmentService, userService user.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository, runTimeConfig client.RuntimeConfig) (*TelemetryEventClientImpl, error) {
+	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -63,7 +61,6 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		environmentService: environmentService, userService: userService,
 		appListingRepository: appListingRepository, PosthogClient: PosthogClient,
 		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
-		runTimeConfig: runTimeConfig,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
