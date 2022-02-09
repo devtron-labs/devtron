@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo"
+	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -38,6 +39,7 @@ type TelemetryEventClientImpl struct {
 	PosthogClient        *PosthogClient
 	ciPipelineRepository pipelineConfig.CiPipelineRepository
 	pipelineRepository   pipelineConfig.PipelineRepository
+	runTimeConfig        client.RuntimeConfig
 }
 
 type TelemetryEventClient interface {
@@ -49,7 +51,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	environmentService cluster.EnvironmentService, userService user.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) (*TelemetryEventClientImpl, error) {
+	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository, runTimeConfig client.RuntimeConfig) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -61,6 +63,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		environmentService: environmentService, userService: userService,
 		appListingRepository: appListingRepository, PosthogClient: PosthogClient,
 		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
+		runTimeConfig: runTimeConfig,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -353,6 +356,15 @@ func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEv
 		return nil, err
 	}
 
+	client, err := impl.K8sUtil.GetClientForInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return nil, err
+	}
+
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	datamap := cm.Data
+
 	if impl.PosthogClient.Client == nil {
 		impl.logger.Warn("no posthog client found, creating new")
 		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
@@ -360,16 +372,27 @@ func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEv
 			impl.PosthogClient.Client = client
 		}
 	}
-	if impl.PosthogClient.Client != nil {
-		err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
-			DistinctId: ucid,
-			Event:      string(InstallationSuccess),
-		})
-		if err != nil {
-			impl.logger.Errorw("HeartbeatEventForTelemetry, failed to push event", "error", err)
-			return nil, err
-		}
 
+	if datamap[InstallEventKey] == "1" {
+		if impl.PosthogClient.Client != nil {
+			err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
+				DistinctId: ucid,
+				Event:      string(InstallationSuccess),
+			})
+			if err != nil {
+				impl.logger.Errorw("HeartbeatEventForTelemetry, failed to push event", "error", err)
+				return nil, err
+			}
+			datamap[InstallEventKey] = "2"
+			cm.Data = datamap
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				impl.logger.Warnw("config map update failed for install event", "err", err)
+			}
+			if err == nil {
+				impl.logger.Debugw("config map apply succeeded for install event")
+			}
+		}
 	}
 	return nil, nil
 }

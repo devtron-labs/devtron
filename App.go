@@ -106,9 +106,16 @@ func (app *App) Start() {
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.server = server
 	var err error
-	_, err = app.telemetry.SendTelemtryInstallEventEA()
-	if err != nil {
-		app.Logger.Infow("telemetry installation success event failed", "err", err)
+	val, isPresent := os.LookupEnv("Event")
+	println(val)
+	if !isPresent || val == "false" {
+
+		_, err = app.telemetry.SendTelemtryInstallEventEA()
+		println(os.Setenv("Event", "true"))
+		if err != nil {
+			app.Logger.Infow("telemetry installation success event failed", "err", err)
+			println(os.Setenv("Event", "false"))
+		}
 	}
 	if app.serveTls {
 		cert, err := tls.LoadX509KeyPair(
