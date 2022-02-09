@@ -63,6 +63,8 @@ func Create() *casbin.Enforcer {
 	if err != nil {
 		log.Fatal(err)
 	}
+	//adding our key matching func - MatchKeyFunc, to enforcer
+	e.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
 	return e
 }
 
