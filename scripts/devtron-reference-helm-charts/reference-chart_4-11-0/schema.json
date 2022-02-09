@@ -281,12 +281,7 @@
         "type": "object",
         "properties": {
           "annotations": {
-            "type": "object",
-            "patternproperties": {
-              "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/><,.": {
-                "type": "string"
-              }
-            }
+            "type": "object"
           },
           "className": {
             "type": "string"
@@ -350,12 +345,7 @@
         "type": "object",
         "properties": {
           "annotations": {
-            "type": "object",
-            "patternproperties": {
-              "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/><,.": {
-                "type": "string"
-              }
-            }
+            "type": "object"
           },
           "className": {
             "type": "string"
