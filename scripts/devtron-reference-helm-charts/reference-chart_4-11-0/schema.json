@@ -86,6 +86,12 @@
           }
         }
       },
+      "MaxSurge": {
+        "type": "integer"
+      },
+      "MaxUnavailable": {
+        "type": "integer"
+      },
       "MinReadySeconds": {
         "type": "integer"
       },
@@ -137,7 +143,23 @@
         }
       },
       "Spec": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "Affinity": {
+            "type": "object",
+            "properties": {
+              "Key": {
+                "type": "string"
+              },
+              "Values": {
+                "type": "string"
+              },
+              "key": {
+                "type": "string"
+              }
+            }
+          }
+        }
       },
       "args": {
         "type": "object",
@@ -176,6 +198,9 @@
           "TargetMemoryUtilizationPercentage": {
             "type": "integer"
           },
+          "behavior": {
+            "type": "object"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -196,6 +221,9 @@
             "items": {}
           }
         }
+      },
+      "containerSecurityContext": {
+        "type": "object"
       },
       "containers": {
         "type": "array",
@@ -274,6 +302,9 @@
               }
             }
           },
+          "className": {
+            "type": "string"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -284,6 +315,9 @@
                 "type": "object",
                 "properties": {
                   "host": {
+                    "type": "string"
+                  },
+                  "pathType": {
                     "type": "string"
                   },
                   "paths": {
@@ -300,6 +334,9 @@
                 "type": "object",
                 "properties": {
                   "host": {
+                    "type": "string"
+                  },
+                  "pathType": {
                     "type": "string"
                   },
                   "paths": {
@@ -334,14 +371,57 @@
               }
             }
           },
+          "className": {
+            "type": "string"
+          },
           "enabled": {
             "type": "boolean"
           },
-          "host": {
-            "type": "string"
-          },
-          "path": {
-            "type": "string"
+          "hosts": {
+            "type": "array",
+            "items": [
+              {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "type": "string"
+                  },
+                  "pathType": {
+                    "type": "string"
+                  },
+                  "paths": {
+                    "type": "array",
+                    "items": [
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "type": "string"
+                  },
+                  "pathType": {
+                    "type": "string"
+                  },
+                  "paths": {
+                    "type": "array",
+                    "items": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
           },
           "tls": {
             "type": "array",
@@ -353,6 +433,47 @@
         "type": "array",
         "items": {}
       },
+      "KedaAutoscaling": {
+        "type": "object",
+        "properties": {
+          "advanced": {
+            "type": "object"
+          },
+          "authenticationRef": {
+            "type": "object"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "envSourceContainerName": {
+            "type": "string"
+          },
+          "maxReplicaCount": {
+            "type": "integer"
+          },
+          "minReplicaCount": {
+            "type": "integer"
+          },
+          "triggerAuthentication": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              },
+              "spec": {
+                "type": "object"
+              }
+            }
+          },
+          "triggers": {
+            "type": "array",
+            "items": {}
+          }
+        }
+      },
       "pauseForSecondsBeforeSwitchActive": {
         "type": "integer"
       },
@@ -360,6 +481,9 @@
         "type":"object"
       },
       "podLabels": {
+        "type":"object"
+      },
+      "podSecurityContext": {
         "type":"object"
       },
       "prometheus": {
@@ -459,6 +583,10 @@
             "type": "object"
           }
         }
+      },
+      "topologySpreadConstraints": {
+        "type": "array",
+        "items": {}
       },
       "tolerations": {
         "type": "array",
