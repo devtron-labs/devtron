@@ -585,19 +585,31 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		impl.logger.Errorw("No matching entry found for delete.", "id", deleteReq.Id)
 		return err
 	}
+	dbConnection := impl.environmentRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing connection", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 	deleteRequest := existingEnv
 	deleteRequest.UpdatedOn = time.Now()
 	deleteRequest.UpdatedBy = userId
-	err = impl.environmentRepository.MarkEnvironmentDeleted(deleteRequest)
+	err = impl.environmentRepository.MarkEnvironmentDeleted(deleteRequest, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting environment", "envId", deleteReq.Id, "envName", deleteReq.Environment)
 		return err
 	}
 	//deleting auth roles entries for this environment
-	err = impl.userAuthService.DeleteRoles(repository2.ENV_TYPE, deleteRequest.Name)
+	err = impl.userAuthService.DeleteRoles(repository2.ENV_TYPE, deleteRequest.Name, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
-		//TODO : confirm if error is to returned or not
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
 	}
 	return nil
 }

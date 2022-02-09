@@ -1,4 +1,4 @@
-ALTER TABLE chart_group DROP COLUMN IF EXISTS active;
+ALTER TABLE chart_group DROP COLUMN IF EXISTS deleted;
 
 ALTER TABLE chart_repo DROP COLUMN IF EXISTS deleted;
 

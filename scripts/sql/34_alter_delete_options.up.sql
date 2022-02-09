@@ -1,4 +1,4 @@
-ALTER TABLE chart_group ADD COLUMN active bool NOT NULL DEFAULT TRUE;
+ALTER TABLE chart_group ADD COLUMN deleted bool NOT NULL DEFAULT TRUE;
 
 ALTER TABLE chart_repo ADD COLUMN deleted bool NOT NULL DEFAULT FALSE;
 

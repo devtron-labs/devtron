@@ -156,22 +156,34 @@ func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
 		impl.logger.Errorw("No matching entry found for delete.", "id", deleteRequest.Id)
 		return err
 	}
+	dbConnection := impl.teamRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing connection", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 	deleteReq := &Team{
 		Name:     deleteRequest.Name,
 		Id:       deleteRequest.Id,
 		Active:   deleteRequest.Active,
 		AuditLog: sql.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: deleteRequest.UserId},
 	}
-	err = impl.teamRepository.MarkTeamDeleted(deleteReq)
+	err = impl.teamRepository.MarkTeamDeleted(deleteReq, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting team", "teamId", deleteReq.Id, "teamName", deleteReq.Name)
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(repository.PROJECT_TYPE, deleteRequest.Name)
+	err = impl.userAuthService.DeleteRoles(repository.PROJECT_TYPE, deleteRequest.Name, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
-		//TODO : confirm if error is to returned or not
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
 	}
 	return nil
 }

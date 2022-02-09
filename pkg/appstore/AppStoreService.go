@@ -796,6 +796,7 @@ func (impl *AppStoreServiceImpl) DeleteChartRepo(request *ChartRepoDto) error {
 
 	chartRepo, err := impl.repoRepository.FindById(request.Id)
 	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in finding chart repo by id", "err", err, "id", request.Id)
 		return err
 	}
 

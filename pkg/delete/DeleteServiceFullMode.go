@@ -51,7 +51,7 @@ func (impl DeleteServiceFullModeImpl) DeleteGitProvider(deleteRequest *pipeline.
 		impl.logger.Errorw("err in deleting git provider", "gitProvider", deleteRequest.Name, "err", err)
 		return err
 	}
-	if materials != nil {
+	if len(materials) > 0 {
 		impl.logger.Errorw("err in deleting git provider, found git materials using provider", "gitProvider", deleteRequest.Name)
 		return fmt.Errorf(" Please delete all related git materials before deleting this git account")
 	}
@@ -70,7 +70,7 @@ func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *
 		impl.logger.Errorw("err in deleting docker registry", "dockerRegistry", deleteRequest.Id, "err", err)
 		return err
 	}
-	if ciTemplates != nil {
+	if len(ciTemplates) > 0 {
 		impl.logger.Errorw("err in deleting docker registry, found docker build config using registry", "dockerRegistry", deleteRequest.Id, "err", err)
 		return fmt.Errorf(" Please update all related docker config before deleting this registry")
 	}
@@ -89,7 +89,7 @@ func (impl DeleteServiceFullModeImpl) DeleteChartRepo(deleteRequest *appstore2.C
 		impl.logger.Errorw("err in deleting repo", "deleteRequest", deployedCharts)
 		return err
 	}
-	if deployedCharts != nil {
+	if len(deployedCharts) > 0 {
 		impl.logger.Errorw("err in deleting repo, found charts deployed using this repo", "deleteRequest", deployedCharts)
 		return fmt.Errorf("cannot delete repo, found charts deployed in this repo")
 	}

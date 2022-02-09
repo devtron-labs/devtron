@@ -27,9 +27,9 @@ import (
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
+	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"path"
 	"strconv"
 	"strings"
@@ -726,19 +726,31 @@ func (impl DbPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) error 
 		impl.logger.Errorw("err", err)
 		return err
 	}
+	dbConnection := impl.appRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing connection", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 	app.Active = false
 	app.UpdatedOn = time.Now()
 	app.UpdatedBy = userId
-	err = impl.appRepository.Update(app)
+	err = impl.appRepository.UpdateWithTxn(app, tx)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(repository3.PROJECT_TYPE, app.AppName)
+	err = impl.userAuthService.DeleteRoles(repository3.PROJECT_TYPE, app.AppName, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
-		//TODO : confirm if error is to returned or not
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
 	}
 	return nil
 }

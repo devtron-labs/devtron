@@ -46,7 +46,7 @@ func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *cluster.Clust
 		impl.logger.Errorw("err in deleting cluster", "clusterName", deleteRequest.ClusterName, "err", err)
 		return err
 	}
-	if env != nil {
+	if len(env) > 0 {
 		impl.logger.Errorw("err in deleting cluster, found env in this cluster", "clusterName", deleteRequest.ClusterName, "err", err)
 		return fmt.Errorf(" Please delete all related environments before deleting this cluster")
 	}
@@ -65,7 +65,7 @@ func (impl DeleteServiceExtendedImpl) DeleteEnvironment(deleteRequest *cluster.E
 		impl.logger.Errorw("err in deleting env", "envName", deleteRequest.Environment, "err", err)
 		return err
 	}
-	if pipelines != nil {
+	if len(pipelines) > 0 {
 		impl.logger.Errorw("err in deleting env, found pipelines in this env", "envName", deleteRequest.Environment, "err", err)
 		return fmt.Errorf(" Please delete all related pipelines before deleting this environment")
 	}
@@ -83,7 +83,7 @@ func (impl DeleteServiceExtendedImpl) DeleteTeam(deleteRequest *team.TeamRequest
 		impl.logger.Errorw("err in deleting team", "teamId", deleteRequest.Id, "err", err)
 		return err
 	}
-	if apps != nil {
+	if len(apps) > 0{
 		impl.logger.Errorw("err in deleting team, found apps in team", "teamName", deleteRequest.Name, "err", err)
 		return fmt.Errorf(" Please delete all apps in this project before deleting this project")
 	}

@@ -25,7 +25,9 @@ import (
 	"fmt"
 	"github.com/casbin/casbin"
 	"github.com/devtron-labs/authenticator/middleware"
+	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/go-pg/pg"
 	"log"
 	"math/rand"
 	"net/http"
@@ -40,7 +42,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth"
-	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
@@ -54,7 +55,7 @@ type UserAuthService interface {
 
 	CreateRole(roleData *bean.RoleData) (bool, error)
 	AuthVerification(r *http.Request) (bool, error)
-	DeleteRoles(entityType string, entityName string) error
+	DeleteRoles(entityType string, entityName string, tx *pg.Tx) error
 }
 
 type UserAuthServiceImpl struct {
@@ -525,15 +526,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 	//TODO - extends for other purpose
 	return true, nil
 }
-func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string) error {
-	dbConnection := impl.userRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		impl.logger.Errorw("error in establishing connection", "err", err)
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
+func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx) (err error) {
 	var roleModels []*repository2.RoleModel
 	switch entityType {
 	case repository2.PROJECT_TYPE:
@@ -550,19 +543,6 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 		return err
 	}
 
-	//deleting roles
-	if len(roleModels) > 0 {
-		err = impl.userAuthRepository.DeleteRoles(roleModels, tx)
-		if err != nil {
-			impl.logger.Errorw(fmt.Sprintf("error in deleting roles for %s:%s", entityType, entityName), "err", err, "name", entityName)
-			return err
-		}
-		err = tx.Commit()
-		if err != nil {
-			return err
-		}
-	}
-
 	// deleting policies in casbin for deleted roles
 	var casbinDeleteFailed []bool
 	for _, roleModel := range roleModels {
@@ -570,6 +550,14 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 		if !success {
 			impl.logger.Errorw("error in deleting casbin policy for role", "role", roleModel.Role)
 			casbinDeleteFailed = append(casbinDeleteFailed, success)
+		}
+	}
+	//deleting roles
+	if len(roleModels) > 0 {
+		err = impl.userAuthRepository.DeleteRoles(roleModels, tx)
+		if err != nil {
+			impl.logger.Errorw(fmt.Sprintf("error in deleting roles for %s:%s", entityType, entityName), "err", err, "name", entityName)
+			return err
 		}
 	}
 	return nil

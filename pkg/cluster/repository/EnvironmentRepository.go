@@ -42,7 +42,8 @@ type EnvironmentRepository interface {
 	Create(mappings *Environment) error
 	FindAll() ([]Environment, error)
 	FindAllActive() ([]Environment, error)
-	MarkEnvironmentDeleted(mappings *Environment) error
+	MarkEnvironmentDeleted(mappings *Environment, tx *pg.Tx) error
+	GetConnection() (dbConnection *pg.DB)
 
 	FindById(id int) (*Environment, error)
 	Update(mappings *Environment) error
@@ -219,7 +220,10 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Enviro
 	return apps, err
 }
 
-func (repo EnvironmentRepositoryImpl) MarkEnvironmentDeleted(deleteReq *Environment) error {
+func (repo EnvironmentRepositoryImpl) MarkEnvironmentDeleted(deleteReq *Environment, tx *pg.Tx) error {
 	deleteReq.Active = false
-	return repo.dbConnection.Update(deleteReq)
+	return tx.Update(deleteReq)
+}
+func (repo EnvironmentRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
+	return repo.dbConnection
 }

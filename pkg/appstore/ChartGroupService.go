@@ -410,25 +410,38 @@ func (impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error {
 	for _, chartGroupMapping := range chartGroupMappings {
 		chartGroupMappingIds = append(chartGroupMappingIds, chartGroupMapping.Id)
 	}
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.Logger.Errorw("error in establishing connection", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
 	//deleting chart mapping in group
 	if len(chartGroupMappingIds) > 0 {
-		_, err = impl.chartGroupEntriesRepository.MarkChartGroupEntriesDeleted(chartGroupMappingIds)
+		_, err = impl.chartGroupEntriesRepository.MarkChartGroupEntriesDeleted(chartGroupMappingIds, tx)
 		if err != nil {
 			impl.Logger.Errorw("error in deleting chart group mappings", "err", err)
 			return err
 		}
 	}
 	//deleting chart group
-	err = impl.chartGroupRepository.MarkChartGroupDeleted(existingChartGroup.Id)
+	err = impl.chartGroupRepository.MarkChartGroupDeleted(existingChartGroup.Id, tx)
 	if err != nil {
 		impl.Logger.Errorw("error in deleting chart group", "err", err, "chartGroupId", existingChartGroup.Id)
 		return err
 	}
 	//deleting auth roles entries for this chart group
-	err = impl.userAuthService.DeleteRoles(repository2.CHART_GROUP_TYPE, req.Name)
+	err = impl.userAuthService.DeleteRoles(repository2.CHART_GROUP_TYPE, req.Name, tx)
 	if err != nil {
 		impl.Logger.Errorw("error in deleting auth roles", "err", err)
-		//TODO : confirm if error is to returned or not
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
 	}
 	return nil
 }

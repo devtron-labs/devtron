@@ -232,7 +232,7 @@ func (impl PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO) 
 		impl.logger.Errorw("err in deleting git material", "gitMaterial", request.Material, "err", err)
 		return err
 	}
-	if pipelines != nil {
+	if len(pipelines) > 0 {
 		//pipelines are present, in this case we will check if this material is used in docker config
 		//if it is used, then we won't delete
 		ciTemplate, err := impl.ciTemplateRepository.FindByAppId(request.AppId)

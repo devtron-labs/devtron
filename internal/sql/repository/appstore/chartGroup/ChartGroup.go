@@ -29,7 +29,7 @@ type ChartGroup struct {
 	Id          int      `sql:"id,pk"`
 	Name        string   `sql:"name"`
 	Description string   `sql:"description,notnull"`
-	Active      bool	 `sql:"active"`
+	Deleted     bool     `sql:"deleted"`
 	sql.AuditLog
 	ChartGroupEntries []*ChartGroupEntry
 }
@@ -52,7 +52,7 @@ type ChartGroupReposotory interface {
 	FindByIdWithEntries(chertGroupId int) (*ChartGroup, error)
 	FindById(chartGroupId int) (*ChartGroup, error)
 	GetAll(max int) ([]*ChartGroup, error)
-	MarkChartGroupDeleted(chartGroupId int) error
+	MarkChartGroupDeleted(chartGroupId int, tx *pg.Tx) error
 }
 
 func (impl *ChartGroupReposotoryImpl) Save(model *ChartGroup) (*ChartGroup, error) {
@@ -75,7 +75,7 @@ func (impl *ChartGroupReposotoryImpl) FindByIdWithEntries(chertGroupId int) (*Ch
 			return q.Where("deleted IS false"), nil
 		}).
 		Where("id = ?", chertGroupId).
-		Where("active = ?", true).
+		Where("deleted = ?", false).
 		Select()
 	return &ChartGroup, err
 }
@@ -83,7 +83,7 @@ func (impl *ChartGroupReposotoryImpl) FindByIdWithEntries(chertGroupId int) (*Ch
 func (impl *ChartGroupReposotoryImpl) FindById(chartGroupId int) (*ChartGroup, error) {
 	var ChartGroup ChartGroup
 	err := impl.dbConnection.Model(&ChartGroup).Where("id = ?", chartGroupId).
-		Where("active = ?", true).Select()
+		Where("deleted = ?", false).Select()
 	return &ChartGroup, err
 }
 
@@ -93,15 +93,15 @@ func (impl *ChartGroupReposotoryImpl) GetAll(max int) ([]*ChartGroup, error) {
 	if max > 0 {
 		query = query.Limit(max)
 	}
-	err := query.Where("active = ?", true).Select()
+	err := query.Where("deleted = ?", false).Select()
 	return chartGroups, err
 }
 
-func (impl *ChartGroupReposotoryImpl) MarkChartGroupDeleted(chartGroupId int) error {
+func (impl *ChartGroupReposotoryImpl) MarkChartGroupDeleted(chartGroupId int, tx *pg.Tx) error {
 	var chartGroup ChartGroup
 	_, err := impl.dbConnection.Model(&chartGroup).
-		Where("id = ?",chartGroupId).
-		Set("active = ?",false).
+		Where("id = ?", chartGroupId).
+		Set("deleted = ?", true).
 		Update()
 	return err
 }

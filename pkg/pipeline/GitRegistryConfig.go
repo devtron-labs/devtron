@@ -279,6 +279,17 @@ func (impl GitRegistryConfigImpl) Delete(request *GitRegistry) error{
 		impl.logger.Errorw("err in deleting git account", "id", request.Id,"err",err)
 		return err
 	}
+	deleteReq.Active = false
+	err = impl.UpdateGitSensor(&deleteReq)
+	if err != nil {
+		impl.logger.Errorw("error in updating git repo config on sensor after deleting", "deleteReq", deleteReq, "err", err)
+		err = &util.ApiError{
+			Code:            constants.GitProviderUpdateFailedInSync,
+			InternalMessage: err.Error(),
+			UserMessage:     "git provider failed to update in sync",
+		}
+		return err
+	}
 	return nil
 }
 
