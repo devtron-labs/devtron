@@ -53,15 +53,8 @@
             "type": "integer"
           },
           "httpHeader": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            }
+            "type": "array",
+            "items": {}
           },
           "initialDelaySeconds": {
             "type": "integer"
@@ -109,15 +102,8 @@
             "type": "integer"
           },
           "httpHeader": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            }
+            "type": "array",
+            "items": {}
           },
           "initialDelaySeconds": {
             "type": "integer"
@@ -584,11 +570,11 @@
           }
         }
       },
-      "topologySpreadConstraints": {
+      "tolerations": {
         "type": "array",
         "items": {}
       },
-      "tolerations": {
+      "topologySpreadConstraints": {
         "type": "array",
         "items": {}
       },
