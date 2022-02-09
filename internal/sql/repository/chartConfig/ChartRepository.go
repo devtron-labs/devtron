@@ -64,6 +64,7 @@ type ChartRepository interface {
 	FindChartByAppIdAndRefId(appId int, chartRefId int) (chart *Chart, err error)
 	FindNoLatestChartForAppByAppId(appId int) ([]*Chart, error)
 	FindPreviousChartByAppId(appId int) (chart *Chart, err error)
+	FindByName(name string) (chart *Chart, err error)
 }
 
 func NewChartRepository(dbConnection *pg.DB) *ChartRepositoryImpl {
@@ -191,6 +192,13 @@ func (repositoryImpl ChartRepositoryImpl) FindById(id int) (chart *Chart, err er
 	chart = &Chart{}
 	err = repositoryImpl.dbConnection.Model(chart).
 		Where("id = ?", id).Select()
+	return chart, err
+}
+
+func (repositoryImpl ChartRepositoryImpl) FindByName(name string) (chart *Chart, err error) {
+	chart = &Chart{}
+	err = repositoryImpl.dbConnection.Model(chart).
+		Where("chart_name = ?", name).Where("active=true").Where("latest=true").Select()
 	return chart, err
 }
 

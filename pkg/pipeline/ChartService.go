@@ -517,7 +517,7 @@ func (impl ChartServiceImpl) getChartMetaData(templateRequest TemplateRequest) (
 		impl.logger.Errorw("error in fetching pg", "id", templateRequest.AppId, "err", err)
 	}
 	metadata := &chart.Metadata{
-		Name: pg.AppName,
+		Name: fmt.Sprintf("devtron-%d-%s", pg.Id, pg.AppName),
 	}
 	return metadata, err
 }
