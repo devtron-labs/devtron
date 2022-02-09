@@ -480,16 +480,16 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 	appConfigResponse := map[string]json.RawMessage{}
 	appConfigResponse["globalConfig"] = nil
 
-	template, err := handler.chartService.FindLatestChartForAppByAppId(appId)
-	if err != nil && pg.ErrNoRows != err {
-		handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+	schema, readme, err := handler.chartService.GetSchemaAndReadmeForDefaultTemplate(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	schema, readme, err := handler.chartService.GetSchemaAndReadmeForDefaultTemplate(chartRefId)
-	if err != nil {
-		handler.Logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+	template, err := handler.chartService.FindLatestChartForAppByAppId(appId)
+	if err != nil && pg.ErrNoRows != err {
+		handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
