@@ -100,8 +100,6 @@ func (e *EnforcerImpl) enforce(enf *casbin.Enforcer, rvals ...interface{}) bool 
 		email = sub
 	}
 	rvals[0] = strings.ToLower(email)
-	//adding our key matching func - MatchKeyFunc, to enforcer
-	enf.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
 	return enf.Enforce(rvals...)
 }
 
@@ -111,8 +109,6 @@ func (e *EnforcerImpl) enforceByEmail(enf *casbin.Enforcer, rvals ...interface{}
 	if len(rvals) == 0 {
 		return false
 	}
-	//adding our key matching func - MatchKeyFunc, to enforcer
-	enf.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
 	return enf.Enforce(rvals...)
 }
 
