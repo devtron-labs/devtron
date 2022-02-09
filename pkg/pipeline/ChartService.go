@@ -192,13 +192,15 @@ func (impl ChartServiceImpl) GetSchemaAndReadmeForDefaultTemplate(chartRefId int
 		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, nil,  err
 	}
-	schemaByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "schema.json")))
-	if err != nil {
+	var schemaByte []byte
+	var readmeByte []byte
+	schemaByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "schema.json")))
+	if err != nil && !os.IsNotExist(err) {
 		impl.logger.Errorw("error in reading schema.json file for refChart", "err", err, "chartRefId", chartRefId)
 		return nil, nil,  err
 	}
-	readmeByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "README.md")))
-	if err != nil {
+	readmeByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "README.md")))
+	if err != nil && !os.IsNotExist(err) {
 		impl.logger.Errorw("error in reading readme file for refChart", "err", err, "chartRefId", chartRefId)
 		return nil, nil,  err
 	}
