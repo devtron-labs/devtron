@@ -94,6 +94,7 @@ type WorkflowRequest struct {
 	AzureBlobConfig            *AzureBlobConfig   `json:"azureBlobConfig"`
 	MinioEndpoint              string             `json:"minioEndpoint"`
 	DefaultAddressPoolBaseCidr string             `json:"defaultAddressPoolBaseCidr"`
+	DefaultAddressPoolSize     int                `json:"defaultAddressPoolSize"`
 }
 
 const BLOB_STORAGE_AZURE = "AZURE"

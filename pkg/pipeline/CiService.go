@@ -369,6 +369,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ScanEnabled:                pipeline.ScanEnabled,
 		CloudProvider:              impl.ciConfig.CloudProvider,
 		DefaultAddressPoolBaseCidr: impl.ciConfig.DefaultAddressPoolBaseCidr,
+		DefaultAddressPoolSize:     impl.ciConfig.DefaultAddressPoolSize,
 	}
 
 	switch workflowRequest.CloudProvider {

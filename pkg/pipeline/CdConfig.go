@@ -61,6 +61,7 @@ type CdConfig struct {
 	MinioSecretKey             string `env:"MINIO_SECRET_KEY"`
 	AzureAccountKey            string `env:"AZURE_ACCOUNT_KEY"`
 	DefaultAddressPoolBaseCidr string `env:"CD_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
+	DefaultAddressPoolSize     int    `env:"DEFAULT_ADDRESS_POOL_SIZE"`
 }
 
 func GetCdConfig() (*CdConfig, error) {

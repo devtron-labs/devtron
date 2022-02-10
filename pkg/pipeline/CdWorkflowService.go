@@ -91,6 +91,7 @@ type CdWorkflowRequest struct {
 	AzureBlobConfig            *AzureBlobConfig   `json:"azureBlobConfig"`
 	MinioEndpoint              string             `json:"minioEndpoint"`
 	DefaultAddressPoolBaseCidr string             `json:"defaultAddressPoolBaseCidr"`
+	DefaultAddressPoolSize     int                `json:"defaultAddressPoolSize"`
 }
 
 const PRE = "PRE"
