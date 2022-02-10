@@ -1,31 +1,7 @@
 
-# Rollout Deployment
+# Rollout Deployment Chart - v4.11
 
-Deployment configuration is the Manifest for the application, it defines the runtime behavior of the application. You can define application behavior by providing information in three sections:
-
-1. Chart Version
-2. Yaml file
-3. Show application metrics
-
-![](../../../.gitbook/assets/deployment-template%20%282%29.gif)
-
-## 1. Chart version
-
-| Key | Descriptions |
-| :--- | :--- |
-| `Chart Version` | Select the Chart Version using which you want to deploy the application. |
-
-Devtron uses helm charts for the deployments. And we are having multiple chart versions based on features it is supporting with every chart version.
-
-One can see multiple chart version options available in the drop-down. you can select any chart version as per your requirements. By default, the latest version of the helm chart is selected in the chart version option.
-
-Every chart version has its own YAML file. Helm charts are used to provide specifications for your application. To make it easy to use, we have created templates for the YAML file and have added some variables inside the YAML. You can provide or change the values of these variables as per your requirement.
-
-If you want to see [Application Metrics](deployment-template.md#3.-Show-application-metrics) \(For example Status codes 2xx, 3xx, 5xx; throughput, and latency\) for your application, then you need to select the latest chart version.
-
-Application Metrics is not supported for Chart version older than 3.7 version.
-
-## 2. Yaml file
+## 1. Yaml File -
 
 ### Container Ports
 
@@ -516,173 +492,6 @@ dbMigrationConfig:
 
 It is used to configure database migration.
 
-### Application Metrics
-
-Application metrics can be enabled to see your application's metrics-CPUService Monito usage,Memory Usage,Status,Throughput and Latency.
-
-### Deployment Metrics
-
-It gives the realtime metrics of the deployed applications
-
-| Key | Description |
-| :--- | :--- |
-| `Deployment Frequency` | It shows how often this app is deployed to production |
-| `Change Failure Rate` | It shows how often the respective pipeline fails. |
-| `Mean Lead Time` | It shows the average time taken to deliver a change to production. |
-| `Mean Time to Recovery` | It shows the average time taken to fix a failed pipeline. |
-
-
-## Addon features in Deployment Template Chart version 3.9.0
-
-### Service Account
-
-```yaml
-serviceAccountName: orchestrator
-```
-
-A service account provides an identity for the processes that run in a Pod.
-
-When you access the cluster, you are authenticated by the API server as a particular User Account. Processes in containers inside pod can also contact the API server. When you are authenticated as a particular Service Account.
-
-When you create a pod, if you do not create a service account, it is automatically assigned the default service account in the namespace.
-
-### Pod Disruption Budget
-
-```yaml
-podDisruptionBudget: {}
-     minAvailable: 1
-     maxUnavailable: 1
-```
-
-You can create `PodDisruptionBudget` for each application. A PDB limits the number of pods of a replicated application that are down simultaneously from voluntary disruptions. For example, an application would like to ensure the number of replicas running is never brought below the certain number.
-
-You can specify `maxUnavailable` and `minAvailable` in a `PodDisruptionBudget`.
-
-With `minAvailable` of 1, evictions are allowed as long as they leave behind 1 or more healthy pods of the total number of desired replicas.
-
-With `maxAvailable` of 1, evictions are allowed as long as at most 1 unhealthy replica among the total number of desired replicas.
-
-### Application metrics Envoy Configurations
-
-```yaml
-envoyproxy:
-  image: envoyproxy/envoy:v1.14.1
-  configMapName: ""
-  resources:
-    limits:
-      cpu: "50m"
-      memory: "50Mi"
-    requests:
-      cpu: "50m"
-      memory: "50Mi"
-```
-
-Envoy is attached as a sidecar to the application container to collect metrics like 4XX, 5XX, Throughput and latency. You can now configure the envoy settings such as idleTimeout, resources etc.
-
-### Prometheus Rule
-
-```yaml
-prometheusRule:
-  enabled: true
-  additionalLabels: {}
-  namespace: ""
-  rules:
-    - alert: TooMany500s
-      expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"5.+"} ) / sum(nginx_ingress_controller_requests) ) > 5
-      for: 1m
-      labels:
-        severity: critical
-      annotations:
-        description: Too many 5XXs
-        summary: More than 5% of the all requests did return 5XX, this require your attention
-```
-
-Alerting rules allow you to define alert conditions based on Prometheus expressions and to send notifications about firing alerts to an external service.
-
-In this case, Prometheus will check that the alert continues to be active during each evaluation for 1 minute before firing the alert. Elements that are active, but not firing yet, are in the pending state.
-
-### Pod Labels
-Labels are key/value pairs that are attached to pods. Labels are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system. Labels can be used to organize and to select subsets of objects.
-```yaml
-podLabels:
-  severity: critical
-```
-
-### Pod Annotations
-Pod Annotations are widely used to attach metadata and configs in Kubernetes.
-
-```yaml
-podAnnotations:
-  fluentbit.io/exclude: "true"
-```
-
-### Custom Metrics in HPA
-
-```yaml
-autoscaling:
-  enabled: true
-  MinReplicas: 1
-  MaxReplicas: 2
-  TargetCPUUtilizationPercentage: 90
-  TargetMemoryUtilizationPercentage: 80
-  behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 300
-      policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 15
-    scaleUp:
-      stabilizationWindowSeconds: 0
-      policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 15
-      - type: Pods
-        value: 4
-        periodSeconds: 15
-      selectPolicy: Max
-```
-
-HPA, by default is configured to work with CPU and Memory metrics. These metrics are useful for internal cluster sizing, but you might want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.
-
-### Wait For Seconds Before Scaling Down
-```yaml
-waitForSecondsBeforeScalingDown: 30
-```
-Wait for given period of time before scaling down the container.
-
-## 3. Show application metrics
-
-If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
-
-![](../../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
-
-Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
-
-### Helm Chart Json Schema Table
-
-Helm Chart json schema is used to validate the deployment template values.
-
-| Chart Version | Link |
-| :--- | :--- |
-| `reference-chart_3-12-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-12-0/schema.json) |
-| `reference-chart_3-11-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-11-0/schema.json) |
-| `reference-chart_3-10-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-10-0/schema.json) |
-| `reference-chart_3-9-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-9-0/schema.json) |
-
-
-### Other Validations in Json Schema
-
-The values of CPU and Memory in limits must be greater than or equal to in requests respectively. Similarly, In case of envoyproxy, the values of limits are greater than or equal to requests as mentioned below.
-```
-resources.limits.cpu >= resources.requests.cpu
-resources.limits.memory >= resources.requests.memory
-envoyproxy.resources.limits.cpu >= envoyproxy.resources.requests.cpu
-envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
-```
-
-## Addon features in Deployment Template Chart version 4.11.0
 
 ### KEDA Autoscaling
 [KEDA](https://keda.sh) is a Kubernetes-based Event Driven Autoscaler. With KEDA, you can drive the scaling of any container in Kubernetes based on the number of events needing to be processed. KEDA can be installed into any Kubernetes cluster and can work alongside standard Kubernetes components like the Horizontal Pod Autoscaler(HPA).
@@ -777,4 +586,36 @@ topologySpreadConstraints:
     whenUnsatisfiable: DoNotSchedule
     autoLabelSelector: true
     customLabelSelector: {}
+```
+
+### Deployment Metrics
+
+It gives the realtime metrics of the deployed applications
+
+| Key | Description |
+| :--- | :--- |
+| `Deployment Frequency` | It shows how often this app is deployed to production |
+| `Change Failure Rate` | It shows how often the respective pipeline fails. |
+| `Mean Lead Time` | It shows the average time taken to deliver a change to production. |
+| `Mean Time to Recovery` | It shows the average time taken to fix a failed pipeline. |
+
+## 2. Show application metrics
+
+If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
+![](../../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
+
+Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
+
+### Helm Chart Json Schema 
+
+Helm Chart [json schema](../../../scripts/devtron-reference-helm-charts/reference-chart_4-11-0/schema.json) is used to validate the deployment template values.
+
+### Other Validations in Json Schema
+
+The values of CPU and Memory in limits must be greater than or equal to in requests respectively. Similarly, In case of envoyproxy, the values of limits are greater than or equal to requests as mentioned below.
+```
+resources.limits.cpu >= resources.requests.cpu
+resources.limits.memory >= resources.requests.memory
+envoyproxy.resources.limits.cpu >= envoyproxy.resources.requests.cpu
+envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
 ```

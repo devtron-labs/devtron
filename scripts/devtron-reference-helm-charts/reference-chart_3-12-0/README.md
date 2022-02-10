@@ -1,31 +1,7 @@
 
-# Rollout Deployment
+# Rollout Deployment Chart - v3.12
 
-Deployment configuration is the Manifest for the application, it defines the runtime behavior of the application. You can define application behavior by providing information in three sections:
-
-1. Chart Version
-2. Yaml file
-3. Show application metrics
-
-![](../../../.gitbook/assets/deployment-template%20%282%29.gif)
-
-## 1. Chart version
-
-| Key | Descriptions |
-| :--- | :--- |
-| `Chart Version` | Select the Chart Version using which you want to deploy the application. |
-
-Devtron uses helm charts for the deployments. And we are having multiple chart versions based on features it is supporting with every chart version.
-
-One can see multiple chart version options available in the drop-down. you can select any chart version as per your requirements. By default, the latest version of the helm chart is selected in the chart version option.
-
-Every chart version has its own YAML file. Helm charts are used to provide specifications for your application. To make it easy to use, we have created templates for the YAML file and have added some variables inside the YAML. You can provide or change the values of these variables as per your requirement.
-
-If you want to see [Application Metrics](deployment-template.md#3.-Show-application-metrics) \(For example Status codes 2xx, 3xx, 5xx; throughput, and latency\) for your application, then you need to select the latest chart version.
-
-Application Metrics is not supported for Chart version older than 3.7 version.
-
-## 2. Yaml file
+## 1. Yaml File -
 
 ### Container Ports
 
@@ -516,10 +492,6 @@ dbMigrationConfig:
 
 It is used to configure database migration.
 
-### Application Metrics
-
-Application metrics can be enabled to see your application's metrics-CPUService Monito usage,Memory Usage,Status,Throughput and Latency.
-
 ### Deployment Metrics
 
 It gives the realtime metrics of the deployed applications
@@ -532,127 +504,7 @@ It gives the realtime metrics of the deployed applications
 | `Mean Time to Recovery` | It shows the average time taken to fix a failed pipeline. |
 
 
-## Addon features in Deployment Template Chart version 3.9.0
-
-### Service Account
-
-```yaml
-serviceAccountName: orchestrator
-```
-
-A service account provides an identity for the processes that run in a Pod.
-
-When you access the cluster, you are authenticated by the API server as a particular User Account. Processes in containers inside pod can also contact the API server. When you are authenticated as a particular Service Account.
-
-When you create a pod, if you do not create a service account, it is automatically assigned the default service account in the namespace.
-
-### Pod Disruption Budget
-
-```yaml
-podDisruptionBudget: {}
-     minAvailable: 1
-     maxUnavailable: 1
-```
-
-You can create `PodDisruptionBudget` for each application. A PDB limits the number of pods of a replicated application that are down simultaneously from voluntary disruptions. For example, an application would like to ensure the number of replicas running is never brought below the certain number.
-
-You can specify `maxUnavailable` and `minAvailable` in a `PodDisruptionBudget`.
-
-With `minAvailable` of 1, evictions are allowed as long as they leave behind 1 or more healthy pods of the total number of desired replicas.
-
-With `maxAvailable` of 1, evictions are allowed as long as at most 1 unhealthy replica among the total number of desired replicas.
-
-### Application metrics Envoy Configurations
-
-```yaml
-envoyproxy:
-  image: envoyproxy/envoy:v1.14.1
-  configMapName: ""
-  resources:
-    limits:
-      cpu: "50m"
-      memory: "50Mi"
-    requests:
-      cpu: "50m"
-      memory: "50Mi"
-```
-
-Envoy is attached as a sidecar to the application container to collect metrics like 4XX, 5XX, Throughput and latency. You can now configure the envoy settings such as idleTimeout, resources etc.
-
-### Prometheus Rule
-
-```yaml
-prometheusRule:
-  enabled: true
-  additionalLabels: {}
-  namespace: ""
-  rules:
-    - alert: TooMany500s
-      expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"5.+"} ) / sum(nginx_ingress_controller_requests) ) > 5
-      for: 1m
-      labels:
-        severity: critical
-      annotations:
-        description: Too many 5XXs
-        summary: More than 5% of the all requests did return 5XX, this require your attention
-```
-
-Alerting rules allow you to define alert conditions based on Prometheus expressions and to send notifications about firing alerts to an external service.
-
-In this case, Prometheus will check that the alert continues to be active during each evaluation for 1 minute before firing the alert. Elements that are active, but not firing yet, are in the pending state.
-
-### Pod Labels
-Labels are key/value pairs that are attached to pods. Labels are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system. Labels can be used to organize and to select subsets of objects.
-```yaml
-podLabels:
-  severity: critical
-```
-
-### Pod Annotations
-Pod Annotations are widely used to attach metadata and configs in Kubernetes.
-
-```yaml
-podAnnotations:
-  fluentbit.io/exclude: "true"
-```
-
-### Custom Metrics in HPA
-
-```yaml
-autoscaling:
-  enabled: true
-  MinReplicas: 1
-  MaxReplicas: 2
-  TargetCPUUtilizationPercentage: 90
-  TargetMemoryUtilizationPercentage: 80
-  behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 300
-      policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 15
-    scaleUp:
-      stabilizationWindowSeconds: 0
-      policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 15
-      - type: Pods
-        value: 4
-        periodSeconds: 15
-      selectPolicy: Max
-```
-
-HPA, by default is configured to work with CPU and Memory metrics. These metrics are useful for internal cluster sizing, but you might want to configure wider set of metrics like service latency, I/O load etc. The custom metrics in HPA can help you to achieve this.
-
-### Wait For Seconds Before Scaling Down
-```yaml
-waitForSecondsBeforeScalingDown: 30
-```
-Wait for given period of time before scaling down the container.
-
-## 3. Show application metrics
+## 2. Show application metrics
 
 If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
 
@@ -660,16 +512,9 @@ If you want to see application metrics like different HTTP status codes metrics,
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
 
-### Helm Chart Json Schema Table
+### Helm Chart Json Schema 
 
-Helm Chart json schema is used to validate the deployment template values.
-
-| Chart Version | Link |
-| :--- | :--- |
-| `reference-chart_3-12-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-12-0/schema.json) |
-| `reference-chart_3-11-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-11-0/schema.json) |
-| `reference-chart_3-10-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-10-0/schema.json) |
-| `reference-chart_3-9-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-9-0/schema.json) |
+Helm Chart [json schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-12-0/schema.json) is used to validate the deployment template values.
 
 
 ### Other Validations in Json Schema
@@ -680,101 +525,4 @@ resources.limits.cpu >= resources.requests.cpu
 resources.limits.memory >= resources.requests.memory
 envoyproxy.resources.limits.cpu >= envoyproxy.resources.requests.cpu
 envoyproxy.resources.limits.memory >= envoyproxy.resources.requests.memory
-```
-
-## Addon features in Deployment Template Chart version 4.11.0
-
-### KEDA Autoscaling
-[KEDA](https://keda.sh) is a Kubernetes-based Event Driven Autoscaler. With KEDA, you can drive the scaling of any container in Kubernetes based on the number of events needing to be processed. KEDA can be installed into any Kubernetes cluster and can work alongside standard Kubernetes components like the Horizontal Pod Autoscaler(HPA).
-
-Example for autosccaling with KEDA using Prometheus metrics is given below:
-```yaml
-kedaAutoscaling:
-  enabled: true
-  minReplicaCount: 1
-  maxReplicaCount: 2
-  idleReplicaCount: 0
-  pollingInterval: 30
-  advanced:
-    restoreToOriginalReplicaCount: true
-    horizontalPodAutoscalerConfig:
-      behavior:
-        scaleDown:
-          stabilizationWindowSeconds: 300
-          policies:
-          - type: Percent
-            value: 100
-            periodSeconds: 15
-  triggers: 
-    - type: prometheus
-      metadata:
-        serverAddress:  http://<prometheus-host>:9090
-        metricName: http_request_total
-        query: envoy_cluster_upstream_rq{appId="300", cluster_name="300-0", container="envoy",}
-        threshold: "50"
-  triggerAuthentication:
-    enabled: false
-    name:
-    spec: {}
-  authenticationRef: {}
-```
-Example for autosccaling with KEDA based on kafka is given below :
-```yaml
-kedaAutoscaling:
-  enabled: true
-  minReplicaCount: 1
-  maxReplicaCount: 2
-  idleReplicaCount: 0
-  pollingInterval: 30
-  advanced: {}
-  triggers: 
-    - type: kafka
-      metadata:
-        bootstrapServers: b-2.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092,b-3.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092,b-1.kafka-msk-dev.example.c2.kafka.ap-southeast-1.amazonaws.com:9092
-        topic: Orders-Service-ESP.info
-        lagThreshold: "100"
-        consumerGroup: oders-remove-delivered-packages
-        allowIdleConsumers: "true"
-  triggerAuthentication:
-    enabled: true
-    name: keda-trigger-auth-kafka-credential
-    spec:
-      secretTargetRef:
-        - parameter: sasl
-          name: keda-kafka-secrets
-          key: sasl
-        - parameter: username
-          name: keda-kafka-secrets
-          key: username
-  authenticationRef: 
-    name: keda-trigger-auth-kafka-credential
-```
-
-### Security Context
-A security context defines privilege and access control settings for a Pod or Container.
-
-To add a security context for main container:
-```yaml
-containerSecurityContext:
-  allowPrivilegeEscalation: false
-```
-
-To add a security context on pod level:
-```yaml
-podSecurityContext:
-  runAsUser: 1000
-  runAsGroup: 3000
-  fsGroup: 2000
-```
-
-### Topology Spread Constraints
-You can use topology spread constraints to control how Pods are spread across your cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains. This can help to achieve high availability as well as efficient resource utilization.
-
-```yaml
-topologySpreadConstraints:
-  - maxSkew: 1
-    topologyKey: zone
-    whenUnsatisfiable: DoNotSchedule
-    autoLabelSelector: true
-    customLabelSelector: {}
 ```

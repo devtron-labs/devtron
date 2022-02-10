@@ -5,6 +5,8 @@
     "properties": {
       "ContainerPort": {
         "type": "array",
+        "description": "",
+        "title": "",
         "items": {
           "type": "object",
           "properties": {
