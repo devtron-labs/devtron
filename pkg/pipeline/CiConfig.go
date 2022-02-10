@@ -65,7 +65,7 @@ type CiConfig struct {
 	MinioAccessKey             string   `env:"MINIO_ACCESS_KEY"`
 	MinioSecretKey             string   `env:"MINIO_SECRET_KEY"`
 	DefaultAddressPoolBaseCidr string   `env:"CI_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
-	DefaultAddressPoolSize     int      `env:"DEFAULT_ADDRESS_POOL_SIZE"`
+	DefaultAddressPoolSize     int      `env:"CI_DEFAULT_ADDRESS_POOL_SIZE"`
 
 	AzureAccountKey string `env:"AZURE_ACCOUNT_KEY"`
 	ClusterConfig   *rest.Config
