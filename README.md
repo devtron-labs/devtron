@@ -137,7 +137,7 @@ In addition to the features, we love supporting platforms that devs find easy to
 
 ## :globe_with_meridians: Architecture:
 <br>
-<p align="center"><img width="80%" height="80%" src="./assets/Architecture.jpg"></p>
+<p align="center"><img src="./assets/Architecture.jpg"></p>
 
 
 
