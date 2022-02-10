@@ -132,12 +132,13 @@ Devtron provides a full feldged web based CI/CD platform including features like
 ### :blue_heart: We Support:
 In addition to the features, we love supporting platforms that devs find easy to work with.
 <br>
-<p align="center"><img src="./assets/we-support.jpg"></p>
+<p align="center"><img width="70%" height="70%" src="./assets/we-support.jpg"></p>
 
 
 ## :globe_with_meridians: Architecture:
 <br>
-<img src="./assets/Architecture.jpg">
+<p align="center"><img width="80%" height="80%" src="./assets/Architecture.jpg"></p>
+
 
 
 ## :rocket: Getting Started
