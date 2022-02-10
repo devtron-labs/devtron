@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
+	"time"
 )
 
 //extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
@@ -329,6 +330,39 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	}
 	//on successful creation of new cluster, update informer cache for namespace group by cluster
 	impl.SyncNsInformer(bean)
-	
+
 	return clusterBean, nil
+}
+
+func (impl ClusterServiceImplExtended) DeleteFromDb(ctx context.Context, bean *ClusterBean, userId int32) error {
+	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
+		return err
+	}
+	deleteReq := existingCluster
+	deleteReq.UpdatedOn = time.Now()
+	deleteReq.UpdatedBy = userId
+	err = impl.clusterRepository.MarkClusterDeleted(deleteReq)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
+		return err
+	}
+
+	//deleting cluster from argoCd when server mode is FULL
+	_, err = impl.clusterServiceCD.Delete(ctx, &cluster3.ClusterQuery{Server: bean.ServerUrl})
+	if err != nil {
+		impl.logger.Errorw("service err, Update", "error", err, "serverUrl", bean.ServerUrl)
+		userMsg := "failed to update on cluster via ACD"
+		if strings.Contains(err.Error(), "https://kubernetes.default.svc") {
+			userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
+		}
+		err = &util.ApiError{
+			Code:            constants.ClusterUpdateACDFailed,
+			InternalMessage: err.Error(),
+			UserMessage:     userMsg,
+		}
+		return err
+	}
+	return nil
 }

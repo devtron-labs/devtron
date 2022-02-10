@@ -322,7 +322,18 @@ func (impl ClusterRestHandlerImpl) DeleteCluster(w http.ResponseWriter, r *http.
 		return
 	}
 	//RBAC enforcer Ends
-	err = impl.deleteService.DeleteCluster(&bean, userId)
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	ctx = context.WithValue(r.Context(), "token", token)
+	err = impl.deleteService.DeleteCluster(ctx, &bean, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster", "err", err, "id", bean.Id, "name", bean.ClusterName)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

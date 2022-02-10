@@ -1,13 +1,14 @@
 package delete
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"go.uber.org/zap"
 )
 
 type DeleteService interface {
-	DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error
+	DeleteCluster(ctx context.Context, deleteRequest *cluster.ClusterBean, userId int32) error
 	DeleteEnvironment(deleteRequest *cluster.EnvironmentBean, userId int32) error
 	DeleteTeam(deleteRequest *team.TeamRequest) error
 }
@@ -32,8 +33,8 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error {
-	err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
+func (impl DeleteServiceImpl) DeleteCluster(ctx context.Context, deleteRequest *cluster.ClusterBean, userId int32) error {
+	err := impl.clusterService.DeleteFromDb(ctx, deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
 		return err

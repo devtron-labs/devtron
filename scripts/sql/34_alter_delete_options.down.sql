@@ -6,6 +6,8 @@ ALTER TABLE slack_config DROP COLUMN IF EXISTS deleted;
 
 ALTER TABLE ses_config DROP COLUMN IF EXISTS deleted;
 
+ALTER TABLE git_provider DROP COLUMN IF EXISTS deleted;
+
 ALTER TABLE team ADD CONSTRAINT team_name_key UNIQUE (name);
 
 ALTER TABLE git_provider ADD CONSTRAINT git_provider_name_key UNIQUE (name);
