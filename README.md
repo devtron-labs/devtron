@@ -209,7 +209,7 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 <details><summary> <b>  Manage and observe Multiple Clusters </b></summary>
 <br>
  
-- Manage access of all the Kubernetes clusters (hosted on multiple cloud/on-prem) right from a single Hyperion setup.
+- Manage Helm charts, Applications across multiple Kubernetes clusters (hosted on multiple cloud/on-prem) right from a single Hyperion setup.
 
 </details>
  
@@ -222,7 +222,7 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 
 #### Side Note:
 
-Hyperion module is also a great way to understand how Devtron can fit into your workflow without actually installing apps through Devtron. You can always switch to Full Devtron Experience for all the features. [Just a Couple of Commands away.](https://github.com/devtron-labs/devtron#rocket-getting-started)
+Hyperion module is also a great way to get to know Devtron's UI and some of its features. You can always switch from Hyperion to Devtron which includes all the features. [Just a Couple of Commands away.](https://github.com/devtron-labs/devtron#rocket-getting-started)
  
 ## :rocket: Getting Started(For Hyperion)
 
@@ -255,10 +255,10 @@ You will get result something like below
 
 ```text
 [test2@server ~]$ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
-[map[hostname:aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com]]
+[map[hostname:devtronsdashboardurlhere]]
 ```
 
-The hostname mentioned here \( aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com \) is the Loadbalancer URL where you can access the Devtron dashboard.
+The hostname mentioned here \( devtronsdashboardurlhere \) is the Loadbalancer URL where you can access the Devtron dashboard.
  
 ### Hyperion Admin credentials
 
