@@ -19,6 +19,7 @@ type HelmAppClient interface {
 	GetDesiredManifest(ctx context.Context, in *ObjectRequest) (*DesiredManifestResponse, error)
 	DeleteApplication(ctx context.Context, in *ReleaseIdentifier) (*UninstallReleaseResponse, error)
 	UpdateApplication(ctx context.Context, in *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
+	GetDeploymentDetail(ctx context.Context, in *DeploymentDetailRequest) (*DeploymentDetailResponse, error)
 }
 
 type HelmAppClientImpl struct {
@@ -182,4 +183,16 @@ func (impl *HelmAppClientImpl) UpdateApplication(ctx context.Context, in *Upgrad
 		return nil, err
 	}
 	return manifest, nil
+}
+
+func (impl *HelmAppClientImpl) GetDeploymentDetail(ctx context.Context, in *DeploymentDetailRequest) (*DeploymentDetailResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	deploymentDetail, err := applicationClient.GetDeploymentDetail(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return deploymentDetail, nil
 }

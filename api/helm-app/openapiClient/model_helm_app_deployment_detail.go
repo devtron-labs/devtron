@@ -18,12 +18,10 @@ import (
 // HelmAppDeploymentDetail struct for HelmAppDeploymentDetail
 type HelmAppDeploymentDetail struct {
 	ChartMetadata *ChartMetadata `json:"chartMetadata,omitempty"`
-	// final manifest of the chart
-	Manifest *string `json:"manifest,omitempty"`
 	// docker images presrnt insise the chart
 	DockerImages *[]string `json:"dockerImages,omitempty"`
 	// deployment version of the helm chart
-	Version *int `json:"version,omitempty"`
+	Version    *int       `json:"version,omitempty"`
 	DeployedAt *time.Time `json:"deployedAt,omitempty"`
 }
 
@@ -74,38 +72,6 @@ func (o *HelmAppDeploymentDetail) HasChartMetadata() bool {
 // SetChartMetadata gets a reference to the given ChartMetadata and assigns it to the ChartMetadata field.
 func (o *HelmAppDeploymentDetail) SetChartMetadata(v ChartMetadata) {
 	o.ChartMetadata = &v
-}
-
-// GetManifest returns the Manifest field value if set, zero value otherwise.
-func (o *HelmAppDeploymentDetail) GetManifest() string {
-	if o == nil || o.Manifest == nil {
-		var ret string
-		return ret
-	}
-	return *o.Manifest
-}
-
-// GetManifestOk returns a tuple with the Manifest field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *HelmAppDeploymentDetail) GetManifestOk() (*string, bool) {
-	if o == nil || o.Manifest == nil {
-		return nil, false
-	}
-	return o.Manifest, true
-}
-
-// HasManifest returns a boolean if a field has been set.
-func (o *HelmAppDeploymentDetail) HasManifest() bool {
-	if o != nil && o.Manifest != nil {
-		return true
-	}
-
-	return false
-}
-
-// SetManifest gets a reference to the given string and assigns it to the Manifest field.
-func (o *HelmAppDeploymentDetail) SetManifest(v string) {
-	o.Manifest = &v
 }
 
 // GetDockerImages returns the DockerImages field value if set, zero value otherwise.
@@ -209,9 +175,6 @@ func (o HelmAppDeploymentDetail) MarshalJSON() ([]byte, error) {
 	if o.ChartMetadata != nil {
 		toSerialize["chartMetadata"] = o.ChartMetadata
 	}
-	if o.Manifest != nil {
-		toSerialize["manifest"] = o.Manifest
-	}
 	if o.DockerImages != nil {
 		toSerialize["dockerImages"] = o.DockerImages
 	}
@@ -259,5 +222,3 @@ func (v *NullableHelmAppDeploymentDetail) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-
