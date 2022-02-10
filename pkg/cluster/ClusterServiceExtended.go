@@ -352,10 +352,10 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(ctx context.Context, bean *C
 	//deleting cluster from argoCd when server mode is FULL
 	_, err = impl.clusterServiceCD.Delete(ctx, &cluster3.ClusterQuery{Server: bean.ServerUrl})
 	if err != nil {
-		impl.logger.Errorw("service err, Update", "error", err, "serverUrl", bean.ServerUrl)
-		userMsg := "failed to update on cluster via ACD"
+		impl.logger.Errorw("service err, Delete", "error", err, "serverUrl", bean.ServerUrl)
+		userMsg := "failed to delete cluster on ACD"
 		if strings.Contains(err.Error(), "https://kubernetes.default.svc") {
-			userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
+			userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully deleted in ACD")
 		}
 		err = &util.ApiError{
 			Code:            constants.ClusterUpdateACDFailed,
