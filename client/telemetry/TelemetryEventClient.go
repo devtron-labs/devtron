@@ -67,36 +67,6 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	return watcher, err
 }
 
-//
-//func NewTelemetryEventClientImplEA(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-//	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
-//	userService user.UserService, PosthogClient *PosthogClient) (*TelemetryEventClientImpl, error) {
-//	cron := cron.New(
-//		cron.WithChain())
-//	cron.Start()
-//	watcher := &TelemetryEventClientImplEA{
-//		cron:   cron,
-//		logger: logger,
-//		client: client, clusterService: clusterService,
-//		K8sUtil: K8sUtil, aCDAuthConfig: aCDAuthConfig,
-//		userService: userService, PosthogClient: PosthogClient,
-//	}
-//
-//	watcher.HeartbeatEventForTelemetryEA()
-//	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetryEA)
-//	if err != nil {
-//		logger.Errorw("error in starting summery event", "err", err)
-//		return nil, err
-//	}
-//
-//	_, err = cron.AddFunc(HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
-//	if err != nil {
-//		logger.Errorw("error in starting heartbeat event", "err", err)
-//		return nil, err
-//	}
-//	return watcher, err
-//}
-
 func (impl *TelemetryEventClientImpl) StopCron() {
 	impl.cron.Stop()
 }
@@ -178,27 +148,6 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 
 	devtronVersion := util.GetDevtronVersion()
 
-	//if devtronVersion.ServerMode == "FULL" {
-	//	summary := &SummaryDto{
-	//		ProdAppCount:     prodApps,
-	//		NonProdAppCount:  nonProdApps,
-	//		UserCount:        len(users),
-	//		EnvironmentCount: len(environments),
-	//		ClusterCount:     len(clusters),
-	//		CiCountPerDay:    len(ciPipeline),
-	//		CdCountPerDay:    len(cdPipeline),
-	//		DevtronVersion:   devtronVersion.GitCommit,
-	//		DevtronMode:      devtronVersion.ServerMode,
-	//	}
-	//	payload.Summary = summary
-	//}else{
-	//	summary := &SummaryEA{
-	//		UserCount:      len(users),
-	//		ClusterCount:   len(clusters),
-	//		DevtronVersion: devtronVersion.GitCommit,
-	//		DevtronMode:    devtronVersion.ServerMode,
-	//	}
-	//}
 	summary := &SummaryEA{
 		UserCount:      len(users),
 		ClusterCount:   len(clusters),
@@ -320,7 +269,7 @@ func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEv
 		return nil, err
 	}
 
-	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapName, DevtronUniqueClientIdConfigMap, client)
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
 	datamap := cm.Data
 
 	if impl.PosthogClient.Client == nil {
