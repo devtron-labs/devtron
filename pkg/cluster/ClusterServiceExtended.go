@@ -334,7 +334,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	return clusterBean, nil
 }
 
-func (impl ClusterServiceImplExtended) DeleteFromDb(ctx context.Context, bean *ClusterBean, userId int32) error {
+func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId int32) error {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
@@ -346,22 +346,6 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(ctx context.Context, bean *C
 	err = impl.clusterRepository.MarkClusterDeleted(deleteReq)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
-		return err
-	}
-
-	//deleting cluster from argoCd when server mode is FULL
-	_, err = impl.clusterServiceCD.Delete(ctx, &cluster3.ClusterQuery{Server: bean.ServerUrl})
-	if err != nil {
-		impl.logger.Errorw("service err, Delete", "error", err, "serverUrl", bean.ServerUrl)
-		userMsg := "failed to delete cluster on ACD"
-		if strings.Contains(err.Error(), "https://kubernetes.default.svc") {
-			userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully deleted in ACD")
-		}
-		err = &util.ApiError{
-			Code:            constants.ClusterUpdateACDFailed,
-			InternalMessage: err.Error(),
-			UserMessage:     userMsg,
-		}
 		return err
 	}
 	return nil
