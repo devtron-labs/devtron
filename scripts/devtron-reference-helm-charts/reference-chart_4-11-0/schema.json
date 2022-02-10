@@ -342,39 +342,58 @@
       },
       "envoyproxy": {
         "type": "object",
+        "description": "envoy is attached as a sidecar to the application container to collect metrics like 4XX, 5XX, throughput and latency",
+        "title": "Envoy Proxy",
         "properties": {
           "configMapName": {
-            "type": "string"
+            "type": "string",
+            "description": "configMap containing configuration for Envoy",
+            "title": "ConfigMap"
           },
           "image": {
-            "type": "string"
+            "type": "string",
+            "description": "image of envoy to be used"
           },
           "resources": {
             "type": "object",
+            "description": "minimum and maximum RAM and CPU available to the application",
+            "title": "Resources",
             "properties": {
               "limits": {
                 "type": "object",
+                "description": "the maximum values a container can reach",
+                "title": "Limits",
                 "properties": {
                   "cpu": {
                     "type": "string",
-                    "format": "cpu"
+                    "format": "cpu",
+                    "description": "limit of CPU",
+                    "title": "CPU"
                   },
                   "memory": {
                     "type": "string",
-                    "format": "memory"
+                    "format": "memory",
+                    "description": "limit of memory",
+                    "title": "Memory"
                   }
                 }
               },
               "requests": {
                 "type": "object",
+                "description": "request is what the container is guaranteed to get",
+                "title": "Requests",
                 "properties": {
                   "cpu": {
                     "type": "string",
-                    "format": "cpu"
+                    "format": "cpu",
+                    "description": "request value of CPU",
+                    "title": "CPU"
                   },
                   "memory": {
                     "type": "string",
-                    "format": "memory"
+                    "format": "memory",
+                    "description": "request value of memory",
+                    "title": "Memory"
                   }
                 }
               }
@@ -384,65 +403,67 @@
       },
       "image": {
         "type": "object",
+        "description": "used to access images in kubernetes",
+        "title": "Image",
         "properties": {
           "pullPolicy": {
-            "type": "string"
+            "type": "string",
+            "description": "used to define the instances calling the image",
+            "title": "Pull Policy",
+            "enum": ["IfNotPresent", "Always"]
           }
         }
       },
       "imagePullSecrets": {
         "type": "array",
-        "items": {}
+        "items": {},
+        "description": "contains the docker credentials that are used for accessing a registry",
+        "title": "Image PullSecrets"
       },
       "ingress": {
         "type": "object",
+        "description": "allows public access to URLs",
+        "title": "Ingress",
         "properties": {
           "annotations": {
-            "type": "object"
+            "type": "object",
+            "description": "used to configure some options depending on the Ingress controller",
+            "title": "Annotations"
           },
           "className": {
-            "type": "string"
+            "type": "string",
+            "description": "name of ingress class, a reference to an IngressClass resource that contains additional configuration including the name of the controller",
+            "title": "Ingress class name",
+            "default": "nginx"
           },
           "enabled": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "used to enable or disable ingress",
+            "title": "Enabled"
           },
           "hosts": {
             "type": "array",
+            "description": "list of hosts in ingress",
+            "title": "Hosts",
             "items": [
               {
                 "type": "object",
                 "properties": {
                   "host": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "host URL",
+                    "title": "Host"
                   },
                   "pathType": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "type of path",
+                    "title": "PathType"
                   },
                   "paths": {
                     "type": "array",
+                    "description": "list of paths for a given host",
+                    "title": "Paths",
                     "items": [
-                      {
-                        "type": "string"
-                      }
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "host": {
-                    "type": "string"
-                  },
-                  "pathType": {
-                    "type": "string"
-                  },
-                  "paths": {
-                    "type": "array",
-                    "items": [
-                      {
-                        "type": "string"
-                      },
                       {
                         "type": "string"
                       }
@@ -454,59 +475,55 @@
           },
           "tls": {
             "type": "array",
-            "items": {}
+            "items": {},
+            "description": "contains security details - private key and certificate",
+            "title": "TLS"
           }
         }
       },
       "ingressInternal": {
         "type": "object",
+        "description": "allows private access to the URLs",
         "properties": {
           "annotations": {
-            "type": "object"
+            "type": "object",
+            "description": "used to configure some options depending on the Ingress controller",
+            "title": "Annotations"
           },
           "className": {
-            "type": "string"
+            "type": "string",
+            "description": "name of ingress class, a reference to an IngressClass resource that contains additional configuration including the name of the controller",
+            "title": "Ingress class name",
+            "default": "nginx-internal"
           },
           "enabled": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "used to enable or disable ingress",
+            "title": "Enabled"
           },
           "hosts": {
             "type": "array",
+            "description": "list of hosts in ingress",
+            "title": "Hosts",
             "items": [
               {
                 "type": "object",
                 "properties": {
                   "host": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "host URL",
+                    "title": "Host"
                   },
                   "pathType": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "type of path",
+                    "title": "PathType"
                   },
                   "paths": {
                     "type": "array",
+                    "description": "list of paths for a given host",
+                    "title": "Paths",
                     "items": [
-                      {
-                        "type": "string"
-                      }
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "host": {
-                    "type": "string"
-                  },
-                  "pathType": {
-                    "type": "string"
-                  },
-                  "paths": {
-                    "type": "array",
-                    "items": [
-                      {
-                        "type": "string"
-                      },
                       {
                         "type": "string"
                       }
@@ -518,16 +535,22 @@
           },
           "tls": {
             "type": "array",
-            "items": {}
+            "items": {},
+            "description": "contains security details - private key and certificate",
+            "title": "TLS"
           }
         }
       },
       "initContainers": {
         "type": "array",
-        "items": {}
+        "items": {},
+        "description": "specialized containers that run before app containers in a Pod, can contain utilities or setup scripts not present in an app image",
+        "title": "Init Containers"
       },
       "KedaAutoscaling": {
         "type": "object",
+        "description": "Kubernetes-based event driven autoscaler. With KEDA, one can drive the scaling of any container in Kubernetes based on the no. of events needing to be processed",
+        "title": "KEDA Autoscaling",
         "properties": {
           "advanced": {
             "type": "object"
@@ -568,58 +591,87 @@
         }
       },
       "pauseForSecondsBeforeSwitchActive": {
-        "type": "integer"
+        "type": "integer",
+        "description": "tell how much to wait for given period of time before switch active the container",
+        "title": "Pause For Seconds Before SwitchActive"
       },
       "podAnnotations": {
-        "type":"object"
+        "type":"object",
+        "description": "used to attach metadata and configs in Kubernetes",
+        "title": "Pod Annotations"
       },
       "podLabels": {
-        "type":"object"
+        "type":"object",
+        "description": "key/value pairs that are attached to pods, are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system",
+        "title": "Pod Labels"
       },
       "podSecurityContext": {
-        "type":"object"
+        "type":"object",
+        "description": "defines privilege and access control settings for a Pod or Container",
+        "title": "Pod Security Context"
       },
       "prometheus": {
         "type": "object",
+        "description": "a kubernetes monitoring tool",
+        "title": "Prometheus",
         "properties": {
           "release": {
-            "type": "string"
+            "type": "string",
+            "description": "name of the file to be monitored, describes the state of prometheus"
           }
         }
       },
       "rawYaml": {
         "type": "array",
-        "items": {}
+        "items": {},
+        "description": "Accepts an array of Kubernetes objects. One can specify any kubernetes yaml here & it will be applied when a app gets deployed.",
+        "title": "Raw YAML"
       },
       "replicaCount": {
-        "type": "integer"
+        "type": "integer",
+        "description": "count of Replicas of pod",
+        "title": "REplica Count"
       },
       "resources": {
         "type": "object",
+        "description": "minimum and maximum RAM and CPU available to the application",
+        "title": "Resources",
         "properties": {
           "limits": {
             "type": "object",
+            "description": "the maximum values a container can reach",
+            "title": "Limits",
             "properties": {
               "cpu": {
                 "type": "string",
-                "format": "cpu"
+                "format": "cpu",
+                "description": "limit of CPU",
+                "title": "CPU"
               },
               "memory": {
                 "type": "string",
-                "format": "memory"
+                "format": "memory",
+                "description": "limit of memory",
+                "title": "Memory"
               }
             }
           },
           "requests": {
             "type": "object",
+            "description": "request is what the container is guaranteed to get",
+            "title": "Requests",
             "properties": {
               "cpu": {
                 "type": "string",
-                "format": "cpu"
+                "format": "cpu",
+                "description": "request value of CPU",
+                "title": "CPU"
               },
               "memory": {
                 "type": "string",
-                "format": "memory"
+                "format": "memory",
+                "description": "request value of memory",
+                "title": "Memory"
               }
             }
           }
@@ -638,15 +690,23 @@
       },
       "server": {
         "type": "object",
+        "description": "used for providing server configurations.",
+        "title": "Server",
         "properties": {
           "deployment": {
             "type": "object",
+            "description": "gives the details for deployment",
+            "title": "Deployment",
             "properties": {
               "image": {
-                "type": "string"
+                "type": "string",
+                "description": "URL of the image",
+                "title": "Image"
               },
               "image_tag": {
-                "type": "string"
+                "type": "string",
+                "description": "tag of the image",
+                "title": "Image Tag"
               }
             }
           }
@@ -654,12 +714,18 @@
       },
       "service": {
         "type": "object",
+        "description": "defines annotations and the type of service",
+        "title": "Service",
         "properties": {
           "annotations": {
-            "type": "object"
+            "type": "object",
+            "title": "Annotations",
+            "description": "annotations of service"
           },
           "type": {
             "type": "string",
+            "description": "type of service",
+            "title": "Type",
             "enum": [
               "ClusterIP",
               "LoadBalancer",
@@ -671,6 +737,8 @@
       },
       "servicemonitor": {
         "type": "object",
+        "description": "gives the set of targets to be monitored",
+        "title": "Service Monitor",
         "properties": {
           "additionalLabels": {
             "type": "object"
@@ -679,22 +747,32 @@
       },
       "tolerations": {
         "type": "array",
-        "items": {}
+        "items": {},
+        "description": "a mechanism which work together with Taints which ensures that pods are not placed on inappropriate nodes",
+        "title": "Tolerations"
       },
       "topologySpreadConstraints": {
         "type": "array",
-        "items": {}
+        "items": {},
+        "description": "used to control how Pods are spread across a cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains",
+        "title": "Topology Spread Constraints"
       },
       "volumeMounts": {
         "type": "array",
-        "items": {}
+        "items": {},
+        "description": "used to provide mounts to the volume",
+        "title": "Volume Mounts"
       },
       "volumes": {
         "type": "array",
-        "items": {}
+        "items": {},
+        "description": "required when some values need to be read from or written to an external disk",
+        "title": "Volumes"
       },
       "waitForSecondsBeforeScalingDown": {
-        "type": "integer"
+        "type": "integer",
+        "description": "Wait for given period of time before scaling down the container",
+        "title": "Wait For Seconds Before Scaling Down"
       }
     }
   }
