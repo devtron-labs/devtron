@@ -1,0 +1,6 @@
+GOOS=darwin go build -o devtron \
+			-ldflags="-X 'github.com/devtron-labs/devtron/util.GitCommit=87c6f2f6' \
+			-X 'github.com/devtron-labs/devtron/util.BuildTime=2022-02-10T07:16:00Z' \
+			-X 'github.com/devtron-labs/devtron/util.ServerMode=FULL'"
+make: Leaving directory `/Users/arushishukla/Documents/devtron'
+ 

@@ -1,0 +1,1 @@
+{"buildTargets":["all","all,","build","build,","build-all","build-ea","clean","clean,","devtron,","docker-build-image","docker-build-push","docker-build-push,","run","run,","set-docker-build-env,","wire","wire,"],"launchTargets":[],"customConfigurationProvider":{"workspaceBrowse":{"browsePath":[],"compilerArgs":[]},"fileIndex":[]}}
