@@ -109,7 +109,7 @@ func (impl GitProviderRepositoryImpl) FindByUrl(providerUrl string) (GitProvider
 	var provider GitProvider
 	err := impl.dbConnection.Model(&provider).
 		Where("url = ?", providerUrl).Where("active = ?", true).
-		Where("deleted = /", false).Select()
+		Where("deleted = ?", false).Select()
 	return provider, err
 }
 
