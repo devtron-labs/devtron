@@ -307,7 +307,7 @@ func (impl ClusterRestHandlerImpl) DeleteCluster(w http.ResponseWriter, r *http.
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Debugw("request payload, Update", "payload", bean)
+	impl.logger.Debugw("request payload, Delete", "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validate err, Delete", "error", err, "payload", bean)
