@@ -125,6 +125,14 @@ func InitializeApp() (*App, error) {
 		router.NewHelmRouter,
 		wire.Bind(new(router.HelmRouter), new(*router.HelmRouterImpl)),
 
+		//---- pprof start ----
+		restHandler.NewPProfRestHandler,
+		wire.Bind(new(restHandler.PProfRestHandler), new(*restHandler.PProfRestHandlerImpl)),
+
+		router.NewPProfRouter,
+		wire.Bind(new(router.PProfRouter), new (*router.PProfRouterImpl)),
+		//---- pprof end ----
+
 		restHandler.NewPipelineRestHandler,
 		wire.Bind(new(restHandler.PipelineTriggerRestHandler), new(*restHandler.PipelineTriggerRestHandlerImpl)),
 
