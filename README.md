@@ -320,7 +320,8 @@ Get updates on Devtron's development and chat with the project maintainers, cont
 ## :question: FAQ & Troubleshooting:
 ### FAQ:
 
-<b>1.How to resolve unauthorized error/s, while trying to save global configurations like hostname, GitOps etc. after successful devtron installation</b>
+<details>
+<summary> <b>1.How to resolve unauthorized error/s, while trying to save global configurations like hostname, GitOps etc. after successful devtron installation</b></summary>
 <br>
 A. This occurs most of the time because any one or multiple jobs get failed during installation. To resolve this, you'll need to first check which jobs have failed. Follow these steps:
 
@@ -333,9 +334,12 @@ kubectl get pods -n devtroncd
 - If they are in running condition, please wait for the jobs to be completed. This may be due to internet issue. If the job is not in running condition, delete those incomplete jobs using:
 kubectl delete jobs <job1-name> <job2-name> -n devtroncd..[Read More](https://github.com/devtron-labs/devtron/blob/main/Troubleshooting.md#1-how-to-resolve-unauthorized-error-while-trying-to-save-global-configurations-like-hostname-gitops-etc-after-successful-devtron-installation)
 <br><br>
-
-<b>2.What to do if devtron dashboard is not accessible on browser, even after successful completion of all jobs and all pods are in running mode?</b>
+</details>
+ 
+<details>
+<summary> <b>2.What to do if devtron dashboard is not accessible on browser, even after successful completion of all jobs and all pods are in running mode?</b></summary>
 <br>
+
 A. Check if nats-cluster is created or not, you can check it using the following command:
 ```bash
 kubectl get natscluster -n devtroncd
@@ -347,14 +351,17 @@ kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/man
 - Wait util all nats pods are created, and the pods are in running condition. Once complete, delete devtron and dashboard pods. Then you should be able to access the devtron dashboard without any issues.
 - If your problem is still not resolved, you can post your query in our [discord](https://discord.gg/jsRG5qx2gp) channel
 <br><br>
+</details>
 
-<b>3.Not able to see deployment metrics on production environment or Not able to enable application-metrics or Not able to deploy the app after creating a configmap or secret with data-volume option enabled</b>
+<details>
+<summary> <b>3.Not able to see deployment metrics on production environment or Not able to enable application-metrics or Not able to deploy the app after creating a configmap or secret with data-volume option enabled</b></summary>
 <br>
 A. Update the rollout crds to latest version, run the following command
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/rollout.yaml -n devtroncd
 ```
-
+</details>
+ 
 ### Troubleshooting:
 - For Installation Troubleshooting, check this [documentation](https://docs.devtron.ai/setup/install)
 - For other troubleshooting, Check the [Common troubleshooting documentation](https://docs.devtron.ai/user-guide/command-bar)
