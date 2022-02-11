@@ -19,7 +19,6 @@ package telemetry
 
 import (
 	"encoding/base64"
-	"os"
 	"time"
 
 	"github.com/devtron-labs/devtron/util"
@@ -50,12 +49,12 @@ const (
 
 func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 	if PosthogApiKey == "" {
-		//encodedApiKey, _, err := getPosthogApiKey("https://app.posthog.com", logger)
-		//if err != nil {
-		//	logger.Errorw("exception caught while getting api key", "err", err)
-		//}
-		PosthogApiKey = os.Getenv("POSTHOG_API_KEY")
-		//PosthogEncodedApiKey = encodedApiKey
+		encodedApiKey, apiKey, err := getPosthogApiKey(TelemetryApiKeyEndpoint, logger)
+		if err != nil {
+			logger.Errorw("exception caught while getting api key", "err", err)
+		}
+		PosthogApiKey = apiKey
+		PosthogEncodedApiKey = encodedApiKey
 	}
 	client, err := posthog.NewWithConfig(PosthogApiKey, posthog.Config{Endpoint: "https://app.posthog.com"})
 	//defer client.Close()
