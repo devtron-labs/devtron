@@ -281,7 +281,7 @@ func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEv
 
 	installEventValue, installEventKeyExists := datamap[InstallEventKey]
 
-	if installEventKeyExists == false || installEventValue == "0" {
+	if installEventKeyExists == false || installEventValue == "1" {
 		if impl.PosthogClient.Client != nil {
 			err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
 				DistinctId: ucid,
