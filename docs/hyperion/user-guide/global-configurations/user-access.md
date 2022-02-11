@@ -53,7 +53,7 @@ Go to the left main panel -&gt; `Select Global Configurations` -&gt; Select `Use
 
 Click on `Add User`, to add one or multiple users.
 
-![](../../../user-guide/global-configurations/images/add-user-new.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/add-user-new.jpg)
 
 ### 2. Create User Permissions
 
@@ -62,16 +62,16 @@ When you click on Add User, you will see 6 options to set permission for users w
 * Email addresses
 * Assign super admin permissions
 * Group permissions
-* Direct permissions for Devtron Apps
+* Devtron Apps
   * Project
   * Environment
-  * Applications
+  * Application
   * Roles
-* Direct permissions for Helm Apps
+* Helm Apps
   * Project
-  * Environment
-  * Applications
-  * Roles
+  * Environment or cluster/namespace
+  * Application
+  * Permission
 * Chart group permissions
 
 ## Email addresses:
@@ -84,7 +84,7 @@ In the `Email address` box, you have to provide the mail ID of the user to whom 
 
 If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear.  Please check [above](#access-levels) to see permission levels.
 
-![](../../../user-guide/global-configurations/images/add-user-2.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/add-user-2.jpg)
 
 Click on `Save` and your user will be saved with super admin permissions.
 
@@ -98,9 +98,9 @@ This is used to assign user to a particular group and user inherits all the perm
 
 We will discuss how to create groups in the later section.
 
-### Direct permissions for Devtron Apps
+### Devtron Apps
 
-Access can be given to user by attaching permission directly to his/her email id through the `Direct Permissions` section. This section has 4 options to manage the permissions of your users.
+Access can be given to user by attaching permission directly to his/her email id through the `Devtron Apps` section. This section has 4 options to manage the permissions of your users.
 
 * **Project**
 
@@ -112,7 +112,7 @@ In the `Environment` section, you can select one or more than one or all environ
 
 **`IMP`** If `all environments` option is selected then user gets access to all current environments and any new environment which gets associated with this application later.
 
-* **Applications**
+* **Application**
 
 Similarly, you can select `Applications` from the drop-down corresponding to your selected Environments. In this section, you can also give permissions to one or more than one or to all applications at a time.
 
@@ -124,14 +124,14 @@ Similarly, you can select `Applications` from the drop-down corresponding to you
 
 There are four different view access levels/Role available for both User and Group as described [above](#access-levels):
 
-![](../../../.gitbook/assets/permission.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/permission.jpg)
 
-You can add multiple rows, for Direct Permissions.
+You can add multiple rows, for Devtron Apps.
 
 Once you have finished assigning the appropriate permissions for the listed users, Click on `Save`.
 
 
-### Direct permissions for Helm Apps
+### Helm Apps
 
 Access can be given to user by attaching permission directly to his/her email id through the `Direct Permissions` section. This section has 4 options to manage the permissions of your users.
 
@@ -141,11 +141,11 @@ Select a project from the drop-down to which you want to give permission to the 
 
 * **Environment or cluster/namespace**
 
-In the `Environment` section, you can select one or more than one or all environments at a time. Click on the environment section, you will see a drop-down of your environments and select any environment on which you want to give permission to the user.
+In the `Environment or cluster/namespace` section, you can select one or more than one or all environments at a time. Click on the environment section, you will see a drop-down of your environments and select any environment on which you want to give permission to the user.
 
 **`IMP`** If `all environments` option is selected then user gets access to all current environments and any new environment which gets associated with this application later.
 
-* **Applications**
+* **Application**
 
 Similarly, you can select `Applications` from the drop-down corresponding to your selected Environments. In this section, you can also give permissions to one or more than one or to all applications at a time.
 
@@ -155,11 +155,11 @@ Similarly, you can select `Applications` from the drop-down corresponding to you
 
   Inside the `Permission`, you actually choose which type of permissions you want to give to the users.
 
-There are four different view access levels/Role available for both User and Group as described [above](#access-levels):
+There are there different view access levels available for both User and Group as described [above](#access-levels):
 
-![](../../../.gitbook/assets/permission1.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/permission1.jpg)
 
-You can add multiple rows, for Direct Permissions.
+You can add multiple rows, for Helm Apps.
 
 Once you have finished assigning the appropriate permissions for the listed users, Click on `Save`.
 
@@ -173,17 +173,17 @@ You can either give the users permission to `Create` or `Edit`.
 
 Click on the checkbox of `Create`, if you want the users to create, view, edit, or delete all the chart groups.
 
-![](../../../.gitbook/assets/permission2.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/permission2.jpg)
 
 Click on the checkbox of `Edit`, if you want to `allow` or `deny` users to edit the chart groups.
 
 Select on `Deny` option from the drop-down menu, if you want to restrict the users to edit the chart groups.
 
-![](../../../.gitbook/assets/permission3.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/permission3.jpg)
 
 Select the `Specific Charts` option from the drop-down menu, and then select the chart groups for which you want to allow users to edit, from the other drop-down menu.
 
-![](../../../.gitbook/assets/permission4.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/permission4.jpg)
 
 Click on `Save`, once you have configured all the required permissions for the users.
 
@@ -191,11 +191,11 @@ Click on `Save`, once you have configured all the required permissions for the u
 
 You can edit the user permissions, by clicking on the `downward arrow`.
 
-![](../../../.gitbook/assets/gc-user-access-edit-arrow%20%282%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/gc-user-access-edit-arrow.jpg)
 
 Then you can edit the user permissions here.
 
-![](../../../.gitbook/assets/permission5.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/permission5.jpg)
 
 After you have done editing the user permissions. Click on `Save`.
 
@@ -211,21 +211,21 @@ You can select the group which you are creating in the `Group permissions` secti
 
 Click on `Add Group`, to create a new group.
 
-![](../../../.gitbook/assets/user7.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/user7.jpg)
 
 Enter the `Group Name` and `Description`.
 
-![](../../../.gitbook/assets/gc-user-access-add-group-name-2.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/gc-user-access-add-group-name-2.jpg)
 
 ### 2. Create Group Permissions
 
 Once you have given the group name and group description.
 
-Then, control the access permissions of groups in the Direct Permissions section. Manage the Project, Environment, Application, and Role access the same as we discuss in the above users section.
+Then, control the access permissions of groups in the Devtron and Helm Apps section. Manage the Project, Environment, Application, and Role access the same as we discuss in the above users section.
 
-![](../../../.gitbook/assets/permission6.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/permission6.jpg)
 
-You can add multiple rows, for the Direct Permissions section.
+You can add multiple rows, for the Devtron and Helm Apps section.
 
 Once you have finished assigning the appropriate permissions for the listed users, Click on `Save`.
 
@@ -233,11 +233,11 @@ Once you have finished assigning the appropriate permissions for the listed user
 
 You can edit the group permissions, by clicking on the `downward arrow.`
 
-![](../../../.gitbook/assets/gc-user-access-add-group-edit-arrow.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/gc-user-access-add-group-edit-arrow.jpg)
 
 Then you can edit the user permissions here.
 
-![](../../../.gitbook/assets/permission7.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/permission7.jpg)
 
 Once you are done editing the group permissions. Click on `Save`.
 
