@@ -296,8 +296,8 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledAppsByChartRepoId(chartRep
 		" inner join app_store aps on asav.app_store_id = aps.id " +
 		" inner join environment env on ia.environment_id = env.id " +
 		" left join users u on u.id = ia.updated_by " +
-		" where aps.chart_repo_id = " + strconv.Itoa(chartRepoId) + " and ia.active=true and iav.active=true and env.active=true"
-	_, err := impl.dbConnection.Query(&installedAppAndEnvDetails, queryTemp)
+		" where aps.chart_repo_id = ? and ia.active=true and iav.active=true and env.active=true"
+	_, err := impl.dbConnection.Query(&installedAppAndEnvDetails, queryTemp, chartRepoId)
 	if err != nil {
 		return nil, err
 	}

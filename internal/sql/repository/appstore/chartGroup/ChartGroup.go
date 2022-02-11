@@ -29,7 +29,7 @@ type ChartGroup struct {
 	Id          int      `sql:"id,pk"`
 	Name        string   `sql:"name"`
 	Description string   `sql:"description,notnull"`
-	Deleted     bool     `sql:"deleted"`
+	Deleted     bool     `sql:"deleted,notnull"`
 	sql.AuditLog
 	ChartGroupEntries []*ChartGroupEntry
 }

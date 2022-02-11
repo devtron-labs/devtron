@@ -793,10 +793,8 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
-	data, err := ioutil.ReadAll(r.Body)
 	var channelReq ChannelDto
-	err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&channelReq)
+	err = json.NewDecoder(r.Body).Decode(&channelReq)
 	if err != nil {
 		impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "payload", channelReq)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -805,7 +803,7 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 	impl.logger.Infow("request payload, DeleteNotificationChannelConfig", "err", err, "payload", channelReq)
 	if util.Slack == channelReq.Channel {
 		var deleteReq *notifier.SlackConfigDto
-		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
+		err = json.NewDecoder(r.Body).Decode(&deleteReq)
 		if err != nil {
 			impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -836,7 +834,7 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 		common.WriteJsonResp(w, nil, SLACK_CONFIG_DELETE_SUCCESS_RESP, http.StatusOK)
 	} else if util.SES == channelReq.Channel {
 		var deleteReq *notifier.SESConfigDto
-		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
+		err = json.NewDecoder(r.Body).Decode(&deleteReq)
 		if err != nil {
 			impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
