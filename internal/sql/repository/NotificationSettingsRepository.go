@@ -40,7 +40,7 @@ type NotificationSettingsRepository interface {
 	FindNotificationSettingDeploymentOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error)
 	FindNotificationSettingBuildOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error)
 	FetchNotificationSettingGroupBy(viewId int) ([]NotificationSettings, error)
-	FindNotificationSettingsByConfigIdAndConfigType(configId int, configType string) ([]NotificationSettings, error)
+	FindNotificationSettingsByConfigIdAndConfigType(configId int, configType string) ([]*NotificationSettings, error)
 }
 
 type NotificationSettingsRepositoryImpl struct {
