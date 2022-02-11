@@ -23,7 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	chart_repo_repository "github.com/devtron-labs/devtron/pkg/chart-repo/repository"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -140,9 +140,9 @@ type ConfigMapService interface {
 }
 
 type ConfigMapServiceImpl struct {
-	chartRepository             chart_repo_repository.ChartRepository
+	chartRepository             chartRepoRepository.ChartRepository
 	logger                      *zap.SugaredLogger
-	repoRepository              chart_repo_repository.ChartRepoRepository
+	repoRepository              chartRepoRepository.ChartRepoRepository
 	mergeUtil                   util.MergeUtil
 	pipelineConfigRepository    chartConfig.PipelineConfigRepository
 	configMapRepository         chartConfig.ConfigMapRepository
@@ -151,9 +151,9 @@ type ConfigMapServiceImpl struct {
 	appRepository               app.AppRepository
 }
 
-func NewConfigMapServiceImpl(chartRepository chart_repo_repository.ChartRepository,
+func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	logger *zap.SugaredLogger,
-	repoRepository chart_repo_repository.ChartRepoRepository,
+	repoRepository chartRepoRepository.ChartRepoRepository,
 	mergeUtil util.MergeUtil,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,

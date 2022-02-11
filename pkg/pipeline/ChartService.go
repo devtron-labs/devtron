@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	chart_repo_repository "github.com/devtron-labs/devtron/pkg/chart-repo/repository"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 
@@ -127,16 +127,16 @@ type ChartService interface {
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
 }
 type ChartServiceImpl struct {
-	chartRepository           chart_repo_repository.ChartRepository
+	chartRepository           chartRepoRepository.ChartRepository
 	logger                    *zap.SugaredLogger
-	repoRepository            chart_repo_repository.ChartRepoRepository
+	repoRepository            chartRepoRepository.ChartRepoRepository
 	chartTemplateService      util.ChartTemplateService
 	pipelineGroupRepository   app.AppRepository
 	mergeUtil                 util.MergeUtil
 	repositoryService         repository.ServiceClient
 	refChartDir               RefChartDir
 	defaultChart              DefaultChart
-	chartRefRepository        chart_repo_repository.ChartRefRepository
+	chartRefRepository        chartRepoRepository.ChartRefRepository
 	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository  chartConfig.PipelineConfigRepository
 	configMapRepository       chartConfig.ConfigMapRepository
@@ -146,16 +146,16 @@ type ChartServiceImpl struct {
 	client                    *http.Client
 }
 
-func NewChartServiceImpl(chartRepository chart_repo_repository.ChartRepository,
+func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
-	repoRepository chart_repo_repository.ChartRepoRepository,
+	repoRepository chartRepoRepository.ChartRepoRepository,
 	pipelineGroupRepository app.AppRepository,
 	refChartDir RefChartDir,
 	defaultChart DefaultChart,
 	mergeUtil util.MergeUtil,
 	repositoryService repository.ServiceClient,
-	chartRefRepository chart_repo_repository.ChartRefRepository,
+	chartRefRepository chartRepoRepository.ChartRefRepository,
 	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
@@ -324,7 +324,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
-	chart := &chart_repo_repository.Chart{
+	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
 		ChartRepoId:             chartRepo.Id,
 		Values:                  string(merged),
@@ -442,7 +442,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 
-	chart := &chart_repo_repository.Chart{
+	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
 		ChartRepoId:             chartRepo.Id,
 		Values:                  string(merged),
@@ -493,7 +493,7 @@ func (impl ChartServiceImpl) registerInArgo(chartGitAttribute *util.ChartGitAttr
 }
 
 //converts db object to bean
-func (impl ChartServiceImpl) chartAdaptor(chart *chart_repo_repository.Chart, appLevelMetrics *repository3.AppLevelMetrics) (*TemplateRequest, error) {
+func (impl ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, appLevelMetrics *repository3.AppLevelMetrics) (*TemplateRequest, error) {
 	var appMetrics bool
 	if chart == nil || chart.Id == 0 {
 		return &TemplateRequest{}, &util.ApiError{UserMessage: "no chart found"}
@@ -578,7 +578,7 @@ func (impl ChartServiceImpl) getRefChartVersion(templateRequest TemplateRequest)
 	return version, nil
 }
 
-func (impl ChartServiceImpl) getChartRepo(templateRequest TemplateRequest) (*chart_repo_repository.ChartRepo, error) {
+func (impl ChartServiceImpl) getChartRepo(templateRequest TemplateRequest) (*chartRepoRepository.ChartRepo, error) {
 	if templateRequest.ChartRepositoryId == 0 {
 		chartRepo, err := impl.repoRepository.GetDefault()
 		if err != nil {

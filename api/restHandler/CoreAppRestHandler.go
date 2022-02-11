@@ -34,7 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	chart_repo_repository "github.com/devtron-labs/devtron/pkg/chart-repo/repository"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -84,7 +84,7 @@ type CoreAppRestHandlerImpl struct {
 	environmentRepository   repository2.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
 	envConfigRepo           chartConfig.EnvConfigOverrideRepository
-	chartRepo               chart_repo_repository.ChartRepository
+	chartRepo               chartRepoRepository.ChartRepository
 	teamService             team.TeamService
 }
 
@@ -94,7 +94,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
-	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chart_repo_repository.ChartRepository, teamService team.TeamService) *CoreAppRestHandlerImpl {
+	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,

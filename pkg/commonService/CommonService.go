@@ -22,7 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/pkg/attributes"
-	chart_repo_repository "github.com/devtron-labs/devtron/pkg/chart-repo/repository"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
@@ -30,13 +30,13 @@ import (
 )
 
 type CommonService interface {
-	FetchLatestChart(appId int, envId int) (*chart_repo_repository.Chart, error)
+	FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error)
 	GlobalChecklist() (*GlobalChecklist, error)
 }
 
 type CommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
-	chartRepository             chart_repo_repository.ChartRepository
+	chartRepository             chartRepoRepository.ChartRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	gitOpsRepository            repository.GitOpsConfigRepository
 	dockerReg                   repository.DockerArtifactStoreRepository
@@ -48,7 +48,7 @@ type CommonServiceImpl struct {
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
-	chartRepository chart_repo_repository.ChartRepository,
+	chartRepository chartRepoRepository.ChartRepository,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	gitOpsRepository repository.GitOpsConfigRepository,
 	dockerReg repository.DockerArtifactStoreRepository,
@@ -94,8 +94,8 @@ type AppChecklist struct {
 	//ChartChecklist *ChartChecklist `json:",inline"`
 }
 
-func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chart_repo_repository.Chart, error) {
-	var chart *chart_repo_repository.Chart
+func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error) {
+	var chart *chartRepoRepository.Chart
 	if appId > 0 && envId > 0 {
 		envOverride, err := impl.environmentConfigRepository.ActiveEnvConfigOverride(appId, envId)
 		if err != nil {

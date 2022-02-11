@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	app_store_discover "github.com/devtron-labs/devtron/api/app-store/discover"
-	chart_repo "github.com/devtron-labs/devtron/api/chart-repo"
+	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
+	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -30,8 +30,8 @@ type MuxRouter struct {
 	helmAppRouter          client.HelmAppRouter
 	environmentRouter      cluster.EnvironmentRouter
 	k8sApplicationRouter   k8s.K8sApplicationRouter
-	chartRepositoryRouter  chart_repo.ChartRepositoryRouter
-	appStoreDiscoverRouter app_store_discover.AppStoreDiscoverRouter
+	chartRepositoryRouter  chartRepo.ChartRepositoryRouter
+	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter
 }
 
 func NewMuxRouter(
@@ -45,8 +45,8 @@ func NewMuxRouter(
 	helmAppRouter client.HelmAppRouter,
 	environmentRouter cluster.EnvironmentRouter,
 	k8sApplicationRouter k8s.K8sApplicationRouter,
-	chartRepositoryRouter chart_repo.ChartRepositoryRouter,
-	appStoreDiscoverRouter app_store_discover.AppStoreDiscoverRouter,
+	chartRepositoryRouter chartRepo.ChartRepositoryRouter,
+	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 
 ) *MuxRouter {
 	r := &MuxRouter{

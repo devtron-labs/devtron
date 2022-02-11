@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	chart_repo_repository "github.com/devtron-labs/devtron/pkg/chart-repo/repository"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
@@ -27,7 +27,7 @@ type BulkUpdateRepository interface {
 	FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes []string, appNameExcludes []string, envId int) ([]*app.App, error)
 	FindAppByChartId(chartId int) (*app.App, error)
 	FindAppByChartEnvId(chartEnvId int) (*app.App, error)
-	FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chart_repo_repository.Chart, error)
+	FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartRepoRepository.Chart, error)
 	FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error)
 	BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patch string) error
 	BulkUpdateChartsEnvYamlOverrideById(id int, patch string) error
@@ -191,8 +191,8 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindAppByChartEnvId(chartEnvId in
 		Select()
 	return app, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chart_repo_repository.Chart, error) {
-	charts := []*chart_repo_repository.Chart{}
+func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartRepoRepository.Chart, error) {
+	charts := []*chartRepoRepository.Chart{}
 	appNameQuery := repositoryImpl.BuildAppNameQuery(appNameIncludes, appNameExcludes)
 	err := repositoryImpl.dbConnection.
 		Model(&charts).Join("INNER JOIN app ON app.id=app_id ").
@@ -217,7 +217,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsEnvByAppNameSubstri
 	return charts, err
 }
 func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patch string) error {
-	chart := &chart_repo_repository.Chart{}
+	chart := &chartRepoRepository.Chart{}
 	_, err := repositoryImpl.dbConnection.
 		Model(chart).
 		Set("values_yaml = ?", patch).

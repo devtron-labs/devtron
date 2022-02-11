@@ -19,7 +19,7 @@ package chartConfig
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	chart_repo_repository "github.com/devtron-labs/devtron/pkg/chart-repo/repository"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -36,7 +36,7 @@ type EnvConfigOverride struct {
 	ManualReviewed    bool               `sql:"reviewed,notnull"`
 	Active            bool               `sql:"active,notnull"`
 	Namespace         string             `sql:"namespace,notnull"`
-	Chart             *chart_repo_repository.Chart
+	Chart             *chartRepoRepository.Chart
 	Environment       *repository.Environment `sql:"-"`
 	Latest            bool                    `sql:"latest,notnull"`
 	Previous          bool                    `sql:"previous,notnull"`
@@ -120,7 +120,7 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 		return nil, err
 	}
 
-	chart := &chart_repo_repository.Chart{
+	chart := &chartRepoRepository.Chart{
 		ChartName:               environmentConfig.ChartName,
 		ChartLocation:           environmentConfig.ChartLocation,
 		GlobalOverride:          environmentConfig.GlobalOverride,

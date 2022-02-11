@@ -19,8 +19,8 @@ package router
 
 import (
 	"encoding/json"
-	app_store "github.com/devtron-labs/devtron/api/app-store"
-	chart_repo "github.com/devtron-labs/devtron/api/chart-repo"
+	appStore "github.com/devtron-labs/devtron/api/appStore"
+	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -68,8 +68,8 @@ type MuxRouter struct {
 	cronBasedEventReceiver           pubsub.CronBasedEventReceiver
 	ChartRefRouter                   ChartRefRouter
 	ConfigMapRouter                  ConfigMapRouter
-	AppStoreRouter                   app_store.AppStoreRouter
-	ChartRepositoryRouter            chart_repo.ChartRepositoryRouter
+	AppStoreRouter                   appStore.AppStoreRouter
+	ChartRepositoryRouter            chartRepo.ChartRepositoryRouter
 	ReleaseMetricsRouter             ReleaseMetricsRouter
 	deploymentGroupRouter            DeploymentGroupRouter
 	chartGroupRouter                 ChartGroupRouter
@@ -106,7 +106,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
 	appUpdateHandler pubsub.ApplicationStatusUpdateHandler,
 	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClient, UserRouter user.UserRouter, cronBasedEventReceiver pubsub.CronBasedEventReceiver,
-	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter app_store.AppStoreRouter, chartRepositoryRouter chart_repo.ChartRepositoryRouter,
+	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,

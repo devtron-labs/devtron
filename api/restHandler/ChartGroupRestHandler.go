@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/app-store"
+	appStore "github.com/devtron-labs/devtron/pkg/appStore"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -32,14 +32,14 @@ import (
 )
 
 type ChartGroupRestHandlerImpl struct {
-	ChartGroupService app_store.ChartGroupService
+	ChartGroupService appStore.ChartGroupService
 	Logger            *zap.SugaredLogger
 	userAuthService   user.UserService
 	enforcer          casbin.Enforcer
 	validator         *validator.Validate
 }
 
-func NewChartGroupRestHandlerImpl(ChartGroupService app_store.ChartGroupService,
+func NewChartGroupRestHandlerImpl(ChartGroupService appStore.ChartGroupService,
 	Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, validator *validator.Validate) *ChartGroupRestHandlerImpl {
 	return &ChartGroupRestHandlerImpl{
@@ -68,7 +68,7 @@ func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request app_store.ChartGroupBean
+	var request appStore.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, CreateChartGroup", "err", err, "payload", request)
@@ -109,7 +109,7 @@ func (impl *ChartGroupRestHandlerImpl) UpdateChartGroup(w http.ResponseWriter, r
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request app_store.ChartGroupBean
+	var request appStore.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, UpdateChartGroup", "err", err, "payload", request)
@@ -150,7 +150,7 @@ func (impl *ChartGroupRestHandlerImpl) SaveChartGroupEntries(w http.ResponseWrit
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request app_store.ChartGroupBean
+	var request appStore.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, SaveChartGroupEntries", "err", err, "payload", request)

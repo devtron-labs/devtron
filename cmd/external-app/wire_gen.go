@@ -8,8 +8,8 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/middleware"
-	app_store_discover2 "github.com/devtron-labs/devtron/api/app-store/discover"
-	chart_repo2 "github.com/devtron-labs/devtron/api/chart-repo"
+	appStoreDiscover2 "github.com/devtron-labs/devtron/api/appStore/discover"
+	chartRepo2 "github.com/devtron-labs/devtron/api/chartRepo"
 	cluster2 "github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
@@ -20,10 +20,10 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/app-store/discover"
-	"github.com/devtron-labs/devtron/pkg/app-store/discover/repository"
-	"github.com/devtron-labs/devtron/pkg/chart-repo"
-	"github.com/devtron-labs/devtron/pkg/chart-repo/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/discover"
+	"github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/chartRepo"
+	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -127,19 +127,19 @@ func InitializeApp() (*App, error) {
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger)
 	k8sApplicationRestHandlerImpl := k8s.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, enforcerImpl, enforcerUtilHelmImpl, clusterServiceImpl, helmAppServiceImpl)
 	k8sApplicationRouterImpl := k8s.NewK8sApplicationRouterImpl(k8sApplicationRestHandlerImpl)
-	chartRepoRepositoryImpl := chart_repo_repository.NewChartRepoRepositoryImpl(db)
+	chartRepoRepositoryImpl := chartRepoRepository.NewChartRepoRepositoryImpl(db)
 	acdAuthConfig, err := util2.GetACDAuthConfig()
 	if err != nil {
 		return nil, err
 	}
 	httpClient := util.NewHttpClient()
-	chartRepositoryServiceImpl := chart_repo.NewChartRepositoryServiceImpl(sugaredLogger, chartRepoRepositoryImpl, k8sUtil, clusterServiceImpl, acdAuthConfig, httpClient)
-	chartRepositoryRestHandlerImpl := chart_repo2.NewChartRepositoryRestHandlerImpl(sugaredLogger, userServiceImpl, chartRepositoryServiceImpl, enforcerImpl, validate)
-	chartRepositoryRouterImpl := chart_repo2.NewChartRepositoryRouterImpl(chartRepositoryRestHandlerImpl)
-	appStoreApplicationVersionRepositoryImpl := app_store_discover_repository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
-	appStoreServiceImpl := app_store_discover.NewAppStoreServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl)
-	appStoreRestHandlerImpl := app_store_discover2.NewAppStoreRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreServiceImpl, enforcerImpl)
-	appStoreDiscoverRouterImpl := app_store_discover2.NewAppStoreDiscoverRouterImpl(appStoreRestHandlerImpl)
+	chartRepositoryServiceImpl := chartRepo.NewChartRepositoryServiceImpl(sugaredLogger, chartRepoRepositoryImpl, k8sUtil, clusterServiceImpl, acdAuthConfig, httpClient)
+	chartRepositoryRestHandlerImpl := chartRepo2.NewChartRepositoryRestHandlerImpl(sugaredLogger, userServiceImpl, chartRepositoryServiceImpl, enforcerImpl, validate)
+	chartRepositoryRouterImpl := chartRepo2.NewChartRepositoryRouterImpl(chartRepositoryRestHandlerImpl)
+	appStoreApplicationVersionRepositoryImpl := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
+	appStoreServiceImpl := appStoreDiscover.NewAppStoreServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl)
+	appStoreRestHandlerImpl := appStoreDiscover2.NewAppStoreRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreServiceImpl, enforcerImpl)
+	appStoreDiscoverRouterImpl := appStoreDiscover2.NewAppStoreDiscoverRouterImpl(appStoreRestHandlerImpl)
 	muxRouter := NewMuxRouter(sugaredLogger, ssoLoginRouterImpl, teamRouterImpl, userAuthRouterImpl, userRouterImpl, clusterRouterImpl, dashboardRouterImpl, helmAppRouterImpl, environmentRouterImpl, k8sApplicationRouterImpl, chartRepositoryRouterImpl, appStoreDiscoverRouterImpl)
 	app := NewApp(db, sessionManager, muxRouter, sugaredLogger)
 	return app, nil

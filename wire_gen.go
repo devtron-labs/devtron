@@ -8,9 +8,9 @@ package main
 import (
 	client2 "github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/middleware"
-	app_store2 "github.com/devtron-labs/devtron/api/app-store"
-	app_store_discover2 "github.com/devtron-labs/devtron/api/app-store/discover"
-	chart_repo2 "github.com/devtron-labs/devtron/api/chart-repo"
+	appStore2 "github.com/devtron-labs/devtron/api/appStore"
+	appStoreDiscover2 "github.com/devtron-labs/devtron/api/appStore/discover"
+	chartRepo2 "github.com/devtron-labs/devtron/api/chartRepo"
 	cluster3 "github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	client4 "github.com/devtron-labs/devtron/api/helm-app"
@@ -48,17 +48,17 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/internal/util/ArgoUtil"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
-	"github.com/devtron-labs/devtron/pkg/app-store"
-	"github.com/devtron-labs/devtron/pkg/app-store/bean"
-	"github.com/devtron-labs/devtron/pkg/app-store/discover"
-	"github.com/devtron-labs/devtron/pkg/app-store/discover/repository"
-	"github.com/devtron-labs/devtron/pkg/app-store/repository"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
+	"github.com/devtron-labs/devtron/pkg/appStore"
+	"github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/discover"
+	"github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/chart-repo"
-	"github.com/devtron-labs/devtron/pkg/chart-repo/repository"
+	"github.com/devtron-labs/devtron/pkg/chartRepo"
+	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
@@ -181,7 +181,7 @@ func InitializeApp() (*App, error) {
 	configMapRepositoryImpl := chartConfig.NewConfigMapRepositoryImpl(sugaredLogger, db)
 	appLevelMetricsRepositoryImpl := repository.NewAppLevelMetricsRepositoryImpl(db, sugaredLogger)
 	envLevelAppMetricsRepositoryImpl := repository.NewEnvLevelAppMetricsRepositoryImpl(db, sugaredLogger)
-	chartRepositoryImpl := chart_repo_repository.NewChartRepository(db)
+	chartRepositoryImpl := chartRepoRepository.NewChartRepository(db)
 	gitOpsConfigRepositoryImpl := repository.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
 	dockerArtifactStoreRepositoryImpl := repository.NewDockerArtifactStoreRepositoryImpl(db)
 	gitProviderRepositoryImpl := repository.NewGitProviderRepositoryImpl(db)
@@ -249,11 +249,11 @@ func InitializeApp() (*App, error) {
 	pipelineBuilderImpl := pipeline.NewPipelineBuilderImpl(sugaredLogger, dbPipelineOrchestratorImpl, dockerArtifactStoreRepositoryImpl, materialRepositoryImpl, appRepositoryImpl, pipelineRepositoryImpl, propertiesConfigServiceImpl, ciTemplateRepositoryImpl, ciPipelineRepositoryImpl, serviceClientImpl, chartRepositoryImpl, ciArtifactRepositoryImpl, ecrConfig, envConfigOverrideRepositoryImpl, environmentRepositoryImpl, pipelineConfigRepositoryImpl, utilMergeUtil, appWorkflowRepositoryImpl, ciConfig, cdWorkflowRepositoryImpl, appServiceImpl, imageScanResultRepositoryImpl, argoK8sClientImpl, gitFactory, attributesServiceImpl, acdAuthConfig, gitOpsConfigRepositoryImpl)
 	chartWorkingDir := _wireChartWorkingDirValue
 	chartTemplateServiceImpl := util.NewChartTemplateServiceImpl(sugaredLogger, chartWorkingDir, httpClient, gitFactory)
-	chartRepoRepositoryImpl := chart_repo_repository.NewChartRepoRepositoryImpl(db)
+	chartRepoRepositoryImpl := chartRepoRepository.NewChartRepoRepositoryImpl(db)
 	refChartDir := _wireRefChartDirValue
 	defaultChart := _wireDefaultChartValue
 	repositoryServiceClientImpl := repository4.NewServiceClientImpl(argoCDSettings, sugaredLogger)
-	chartRefRepositoryImpl := chart_repo_repository.NewChartRefRepositoryImpl(db)
+	chartRefRepositoryImpl := chartRepoRepository.NewChartRefRepositoryImpl(db)
 	customFormatCheckers := util3.NewGoJsonSchemaCustomFormatChecker()
 	chartServiceImpl := pipeline.NewChartServiceImpl(chartRepositoryImpl, sugaredLogger, chartTemplateServiceImpl, chartRepoRepositoryImpl, appRepositoryImpl, refChartDir, defaultChart, utilMergeUtil, repositoryServiceClientImpl, chartRefRepositoryImpl, envConfigOverrideRepositoryImpl, pipelineConfigRepositoryImpl, configMapRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, appLevelMetricsRepositoryImpl, httpClient, customFormatCheckers)
 	dbMigrationServiceImpl := pipeline.NewDbMogrationService(sugaredLogger, dbMigrationConfigRepositoryImpl)
@@ -266,7 +266,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	grafanaClientImpl := grafana.NewGrafanaClientImpl(sugaredLogger, httpClient, grafanaClientConfig, attributesServiceImpl)
-	installedAppRepositoryImpl := app_store_repository.NewInstalledAppRepositoryImpl(sugaredLogger, db)
+	installedAppRepositoryImpl := appStoreRepository.NewInstalledAppRepositoryImpl(sugaredLogger, db)
 	k8sUtil := util.NewK8sUtil(sugaredLogger)
 	clusterServiceClientImpl := cluster.NewServiceClientImpl(argoCDSettings, sugaredLogger)
 	v := informer.NewGlobalMapClusterNamespace()
@@ -371,24 +371,24 @@ func InitializeApp() (*App, error) {
 	configMapRestHandlerImpl := restHandler.NewConfigMapRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, chartServiceImpl, userServiceImpl, teamServiceImpl, enforcerImpl, pipelineRepositoryImpl, enforcerUtilImpl, configMapServiceImpl)
 	configMapRouterImpl := router.NewConfigMapRouterImpl(configMapRestHandlerImpl)
 	refChartProxyDir := _wireRefChartProxyDirValue
-	appStoreApplicationVersionRepositoryImpl := app_store_discover_repository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
-	appStoreVersionValuesRepositoryImpl := app_store_repository.NewAppStoreVersionValuesRepositoryImpl(sugaredLogger, db)
-	appStoreValuesServiceImpl := app_store.NewAppStoreValuesServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl)
-	chartGroupDeploymentRepositoryImpl := app_store_repository.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
-	clusterInstalledAppsRepositoryImpl := app_store_repository.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
-	installedAppServiceImpl, err := app_store.NewInstalledAppServiceImpl(sugaredLogger, installedAppRepositoryImpl, chartTemplateServiceImpl, refChartProxyDir, repositoryServiceClientImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, serviceClientImpl, appStoreValuesServiceImpl, pubSubClient, tokenCache, chartGroupDeploymentRepositoryImpl, environmentServiceImpl, clusterInstalledAppsRepositoryImpl, argoK8sClientImpl, gitFactory, acdAuthConfig, gitOpsConfigRepositoryImpl, userServiceImpl)
+	appStoreApplicationVersionRepositoryImpl := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
+	appStoreVersionValuesRepositoryImpl := appStoreRepository.NewAppStoreVersionValuesRepositoryImpl(sugaredLogger, db)
+	appStoreValuesServiceImpl := appStore.NewAppStoreValuesServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl)
+	chartGroupDeploymentRepositoryImpl := appStoreRepository.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
+	clusterInstalledAppsRepositoryImpl := appStoreRepository.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
+	installedAppServiceImpl, err := appStore.NewInstalledAppServiceImpl(sugaredLogger, installedAppRepositoryImpl, chartTemplateServiceImpl, refChartProxyDir, repositoryServiceClientImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, serviceClientImpl, appStoreValuesServiceImpl, pubSubClient, tokenCache, chartGroupDeploymentRepositoryImpl, environmentServiceImpl, clusterInstalledAppsRepositoryImpl, argoK8sClientImpl, gitFactory, acdAuthConfig, gitOpsConfigRepositoryImpl, userServiceImpl)
 	if err != nil {
 		return nil, err
 	}
-	installedAppRestHandlerImpl := app_store2.NewInstalledAppRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, enforcerUtilImpl, installedAppServiceImpl, validate, clusterServiceImplExtended, serviceClientImpl)
-	appStoreValuesRestHandlerImpl := app_store2.NewAppStoreValuesRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreValuesServiceImpl)
-	appStoreServiceImpl := app_store_discover.NewAppStoreServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl)
-	appStoreRestHandlerImpl := app_store_discover2.NewAppStoreRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreServiceImpl, enforcerImpl)
-	appStoreDiscoverRouterImpl := app_store_discover2.NewAppStoreDiscoverRouterImpl(appStoreRestHandlerImpl)
-	appStoreRouterImpl := app_store2.NewAppStoreRouterImpl(installedAppRestHandlerImpl, appStoreValuesRestHandlerImpl, appStoreDiscoverRouterImpl)
-	chartRepositoryServiceImpl := chart_repo.NewChartRepositoryServiceImpl(sugaredLogger, chartRepoRepositoryImpl, k8sUtil, clusterServiceImplExtended, acdAuthConfig, httpClient)
-	chartRepositoryRestHandlerImpl := chart_repo2.NewChartRepositoryRestHandlerImpl(sugaredLogger, userServiceImpl, chartRepositoryServiceImpl, enforcerImpl, validate)
-	chartRepositoryRouterImpl := chart_repo2.NewChartRepositoryRouterImpl(chartRepositoryRestHandlerImpl)
+	installedAppRestHandlerImpl := appStore2.NewInstalledAppRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, enforcerUtilImpl, installedAppServiceImpl, validate, clusterServiceImplExtended, serviceClientImpl)
+	appStoreValuesRestHandlerImpl := appStore2.NewAppStoreValuesRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreValuesServiceImpl)
+	appStoreServiceImpl := appStoreDiscover.NewAppStoreServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl)
+	appStoreRestHandlerImpl := appStoreDiscover2.NewAppStoreRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreServiceImpl, enforcerImpl)
+	appStoreDiscoverRouterImpl := appStoreDiscover2.NewAppStoreDiscoverRouterImpl(appStoreRestHandlerImpl)
+	appStoreRouterImpl := appStore2.NewAppStoreRouterImpl(installedAppRestHandlerImpl, appStoreValuesRestHandlerImpl, appStoreDiscoverRouterImpl)
+	chartRepositoryServiceImpl := chartRepo.NewChartRepositoryServiceImpl(sugaredLogger, chartRepoRepositoryImpl, k8sUtil, clusterServiceImplExtended, acdAuthConfig, httpClient)
+	chartRepositoryRestHandlerImpl := chartRepo2.NewChartRepositoryRestHandlerImpl(sugaredLogger, userServiceImpl, chartRepositoryServiceImpl, enforcerImpl, validate)
+	chartRepositoryRouterImpl := chartRepo2.NewChartRepositoryRouterImpl(chartRepositoryRestHandlerImpl)
 	lensConfig, err := lens.GetLensConfig()
 	if err != nil {
 		return nil, err
@@ -409,9 +409,9 @@ func InitializeApp() (*App, error) {
 	workflowActionImpl := batch.NewWorkflowActionImpl(sugaredLogger, appRepositoryImpl, appWorkflowServiceImpl, buildActionImpl, deploymentActionImpl)
 	batchOperationRestHandlerImpl := restHandler.NewBatchOperationRestHandlerImpl(userServiceImpl, enforcerImpl, workflowActionImpl, teamServiceImpl, sugaredLogger, enforcerUtilImpl)
 	batchOperationRouterImpl := router.NewBatchOperationRouterImpl(batchOperationRestHandlerImpl, sugaredLogger)
-	chartGroupEntriesRepositoryImpl := app_store_repository.NewChartGroupEntriesRepositoryImpl(db, sugaredLogger)
-	chartGroupReposotoryImpl := app_store_repository.NewChartGroupReposotoryImpl(db, sugaredLogger)
-	chartGroupServiceImpl := app_store.NewChartGroupServiceImpl(chartGroupEntriesRepositoryImpl, chartGroupReposotoryImpl, sugaredLogger, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl)
+	chartGroupEntriesRepositoryImpl := appStoreRepository.NewChartGroupEntriesRepositoryImpl(db, sugaredLogger)
+	chartGroupReposotoryImpl := appStoreRepository.NewChartGroupReposotoryImpl(db, sugaredLogger)
+	chartGroupServiceImpl := appStore.NewChartGroupServiceImpl(chartGroupEntriesRepositoryImpl, chartGroupReposotoryImpl, sugaredLogger, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl)
 	chartGroupRestHandlerImpl := restHandler.NewChartGroupRestHandlerImpl(chartGroupServiceImpl, sugaredLogger, userServiceImpl, enforcerImpl, validate)
 	chartGroupRouterImpl := router.NewChartGroupRouterImpl(chartGroupRestHandlerImpl)
 	testSuitRestHandlerImpl := restHandler.NewTestSuitRestHandlerImpl(sugaredLogger, userServiceImpl, validate, enforcerImpl, enforcerUtilImpl, eventClientConfig, httpClient)
@@ -486,5 +486,5 @@ var (
 	_wireChartWorkingDirValue  = util.ChartWorkingDir("/tmp/charts/")
 	_wireRefChartDirValue      = pipeline.RefChartDir("scripts/devtron-reference-helm-charts")
 	_wireDefaultChartValue     = pipeline.DefaultChart("reference-app-rolling")
-	_wireRefChartProxyDirValue = app_store_bean.RefChartProxyDir("scripts/devtron-reference-helm-charts")
+	_wireRefChartProxyDirValue = appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")
 )
