@@ -67,7 +67,9 @@ func InitializeApp() (*App, error) {
 	}
 	enforcer := casbin.Create()
 	enforcerImpl := casbin.NewEnforcerImpl(enforcer, sessionManager, sugaredLogger)
-	userAuthRepositoryImpl := repository.NewUserAuthRepositoryImpl(db, sugaredLogger)
+	defaultAuthPolicyRepositoryImpl := repository.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
+	defaultAuthRoleRepositoryImpl := repository.NewDefaultAuthRoleRepositoryImpl(db, sugaredLogger)
+	userAuthRepositoryImpl := repository.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
 	userRepositoryImpl := repository.NewUserRepositoryImpl(db)
 	roleGroupRepositoryImpl := repository.NewRoleGroupRepositoryImpl(db, sugaredLogger)
 	userCommonServiceImpl := user.NewUserCommonServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager)
