@@ -256,7 +256,6 @@ func (impl *TelemetryEventClientImpl) GetTelemetryMetaInfo() (*TelemetryMetaInfo
 }
 
 func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEventType, error) {
-	println("event1")
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception while getting unique client id", "error", err)
@@ -292,7 +291,7 @@ func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEv
 				impl.logger.Errorw("HeartbeatEventForTelemetry, failed to push event", "error", err)
 				return nil, err
 			}
-			datamap[InstallEventKey] = "1"
+			datamap[InstallEventKey] = "2"
 			cm.Data = datamap
 			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 			if err != nil {
@@ -329,7 +328,7 @@ func (impl *TelemetryEventClientImpl) getUCID() (string, error) {
 			cm = &v1.ConfigMap{ObjectMeta: v12.ObjectMeta{Name: DevtronUniqueClientIdConfigMap}}
 			data := map[string]string{}
 			data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
-			data[InstallEventKey] = "0"                                 // used in operator to detect event is install or upgrade
+			data[InstallEventKey] = "1"                                 // used in operator to detect event is install or upgrade
 			cm.Data = data
 			_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 			if err != nil {
