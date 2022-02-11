@@ -203,7 +203,7 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 <details><summary> <b>  Centralized Access Management </b></summary>
 <br>
  
-- Control and Give customizable view-only, Edit access to users on Project, Environment and App level.
+- Control and give customizable view-only, edit access to users on Project, Environment and App level.
  
 </details>
  
