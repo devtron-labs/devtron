@@ -209,6 +209,7 @@ type ChartRepo struct {
 	AccessToken string              `sql:"access_token"`
 	AuthMode    repository.AuthMode `sql:"auth_mode,notnull"`
 	External    bool                `sql:"external,notnull"`
+	Deleted		bool				`sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
@@ -219,6 +220,7 @@ type ChartRepoRepository interface {
 	FindById(id int) (*ChartRepo, error)
 	FindAll() ([]*ChartRepo, error)
 	GetConnection() *pg.DB
+	MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error
 }
 type ChartRepoRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -246,21 +248,32 @@ func (impl ChartRepoRepositoryImpl) GetDefault() (*ChartRepo, error) {
 	repo := &ChartRepo{}
 	err := impl.dbConnection.Model(repo).
 		Where("is_default = ?", true).
-		Where("active = ?", true).Select()
+		Where("active = ?", true).
+		Where("deleted = ?", false).
+		Select()
 	return repo, err
 }
 
 func (impl ChartRepoRepositoryImpl) FindById(id int) (*ChartRepo, error) {
 	repo := &ChartRepo{}
 	err := impl.dbConnection.Model(repo).
-		Where("id = ?", id).Select()
+		Where("id = ?", id).
+		Where("deleted = ?", false).
+		Select()
 	return repo, err
 }
 
 func (impl ChartRepoRepositoryImpl) FindAll() ([]*ChartRepo, error) {
 	var repo []*ChartRepo
-	err := impl.dbConnection.Model(&repo).Select()
+	err := impl.dbConnection.Model(&repo).
+		Where("deleted = ?", false).
+		Select()
 	return repo, err
+}
+
+func(impl ChartRepoRepositoryImpl) MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error{
+	chartRepo.Deleted = true
+	return tx.Update(chartRepo)
 }
 
 // ------------------------ CHART REF REPOSITORY ---------------

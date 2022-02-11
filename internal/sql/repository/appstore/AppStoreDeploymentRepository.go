@@ -38,6 +38,7 @@ type InstalledAppRepository interface {
 	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(filter *AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
 	GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
+	GetAllInstalledAppsByChartRepoId(chartRepoId int) ([]InstalledAppAndEnvDetails, error)
 	GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error)
 
@@ -280,6 +281,23 @@ func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId
 		" left join users u on u.id = ia.updated_by " +
 		" where aps.id = " + strconv.Itoa(appStoreId) + " and ia.active=true and iav.active=true and env.active=true"
 	_, err := impl.dbConnection.Query(&installedAppAndEnvDetails, queryTemp)
+	if err != nil {
+		return nil, err
+	}
+	return installedAppAndEnvDetails, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetAllInstalledAppsByChartRepoId(chartRepoId int) ([]InstalledAppAndEnvDetails, error) {
+	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
+	var queryTemp string = "select env.environment_name, env.id as environment_id, a.app_name, ia.updated_on, u.email_id, asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id " +
+		" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id" +
+		" inner join app a on a.id = ia.app_id " +
+		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id " +
+		" inner join app_store aps on asav.app_store_id = aps.id " +
+		" inner join environment env on ia.environment_id = env.id " +
+		" left join users u on u.id = ia.updated_by " +
+		" where aps.chart_repo_id = ? and ia.active=true and iav.active=true and env.active=true"
+	_, err := impl.dbConnection.Query(&installedAppAndEnvDetails, queryTemp, chartRepoId)
 	if err != nil {
 		return nil, err
 	}

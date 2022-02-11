@@ -52,6 +52,7 @@ type ChartGroupEntriesRepository interface {
 	Save(model *ChartGroupEntry) (*ChartGroupEntry, error)
 	SaveAndUpdateInTransaction(saveEntry []*ChartGroupEntry, updateEntry []*ChartGroupEntry) ([]*ChartGroupEntry, error)
 	FindEntriesWithChartMetaByChartGroupId(chartGroupId []int) ([]*ChartGroupEntry, error)
+	MarkChartGroupEntriesDeleted(chartGroupId []int, tx *pg.Tx) ([]*ChartGroupEntry, error)
 }
 
 func (impl *ChartGroupEntriesRepositoryImpl) Save(model *ChartGroupEntry) (*ChartGroupEntry, error) {
@@ -103,3 +104,13 @@ func (impl *ChartGroupEntriesRepositoryImpl) FindEntriesWithChartMetaByChartGrou
 		Select()
 	return chartGroupEntries, err
 }
+
+func (impl *ChartGroupEntriesRepositoryImpl) MarkChartGroupEntriesDeleted(chartGroupId []int, tx *pg.Tx) ([]*ChartGroupEntry, error) {
+	var chartGroupEntries []*ChartGroupEntry
+	_, err := tx.Model(&chartGroupEntries).
+		Where("id in (?)", pg.In(chartGroupId)).
+		Set("deleted = ", true).
+		Update()
+	return chartGroupEntries, err
+}
+

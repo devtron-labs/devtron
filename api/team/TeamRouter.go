@@ -35,6 +35,7 @@ func NewTeamRouterImpl(teamRestHandler TeamRestHandler) *TeamRouterImpl {
 func (impl TeamRouterImpl) InitTeamRouter(configRouter *mux.Router) {
 	configRouter.Path("").HandlerFunc(impl.teamRestHandler.SaveTeam).Methods("POST")
 	configRouter.Path("").HandlerFunc(impl.teamRestHandler.FetchAll).Methods("GET")
+	configRouter.Path("").HandlerFunc(impl.teamRestHandler.DeleteTeam).Methods("DELETE")
 	//make sure autocomplete API, must add before FetchOne API
 	configRouter.Path("/autocomplete").HandlerFunc(impl.teamRestHandler.FetchForAutocomplete).Methods("GET")
 	configRouter.Path("/{id}").HandlerFunc(impl.teamRestHandler.FetchOne).Methods("GET")

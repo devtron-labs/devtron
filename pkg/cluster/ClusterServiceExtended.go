@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
+	"time"
 )
 
 //extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
@@ -329,6 +330,23 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	}
 	//on successful creation of new cluster, update informer cache for namespace group by cluster
 	impl.SyncNsInformer(bean)
-	
+
 	return clusterBean, nil
+}
+
+func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId int32) error {
+	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
+		return err
+	}
+	deleteReq := existingCluster
+	deleteReq.UpdatedOn = time.Now()
+	deleteReq.UpdatedBy = userId
+	err = impl.clusterRepository.MarkClusterDeleted(deleteReq)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
+		return err
+	}
+	return nil
 }

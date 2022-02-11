@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -32,11 +33,14 @@ import (
 	"strings"
 )
 
+const PROJECT_DELETE_SUCCESS_RESP = "Project deleted successfully."
+
 type TeamRestHandler interface {
 	SaveTeam(w http.ResponseWriter, r *http.Request)
 	FetchAll(w http.ResponseWriter, r *http.Request)
 	FetchOne(w http.ResponseWriter, r *http.Request)
 	UpdateTeam(w http.ResponseWriter, r *http.Request)
+	DeleteTeam(w http.ResponseWriter, r *http.Request)
 
 	FetchForAutocomplete(w http.ResponseWriter, r *http.Request)
 }
@@ -48,13 +52,16 @@ type TeamRestHandlerImpl struct {
 	validator       *validator.Validate
 	enforcer        casbin.Enforcer
 	userAuthService user.UserAuthService
+	deleteService   delete2.DeleteService
 }
 
 func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
 	userService user.UserService,
 	enforcer casbin.Enforcer,
-	validator *validator.Validate, userAuthService user.UserAuthService) *TeamRestHandlerImpl {
+	validator *validator.Validate, userAuthService user.UserAuthService,
+	deleteService delete2.DeleteService,
+) *TeamRestHandlerImpl {
 	return &TeamRestHandlerImpl{
 		logger:          logger,
 		teamService:     teamService,
@@ -62,6 +69,7 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 		validator:       validator,
 		enforcer:        enforcer,
 		userAuthService: userAuthService,
+		deleteService:   deleteService,
 	}
 }
 
@@ -182,6 +190,44 @@ func (impl TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var deleteRequest team.TeamRequest
+	err = decoder.Decode(&deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("request err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	deleteRequest.UserId = userId
+	impl.logger.Infow("request payload, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+	err = impl.validator.Struct(deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("validation err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//rbac starts
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//rbac ends
+	err = impl.deleteService.DeleteTeam(&deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("service err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, PROJECT_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
 func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *http.Request) {
