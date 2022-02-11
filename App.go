@@ -100,7 +100,6 @@ func (app *App) Start() {
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.server = server
 	var err error
-
 	if app.serveTls {
 		cert, err := tls.LoadX509KeyPair(
 			"localhost.crt",
