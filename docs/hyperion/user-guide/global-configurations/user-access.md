@@ -1,8 +1,6 @@
 
 # User Access
 
-{% embed url="https://www.youtube.com/watch?v=VTqBRIFbuSU" caption="" %}
-
 Like any enterprise product, Devtron supports fine grained access control to the resources based on
 1. Type of action allowed on the Devtron resources (Create Vs View)
 2. Sensitivity of the data (Editing image Vs Editing memory)
@@ -27,7 +25,7 @@ Devtron supports 5 levels of access
 <br/>
 
 | Access Level | View Charts | Install Charts | Edit Charts | Delete Charts |
-|--|--|--|--|--|--|
+|--|--|--|--|--|
 | View | Yes  | No | No | No|
 | Build and Deploy | Yes  | No | No | No|
 |Admin| Yes | Yes | Yes | Yes |
@@ -55,16 +53,21 @@ Go to the left main panel -&gt; `Select Global Configurations` -&gt; Select `Use
 
 Click on `Add User`, to add one or multiple users.
 
-![](../../../user-guide/global-configurations/images/add-user.jpg)
+![](../../../user-guide/global-configurations/images/add-user-new.jpg)
 
 ### 2. Create User Permissions
 
-When you click on Add User, you will see 5 options to set permission for users which are as follow:
+When you click on Add User, you will see 6 options to set permission for users which are as follow:
 
 * Email addresses
 * Assign super admin permissions
 * Group permissions
-* Direct permissions
+* Direct permissions for Devtron Apps
+  * Project
+  * Environment
+  * Applications
+  * Roles
+* Direct permissions for Helm Apps
   * Project
   * Environment
   * Applications
@@ -95,7 +98,7 @@ This is used to assign user to a particular group and user inherits all the perm
 
 We will discuss how to create groups in the later section.
 
-### Direct permissions
+### Direct permissions for Devtron Apps
 
 Access can be given to user by attaching permission directly to his/her email id through the `Direct Permissions` section. This section has 4 options to manage the permissions of your users.
 
@@ -121,11 +124,46 @@ Similarly, you can select `Applications` from the drop-down corresponding to you
 
 There are four different view access levels/Role available for both User and Group as described [above](#access-levels):
 
-![](../../../.gitbook/assets/gc-user-access-configure-direct-permission-3-6.jpg)
+![](../../../.gitbook/assets/permission.jpg)
 
 You can add multiple rows, for Direct Permissions.
 
 Once you have finished assigning the appropriate permissions for the listed users, Click on `Save`.
+
+
+### Direct permissions for Helm Apps
+
+Access can be given to user by attaching permission directly to his/her email id through the `Direct Permissions` section. This section has 4 options to manage the permissions of your users.
+
+* **Project**
+
+Select a project from the drop-down to which you want to give permission to the users. You can select only one project at a time if you want to select more than one project then click `Add row`.
+
+* **Environment or cluster/namespace**
+
+In the `Environment` section, you can select one or more than one or all environments at a time. Click on the environment section, you will see a drop-down of your environments and select any environment on which you want to give permission to the user.
+
+**`IMP`** If `all environments` option is selected then user gets access to all current environments and any new environment which gets associated with this application later.
+
+* **Applications**
+
+Similarly, you can select `Applications` from the drop-down corresponding to your selected Environments. In this section, you can also give permissions to one or more than one or to all applications at a time.
+
+**`IMP`** If `all applications` option is selected then user gets access to all current applications and any new application which gets associated with this project later.
+
+* **Permission**
+
+  Inside the `Permission`, you actually choose which type of permissions you want to give to the users.
+
+There are four different view access levels/Role available for both User and Group as described [above](#access-levels):
+
+![](../../../.gitbook/assets/permission1.jpg)
+
+You can add multiple rows, for Direct Permissions.
+
+Once you have finished assigning the appropriate permissions for the listed users, Click on `Save`.
+
+
 
 ### Chart group permissions
 
@@ -135,17 +173,17 @@ You can either give the users permission to `Create` or `Edit`.
 
 Click on the checkbox of `Create`, if you want the users to create, view, edit, or delete all the chart groups.
 
-![](../../../.gitbook/assets/gc-user-access-configure-chart-permission.jpg)
+![](../../../.gitbook/assets/permission2.jpg)
 
 Click on the checkbox of `Edit`, if you want to `allow` or `deny` users to edit the chart groups.
 
 Select on `Deny` option from the drop-down menu, if you want to restrict the users to edit the chart groups.
 
-![](../../../.gitbook/assets/user5.jpg)
+![](../../../.gitbook/assets/permission3.jpg)
 
 Select the `Specific Charts` option from the drop-down menu, and then select the chart groups for which you want to allow users to edit, from the other drop-down menu.
 
-![](../../../.gitbook/assets/user6.jpg)
+![](../../../.gitbook/assets/permission4.jpg)
 
 Click on `Save`, once you have configured all the required permissions for the users.
 
@@ -157,7 +195,7 @@ You can edit the user permissions, by clicking on the `downward arrow`.
 
 Then you can edit the user permissions here.
 
-![](../../../.gitbook/assets/gc-user-access-edit-user-permission-6.jpg)
+![](../../../.gitbook/assets/permission5.jpg)
 
 After you have done editing the user permissions. Click on `Save`.
 
@@ -185,7 +223,7 @@ Once you have given the group name and group description.
 
 Then, control the access permissions of groups in the Direct Permissions section. Manage the Project, Environment, Application, and Role access the same as we discuss in the above users section.
 
-![](../../../.gitbook/assets/gc-user-access-add-group-configure.jpg)
+![](../../../.gitbook/assets/permission6.jpg)
 
 You can add multiple rows, for the Direct Permissions section.
 
@@ -199,7 +237,7 @@ You can edit the group permissions, by clicking on the `downward arrow.`
 
 Then you can edit the user permissions here.
 
-![](../../../.gitbook/assets/gc-user-access-add-group-edit-configure.jpg)
+![](../../../.gitbook/assets/permission7.jpg)
 
 Once you are done editing the group permissions. Click on `Save`.
 
