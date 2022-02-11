@@ -49,8 +49,6 @@ type App struct {
 	// used for local dev only
 	serveTls        bool
 	sessionManager2 *authMiddleware.SessionManager
-
-	//configMap            restHandler.ConfigMapRestHandlerImpl
 }
 
 func NewApp(router *router.MuxRouter,
@@ -76,8 +74,6 @@ func NewApp(router *router.MuxRouter,
 		pubsubClient:    pubsubClient,
 		serveTls:        false,
 		sessionManager2: sessionManager2,
-
-		//configMap:		 restHandler.ConfigMapRestHandlerImpl{},
 	}
 	return app
 }
