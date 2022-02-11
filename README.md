@@ -269,9 +269,9 @@ For admin login use username:`admin` and for password run the following command.
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
-#### If you want to perform CI/CD, App creation present in Full Devtron Experience you are always few commands away:
+#### If you want to perform CI/CD, App creation present in Devtron you are always few commands away:
  
-[Getting Started for Full Devtron Experience](https://github.com/devtron-labs/devtron#rocket-getting-started)
+[Getting Started for Devtron](https://github.com/devtron-labs/devtron#rocket-getting-started)
 
  
 </details>
