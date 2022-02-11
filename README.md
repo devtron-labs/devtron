@@ -41,7 +41,7 @@
 
 - [Devtron?](https://github.com/devtron-labs/devtron#bulb-devtron)
 - [Devtron](https://github.com/devtron-labs/devtron#computer-Devtron)
-- [Hyperion](https://github.com/devtron-labs/devtron#🦹-hyperion)
+- [Hyperion](https://github.com/devtron-labs/devtron#-hyperion)
 - [Documentation](https://docs.devtron.ai/)
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
