@@ -40,7 +40,7 @@
 ## :book: Menu
 
 - [Devtron?](https://github.com/devtron-labs/devtron#bulb-devtron)
-- [Devtron](https://github.com/devtron-labs/devtron#computer-Devtron)
+- [Devtron](https://github.com/devtron-labs/devtron#computer-devtron)
 - [Hyperion](https://github.com/devtron-labs/devtron#-hyperion)
 - [Documentation](https://docs.devtron.ai/)
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
