@@ -56,7 +56,7 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 		PosthogApiKey = apiKey
 		PosthogEncodedApiKey = encodedApiKey
 	}
-	client, err := posthog.NewWithConfig(PosthogApiKey, posthog.Config{Endpoint: "https://app.posthog.com"})
+	client, err := posthog.NewWithConfig(PosthogApiKey, posthog.Config{Endpoint: PosthogEndpoint})
 	//defer client.Close()
 	if err != nil {
 		logger.Errorw("exception caught while creating posthog client", "err", err)
