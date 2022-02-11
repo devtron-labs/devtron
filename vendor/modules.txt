@@ -593,6 +593,7 @@ golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/knownhosts
 golang.org/x/crypto/ssh/terminal
 # golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
+## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -1103,6 +1104,7 @@ k8s.io/utils/trace
 ## explicit
 mellium.im/sasl
 # sigs.k8s.io/yaml v1.3.0
+## explicit
 sigs.k8s.io/yaml
 # xorm.io/builder v0.3.6
 xorm.io/builder
