@@ -59,7 +59,7 @@ Devtron is a Web-Based CI/CD Platform for Kubernetes. It integrates various Open
 
 <b> Devtron is built in a modular approach. These modules can be installed independently: </b>
 - [Devtron](https://github.com/devtron-labs/devtron#tada-Full-Devtron-Experience) - This option gives you all the features of Devtron as a Full Experience providing you with CI, CD, security, cost, observability, stabilization. All the modules stated below are included here.
-- [Hyperion](https://github.com/devtron-labs/devtron#tada-featuresfor-hyperion) - Devtron's Web-based module to manage helm apps that can be installed seperately. Install Hyperion -> manage, Observe helm apps of all your clusters. This module is also a great way to manage existing helm apps and gradually understand how Devtron fits into your workflow. You can always switch to Full Devtron Experience for all the features.
+- [Hyperion](https://github.com/devtron-labs/devtron#tada-featuresfor-hyperion) - Devtron's Web-based module to manage helm apps that can be installed seperately. Install Hyperion -> manage, Observe helm apps of all your clusters. This module is also a great way to manage existing helm apps and gradually understand how Devtron fits into your workflow. You can always switch to Devtron for all the features.
 
 ## :computer: Devtron
 
