@@ -240,24 +240,6 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		return
 	}
 
-	//if impl.PosthogClient.Client == nil {
-	//	impl.logger.Warn("no posthog client found, creating new")
-	//	client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
-	//	if err == nil {
-	//		impl.PosthogClient.Client = client
-	//	}
-	//}
-	//if impl.PosthogClient.Client != nil {
-	//	err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
-	//		DistinctId: ucid,
-	//		Event:      string(Heartbeat),
-	//		Properties: prop,
-	//	})
-	//	if err != nil {
-	//		impl.logger.Errorw("HeartbeatEventForTelemetry, failed to push event", "error", err)
-	//	}
-	//}
-
 	err = impl.EnqueuePostHog(ucid, Heartbeat, prop)
 	if err == nil {
 		if err != nil {
