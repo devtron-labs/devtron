@@ -280,8 +280,6 @@ func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEv
 	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
 	datamap := cm.Data
 
-	impl.HeartbeatEventForTelemetry()
-
 	installEventValue, installEventKeyExists := datamap[InstallEventKey]
 
 	if installEventKeyExists == false || installEventValue == "1" {
