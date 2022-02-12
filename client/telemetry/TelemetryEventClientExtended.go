@@ -10,7 +10,6 @@ import (
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
-	"github.com/posthog/posthog-go"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"net/http"
@@ -24,10 +23,6 @@ type TelemetryEventClientImplExtended struct {
 	pipelineRepository   pipelineConfig.PipelineRepository
 	*TelemetryEventClientImpl
 }
-
-//type TelemetryEventClientExtended interface {
-//	GetTelemetryMetaInfo() (*TelemetryMetaInfo, error)
-//}
 
 func (impl *TelemetryEventClientImplExtended) NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
@@ -161,27 +156,6 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 
 	devtronVersion := util.GetDevtronVersion()
 
-	//if devtronVersion.ServerMode == "FULL" {
-	//	summary := &SummaryDto{
-	//		ProdAppCount:     prodApps,
-	//		NonProdAppCount:  nonProdApps,
-	//		UserCount:        len(users),
-	//		EnvironmentCount: len(environments),
-	//		ClusterCount:     len(clusters),
-	//		CiCountPerDay:    len(ciPipeline),
-	//		CdCountPerDay:    len(cdPipeline),
-	//		DevtronVersion:   devtronVersion.GitCommit,
-	//		DevtronMode:      devtronVersion.ServerMode,
-	//	}
-	//	payload.Summary = summary
-	//}else{
-	//	summary := &SummaryEA{
-	//		UserCount:      len(users),
-	//		ClusterCount:   len(clusters),
-	//		DevtronVersion: devtronVersion.GitCommit,
-	//		DevtronMode:    devtronVersion.ServerMode,
-	//	}
-	//}
 	summary := &SummaryDto{
 		ProdAppCount:     prodApps,
 		NonProdAppCount:  nonProdApps,
@@ -207,75 +181,8 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		return
 	}
 
-	if impl.PosthogClient.Client == nil {
-		impl.logger.Warn("no posthog client found, creating new")
-		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
-		if err == nil {
-			impl.PosthogClient.Client = client
-		}
-	}
-	if impl.PosthogClient.Client != nil {
-		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
-			DistinctId: ucid,
-			Event:      string(Summary),
-			Properties: prop,
-		})
-		if err != nil {
-			impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "error", err)
-		}
+	err = impl.EnqueuePostHog(ucid, Summary, prop)
+	if err != nil {
+		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
 	}
 }
-
-//func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
-//	ucid, err := impl.getUCID()
-//	if err != nil {
-//		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
-//		return
-//	}
-//	if IsOptOut {
-//		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
-//		return
-//	}
-//
-//	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
-//	if err != nil {
-//		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
-//		return
-//	}
-//	k8sServerVersion, err := discoveryClient.ServerVersion()
-//	if err != nil {
-//		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
-//		return
-//	}
-//	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: Heartbeat, DevtronVersion: "v1"}
-//	payload.ServerVersion = k8sServerVersion.String()
-//	reqBody, err := json.Marshal(payload)
-//	if err != nil {
-//		impl.logger.Errorw("HeartbeatEventForTelemetry, payload marshal error", "error", err)
-//		return
-//	}
-//	prop := make(map[string]interface{})
-//	err = json.Unmarshal(reqBody, &prop)
-//	if err != nil {
-//		impl.logger.Errorw("HeartbeatEventForTelemetry, payload unmarshal error", "error", err)
-//		return
-//	}
-//
-//	if impl.PosthogClient.Client == nil {
-//		impl.logger.Warn("no posthog client found, creating new")
-//		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
-//		if err == nil {
-//			impl.PosthogClient.Client = client
-//		}
-//	}
-//	if impl.PosthogClient.Client != nil {
-//		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
-//			DistinctId: ucid,
-//			Event:      string(Heartbeat),
-//			Properties: prop,
-//		})
-//		if err != nil {
-//			impl.logger.Errorw("HeartbeatEventForTelemetry, failed to push event", "error", err)
-//		}
-//	}
-//}

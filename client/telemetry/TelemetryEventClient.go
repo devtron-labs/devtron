@@ -76,7 +76,7 @@ type TelemetryEventEA struct {
 	Timestamp      time.Time          `json:"timestamp"`
 	EventMessage   string             `json:"eventMessage,omitempty"`
 	EventType      TelemetryEventType `json:"eventType"`
-	Summary        SummaryEA          `json:"summary,omitempty"`
+	Summary        *SummaryEA         `json:"summary,omitempty"`
 	ServerVersion  string             `json:"serverVersion,omitempty"`
 	DevtronVersion string             `json:"devtronVersion,omitempty"`
 }
@@ -154,7 +154,7 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		DevtronVersion: devtronVersion.GitCommit,
 		DevtronMode:    devtronVersion.ServerMode,
 	}
-	payload.Summary = *summary
+	payload.Summary = summary
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -168,6 +168,13 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		return
 	}
 
+	err = impl.EnqueuePostHog(ucid, Summary, prop)
+	if err != nil {
+		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
+	}
+}
+
+func (impl *TelemetryEventClientImpl) EnqueuePostHog(ucid string, eventType TelemetryEventType, prop map[string]interface{}) error {
 	if impl.PosthogClient.Client == nil {
 		impl.logger.Warn("no posthog client found, creating new")
 		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
@@ -176,15 +183,17 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		}
 	}
 	if impl.PosthogClient.Client != nil {
-		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
+		err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
 			DistinctId: ucid,
-			Event:      string(Summary),
+			Event:      string(eventType),
 			Properties: prop,
 		})
 		if err != nil {
 			impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "error", err)
+			return err
 		}
 	}
+	return nil
 }
 
 func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
@@ -271,33 +280,17 @@ func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEv
 	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
 	datamap := cm.Data
 
-	if impl.PosthogClient.Client == nil {
-		impl.logger.Warn("no posthog client found, creating new")
-		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
-		if err == nil {
-			impl.PosthogClient.Client = client
-		}
-	}
-
 	installEventValue, installEventKeyExists := datamap[InstallEventKey]
 
 	if installEventKeyExists == false || installEventValue == "1" {
-		if impl.PosthogClient.Client != nil {
-			err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
-				DistinctId: ucid,
-				Event:      string(InstallationSuccess),
-			})
-			if err != nil {
-				impl.logger.Errorw("HeartbeatEventForTelemetry, failed to push event", "error", err)
-				return nil, err
-			}
+		err = impl.EnqueuePostHog(ucid, InstallationSuccess, nil)
+		if err == nil {
 			datamap[InstallEventKey] = "2"
 			cm.Data = datamap
 			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 			if err != nil {
 				impl.logger.Warnw("config map update failed for install event", "err", err)
-			}
-			if err == nil {
+			} else {
 				impl.logger.Debugw("config map apply succeeded for install event")
 			}
 		}
