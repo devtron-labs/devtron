@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/bean"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -18,6 +19,7 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
 	"net/http"
 	"time"
 )
@@ -110,6 +112,32 @@ const (
 	InstallationApplicationError TelemetryEventType = "InstallationApplicationError"
 )
 
+func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info) {
+	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+	k8sServerVersion, err = discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+
+	users, err := impl.userService.GetAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		return
+	}
+
+	clusters, err := impl.clusterService.FindAllActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+	return clusters, users, k8sServerVersion
+}
+
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 	ucid, err := impl.getUCID()
 	if err != nil {
@@ -122,29 +150,10 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		return
 	}
 
-	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-	k8sServerVersion, err := discoveryClient.ServerVersion()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
+	clusters, users, k8sServerVersion := impl.SummaryDetailsForTelemetry()
+
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
-	clusters, err := impl.clusterService.FindAllActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-
-	users, err := impl.userService.GetAll()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
-		return
-	}
 
 	devtronVersion := util.GetDevtronVersion()
 
@@ -231,21 +240,30 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		return
 	}
 
-	if impl.PosthogClient.Client == nil {
-		impl.logger.Warn("no posthog client found, creating new")
-		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
-		if err == nil {
-			impl.PosthogClient.Client = client
-		}
-	}
-	if impl.PosthogClient.Client != nil {
-		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
-			DistinctId: ucid,
-			Event:      string(Heartbeat),
-			Properties: prop,
-		})
+	//if impl.PosthogClient.Client == nil {
+	//	impl.logger.Warn("no posthog client found, creating new")
+	//	client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
+	//	if err == nil {
+	//		impl.PosthogClient.Client = client
+	//	}
+	//}
+	//if impl.PosthogClient.Client != nil {
+	//	err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
+	//		DistinctId: ucid,
+	//		Event:      string(Heartbeat),
+	//		Properties: prop,
+	//	})
+	//	if err != nil {
+	//		impl.logger.Errorw("HeartbeatEventForTelemetry, failed to push event", "error", err)
+	//	}
+	//}
+
+	err = impl.EnqueuePostHog(ucid, Heartbeat, prop)
+	if err == nil {
 		if err != nil {
-			impl.logger.Errorw("HeartbeatEventForTelemetry, failed to push event", "error", err)
+			impl.logger.Warnw("HeartbeatEventForTelemetry, failed to push event", "error", err)
+		} else {
+			impl.logger.Debugw("HeartbeatEventForTelemetry success")
 		}
 	}
 }
@@ -279,6 +297,8 @@ func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEv
 
 	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
 	datamap := cm.Data
+
+	impl.HeartbeatEventForTelemetry()
 
 	installEventValue, installEventKeyExists := datamap[InstallEventKey]
 

@@ -42,6 +42,7 @@ import (
 type K8sUtil struct {
 	logger        *zap.SugaredLogger
 	runTimeConfig *client.RuntimeConfig
+	kubeconfig    *string
 }
 
 type ClusterConfig struct {
@@ -50,7 +51,13 @@ type ClusterConfig struct {
 }
 
 func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sUtil {
-	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig}
+	usr, err := user.Current()
+	if err != nil {
+		return nil
+	}
+	kubeconfig := flag.String("kubeconfig-authenticator-xyz", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	flag.Parse()
+	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig}
 }
 
 func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
@@ -73,13 +80,7 @@ func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clie
 
 func (impl K8sUtil) getKubeConfig(devMode client.LocalDevMode) (*rest.Config, error) {
 	if devMode {
-		usr, err := user.Current()
-		if err != nil {
-			return nil, err
-		}
-		kubeconfig := flag.String("kubeconfig-authenticator", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
-		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		restConfig, err := clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
 		if err != nil {
 			return nil, err
 		}
