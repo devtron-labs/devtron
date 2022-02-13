@@ -27,6 +27,7 @@ type HelmAppRestHandler interface {
 	GetDesiredManifest(w http.ResponseWriter, r *http.Request)
 	DeleteApplication(w http.ResponseWriter, r *http.Request)
 	UpdateApplication(w http.ResponseWriter, r *http.Request)
+	GetDeploymentDetail(w http.ResponseWriter, r *http.Request)
 }
 
 type HelmAppRestHandlerImpl struct {
@@ -176,20 +177,6 @@ func (handler *HelmAppRestHandlerImpl) GetDeploymentHistory(w http.ResponseWrite
 		return
 	}
 
-	// Obfuscate secrets if user does not have edit access
-	canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
-	if !canUpdate && res != nil && res.DeploymentHistory != nil {
-		for _, deployment := range res.DeploymentHistory {
-			modifiedManifest , err := k8sObjectsUtil.HideValuesIfSecretForWholeYamlInput(deployment.Manifest)
-			if err != nil {
-				handler.logger.Errorw("error in hiding secret values", "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-			deployment.Manifest = modifiedManifest
-		}
-	}
-
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
@@ -247,7 +234,7 @@ func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter,
 	// Obfuscate secret if user does not have edit access
 	canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
 	if !canUpdate && res != nil && res.Manifest != nil {
-		modifiedManifest , err := k8sObjectsUtil.HideValuesIfSecretForManifestStringInput(*res.Manifest, *desiredManifestRequest.Resource.Kind, *desiredManifestRequest.Resource.Group)
+		modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecretForManifestStringInput(*res.Manifest, *desiredManifestRequest.Resource.Kind, *desiredManifestRequest.Resource.Group)
 		if err != nil {
 			handler.logger.Errorw("error in hiding secret values", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -308,6 +295,48 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *HelmAppRestHandlerImpl) GetDeploymentDetail(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId := vars["appId"]
+	version, err := strconv.ParseInt(vars["version"], 10, 32)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	res, err := handler.helmAppService.GetDeploymentDetail(context.Background(), appIdentifier, int32(version))
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	// Obfuscate secrets if user does not have edit access
+	canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
+	if !canUpdate && res != nil && res.Manifest != nil {
+		modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecretForWholeYamlInput(*res.Manifest)
+		if err != nil {
+			handler.logger.Errorw("error in hiding secret values", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		res.Manifest = &modifiedManifest
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)

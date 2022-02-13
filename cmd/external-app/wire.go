@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/util"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -32,7 +33,6 @@ func InitializeApp() (*App, error) {
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
-		//telemetry.NewTelemetryEventClientWireSet,
 
 		NewApp,
 		NewMuxRouter,
@@ -46,11 +46,14 @@ func InitializeApp() (*App, error) {
 		connector.NewPumpImpl,
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
 
+
 		util.NewHttpClient,
 		util2.GetACDAuthConfig,
 		telemetry.NewPosthogClient,
 		telemetry.NewTelemetryEventClientImpl,
-		//wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
+		delete2.NewDeleteServiceImpl,
+		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceImpl)),
+
 	)
 	return &App{}, nil
 }

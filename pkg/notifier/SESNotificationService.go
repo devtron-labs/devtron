@@ -18,26 +18,32 @@
 package notifier
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util/event"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
+
+const SES_CONFIG_TYPE = "ses"
 
 type SESNotificationService interface {
 	SaveOrEditNotificationConfig(channelReq []*SESConfigDto, userId int32) ([]int, error)
 	FetchSESNotificationConfigById(id int) (*SESConfigDto, error)
 	FetchAllSESNotificationConfig() ([]*SESConfigDto, error)
 	FetchAllSESNotificationConfigAutocomplete() ([]*NotificationChannelAutoResponse, error)
+	DeleteNotificationConfig(channelReq *SESConfigDto, userId int32) error
 }
 
 type SESNotificationServiceImpl struct {
-	logger        *zap.SugaredLogger
-	teamService   team.TeamService
-	sesRepository repository.SESNotificationRepository
+	logger                         *zap.SugaredLogger
+	teamService                    team.TeamService
+	sesRepository                  repository.SESNotificationRepository
+	notificationSettingsRepository repository.NotificationSettingsRepository
 }
 
 type SESChannelConfig struct {
@@ -72,11 +78,13 @@ type NotificationRecipientListingResponse struct {
 	Recipient string        `json:"recipient"`
 }
 
-func NewSESNotificationServiceImpl(logger *zap.SugaredLogger, sesRepository repository.SESNotificationRepository, teamService team.TeamService) *SESNotificationServiceImpl {
+func NewSESNotificationServiceImpl(logger *zap.SugaredLogger, sesRepository repository.SESNotificationRepository,
+	teamService team.TeamService, notificationSettingsRepository repository.NotificationSettingsRepository) *SESNotificationServiceImpl {
 	return &SESNotificationServiceImpl{
-		logger:        logger,
-		teamService:   teamService,
-		sesRepository: sesRepository,
+		logger:                         logger,
+		teamService:                    teamService,
+		sesRepository:                  sesRepository,
+		notificationSettingsRepository: notificationSettingsRepository,
 	}
 }
 
@@ -242,4 +250,30 @@ func (impl *SESNotificationServiceImpl) buildConfigUpdateModel(sesConfig *reposi
 	model.Default = sesConfig.Default
 	model.UpdatedOn = time.Now()
 	model.UpdatedBy = userId
+}
+
+func (impl *SESNotificationServiceImpl) DeleteNotificationConfig(deleteReq *SESConfigDto, userId int32) error {
+	existingConfig, err := impl.sesRepository.FindOne(deleteReq.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete", "err", err, "id", deleteReq.Id)
+		return err
+	}
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, SES_CONFIG_TYPE)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in deleting ses config", "config", deleteReq)
+		return err
+	}
+	if len(notifications) > 0 {
+		impl.logger.Errorw("found notifications using this config, cannot delete", "config", deleteReq)
+		return fmt.Errorf(" Please delete all notifications using this config before deleting")
+	}
+	existingConfig.UpdatedOn = time.Now()
+	existingConfig.UpdatedBy = userId
+	//deleting slack config
+	err = impl.sesRepository.MarkSESConfigDeleted(existingConfig)
+	if err != nil {
+		impl.logger.Errorw("error in deleting ses config", "err", err, "id", existingConfig.Id)
+		return err
+	}
+	return nil
 }
