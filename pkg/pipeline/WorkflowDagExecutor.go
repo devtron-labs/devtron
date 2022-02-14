@@ -706,11 +706,14 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		}
 	}
 
+	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
+	triggeredAt := time.Now()
+
 	if cdWf == nil {
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
 			PipelineId:   pipeline.Id,
-			AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
+			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 		if err != nil {
@@ -724,7 +727,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
 		Status:       WorkflowStarting, //starting
 		TriggeredBy:  1,
-		StartedOn:    time.Now(),
+		StartedOn:    triggeredAt,
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
@@ -775,8 +778,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		return nil
 	}
 
-	err = impl.appService.TriggerCD(artifact, cdWf.Id, pipeline, async)
-	err1 := impl.updatePreviousDeploymentStatus(runner, pipeline.Id, err)
+	err = impl.appService.TriggerCD(artifact, cdWf.Id, pipeline, async, triggeredAt)
+	err1 := impl.updatePreviousDeploymentStatus(runner, pipeline.Id, err, triggeredAt)
 	if err1 != nil || err != nil {
 		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
 		return err
@@ -784,12 +787,12 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, err error) error {
+func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, err error, triggeredAt time.Time) error {
 	if err != nil {
 		impl.logger.Errorw("error in triggering cd WF, setting wf status as fail ", "wfId", currentRunner.Id, "err", err)
 		currentRunner.Status = WorkflowFailed
 		currentRunner.Message = err.Error()
-		currentRunner.FinishedOn = time.Now()
+		currentRunner.FinishedOn = triggeredAt
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(currentRunner)
 		if err != nil {
 			impl.logger.Errorw("error updating cd wf runner status", "err", err, "currentRunner", currentRunner)
@@ -818,7 +821,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 				return nil
 			}
 			impl.logger.Infow("updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
-			previousRunner.FinishedOn = time.Now()
+			previousRunner.FinishedOn = triggeredAt
 			previousRunner.Message = "triggered new deployment"
 			previousRunner.Status = WorkflowAborted
 		}
@@ -898,6 +901,8 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 }
 
 func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, error) {
+	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
+	triggeredAt := time.Now()
 	releaseId := 0
 	var err error
 	cdPipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
@@ -932,7 +937,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			cdWf := &pipelineConfig.CdWorkflow{
 				CiArtifactId: overrideRequest.CiArtifactId,
 				PipelineId:   overrideRequest.PipelineId,
-				AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 			if err != nil {
@@ -948,7 +953,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 			Status:       WorkflowStarting,
 			TriggeredBy:  overrideRequest.UserId,
-			StartedOn:    time.Now(),
+			StartedOn:    triggeredAt,
 			Namespace:    impl.cdConfig.DefaultNamespace,
 			CdWorkflowId: cdWorkflowId,
 		}
@@ -992,7 +997,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
 				Status:       WorkflowFailed, //starting
 				TriggeredBy:  1,
-				StartedOn:    time.Now(),
+				StartedOn:    triggeredAt,
 				Namespace:    impl.cdConfig.DefaultNamespace,
 				CdWorkflowId: cdWorkflowId,
 				Message:      "Found vulnerability on image",
@@ -1005,12 +1010,12 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			return 0, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
 		}
 
-		releaseId, err = impl.appService.TriggerRelease(overrideRequest, ctx)
+		releaseId, err = impl.appService.TriggerRelease(overrideRequest, ctx, triggeredAt)
 		//	return after error handling
 		/*if err != nil {
 			return 0, err
 		}*/
-		err1 := impl.updatePreviousDeploymentStatus(runner, cdPipeline.Id, err)
+		err1 := impl.updatePreviousDeploymentStatus(runner, cdPipeline.Id, err, triggeredAt)
 		if err1 != nil || err != nil {
 			impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
 			return 0, err
@@ -1026,7 +1031,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			cdWf := &pipelineConfig.CdWorkflow{
 				CiArtifactId: overrideRequest.CiArtifactId,
 				PipelineId:   overrideRequest.PipelineId,
-				AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 			if err != nil {
