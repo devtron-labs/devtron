@@ -25,6 +25,7 @@ package main
 import (
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
+	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -104,6 +105,7 @@ func InitializeApp() (*App, error) {
 		k8s.K8sApplicationWireSet,
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
+		appStoreValues.AppStoreValuesWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -410,8 +412,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appStoreRestHandler.InstalledAppRestHandler), new(*appStoreRestHandler.InstalledAppRestHandlerImpl)),
 		appStore.NewInstalledAppServiceImpl,
 		wire.Bind(new(appStore.InstalledAppService), new(*appStore.InstalledAppServiceImpl)),
-		appStoreRepository.NewInstalledAppRepositoryImpl,
-		wire.Bind(new(appStoreRepository.InstalledAppRepository), new(*appStoreRepository.InstalledAppRepositoryImpl)),
 
 		appStoreRestHandler.NewAppStoreRouterImpl,
 		wire.Bind(new(appStoreRestHandler.AppStoreRouter), new(*appStoreRestHandler.AppStoreRouterImpl)),
@@ -478,12 +478,6 @@ func InitializeApp() (*App, error) {
 		pubsub2.NewNatsPublishClientImpl,
 		wire.Bind(new(pubsub2.NatsPublishClient), new(*pubsub2.NatsPublishClientImpl)),
 
-		appStoreRestHandler.NewAppStoreValuesRestHandlerImpl,
-		wire.Bind(new(appStoreRestHandler.AppStoreValuesRestHandler), new(*appStoreRestHandler.AppStoreValuesRestHandlerImpl)),
-		appStore.NewAppStoreValuesServiceImpl,
-		wire.Bind(new(appStore.AppStoreValuesService), new(*appStore.AppStoreValuesServiceImpl)),
-		appStoreRepository.NewAppStoreVersionValuesRepositoryImpl,
-		wire.Bind(new(appStoreRepository.AppStoreVersionValuesRepository), new(*appStoreRepository.AppStoreVersionValuesRepositoryImpl)),
 
 		//Batch actions
 		batch.NewWorkflowActionImpl,

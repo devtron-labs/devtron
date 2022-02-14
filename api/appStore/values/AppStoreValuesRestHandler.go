@@ -15,13 +15,13 @@
  *
  */
 
-package appStore
+package appStoreValues
 
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	appStore "github.com/devtron-labs/devtron/pkg/appStore"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreValues "github.com/devtron-labs/devtron/pkg/appStore/values"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -43,11 +43,11 @@ type AppStoreValuesRestHandler interface {
 type AppStoreValuesRestHandlerImpl struct {
 	Logger                *zap.SugaredLogger
 	userAuthService       user.UserService
-	appStoreValuesService appStore.AppStoreValuesService
+	appStoreValuesService appStoreValues.AppStoreValuesService
 }
 
 func NewAppStoreValuesRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
-	appStoreValuesService appStore.AppStoreValuesService) *AppStoreValuesRestHandlerImpl {
+	appStoreValuesService appStoreValues.AppStoreValuesService) *AppStoreValuesRestHandlerImpl {
 	return &AppStoreValuesRestHandlerImpl{
 		Logger:                Logger,
 		userAuthService:       userAuthService,
@@ -224,7 +224,7 @@ func (handler AppStoreValuesRestHandlerImpl) GetSelectedChartMetadata(w http.Res
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request appStore.ChartMetaDataRequestWrapper
+	var request appStoreValues.ChartMetaDataRequestWrapper
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, GetSelectedChartMetadata", "err", err, "request", request)
