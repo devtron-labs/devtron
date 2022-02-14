@@ -3,7 +3,8 @@ package main
 import (
 	"encoding/json"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
-	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
+	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
+	"github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -32,6 +33,7 @@ type MuxRouter struct {
 	k8sApplicationRouter   k8s.K8sApplicationRouter
 	chartRepositoryRouter  chartRepo.ChartRepositoryRouter
 	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter
+	appStoreValuesRouter   appStoreValues.AppStoreValuesRouter
 }
 
 func NewMuxRouter(
@@ -47,6 +49,7 @@ func NewMuxRouter(
 	k8sApplicationRouter k8s.K8sApplicationRouter,
 	chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
+	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
 
 ) *MuxRouter {
 	r := &MuxRouter{
@@ -63,6 +66,7 @@ func NewMuxRouter(
 		k8sApplicationRouter:   k8sApplicationRouter,
 		chartRepositoryRouter:  chartRepositoryRouter,
 		appStoreDiscoverRouter: appStoreDiscoverRouter,
+		appStoreValuesRouter:   appStoreValuesRouter,
 	}
 	return r
 }
@@ -127,8 +131,13 @@ func (r *MuxRouter) Init() {
 	r.chartRepositoryRouter.Init(chartRepoRouter)
 	// chart-repo router ends
 
-	// discover router starts
+	// app-store discover router starts
 	appStoreDiscoverSubRouter := r.Router.PathPrefix("/orchestrator/app-store/discover").Subrouter()
 	r.appStoreDiscoverRouter.Init(appStoreDiscoverSubRouter)
-	// discover router ends
+	// app-store discover router ends
+
+	//  app-store values starts
+	appStoreValuesSubRouter := r.Router.PathPrefix("/orchestrator/app-store/values").Subrouter()
+	r.appStoreValuesRouter.Init(appStoreValuesSubRouter)
+	// app-store values router ends
 }

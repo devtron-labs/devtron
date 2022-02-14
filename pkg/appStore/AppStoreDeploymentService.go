@@ -26,6 +26,7 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
+	appStoreValues "github.com/devtron-labs/devtron/pkg/appStore/values"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
@@ -108,7 +109,7 @@ type InstalledAppServiceImpl struct {
 	teamRepository                       repository4.TeamRepository
 	appRepository                        app.AppRepository
 	acdClient                            application2.ServiceClient
-	appStoreValuesService                AppStoreValuesService
+	appStoreValuesService                appStoreValues.AppStoreValuesService
 	pubsubClient                         *pubsub.PubSubClient
 	tokenCache                           *util2.TokenCache
 	chartGroupDeploymentRepository       appStoreRepository.ChartGroupDeploymentRepository
@@ -129,7 +130,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	environmentRepository repository5.EnvironmentRepository, teamRepository repository4.TeamRepository,
 	appRepository app.AppRepository,
 	acdClient application2.ServiceClient,
-	appStoreValuesService AppStoreValuesService,
+	appStoreValuesService appStoreValues.AppStoreValuesService,
 	pubsubClient *pubsub.PubSubClient,
 	tokenCache *util2.TokenCache,
 	chartGroupDeploymentRepository appStoreRepository.ChartGroupDeploymentRepository,

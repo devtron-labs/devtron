@@ -6,6 +6,7 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
+	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -37,6 +38,7 @@ func InitializeApp() (*App, error) {
 		k8s.K8sApplicationWireSet,
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
+		appStoreValues.AppStoreValuesWireSet,
 
 		NewApp,
 		NewMuxRouter,
@@ -56,6 +58,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
 
 		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceImpl)),
+		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
 	)
 	return &App{}, nil
 }

@@ -15,7 +15,7 @@
  *
  */
 
-package appStore
+package appStoreValues
 
 import (
 	"fmt"
@@ -23,6 +23,7 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
+	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	"go.uber.org/zap"
 	"time"
 )
@@ -42,12 +43,12 @@ type AppStoreValuesServiceImpl struct {
 	logger                          *zap.SugaredLogger
 	appStoreApplicationRepository   appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	installedAppRepository          appStoreRepository.InstalledAppRepository
-	appStoreVersionValuesRepository appStoreRepository.AppStoreVersionValuesRepository
+	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository
 }
 
 func NewAppStoreValuesServiceImpl(logger *zap.SugaredLogger,
 	appStoreApplicationRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, installedAppRepository appStoreRepository.InstalledAppRepository,
-	appStoreVersionValuesRepository appStoreRepository.AppStoreVersionValuesRepository) *AppStoreValuesServiceImpl {
+	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository) *AppStoreValuesServiceImpl {
 	return &AppStoreValuesServiceImpl{
 		logger:                          logger,
 		appStoreApplicationRepository:   appStoreApplicationRepository,
@@ -57,7 +58,7 @@ func NewAppStoreValuesServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl AppStoreValuesServiceImpl) CreateAppStoreVersionValues(request *appStoreBean.AppStoreVersionValuesDTO) (*appStoreBean.AppStoreVersionValuesDTO, error) {
-	model := &appStoreRepository.AppStoreVersionValues{
+	model := &appStoreValuesRepository.AppStoreVersionValues{
 		Name:                         request.Name,
 		ValuesYaml:                   request.Values,
 		AppStoreApplicationVersionId: request.AppStoreVersionId,
@@ -276,7 +277,7 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreIdAndReferenceType(app
 }
 
 //converts db object to bean
-func (impl AppStoreValuesServiceImpl) adapter(values *appStoreRepository.AppStoreVersionValues) (*appStoreBean.AppStoreVersionValuesDTO, error) {
+func (impl AppStoreValuesServiceImpl) adapter(values *appStoreValuesRepository.AppStoreVersionValues) (*appStoreBean.AppStoreVersionValuesDTO, error) {
 
 	version := ""
 	if values.AppStoreApplicationVersion != nil {
