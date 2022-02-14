@@ -21,6 +21,9 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
@@ -32,12 +35,13 @@ type ChartGroupServiceImpl struct {
 	chartGroupDeploymentRepository  appStoreRepository.ChartGroupDeploymentRepository
 	installedAppRepository          appStoreRepository.InstalledAppRepository
 	appStoreVersionValuesRepository appStoreRepository.AppStoreVersionValuesRepository
+	userAuthService                 user.UserAuthService
 }
 
 func NewChartGroupServiceImpl(chartGroupEntriesRepository appStoreRepository.ChartGroupEntriesRepository,
 	chartGroupRepository appStoreRepository.ChartGroupReposotory,
 	Logger *zap.SugaredLogger, chartGroupDeploymentRepository appStoreRepository.ChartGroupDeploymentRepository,
-	installedAppRepository appStoreRepository.InstalledAppRepository, appStoreVersionValuesRepository appStoreRepository.AppStoreVersionValuesRepository) *ChartGroupServiceImpl {
+	installedAppRepository appStoreRepository.InstalledAppRepository, appStoreVersionValuesRepository appStoreRepository.AppStoreVersionValuesRepository, userAuthService user.UserAuthService) *ChartGroupServiceImpl {
 	return &ChartGroupServiceImpl{
 		chartGroupEntriesRepository:     chartGroupEntriesRepository,
 		chartGroupRepository:            chartGroupRepository,
@@ -45,6 +49,7 @@ func NewChartGroupServiceImpl(chartGroupEntriesRepository appStoreRepository.Cha
 		chartGroupDeploymentRepository:  chartGroupDeploymentRepository,
 		installedAppRepository:          installedAppRepository,
 		appStoreVersionValuesRepository: appStoreVersionValuesRepository,
+		userAuthService:                 userAuthService,
 	}
 }
 
@@ -56,6 +61,7 @@ type ChartGroupService interface {
 	ChartGroupList(max int) (*ChartGroupList, error)
 	GetChartGroupWithInstallationDetail(chartGroupId int) (*ChartGroupBean, error)
 	ChartGroupListMin(max int) ([]*ChartGroupBean, error)
+	DeleteChartGroup(req *ChartGroupBean) error
 }
 
 type ChartGroupList struct {
@@ -383,4 +389,57 @@ func (impl *ChartGroupServiceImpl) ChartGroupListMin(max int) ([]*ChartGroupBean
 		chartGroupList = make([]*ChartGroupBean, 0)
 	}
 	return chartGroupList, nil
+}
+
+func (impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error {
+	//finding existing
+	existingChartGroup, err := impl.chartGroupRepository.FindById(req.Id)
+	if err != nil {
+		impl.Logger.Errorw("No matching entry found for delete.", "err", err, "id", req.Id)
+		return err
+	}
+	//finding chart mappings by group id
+	chartGroupMappings, err := impl.chartGroupEntriesRepository.FindEntriesWithChartMetaByChartGroupId([]int{req.Id})
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in getting chart group entries, DeleteChartGroup", "err", err, "chartGroupId", req.Id)
+		return err
+	}
+	var chartGroupMappingIds []int
+	for _, chartGroupMapping := range chartGroupMappings {
+		chartGroupMappingIds = append(chartGroupMappingIds, chartGroupMapping.Id)
+	}
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.Logger.Errorw("error in establishing connection", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	//deleting chart mapping in group
+	if len(chartGroupMappingIds) > 0 {
+		_, err = impl.chartGroupEntriesRepository.MarkChartGroupEntriesDeleted(chartGroupMappingIds, tx)
+		if err != nil {
+			impl.Logger.Errorw("error in deleting chart group mappings", "err", err)
+			return err
+		}
+	}
+	//deleting chart group
+	err = impl.chartGroupRepository.MarkChartGroupDeleted(existingChartGroup.Id, tx)
+	if err != nil {
+		impl.Logger.Errorw("error in deleting chart group", "err", err, "chartGroupId", existingChartGroup.Id)
+		return err
+	}
+	//deleting auth roles entries for this chart group
+	err = impl.userAuthService.DeleteRoles(repository2.CHART_GROUP_TYPE, req.Name, tx)
+	if err != nil {
+		impl.Logger.Errorw("error in deleting auth roles", "err", err)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
 }

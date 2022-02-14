@@ -17,6 +17,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/internal/util"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -52,7 +53,8 @@ func InitializeApp() (*App, error) {
 		connector.NewPumpImpl,
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
 
-
+		delete2.NewDeleteServiceImpl,
+		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceImpl)),
 	)
 	return &App{}, nil
 }

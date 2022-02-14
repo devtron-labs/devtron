@@ -50,6 +50,7 @@ type ChartRepositoryService interface {
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
+	DeleteChartRepo(request *ChartRepoDto) error
 }
 
 type ChartRepositoryServiceImpl struct {
@@ -520,4 +521,43 @@ func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, reque
 	dexConfigStr := data["dex.config"]
 	data["dex.config"] = string([]byte(dexConfigStr))
 	return data
+}
+
+func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) error {
+	dbConnection := impl.repoRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing db connection, DeleteChartRepo", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	chartRepo, err := impl.repoRepository.FindById(request.Id)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in finding chart repo by id", "err", err, "id", request.Id)
+		return err
+	}
+
+	chartRepo.Url = request.Url
+	chartRepo.AuthMode = request.AuthMode
+	chartRepo.UserName = request.UserName
+	chartRepo.Password = request.Password
+	chartRepo.Active = request.Active
+	chartRepo.AccessToken = request.AccessToken
+	chartRepo.SshKey = request.SshKey
+	chartRepo.Active = request.Active
+	chartRepo.UpdatedBy = request.UserId
+	chartRepo.UpdatedOn = time.Now()
+	err = impl.repoRepository.MarkChartRepoDeleted(chartRepo, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting chart repo", "err", err)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in tx commit, DeleteChartRepo", "err", err)
+		return err
+	}
+	return nil
 }

@@ -69,6 +69,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/devtron-labs/devtron/pkg/event"
@@ -131,6 +132,14 @@ func InitializeApp() (*App, error) {
 		sse.NewSSE,
 		router.NewHelmRouter,
 		wire.Bind(new(router.HelmRouter), new(*router.HelmRouterImpl)),
+
+		//---- pprof start ----
+		restHandler.NewPProfRestHandler,
+		wire.Bind(new(restHandler.PProfRestHandler), new(*restHandler.PProfRestHandlerImpl)),
+
+		router.NewPProfRouter,
+		wire.Bind(new(router.PProfRouter), new (*router.PProfRouterImpl)),
+		//---- pprof end ----
 
 		restHandler.NewPipelineRestHandler,
 		wire.Bind(new(restHandler.PipelineTriggerRestHandler), new(*restHandler.PipelineTriggerRestHandlerImpl)),
@@ -622,6 +631,11 @@ func InitializeApp() (*App, error) {
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 		util2.NewGoJsonSchemaCustomFormatChecker,
+
+		delete2.NewDeleteServiceExtendedImpl,
+		wire.Bind(new(delete2.DeleteService),new(*delete2.DeleteServiceExtendedImpl)),
+		delete2.NewDeleteServiceFullModeImpl,
+		wire.Bind(new(delete2.DeleteServiceFullMode),new(*delete2.DeleteServiceFullModeImpl)),
 	)
 	return &App{}, nil
 }

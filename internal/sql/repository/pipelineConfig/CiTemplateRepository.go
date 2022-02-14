@@ -50,6 +50,7 @@ type CiTemplateRepository interface {
 	Save(material *CiTemplate) error
 	FindByAppId(appId int) (ciTemplate *CiTemplate, err error)
 	Update(material *CiTemplate) error
+	FindByDockerRegistryId(dockerRegistryId string) (ciTemplates []*CiTemplate, err error)
 }
 
 type CiTemplateRepositoryImpl struct {
@@ -83,4 +84,12 @@ func (impl CiTemplateRepositoryImpl) FindByAppId(appId int) (ciTemplate *CiTempl
 		return nil, errors.NotFoundf(err.Error())
 	}
 	return template, err
+}
+
+func (impl CiTemplateRepositoryImpl) FindByDockerRegistryId(dockerRegistryId string) (ciTemplates []*CiTemplate, err error){
+	err = impl.dbConnection.Model(&ciTemplates).
+		Where("docker_registry_id =? ", dockerRegistryId).
+		Where("active = ?", true).
+		Select()
+	return ciTemplates, err
 }
