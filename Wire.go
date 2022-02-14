@@ -79,7 +79,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/session"
@@ -643,7 +642,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
-		util2.NewGoJsonSchemaCustomFormatChecker,
 
 		delete2.NewDeleteServiceExtendedImpl,
 		wire.Bind(new(delete2.DeleteService),new(*delete2.DeleteServiceExtendedImpl)),
