@@ -269,7 +269,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 				common.WriteJsonResp(w, err, "Failed to get environment by id", http.StatusInternalServerError)
 				return
 			}
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, environment.Environment); ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, environment.EnvironmentIdentifier); ok {
 				pass = true
 			}
 		} else if clusterId > 0 {
@@ -281,7 +281,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 				return
 			}
 			for _, environment := range environments {
-				if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, environment.Environment); ok {
+				if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, environment.EnvironmentIdentifier); ok {
 					pass = true
 					continue
 				}

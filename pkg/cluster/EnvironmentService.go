@@ -19,25 +19,43 @@ package cluster
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/user"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"strconv"
+	"strings"
 	"time"
 )
 
 type EnvironmentBean struct {
-	Id                 int    `json:"id,omitempty" validate:"number"`
-	Environment        string `json:"environment_name,omitempty" validate:"required,max=50"`
-	ClusterId          int    `json:"cluster_id,omitempty" validate:"number,required"`
-	ClusterName        string `json:"cluster_name,omitempty"`
-	Active             bool   `json:"active"`
-	Default            bool   `json:"default"`
-	PrometheusEndpoint string `json:"prometheus_endpoint,omitempty"`
-	Namespace          string `json:"namespace,omitempty" validate:"max=50"`
-	CdArgoSetup        bool   `json:"isClusterCdActive"`
+	Id                    int    `json:"id,omitempty" validate:"number"`
+	Environment           string `json:"environment_name,omitempty" validate:"required,max=50"`
+	ClusterId             int    `json:"cluster_id,omitempty" validate:"number,required"`
+	ClusterName           string `json:"cluster_name,omitempty"`
+	Active                bool   `json:"active"`
+	Default               bool   `json:"default"`
+	PrometheusEndpoint    string `json:"prometheus_endpoint,omitempty"`
+	Namespace             string `json:"namespace,omitempty" validate:"max=50"`
+	CdArgoSetup           bool   `json:"isClusterCdActive"`
+	EnvironmentIdentifier string `json:"environmentIdentifier"`
+}
+
+type EnvDto struct {
+	EnvironmentId         int    `json:"environmentId" validate:"number"`
+	EnvironmentName       string `json:"environmentName,omitempty" validate:"max=50"`
+	Namespace             string `json:"namespace,omitempty" validate:"max=50"`
+	EnvironmentIdentifier string `json:"environmentIdentifier,omitempty"`
+}
+
+type ClusterEnvDto struct {
+	ClusterId    int       `json:"clusterId"`
+	ClusterName  string    `json:"clusterName,omitempty"`
+	Environments []*EnvDto `json:"environments,omitempty"`
 }
 
 type EnvironmentService interface {
@@ -45,6 +63,7 @@ type EnvironmentService interface {
 	Create(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
 	GetAll() ([]EnvironmentBean, error)
 	GetAllActive() ([]EnvironmentBean, error)
+	Delete(deleteReq *EnvironmentBean, userId int32) error
 
 	FindById(id int) (*EnvironmentBean, error)
 	Update(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
@@ -53,27 +72,33 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
+	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
+	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 }
 
 type EnvironmentServiceImpl struct {
-	environmentRepository   repository.EnvironmentRepository
-	logger                  *zap.SugaredLogger
-	clusterService          ClusterService
-	K8sUtil                 *util.K8sUtil
-	propertiesConfigService pipeline.PropertiesConfigService
+	environmentRepository repository.EnvironmentRepository
+	logger                *zap.SugaredLogger
+	clusterService        ClusterService
+	K8sUtil               *util.K8sUtil
+	k8sInformerFactory    informer.K8sInformerFactory
+	//propertiesConfigService pipeline.PropertiesConfigService
+	userAuthService         user.UserAuthService
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
-	K8sUtil *util.K8sUtil,
-	propertiesConfigService pipeline.PropertiesConfigService,
-) *EnvironmentServiceImpl {
+	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
+//  propertiesConfigService pipeline.PropertiesConfigService,
+	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
-		environmentRepository:   environmentRepository,
-		logger:                  logger,
-		clusterService:          clusterService,
-		K8sUtil:                 K8sUtil,
-		propertiesConfigService: propertiesConfigService,
+		environmentRepository: environmentRepository,
+		logger:                logger,
+		clusterService:        clusterService,
+		K8sUtil:               K8sUtil,
+		k8sInformerFactory:    k8sInformerFactory,
+		//propertiesConfigService: propertiesConfigService,
+		userAuthService:         userAuthService,
 	}
 }
 
@@ -93,22 +118,25 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 		return nil, err
 	}
 
-	model, err := impl.environmentRepository.FindByName(mappings.Environment)
+	identifier := clusterBean.ClusterName + "__" + mappings.Namespace
+
+	model, err := impl.environmentRepository.FindByNameOrIdentifier(mappings.Environment, identifier)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in finding environment for update", "err", err)
 		return mappings, err
 	}
 	if model.Id > 0 {
-		impl.logger.Warnw("environment already exists", "model", model)
+		impl.logger.Warnw("environment already exists for this cluster and namespace", "model", model)
 		return mappings, fmt.Errorf("environment already exists")
 	}
 
 	model = &repository.Environment{
-		Name:      mappings.Environment,
-		ClusterId: mappings.ClusterId,
-		Active:    mappings.Active,
-		Namespace: mappings.Namespace,
-		Default:   mappings.Default,
+		Name:                  mappings.Environment,
+		ClusterId:             mappings.ClusterId,
+		Active:                mappings.Active,
+		Namespace:             mappings.Namespace,
+		Default:               mappings.Default,
+		EnvironmentIdentifier: identifier,
 	}
 	model.CreatedBy = userId
 	model.UpdatedBy = userId
@@ -148,13 +176,14 @@ func (impl EnvironmentServiceImpl) FindOne(environment string) (*EnvironmentBean
 		return nil, err
 	}
 	bean := &EnvironmentBean{
-		Id:                 model.Id,
-		Environment:        model.Name,
-		ClusterId:          model.Cluster.Id,
-		Active:             model.Active,
-		PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
-		Namespace:          model.Namespace,
-		Default:            model.Default,
+		Id:                    model.Id,
+		Environment:           model.Name,
+		ClusterId:             model.Cluster.Id,
+		Active:                model.Active,
+		PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
+		Namespace:             model.Namespace,
+		Default:               model.Default,
+		EnvironmentIdentifier: model.EnvironmentIdentifier,
 	}
 	return bean, nil
 }
@@ -167,15 +196,16 @@ func (impl EnvironmentServiceImpl) GetAll() ([]EnvironmentBean, error) {
 	var beans []EnvironmentBean
 	for _, model := range models {
 		beans = append(beans, EnvironmentBean{
-			Id:                 model.Id,
-			Environment:        model.Name,
-			ClusterId:          model.Cluster.Id,
-			ClusterName:        model.Cluster.ClusterName,
-			Active:             model.Active,
-			PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
-			Namespace:          model.Namespace,
-			Default:            model.Default,
-			CdArgoSetup:        model.Cluster.CdArgoSetup,
+			Id:                    model.Id,
+			Environment:           model.Name,
+			ClusterId:             model.Cluster.Id,
+			ClusterName:           model.Cluster.ClusterName,
+			Active:                model.Active,
+			PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
+			Namespace:             model.Namespace,
+			Default:               model.Default,
+			CdArgoSetup:           model.Cluster.CdArgoSetup,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
 	return beans, nil
@@ -189,13 +219,15 @@ func (impl EnvironmentServiceImpl) GetAllActive() ([]EnvironmentBean, error) {
 	var beans []EnvironmentBean
 	for _, model := range models {
 		beans = append(beans, EnvironmentBean{
-			Id:                 model.Id,
-			Environment:        model.Name,
-			ClusterId:          model.Cluster.Id,
-			Active:             model.Active,
-			PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
-			Namespace:          model.Namespace,
-			Default:            model.Default,
+			Id:                    model.Id,
+			Environment:           model.Name,
+			ClusterId:             model.Cluster.Id,
+			ClusterName:           model.Cluster.ClusterName,
+			Active:                model.Active,
+			PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
+			Namespace:             model.Namespace,
+			Default:               model.Default,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
 	return beans, nil
@@ -208,13 +240,14 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*EnvironmentBean, error) {
 		return nil, err
 	}
 	bean := &EnvironmentBean{
-		Id:                 model.Id,
-		Environment:        model.Name,
-		ClusterId:          model.Cluster.Id,
-		Active:             model.Active,
-		PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
-		Namespace:          model.Namespace,
-		Default:            model.Default,
+		Id:                    model.Id,
+		Environment:           model.Name,
+		ClusterId:             model.Cluster.Id,
+		Active:                model.Active,
+		PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
+		Namespace:             model.Namespace,
+		Default:               model.Default,
+		EnvironmentIdentifier: model.EnvironmentIdentifier,
 	}
 
 	/*clusterBean := &ClusterBean{
@@ -231,10 +264,10 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 		impl.logger.Errorw("error in finding environment for update", "err", err)
 		return mappings, err
 	}
-	isNamespaceChange := false
+	/*isNamespaceChange := false
 	if model.Namespace != mappings.Namespace {
 		isNamespaceChange = true
-	}
+	}*/
 
 	clusterBean, err := impl.clusterService.FindById(mappings.ClusterId)
 	if err != nil {
@@ -259,7 +292,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 		}
 	}
 	//namespace changed, update it on chart env override config as well
-	if isNamespaceChange == true {
+	/*if isNamespaceChange == true {
 		impl.logger.Debug("namespace has modified in request, it will update related config")
 		envPropertiesList, err := impl.propertiesConfigService.GetEnvironmentPropertiesById(mappings.Id)
 		if err != nil {
@@ -275,7 +308,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 				}
 			}
 		}
-	}
+	}*/
 	grafanaDatasourceId := model.GrafanaDatasourceId
 	//grafana datasource create if not exist
 	if len(clusterBean.PrometheusUrl) > 0 && grafanaDatasourceId == 0 {
@@ -320,10 +353,11 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete() ([]Enviro
 	var beans []EnvironmentBean
 	for _, model := range models {
 		beans = append(beans, EnvironmentBean{
-			Id:          model.Id,
-			Environment: model.Name,
-			Namespace:   model.Namespace,
-			CdArgoSetup: model.Cluster.CdArgoSetup,
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Namespace:             model.Namespace,
+			CdArgoSetup:           model.Cluster.CdArgoSetup,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
 	return beans, nil
@@ -353,15 +387,12 @@ func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*EnvironmentBean, er
 	var beans []*EnvironmentBean
 	for _, model := range models {
 		beans = append(beans, &EnvironmentBean{
-			Id:          model.Id,
-			Environment: model.Name,
-			//ClusterId:          model.Cluster.Id,
-			//ClusterName:        model.Cluster.ClusterName,
-			Active: model.Active,
-			//PrometheusEndpoint: model.Cluster.PrometheusEndpoint,
-			Namespace: model.Namespace,
-			Default:   model.Default,
-			//CdArgoSetup:        model.Cluster.CdArgoSetup,
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Active:                model.Active,
+			Namespace:             model.Namespace,
+			Default:               model.Default,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
 	return beans, nil
@@ -380,10 +411,205 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 	var beans []*EnvironmentBean
 	for _, model := range models {
 		beans = append(beans, &EnvironmentBean{
-			Id:          model.Id,
-			Environment: model.Name,
-			Namespace:   model.Namespace,
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Namespace:             model.Namespace,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
 		})
 	}
 	return beans, nil
+}
+
+func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(token string, object string) bool) ([]*ClusterEnvDto, error) {
+	var namespaceGroupByClusterResponse []*ClusterEnvDto
+	clusterModels, err := impl.clusterService.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching clusters", "err", err)
+		return namespaceGroupByClusterResponse, err
+	}
+	clusterMap := make(map[string]int)
+	for _, item := range clusterModels {
+		clusterMap[item.ClusterName] = item.Id
+	}
+	models, err := impl.environmentRepository.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching environments", "err", err)
+		return namespaceGroupByClusterResponse, err
+	}
+	uniqueComboMap := make(map[string]bool)
+	grantedEnvironmentMap := make(map[string][]*EnvDto)
+	for _, model := range models {
+		// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
+		if !isActionUserSuperAdmin {
+			// auth enforcer applied here
+			isValidAuth := auth(token, model.EnvironmentIdentifier)
+			if !isValidAuth {
+				impl.logger.Debugw("authentication for env failed", "object", model.EnvironmentIdentifier)
+				continue
+			}
+		}
+		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
+		groupKey := fmt.Sprintf("%s__%d", model.Cluster.ClusterName, model.ClusterId)
+		uniqueComboMap[key] = true
+		grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
+			EnvironmentId:         model.Id,
+			EnvironmentName:       model.Name,
+			Namespace:             model.Namespace,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
+		})
+	}
+
+	namespaceListGroupByClusters := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
+	for clusterName, namespaces := range namespaceListGroupByClusters {
+		clusterId := clusterMap[clusterName]
+		for namespace := range namespaces {
+			//deduplication for cluster and namespace combination
+			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
+			if _, ok := uniqueComboMap[groupKey]; !ok {
+				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
+				// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
+				if !isActionUserSuperAdmin {
+					// auth enforcer applied here
+					isValidAuth := auth(token, environmentIdentifier)
+					if !isValidAuth {
+						impl.logger.Debugw("authentication for env failed", "object", environmentIdentifier)
+						continue
+					}
+				}
+				grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
+					EnvironmentName:       environmentIdentifier,
+					Namespace:             namespace,
+					EnvironmentIdentifier: environmentIdentifier,
+				})
+			}
+		}
+	}
+
+	//final result builds here, namespace group by clusters
+	for k, v := range grantedEnvironmentMap {
+		clusterInfo := strings.Split(k, "__")
+		clusterId, err := strconv.Atoi(clusterInfo[1])
+		if err != nil {
+			clusterId = 0
+		}
+		namespaceGroupByClusterResponse = append(namespaceGroupByClusterResponse, &ClusterEnvDto{
+			ClusterName:  clusterInfo[0],
+			ClusterId:    clusterId,
+			Environments: v,
+		})
+	}
+	return namespaceGroupByClusterResponse, nil
+}
+
+func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error) {
+	var namespaceGroupByClusterResponse []*ClusterEnvDto
+	clusterModels, err := impl.clusterService.FindByIds(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching clusters", "err", err)
+		return namespaceGroupByClusterResponse, err
+	}
+	clusterMap := make(map[string]int)
+	for _, item := range clusterModels {
+		clusterMap[item.ClusterName] = item.Id
+	}
+	models, err := impl.environmentRepository.FindByClusterIds(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environments", "err", err)
+		return namespaceGroupByClusterResponse, err
+	}
+	uniqueComboMap := make(map[string]bool)
+	grantedEnvironmentMap := make(map[string][]*EnvDto)
+	for _, model := range models {
+		// auth enforcer applied here
+		isValidAuth := auth(token, model.EnvironmentIdentifier)
+		if !isValidAuth {
+			impl.logger.Debugw("authentication for env failed", "object", model.EnvironmentIdentifier)
+			continue
+		}
+		key := fmt.Sprintf("%s__%s", model.Cluster.ClusterName, model.Namespace)
+		groupKey := fmt.Sprintf("%s__%d", model.Cluster.ClusterName, model.ClusterId)
+		uniqueComboMap[key] = true
+		grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
+			EnvironmentId:         model.Id,
+			EnvironmentName:       model.Name,
+			Namespace:             model.Namespace,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
+		})
+	}
+
+	namespaceListGroupByClusters := impl.k8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
+	for clusterName, namespaces := range namespaceListGroupByClusters {
+		clusterId := clusterMap[clusterName]
+		if clusterId == 0 {
+			continue
+		}
+		for namespace := range namespaces {
+			//deduplication for cluster and namespace combination
+			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
+			if _, ok := uniqueComboMap[groupKey]; !ok {
+				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
+				// auth enforcer applied here
+				isValidAuth := auth(token, environmentIdentifier)
+				if !isValidAuth {
+					impl.logger.Debugw("authentication for env failed", "object", environmentIdentifier)
+					continue
+				}
+				grantedEnvironmentMap[groupKey] = append(grantedEnvironmentMap[groupKey], &EnvDto{
+					EnvironmentName:       environmentIdentifier,
+					Namespace:             namespace,
+					EnvironmentIdentifier: environmentIdentifier,
+				})
+			}
+		}
+	}
+
+	//final result builds here, namespace group by clusters
+	for k, v := range grantedEnvironmentMap {
+		clusterInfo := strings.Split(k, "__")
+		clusterId, err := strconv.Atoi(clusterInfo[1])
+		if err != nil {
+			clusterId = 0
+		}
+		namespaceGroupByClusterResponse = append(namespaceGroupByClusterResponse, &ClusterEnvDto{
+			ClusterName:  clusterInfo[0],
+			ClusterId:    clusterId,
+			Environments: v,
+		})
+	}
+	return namespaceGroupByClusterResponse, nil
+}
+
+func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int32) error {
+	existingEnv, err := impl.environmentRepository.FindById(deleteReq.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", deleteReq.Id)
+		return err
+	}
+	dbConnection := impl.environmentRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing connection", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	deleteRequest := existingEnv
+	deleteRequest.UpdatedOn = time.Now()
+	deleteRequest.UpdatedBy = userId
+	err = impl.environmentRepository.MarkEnvironmentDeleted(deleteRequest, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting environment", "envId", deleteReq.Id, "envName", deleteReq.Environment)
+		return err
+	}
+	//deleting auth roles entries for this environment
+	err = impl.userAuthService.DeleteRoles(repository2.ENV_TYPE, deleteRequest.Name, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting auth roles", "err", err)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
 }

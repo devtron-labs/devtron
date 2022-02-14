@@ -69,7 +69,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: image-scanner
-          image: quay.io/devtron/imge-scanner:6601e144-141-5043
+          image: quay.io/devtron/imge-scanner:c61f2aa7-141-6747
           imagePullPolicy: IfNotPresent
           ports:
             - name: app

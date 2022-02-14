@@ -61,10 +61,12 @@ const (
 func (impl AppListingRepositoryQueryBuilder) BuildAppListingQuery(appListingFilter AppListingFilter) string {
 	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
 	orderByClause := impl.buildAppListingSortBy(appListingFilter)
-	query := "SELECT env.id AS environment_id, env.environment_name, a.id AS app_id, a.app_name, env.default," +
+	query := "SELECT env.id AS environment_id, env.environment_name,env.namespace as namespace ,a.id AS app_id, a.app_name, env.default," +
 		" p.id as pipeline_id, env.active, a.team_id, t.name as team_name" +
+		" , cluster.cluster_name as cluster_name" +
 		" FROM pipeline p" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
+		" INNER JOIN cluster cluster ON cluster.id=env.cluster_id" +
 		" RIGHT JOIN app a ON a.id=p.app_id  and p.deleted=false" +
 		" RIGHT JOIN team t ON t.id=a.team_id "
 	if appListingFilter.DeploymentGroupId != 0 {

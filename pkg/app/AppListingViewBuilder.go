@@ -68,7 +68,9 @@ func (impl *AppListingViewBuilderImpl) BuildView(fetchAppListingRequest FetchApp
 		}
 		appName := strings.Split(k, "_")[1]
 		defaultEnv := bean.AppEnvironmentContainer{}
+		projectId := 0
 		for _, env := range v {
+			projectId = env.TeamId
 			if env.Default {
 				defaultEnv = *env
 				break
@@ -79,6 +81,7 @@ func (impl *AppListingViewBuilderImpl) BuildView(fetchAppListingRequest FetchApp
 			AppName:                 appName,
 			AppEnvironmentContainer: v,
 			DefaultEnv:              defaultEnv,
+			ProjectId:               projectId,
 		}
 		appContainersResponses = append(appContainersResponses, appContainerResponse)
 	}

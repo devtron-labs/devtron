@@ -27,6 +27,7 @@ const (
 	ResourceUser              = "user"
 	ResourceNotification      = "notification"
 	ResourceTemplate          = "template"
+	ResourceTerminal          = "terminal"
 
 	ResourceProjects     = "projects"
 	ResourceApplications = "applications"
@@ -36,9 +37,10 @@ const (
 	ResourceAutocomplete = "autocomplete"
 	ResourceChartGroup   = "chart-group"
 
-	ResourceTeam   = "team"
-	ResourceAdmin  = "admin"
-	ResourceGlobal = "global-resource"
+	ResourceTeam    = "team"
+	ResourceAdmin   = "admin"
+	ResourceGlobal  = "global-resource"
+	ResourceHelmApp = "helm-app"
 
 	ActionGet     = "get"
 	ActionCreate  = "create"
@@ -47,4 +49,5 @@ const (
 	ActionSync    = "sync"
 	ActionTrigger = "trigger"
 	ActionNotify  = "notify"
+	ActionExec    = "exec"
 )

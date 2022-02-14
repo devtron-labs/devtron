@@ -20,6 +20,7 @@ package repository
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"strconv"
 )
 
 type NotificationSettingsRepository interface {
@@ -39,6 +40,7 @@ type NotificationSettingsRepository interface {
 	FindNotificationSettingDeploymentOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error)
 	FindNotificationSettingBuildOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error)
 	FetchNotificationSettingGroupBy(viewId int) ([]NotificationSettings, error)
+	FindNotificationSettingsByConfigIdAndConfigType(configId int, configType string) ([]*NotificationSettings, error)
 }
 
 type NotificationSettingsRepositoryImpl struct {
@@ -304,4 +306,14 @@ func (impl *NotificationSettingsRepositoryImpl) FetchNotificationSettingGroupBy(
 		return nil, err
 	}
 	return ns, err
+}
+
+func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingsByConfigIdAndConfigType(configId int, configType string) ([]*NotificationSettings, error) {
+	var notificationSettings []*NotificationSettings
+	err := impl.dbConnection.Model(&notificationSettings).Where("config::text like ?","%dest\":\""+configType+"%").
+		Where("config::text like ?","%configId\":" + strconv.Itoa(configId)+"%").Select()
+	if err != nil {
+		return nil, err
+	}
+	return notificationSettings, nil
 }

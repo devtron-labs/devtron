@@ -30,6 +30,8 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	history2 "github.com/devtron-labs/devtron/pkg/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
+	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"path"
 	"strconv"
 	"strings"
@@ -79,6 +81,7 @@ type DbPipelineOrchestratorImpl struct {
 	attributesService            attributes.AttributesService
 	appListingRepository         repository.AppListingRepository
 	appLabelsService             app.AppLabelService
+	userAuthService              user.UserAuthService
 	cdConfigHistoryService       history2.CdConfigHistoryService
 	ciScriptHistoryService       history2.CiScriptHistoryService
 }
@@ -96,6 +99,7 @@ func NewDbPipelineOrchestrator(
 	attributesService attributes.AttributesService,
 	appListingRepository repository.AppListingRepository,
 	appLabelsService app.AppLabelService,
+	userAuthService user.UserAuthService,
 	cdConfigHistoryService history2.CdConfigHistoryService,
 	ciScriptHistoryService history2.CiScriptHistoryService) *DbPipelineOrchestratorImpl {
 	return &DbPipelineOrchestratorImpl{
@@ -112,6 +116,7 @@ func NewDbPipelineOrchestrator(
 		attributesService:            attributesService,
 		appListingRepository:         appListingRepository,
 		appLabelsService:             appLabelsService,
+		userAuthService:              userAuthService,
 		cdConfigHistoryService:       cdConfigHistoryService,
 		ciScriptHistoryService:       ciScriptHistoryService,
 	}
@@ -753,12 +758,30 @@ func (impl DbPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) error 
 		impl.logger.Errorw("err", err)
 		return err
 	}
+	dbConnection := impl.appRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing connection", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 	app.Active = false
 	app.UpdatedOn = time.Now()
 	app.UpdatedBy = userId
-	err = impl.appRepository.Update(app)
+	err = impl.appRepository.UpdateWithTxn(app, tx)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
+		return err
+	}
+	//deleting auth roles entries for this project
+	err = impl.userAuthService.DeleteRoles(repository3.PROJECT_TYPE, app.AppName, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting auth roles", "err", err)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
 		return err
 	}
 	return nil

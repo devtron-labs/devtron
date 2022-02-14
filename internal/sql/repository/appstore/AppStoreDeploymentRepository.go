@@ -38,6 +38,7 @@ type InstalledAppRepository interface {
 	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(filter *AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
 	GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
+	GetAllInstalledAppsByChartRepoId(chartRepoId int) ([]InstalledAppAndEnvDetails, error)
 	GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error)
 
@@ -123,6 +124,10 @@ type InstalledAppsWithChartDetails struct {
 	Id                           int       `json:"id"`
 	EnvironmentId                int       `json:"environment_id"`
 	Deprecated                   bool      `json:"deprecated"`
+	ClusterName                  string    `json:"clusterName"`
+	Namespace                    string    `json:"namespace"`
+	TeamId                       int       `json:"teamId"`
+	ClusterId                    int       `json:"clusterId"`
 }
 
 type InstalledAppAndEnvDetails struct {
@@ -223,11 +228,13 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *AppStoreFilte
 	var query string
 	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name,"
 	query = query + " env.environment_name, env.id as environment_id, a.app_name, asav.icon, asav.name as app_store_application_name,"
+	query = query + " env.namespace, cluster.cluster_name, a.team_id, cluster.id as cluster_id, "
 	query = query + " asav.id as app_store_application_version_id, ia.id , asav.deprecated"
 	query = query + " from installed_app_versions iav"
 	query = query + " inner join installed_apps ia on iav.installed_app_id = ia.id"
 	query = query + " inner join app a on a.id = ia.app_id"
 	query = query + " inner join environment env on ia.environment_id = env.id"
+	query = query + " inner join cluster on env.cluster_id = cluster.id"
 	query = query + " inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id"
 	query = query + " inner join app_store aps on aps.id = asav.app_store_id"
 	query = query + " inner join chart_repo ch on ch.id = aps.chart_repo_id"
@@ -246,6 +253,9 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *AppStoreFilte
 	}
 	if len(filter.EnvIds) > 0 {
 		query = query + " AND env.id IN (" + sqlIntSeq(filter.EnvIds) + ")"
+	}
+	if len(filter.ClusterIds) > 0 {
+		query = query + " AND cluster.id IN (" + sqlIntSeq(filter.ClusterIds) + ")"
 	}
 	query = query + " ORDER BY aps.name ASC"
 	if filter.Size > 0 {
@@ -271,6 +281,23 @@ func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId
 		" left join users u on u.id = ia.updated_by " +
 		" where aps.id = " + strconv.Itoa(appStoreId) + " and ia.active=true and iav.active=true and env.active=true"
 	_, err := impl.dbConnection.Query(&installedAppAndEnvDetails, queryTemp)
+	if err != nil {
+		return nil, err
+	}
+	return installedAppAndEnvDetails, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetAllInstalledAppsByChartRepoId(chartRepoId int) ([]InstalledAppAndEnvDetails, error) {
+	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
+	var queryTemp string = "select env.environment_name, env.id as environment_id, a.app_name, ia.updated_on, u.email_id, asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id " +
+		" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id" +
+		" inner join app a on a.id = ia.app_id " +
+		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id " +
+		" inner join app_store aps on asav.app_store_id = aps.id " +
+		" inner join environment env on ia.environment_id = env.id " +
+		" left join users u on u.id = ia.updated_by " +
+		" where aps.chart_repo_id = ? and ia.active=true and iav.active=true and env.active=true"
+	_, err := impl.dbConnection.Query(&installedAppAndEnvDetails, queryTemp, chartRepoId)
 	if err != nil {
 		return nil, err
 	}

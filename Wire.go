@@ -23,6 +23,7 @@ package main
 import (
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/devtron-labs/devtron/api/router"
@@ -64,6 +65,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/devtron-labs/devtron/pkg/event"
@@ -76,8 +78,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/terminal"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
+	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/session"
 	"github.com/google/wire"
@@ -94,7 +97,8 @@ func InitializeApp() (*App, error) {
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
 		dashboard.DashboardWireSet,
-
+		client.HelmAppWireSet,
+		k8s.K8sApplicationWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -123,6 +127,14 @@ func InitializeApp() (*App, error) {
 		sse.NewSSE,
 		router.NewHelmRouter,
 		wire.Bind(new(router.HelmRouter), new(*router.HelmRouterImpl)),
+
+		//---- pprof start ----
+		restHandler.NewPProfRestHandler,
+		wire.Bind(new(restHandler.PProfRestHandler), new(*restHandler.PProfRestHandlerImpl)),
+
+		router.NewPProfRouter,
+		wire.Bind(new(router.PProfRouter), new (*router.PProfRouterImpl)),
+		//---- pprof end ----
 
 		restHandler.NewPipelineRestHandler,
 		wire.Bind(new(restHandler.PipelineTriggerRestHandler), new(*restHandler.PipelineTriggerRestHandlerImpl)),
@@ -549,8 +561,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(security2.CvePolicyRepository), new(*security2.CvePolicyRepositoryImpl)),
 		appstore2.NewClusterInstalledAppsRepositoryImpl,
 		wire.Bind(new(appstore2.ClusterInstalledAppsRepository), new(*appstore2.ClusterInstalledAppsRepositoryImpl)),
-		terminal.NewTerminalSessionHandlerImpl,
-		wire.Bind(new(terminal.TerminalSessionHandler), new(*terminal.TerminalSessionHandlerImpl)),
+
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
 
@@ -632,6 +643,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
+		util2.NewGoJsonSchemaCustomFormatChecker,
+
+		delete2.NewDeleteServiceExtendedImpl,
+		wire.Bind(new(delete2.DeleteService),new(*delete2.DeleteServiceExtendedImpl)),
+		delete2.NewDeleteServiceFullModeImpl,
+		wire.Bind(new(delete2.DeleteServiceFullMode),new(*delete2.DeleteServiceFullModeImpl)),
 	//	util2.NewGoJsonSchemaCustomFormatChecker,
 
 		history.NewConfigMapHistoryRepositoryImpl,

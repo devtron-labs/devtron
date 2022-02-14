@@ -21,6 +21,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"go.uber.org/zap"
 	"time"
 )
@@ -30,13 +32,15 @@ type TeamService interface {
 	FetchAllActive() ([]TeamRequest, error)
 	FetchOne(id int) (*TeamRequest, error)
 	Update(request *TeamRequest) (*TeamRequest, error)
+	Delete(request *TeamRequest) error
 	FetchForAutocomplete() ([]TeamRequest, error)
 	FindByIds(ids []*int) ([]*TeamBean, error)
 	FindByTeamName(teamName string) (*TeamRequest, error)
 }
 type TeamServiceImpl struct {
-	logger         *zap.SugaredLogger
-	teamRepository TeamRepository
+	logger          *zap.SugaredLogger
+	teamRepository  TeamRepository
+	userAuthService user.UserAuthService
 }
 
 type TeamRequest struct {
@@ -47,10 +51,11 @@ type TeamRequest struct {
 }
 
 func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository TeamRepository,
-) *TeamServiceImpl {
+	userAuthService user.UserAuthService) *TeamServiceImpl {
 	return &TeamServiceImpl{
-		logger:         logger,
-		teamRepository: teamRepository,
+		logger:          logger,
+		teamRepository:  teamRepository,
+		userAuthService: userAuthService,
 	}
 }
 
@@ -143,6 +148,44 @@ func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
 	}
 	request.Id = team.Id
 	return request, nil
+}
+
+func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
+	existingTeam, err := impl.teamRepository.FindOne(deleteRequest.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", deleteRequest.Id)
+		return err
+	}
+	dbConnection := impl.teamRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing connection", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	deleteReq := &Team{
+		Name:     deleteRequest.Name,
+		Id:       deleteRequest.Id,
+		Active:   deleteRequest.Active,
+		AuditLog: sql.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: deleteRequest.UserId},
+	}
+	err = impl.teamRepository.MarkTeamDeleted(deleteReq, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting team", "teamId", deleteReq.Id, "teamName", deleteReq.Name)
+		return err
+	}
+	//deleting auth roles entries for this project
+	err = impl.userAuthService.DeleteRoles(repository.PROJECT_TYPE, deleteRequest.Name, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting auth roles", "err", err)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl TeamServiceImpl) FetchForAutocomplete() ([]TeamRequest, error) {
