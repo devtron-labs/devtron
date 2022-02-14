@@ -71,6 +71,7 @@ type PipelineBuilder interface {
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	CreateMaterialsForApp(request *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error)
 	UpdateMaterialsForApp(request *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
+	DeleteMaterial(request *bean.UpdateMaterialDTO) error
 	DeleteApp(appId int, userId int32) error
 	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
 	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
@@ -222,6 +223,40 @@ func (impl PipelineBuilderImpl) UpdateMaterialsForApp(request *bean.UpdateMateri
 		impl.logger.Errorw("error in updating materials req", "req", request, "err", err)
 	}
 	return res, err
+}
+
+func (impl PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO) error {
+	//finding ci pipelines for this app; if found any, will not delete git material
+	pipelines, err := impl.ciPipelineRepository.FindByAppId(request.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in deleting git material", "gitMaterial", request.Material, "err", err)
+		return err
+	}
+	if len(pipelines) > 0 {
+		//pipelines are present, in this case we will check if this material is used in docker config
+		//if it is used, then we won't delete
+		ciTemplate, err := impl.ciTemplateRepository.FindByAppId(request.AppId)
+		if err != nil && err == errors.NotFoundf(err.Error()) {
+			impl.logger.Errorw("err in getting docker registry", "appId", request.AppId, "err", err)
+			return err
+		}
+		if ciTemplate != nil && ciTemplate.GitMaterialId == request.Material.Id {
+			return fmt.Errorf("cannot delete git material, is being used in docker config")
+		}
+	}
+	existingMaterial, err := impl.materialRepo.FindById(request.Material.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete", "gitMaterial", request.Material)
+		return err
+	}
+	existingMaterial.UpdatedOn = time.Now()
+	existingMaterial.UpdatedBy = request.UserId
+	err = impl.materialRepo.MarkMaterialDeleted(existingMaterial)
+	if err != nil {
+		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
+		return err
+	}
+	return nil
 }
 
 func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDTO, err error) {
@@ -565,6 +600,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		Id:                originalCiConf.Id,
 		DockerRepository:  originalCiConf.DockerRepository,
 		DockerRegistryId:  originalCiConf.DockerRegistry,
+		Active: 		   true,
 	}
 
 	err = impl.ciTemplateRepository.Update(ciTemplate)

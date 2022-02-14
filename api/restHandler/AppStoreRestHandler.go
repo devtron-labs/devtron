@@ -29,6 +29,7 @@ import (
 	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appstore"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -42,6 +43,8 @@ import (
 	"time"
 )
 
+const CHART_REPO_DELETE_SUCCESS_RESP = "Chart repo deleted successfully."
+
 type AppStoreRestHandler interface {
 	FindAllApps(w http.ResponseWriter, r *http.Request)
 	GetChartDetailsForVersion(w http.ResponseWriter, r *http.Request)
@@ -54,35 +57,39 @@ type AppStoreRestHandler interface {
 	CreateChartRepo(w http.ResponseWriter, r *http.Request)
 	UpdateChartRepo(w http.ResponseWriter, r *http.Request)
 	ValidateChartRepo(w http.ResponseWriter, r *http.Request)
+	DeleteChartRepo(w http.ResponseWriter, r *http.Request)
 	TriggerChartSyncManual(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreRestHandlerImpl struct {
-	Logger           *zap.SugaredLogger
-	appStoreService  appstore.AppStoreService
-	userAuthService  user.UserService
-	teamService      team.TeamService
-	enforcer         casbin.Enforcer
-	acdServiceClient application.ServiceClient
-	enforcerUtil     rbac.EnforcerUtil
-	validator        *validator.Validate
-	client           *http.Client
+	Logger                *zap.SugaredLogger
+	appStoreService       appstore.AppStoreService
+	userAuthService       user.UserService
+	teamService           team.TeamService
+	enforcer              casbin.Enforcer
+	acdServiceClient      application.ServiceClient
+	enforcerUtil          rbac.EnforcerUtil
+	validator             *validator.Validate
+	client                *http.Client
+	deleteServiceFullMode delete2.DeleteServiceFullMode
 }
 
 func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appStoreService appstore.AppStoreService,
 	acdServiceClient application.ServiceClient, teamService team.TeamService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil,
-	validator *validator.Validate, client *http.Client) *AppStoreRestHandlerImpl {
+	validator *validator.Validate, client *http.Client,
+	deleteServiceFullMode delete2.DeleteServiceFullMode) *AppStoreRestHandlerImpl {
 	return &AppStoreRestHandlerImpl{
-		Logger:           Logger,
-		appStoreService:  appStoreService,
-		userAuthService:  userAuthService,
-		teamService:      teamService,
-		acdServiceClient: acdServiceClient,
-		enforcer:         enforcer,
-		enforcerUtil:     enforcerUtil,
-		validator:        validator,
-		client:           client,
+		Logger:                Logger,
+		appStoreService:       appStoreService,
+		userAuthService:       userAuthService,
+		teamService:           teamService,
+		acdServiceClient:      acdServiceClient,
+		enforcer:              enforcer,
+		enforcerUtil:          enforcerUtil,
+		validator:             validator,
+		client:                client,
+		deleteServiceFullMode: deleteServiceFullMode,
 	}
 }
 
@@ -467,6 +474,44 @@ func (handler *AppStoreRestHandlerImpl) ValidateChartRepo(w http.ResponseWriter,
 	common.WriteJsonResp(w, nil, validationResult, http.StatusOK)
 }
 
+func (handler *AppStoreRestHandlerImpl) DeleteChartRepo(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var request *appstore.ChartRepoDto
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, DeleteChartRepo", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, DeleteChartRepo", "err", err, "payload", request)
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//rbac starts here
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//rbac ends here
+	request.UserId = userId
+	handler.Logger.Infow("request payload, DeleteChartRepo", "payload", request)
+	err = handler.deleteServiceFullMode.DeleteChartRepo(request)
+	if err != nil {
+		handler.Logger.Errorw("err in deleting chart repo", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, CHART_REPO_DELETE_SUCCESS_RESP, http.StatusOK)
+}
 func (handler *AppStoreRestHandlerImpl) TriggerChartSyncManual(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {

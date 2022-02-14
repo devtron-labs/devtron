@@ -31,6 +31,7 @@ type SlackNotificationRepository interface {
 	FindByTeamIdOrOwnerId(ownerId int32, teamIds []int) ([]SlackConfig, error)
 	FindByName(value string) ([]SlackConfig, error)
 	FindByIds(ids []*int) ([]*SlackConfig, error)
+	MarkSlackConfigDeleted(slackConfig *SlackConfig) error
 }
 
 type SlackNotificationRepositoryImpl struct {
@@ -49,6 +50,7 @@ type SlackConfig struct {
 	Description string   `sql:"description"`
 	OwnerId     int32    `sql:"owner_id"`
 	TeamId      int      `sql:"team_id"`
+	Deleted     bool     `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
@@ -56,19 +58,22 @@ func (impl *SlackNotificationRepositoryImpl) FindByIdsIn(ids []int) ([]*SlackCon
 	var configs []*SlackConfig
 	err := impl.dbConnection.Model(&configs).
 		Where("id in (?)", pg.In(ids)).
+		Where("deleted = ?", false).
 		Select()
 	return configs, err
 }
 
 func (impl *SlackNotificationRepositoryImpl) FindOne(id int) (*SlackConfig, error) {
 	details := &SlackConfig{}
-	err := impl.dbConnection.Model(details).Where("id = ?", id).Select()
+	err := impl.dbConnection.Model(details).Where("id = ?", id).
+		Where("deleted = ?", false).Select()
 	return details, err
 }
 
 func (impl *SlackNotificationRepositoryImpl) FindAll() ([]SlackConfig, error) {
 	var slackConfigs []SlackConfig
-	err := impl.dbConnection.Model(&slackConfigs).Select()
+	err := impl.dbConnection.Model(&slackConfigs).
+		Where("deleted = ?", false).Select()
 	return slackConfigs, err
 }
 
@@ -76,12 +81,12 @@ func (impl *SlackNotificationRepositoryImpl) FindByTeamIdOrOwnerId(ownerId int32
 	var slackConfigs []SlackConfig
 	if len(teamIds) == 0 {
 		err := impl.dbConnection.Model(&slackConfigs).Where(`owner_id = ?`, ownerId).
-			Select()
+			Where("deleted = ?", false).Select()
 		return slackConfigs, err
 	} else {
 		err := impl.dbConnection.Model(&slackConfigs).
 			Where(`team_id in (?)`, pg.In(teamIds)).
-			Select()
+			Where("deleted = ?", false).Select()
 		return slackConfigs, err
 	}
 }
@@ -97,13 +102,19 @@ func (impl *SlackNotificationRepositoryImpl) SaveSlackConfig(slackConfig *SlackC
 func (impl *SlackNotificationRepositoryImpl) FindByName(value string) ([]SlackConfig, error) {
 	var slackConfigs []SlackConfig
 	err := impl.dbConnection.Model(&slackConfigs).Where(`config_name like ?`, "%"+value+"%").
-		Select()
+		Where("deleted = ?", false).Select()
 	return slackConfigs, err
 
 }
 
 func (repo *SlackNotificationRepositoryImpl) FindByIds(ids []*int) ([]*SlackConfig, error) {
 	var objects []*SlackConfig
-	err := repo.dbConnection.Model(&objects).Where("id in (?)", pg.In(ids)).Select()
+	err := repo.dbConnection.Model(&objects).Where("id in (?)", pg.In(ids)).
+		Where("deleted = ?", false).Select()
 	return objects, err
+}
+
+func (impl *SlackNotificationRepositoryImpl) MarkSlackConfigDeleted(slackConfig *SlackConfig) error {
+	slackConfig.Deleted = true
+	return impl.dbConnection.Update(slackConfig)
 }
