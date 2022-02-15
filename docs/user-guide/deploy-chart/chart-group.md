@@ -24,7 +24,7 @@ Create Chart Group And Deploy App store applications.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-3.jpg)
 
-2. Click on `Group Detail` to see all the running instances and group details. You also can edit the chart group from here.
+2. Click on `Group Detail` to see all the running instances and group details. You can also edit the chart group from here.
 
 ## 3.Bulk Deploy and Edit Option for Charts
 
