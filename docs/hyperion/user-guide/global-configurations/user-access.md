@@ -58,7 +58,7 @@ Click on `Seach Box`, and type your user's email
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/hyperion-gc-search-user.jpg)
 
-### 2. Create User Permissions
+### 3. Create User Permissions
 
 When you click on Add User, you will see 4 options to set permission for users which are as follow:
 
@@ -131,7 +131,7 @@ You can add multiple rows, for Helm Apps.
 
 Once you have finished assigning the appropriate permissions for the listed user, Click on `Save`.
 
-### 3. Edit User Permissions
+### 4. Edit User Permissions
 
 You can edit the user permissions, by clicking on the `downward arrow`.
 
