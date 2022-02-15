@@ -274,7 +274,7 @@ ingressInternal:
 | `annotations` | To configure some options depending on the Ingress controller |
 | `host` | Host name |
 | `path` | Path name |
-| `pathType` | Path type. Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`.|
+| `pathType` | Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`.|
 | `tls` | It contains security details |
 
 ### Init Containers
