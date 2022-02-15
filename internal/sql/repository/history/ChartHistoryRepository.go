@@ -11,6 +11,7 @@ type ChartHistoryRepository interface {
 	CreateHistory(chart *ChartsHistory) (*ChartsHistory, error)
 	UpdateHistory(chart *ChartsHistory) (*ChartsHistory, error)
 	CreateHistoryWithTxn(chart *ChartsHistory, tx *pg.Tx) (*ChartsHistory, error)
+	GetHistoryForDeployedCharts(pipelineId int) ([]*ChartsHistory, error)
 }
 
 type ChartHistoryRepositoryImpl struct {
@@ -59,4 +60,15 @@ func (impl ChartHistoryRepositoryImpl) CreateHistoryWithTxn(chart *ChartsHistory
 		return chart, err
 	}
 	return chart, nil
+}
+
+func (impl ChartHistoryRepositoryImpl) GetHistoryForDeployedCharts(pipelineId int) ([]*ChartsHistory, error) {
+	var histories []*ChartsHistory
+	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
+		Where("deployed = ?", true).Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting charts history", "err", err)
+		return histories, err
+	}
+	return histories, nil
 }

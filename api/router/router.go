@@ -89,6 +89,7 @@ type MuxRouter struct {
 	helmAppRouter                    client.HelmAppRouter
 	k8sApplicationRouter             k8s.K8sApplicationRouter
 	pProfRouter                      PProfRouter
+	historyRouter					 HistoryRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -110,7 +111,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
-	pProfRouter PProfRouter) *MuxRouter {
+	pProfRouter PProfRouter, historyRouter HistoryRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -162,6 +163,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		helmAppRouter:                    helmAppRouter,
 		k8sApplicationRouter:             k8sApplicationRouter,
 		pProfRouter:                      pProfRouter,
+		historyRouter: 				      historyRouter,
 	}
 	return r
 }
@@ -314,4 +316,7 @@ func (r MuxRouter) Init() {
 
 	pProfListenerRouter := r.Router.PathPrefix("/orchestrator/debug/pprof").Subrouter()
 	r.pProfRouter.initPProfRouter(pProfListenerRouter)
+
+	historyRouter := r.Router.PathPrefix("/orchestrator/history").Subrouter()
+	r.historyRouter.InitHistoryRouter(historyRouter)
 }

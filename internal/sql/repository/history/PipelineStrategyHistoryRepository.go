@@ -12,6 +12,7 @@ type PipelineStrategyHistoryRepository interface {
 	CreateHistory(model *PipelineStrategyHistory) (*PipelineStrategyHistory, error)
 	CreateHistoryWithTxn(model *PipelineStrategyHistory, tx *pg.Tx) (*PipelineStrategyHistory, error)
 	UpdateHistory(model *PipelineStrategyHistory) (*PipelineStrategyHistory, error)
+	GetHistoryForDeployedStrategy(pipelineId int) ([]*PipelineStrategyHistory, error)
 }
 
 type PipelineStrategyHistoryRepositoryImpl struct {
@@ -61,4 +62,15 @@ func (impl PipelineStrategyHistoryRepositoryImpl) UpdateHistory(model *PipelineS
 		return model, err
 	}
 	return model, nil
+}
+
+func (impl PipelineStrategyHistoryRepositoryImpl) GetHistoryForDeployedStrategy(pipelineId int) ([]*PipelineStrategyHistory, error) {
+	var histories []*PipelineStrategyHistory
+	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
+		Where("deployed = ?", true).Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting strategy history", "err", err)
+		return histories, err
+	}
+	return histories, nil
 }

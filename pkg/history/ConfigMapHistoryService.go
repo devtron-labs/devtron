@@ -16,6 +16,7 @@ type ConfigMapHistoryService interface {
 	CreateHistoryFromEnvLevelConfig(envLevelConfig *chartConfig.ConfigMapEnvModel, configType history.ConfigType) error
 	CreateConfigMapHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) error
 	MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType history.ConfigType) (string, error)
+	GetHistoryForDeployedCMCS(pipelineId int) ([]*ConfigMapAndSecretHistoryDto, error)
 }
 
 type ConfigMapHistoryServiceImpl struct {
@@ -223,4 +224,41 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 		return "", err
 	}
 	return string(finalConfigDataByte), err
+}
+
+func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCS(pipelineId int) ([]*ConfigMapAndSecretHistoryDto, error) {
+	histories, err := impl.configMapHistoryRepository.GetHistoryForDeployedCMCS(pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting histories for cm/cs", "err", err, "pipelineId", pipelineId)
+		return nil, err
+	}
+	var historiesDto []*ConfigMapAndSecretHistoryDto
+	for _, history := range histories{
+		configsList := ConfigsList{}
+		if len(history.Data) > 0 {
+			err := json.Unmarshal([]byte(history.Data), &configsList)
+			if err != nil {
+				impl.logger.Debugw("error while Unmarshal", "err", err)
+				return nil, err
+			}
+		}
+		historyDto := &ConfigMapAndSecretHistoryDto{
+			Id: history.Id,
+			PipelineId: history.PipelineId,
+			DataType: string(history.DataType),
+			ConfigData: configsList.ConfigData,
+			Deployed : history.Deployed,
+			DeployedOn: history.DeployedOn,
+			DeployedBy: history.DeployedBy,
+			AuditLog : sql.AuditLog{
+				CreatedBy: history.CreatedBy,
+				CreatedOn: history.CreatedOn,
+				UpdatedBy: history.UpdatedBy,
+				UpdatedOn: history.UpdatedOn,
+			},
+		}
+		historiesDto = append(historiesDto, historyDto)
+	}
+
+	return historiesDto, nil
 }

@@ -649,6 +649,13 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(delete2.DeleteServiceFullMode),new(*delete2.DeleteServiceFullModeImpl)),
 	//	util2.NewGoJsonSchemaCustomFormatChecker,
 
+		//history starts
+		router.NewHistoryRouterImpl,
+		wire.Bind(new(router.HistoryRouter), new(*router.HistoryRouterImpl)),
+
+		restHandler.NewHistoryRestHandlerImpl,
+		wire.Bind(new(restHandler.HistoryRestHandler), new(*restHandler.HistoryRestHandlerImpl)),
+
 		history.NewConfigMapHistoryRepositoryImpl,
 		wire.Bind(new(history.ConfigMapHistoryRepository),new(*history.ConfigMapHistoryRepositoryImpl)),
 		history.NewChartHistoryRepositoryImpl,
@@ -661,6 +668,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history.CdConfigHistoryRepository),new(*history.CdConfigHistoryRepositoryImpl)),
 		history.NewPipelineStrategyHistoryRepositoryImpl,
 		wire.Bind(new(history.PipelineStrategyHistoryRepository),new(*history.PipelineStrategyHistoryRepositoryImpl)),
+
+
 		history2.NewCdConfigHistoryServiceImpl,
 		wire.Bind(new(history2.CdConfigHistoryService),new(*history2.CdConfigHistoryServiceImpl)),
 		history2.NewCiScriptHistoryServiceImpl,
@@ -673,6 +682,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history2.PipelineStrategyHistoryService),new(*history2.PipelineStrategyHistoryServiceImpl)),
 		history2.NewInstalledAppHistoryServiceImpl,
 		wire.Bind(new(history2.InstalledAppHistoryService),new(*history2.InstalledAppHistoryServiceImpl)),
+
+		//history ends
 	//	AuthWireSet,
 	)
 	return &App{}, nil

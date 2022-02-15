@@ -295,16 +295,16 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		}
 	}
 
-	//STEP 8: finish with return response
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error while committing transaction to db", "error", err)
-		return nil, err
-	}
-	//STEP 9 : creating entry for installed app history
+	//STEP 8 : creating entry for installed app history
 	_, err = impl.installedAppHistoryService.CreateInstalledAppHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating install app history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
+		return nil, err
+	}
+	//STEP 9: finish with return response
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while committing transaction to db", "error", err)
 		return nil, err
 	}
 	return installAppVersionRequest, nil

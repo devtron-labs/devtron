@@ -89,6 +89,7 @@ CREATE TABLE "public"."cd_config_history"
     "config"                        text,
     "stage"                         text,
     "configmap_secret_names"        text,
+    "exec_in_env"                   bool,
     "deployed"                      bool,
     "deployed_on"                   timestamptz,
     "deployed_by"                   int4,

@@ -14,6 +14,7 @@ type ChartsHistoryService interface {
 	CreateChartsHistoryFromGlobalCharts(chart *chartConfig.Chart, tx *pg.Tx) error
 	CreateChartsHistoryFromEnvOverrideCharts(envOverride *chartConfig.EnvConfigOverride, tx *pg.Tx) error
 	CreateChartsHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error
+	GetHistoryForDeployedCharts(pipelineId int) ([]*history.ChartsHistory, error)
 }
 
 type ChartsHistoryServiceImpl struct {
@@ -144,4 +145,13 @@ func (impl ChartsHistoryServiceImpl) CreateChartsHistoryForDeploymentTrigger(pip
 		return err
 	}
 	return nil
+}
+
+func (impl ChartsHistoryServiceImpl) GetHistoryForDeployedCharts(pipelineId int) ([]*history.ChartsHistory, error) {
+	histories, err := impl.chartHistoryRepository.GetHistoryForDeployedCharts(pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting charts history", "err", err, "pipelineId", pipelineId)
+		return nil, err
+	}
+	return histories, nil
 }

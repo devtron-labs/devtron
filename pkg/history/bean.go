@@ -1,6 +1,22 @@
 package history
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"time"
+)
+
+type ConfigMapAndSecretHistoryDto struct{
+	Id         int        `json:"id"`
+	PipelineId int        `json:"pipelineId"`
+	DataType   string	   `json:"dataType"`
+	ConfigData []*ConfigData `json:"configData"`
+	Deployed   bool       `json:"deployed"`
+	DeployedOn time.Time  `json:"deployed_on"`
+	DeployedBy int32      `json:"deployed_by"`
+	sql.AuditLog
+
+}
 
 // duplicate structs below, because importing from pkg/pipeline was resulting in circular dependency
 

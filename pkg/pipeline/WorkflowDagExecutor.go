@@ -308,6 +308,8 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 }
 
 func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, triggeredBy int32, applyAuth bool) error {
+	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
+	triggeredAt := time.Now()
 
 	//in case of pre stage manual trigger auth is already applied
 	if applyAuth {
@@ -329,7 +331,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
 			PipelineId:   pipeline.Id,
-			AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
+			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 		if err != nil {
@@ -342,7 +344,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		Status:       WorkflowStarting, //starting
 		TriggeredBy:  triggeredBy,
-		StartedOn:    time.Now(),
+		StartedOn:    triggeredAt,
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
@@ -382,7 +384,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
 	}
 	//creating cd config history entry
-	err = impl.cdConfigHistoryService.CreateCdConfigHistory(pipeline, nil, history.PRE_CD_TYPE, true, triggeredBy, time.Now())
+	err = impl.cdConfigHistoryService.CreateCdConfigHistory(pipeline, nil, history.PRE_CD_TYPE, true, triggeredBy, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in creating pre cd config entry", "err", err, "pipeline", pipeline)
 		return err
@@ -400,13 +402,16 @@ func convert(ts string) (*time.Time, error) {
 }
 
 func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, triggeredBy int32) error {
+	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
+	triggeredAt := time.Now()
+
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:         pipeline.Name,
 		WorkflowType: bean.CD_WORKFLOW_TYPE_POST,
 		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		Status:       WorkflowStarting,
 		TriggeredBy:  triggeredBy,
-		StartedOn:    time.Now(),
+		StartedOn:    triggeredAt,
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
@@ -448,7 +453,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
 	}
 	//creating cd config history entry
-	err = impl.cdConfigHistoryService.CreateCdConfigHistory(pipeline, nil, history.POST_CD_TYPE, true, triggeredBy, time.Now())
+	err = impl.cdConfigHistoryService.CreateCdConfigHistory(pipeline, nil, history.POST_CD_TYPE, true, triggeredBy, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in creating post cd config entry", "err", err, "pipeline", pipeline)
 		return err
