@@ -21,7 +21,9 @@ type CdConfigHistory struct {
 	Config               string      `sql:"config"`
 	Stage                CdStageType `sql:"stage"`
 	ConfigMapSecretNames string      `sql:"configmap_secret_names"`
-	ExecInEnv			 bool 		 `sql:"exec_in_env"`
+	ConfigMapData        string      `sql:"configmap_data"`
+	SecretData           string      `sql:"secret_data"`
+	ExecInEnv            bool        `sql:"exec_in_env"`
 	Deployed             bool        `sql:"deployed"`
 	DeployedOn           time.Time   `sql:"deployed_on"`
 	DeployedBy           int32       `sql:"deployed_by"`

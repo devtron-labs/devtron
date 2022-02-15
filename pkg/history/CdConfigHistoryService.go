@@ -44,11 +44,25 @@ func (impl CdConfigHistoryServiceImpl) CreateCdConfigHistory(pipeline *pipelineC
 		historyModel.Config = pipeline.PreStageConfig
 		historyModel.ConfigMapSecretNames = pipeline.PreStageConfigMapSecretNames
 		historyModel.ExecInEnv = pipeline.RunPreStageInEnv
+		configMapData, secretData, err := impl.GetConfigMapSecretData(pipeline, history.PRE_CD_TYPE)
+		if err!=nil{
+			impl.logger.Errorw("err in getting cm and cs data for cd config history entry", "err", err)
+			return err
+		}
+		historyModel.ConfigMapData = configMapData
+		historyModel.SecretData = secretData
 	} else if stage == history.POST_CD_TYPE {
 		historyModel.Stage = history.POST_CD_TYPE
 		historyModel.Config = pipeline.PostStageConfig
 		historyModel.ConfigMapSecretNames = pipeline.PostStageConfigMapSecretNames
 		historyModel.ExecInEnv = pipeline.RunPostStageInEnv
+		configMapData, secretData, err := impl.GetConfigMapSecretData(pipeline, history.POST_CD_TYPE)
+		if err!=nil{
+			impl.logger.Errorw("err in getting cm and cs data for cd config history entry", "err", err)
+			return err
+		}
+		historyModel.ConfigMapData = configMapData
+		historyModel.SecretData = secretData
 	}
 	if tx != nil {
 		_, err = impl.cdConfigHistoryRepository.CreateHistoryWithTxn(historyModel, tx)
@@ -69,4 +83,8 @@ func (impl CdConfigHistoryServiceImpl) GetHistoryForDeployedCdConfig(pipelineId 
 		return nil, err
 	}
 	return histories, nil
+}
+
+func(impl CdConfigHistoryServiceImpl) GetConfigMapSecretData(pipeline *pipelineConfig.Pipeline, stage history.CdStageType)(configMapData, secretData string, err error){
+
 }
