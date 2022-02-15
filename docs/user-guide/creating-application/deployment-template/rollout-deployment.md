@@ -148,7 +148,7 @@ ReadinessProbe:
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
 | `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
-| `command` | The mentioned command is executed to perform the livenessProbe. |
+| `command` | The mentioned command is executed to perform the readinessProbe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
