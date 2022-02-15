@@ -502,7 +502,8 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 			return
 		}
 		appOverride["schema"] = schema
-		appOverride["readme"] = readme
+		//TODO
+		//appOverride["readme"] = readme
 		mapB, _ := json.Marshal(appOverride)
 		if err != nil {
 			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
