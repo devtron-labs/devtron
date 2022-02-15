@@ -15,18 +15,14 @@
  *
  */
 
-package restHandler
+package appStore
 
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/appstore"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/team"
+	appStore "github.com/devtron-labs/devtron/pkg/appStore"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -45,35 +41,16 @@ type AppStoreValuesRestHandler interface {
 }
 
 type AppStoreValuesRestHandlerImpl struct {
-	pipelineBuilder       pipeline.PipelineBuilder
 	Logger                *zap.SugaredLogger
-	chartService          pipeline.ChartService
 	userAuthService       user.UserService
-	teamService           team.TeamService
-	enforcer              casbin.Enforcer
-	pipelineRepository    pipelineConfig.PipelineRepository
-	enforcerUtil          rbac.EnforcerUtil
-	configMapService      pipeline.ConfigMapService
-	installedAppService   appstore.InstalledAppService
-	appStoreValuesService appstore.AppStoreValuesService
+	appStoreValuesService appStore.AppStoreValuesService
 }
 
-func NewAppStoreValuesRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
-	chartService pipeline.ChartService, userAuthService user.UserService, teamService team.TeamService,
-	enforcer casbin.Enforcer, pipelineRepository pipelineConfig.PipelineRepository,
-	enforcerUtil rbac.EnforcerUtil, configMapService pipeline.ConfigMapService,
-	installedAppService appstore.InstalledAppService, appStoreValuesService appstore.AppStoreValuesService) *AppStoreValuesRestHandlerImpl {
+func NewAppStoreValuesRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
+	appStoreValuesService appStore.AppStoreValuesService) *AppStoreValuesRestHandlerImpl {
 	return &AppStoreValuesRestHandlerImpl{
-		pipelineBuilder:       pipelineBuilder,
 		Logger:                Logger,
-		chartService:          chartService,
 		userAuthService:       userAuthService,
-		teamService:           teamService,
-		enforcer:              enforcer,
-		pipelineRepository:    pipelineRepository,
-		enforcerUtil:          enforcerUtil,
-		configMapService:      configMapService,
-		installedAppService:   installedAppService,
 		appStoreValuesService: appStoreValuesService,
 	}
 }
@@ -85,7 +62,7 @@ func (handler AppStoreValuesRestHandlerImpl) CreateAppStoreVersionValues(w http.
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request appstore.AppStoreVersionValuesDTO
+	var request appStoreBean.AppStoreVersionValuesDTO
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, CreateAppStoreVersionValues", "err", err, "payload", request)
@@ -110,7 +87,7 @@ func (handler AppStoreValuesRestHandlerImpl) UpdateAppStoreVersionValues(w http.
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request appstore.AppStoreVersionValuesDTO
+	var request appStoreBean.AppStoreVersionValuesDTO
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, UpdateAppStoreVersionValues", "err", err, "payload", request)
@@ -141,7 +118,7 @@ func (handler AppStoreValuesRestHandlerImpl) FindValuesById(w http.ResponseWrite
 		return
 	}
 	kind := vars["kind"]
-	if len(kind) == 0 || (kind != appstore.REFERENCE_TYPE_DEPLOYED && kind != appstore.REFERENCE_TYPE_DEFAULT && kind != appstore.REFERENCE_TYPE_TEMPLATE && kind != appstore.REFERENCE_TYPE_EXISTING) {
+	if len(kind) == 0 || (kind != appStoreBean.REFERENCE_TYPE_DEPLOYED && kind != appStoreBean.REFERENCE_TYPE_DEFAULT && kind != appStoreBean.REFERENCE_TYPE_TEMPLATE && kind != appStoreBean.REFERENCE_TYPE_EXISTING) {
 		handler.Logger.Error(err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -195,7 +172,7 @@ func (handler AppStoreValuesRestHandlerImpl) FindValuesByAppStoreIdAndReferenceT
 		return
 	}
 	handler.Logger.Infow("request payload, FindValuesByAppStoreIdAndReferenceType", "appStoreVersionId", appStoreVersionId)
-	res, err := handler.appStoreValuesService.FindValuesByAppStoreIdAndReferenceType(appStoreVersionId, appstore.REFERENCE_TYPE_TEMPLATE)
+	res, err := handler.appStoreValuesService.FindValuesByAppStoreIdAndReferenceType(appStoreVersionId, appStoreBean.REFERENCE_TYPE_TEMPLATE)
 	if err != nil {
 		handler.Logger.Errorw("service err, FindValuesByAppStoreIdAndReferenceType", "err", err, "appStoreVersionId", appStoreVersionId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -247,7 +224,7 @@ func (handler AppStoreValuesRestHandlerImpl) GetSelectedChartMetadata(w http.Res
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request appstore.ChartMetaDataRequestWrapper
+	var request appStore.ChartMetaDataRequestWrapper
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, GetSelectedChartMetadata", "err", err, "request", request)

@@ -15,7 +15,7 @@
  *
  */
 
-package chartGroup
+package appStoreRepository
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"

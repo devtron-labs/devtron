@@ -15,29 +15,33 @@
  *
  */
 
-package router
+package appStore
 
 import (
-	"github.com/devtron-labs/devtron/api/restHandler"
+	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	"github.com/gorilla/mux"
 )
 
 type AppStoreRouter interface {
-	initAppStoreRouter(configRouter *mux.Router)
+	Init(configRouter *mux.Router)
 }
+
 type AppStoreRouterImpl struct {
-	deployRestHandler         restHandler.InstalledAppRestHandler
-	appStoreRestHandler       restHandler.AppStoreRestHandler
-	appStoreValuesRestHandler restHandler.AppStoreValuesRestHandler
+	deployRestHandler         InstalledAppRestHandler
+	appStoreValuesRestHandler AppStoreValuesRestHandler
+	appStoreDiscoverRouter    appStoreDiscover.AppStoreDiscoverRouter
 }
 
-func NewAppStoreRouterImpl(appStoreRestHandler restHandler.AppStoreRestHandler, restHandler restHandler.InstalledAppRestHandler,
-	appStoreValuesRestHandler restHandler.AppStoreValuesRestHandler) *AppStoreRouterImpl {
-	return &AppStoreRouterImpl{deployRestHandler: restHandler, appStoreRestHandler: appStoreRestHandler,
-		appStoreValuesRestHandler: appStoreValuesRestHandler}
+func NewAppStoreRouterImpl(restHandler InstalledAppRestHandler,
+	appStoreValuesRestHandler AppStoreValuesRestHandler, appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter) *AppStoreRouterImpl {
+	return &AppStoreRouterImpl{
+		deployRestHandler:         restHandler,
+		appStoreValuesRestHandler: appStoreValuesRestHandler,
+		appStoreDiscoverRouter:    appStoreDiscoverRouter,
+	}
 }
 
-func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
+func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/application/install").
 		HandlerFunc(router.deployRestHandler.CreateInstalledApp).Methods("POST")
 
@@ -47,19 +51,14 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 		HandlerFunc(router.deployRestHandler.DeployBulk).Methods("POST")
 	configRouter.Path("/application/update").
 		HandlerFunc(router.deployRestHandler.UpdateInstalledApp).Methods("PUT")
-	configRouter.Path("/").
-		HandlerFunc(router.appStoreRestHandler.FindAllApps).Methods("GET")
 
-	configRouter.Path("/application/{id}").
-		HandlerFunc(router.appStoreRestHandler.GetChartDetailsForVersion).Methods("GET")
-
-	configRouter.Path("/application/{appStoreId}/version/autocomplete").
-		HandlerFunc(router.appStoreRestHandler.GetChartVersions).Methods("GET")
-	configRouter.Path("/application/readme/{appStoreApplicationVersionId}").
-		HandlerFunc(router.appStoreRestHandler.GetReadme).Methods("GET")
+	// discover router starts
+	appStoreDiscoverSubRouter := configRouter.PathPrefix("/discover").Subrouter()
+	router.appStoreDiscoverRouter.Init(appStoreDiscoverSubRouter)
+	// discover router ends
 
 	configRouter.Path("/installed-app/detail").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
-		HandlerFunc(router.appStoreRestHandler.FetchAppDetailsForInstalledApp).
+		HandlerFunc(router.deployRestHandler.FetchAppDetailsForInstalledApp).
 		Methods("GET")
 
 	configRouter.Path("/installed-app").
@@ -90,25 +89,6 @@ func (router AppStoreRouterImpl) initAppStoreRouter(configRouter *mux.Router) {
 		HandlerFunc(router.appStoreValuesRestHandler.FetchTemplateValuesByAppStoreId).Methods("GET")
 	configRouter.Path("/chart/selected/metadata").
 		HandlerFunc(router.appStoreValuesRestHandler.GetSelectedChartMetadata).Methods("POST")
-
-	configRouter.Path("/search").
-		HandlerFunc(router.appStoreRestHandler.SearchAppStoreChartByName).Queries("chartName", "{chartName}").
-		Methods("GET")
-
-	configRouter.Path("/repo/sync-charts").
-		HandlerFunc(router.appStoreRestHandler.TriggerChartSyncManual).Methods("POST")
-	configRouter.Path("/repo/list").
-		HandlerFunc(router.appStoreRestHandler.GetChartRepoList).Methods("GET")
-	configRouter.Path("/repo/{id}").
-		HandlerFunc(router.appStoreRestHandler.GetChartRepoById).Methods("GET")
-	configRouter.Path("/repo/create").
-		HandlerFunc(router.appStoreRestHandler.CreateChartRepo).Methods("POST")
-	configRouter.Path("/repo/update").
-		HandlerFunc(router.appStoreRestHandler.UpdateChartRepo).Methods("POST")
-	configRouter.Path("/repo/validate").
-		HandlerFunc(router.appStoreRestHandler.ValidateChartRepo).Methods("POST")
-	configRouter.Path("/repo").
-		HandlerFunc(router.appStoreRestHandler.DeleteChartRepo).Methods("DELETE")
 
 	configRouter.Path("/cluster-component/install/{clusterId}").
 		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")

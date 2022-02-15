@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
+	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -12,9 +14,10 @@ import (
 )
 
 type DeleteServiceExtendedImpl struct {
-	appRepository         app.AppRepository
-	environmentRepository repository.EnvironmentRepository
-	pipelineRepository    pipelineConfig.PipelineRepository
+	appRepository          app.AppRepository
+	environmentRepository  repository.EnvironmentRepository
+	pipelineRepository     pipelineConfig.PipelineRepository
+	installedAppRepository appStoreRepository.InstalledAppRepository
 	*DeleteServiceImpl
 }
 
@@ -24,17 +27,19 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	environmentService cluster.EnvironmentService,
 	appRepository app.AppRepository,
 	environmentRepository repository.EnvironmentRepository,
-	pipelineRepository pipelineConfig.PipelineRepository,
+	pipelineRepository pipelineConfig.PipelineRepository, chartRepositoryService chartRepo.ChartRepositoryService, installedAppRepository appStoreRepository.InstalledAppRepository,
 ) *DeleteServiceExtendedImpl {
 	return &DeleteServiceExtendedImpl{
-		appRepository:         appRepository,
-		environmentRepository: environmentRepository,
-		pipelineRepository:    pipelineRepository,
+		appRepository:          appRepository,
+		environmentRepository:  environmentRepository,
+		pipelineRepository:     pipelineRepository,
+		installedAppRepository: installedAppRepository,
 		DeleteServiceImpl: &DeleteServiceImpl{
-			logger:             logger,
-			teamService:        teamService,
-			clusterService:     clusterService,
-			environmentService: environmentService,
+			logger:                 logger,
+			teamService:            teamService,
+			clusterService:         clusterService,
+			environmentService:     environmentService,
+			chartRepositoryService: chartRepositoryService,
 		},
 	}
 }
@@ -90,6 +95,25 @@ func (impl DeleteServiceExtendedImpl) DeleteTeam(deleteRequest *team.TeamRequest
 	err = impl.teamService.Delete(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting team", "err", err, "deleteRequest", deleteRequest)
+		return err
+	}
+	return nil
+}
+
+func (impl DeleteServiceExtendedImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error {
+	//finding if any charts is deployed using this repo, if yes then will not delete
+	deployedCharts, err := impl.installedAppRepository.GetAllInstalledAppsByChartRepoId(deleteRequest.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in deleting repo", "deleteRequest", deployedCharts)
+		return err
+	}
+	if len(deployedCharts) > 0 {
+		impl.logger.Errorw("err in deleting repo, found charts deployed using this repo", "deleteRequest", deployedCharts)
+		return fmt.Errorf("cannot delete repo, found charts deployed in this repo")
+	}
+	err = impl.chartRepositoryService.DeleteChartRepo(deleteRequest)
+	if err != nil {
+		impl.logger.Errorw("error in deleting chart repo", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
 	return nil
