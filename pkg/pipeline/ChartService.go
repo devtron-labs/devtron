@@ -114,13 +114,13 @@ type ChartService interface {
 	CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
 	FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	GetByAppIdAndChartRefId(appId int, chartRefId int) (chartTemplate *TemplateRequest, err error)
-	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]json.RawMessage, error)
+	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, error)
 	UpdateAppOverride(templateRequest *TemplateRequest) (*TemplateRequest, error)
 	IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error)
 	ChartRefAutocomplete() ([]chartRef, error)
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefResponse, error)
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
-	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]json.RawMessage, userId int32, ctx context.Context) (bool, error)
+	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
 	DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
@@ -208,7 +208,7 @@ func (impl ChartServiceImpl) GetSchemaAndReadmeForDefaultTemplate(chartRefId int
 	return schemaByte, readmeByte, nil
 }
 
-func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]json.RawMessage, error) {
+func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, error) {
 	refChart, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		return nil, err
@@ -236,7 +236,7 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 	}
 
 	appOverride := json.RawMessage(merged)
-	messages := map[string]json.RawMessage{}
+	messages := make(map[string]interface{})
 	messages["defaultAppOverride"] = appOverride
 	return messages, nil
 }
@@ -915,7 +915,7 @@ func (impl ChartServiceImpl) FindPreviousChartByAppId(appId int) (chartTemplate 
 	return chartTemplate, err
 }
 
-func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]json.RawMessage, userId int32, ctx context.Context) (bool, error) {
+func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error) {
 
 	currentChart, err := impl.FindLatestChartForAppByAppId(appId)
 	if err != nil && pg.ErrNoRows != err {
@@ -931,7 +931,7 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 	templateRequest.ChartRefId = chartRefId
 	templateRequest.AppId = appId
 	templateRequest.ChartRepositoryId = currentChart.ChartRepositoryId
-	templateRequest.DefaultAppOverride = newAppOverride["defaultAppOverride"]
+	templateRequest.DefaultAppOverride = newAppOverride["defaultAppOverride"].(json.RawMessage)
 	templateRequest.ValuesOverride = currentChart.DefaultAppOverride
 	templateRequest.UserId = userId
 

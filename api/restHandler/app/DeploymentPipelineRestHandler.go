@@ -477,7 +477,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		return
 	}
 
-	appConfigResponse := map[string]json.RawMessage{}
+	appConfigResponse := make(map[string]interface{})
 	appConfigResponse["globalConfig"] = nil
 
 	schema, readme, err := handler.chartService.GetSchemaAndReadmeForDefaultTemplate(chartRefId)
@@ -501,15 +501,14 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		appOverride["schema"] = schema
-		//TODO
-		//appOverride["readme"] = readme
-		mapB, _ := json.Marshal(appOverride)
+		appOverride["schema"] = json.RawMessage(schema)
+		appOverride["readme"] = string(readme)
+		mapB, err := json.Marshal(appOverride)
 		if err != nil {
 			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 			return
 		}
-		appConfigResponse["globalConfig"] = mapB
+		appConfigResponse["globalConfig"] = json.RawMessage(mapB)
 	} else {
 		if template.ChartRefId != chartRefId {
 			templateRequested, err := handler.chartService.GetByAppIdAndChartRefId(appId, chartRefId)
