@@ -2,7 +2,6 @@ package history
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 )
@@ -51,14 +50,14 @@ type ChartsHistoryDto struct {
 }
 
 type PipelineStrategyHistoryDto struct {
-	Id         int                               `json:"id"`
-	PipelineId int                               `json:"pipelineId"`
-	Strategy   pipelineConfig.DeploymentTemplate `json:"strategy"`
-	Config     string                            `json:"config"`
-	Default    bool                              `json:"default"`
-	Deployed   bool                              `json:"deployed"`
-	DeployedOn time.Time                         `json:"deployedOn"`
-	DeployedBy int32                             `json:"deployedBy"`
+	Id         int       `json:"id"`
+	PipelineId int       `json:"pipelineId"`
+	Strategy   string    `json:"strategy"`
+	Config     string    `json:"config"`
+	Default    bool      `json:"default"`
+	Deployed   bool      `json:"deployed"`
+	DeployedOn time.Time `json:"deployedOn"`
+	DeployedBy int32     `json:"deployedBy"`
 	sql.AuditLog
 }
 

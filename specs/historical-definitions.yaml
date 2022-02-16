@@ -1,0 +1,314 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Historical Task definitions
+paths:
+  /orchestrator/history/cm-cs/{pipelineId}:
+    get:
+      description: fetch history for deployed cm and cs
+      operationId: FetchDeployedCmCsHistory
+      parameters:
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConfigMapAndSecretHistoryDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/history/charts/{pipelineId}:
+    get:
+      description: fetch history for deployed charts(deployment template)
+      operationId: FetchDeployedChartsHistory
+      parameters:
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChartsHistoryDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/history/strategy/{pipelineId}:
+    get:
+      description: fetch history for deployed pipeline stratedy
+      operationId: FetchDeployedStrategyHistory
+      parameters:
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PipelineStrategyHistoryDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/history/cd-config/{pipelineId}:
+    get:
+      description: fetch history for cd config (pre/post stage config)
+      operationId: FetchDeployedCdConfigHistory
+      parameters:
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CdConfigHistoryDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ConfigMapAndSecretHistoryDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        pipelineId:
+          type: integer
+        dataType:
+          type: string
+        configData:
+          $ref: '#/components/schemas/ConfigData'
+        deployed:
+          type: boolean
+        deployedOn:
+          type: string
+          format: timestamp
+        deployedBy:
+          type: integer
+
+    ChartsHistoryDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        pipelineId:
+          type: integer
+        imageDescriptorTemplate:
+          type: string
+        template:
+          type: string
+        targetEnvironment:
+          type: integer
+        deployed:
+          type: boolean
+        deployedOn:
+          type: string
+          format: timestamp
+        deployedBy:
+          type: integer
+
+    PipelineStrategyHistoryDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        pipelineId:
+          type: integer
+        strategy:
+          type: string
+        config:
+          type: string
+        default:
+          type: boolean
+        deployed:
+          type: boolean
+        deployedOn:
+          type: string
+          format: timestamp
+        deployedBy:
+          type: integer
+
+    CdConfigHistoryDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        pipelineId:
+          type: integer
+        config:
+          type: string
+        stage:
+          type: string
+        configmapSecretNames:
+          $ref: '#/components/schemas/PrePostStageConfigMapSecretNames'
+        configmapData:
+          $ref: '#/components/schemas/ConfigData'
+        secretData:
+          $ref: '#/components/schemas/ConfigData'
+        execInEnv:
+          type: boolean
+        deployed:
+          type: boolean
+        deployedOn:
+          type: string
+          format: timestamp
+        deployedBy:
+          type: integer
+
+    PrePostStageConfigMapSecretNames:
+      properties:
+        configMaps:
+          type: array
+          items:
+            type: string
+        secrets:
+          type: array
+          items:
+            type: string
+
+    ConfigData:
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        external:
+          type: boolean
+        mountPath:
+          type: string
+        data:
+          type: string
+        defaultData:
+          type: string
+        defaultMountPath:
+          type: string
+        global:
+          type: boolean
+        externalType:
+          type: string
+        secretData:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalSecret'
+        defaultSecretData:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalSecret'
+        roleArn:
+          type: string
+        subPath:
+          type: boolean
+        filePermission:
+          type: string
+    ExternalSecret:
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        property:
+          type: string
+        isBinary:
+          type: boolean
+
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

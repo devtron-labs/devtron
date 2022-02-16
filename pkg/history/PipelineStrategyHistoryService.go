@@ -80,7 +80,7 @@ func (impl PipelineStrategyHistoryServiceImpl) CreateStrategyHistoryForDeploymen
 }
 
 func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategy(pipelineId int) ([]*PipelineStrategyHistoryDto, error) {
-	histories, err := impl.GetHistoryForDeployedStrategy(pipelineId)
+	histories, err := impl.pipelineStrategyHistoryRepository.GetHistoryForDeployedStrategy(pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting history for strategy", "err", err, "pipelineId", pipelineId)
 		return nil, err
@@ -90,7 +90,7 @@ func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategy(pip
 		historyDto := &PipelineStrategyHistoryDto{
 			Id:         history.Id,
 			PipelineId: history.PipelineId,
-			Strategy:   history.Strategy,
+			Strategy:   string(history.Strategy),
 			Config:     history.Config,
 			Default:    history.Default,
 			Deployed:   history.Deployed,
