@@ -1,5 +1,5 @@
 # Base Image
-From node:12.22.9
+From node:16.13.1
 
 # Seeting up env as production
 ENV NODE_ENV=production
