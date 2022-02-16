@@ -1,7 +1,6 @@
 //go:build wireinject
 // +build wireinject
 
-
 package main
 
 import (
@@ -16,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
+	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/util"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -38,22 +38,23 @@ func InitializeApp() (*App, error) {
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
 
-
 		NewApp,
 		NewMuxRouter,
 
+		util.NewHttpClient,
 		util.NewSugardLogger,
 		util.NewK8sUtil,
 		util.IntValidator,
 		util2.GetACDAuthConfig,
-		util.NewHttpClient,
+		telemetry.NewPosthogClient,
+		telemetry.NewTelemetryEventClientImpl,
+		delete2.NewDeleteServiceImpl,
 
 		//acd session client bind with authenticator login
 		wire.Bind(new(session.ServiceClient), new(*middleware.LoginService)),
 		connector.NewPumpImpl,
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
 
-		delete2.NewDeleteServiceImpl,
 		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceImpl)),
 	)
 	return &App{}, nil
