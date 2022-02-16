@@ -1,7 +1,6 @@
 //go:build wireinject
 // +build wireinject
 
-
 package main
 
 import (
@@ -39,29 +38,24 @@ func InitializeApp() (*App, error) {
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
 
-
 		NewApp,
 		NewMuxRouter,
 
+		util.NewHttpClient,
 		util.NewSugardLogger,
 		util.NewK8sUtil,
 		util.IntValidator,
 		util2.GetACDAuthConfig,
-		util.NewHttpClient,
+		telemetry.NewPosthogClient,
+		telemetry.NewTelemetryEventClientImpl,
+		delete2.NewDeleteServiceImpl,
 
 		//acd session client bind with authenticator login
 		wire.Bind(new(session.ServiceClient), new(*middleware.LoginService)),
 		connector.NewPumpImpl,
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
 
-
-		util.NewHttpClient,
-		util2.GetACDAuthConfig,
-		telemetry.NewPosthogClient,
-		telemetry.NewTelemetryEventClientImpl,
-		delete2.NewDeleteServiceImpl,
 		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceImpl)),
-
 	)
 	return &App{}, nil
 }
