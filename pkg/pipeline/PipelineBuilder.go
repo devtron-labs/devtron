@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -103,33 +104,33 @@ type PipelineBuilder interface {
 }
 
 type PipelineBuilderImpl struct {
-	logger                         *zap.SugaredLogger
-	dbPipelineOrchestrator         DbPipelineOrchestrator
-	dockerArtifactStoreRepository  repository.DockerArtifactStoreRepository
-	materialRepo                   pipelineConfig.MaterialRepository
-	appRepo                        app2.AppRepository
-	pipelineRepository             pipelineConfig.PipelineRepository
-	propertiesConfigService        PropertiesConfigService
-	ciTemplateRepository           pipelineConfig.CiTemplateRepository
-	ciPipelineRepository           pipelineConfig.CiPipelineRepository
-	application                    application.ServiceClient
-	chartRepository                chartConfig.ChartRepository
-	ciArtifactRepository           repository.CiArtifactRepository
-	ecrConfig                      *EcrConfig
-	envConfigOverrideRepository    chartConfig.EnvConfigOverrideRepository
-	environmentRepository          repository2.EnvironmentRepository
-	pipelineConfigRepository       chartConfig.PipelineConfigRepository
-	mergeUtil                      util.MergeUtil
-	appWorkflowRepository          appWorkflow.AppWorkflowRepository
-	ciConfig                       *CiConfig
-	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
-	appService                     app.AppService
-	imageScanResultRepository      security.ImageScanResultRepository
-	GitFactory                     *util.GitFactory
-	ArgoK8sClient                  argocdServer.ArgoK8sClient
-	attributesService              attributes.AttributesService
-	aCDAuthConfig                  *util3.ACDAuthConfig
-	gitOpsRepository               repository.GitOpsConfigRepository
+	logger                        *zap.SugaredLogger
+	dbPipelineOrchestrator        DbPipelineOrchestrator
+	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
+	materialRepo                  pipelineConfig.MaterialRepository
+	appRepo                       app2.AppRepository
+	pipelineRepository            pipelineConfig.PipelineRepository
+	propertiesConfigService       PropertiesConfigService
+	ciTemplateRepository          pipelineConfig.CiTemplateRepository
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	application                   application.ServiceClient
+	chartRepository               chartRepoRepository.ChartRepository
+	ciArtifactRepository          repository.CiArtifactRepository
+	ecrConfig                     *EcrConfig
+	envConfigOverrideRepository   chartConfig.EnvConfigOverrideRepository
+	environmentRepository         repository2.EnvironmentRepository
+	pipelineConfigRepository      chartConfig.PipelineConfigRepository
+	mergeUtil                     util.MergeUtil
+	appWorkflowRepository         appWorkflow.AppWorkflowRepository
+	ciConfig                      *CiConfig
+	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
+	appService                    app.AppService
+	imageScanResultRepository     security.ImageScanResultRepository
+	GitFactory                    *util.GitFactory
+	ArgoK8sClient                 argocdServer.ArgoK8sClient
+	attributesService             attributes.AttributesService
+	aCDAuthConfig                 *util3.ACDAuthConfig
+	gitOpsRepository              repository.GitOpsConfigRepository
 	pipelineStrategyHistoryService history.PipelineStrategyHistoryService
 }
 
@@ -143,7 +144,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	application application.ServiceClient,
-	chartRepository chartConfig.ChartRepository,
+	chartRepository chartRepoRepository.ChartRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	ecrConfig *EcrConfig,
 	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository,

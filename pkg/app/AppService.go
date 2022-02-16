@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -61,38 +62,38 @@ import (
 )
 
 type AppServiceImpl struct {
-	environmentConfigRepository    chartConfig.EnvConfigOverrideRepository
-	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
-	mergeUtil                      *MergeUtil
-	logger                         *zap.SugaredLogger
-	ciArtifactRepository           repository.CiArtifactRepository
-	pipelineRepository             pipelineConfig.PipelineRepository
-	gitFactory                     *GitFactory
-	dbMigrationConfigRepository    pipelineConfig.DbMigrationConfigRepository
-	eventClient                    client.EventClient
-	eventFactory                   client.EventFactory
-	acdClient                      application.ServiceClient
-	tokenCache                     *util3.TokenCache
-	acdAuthConfig                  *util3.ACDAuthConfig
-	enforcer                       casbin.Enforcer
-	enforcerUtil                   rbac.EnforcerUtil
-	user                           user.UserService
-	appListingRepository           repository.AppListingRepository
-	appRepository                  app.AppRepository
-	envRepository                  repository2.EnvironmentRepository
-	pipelineConfigRepository       chartConfig.PipelineConfigRepository
-	configMapRepository            chartConfig.ConfigMapRepository
-	chartRepository                chartConfig.ChartRepository
-	appRepo                        app.AppRepository
-	appLevelMetricsRepository      repository.AppLevelMetricsRepository
-	envLevelMetricsRepository      repository.EnvLevelAppMetricsRepository
-	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
-	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
-	commonService                  commonService.CommonService
-	imageScanDeployInfoRepository  security.ImageScanDeployInfoRepository
-	imageScanHistoryRepository     security.ImageScanHistoryRepository
-	ArgoK8sClient                  argocdServer.ArgoK8sClient
-	gitOpsRepository               repository.GitOpsConfigRepository
+	environmentConfigRepository   chartConfig.EnvConfigOverrideRepository
+	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
+	mergeUtil                     *MergeUtil
+	logger                        *zap.SugaredLogger
+	ciArtifactRepository          repository.CiArtifactRepository
+	pipelineRepository            pipelineConfig.PipelineRepository
+	gitFactory                    *GitFactory
+	dbMigrationConfigRepository   pipelineConfig.DbMigrationConfigRepository
+	eventClient                   client.EventClient
+	eventFactory                  client.EventFactory
+	acdClient                     application.ServiceClient
+	tokenCache                    *util3.TokenCache
+	acdAuthConfig                 *util3.ACDAuthConfig
+	enforcer                      casbin.Enforcer
+	enforcerUtil                  rbac.EnforcerUtil
+	user                          user.UserService
+	appListingRepository          repository.AppListingRepository
+	appRepository                 app.AppRepository
+	envRepository                 repository2.EnvironmentRepository
+	pipelineConfigRepository      chartConfig.PipelineConfigRepository
+	configMapRepository           chartConfig.ConfigMapRepository
+	chartRepository               chartRepoRepository.ChartRepository
+	appRepo                       app.AppRepository
+	appLevelMetricsRepository     repository.AppLevelMetricsRepository
+	envLevelMetricsRepository     repository.EnvLevelAppMetricsRepository
+	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
+	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
+	commonService                 commonService.CommonService
+	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
+	imageScanHistoryRepository    security.ImageScanHistoryRepository
+	ArgoK8sClient                 argocdServer.ArgoK8sClient
+	gitOpsRepository              repository.GitOpsConfigRepository
 	pipelineStrategyHistoryService history.PipelineStrategyHistoryService
 	configMapHistoryService        history.ConfigMapHistoryService
 	chartsHistoryService           history.ChartsHistoryService
@@ -126,7 +127,7 @@ func NewAppService(
 	envRepository repository2.EnvironmentRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository, configMapRepository chartConfig.ConfigMapRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository, envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
-	chartRepository chartConfig.ChartRepository,
+	chartRepository chartRepoRepository.ChartRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,

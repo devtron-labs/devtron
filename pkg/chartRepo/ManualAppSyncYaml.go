@@ -1,4 +1,4 @@
-package appstore
+package chartRepo
 
 import (
 	"bytes"
