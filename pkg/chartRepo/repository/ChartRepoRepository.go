@@ -15,7 +15,7 @@
  *
  */
 
-package chartConfig
+package chartRepoRepository
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/models"

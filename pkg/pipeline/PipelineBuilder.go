@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -112,7 +113,7 @@ type PipelineBuilderImpl struct {
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	application                   application.ServiceClient
-	chartRepository               chartConfig.ChartRepository
+	chartRepository               chartRepoRepository.ChartRepository
 	ciArtifactRepository          repository.CiArtifactRepository
 	ecrConfig                     *EcrConfig
 	envConfigOverrideRepository   chartConfig.EnvConfigOverrideRepository
@@ -141,7 +142,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	application application.ServiceClient,
-	chartRepository chartConfig.ChartRepository,
+	chartRepository chartRepoRepository.ChartRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	ecrConfig *EcrConfig,
 	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository,

@@ -15,10 +15,10 @@
  *
  */
 
-package chartGroup
+package appStoreRepository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
+	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -32,8 +32,8 @@ type ChartGroupEntry struct {
 	ChartGroupId                 int      `sql:"chart_group_id"`
 	Deleted                      bool     `sql:"deleted,notnull"`
 	sql.AuditLog
-	AppStoreApplicationVersion *appstore.AppStoreApplicationVersion
-	AppStoreValuesVersion      *appstore.AppStoreVersionValues
+	AppStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion
+	AppStoreValuesVersion      *AppStoreVersionValues
 }
 
 type ChartGroupEntriesRepositoryImpl struct {

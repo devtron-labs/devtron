@@ -15,10 +15,10 @@
  *
  */
 
-package appstore
+package appStoreDiscoverRepository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -44,5 +44,5 @@ type AppStore struct {
 	ChartGitLocation string    `sql:"chart_git_location"`
 	CreatedOn        time.Time `sql:"created_on"`
 	UpdatedOn        time.Time `sql:"updated_on"`
-	ChartRepo        *chartConfig.ChartRepo
+	ChartRepo        *chartRepoRepository.ChartRepo
 }
