@@ -12,6 +12,7 @@ ContainerPort:
     port: 8080
     servicePort: 80
     envoyPort: 8799
+    envoyTimeout: 15s
     useHTTP2: true
     supportStreaming: true
     idleTimeout: 1800s

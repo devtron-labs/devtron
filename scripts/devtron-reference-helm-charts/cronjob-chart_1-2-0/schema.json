@@ -235,9 +235,16 @@
           "title": "Affinity",
           "properties": {
             "Key": {
-              "type": "string",
-              "description": "Key part of the label for node/pod selection",
-              "title": "Key"
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "description": "Key part of the label for node/pod selection",
+                  "title": "Key"
+                }
+              ]
             },
             "Values": {
               "type": "string",
