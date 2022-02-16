@@ -4,8 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/api/bean"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -20,34 +19,30 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
 	"net/http"
 	"time"
 )
 
 type TelemetryEventClientImpl struct {
-	cron                 *cron.Cron
-	logger               *zap.SugaredLogger
-	client               *http.Client
-	clusterService       cluster.ClusterService
-	K8sUtil              *util2.K8sUtil
-	aCDAuthConfig        *util3.ACDAuthConfig
-	environmentService   cluster.EnvironmentService
-	userService          user.UserService
-	appListingRepository repository.AppListingRepository
-	PosthogClient        *PosthogClient
-	ciPipelineRepository pipelineConfig.CiPipelineRepository
-	pipelineRepository   pipelineConfig.PipelineRepository
+	cron           *cron.Cron
+	logger         *zap.SugaredLogger
+	client         *http.Client
+	clusterService cluster.ClusterService
+	K8sUtil        *util2.K8sUtil
+	aCDAuthConfig  *util3.ACDAuthConfig
+	userService    user.UserService
+	PosthogClient  *PosthogClient
 }
 
 type TelemetryEventClient interface {
 	GetTelemetryMetaInfo() (*TelemetryMetaInfo, error)
+	SendTelemtryInstallEventEA() (*TelemetryEventType, error)
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
-	environmentService cluster.EnvironmentService, userService user.UserService,
-	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) (*TelemetryEventClientImpl, error) {
+	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
+	PosthogClient *PosthogClient) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -56,9 +51,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		logger: logger,
 		client: client, clusterService: clusterService,
 		K8sUtil: K8sUtil, aCDAuthConfig: aCDAuthConfig,
-		environmentService: environmentService, userService: userService,
-		appListingRepository: appListingRepository, PosthogClient: PosthogClient,
-		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
+		userService: userService, PosthogClient: PosthogClient,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -80,26 +73,19 @@ func (impl *TelemetryEventClientImpl) StopCron() {
 	impl.cron.Stop()
 }
 
-type TelemetryEventDto struct {
+type TelemetryEventEA struct {
 	UCID           string             `json:"ucid"` //unique client id
 	Timestamp      time.Time          `json:"timestamp"`
 	EventMessage   string             `json:"eventMessage,omitempty"`
 	EventType      TelemetryEventType `json:"eventType"`
-	Summary        *SummaryDto        `json:"summary,omitempty"`
+	Summary        *SummaryEA         `json:"summary,omitempty"`
 	ServerVersion  string             `json:"serverVersion,omitempty"`
 	DevtronVersion string             `json:"devtronVersion,omitempty"`
 }
 
-type SummaryDto struct {
-	ProdAppCount            int `json:"prodAppCount,omitempty"`
-	NonProdAppCount         int `json:"nonProdAppCount,omitempty"`
-	UserCount               int `json:"userCount,omitempty"`
-	EnvironmentCount        int `json:"environmentCount,omitempty"`
-	ClusterCount            int `json:"clusterCount,omitempty"`
-	CiCountPerDay           int `json:"ciCountPerDay,omitempty"`
-	CdCountPerDay           int `json:"cdCountPerDay,omitempty"`
-	HelmChartCount          int `json:"helmChartCount,omitempty"`
-	SecurityScanCountPerDay int `json:"securityScanCountPerDay,omitempty"`
+type SummaryEA struct {
+	UserCount    int `json:"userCount,omitempty"`
+	ClusterCount int `json:"clusterCount,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -124,6 +110,32 @@ const (
 	InstallationApplicationError TelemetryEventType = "InstallationApplicationError"
 )
 
+func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info) {
+	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+	k8sServerVersion, err = discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+
+	users, err := impl.userService.GetAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
+		return
+	}
+
+	clusters, err := impl.clusterService.FindAllActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+	return clusters, users, k8sServerVersion
+}
+
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 	ucid, err := impl.getUCID()
 	if err != nil {
@@ -136,70 +148,17 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		return
 	}
 
-	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-	k8sServerVersion, err := discoveryClient.ServerVersion()
-	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
+	clusters, users, k8sServerVersion := impl.SummaryDetailsForTelemetry()
+
+	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
-	clusters, err := impl.clusterService.FindAllActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
 
-	environments, err := impl.environmentService.GetAllActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+	summary := &SummaryEA{
+		UserCount:    len(users),
+		ClusterCount: len(clusters),
 	}
+	payload.Summary = summary
 
-	users, err := impl.userService.GetAll()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
-		return
-	}
-
-	prodApps, err := impl.appListingRepository.FindAppCount(true)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-
-	nonProdApps, err := impl.appListingRepository.FindAppCount(false)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-
-	ciPipeline, err := impl.ciPipelineRepository.FindAllPipelineInLast24Hour()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-
-	cdPipeline, err := impl.pipelineRepository.FindAllPipelineInLast24Hour()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
-
-	summery := &SummaryDto{
-		ProdAppCount:     prodApps,
-		NonProdAppCount:  nonProdApps,
-		UserCount:        len(users),
-		EnvironmentCount: len(environments),
-		ClusterCount:     len(clusters),
-		CiCountPerDay:    len(ciPipeline),
-		CdCountPerDay:    len(cdPipeline),
-	}
-	payload.Summary = summery
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)
@@ -212,6 +171,13 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		return
 	}
 
+	err = impl.EnqueuePostHog(ucid, Summary, prop)
+	if err != nil {
+		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
+	}
+}
+
+func (impl *TelemetryEventClientImpl) EnqueuePostHog(ucid string, eventType TelemetryEventType, prop map[string]interface{}) error {
 	if impl.PosthogClient.Client == nil {
 		impl.logger.Warn("no posthog client found, creating new")
 		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
@@ -220,15 +186,17 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 		}
 	}
 	if impl.PosthogClient.Client != nil {
-		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
+		err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
 			DistinctId: ucid,
-			Event:      string(Summary),
+			Event:      string(eventType),
 			Properties: prop,
 		})
 		if err != nil {
 			impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "error", err)
+			return err
 		}
 	}
+	return nil
 }
 
 func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
@@ -252,7 +220,7 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
 		return
 	}
-	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: Heartbeat, DevtronVersion: "v1"}
+	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Heartbeat, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -266,21 +234,12 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		return
 	}
 
-	if impl.PosthogClient.Client == nil {
-		impl.logger.Warn("no posthog client found, creating new")
-		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
-		if err == nil {
-			impl.PosthogClient.Client = client
-		}
-	}
-	if impl.PosthogClient.Client != nil {
-		err = impl.PosthogClient.Client.Enqueue(posthog.Capture{
-			DistinctId: ucid,
-			Event:      string(Heartbeat),
-			Properties: prop,
-		})
+	err = impl.EnqueuePostHog(ucid, Heartbeat, prop)
+	if err == nil {
 		if err != nil {
-			impl.logger.Errorw("HeartbeatEventForTelemetry, failed to push event", "error", err)
+			impl.logger.Warnw("HeartbeatEventForTelemetry, failed to push event", "error", err)
+		} else {
+			impl.logger.Debugw("HeartbeatEventForTelemetry success")
 		}
 	}
 }
@@ -297,6 +256,40 @@ func (impl *TelemetryEventClientImpl) GetTelemetryMetaInfo() (*TelemetryMetaInfo
 		ApiKey: PosthogEncodedApiKey,
 	}
 	return data, err
+}
+
+func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEventType, error) {
+	ucid, err := impl.getUCID()
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return nil, err
+	}
+
+	client, err := impl.K8sUtil.GetClientForInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return nil, err
+	}
+
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	datamap := cm.Data
+
+	installEventValue, installEventKeyExists := datamap[InstallEventKey]
+
+	if installEventKeyExists == false || installEventValue == "1" {
+		err = impl.EnqueuePostHog(ucid, InstallationSuccess, nil)
+		if err == nil {
+			datamap[InstallEventKey] = "2"
+			cm.Data = datamap
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				impl.logger.Warnw("config map update failed for install event", "err", err)
+			} else {
+				impl.logger.Debugw("config map apply succeeded for install event")
+			}
+		}
+	}
+	return nil, nil
 }
 
 type TelemetryMetaInfo struct {
