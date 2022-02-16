@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/history"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -11,7 +12,7 @@ import (
 )
 
 type ChartsHistoryService interface {
-	CreateChartsHistoryFromGlobalCharts(chart *chartConfig.Chart, tx *pg.Tx) error
+	CreateChartsHistoryFromGlobalCharts(chart *chartRepoRepository.Chart, tx *pg.Tx) error
 	CreateChartsHistoryFromEnvOverrideCharts(envOverride *chartConfig.EnvConfigOverride, tx *pg.Tx) error
 	CreateChartsHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error
 	GetHistoryForDeployedCharts(pipelineId int) ([]*ChartsHistoryDto, error)
@@ -21,12 +22,12 @@ type ChartsHistoryServiceImpl struct {
 	logger                 *zap.SugaredLogger
 	chartHistoryRepository history.ChartHistoryRepository
 	pipelineRepository     pipelineConfig.PipelineRepository
-	chartRepository        chartConfig.ChartRepository
+	chartRepository        chartRepoRepository.ChartRepository
 }
 
 func NewChartsHistoryServiceImpl(logger *zap.SugaredLogger, chartHistoryRepository history.ChartHistoryRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	chartRepository chartConfig.ChartRepository) *ChartsHistoryServiceImpl {
+	chartRepository chartRepoRepository.ChartRepository) *ChartsHistoryServiceImpl {
 	return &ChartsHistoryServiceImpl{
 		logger:                 logger,
 		chartHistoryRepository: chartHistoryRepository,
@@ -35,7 +36,7 @@ func NewChartsHistoryServiceImpl(logger *zap.SugaredLogger, chartHistoryReposito
 	}
 }
 
-func (impl ChartsHistoryServiceImpl) CreateChartsHistoryFromGlobalCharts(chart *chartConfig.Chart, tx *pg.Tx) (err error) {
+func (impl ChartsHistoryServiceImpl) CreateChartsHistoryFromGlobalCharts(chart *chartRepoRepository.Chart, tx *pg.Tx) (err error) {
 	//getting all pipelines without overridden charts
 	pipelines, err := impl.pipelineRepository.FindAllPipelinesByChartsOverride(false, chart.AppId, chart.Id)
 	if err != nil && err != pg.ErrNoRows {
