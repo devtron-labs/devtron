@@ -124,7 +124,14 @@ func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discov
 }
 
 func (impl K8sUtil) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient, error) {
-	config, err := rest.InClusterConfig()
+	var config *rest.Config
+	var err error
+	if impl.runTimeConfig.LocalDevMode {
+		config, err = clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
+	} else {
+		config, err = rest.InClusterConfig()
+	}
+
 	if err != nil {
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
