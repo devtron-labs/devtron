@@ -12,7 +12,7 @@ import (
 type PipelineStrategyHistoryService interface {
 	CreatePipelineStrategyHistory(pipelineStrategy *chartConfig.PipelineStrategy, tx *pg.Tx) (historyModel *history.PipelineStrategyHistory, err error)
 	CreateStrategyHistoryForDeploymentTrigger(strategy *chartConfig.PipelineStrategy, deployedOn time.Time, deployedBy int32) error
-	GetHistoryForDeployedStrategy(pipelineId int) ([]*history.PipelineStrategyHistory, error)
+	GetHistoryForDeployedStrategy(pipelineId int) ([]*PipelineStrategyHistoryDto, error)
 }
 
 type PipelineStrategyHistoryServiceImpl struct {
@@ -79,11 +79,31 @@ func (impl PipelineStrategyHistoryServiceImpl) CreateStrategyHistoryForDeploymen
 	return err
 }
 
-func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategy(pipelineId int) ([]*history.PipelineStrategyHistory, error) {
+func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategy(pipelineId int) ([]*PipelineStrategyHistoryDto, error) {
 	histories, err := impl.GetHistoryForDeployedStrategy(pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting history for strategy", "err", err, "pipelineId", pipelineId)
 		return nil, err
 	}
-	return histories, nil
+	var historiesDto []*PipelineStrategyHistoryDto
+	for _, history := range histories {
+		historyDto := &PipelineStrategyHistoryDto{
+			Id:         history.Id,
+			PipelineId: history.PipelineId,
+			Strategy:   history.Strategy,
+			Config:     history.Config,
+			Default:    history.Default,
+			Deployed:   history.Deployed,
+			DeployedOn: history.DeployedOn,
+			DeployedBy: history.DeployedBy,
+			AuditLog: sql.AuditLog{
+				CreatedBy: history.CreatedBy,
+				CreatedOn: history.CreatedOn,
+				UpdatedBy: history.UpdatedBy,
+				UpdatedOn: history.UpdatedOn,
+			},
+		}
+		historiesDto = append(historiesDto, historyDto)
+	}
+	return historiesDto, nil
 }

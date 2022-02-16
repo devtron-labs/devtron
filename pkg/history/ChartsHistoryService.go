@@ -14,7 +14,7 @@ type ChartsHistoryService interface {
 	CreateChartsHistoryFromGlobalCharts(chart *chartConfig.Chart, tx *pg.Tx) error
 	CreateChartsHistoryFromEnvOverrideCharts(envOverride *chartConfig.EnvConfigOverride, tx *pg.Tx) error
 	CreateChartsHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error
-	GetHistoryForDeployedCharts(pipelineId int) ([]*history.ChartsHistory, error)
+	GetHistoryForDeployedCharts(pipelineId int) ([]*ChartsHistoryDto, error)
 }
 
 type ChartsHistoryServiceImpl struct {
@@ -147,11 +147,31 @@ func (impl ChartsHistoryServiceImpl) CreateChartsHistoryForDeploymentTrigger(pip
 	return nil
 }
 
-func (impl ChartsHistoryServiceImpl) GetHistoryForDeployedCharts(pipelineId int) ([]*history.ChartsHistory, error) {
+func (impl ChartsHistoryServiceImpl) GetHistoryForDeployedCharts(pipelineId int) ([]*ChartsHistoryDto, error) {
 	histories, err := impl.chartHistoryRepository.GetHistoryForDeployedCharts(pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting charts history", "err", err, "pipelineId", pipelineId)
 		return nil, err
 	}
-	return histories, nil
+	var historiesDto []*ChartsHistoryDto
+	for _, history := range histories {
+		historyDto := &ChartsHistoryDto{
+			Id:                      history.Id,
+			PipelineId:              history.PipelineId,
+			ImageDescriptorTemplate: history.ImageDescriptorTemplate,
+			Template:                history.Template,
+			TargetEnvironment:       history.TargetEnvironment,
+			Deployed:                history.Deployed,
+			DeployedOn:              history.DeployedOn,
+			DeployedBy:              history.DeployedBy,
+			AuditLog: sql.AuditLog{
+				CreatedBy: history.CreatedBy,
+				CreatedOn: history.CreatedOn,
+				UpdatedBy: history.UpdatedBy,
+				UpdatedOn: history.UpdatedOn,
+			},
+		}
+		historiesDto = append(historiesDto, historyDto)
+	}
+	return historiesDto, nil
 }

@@ -2,6 +2,7 @@ package history
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 )
@@ -12,8 +13,52 @@ type ConfigMapAndSecretHistoryDto struct {
 	DataType   string        `json:"dataType"`
 	ConfigData []*ConfigData `json:"configData"`
 	Deployed   bool          `json:"deployed"`
-	DeployedOn time.Time     `json:"deployed_on"`
-	DeployedBy int32         `json:"deployed_by"`
+	DeployedOn time.Time     `json:"deployedOn"`
+	DeployedBy int32         `json:"deployedBy"`
+	sql.AuditLog
+}
+
+type CdConfigHistoryDto struct {
+	Id                   int                              `json:"id"`
+	PipelineId           int                              `json:"pipelineId"`
+	Config               string                           `json:"config"`
+	Stage                string                           `json:"stage"`
+	ConfigMapSecretNames PrePostStageConfigMapSecretNames `json:"configmapSecretNames"`
+	ConfigMapData        []*ConfigData                    `json:"configmapData"`
+	SecretData           []*ConfigData                    `json:"secretData"`
+	ExecInEnv            bool                             `json:"execInEnv"`
+	Deployed             bool                             `json:"deployed"`
+	DeployedOn           time.Time                        `json:"deployedOn"`
+	DeployedBy           int32                            `json:"deployedBy"`
+	sql.AuditLog
+}
+
+type PrePostStageConfigMapSecretNames struct {
+	ConfigMaps []string `json:"configMaps"`
+	Secrets    []string `json:"secrets"`
+}
+
+type ChartsHistoryDto struct {
+	Id                      int       `json:"id"`
+	PipelineId              int       `json:"pipelineId,"`
+	ImageDescriptorTemplate string    `json:"imageDescriptorTemplate"`
+	Template                string    `json:"template"`
+	TargetEnvironment       int       `json:"targetEnvironment"`
+	Deployed                bool      `json:"deployed"`
+	DeployedOn              time.Time `json:"deployedOn"`
+	DeployedBy              int32     `json:"deployedBy"`
+	sql.AuditLog
+}
+
+type PipelineStrategyHistoryDto struct {
+	Id         int                               `json:"id"`
+	PipelineId int                               `json:"pipelineId"`
+	Strategy   pipelineConfig.DeploymentTemplate `json:"strategy"`
+	Config     string                            `json:"config"`
+	Default    bool                              `json:"default"`
+	Deployed   bool                              `json:"deployed"`
+	DeployedOn time.Time                         `json:"deployedOn"`
+	DeployedBy int32                             `json:"deployedBy"`
 	sql.AuditLog
 }
 

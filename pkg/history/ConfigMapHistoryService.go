@@ -15,7 +15,7 @@ type ConfigMapHistoryService interface {
 	CreateHistoryFromAppLevelConfig(appLevelConfig *chartConfig.ConfigMapAppModel, configType history.ConfigType) error
 	CreateHistoryFromEnvLevelConfig(envLevelConfig *chartConfig.ConfigMapEnvModel, configType history.ConfigType) error
 	CreateConfigMapHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) error
-	MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType history.ConfigType) (string, error)
+	MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType history.ConfigType, filterNameMap map[string]bool) (string, error)
 	GetHistoryForDeployedCMCS(pipelineId int) ([]*ConfigMapAndSecretHistoryDto, error)
 }
 
@@ -50,7 +50,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromAppLevelConfig(appLevel
 			impl.logger.Errorw("err in getting env level config", "err", err, "appId", appLevelConfig.AppId)
 			return err
 		}
-		configData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, configType)
+		configData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, configType, nil)
 		if err != nil {
 			impl.logger.Errorw("err in merging app and env level configs", "err", err)
 			return err
@@ -89,7 +89,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromEnvLevelConfig(envLevel
 		return err
 	}
 	for _, pipeline := range pipelines {
-		configData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, configType)
+		configData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, configType, nil)
 		if err != nil {
 			impl.logger.Errorw("err in merging app and env level configs", "err", err)
 			return err
@@ -127,7 +127,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateConfigMapHistoryForDeploymentTrigg
 		impl.logger.Errorw("err in getting env level config", "err", err, "appId", pipeline.AppId)
 		return err
 	}
-	configMapData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, history.CONFIGMAP_TYPE)
+	configMapData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, history.CONFIGMAP_TYPE, nil)
 	if err != nil {
 		impl.logger.Errorw("err in merging app and env level configs", "err", err)
 		return err
@@ -160,7 +160,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateConfigMapHistoryForDeploymentTrigg
 		impl.logger.Errorw("error in creating new entry for cm history", "historyModel", historyModel)
 		return err
 	}
-	secretData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, history.SECRET_TYPE)
+	secretData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, history.SECRET_TYPE, nil)
 	if err != nil {
 		impl.logger.Errorw("err in merging app and env level configs", "err", err)
 		return err
@@ -177,7 +177,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateConfigMapHistoryForDeploymentTrigg
 	return nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType history.ConfigType) (string, error) {
+func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType history.ConfigType, filterNameMap map[string]bool) (string, error) {
 	var configDataAppLevel string
 	var configDataEnvLevel string
 	if configType == history.CONFIGMAP_TYPE {
@@ -205,15 +205,35 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 	}
 	var finalConfigs []*ConfigData
 	envLevelConfigs := make(map[string]json.RawMessage)
-	//adding all env level configs to final configs as these won't get affected by global changes
-	for _, item := range configsListEnvLevel.ConfigData {
-		envLevelConfigs[item.Name] = item.Data
-		finalConfigs = append(finalConfigs, item)
-	}
-	for _, item := range configsListAppLevel.ConfigData {
-		//adding all global configs which are not present in env level to final configs
-		if _, ok := envLevelConfigs[item.Name]; !ok {
+	if len(filterNameMap) > 0 {
+		//filter name map is not empty, to add configs by filtering names
+		for _, item := range configsListEnvLevel.ConfigData {
+			if _, ok := filterNameMap[item.Name]; ok {
+				//adding all env configs whose name is in filter name map
+				envLevelConfigs[item.Name] = item.Data
+				finalConfigs = append(finalConfigs, item)
+			}
+		}
+		for _, item := range configsListAppLevel.ConfigData {
+			//adding all global configs which are not present in env level and are present in filter name map to final configs
+			if _, ok := envLevelConfigs[item.Name]; !ok {
+				if _, ok = filterNameMap[item.Name]; ok {
+					finalConfigs = append(finalConfigs, item)
+				}
+			}
+		}
+	} else {
+		//filter name map is empty, no need to add config by filtering names
+		//adding all env level configs to final configs as these won't get affected by global changes
+		for _, item := range configsListEnvLevel.ConfigData {
+			envLevelConfigs[item.Name] = item.Data
 			finalConfigs = append(finalConfigs, item)
+		}
+		for _, item := range configsListAppLevel.ConfigData {
+			//adding all global configs which are not present in env level to final configs
+			if _, ok := envLevelConfigs[item.Name]; !ok {
+				finalConfigs = append(finalConfigs, item)
+			}
 		}
 	}
 	var finalConfigsList ConfigsList
@@ -233,7 +253,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCS(pipelineId int
 		return nil, err
 	}
 	var historiesDto []*ConfigMapAndSecretHistoryDto
-	for _, history := range histories{
+	for _, history := range histories {
 		configsList := ConfigsList{}
 		if len(history.Data) > 0 {
 			err := json.Unmarshal([]byte(history.Data), &configsList)
@@ -243,14 +263,14 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCS(pipelineId int
 			}
 		}
 		historyDto := &ConfigMapAndSecretHistoryDto{
-			Id: history.Id,
+			Id:         history.Id,
 			PipelineId: history.PipelineId,
-			DataType: string(history.DataType),
+			DataType:   string(history.DataType),
 			ConfigData: configsList.ConfigData,
-			Deployed : history.Deployed,
+			Deployed:   history.Deployed,
 			DeployedOn: history.DeployedOn,
 			DeployedBy: history.DeployedBy,
-			AuditLog : sql.AuditLog{
+			AuditLog: sql.AuditLog{
 				CreatedBy: history.CreatedBy,
 				CreatedOn: history.CreatedOn,
 				UpdatedBy: history.UpdatedBy,
@@ -259,6 +279,5 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCS(pipelineId int
 		}
 		historiesDto = append(historiesDto, historyDto)
 	}
-
 	return historiesDto, nil
 }
