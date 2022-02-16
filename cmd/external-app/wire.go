@@ -1,10 +1,13 @@
 //go:build wireinject
 // +build wireinject
 
+
 package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
+	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -33,6 +36,9 @@ func InitializeApp() (*App, error) {
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
+		chartRepo.ChartRepositoryWireSet,
+		appStoreDiscover.AppStoreDiscoverWireSet,
+
 
 		NewApp,
 		NewMuxRouter,
@@ -40,6 +46,8 @@ func InitializeApp() (*App, error) {
 		util.NewSugardLogger,
 		util.NewK8sUtil,
 		util.IntValidator,
+		util2.GetACDAuthConfig,
+		util.NewHttpClient,
 
 		//acd session client bind with authenticator login
 		wire.Bind(new(session.ServiceClient), new(*middleware.LoginService)),
