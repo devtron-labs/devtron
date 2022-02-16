@@ -55,7 +55,11 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 	if err != nil {
 		return nil
 	}
-	kubeconfig := flag.String("kubeconfig-authenticator-xyz", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	var kubeconfig *string;
+	if runTimeConfig.LocalDevMode {
+		kubeconfig = flag.String("kubeconfig-authenticator-xyz", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	}
+
 	flag.Parse()
 	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig}
 }
