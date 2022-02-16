@@ -84,10 +84,8 @@ type TelemetryEventEA struct {
 }
 
 type SummaryEA struct {
-	UserCount      int    `json:"userCount,omitempty"`
-	ClusterCount   int    `json:"clusterCount,omitempty"`
-	DevtronVersion string `json:"devtronVersion,omitempty"`
-	DevtronMode    string `json:"devtronMode,omitempty"`
+	UserCount    int `json:"userCount,omitempty"`
+	ClusterCount int `json:"clusterCount,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -155,13 +153,9 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 
-	devtronVersion := util.GetDevtronVersion()
-
 	summary := &SummaryEA{
-		UserCount:      len(users),
-		ClusterCount:   len(clusters),
-		DevtronVersion: devtronVersion.GitCommit,
-		DevtronMode:    devtronVersion.ServerMode,
+		UserCount:    len(users),
+		ClusterCount: len(clusters),
 	}
 	payload.Summary = summary
 
