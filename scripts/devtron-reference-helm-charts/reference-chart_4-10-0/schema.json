@@ -213,9 +213,16 @@
           "title": "Affinity",
           "properties": {
             "Key": {
-              "type": "string",
-              "description": "Key part of the label for node/pod selection",
-              "title": "Key"
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "description": "Key part of the label for node/pod selection",
+                  "title": "Key"
+                }
+              ]
             },
             "Values": {
               "type": "string",
@@ -286,7 +293,6 @@
           "type": "object",
           "description": "describes behavior and scaling policies for that behavior",
           "title": "Behavior",
-          "enum": ["scaleUp","scaleDown"]
         },
         "enabled": {
           "type": "boolean",
