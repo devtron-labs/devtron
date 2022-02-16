@@ -18,13 +18,13 @@ type App struct {
 	MuxRouter      *MuxRouter
 	Logger         *zap.SugaredLogger
 	server         *http.Server
-	telemetry      *telemetry.TelemetryEventClientImpl
+	telemetry      telemetry.TelemetryEventClient
 }
 
 func NewApp(db *pg.DB,
 	sessionManager *authMiddleware.SessionManager,
 	MuxRouter *MuxRouter,
-	telemetry *telemetry.TelemetryEventClientImpl,
+	telemetry telemetry.TelemetryEventClient,
 	Logger *zap.SugaredLogger) *App {
 	return &App{
 		db:             db,
