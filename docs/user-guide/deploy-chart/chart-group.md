@@ -7,7 +7,7 @@ Create Chart Group And Deploy App store applications.
 
 ## 1. Create Group 
 
-1. Select `Charts` from the left pane,you will land to the `Chart Store` page. 
+1. Select `Charts` from the left pane, you will land to the `Chart Store` page. 
 2. Click on `Create Group` button present in the upper right corner.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-1.jpg)
