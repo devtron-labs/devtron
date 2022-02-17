@@ -60,7 +60,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
 
 		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceImpl)),
-		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
 	)
 	return &App{}, nil
 }
