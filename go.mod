@@ -68,8 +68,7 @@ require (
 	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/nats-io/nats-streaming-server v0.15.1 // indirect
-	github.com/nats-io/nats.go v1.8.1
-	github.com/nats-io/stan.go v0.5.0
+	github.com/nats-io/nats.go v1.13.0
 	github.com/otiai10/copy v1.0.2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -106,6 +105,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20190918143330-0270cf2f1c1d // indirect
 	k8s.io/utils v0.0.0-20191010214722-8d271d903fe4
 	mellium.im/sasl v0.2.1 // indirect
+	sigs.k8s.io/yaml v1.3.0
 	xorm.io/core v0.7.2 // indirect
 )
 

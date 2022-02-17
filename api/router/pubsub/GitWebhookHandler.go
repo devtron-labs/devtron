@@ -19,12 +19,12 @@ package pubsub
 
 import (
 	"encoding/json"
+
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/git"
-	"github.com/nats-io/stan.go"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
-	"time"
 )
 
 type GitWebhookHandler interface {
@@ -56,7 +56,7 @@ func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSub
 }
 
 func (impl *GitWebhookHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(newCiMaterialTopic, newCiMaterialTopicGroup, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(newCiMaterialTopic, newCiMaterialTopicGroup, func(msg *nats.Msg) {
 		defer msg.Ack()
 		ciPipelineMaterial := gitSensor.CiPipelineMaterial{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciPipelineMaterial)
@@ -70,7 +70,7 @@ func (impl *GitWebhookHandlerImpl) Subscribe() error {
 			impl.logger.Error("err", err)
 			return
 		}
-	}, stan.DurableName(newCiMaterialTopicDurable), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, nats.Durable(newCiMaterialTopicDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
 
 	if err != nil {
 		impl.logger.Error("err", err)

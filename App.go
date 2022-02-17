@@ -21,6 +21,11 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/casbin/casbin"
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/router"
@@ -32,10 +37,6 @@ import (
 	"github.com/go-pg/pg"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
-	"log"
-	"net/http"
-	"os"
-	"time"
 )
 
 type App struct {
@@ -79,17 +80,6 @@ func NewApp(router *router.MuxRouter,
 }
 
 func (app *App) Start() {
-
-	/*	RequestDuration := prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Name:    "request_duration_seconds",
-			Help:    "Time (in seconds) spent serving HTTP requests.",
-			Buckets: prometheus.DefBuckets,
-		}, []string{"method", "route", "status_code", "ws"})
-		prometheus.MustRegister(RequestDuration)
-		prometheus.Ins*/
-	//instrument:=middleware.Instrument{
-	//	Duration: RequestDuration,
-	//}
 	port := 8080 //TODO: extract from environment variable
 	app.Logger.Debugw("starting server")
 	app.Logger.Infow("starting server on ", "port", port)
@@ -135,16 +125,9 @@ func (app *App) Stop() {
 	if err != nil {
 		app.Logger.Errorw("error in closing db connection", "err", err)
 	}
-	nc := app.pubsubClient.Conn.NatsConn()
-	//closing nats
-	err = app.pubsubClient.Conn.Close()
-	if err != nil {
-		app.Logger.Errorw("error in closing stan", "err", err)
-	}
-	err = nc.Drain()
-	if err != nil {
-		app.Logger.Errorw("error in draining nats", "err", err)
-	}
-	nc.Close()
+	nc := app.pubsubClient.Conn
+
+	nc.Drain()
+
 	app.Logger.Infow("housekeeping done. exiting now")
 }

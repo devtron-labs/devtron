@@ -21,14 +21,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -43,10 +44,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util4 "github.com/devtron-labs/devtron/util"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/stan.go"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -181,7 +183,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 }
 
 func (impl *WorkflowDagExecutorImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(CD_STAGE_COMPLETE_TOPIC, CD_COMPLETE_GROUP, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(CD_STAGE_COMPLETE_TOPIC, CD_COMPLETE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("cd stage event received")
 		defer msg.Ack()
 		cdStageCompleteEvent := CdStageCompleteEvent{}
@@ -211,7 +213,7 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 				return
 			}
 		}
-	}, stan.DurableName(CD_COMPLETE_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, nats.Durable(CD_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
 	if err != nil {
 		impl.logger.Error("error", "err", err)
 		return err
@@ -1087,11 +1089,33 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 		if err != nil {
 			impl.logger.Errorw("error while writing app stop event to nats ", "app", app.AppId, "deploymentGroup", app.DeploymentGroupId, "err", err)
 		} else {
-			impl.pubsubClient.Conn.PublishAsync(BULK_HIBERNATE_TOPIC, data, func(s string, err error) {
-				if err != nil {
-					impl.logger.Errorw("error while writing app stop event to nats ", "app", app.AppId, "deploymentGroup", app.DeploymentGroupId, "err", err)
+			streamInfo, strInfoErr := impl.pubsubClient.JetStrCtxt.StreamInfo(BULK_HIBERNATE_TOPIC)
+			if strInfoErr != nil {
+				impl.logger.Errorw("Error while getting stream infor", "topic", BULK_HIBERNATE_TOPIC, "error", strInfoErr)
+			}
+			if streamInfo == nil {
+				//Stream doesn not exist already, create a new stream from jetStreamContext
+				_, addStrError := impl.pubsubClient.JetStrCtxt.AddStream(&nats.StreamConfig{
+					Name:     BULK_HIBERNATE_TOPIC,
+					Subjects: []string{BULK_HIBERNATE_TOPIC + ".*"},
+				})
+				if addStrError != nil {
+					impl.logger.Errorw("Error while creating stream", "topic", BULK_HIBERNATE_TOPIC, "error", addStrError)
 				}
-			})
+			}
+
+			//Generate random string for passing as Header Id in message
+			randString := "MsgHeaderId-" + util4.Generate(10)
+			_, publishErr := impl.pubsubClient.JetStrCtxt.PublishAsync(BULK_HIBERNATE_TOPIC, data, nats.MsgId(randString))
+			if publishErr != nil {
+				impl.logger.Errorw("Error while publishing request", "topic", BULK_HIBERNATE_TOPIC, "error", publishErr)
+			}
+			//TODO : adhiran : Need to find out why we need below select case
+			select {
+			case <-impl.pubsubClient.JetStrCtxt.PublishAsyncComplete():
+			case <-time.After(5 * time.Second):
+				impl.logger.Errorw("Did not resolve in time")
+			}
 		}
 	}
 	return nil, nil
@@ -1103,13 +1127,35 @@ func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows [
 		if err != nil {
 			wf.WorkflowStatus = pipelineConfig.QUE_ERROR
 		} else {
-			impl.pubsubClient.Conn.PublishAsync(BULK_DEPLOY_TOPIC, data, func(s string, err error) {
-				if err != nil {
-					wf.WorkflowStatus = pipelineConfig.QUE_ERROR
-				} else {
-					wf.WorkflowStatus = pipelineConfig.ENQUEUED
+			streamInfo, strInfoErr := impl.pubsubClient.JetStrCtxt.StreamInfo(BULK_DEPLOY_TOPIC)
+			if strInfoErr != nil {
+				impl.logger.Errorw("Error while getting stream info", "topic", BULK_DEPLOY_TOPIC, "error", strInfoErr)
+			}
+			if streamInfo == nil {
+				//Stream does not exist already. Create a new stream from jetStreamContext
+				_, addStrError := impl.pubsubClient.JetStrCtxt.AddStream(&nats.StreamConfig{
+					Name:     BULK_DEPLOY_TOPIC,
+					Subjects: []string{BULK_DEPLOY_TOPIC + ".*"},
+				})
+				if addStrError != nil {
+					impl.logger.Errorw("Error while creating stream", "topic", BULK_DEPLOY_TOPIC, "error", addStrError)
 				}
-			})
+			}
+
+			//Generate random string for passing as Header Id in message
+			randString := "MsgHeaderId-" + util4.Generate(10)
+			_, err := impl.pubsubClient.JetStrCtxt.PublishAsync(BULK_DEPLOY_TOPIC, data, nats.MsgId(randString))
+			//TODO : adhiran : Need to find out why we need below select case
+			select {
+			case <-impl.pubsubClient.JetStrCtxt.PublishAsyncComplete():
+			case <-time.After(5 * time.Second):
+				impl.logger.Errorw("Did not resolve in time")
+			}
+			if err != nil {
+				wf.WorkflowStatus = pipelineConfig.QUE_ERROR
+			} else {
+				wf.WorkflowStatus = pipelineConfig.ENQUEUED
+			}
 		}
 		err = impl.cdWorkflowRepository.UpdateWorkFlow(wf)
 		if err != nil {
@@ -1119,7 +1165,7 @@ func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows [
 }
 
 func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_DEPLOY_TOPIC, BULK_DEPLOY_GROUP, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(BULK_DEPLOY_TOPIC, BULK_DEPLOY_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("subscribeTriggerBulkAction event received")
 		defer msg.Ack()
 		cdWorkflow := new(pipelineConfig.CdWorkflow)
@@ -1171,12 +1217,12 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 			wf.WorkflowStatus = pipelineConfig.WF_STARTED
 		}
 		impl.cdWorkflowRepository.UpdateWorkFlow(wf)
-	}, stan.DurableName(BULK_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(180)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, nats.Durable(BULK_DEPLOY_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
 	return err
 }
 
 func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_HIBERNATE_TOPIC, BULK_HIBERNATE_GROUP, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(BULK_HIBERNATE_TOPIC, BULK_HIBERNATE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("subscribeHibernateBulkAction event received")
 		defer msg.Ack()
 		deploymentGroupAppWithEnv := new(DeploymentGroupAppWithEnv)
@@ -1199,7 +1245,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 			return
 		}
 		_, err = impl.StopStartApp(stopAppRequest, ctx)
-	}, stan.DurableName(BULK_HIBERNATE_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(180)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, nats.Durable(BULK_HIBERNATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
 	return err
 }
 

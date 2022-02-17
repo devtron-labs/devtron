@@ -11,9 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build go1.7
-
-// A Go client for the NATS messaging system (https://nats.io).
 package nats
 
 import (
@@ -21,9 +18,33 @@ import (
 	"reflect"
 )
 
+// RequestMsgWithContext takes a context, a subject and payload
+// in bytes and request expecting a single response.
+func (nc *Conn) RequestMsgWithContext(ctx context.Context, msg *Msg) (*Msg, error) {
+	var hdr []byte
+	var err error
+
+	if len(msg.Header) > 0 {
+		if !nc.info.Headers {
+			return nil, ErrHeadersNotSupported
+		}
+
+		hdr, err = msg.headerBytes()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return nc.requestWithContext(ctx, msg.Subject, hdr, msg.Data)
+}
+
 // RequestWithContext takes a context, a subject and payload
 // in bytes and request expecting a single response.
 func (nc *Conn) RequestWithContext(ctx context.Context, subj string, data []byte) (*Msg, error) {
+	return nc.requestWithContext(ctx, subj, nil, data)
+}
+
+func (nc *Conn) requestWithContext(ctx context.Context, subj string, hdr, data []byte) (*Msg, error) {
 	if ctx == nil {
 		return nil, ErrInvalidContext
 	}
@@ -36,71 +57,52 @@ func (nc *Conn) RequestWithContext(ctx context.Context, subj string, data []byte
 		return nil, ctx.Err()
 	}
 
-	nc.mu.Lock()
+	var m *Msg
+	var err error
+
 	// If user wants the old style.
-	if nc.Opts.UseOldRequestStyle {
-		nc.mu.Unlock()
-		return nc.oldRequestWithContext(ctx, subj, data)
-	}
-
-	// Do setup for the new style.
-	if nc.respMap == nil {
-		nc.initNewResp()
-	}
-	// Create literal Inbox and map to a chan msg.
-	mch := make(chan *Msg, RequestChanLen)
-	respInbox := nc.newRespInbox()
-	token := respToken(respInbox)
-	nc.respMap[token] = mch
-	createSub := nc.respMux == nil
-	ginbox := nc.respSub
-	nc.mu.Unlock()
-
-	if createSub {
-		// Make sure scoped subscription is setup only once.
-		var err error
-		nc.respSetup.Do(func() { err = nc.createRespMux(ginbox) })
+	if nc.useOldRequestStyle() {
+		m, err = nc.oldRequestWithContext(ctx, subj, hdr, data)
+	} else {
+		mch, token, err := nc.createNewRequestAndSend(subj, hdr, data)
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	err := nc.PublishRequest(subj, respInbox, data)
-	if err != nil {
-		return nil, err
-	}
+		var ok bool
 
-	var ok bool
-	var msg *Msg
-
-	select {
-	case msg, ok = <-mch:
-		if !ok {
-			return nil, ErrConnectionClosed
+		select {
+		case m, ok = <-mch:
+			if !ok {
+				return nil, ErrConnectionClosed
+			}
+		case <-ctx.Done():
+			nc.mu.Lock()
+			delete(nc.respMap, token)
+			nc.mu.Unlock()
+			return nil, ctx.Err()
 		}
-	case <-ctx.Done():
-		nc.mu.Lock()
-		delete(nc.respMap, token)
-		nc.mu.Unlock()
-		return nil, ctx.Err()
 	}
-
-	return msg, nil
+	// Check for no responder status.
+	if err == nil && len(m.Data) == 0 && m.Header.Get(statusHdr) == noResponders {
+		m, err = nil, ErrNoResponders
+	}
+	return m, err
 }
 
 // oldRequestWithContext utilizes inbox and subscription per request.
-func (nc *Conn) oldRequestWithContext(ctx context.Context, subj string, data []byte) (*Msg, error) {
-	inbox := NewInbox()
+func (nc *Conn) oldRequestWithContext(ctx context.Context, subj string, hdr, data []byte) (*Msg, error) {
+	inbox := nc.newInbox()
 	ch := make(chan *Msg, RequestChanLen)
 
-	s, err := nc.subscribe(inbox, _EMPTY_, nil, ch, true)
+	s, err := nc.subscribe(inbox, _EMPTY_, nil, ch, true, nil)
 	if err != nil {
 		return nil, err
 	}
 	s.AutoUnsubscribe(1)
 	defer s.Unsubscribe()
 
-	err = nc.PublishRequest(subj, inbox, data)
+	err = nc.publish(subj, inbox, hdr, data)
 	if err != nil {
 		return nil, err
 	}
@@ -108,10 +110,7 @@ func (nc *Conn) oldRequestWithContext(ctx context.Context, subj string, data []b
 	return s.NextMsgWithContext(ctx)
 }
 
-// NextMsgWithContext takes a context and returns the next message
-// available to a synchronous subscriber, blocking until it is delivered
-// or context gets canceled.
-func (s *Subscription) NextMsgWithContext(ctx context.Context) (*Msg, error) {
+func (s *Subscription) nextMsgWithContext(ctx context.Context, pullSubInternal, waitIfNoMsg bool) (*Msg, error) {
 	if ctx == nil {
 		return nil, ErrInvalidContext
 	}
@@ -123,7 +122,7 @@ func (s *Subscription) NextMsgWithContext(ctx context.Context) (*Msg, error) {
 	}
 
 	s.mu.Lock()
-	err := s.validateNextMsgState()
+	err := s.validateNextMsgState(pullSubInternal)
 	if err != nil {
 		s.mu.Unlock()
 		return nil, err
@@ -140,7 +139,7 @@ func (s *Subscription) NextMsgWithContext(ctx context.Context) (*Msg, error) {
 	select {
 	case msg, ok = <-mch:
 		if !ok {
-			return nil, ErrConnectionClosed
+			return nil, s.getNextMsgErr()
 		}
 		if err := s.processNextMsgDelivered(msg); err != nil {
 			return nil, err
@@ -148,12 +147,17 @@ func (s *Subscription) NextMsgWithContext(ctx context.Context) (*Msg, error) {
 			return msg, nil
 		}
 	default:
+		// If internal and we don't want to wait, signal that there is no
+		// message in the internal queue.
+		if pullSubInternal && !waitIfNoMsg {
+			return nil, errNoMessages
+		}
 	}
 
 	select {
 	case msg, ok = <-mch:
 		if !ok {
-			return nil, ErrConnectionClosed
+			return nil, s.getNextMsgErr()
 		}
 		if err := s.processNextMsgDelivered(msg); err != nil {
 			return nil, err
@@ -163,6 +167,13 @@ func (s *Subscription) NextMsgWithContext(ctx context.Context) (*Msg, error) {
 	}
 
 	return msg, nil
+}
+
+// NextMsgWithContext takes a context and returns the next message
+// available to a synchronous subscriber, blocking until it is delivered
+// or context gets canceled.
+func (s *Subscription) NextMsgWithContext(ctx context.Context) (*Msg, error) {
+	return s.nextMsgWithContext(ctx, false, true)
 }
 
 // FlushWithContext will allow a context to control the duration

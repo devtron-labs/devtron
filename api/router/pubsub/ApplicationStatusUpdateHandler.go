@@ -19,13 +19,13 @@ package pubsub
 
 import (
 	"encoding/json"
+
 	v1alpha12 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/nats-io/stan.go"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ApplicationStatusUpdateHandler interface {
@@ -59,8 +59,11 @@ func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClie
 	return appStatusUpdateHandlerImpl
 }
 
+//TODO : adhiran : We should be able to bind to a particular stream name. Not sure as of now how do we know the stream which is
+//going to be the publisher for this subscriber ? Check with Nishant. Can we create all required streams at once rather than
+//on the fly?
 func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(applicationStatusUpdate, applicationStatusUpdateGroup, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(applicationStatusUpdate, applicationStatusUpdateGroup, func(msg *nats.Msg) {
 		impl.logger.Debug("received app update request")
 		defer msg.Ack()
 		application := v1alpha12.Application{}
@@ -77,7 +80,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 		}
 
 		// invoke DagExecutor, for cd success which will trigger post stage if exist.
-		if isHealthy == true {
+		if isHealthy {
 			impl.logger.Debugw("git hash history", "list", application.Status.History)
 			var gitHash string
 			if application.Operation != nil && application.Operation.Sync != nil {
@@ -92,7 +95,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			}
 		}
 		impl.logger.Debug("app" + application.Name + " updated")
-	}, stan.DurableName(applicationStatusUpdateDurable), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, nats.Durable(applicationStatusUpdateDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
 
 	if err != nil {
 		impl.logger.Error(err)

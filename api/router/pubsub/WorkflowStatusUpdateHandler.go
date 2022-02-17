@@ -19,16 +19,16 @@ package pubsub
 
 import (
 	"encoding/json"
+
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/util/event"
-	"github.com/nats-io/stan.go"
+	util "github.com/devtron-labs/devtron/util/event"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
-	"time"
 )
 
 type WorkflowStatusUpdateHandler interface {
@@ -78,7 +78,7 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 }
 
 func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(workflowStatusUpdate, workflowStatusUpdateGroup, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(workflowStatusUpdate, workflowStatusUpdateGroup, func(msg *nats.Msg) {
 		impl.logger.Debug("received wf update request")
 		defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
@@ -92,7 +92,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))
 			return
 		}
-	}, stan.DurableName(workflowStatusUpdateDurable), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, nats.Durable(workflowStatusUpdateDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
 
 	if err != nil {
 		impl.logger.Error("err", err)
@@ -102,7 +102,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 }
 
 func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(cdWorkflowStatusUpdate, cdWorkflowStatusUpdateGroup, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(cdWorkflowStatusUpdate, cdWorkflowStatusUpdateGroup, func(msg *nats.Msg) {
 		impl.logger.Debug("received cd wf update request")
 		defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
@@ -151,7 +151,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				}
 			}
 		}
-	}, stan.DurableName(cdWorkflowStatusUpdateDurable), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, nats.Durable(cdWorkflowStatusUpdateDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
 
 	if err != nil {
 		impl.logger.Error("err", err)

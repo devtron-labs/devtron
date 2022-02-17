@@ -19,12 +19,12 @@ package pubsub
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/client/events"
+
+	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/event"
-	"github.com/nats-io/stan.go"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
-	"time"
 )
 
 type CronBasedEventReceiver interface {
@@ -56,7 +56,7 @@ func NewCronBasedEventReceiverImpl(logger *zap.SugaredLogger, pubsubClient *pubs
 }
 
 func (impl *CronBasedEventReceiverImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(cronEvents, cronEventsGroup, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(cronEvents, cronEventsGroup, func(msg *nats.Msg) {
 		impl.logger.Debug("received cron event")
 		defer msg.Ack()
 		event := client.Event{}
@@ -70,7 +70,7 @@ func (impl *CronBasedEventReceiverImpl) Subscribe() error {
 			impl.logger.Errorw("err while handle event on subscribe", "err", err)
 			return
 		}
-	}, stan.DurableName(cronEventsDurable), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, nats.Durable(cronEventsDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
 
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)

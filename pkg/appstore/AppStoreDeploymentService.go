@@ -20,6 +20,7 @@ package appstore
 import (
 	"bytes"
 	"context"
+
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -59,7 +60,7 @@ import (
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/stan.go"
+	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"k8s.io/helm/pkg/chartutil"
@@ -1464,7 +1465,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 }
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_APPSTORE_DEPLOY_TOPIC, BULK_APPSTORE_DEPLOY_GROUP, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(BULK_APPSTORE_DEPLOY_TOPIC, BULK_APPSTORE_DEPLOY_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("cd stage event received")
 		defer msg.Ack()
 		deployPayload := &DeployPayload{}
@@ -1478,7 +1479,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
 		}
-	}, stan.DurableName(BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(200)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(3))
+	}, nats.Durable(BULK_APPSTORE_DEPLOY_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err
