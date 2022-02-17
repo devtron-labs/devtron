@@ -47,7 +47,6 @@ func InitializeApp() (*App, error) {
 		util.IntValidator,
 		util2.GetACDAuthConfig,
 		telemetry.NewPosthogClient,
-		telemetry.NewTelemetryEventClientImpl,
 		delete2.NewDeleteServiceImpl,
 
 		//acd session client bind with authenticator login
@@ -55,6 +54,8 @@ func InitializeApp() (*App, error) {
 		connector.NewPumpImpl,
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
 
+		telemetry.NewTelemetryEventClientImpl,
+		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
 		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceImpl)),
 	)
 	return &App{}, nil
