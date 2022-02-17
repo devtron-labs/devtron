@@ -40,14 +40,17 @@ Click on `Deploy` to deploy the Chart
 After clicking on `Deploy` you will land on a page that shows the status of the deployment of the Chart.
 
 The status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
+In case the status of the deployment is `Degraded` or takes a long time to get deployed, click on `Details` in `Application Status` section on same page or check the logs of the pods to debug the issue.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-4.jpg)
 
-In case the status of the deployment is `Degraded` or takes a long time to get deployed, click on `Details` in `Application Status` section on same page or check the logs of the pods to debug the issue.
+1. shows status of deployed chart.
 
-Arrow 3 will land you to the page where you can update or upgrade chart
+2. Shows the controller service accounts being used.
 
-Arrow 4 will land you to the page where you can se all the running instances of this chart.
+3. Clicking on `values` will land you to the page where you can update, upgrade or delete chart.
+
+4. Clicking on `View Chart` will land you to the page where you can see all the running instances of this chart.
 
 ## 4. Update or Upgrade Chart
 
