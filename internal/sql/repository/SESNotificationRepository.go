@@ -32,6 +32,7 @@ type SESNotificationRepository interface {
 	UpdateSESConfigDefault() (bool, error)
 	FindByIds(ids []*int) ([]*SESConfig, error)
 	FindDefault() (*SESConfig, error)
+	MarkSESConfigDeleted(sesConfig *SESConfig) error
 }
 
 type SESNotificationRepositoryImpl struct {
@@ -54,6 +55,7 @@ type SESConfig struct {
 	Description  string   `sql:"description"`
 	OwnerId      int32    `sql:"owner_id"`
 	Default      bool     `sql:"default,notnull"`
+	Deleted      bool     `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
@@ -61,26 +63,29 @@ func (impl *SESNotificationRepositoryImpl) FindByIdsIn(ids []int) ([]*SESConfig,
 	var configs []*SESConfig
 	err := impl.dbConnection.Model(&configs).
 		Where("id in (?)", pg.In(ids)).
+		Where("deleted = ?", false).
 		Select()
 	return configs, err
 }
 
 func (impl *SESNotificationRepositoryImpl) FindOne(id int) (*SESConfig, error) {
 	details := &SESConfig{}
-	err := impl.dbConnection.Model(details).Where("id = ?", id).Select()
+	err := impl.dbConnection.Model(details).Where("id = ?", id).
+		Where("deleted = ?", false).Select()
 	return details, err
 }
 
 func (impl *SESNotificationRepositoryImpl) FindAll() ([]*SESConfig, error) {
 	var sesConfigs []*SESConfig
-	err := impl.dbConnection.Model(&sesConfigs).Select()
+	err := impl.dbConnection.Model(&sesConfigs).
+		Where("deleted = ?", false).Select()
 	return sesConfigs, err
 }
 
 func (impl *SESNotificationRepositoryImpl) FindByTeamIdOrOwnerId(ownerId int32) ([]*SESConfig, error) {
 	var sesConfigs []*SESConfig
 	err := impl.dbConnection.Model(&sesConfigs).Where(`owner_id = ?`, ownerId).
-		Select()
+		Where("deleted = ?", false).Select()
 	return sesConfigs, err
 }
 
@@ -103,12 +108,18 @@ func (impl *SESNotificationRepositoryImpl) UpdateSESConfigDefault() (bool, error
 
 func (repo *SESNotificationRepositoryImpl) FindByIds(ids []*int) ([]*SESConfig, error) {
 	var objects []*SESConfig
-	err := repo.dbConnection.Model(&objects).Where("id in (?)", pg.In(ids)).Select()
+	err := repo.dbConnection.Model(&objects).Where("id in (?)", pg.In(ids)).
+		Where("deleted = ?", false).Select()
 	return objects, err
 }
 
 func (impl *SESNotificationRepositoryImpl) FindDefault() (*SESConfig, error) {
 	details := &SESConfig{}
-	err := impl.dbConnection.Model(details).Where("ses_config.default = ?", true).Select()
+	err := impl.dbConnection.Model(details).Where("ses_config.default = ?", true).
+		Where("deleted = ?", false).Select()
 	return details, err
+}
+func (impl *SESNotificationRepositoryImpl) MarkSESConfigDeleted(sesConfig *SESConfig) error {
+	sesConfig.Deleted = true
+	return impl.dbConnection.Update(sesConfig)
 }

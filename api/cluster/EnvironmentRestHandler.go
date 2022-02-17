@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -33,6 +34,8 @@ import (
 	"strings"
 )
 
+const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
+
 type EnvironmentRestHandler interface {
 	Create(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
@@ -42,6 +45,7 @@ type EnvironmentRestHandler interface {
 	FindById(w http.ResponseWriter, r *http.Request)
 	GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request)
+	DeleteEnvironment(w http.ResponseWriter, r *http.Request)
 	GetCombinedEnvironmentListForDropDownByClusterIds(w http.ResponseWriter, r *http.Request)
 }
 
@@ -51,16 +55,20 @@ type EnvironmentRestHandlerImpl struct {
 	userService                       user.UserService
 	validator                         *validator.Validate
 	enforcer                          casbin.Enforcer
+	deleteService                     delete2.DeleteService
 }
 
 func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer) *EnvironmentRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer,
+	deleteService delete2.DeleteService,
+) *EnvironmentRestHandlerImpl {
 	return &EnvironmentRestHandlerImpl{
 		environmentClusterMappingsService: svc,
 		logger:                            logger,
 		userService:                       userService,
 		validator:                         validator,
 		enforcer:                          enforcer,
+		deleteService:                     deleteService,
 	}
 }
 
@@ -321,6 +329,45 @@ func (handler EnvironmentRestHandlerImpl) CheckAuthorizationForGlobalEnvironment
 		return false
 	}
 	return true
+}
+
+func (impl EnvironmentRestHandlerImpl) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var bean request.EnvironmentBean
+	err = decoder.Decode(&bean)
+	if err != nil {
+		impl.logger.Errorw("request err, Delete", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	impl.logger.Debugw("request payload, Delete", "payload", bean)
+
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validation err, Delete", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	err = impl.deleteService.DeleteEnvironment(&bean, userId)
+	if err != nil {
+		impl.logger.Errorw("service err, Delete", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, ENV_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
 func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByClusterIds(w http.ResponseWriter, r *http.Request) {

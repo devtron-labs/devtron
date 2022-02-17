@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -81,7 +82,7 @@ type AppServiceImpl struct {
 	envRepository                 repository2.EnvironmentRepository
 	pipelineConfigRepository      chartConfig.PipelineConfigRepository
 	configMapRepository           chartConfig.ConfigMapRepository
-	chartRepository               chartConfig.ChartRepository
+	chartRepository               chartRepoRepository.ChartRepository
 	appRepo                       app.AppRepository
 	appLevelMetricsRepository     repository.AppLevelMetricsRepository
 	envLevelMetricsRepository     repository.EnvLevelAppMetricsRepository
@@ -122,7 +123,7 @@ func NewAppService(
 	envRepository repository2.EnvironmentRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository, configMapRepository chartConfig.ConfigMapRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository, envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
-	chartRepository chartConfig.ChartRepository,
+	chartRepository chartRepoRepository.ChartRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,

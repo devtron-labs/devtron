@@ -21,10 +21,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/appstore"
+	appStore "github.com/devtron-labs/devtron/pkg/appStore"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -32,25 +31,25 @@ import (
 	"strconv"
 )
 
+const CHART_GROUP_DELETE_SUCCESS_RESP = "Chart group deleted successfully."
+
 type ChartGroupRestHandlerImpl struct {
-	ChartGroupService appstore.ChartGroupService
+	ChartGroupService appStore.ChartGroupService
 	Logger            *zap.SugaredLogger
 	userAuthService   user.UserService
 	enforcer          casbin.Enforcer
-	enforcerUtil      rbac.EnforcerUtil
 	validator         *validator.Validate
 }
 
-func NewChartGroupRestHandlerImpl(ChartGroupService appstore.ChartGroupService,
+func NewChartGroupRestHandlerImpl(ChartGroupService appStore.ChartGroupService,
 	Logger *zap.SugaredLogger, userAuthService user.UserService,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, validator *validator.Validate) *ChartGroupRestHandlerImpl {
+	enforcer casbin.Enforcer, validator *validator.Validate) *ChartGroupRestHandlerImpl {
 	return &ChartGroupRestHandlerImpl{
 		ChartGroupService: ChartGroupService,
 		Logger:            Logger,
 		userAuthService:   userAuthService,
 		validator:         validator,
 		enforcer:          enforcer,
-		enforcerUtil:      enforcerUtil,
 	}
 }
 
@@ -62,6 +61,7 @@ type ChartGroupRestHandler interface {
 	GetChartGroupList(w http.ResponseWriter, r *http.Request)
 	GetChartGroupInstallationDetail(w http.ResponseWriter, r *http.Request)
 	GetChartGroupListMin(w http.ResponseWriter, r *http.Request)
+	DeleteChartGroup(w http.ResponseWriter, r *http.Request)
 }
 
 func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +71,7 @@ func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request appstore.ChartGroupBean
+	var request appStore.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, CreateChartGroup", "err", err, "payload", request)
@@ -112,7 +112,7 @@ func (impl *ChartGroupRestHandlerImpl) UpdateChartGroup(w http.ResponseWriter, r
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request appstore.ChartGroupBean
+	var request appStore.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, UpdateChartGroup", "err", err, "payload", request)
@@ -153,7 +153,7 @@ func (impl *ChartGroupRestHandlerImpl) SaveChartGroupEntries(w http.ResponseWrit
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request appstore.ChartGroupBean
+	var request appStore.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, SaveChartGroupEntries", "err", err, "payload", request)
@@ -310,4 +310,44 @@ func (impl *ChartGroupRestHandlerImpl) GetChartGroupListMin(w http.ResponseWrite
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func(impl *ChartGroupRestHandlerImpl) DeleteChartGroup(w http.ResponseWriter, r *http.Request){
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var request appStore.ChartGroupBean
+	err = decoder.Decode(&request)
+	if err != nil {
+		impl.Logger.Errorw("request err, DeleteChartGroup", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = impl.validator.Struct(request)
+	if err != nil {
+		impl.Logger.Errorw("validate err, DeleteChartGroup", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	request.UserId = userId
+	impl.Logger.Infow("request payload, DeleteChartGroup", "payload", request)
+
+	//RBAC block starts from here
+	token := r.Header.Get("token")
+	rbacObject := request.Name
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceChartGroup, casbin.ActionCreate, rbacObject); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC block ends here
+	err = impl.ChartGroupService.DeleteChartGroup(&request)
+	if err != nil {
+		impl.Logger.Errorw("service err, DeleteChartGroup", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, CHART_GROUP_DELETE_SUCCESS_RESP, http.StatusOK)
 }

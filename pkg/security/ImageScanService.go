@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -54,7 +53,6 @@ type ImageScanServiceImpl struct {
 	ciArtifactRepository          repository.CiArtifactRepository
 	policyService                 PolicyService
 	pipelineRepository            pipelineConfig.PipelineRepository
-	installedAppRepository        appstore.InstalledAppRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 }
 
@@ -127,8 +125,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 	userService user.UserService, teamRepository repository2.TeamRepository,
 	appRepository app.AppRepository,
 	envService cluster.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
-	pipelineRepository pipelineConfig.PipelineRepository,
-	installedAppRepository appstore.InstalledAppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository) *ImageScanServiceImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,
 		scanObjectMetaRepository: scanObjectMetaRepository, cveStoreRepository: cveStoreRepository,
 		imageScanDeployInfoRepository: imageScanDeployInfoRepository,
@@ -139,7 +136,6 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 		ciArtifactRepository:          ciArtifactRepository,
 		policyService:                 policyService,
 		pipelineRepository:            pipelineRepository,
-		installedAppRepository:        installedAppRepository,
 		ciPipelineRepository:          ciPipelineRepository,
 	}
 }

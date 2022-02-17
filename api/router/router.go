@@ -19,6 +19,8 @@ package router
 
 import (
 	"encoding/json"
+	appStore "github.com/devtron-labs/devtron/api/appStore"
+	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -66,7 +68,8 @@ type MuxRouter struct {
 	cronBasedEventReceiver           pubsub.CronBasedEventReceiver
 	ChartRefRouter                   ChartRefRouter
 	ConfigMapRouter                  ConfigMapRouter
-	AppStoreRouter                   AppStoreRouter
+	AppStoreRouter                   appStore.AppStoreRouter
+	ChartRepositoryRouter            chartRepo.ChartRepositoryRouter
 	ReleaseMetricsRouter             ReleaseMetricsRouter
 	deploymentGroupRouter            DeploymentGroupRouter
 	chartGroupRouter                 ChartGroupRouter
@@ -88,6 +91,7 @@ type MuxRouter struct {
 	coreAppRouter                    CoreAppRouter
 	helmAppRouter                    client.HelmAppRouter
 	k8sApplicationRouter             k8s.K8sApplicationRouter
+	pProfRouter                      PProfRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -103,12 +107,13 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
 	appUpdateHandler pubsub.ApplicationStatusUpdateHandler,
 	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClient, UserRouter user.UserRouter, cronBasedEventReceiver pubsub.CronBasedEventReceiver,
-	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter AppStoreRouter,
+	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
-	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter) *MuxRouter {
+	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
+	pProfRouter PProfRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -138,6 +143,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		ChartRefRouter:                   ChartRefRouter,
 		ConfigMapRouter:                  ConfigMapRouter,
 		AppStoreRouter:                   AppStoreRouter,
+		ChartRepositoryRouter:            chartRepositoryRouter,
 		ReleaseMetricsRouter:             ReleaseMetricsRouter,
 		deploymentGroupRouter:            deploymentGroupRouter,
 		batchOperationRouter:             batchOperationRouter,
@@ -159,6 +165,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		coreAppRouter:                    coreAppRouter,
 		helmAppRouter:                    helmAppRouter,
 		k8sApplicationRouter:             k8sApplicationRouter,
+		pProfRouter:                      pProfRouter,
 	}
 	return r
 }
@@ -251,7 +258,11 @@ func (r MuxRouter) Init() {
 	r.ConfigMapRouter.initConfigMapRouter(configMapRouter)
 
 	appStoreRouter := r.Router.PathPrefix("/orchestrator/app-store").Subrouter()
-	r.AppStoreRouter.initAppStoreRouter(appStoreRouter)
+	r.AppStoreRouter.Init(appStoreRouter)
+
+	chartRepoRouter := r.Router.PathPrefix("/orchestrator/chart-repo").Subrouter()
+	r.ChartRepositoryRouter.Init(chartRepoRouter)
+
 	deploymentMetricsRouter := r.Router.PathPrefix("/orchestrator/deployment-metrics").Subrouter()
 	r.ReleaseMetricsRouter.initReleaseMetricsRouter(deploymentMetricsRouter)
 
@@ -308,4 +319,7 @@ func (r MuxRouter) Init() {
 
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
 	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
+
+	pProfListenerRouter := r.Router.PathPrefix("/orchestrator/debug/pprof").Subrouter()
+	r.pProfRouter.initPProfRouter(pProfListenerRouter)
 }

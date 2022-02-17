@@ -36,6 +36,7 @@ type GitRegistryConfig interface {
 	FetchAllGitProviders() ([]GitRegistry, error)
 	FetchOneGitProvider(id string) (*GitRegistry, error)
 	Update(request *GitRegistry) (*GitRegistry, error)
+	Delete(request *GitRegistry) error
 }
 type GitRegistryConfigImpl struct {
 	logger          *zap.SugaredLogger
@@ -57,7 +58,8 @@ type GitRegistry struct {
 	GitHostId     int                 `json:"gitHostId"`
 }
 
-func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo repository.GitProviderRepository, GitSensorClient gitSensor.GitSensorClient) *GitRegistryConfigImpl {
+func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo repository.GitProviderRepository,
+	GitSensorClient gitSensor.GitSensorClient) *GitRegistryConfigImpl {
 	return &GitRegistryConfigImpl{
 		logger:          logger,
 		gitProviderRepo: gitProviderRepo,
@@ -260,6 +262,35 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, er
 		return nil, err
 	}
 	return request, nil
+}
+
+func (impl GitRegistryConfigImpl) Delete(request *GitRegistry) error{
+	providerId := strconv.Itoa(request.Id)
+	gitProviderConfig, err := impl.gitProviderRepo.FindOne(providerId)
+	if err != nil{
+		impl.logger.Errorw("No matching entry found for delete.", "id", request.Id, "err",err)
+		return err
+	}
+	deleteReq := gitProviderConfig
+	deleteReq.UpdatedOn = time.Now()
+	deleteReq.UpdatedBy = request.UserId
+	err = impl.gitProviderRepo.MarkProviderDeleted(&deleteReq)
+	if err != nil{
+		impl.logger.Errorw("err in deleting git account", "id", request.Id,"err",err)
+		return err
+	}
+	deleteReq.Active = false
+	err = impl.UpdateGitSensor(&deleteReq)
+	if err != nil {
+		impl.logger.Errorw("error in updating git repo config on sensor after deleting", "deleteReq", deleteReq, "err", err)
+		err = &util.ApiError{
+			Code:            constants.GitProviderUpdateFailedInSync,
+			InternalMessage: err.Error(),
+			UserMessage:     "git provider failed to update in sync",
+		}
+		return err
+	}
+	return nil
 }
 
 func (impl GitRegistryConfigImpl) UpdateGitSensor(provider *repository.GitProvider) error {
