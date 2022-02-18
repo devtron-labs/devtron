@@ -88,7 +88,7 @@ The secret that is already created and stored in the environment and being used 
 
 ### AWS Secret Manager
 
-Before adding any external secrets on devtron, `kubernetes-external-secrets` must be installed on devtron. Kubernetes External Secrets allows you to use external secret management systems (e.g., AWS Secrets Manager) to securely add secrets in Kubernetes.
+Before adding any external secrets on devtron, `kubernetes-external-secrets` must be installed on the target cluster. Kubernetes External Secrets allows you to use external secret management systems (e.g., AWS Secrets Manager, Hashicorp Vault, etc) to securely add secrets in Kubernetes.
 
 #### Installing kubernetes-external-secrets Using Chart
 
