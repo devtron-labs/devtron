@@ -46,6 +46,7 @@ type Chart struct {
 	ChartRefId              int                `sql:"chart_ref_id"`
 	Latest                  bool               `sql:"latest,notnull"`
 	Previous                bool               `sql:"previous,notnull"`
+	GitRepoName             string             `sql:"git_repo_name"`
 	sql.AuditLog
 }
 
@@ -217,7 +218,7 @@ type ChartRepo struct {
 	AccessToken string              `sql:"access_token"`
 	AuthMode    repository.AuthMode `sql:"auth_mode,notnull"`
 	External    bool                `sql:"external,notnull"`
-	Deleted		bool				`sql:"deleted,notnull"`
+	Deleted     bool                `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
@@ -279,7 +280,7 @@ func (impl ChartRepoRepositoryImpl) FindAll() ([]*ChartRepo, error) {
 	return repo, err
 }
 
-func(impl ChartRepoRepositoryImpl) MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error{
+func (impl ChartRepoRepositoryImpl) MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error {
 	chartRepo.Deleted = true
 	return tx.Update(chartRepo)
 }

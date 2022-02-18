@@ -126,7 +126,8 @@ func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, 
 		return nil, nil, err
 	}
 	values.Values = valuesYaml
-	chartGitAttr, err := impl.createAndPushToGit(chartMetaData.Name, templateName, chartMetaData.Version, chartDir)
+	gitRepoName := fmt.Sprintf("devtron-test-%s", chartMetaData.Name)
+	chartGitAttr, err := impl.createAndPushToGit(gitRepoName, templateName, chartMetaData.Version, chartDir)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
 		return nil, nil, err

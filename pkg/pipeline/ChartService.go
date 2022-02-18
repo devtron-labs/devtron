@@ -344,6 +344,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  true,
 		Previous:                false,
+		GitRepoName:             fmt.Sprintf("devtron-test-%s", chartMeta.Name),
 		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
@@ -520,7 +521,7 @@ func (impl ChartServiceImpl) getChartMetaData(templateRequest TemplateRequest) (
 		impl.logger.Errorw("error in fetching pg", "id", templateRequest.AppId, "err", err)
 	}
 	metadata := &chart.Metadata{
-		Name: fmt.Sprintf("devtron-%d-%s", pg.Id, pg.AppName),
+		Name: pg.AppName,
 	}
 	return metadata, err
 }
