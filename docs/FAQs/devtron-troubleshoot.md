@@ -2,7 +2,7 @@
 
 We always try to make your experience of using Devtron as smooth as possible but still if you face any issues, follow the troubleshooting guide given below or join our [discord channel](https://discord.gg/jsRG5qx2gp) if you couldn't find the solution for the issue you are facing.
 
-### 1. How to resolve unauthorized error's, while trying to save global configurations like hostname, GitOps etc. after successful devtron installation
+#### 1. How to resolve unauthorized errors, while trying to save global configurations like hostname, GitOps etc. after successful devtron installation
 
 This occurs most of the time because any one or multiple jobs get failed during installation. To resolve this, you'll need to first check which jobs have failed. Follow these steps:
 
@@ -20,21 +20,21 @@ wget https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls
 kubectl apply -f migrator.yaml -n devtroncd
 - It will re-create the failed jobs and you’ll see their pods created again. Just wait for a few minutes until the jobs gets completed then you are good to go. You should be able to save your global configurations now.
 
-### 2. Not able to see deployment metrics on production environment or Not able to enable application-metrics or Not able to deploy the app after creating a configmap or secret with data-volume option enabled
+#### 2. Not able to see deployment metrics on production environment or Not able to enable application-metrics or Not able to deploy the app after creating a configmap or secret with data-volume option enabled
 
 Update the rollout crds to latest version, run the following command:
 ```
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/rollout.yaml -n devtroncd
 ```
 
-### 3. SSO Login not working even after entering correct SSO Credentials
+#### 3. SSO Login not working even after entering correct SSO Credentials
 
 Delete devtron pod once to reload the configurations using:
 ```
 kubectl delete pod -n devtroncd -l app=devtron
 ```
 
-### 4. Logs are not Visible on UI while running the build and not even able to abort the same
+#### 4. Logs are not Visible on UI while running the build and not even able to abort the same
 
 Check if the pods are being created when you start a new build, run the command and look if a new pod is created when you started the build:
 ```
@@ -53,7 +53,7 @@ kubectl delete pod -n devtroncd -l app=kubewatch
 ```
 Again wait for 5 minutes and your issue should be resolved
 
-### 5. Grafana dashboards not visible in App Details page even after adding prometheus endpoint or Graphs showing error panel with id 2 not found
+#### 5. Grafana dashboards not visible in App Details page even after adding prometheus endpoint or Graphs showing error panel with id 2 not found
 
 If the graphs are not visible check if prometheus is configured properly. Then go to Global Configurations > Clusters & Environments > Click on any environment for the cluster where you added prometheus endpoint and simply click `Update`.  
 If the charts are still not visible, try visiting the url: <devtron-url>/grafana?orgId=2  

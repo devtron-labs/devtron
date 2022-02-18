@@ -2,7 +2,7 @@
 
 We always try to make your experience of using hyperion as smooth as possible but still if you face any issues, follow the troubleshooting guide given below or join our [discord channel](https://discord.gg/jsRG5qx2gp) if you couldn't find the solution for the issue you are facing.
 
-### 1. Hyperion Installed but still helm apps are not visible on dashboard
+#### 1. Hyperion Installed but still helm apps are not visible on dashboard
 
 To get helm apps on dashboard, it's important for migration jobs to be completed. To resolve this, check if Jobs are in `1/1 Completed` state by running the command:
 
