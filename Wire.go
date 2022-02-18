@@ -1,8 +1,6 @@
 //go:build wireinject
 // +build wireinject
 
-
-
 /*
  * Copyright (c) 2020 Devtron Labs
  *
@@ -138,7 +136,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.PProfRestHandler), new(*restHandler.PProfRestHandlerImpl)),
 
 		router.NewPProfRouter,
-		wire.Bind(new(router.PProfRouter), new (*router.PProfRouterImpl)),
+		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
 		//---- pprof end ----
 
 		restHandler.NewPipelineRestHandler,
@@ -194,12 +192,18 @@ func InitializeApp() (*App, error) {
 
 		router.NewAppListingRouterImpl,
 		wire.Bind(new(router.AppListingRouter), new(*router.AppListingRouterImpl)),
+		router.NewCicdRouterImpl,
+		wire.Bind(new(router.CicdRouter), new(*router.CicdRouterImpl)),
 		restHandler.NewAppListingRestHandlerImpl,
 		wire.Bind(new(restHandler.AppListingRestHandler), new(*restHandler.AppListingRestHandlerImpl)),
+		restHandler.NewCicdRestHandlerImpl,
+		wire.Bind(new(restHandler.CicdRestHandler), new(*restHandler.CicdRestHandlerImpl)),
 		app.NewAppListingServiceImpl,
 		wire.Bind(new(app.AppListingService), new(*app.AppListingServiceImpl)),
 		repository.NewAppListingRepositoryImpl,
 		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
+		repository.NewCicdRepositoryImpl,
+		wire.Bind(new(repository.CicdRepository), new(*repository.CicdRepositoryImpl)),
 
 		pipelineConfig.NewPipelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
@@ -633,9 +637,9 @@ func InitializeApp() (*App, error) {
 		util2.NewGoJsonSchemaCustomFormatChecker,
 
 		delete2.NewDeleteServiceExtendedImpl,
-		wire.Bind(new(delete2.DeleteService),new(*delete2.DeleteServiceExtendedImpl)),
+		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceExtendedImpl)),
 		delete2.NewDeleteServiceFullModeImpl,
-		wire.Bind(new(delete2.DeleteServiceFullMode),new(*delete2.DeleteServiceFullModeImpl)),
+		wire.Bind(new(delete2.DeleteServiceFullMode), new(*delete2.DeleteServiceFullModeImpl)),
 	)
 	return &App{}, nil
 }

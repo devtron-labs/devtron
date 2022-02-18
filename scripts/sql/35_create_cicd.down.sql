@@ -1,0 +1,1 @@
+DROP TABLE "public"."id_create_cicd" CASCADE;
