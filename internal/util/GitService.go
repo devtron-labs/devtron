@@ -478,6 +478,7 @@ type ChartConfig struct {
 	FileName       string //filename
 	FileContent    string
 	ReleaseMessage string
+	ChartRepoName  string
 }
 
 //-------------------- go-git integration -------------------
@@ -747,7 +748,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	ctx := context.Background()
 	newFile := false
-	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartName, path, &github.RepositoryContentGetOptions{Ref: branch})
+	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartRepoName, path, &github.RepositoryContentGetOptions{Ref: branch})
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
@@ -767,7 +768,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 		SHA:     &currentSHA,
 		Branch:  &branch,
 	}
-	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartName, path, options)
+	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)
 	if err != nil {
 		impl.logger.Errorw("error in commit github", "err", err, "config", config)
 		return "", err

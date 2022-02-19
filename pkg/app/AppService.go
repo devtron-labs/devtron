@@ -1100,11 +1100,15 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
 
+	repoUrl := envOverride.Chart.GitRepoUrl
+	repoUrl = repoUrl[strings.LastIndex(repoUrl, "/")+1:]
+	chartRepoName := strings.ReplaceAll(repoUrl, ".git", "")
 	chartGitAttr := &ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
 		FileContent:    string(merged),
 		ChartName:      envOverride.Chart.ChartName,
 		ChartLocation:  envOverride.Chart.ChartLocation,
+		ChartRepoName:  chartRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", override.Id, envOverride.TargetEnvironment),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
