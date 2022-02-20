@@ -114,26 +114,6 @@ spec:
 {{- end}}
 {{- end}}
       containers:
-{{- if $.Values.appMetrics }}
-        - name: envoy
-          image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
-          resources:
-{{ toYaml $.Values.envoyproxy.resources | trim | indent 12 }}
-          ports:
-            - containerPort: 9901
-              protocol: TCP
-              name: envoy-admin
-              {{- range $index, $element := .Values.ContainerPort }}
-            - name: {{ $element.name}}
-              containerPort: {{ $element.envoyPort | default (add 8790 $index) }}
-              protocol: TCP
-              {{- end }}
-          command: ["/usr/local/bin/envoy"]
-          args: ["-c", "/etc/envoy-config/envoy-config.json", "-l", "info", "--log-format", "[METADATA][%Y-%m-%d %T.%e][%t][%l][%n] %v"]
-          volumeMounts:
-            - name: {{ $.Values.envoyproxy.configMapName | default "envoy-config-volume" }}
-              mountPath: /etc/envoy-config/
-{{- end}}
 {{- if $.Values.containers }}
 {{ toYaml $.Values.containers | indent 8 -}}
 {{- end}}
@@ -206,51 +186,6 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
-
-{{- if or $.Values.LivenessProbe.Path $.Values.LivenessProbe.command $.Values.LivenessProbe.tcp }}
-          livenessProbe:
-{{- if $.Values.LivenessProbe.Path }}
-            httpGet:
-              path: {{ $.Values.LivenessProbe.Path  }}
-              port: {{ $.Values.LivenessProbe.port }}
-{{- end }}
-{{- if $.Values.LivenessProbe.command }}
-            exec:
-              command:
-{{ toYaml .Values.LivenessProbe.command | indent 16 }}
-{{- end}}
-{{- if and $.Values.LivenessProbe.tcp }}
-            tcpSocket:
-              port: {{ $.Values.LivenessProbe.port }}
-{{- end}}
-            initialDelaySeconds: {{ $.Values.LivenessProbe.initialDelaySeconds  }}
-            periodSeconds: {{ $.Values.LivenessProbe.periodSeconds  }}
-            successThreshold: {{ $.Values.LivenessProbe.successThreshold  }}
-            timeoutSeconds: {{ $.Values.LivenessProbe.timeoutSeconds  }}
-            failureThreshold: {{ $.Values.LivenessProbe.failureThreshold  }}
-{{- end }}
-{{- if or $.Values.ReadinessProbe.Path  $.Values.ReadinessProbe.command $.Values.ReadinessProbe.tcp }}
-          readinessProbe:
-{{- if $.Values.ReadinessProbe.Path }}
-            httpGet:
-              path: {{ $.Values.ReadinessProbe.Path  }}
-              port: {{ $.Values.ReadinessProbe.port }}
-{{- end }}
-{{- if $.Values.ReadinessProbe.command }}
-            exec:
-              command:
-{{ toYaml .Values.ReadinessProbe.command | indent 16 }}
-{{- end}}
-{{- if and $.Values.ReadinessProbe.tcp }}
-            tcpSocket:
-              port: {{ $.Values.ReadinessProbe.port }}
-{{- end}}
-            initialDelaySeconds: {{ $.Values.ReadinessProbe.initialDelaySeconds  }}
-            periodSeconds: {{ $.Values.ReadinessProbe.periodSeconds  }}
-            successThreshold: {{ $.Values.ReadinessProbe.successThreshold  }}
-            timeoutSeconds: {{ $.Values.ReadinessProbe.timeoutSeconds  }}
-            failureThreshold: {{ $.Values.ReadinessProbe.failureThreshold  }}
-{{- end }}
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }}
 
