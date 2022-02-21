@@ -1201,7 +1201,7 @@ func (impl UserAuthRepositoryImpl) GetRolesForProject(teamName string) ([]*RoleM
 
 func (impl UserAuthRepositoryImpl) GetRolesForApp(appName string) ([]*RoleModel, error) {
 	var roles []*RoleModel
-	err := impl.dbConnection.Model(&roles).Where("entity IS ?", nil).
+	err := impl.dbConnection.Model(&roles).Where("entity is NULL").
 		Where("entity_name = ?", appName).Select()
 	if err != nil {
 		impl.Logger.Errorw("error in getting roles for app", "err", err, "appName", appName)
