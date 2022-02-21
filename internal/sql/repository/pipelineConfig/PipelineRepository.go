@@ -85,7 +85,7 @@ type PipelineRepository interface {
 	GetConnection() *pg.DB
 	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
-	FindAllPipelinesByChartsOverride(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
+	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 }
 
 type CiArtifactDTO struct {
@@ -329,14 +329,14 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pi
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverride(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error) {
+func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndChartId(hasConfigOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*").
 		Join("inner join charts on pipeline.app_id = charts.app_id").
 		Join("inner join chart_env_config_override ceco on charts.id = ceco.chart_id").
 		Where("pipeline.app_id = ?", appId).
 		Where("charts.id = ?", chartId).
-		Where("ceco.is_override = ?", chartOverridden).
+		Where("ceco.is_override = ?", hasConfigOverridden).
 		Where("pipeline.deleted = ?", false).
 		Where("ceco.active = ?", true).
 		Where("charts.active = ?", true).

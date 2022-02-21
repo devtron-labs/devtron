@@ -38,7 +38,7 @@ func NewChartsHistoryServiceImpl(logger *zap.SugaredLogger, chartHistoryReposito
 
 func (impl ChartsHistoryServiceImpl) CreateChartsHistoryFromGlobalCharts(chart *chartRepoRepository.Chart, tx *pg.Tx) (err error) {
 	//getting all pipelines without overridden charts
-	pipelines, err := impl.pipelineRepository.FindAllPipelinesByChartsOverride(false, chart.AppId, chart.Id)
+	pipelines, err := impl.pipelineRepository.FindAllPipelinesByChartsOverrideAndAppIdAndChartId(false, chart.AppId, chart.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in getting pipelines, CreateChartsHistoryFromGlobalCharts", "err", err, "chart", chart)
 		return err
