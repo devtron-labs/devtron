@@ -107,6 +107,143 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /orchestrator/app/cicd/save:
+    post:
+      description: save pre post cicd scripts to the database
+      parameters:
+        - in: query
+          name: Id
+          example: 1
+          description: scripts ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+        - in: query
+          name: Name
+          example: test
+          description: pre post scripts of cicd
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: insertion response.
+          content:
+            application/json:
+              schema:
+                type: string
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                type: string
+
+  /orchestrator/app/cicd/update:
+    post:
+      description: update pre or post cicd scripts to the database
+      parameters:
+        - in: query
+          name: Id
+          example: 1
+          description: scripts ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+        - in: query
+          name: Name
+          example: test
+          description: pre or post scripts of cicd
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: updation response.
+          content:
+            application/json:
+              schema:
+                type: string
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                type: string
+
+  /orchestrator/app/cicd/delete:
+    post:
+      description: delete pre or post cicd scripts to the database
+      parameters:
+        - in: query
+          name: Id
+          example: 1
+          description: scripts ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+        - in: query
+          name: Name
+          example: test
+          description: pre or post scripts of cicd
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: deletion response.
+          content:
+            application/json:
+              schema:
+                type: string
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                type: string
+
+  /orchestrator/app/cicd/find:
+    post:
+      description: find pre or post cicd scripts to the database
+      parameters:
+        - in: query
+          name: Id
+          example: 1
+          description: scripts ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: app labels edit response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: string
+                    $ref: '#/components/schemas/CicdFindResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 # components mentioned below
 components:
@@ -205,3 +342,27 @@ components:
         userMessage:
           type: string
           description: Error user message
+
+    Cicd:
+      type: object
+      required:
+        - Id
+        - Name
+      properties:
+        Id:
+          type: integer
+          description: application id
+        Name:
+          type: string
+          description: pre or post script
+
+    CicdFindResponse:
+      type: object
+      required:
+        - Cicd
+      properties:
+        Cicd:
+          type: object
+          description: Cicd object
+          $ref: '#/components/schemas/Cicd'
+#          app labels 67( above line referred from)
