@@ -45,6 +45,7 @@
 - [Documentation](https://docs.devtron.ai/)
 - [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
 - [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
+- [Trusted By](https://github.com/devtron-labs/devtron#muscle-Trusted-By)
 - [FAQ & Troubleshooting](https://github.com/devtron-labs/devtron#question-faq--troubleshooting)
 - [Contribute](https://github.com/devtron-labs/devtron#handshake-contribute)
 
