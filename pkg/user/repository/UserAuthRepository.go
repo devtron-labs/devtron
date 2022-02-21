@@ -1201,7 +1201,7 @@ func (impl UserAuthRepositoryImpl) GetRolesForProject(teamName string) ([]*RoleM
 
 func (impl UserAuthRepositoryImpl) GetRolesForApp(appName string) ([]*RoleModel, error) {
 	var roles []*RoleModel
-	err := impl.dbConnection.Model(&roles).Where("role not like ?", fmt.Sprintf("role:"+CHART_GROUP_TYPE+"%")).
+	err := impl.dbConnection.Model(&roles).Where("entity != ?", CHART_GROUP_TYPE).
 		Where("entity_name = ?", appName).Select()
 	if err != nil {
 		impl.Logger.Errorw("error in getting roles for app", "err", err, "appName", appName)
@@ -1212,7 +1212,7 @@ func (impl UserAuthRepositoryImpl) GetRolesForApp(appName string) ([]*RoleModel,
 
 func (impl UserAuthRepositoryImpl) GetRolesForChartGroup(chartGroupName string) ([]*RoleModel, error) {
 	var roles []*RoleModel
-	err := impl.dbConnection.Model(&roles).Where("role like ?", fmt.Sprintf("role:"+CHART_GROUP_TYPE+"%")).
+	err := impl.dbConnection.Model(&roles).Where("entity = ?", CHART_GROUP_TYPE).
 		Where("entity_name = ?", chartGroupName).Select()
 	if err != nil {
 		impl.Logger.Errorw("error in getting roles for chart group", "err", err, "chartGroupName", chartGroupName)
