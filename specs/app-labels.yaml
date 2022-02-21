@@ -365,4 +365,3 @@ components:
           type: object
           description: Cicd object
           $ref: '#/components/schemas/Cicd'
-#          app labels 67( above line referred from)
