@@ -20,7 +20,6 @@ package restHandler
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"go.uber.org/zap"
 	"net/http"
@@ -34,9 +33,8 @@ type PluginRestHandler interface {
 }
 
 type PluginRestHandlerImpl struct {
-	application application.ServiceClient
-	logger      *zap.SugaredLogger
-	repository  repository.PluginRepository
+	logger     *zap.SugaredLogger
+	repository repository.PluginRepository
 }
 
 type plugin struct {
@@ -44,11 +42,10 @@ type plugin struct {
 	Name string `json:"Name"`
 }
 
-func NewPluginRestHandlerImpl(application application.ServiceClient, logger *zap.SugaredLogger, repository repository.PluginRepository) *PluginRestHandlerImpl {
+func NewPluginRestHandlerImpl(logger *zap.SugaredLogger, repository repository.PluginRepository) *PluginRestHandlerImpl {
 	pluginRestHandler := &PluginRestHandlerImpl{
-		application: application,
-		logger:      logger,
-		repository:  repository,
+		logger:     logger,
+		repository: repository,
 	}
 	return pluginRestHandler
 }
