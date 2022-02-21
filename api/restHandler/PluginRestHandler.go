@@ -26,43 +26,43 @@ import (
 	"net/http"
 )
 
-type CicdRestHandler interface {
-	SaveCICD(w http.ResponseWriter, r *http.Request)
-	UpdateCICD(w http.ResponseWriter, r *http.Request)
-	FindByCICD(w http.ResponseWriter, r *http.Request)
-	DeleteCICD(w http.ResponseWriter, r *http.Request)
+type PluginRestHandler interface {
+	SavePlugin(w http.ResponseWriter, r *http.Request)
+	UpdatePlugin(w http.ResponseWriter, r *http.Request)
+	FindByPlugin(w http.ResponseWriter, r *http.Request)
+	DeletePlugin(w http.ResponseWriter, r *http.Request)
 }
 
-type CicdRestHandlerImpl struct {
+type PluginRestHandlerImpl struct {
 	application application.ServiceClient
 	logger      *zap.SugaredLogger
-	repository  repository.CicdRepository
+	repository  repository.PluginRepository
 }
 
-type cICD struct {
+type plugin struct {
 	Id   int    `json:"Id"`
 	Name string `json:"Name"`
 }
 
-func NewCicdRestHandlerImpl(application application.ServiceClient, logger *zap.SugaredLogger, repository repository.CicdRepository) *CicdRestHandlerImpl {
-	cicdRestHandler := &CicdRestHandlerImpl{
+func NewPluginRestHandlerImpl(application application.ServiceClient, logger *zap.SugaredLogger, repository repository.PluginRepository) *PluginRestHandlerImpl {
+	pluginRestHandler := &PluginRestHandlerImpl{
 		application: application,
 		logger:      logger,
 		repository:  repository,
 	}
-	return cicdRestHandler
+	return pluginRestHandler
 }
 
-func (handler CicdRestHandlerImpl) SaveCICD(w http.ResponseWriter, r *http.Request) {
+func (handler PluginRestHandlerImpl) SavePlugin(w http.ResponseWriter, r *http.Request) {
 	//for checking
 	decoder := json.NewDecoder(r.Body)
 	println(decoder)
-	var bean cICD
+	var bean plugin
 	err := decoder.Decode(&bean)
 	if err != nil {
 		println(err)
 	}
-	test := &repository.CICD{
+	test := &repository.Plugin{
 		Id:   bean.Id,
 		Name: bean.Name,
 	}
@@ -73,17 +73,17 @@ func (handler CicdRestHandlerImpl) SaveCICD(w http.ResponseWriter, r *http.Reque
 	common.WriteJsonResp(w, err, "", http.StatusOK)
 }
 
-func (handler CicdRestHandlerImpl) UpdateCICD(w http.ResponseWriter, r *http.Request) {
+func (handler PluginRestHandlerImpl) UpdatePlugin(w http.ResponseWriter, r *http.Request) {
 	//for checking
 	decoder := json.NewDecoder(r.Body)
 	println(decoder)
-	var bean cICD
+	var bean plugin
 	err := decoder.Decode(&bean)
 	if err != nil {
 		println(err)
 	}
 
-	test := &repository.CICD{
+	test := &repository.Plugin{
 		Id:   bean.Id,
 		Name: bean.Name,
 	}
@@ -94,11 +94,11 @@ func (handler CicdRestHandlerImpl) UpdateCICD(w http.ResponseWriter, r *http.Req
 	common.WriteJsonResp(w, err, "", http.StatusOK)
 }
 
-func (handler CicdRestHandlerImpl) FindByCICD(w http.ResponseWriter, r *http.Request) {
+func (handler PluginRestHandlerImpl) FindByPlugin(w http.ResponseWriter, r *http.Request) {
 	//for checking
 	decoder := json.NewDecoder(r.Body)
 	println(decoder)
-	var bean cICD
+	var bean plugin
 	err := decoder.Decode(&bean)
 	if err != nil {
 		println(err)
@@ -112,17 +112,17 @@ func (handler CicdRestHandlerImpl) FindByCICD(w http.ResponseWriter, r *http.Req
 	common.WriteJsonResp(w, err, "", http.StatusOK)
 }
 
-func (handler CicdRestHandlerImpl) DeleteCICD(w http.ResponseWriter, r *http.Request) {
+func (handler PluginRestHandlerImpl) DeletePlugin(w http.ResponseWriter, r *http.Request) {
 	//for checking
 	decoder := json.NewDecoder(r.Body)
 	println(decoder)
-	var bean cICD
+	var bean plugin
 	err := decoder.Decode(&bean)
 	if err != nil {
 		println(err)
 	}
 
-	test := &repository.CICD{
+	test := &repository.Plugin{
 		Id:   bean.Id,
 		Name: bean.Name,
 	}

@@ -1,8 +1,8 @@
-CREATE SEQUENCE IF NOT EXISTS public.id_seq_create_cicd;
+CREATE SEQUENCE IF NOT EXISTS public.id_seq_plugin_scripts;
 
-CREATE TABLE public.id_create_cicd
+CREATE TABLE public.plugin_scripts
 (
-    "id"         INT4 NOT NULL DEFAULT NEXTVAL('id_seq_create_cicd'::
+    "id"         INT4 NOT NULL DEFAULT NEXTVAL('id_seq_plugin_scripts'::
      regclass),
     "name"       VARCHAR(250),
     PRIMARY KEY ("id")

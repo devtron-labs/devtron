@@ -1,1 +1,1 @@
-DROP TABLE "public"."id_create_cicd" CASCADE;
+DROP TABLE "public"."plugin_scripts" CASCADE;

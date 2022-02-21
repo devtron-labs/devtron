@@ -92,7 +92,7 @@ type MuxRouter struct {
 	helmAppRouter                    client.HelmAppRouter
 	k8sApplicationRouter             k8s.K8sApplicationRouter
 	pProfRouter                      PProfRouter
-	cicdRouter                       CicdRouter
+	pluginRouter                     PluginRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -114,7 +114,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
-	pProfRouter PProfRouter, cicdRouter CicdRouter) *MuxRouter {
+	pProfRouter PProfRouter, pluginRouter PluginRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -167,7 +167,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		helmAppRouter:                    helmAppRouter,
 		k8sApplicationRouter:             k8sApplicationRouter,
 		pProfRouter:                      pProfRouter,
-		cicdRouter:                       cicdRouter,
+		pluginRouter:                     pluginRouter,
 	}
 	return r
 }
@@ -213,7 +213,7 @@ func (r MuxRouter) Init() {
 	pipelineConfigRouter := r.Router.PathPrefix("/orchestrator/app").Subrouter()
 	r.PipelineConfigRouter.initPipelineConfigRouter(pipelineConfigRouter)
 	r.AppListingRouter.initAppListingRouter(pipelineConfigRouter)
-	r.cicdRouter.initCicdRouter(pipelineConfigRouter)
+	r.pluginRouter.initPluginRouter(pipelineConfigRouter)
 	r.HelmRouter.initHelmRouter(pipelineConfigRouter)
 	r.appLabelsRouter.initLabelRouter(pipelineConfigRouter)
 

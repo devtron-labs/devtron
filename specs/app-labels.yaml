@@ -107,26 +107,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /orchestrator/app/cicd/save:
+  /orchestrator/app/plugin/save:
     post:
       description: save pre post cicd scripts to the database
-      parameters:
-        - in: query
-          name: Id
-          example: 1
-          description: scripts ids
-          required: true
-          allowEmptyValue: false
-          schema:
-            type: integer
-        - in: query
-          name: Name
-          example: test
-          description: pre post scripts of cicd
-          required: true
-          allowEmptyValue: false
-          schema:
-            type: string
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Plugin'
       responses:
         '200':
           description: insertion response.
@@ -141,26 +131,16 @@ paths:
               schema:
                 type: string
 
-  /orchestrator/app/cicd/update:
-    post:
+  /orchestrator/app/plugin/update:
+    put:
       description: update pre or post cicd scripts to the database
-      parameters:
-        - in: query
-          name: Id
-          example: 1
-          description: scripts ids
-          required: true
-          allowEmptyValue: false
-          schema:
-            type: integer
-        - in: query
-          name: Name
-          example: test
-          description: pre or post scripts of cicd
-          required: true
-          allowEmptyValue: false
-          schema:
-            type: string
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Plugin'
       responses:
         '200':
           description: updation response.
@@ -175,26 +155,16 @@ paths:
               schema:
                 type: string
 
-  /orchestrator/app/cicd/delete:
-    post:
+  /orchestrator/app/plugin/delete:
+    delete:
       description: delete pre or post cicd scripts to the database
-      parameters:
-        - in: query
-          name: Id
-          example: 1
-          description: scripts ids
-          required: true
-          allowEmptyValue: false
-          schema:
-            type: integer
-        - in: query
-          name: Name
-          example: test
-          description: pre or post scripts of cicd
-          required: true
-          allowEmptyValue: false
-          schema:
-            type: string
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Plugin'
       responses:
         '200':
           description: deletion response.
@@ -209,18 +179,21 @@ paths:
               schema:
                 type: string
 
-  /orchestrator/app/cicd/find:
-    post:
+  /orchestrator/app/plugin/find:
+    get:
       description: find pre or post cicd scripts to the database
-      parameters:
-        - in: query
-          name: Id
-          example: 1
+      requestBody:
           description: scripts ids
           required: true
-          allowEmptyValue: false
-          schema:
-            type: integer
+          content:
+            application/json:
+              schema:
+                type: integer
+                required: true
+                  properties:
+                    Id:
+                      type: integer
+                      description: application id
       responses:
         '200':
           description: app labels edit response
@@ -237,7 +210,7 @@ paths:
                   result:
                     type: array
                     description: string
-                    $ref: '#/components/schemas/CicdFindResponse'
+                    $ref: '#/components/schemas/PluginFindResponse'
         default:
           description: unexpected error
           content:
@@ -343,7 +316,7 @@ components:
           type: string
           description: Error user message
 
-    Cicd:
+    Plugin:
       type: object
       required:
         - Id
@@ -356,12 +329,12 @@ components:
           type: string
           description: pre or post script
 
-    CicdFindResponse:
+    PluginFindResponse:
       type: object
       required:
-        - Cicd
+        - Plugin
       properties:
-        Cicd:
+        Plugin:
           type: object
-          description: Cicd object
-          $ref: '#/components/schemas/Cicd'
+          description: Plugin object
+          $ref: '#/components/schemas/Plugin'
