@@ -1,14 +1,3 @@
-# Source: postgresql/templates/secrets.yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgresql-migrator
-  labels:
-    app: postgresql
-    chart: postgresql-8.6.4
-    release: "devtron"
-type: Opaque
----
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -40,7 +29,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 52693bded39b2c8d19f0526f225005de390d99e3
+          value: b1b935700ef3dbb3222bdbc1c6bf286d45a4566d
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -55,7 +44,12 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccountName: devtron
       containers:
+      - name: devtron-rollout
+        image: quay.io/bitnami/kubectl:latest
+        command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
+      initContainers:
       - name: postgresql-migrate-casbin
         image: quay.io/devtron/migrator:6687f572-133-2208
         env:
@@ -76,13 +70,16 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 4ed6cdfcf6f13a93eb0c3c58d8b4f13292856960
+          value: b1b935700ef3dbb3222bdbc1c6bf286d45a4566d
         - name: GIT_BRANCH
           value: main
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        resources:
+          requests:
+            cpu: 0.5
+            memory: 500Mi
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
----

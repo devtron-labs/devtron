@@ -61,6 +61,8 @@
     * [Connect Expressjs With Mongodb Database](user-guide/use-cases/connect-expressjs-with-mongodb-database.md)
     * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
   * [Telemetry Overview](user-guide/telemetry.md)
+* [FAQs & Troubleshooting](FAQs/faqs.md)
+  * [Devtron Troubleshooting](FAQs/devtron-troubleshoot.md)
 
 ### Hyperion
 * [Introduction](hyperion/README.md)
@@ -71,4 +73,6 @@
     * [SSO Login Service](hyperion/user-guide/global-configurations/sso-login.md)
     * [User Access](hyperion/user-guide/global-configurations/user-access.md)
 * [User Guide](hyperion/user-guide/creating-application/README.md)
+* [FAQs & Troubleshooting](hyperion/FAQs/faqs.md)
+  * [Hyperion Troubleshooting](hyperion/FAQs/hyperion-troubleshoot.md)
 * [Upgrade to Devtron Full mode](hyperion/setup/upgrade-to-devtron.md)
