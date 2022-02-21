@@ -1,8 +1,6 @@
 //go:build wireinject
 // +build wireinject
 
-
-
 /*
  * Copyright (c) 2020 Devtron Labs
  *
@@ -24,6 +22,7 @@ package main
 
 import (
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
+	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
@@ -66,6 +65,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
 	appStore "github.com/devtron-labs/devtron/pkg/appStore"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
+	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
+	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -106,6 +108,7 @@ func InitializeApp() (*App, error) {
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		appStoreValues.AppStoreValuesWireSet,
+		appStoreDeployment.AppStoreDeploymentWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -140,7 +143,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.PProfRestHandler), new(*restHandler.PProfRestHandlerImpl)),
 
 		router.NewPProfRouter,
-		wire.Bind(new(router.PProfRouter), new (*router.PProfRouterImpl)),
+		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
 		//---- pprof end ----
 
 		restHandler.NewPipelineRestHandler,
@@ -540,8 +543,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(security.PolicyService), new(*security.PolicyServiceImpl)),
 		security2.NewPolicyRepositoryImpl,
 		wire.Bind(new(security2.CvePolicyRepository), new(*security2.CvePolicyRepositoryImpl)),
-		appStoreRepository.NewClusterInstalledAppsRepositoryImpl,
-		wire.Bind(new(appStoreRepository.ClusterInstalledAppsRepository), new(*appStoreRepository.ClusterInstalledAppsRepositoryImpl)),
 
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
@@ -627,9 +628,14 @@ func InitializeApp() (*App, error) {
 		util2.NewGoJsonSchemaCustomFormatChecker,
 
 		delete2.NewDeleteServiceExtendedImpl,
-		wire.Bind(new(delete2.DeleteService),new(*delete2.DeleteServiceExtendedImpl)),
+		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceExtendedImpl)),
 		delete2.NewDeleteServiceFullModeImpl,
-		wire.Bind(new(delete2.DeleteServiceFullMode),new(*delete2.DeleteServiceFullModeImpl)),
+		wire.Bind(new(delete2.DeleteServiceFullMode), new(*delete2.DeleteServiceFullModeImpl)),
+
+		appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl,
+		wire.Bind(new(appStoreDeploymentFullMode.AppStoreDeploymentFullModeService), new(*appStoreDeploymentFullMode.AppStoreDeploymentFullModeServiceImpl)),
+		appStoreDeploymentGitopsTool.NewAppStoreDeploymentArgoCdServiceImpl,
+		wire.Bind(new(appStoreDeploymentTool.AppStoreDeploymentToolService), new(*appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdServiceImpl)),
 	)
 	return &App{}, nil
 }

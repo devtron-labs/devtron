@@ -18,6 +18,7 @@
 package appStore
 
 import (
+	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
 	"github.com/gorilla/mux"
@@ -28,30 +29,37 @@ type AppStoreRouter interface {
 }
 
 type AppStoreRouterImpl struct {
-	deployRestHandler         InstalledAppRestHandler
-	appStoreValuesRouter appStoreValues.AppStoreValuesRouter
-	appStoreDiscoverRouter    appStoreDiscover.AppStoreDiscoverRouter
+	deployRestHandler        InstalledAppRestHandler
+	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
+	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
+	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
 }
 
 func NewAppStoreRouterImpl(restHandler InstalledAppRestHandler,
-	appStoreValuesRouter appStoreValues.AppStoreValuesRouter, appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter) *AppStoreRouterImpl {
+	appStoreValuesRouter appStoreValues.AppStoreValuesRouter, appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
+	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter) *AppStoreRouterImpl {
 	return &AppStoreRouterImpl{
-		deployRestHandler:         restHandler,
-		appStoreValuesRouter: appStoreValuesRouter,
-		appStoreDiscoverRouter:    appStoreDiscoverRouter,
+		deployRestHandler:      restHandler,
+		appStoreValuesRouter:   appStoreValuesRouter,
+		appStoreDiscoverRouter: appStoreDiscoverRouter,
+		appStoreDeploymentRouter: appStoreDeploymentRouter,
 	}
 }
 
 func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
-	configRouter.Path("/application/install").
-		HandlerFunc(router.deployRestHandler.CreateInstalledApp).Methods("POST")
+
+	configRouter.Path("/application/update").
+		HandlerFunc(router.deployRestHandler.UpdateInstalledApp).Methods("PUT")
+
+	// deployment router starts
+	appStoreDeploymentSubRouter := configRouter.PathPrefix("/deployment").Subrouter()
+	router.appStoreDeploymentRouter.Init(appStoreDeploymentSubRouter)
+	// deployment router ends
 
 	configRouter.Path("/application/exists").
 		HandlerFunc(router.deployRestHandler.CheckAppExists).Methods("POST")
 	configRouter.Path("/group/install").
 		HandlerFunc(router.deployRestHandler.DeployBulk).Methods("POST")
-	configRouter.Path("/application/update").
-		HandlerFunc(router.deployRestHandler.UpdateInstalledApp).Methods("PUT")
 
 	// discover router starts
 	appStoreDiscoverSubRouter := configRouter.PathPrefix("/discover").Subrouter()
@@ -65,13 +73,8 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/installed-app").
 		HandlerFunc(router.deployRestHandler.GetAllInstalledApp).Methods("GET")
 
-	configRouter.Path("/installed-app/{appStoreId}").
-		HandlerFunc(router.deployRestHandler.GetInstalledAppsByAppStoreId).Methods("GET")
-
 	configRouter.Path("/application/version/{installedAppVersionId}").
 		HandlerFunc(router.deployRestHandler.GetInstalledAppVersion).Methods("GET")
-	configRouter.Path("/application/delete/{id}").
-		HandlerFunc(router.deployRestHandler.DeleteInstalledApp).Methods("DELETE")
 
 	// values router starts
 	appStoreValuesSubRouter := configRouter.PathPrefix("/values").Subrouter()

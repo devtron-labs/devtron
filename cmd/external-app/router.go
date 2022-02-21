@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
 	"github.com/devtron-labs/devtron/api/chartRepo"
@@ -20,20 +21,21 @@ import (
 )
 
 type MuxRouter struct {
-	Router                 *mux.Router
-	logger                 *zap.SugaredLogger
-	ssoLoginRouter         sso.SsoLoginRouter
-	teamRouter             team.TeamRouter
-	UserAuthRouter         user.UserAuthRouter
-	userRouter             user.UserRouter
-	clusterRouter          cluster.ClusterRouter
-	dashboardRouter        dashboard.DashboardRouter
-	helmAppRouter          client.HelmAppRouter
-	environmentRouter      cluster.EnvironmentRouter
-	k8sApplicationRouter   k8s.K8sApplicationRouter
-	chartRepositoryRouter  chartRepo.ChartRepositoryRouter
-	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter
-	appStoreValuesRouter   appStoreValues.AppStoreValuesRouter
+	Router                   *mux.Router
+	logger                   *zap.SugaredLogger
+	ssoLoginRouter           sso.SsoLoginRouter
+	teamRouter               team.TeamRouter
+	UserAuthRouter           user.UserAuthRouter
+	userRouter               user.UserRouter
+	clusterRouter            cluster.ClusterRouter
+	dashboardRouter          dashboard.DashboardRouter
+	helmAppRouter            client.HelmAppRouter
+	environmentRouter        cluster.EnvironmentRouter
+	k8sApplicationRouter     k8s.K8sApplicationRouter
+	chartRepositoryRouter    chartRepo.ChartRepositoryRouter
+	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
+	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
+	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
 }
 
 func NewMuxRouter(
@@ -50,23 +52,25 @@ func NewMuxRouter(
 	chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
+	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
 
 ) *MuxRouter {
 	r := &MuxRouter{
-		Router:                 mux.NewRouter(),
-		logger:                 logger,
-		ssoLoginRouter:         ssoLoginRouter,
-		teamRouter:             teamRouter,
-		UserAuthRouter:         UserAuthRouter,
-		userRouter:             userRouter,
-		clusterRouter:          clusterRouter,
-		dashboardRouter:        dashboardRouter,
-		helmAppRouter:          helmAppRouter,
-		environmentRouter:      environmentRouter,
-		k8sApplicationRouter:   k8sApplicationRouter,
-		chartRepositoryRouter:  chartRepositoryRouter,
-		appStoreDiscoverRouter: appStoreDiscoverRouter,
-		appStoreValuesRouter:   appStoreValuesRouter,
+		Router:                   mux.NewRouter(),
+		logger:                   logger,
+		ssoLoginRouter:           ssoLoginRouter,
+		teamRouter:               teamRouter,
+		UserAuthRouter:           UserAuthRouter,
+		userRouter:               userRouter,
+		clusterRouter:            clusterRouter,
+		dashboardRouter:          dashboardRouter,
+		helmAppRouter:            helmAppRouter,
+		environmentRouter:        environmentRouter,
+		k8sApplicationRouter:     k8sApplicationRouter,
+		chartRepositoryRouter:    chartRepositoryRouter,
+		appStoreDiscoverRouter:   appStoreDiscoverRouter,
+		appStoreValuesRouter:     appStoreValuesRouter,
+		appStoreDeploymentRouter: appStoreDeploymentRouter,
 	}
 	return r
 }
@@ -140,4 +144,9 @@ func (r *MuxRouter) Init() {
 	appStoreValuesSubRouter := r.Router.PathPrefix("/orchestrator/app-store/values").Subrouter()
 	r.appStoreValuesRouter.Init(appStoreValuesSubRouter)
 	// app-store values router ends
+
+	//  app-store deployment router starts
+	appStoreDeploymentSubRouter := r.Router.PathPrefix("/orchestrator/app-store/deployment").Subrouter()
+	r.appStoreDeploymentRouter.Init(appStoreDeploymentSubRouter)
+	// app-store deployment router ends
 }

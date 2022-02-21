@@ -17,9 +17,11 @@
 package util
 
 var (
-	GitCommit  string = ""
-	BuildTime  string = ""
-	ServerMode string = ""
+	GitCommit            = ""
+	BuildTime            = ""
+	ServerMode           = ""
+	SERVER_MODE_FULL     = "FULL"
+	SERVER_MODE_HYPERION = "EA_ONLY"
 )
 
 type ServerVersion struct {
@@ -29,5 +31,6 @@ type ServerVersion struct {
 }
 
 func GetDevtronVersion() *ServerVersion {
-	return &ServerVersion{BuildTime: BuildTime, GitCommit: GitCommit, ServerMode: ServerMode}
+	//return &ServerVersion{BuildTime: BuildTime, GitCommit: GitCommit, ServerMode: ServerMode}
+	return &ServerVersion{BuildTime: BuildTime, GitCommit: GitCommit, ServerMode: "EA_ONLY"}
 }

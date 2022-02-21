@@ -47,6 +47,8 @@ type InstallAppVersionDTO struct {
 	AppStoreName            string                   `json:"appStoreName"`
 	Deprecated              bool                     `json:"deprecated"`
 	ForceDelete             bool                     `json:"-"`
+	ClusterId               int                      `json:"clusterId"` // needed for hyperion mode
+	Namespace               string                   `json:"namespace"` // needed for hyperion mode
 }
 
 /// bean for v2
@@ -92,6 +94,9 @@ type InstalledAppsResponse struct {
 	Readme                       string    `json:"readme"`
 	EnvironmentId                int       `json:"environmentId"`
 	Deprecated                   bool      `json:"deprecated"`
+	AppOfferingMode              string    `json:"appOfferingMode" validate:"oneof=EA_ONLY FULL"`
+	ClusterId                    int       `json:"clusterId"` // needed for hyperion app
+	Namespace                    string    `json:"namespace"` // needed for hyperion app
 }
 
 type AppNames struct {
