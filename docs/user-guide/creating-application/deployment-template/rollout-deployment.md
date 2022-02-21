@@ -34,6 +34,7 @@ This defines ports on which application services will be exposed to other servic
 ```yaml
 ContainerPort:
   - envoyPort: 8799
+    envoyTimeout: 15s
     idleTimeout:
     name: app
     port: 8080
@@ -45,6 +46,7 @@ ContainerPort:
 | Key | Description |
 | :--- | :--- |
 | `envoyPort` | envoy port for the container. |
+| `envoyTimeout` | envoy Timeout for the container,envoy supports a wide range of timeouts that may need to be configured depending on the deployment.By default the envoytimeout is 15s. |
 | `idleTimeout` | the duration of time that a connection is idle before the connection is terminated. |
 | `name` | name of the port. |
 | `port` | port for the container. |
