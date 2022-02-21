@@ -553,7 +553,7 @@
         "description": "specialized containers that run before app containers in a Pod, can contain utilities or setup scripts not present in an app image",
         "title": "Init Containers"
       },
-      "KedaAutoscaling": {
+      "kedaAutoscaling": {
         "type": "object",
         "description": "Kubernetes-based event driven autoscaler. With KEDA, one can drive the scaling of any container in Kubernetes based on the no. of events needing to be processed",
         "title": "KEDA Autoscaling",
