@@ -61,10 +61,11 @@ type UserAuthService interface {
 type UserAuthServiceImpl struct {
 	userAuthRepository repository2.UserAuthRepository
 	//sessionClient is being used for argocd username-password login proxy
-	sessionClient  session2.ServiceClient
-	logger         *zap.SugaredLogger
-	userRepository repository2.UserRepository
-	sessionManager *middleware.SessionManager
+	sessionClient       session2.ServiceClient
+	logger              *zap.SugaredLogger
+	userRepository      repository2.UserRepository
+	sessionManager      *middleware.SessionManager
+	roleGroupRepository repository2.RoleGroupRepository
 }
 
 var (
@@ -109,13 +110,14 @@ type WebhookToken struct {
 
 func NewUserAuthServiceImpl(userAuthRepository repository2.UserAuthRepository, sessionManager *middleware.SessionManager,
 	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository2.UserRepository,
-) *UserAuthServiceImpl {
+	roleGroupRepository repository2.RoleGroupRepository) *UserAuthServiceImpl {
 	serviceImpl := &UserAuthServiceImpl{
-		userAuthRepository: userAuthRepository,
-		sessionManager:     sessionManager,
-		sessionClient:      client,
-		logger:             logger,
-		userRepository:     userRepository,
+		userAuthRepository:  userAuthRepository,
+		sessionManager:      sessionManager,
+		sessionClient:       client,
+		logger:              logger,
+		userRepository:      userRepository,
+		roleGroupRepository: roleGroupRepository,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -555,6 +557,12 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 		err = impl.userAuthRepository.DeleteUserRoleByRoleId(roleModel.Id, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting user_roles by role id", "err", err, "roleId", roleModel.Id)
+			return err
+		}
+		//deleting role_group_role_mapping for this role_id (foreign key constraint)
+		err := impl.roleGroupRepository.DeleteRoleGroupRoleMappingByRoleId(roleModel.Id, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting role_group_role_mapping by role id", "err", err, "roleId", roleModel.Id)
 			return err
 		}
 		//deleting roles
