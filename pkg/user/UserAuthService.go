@@ -55,7 +55,7 @@ type UserAuthService interface {
 
 	CreateRole(roleData *bean.RoleData) (bool, error)
 	AuthVerification(r *http.Request) (bool, error)
-	DeleteRoles(entityType string, entityName string, tx *pg.Tx) error
+	DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string) error
 }
 
 type UserAuthServiceImpl struct {
@@ -526,13 +526,13 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 	//TODO - extends for other purpose
 	return true, nil
 }
-func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx) (err error) {
+func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string) (err error) {
 	var roleModels []*repository2.RoleModel
 	switch entityType {
 	case repository2.PROJECT_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForProject(entityName)
 	case repository2.ENV_TYPE:
-		roleModels, err = impl.userAuthRepository.GetRolesForEnvironment(entityName)
+		roleModels, err = impl.userAuthRepository.GetRolesForEnvironment(entityName, envIdentifier)
 	case repository2.APP_TYPE:
 		roleModels, err = impl.userAuthRepository.GetRolesForApp(entityName)
 	case repository2.CHART_GROUP_TYPE:
@@ -543,20 +543,24 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 		return err
 	}
 
-	// deleting policies in casbin for deleted roles
+	// deleting policies in casbin and roles
 	var casbinDeleteFailed []bool
 	for _, roleModel := range roleModels {
 		success := casbin2.RemovePoliciesByRoles(roleModel.Role)
 		if !success {
-			impl.logger.Errorw("error in deleting casbin policy for role", "role", roleModel.Role)
+			impl.logger.Warnw("error in deleting casbin policy for role", "role", roleModel.Role)
 			casbinDeleteFailed = append(casbinDeleteFailed, success)
 		}
-	}
-	//deleting roles
-	if len(roleModels) > 0 {
-		err = impl.userAuthRepository.DeleteRoles(roleModels, tx)
+		//deleting user_roles for this role_id (foreign key constraint)
+		err = impl.userAuthRepository.DeleteUserRoleByRoleId(roleModel.Id, tx)
 		if err != nil {
-			impl.logger.Errorw(fmt.Sprintf("error in deleting roles for %s:%s", entityType, entityName), "err", err, "name", entityName)
+			impl.logger.Errorw("error in deleting user_roles by role id", "err", err, "roleId", roleModel.Id)
+			return err
+		}
+		//deleting roles
+		err = impl.userAuthRepository.DeleteRole(roleModel, tx)
+		if err != nil {
+			impl.logger.Errorw(fmt.Sprintf("error in deleting role for %s:%s", entityType, entityName), "err", err, "role", roleModel)
 			return err
 		}
 	}
