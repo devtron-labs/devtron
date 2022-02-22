@@ -39,19 +39,19 @@ func NewPluginRouterImpl(pluginRestHandler restHandler.PluginRestHandler) *Plugi
 
 func (router PluginRouterImpl) initPluginRouter(pluginRouter *mux.Router) {
 
-	pluginRouter.Path("/plugin/save").
+	pluginRouter.Path("/plugin").
 		HandlerFunc(router.pluginRestHandler.SavePlugin).
 		Methods("POST")
 
-	pluginRouter.Path("/plugin/update").
+	pluginRouter.Path("/plugin").
 		HandlerFunc(router.pluginRestHandler.UpdatePlugin).
 		Methods("PUT")
 
-	pluginRouter.Path("/plugin/delete").
+	pluginRouter.Path("/plugin").
 		HandlerFunc(router.pluginRestHandler.DeletePlugin).
 		Methods("DELETE")
 
-	pluginRouter.Path("/plugin/find").
+	pluginRouter.Path("/plugin").
 		HandlerFunc(router.pluginRestHandler.FindByPlugin).
 		Methods("GET")
 }

@@ -7,9 +7,10 @@ import (
 )
 
 type Plugin struct {
-	tableName struct{} `sql:"plugin_scripts" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id,pk"`
-	Name      string   `sql:"name,notnull"`
+	tableName   struct{} `sql:"plugin_scripts" pg:",discard_unknown_columns"`
+	Id          int      `sql:"id,pk"`
+	Name        string   `sql:"name,notnull"`
+	Description string   `sql:"description,notnull"`
 }
 
 type PluginRepository interface {

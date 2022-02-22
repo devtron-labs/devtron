@@ -38,8 +38,15 @@ type PluginRestHandlerImpl struct {
 }
 
 type plugin struct {
-	Id   int    `json:"Id"`
-	Name string `json:"Name"`
+	Id          int    `json:"Id"`
+	Name        string `json:"Name"`
+	Description string `json:"Description"`
+}
+
+type pluginInputs struct {
+	Id    int    `json:"Id"`
+	Key   string `json:"Key"`
+	Value string `json:"Value"`
 }
 
 func NewPluginRestHandlerImpl(logger *zap.SugaredLogger, repository repository.PluginRepository) *PluginRestHandlerImpl {
@@ -60,8 +67,9 @@ func (handler PluginRestHandlerImpl) SavePlugin(w http.ResponseWriter, r *http.R
 		println(err)
 	}
 	test := &repository.Plugin{
-		Id:   bean.Id,
-		Name: bean.Name,
+		Id:          bean.Id,
+		Name:        bean.Name,
+		Description: bean.Description,
 	}
 	err = handler.repository.Save(test)
 	if err != nil {
@@ -81,8 +89,9 @@ func (handler PluginRestHandlerImpl) UpdatePlugin(w http.ResponseWriter, r *http
 	}
 
 	test := &repository.Plugin{
-		Id:   bean.Id,
-		Name: bean.Name,
+		Id:          bean.Id,
+		Name:        bean.Name,
+		Description: bean.Description,
 	}
 	err = handler.repository.Update(test)
 	if err != nil {
@@ -120,8 +129,9 @@ func (handler PluginRestHandlerImpl) DeletePlugin(w http.ResponseWriter, r *http
 	}
 
 	test := &repository.Plugin{
-		Id:   bean.Id,
-		Name: bean.Name,
+		Id:          bean.Id,
+		Name:        bean.Name,
+		Description: bean.Description,
 	}
 	err = handler.repository.Delete(test)
 	if err != nil {

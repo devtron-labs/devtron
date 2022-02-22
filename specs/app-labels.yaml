@@ -107,7 +107,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /orchestrator/app/plugin/save:
+  /orchestrator/app/plugin:
     post:
       description: save pre post cicd scripts to the database
       requestBody:
@@ -130,8 +130,6 @@ paths:
             application/json:
               schema:
                 type: string
-
-  /orchestrator/app/plugin/update:
     put:
       description: update pre or post cicd scripts to the database
       requestBody:
@@ -154,8 +152,6 @@ paths:
             application/json:
               schema:
                 type: string
-
-  /orchestrator/app/plugin/delete:
     delete:
       description: delete pre or post cicd scripts to the database
       requestBody:
@@ -178,22 +174,21 @@ paths:
             application/json:
               schema:
                 type: string
-
-  /orchestrator/app/plugin/find:
     get:
       description: find pre or post cicd scripts to the database
       requestBody:
-          description: scripts ids
-          required: true
-          content:
-            application/json:
-              schema:
-                type: integer
-                required: true
-                  properties:
-                    Id:
-                      type: integer
-                      description: application id
+        description: scripts ids
+        required: true
+        content:
+          application/json:
+            schema:
+              type: integer
+              required:
+                - Id
+              properties:
+                Id:
+                  type: integer
+                  description: application id
       responses:
         '200':
           description: app labels edit response
@@ -217,6 +212,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
 
 # components mentioned below
 components:
