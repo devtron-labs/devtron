@@ -7,10 +7,13 @@ import (
 )
 
 type Plugin struct {
-	tableName   struct{} `sql:"plugin_scripts" pg:",discard_unknown_columns"`
-	Id          int      `sql:"id,pk"`
-	Name        string   `sql:"name,notnull"`
-	Description string   `sql:"description,notnull"`
+	tableName            struct{} `sql:"plugin_scripts" pg:",discard_unknown_columns"`
+	Id                   int      `sql:"id,pk"`
+	Name                 string   `sql:"name,notnull"`
+	Description          string   `sql:"description,notnull"`
+	Body                 string   `sql:"body,notnull"`
+	StepTemplateLanguage string   `sql:"step_template_language,notnull"`
+	StepTemplate         string   `sql:"step_template,notnull"`
 }
 
 type PluginRepository interface {
@@ -30,7 +33,9 @@ func NewPluginRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *Pl
 }
 
 func (impl *PluginRepositoryImpl) Save(plugin *Plugin) error {
-	return impl.dbConnection.Insert(plugin)
+	check := impl.dbConnection.Insert(plugin)
+	print(plugin) //check for local
+	return check
 }
 
 func (impl *PluginRepositoryImpl) FindByAppId(pluginId int) (*Plugin, error) {
