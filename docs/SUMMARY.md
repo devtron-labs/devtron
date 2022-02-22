@@ -73,6 +73,6 @@
     * [SSO Login Service](hyperion/user-guide/global-configurations/sso-login.md)
     * [User Access](hyperion/user-guide/global-configurations/user-access.md)
 * [User Guide](hyperion/user-guide/creating-application/README.md)
+* [Upgrade to Devtron Full mode](hyperion/setup/upgrade-to-devtron.md)
 * [FAQs & Troubleshooting](hyperion/FAQs/faqs.md)
   * [Hyperion Troubleshooting](hyperion/FAQs/hyperion-troubleshoot.md)
-* [Upgrade to Devtron Full mode](hyperion/setup/upgrade-to-devtron.md)
