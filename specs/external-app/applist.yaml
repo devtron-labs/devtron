@@ -630,6 +630,9 @@ components:
         appId:
           type: integer
           description: appId
+        installedAppId:
+          type: integer
+          description: installedAppId
         environmentName:
           type: string
           description: environment Name

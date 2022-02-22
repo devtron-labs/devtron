@@ -219,6 +219,7 @@ func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *h
 			AppId:           installedApp.AppId,
 			EnvironmentName: installedApp.EnvironmentName,
 			AppOfferingMode: installedApp.AppOfferingMode,
+			InstalledAppId:  installedApp.InstalledAppId,
 		}
 	}
 
@@ -377,6 +378,7 @@ type ReleaseAndInstalledAppInfo struct {
 
 type InstalledAppInfo struct {
 	AppId           int    `json:"appId"`
+	InstalledAppId  int    `json:"installedAppId"`
 	EnvironmentName string `json:"environmentName"`
 	AppOfferingMode string `json:"appOfferingMode"`
 }
