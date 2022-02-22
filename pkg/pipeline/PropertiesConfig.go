@@ -20,6 +20,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
@@ -65,7 +66,7 @@ type PropertiesConfigService interface {
 	CreateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties) (*EnvironmentProperties, error)
 	UpdateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties, userId int32) (*EnvironmentProperties, error)
 	//create environment entry for each new environment
-	CreateIfRequired(chart *chartConfig.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride bool, namespace string, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error)
+	CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride bool, namespace string, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error)
 	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *EnvironmentPropertiesResponse, err error)
 	GetEnvironmentPropertiesById(environmentId int) ([]EnvironmentProperties, error)
 
@@ -79,7 +80,7 @@ type PropertiesConfigService interface {
 type PropertiesConfigServiceImpl struct {
 	logger                       *zap.SugaredLogger
 	envConfigRepo                chartConfig.EnvConfigOverrideRepository
-	chartRepo                    chartConfig.ChartRepository
+	chartRepo                    chartRepoRepository.ChartRepository
 	mergeUtil                    util.MergeUtil
 	environmentRepository        repository2.EnvironmentRepository
 	dbPipelineOrchestrator       DbPipelineOrchestrator
@@ -90,7 +91,7 @@ type PropertiesConfigServiceImpl struct {
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
-	chartRepo chartConfig.ChartRepository,
+	chartRepo chartRepoRepository.ChartRepository,
 	mergeUtil util.MergeUtil,
 	environmentRepository repository2.EnvironmentRepository,
 	dbPipelineOrchestrator DbPipelineOrchestrator,
@@ -356,7 +357,7 @@ func (impl PropertiesConfigServiceImpl) buildAppMetricsJson() ([]byte, error) {
 	return appMetricsJson, nil
 }
 
-func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride bool, namespace string, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error) {
+func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride bool, namespace string, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error) {
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
 		return nil, err

@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
+	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -17,17 +19,19 @@ import (
 )
 
 type MuxRouter struct {
-	Router               *mux.Router
-	logger               *zap.SugaredLogger
-	ssoLoginRouter       sso.SsoLoginRouter
-	teamRouter           team.TeamRouter
-	UserAuthRouter       user.UserAuthRouter
-	userRouter           user.UserRouter
-	clusterRouter        cluster.ClusterRouter
-	dashboardRouter      dashboard.DashboardRouter
-	helmAppRouter        client.HelmAppRouter
-	environmentRouter    cluster.EnvironmentRouter
-	k8sApplicationRouter k8s.K8sApplicationRouter
+	Router                 *mux.Router
+	logger                 *zap.SugaredLogger
+	ssoLoginRouter         sso.SsoLoginRouter
+	teamRouter             team.TeamRouter
+	UserAuthRouter         user.UserAuthRouter
+	userRouter             user.UserRouter
+	clusterRouter          cluster.ClusterRouter
+	dashboardRouter        dashboard.DashboardRouter
+	helmAppRouter          client.HelmAppRouter
+	environmentRouter      cluster.EnvironmentRouter
+	k8sApplicationRouter   k8s.K8sApplicationRouter
+	chartRepositoryRouter  chartRepo.ChartRepositoryRouter
+	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter
 }
 
 func NewMuxRouter(
@@ -41,20 +45,24 @@ func NewMuxRouter(
 	helmAppRouter client.HelmAppRouter,
 	environmentRouter cluster.EnvironmentRouter,
 	k8sApplicationRouter k8s.K8sApplicationRouter,
+	chartRepositoryRouter chartRepo.ChartRepositoryRouter,
+	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 
 ) *MuxRouter {
 	r := &MuxRouter{
-		Router:               mux.NewRouter(),
-		logger:               logger,
-		ssoLoginRouter:       ssoLoginRouter,
-		teamRouter:           teamRouter,
-		UserAuthRouter:       UserAuthRouter,
-		userRouter:           userRouter,
-		clusterRouter:        clusterRouter,
-		dashboardRouter:      dashboardRouter,
-		helmAppRouter:        helmAppRouter,
-		environmentRouter:    environmentRouter,
-		k8sApplicationRouter: k8sApplicationRouter,
+		Router:                 mux.NewRouter(),
+		logger:                 logger,
+		ssoLoginRouter:         ssoLoginRouter,
+		teamRouter:             teamRouter,
+		UserAuthRouter:         UserAuthRouter,
+		userRouter:             userRouter,
+		clusterRouter:          clusterRouter,
+		dashboardRouter:        dashboardRouter,
+		helmAppRouter:          helmAppRouter,
+		environmentRouter:      environmentRouter,
+		k8sApplicationRouter:   k8sApplicationRouter,
+		chartRepositoryRouter:  chartRepositoryRouter,
+		appStoreDiscoverRouter: appStoreDiscoverRouter,
 	}
 	return r
 }
@@ -114,4 +122,13 @@ func (r *MuxRouter) Init() {
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
 	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
 
+	// chart-repo router starts
+	chartRepoRouter := r.Router.PathPrefix("/orchestrator/chart-repo").Subrouter()
+	r.chartRepositoryRouter.Init(chartRepoRouter)
+	// chart-repo router ends
+
+	// discover router starts
+	appStoreDiscoverSubRouter := r.Router.PathPrefix("/orchestrator/app-store/discover").Subrouter()
+	r.appStoreDiscoverRouter.Init(appStoreDiscoverSubRouter)
+	// discover router ends
 }

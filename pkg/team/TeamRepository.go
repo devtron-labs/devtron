@@ -36,7 +36,8 @@ type TeamRepository interface {
 	FindOne(id int) (Team, error)
 	FindByTeamName(name string) (Team, error)
 	Update(team *Team) error
-
+	MarkTeamDeleted(team *Team, tx *pg.Tx) error
+	GetConnection() *pg.DB
 	FindByIds(ids []*int) ([]*Team, error)
 }
 type TeamRepositoryImpl struct {
@@ -62,14 +63,16 @@ func (impl TeamRepositoryImpl) FindAllActive() ([]Team, error) {
 func (impl TeamRepositoryImpl) FindOne(id int) (Team, error) {
 	var team Team
 	err := impl.dbConnection.Model(&team).
-		Where("id = ?", id).Select()
+		Where("id = ?", id).
+		Where("active = ?", true).Select()
 	return team, err
 }
 
 func (impl TeamRepositoryImpl) FindByTeamName(name string) (Team, error) {
 	var team Team
 	err := impl.dbConnection.Model(&team).
-		Where("name = ?", name).Select()
+		Where("name = ?", name).
+		Where("active = ?", true).Select()
 	return team, err
 }
 
@@ -78,11 +81,22 @@ func (impl TeamRepositoryImpl) Update(team *Team) error {
 	return err
 }
 
+func (impl TeamRepositoryImpl) MarkTeamDeleted(team *Team, tx *pg.Tx) error {
+	team.Active = false
+	err := tx.Update(team)
+	return err
+}
+
 func (repo TeamRepositoryImpl) FindByIds(ids []*int) ([]*Team, error) {
 	var objects []*Team
 	err := repo.dbConnection.Model(&objects).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
 	return objects, err
 }
+
+func (repo TeamRepositoryImpl) GetConnection() *pg.DB {
+	return repo.dbConnection
+}
+
 
 type TeamRbacObjects struct {
 	AppName  string `json:"appName"`
