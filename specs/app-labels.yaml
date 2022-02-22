@@ -154,13 +154,14 @@ paths:
                 type: string
     delete:
       description: delete pre or post cicd scripts to the database
-      requestBody:
-        description: json as request body
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Plugin'
+      parameters:
+        - name: id
+          in: path
+          description: ID of plugin
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
         '200':
           description: deletion response.
@@ -176,19 +177,14 @@ paths:
                 type: string
     get:
       description: find pre or post cicd scripts to the database
-      requestBody:
-        description: scripts ids
-        required: true
-        content:
-          application/json:
-            schema:
-              type: integer
-              required:
-                - Id
-              properties:
-                Id:
-                  type: integer
-                  description: application id
+      parameters:
+        - name: id
+          in: path
+          description: ID of plugin
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
         '200':
           description: app labels edit response

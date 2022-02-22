@@ -17,7 +17,7 @@ type PluginRepository interface {
 	Save(plugin *Plugin) error
 	FindByAppId(pluginId int) (*Plugin, error)
 	Update(plugin *Plugin) error
-	Delete(plugin *Plugin) error
+	Delete(pluginId int) error
 }
 
 type PluginRepositoryImpl struct {
@@ -37,7 +37,7 @@ func (impl *PluginRepositoryImpl) FindByAppId(pluginId int) (*Plugin, error) {
 	plugin := &Plugin{}
 	err := impl.dbConnection.Model(plugin).Where("id = ? ", pluginId).Select()
 	if err != nil {
-		println(err)
+		impl.logger.Errorw("Plugin not found for given Id", "err", err)
 	}
 	return plugin, err
 }
@@ -47,7 +47,14 @@ func (impl *PluginRepositoryImpl) Update(plugin *Plugin) error {
 	return err
 }
 
-func (impl *PluginRepositoryImpl) Delete(plugin *Plugin) error {
-	err := impl.dbConnection.Delete(plugin)
+func (impl *PluginRepositoryImpl) Delete(pluginId int) error {
+	plugin, err := impl.FindByAppId(pluginId)
+	if err != nil {
+		impl.logger.Errorw("Plugin not found for given Id", "err", err)
+	}
+	err = impl.dbConnection.Delete(plugin)
+	if err != nil {
+		impl.logger.Errorw("Plugin couldn't be deleted", "err", err)
+	}
 	return err
 }

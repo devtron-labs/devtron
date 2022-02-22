@@ -21,8 +21,10 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 )
 
 type PluginRestHandler interface {
@@ -64,7 +66,7 @@ func (handler PluginRestHandlerImpl) SavePlugin(w http.ResponseWriter, r *http.R
 	var bean plugin
 	err := decoder.Decode(&bean)
 	if err != nil {
-		println(err)
+		common.WriteJsonResp(w, err, "Plugin Id couldn't be parsed from input", http.StatusBadRequest)
 	}
 	test := &repository.Plugin{
 		Id:          bean.Id,
@@ -73,9 +75,9 @@ func (handler PluginRestHandlerImpl) SavePlugin(w http.ResponseWriter, r *http.R
 	}
 	err = handler.repository.Save(test)
 	if err != nil {
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "Plugin couldn't be saved", http.StatusInternalServerError)
 	}
-	common.WriteJsonResp(w, err, "", http.StatusOK)
+	common.WriteJsonResp(w, err, "Stored Successfully", http.StatusOK)
 }
 
 func (handler PluginRestHandlerImpl) UpdatePlugin(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +87,8 @@ func (handler PluginRestHandlerImpl) UpdatePlugin(w http.ResponseWriter, r *http
 	var bean plugin
 	err := decoder.Decode(&bean)
 	if err != nil {
-		println(err)
+		handler.logger.Errorw("decode err", "err", err)
+		common.WriteJsonResp(w, err, "Plugin Id couldn't be parsed from input", http.StatusBadRequest)
 	}
 
 	test := &repository.Plugin{
@@ -95,47 +98,39 @@ func (handler PluginRestHandlerImpl) UpdatePlugin(w http.ResponseWriter, r *http
 	}
 	err = handler.repository.Update(test)
 	if err != nil {
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "Plugin couldn't be updated", http.StatusInternalServerError)
 	}
-	common.WriteJsonResp(w, err, "", http.StatusOK)
+	common.WriteJsonResp(w, err, "Update Successful", http.StatusOK)
 }
 
 func (handler PluginRestHandlerImpl) FindByPlugin(w http.ResponseWriter, r *http.Request) {
-	//for checking
-	decoder := json.NewDecoder(r.Body)
-	println(decoder)
-	var bean plugin
-	err := decoder.Decode(&bean)
+	vars := mux.Vars(r)
+	/* #nosec */
+	id, err := strconv.Atoi(vars["Id"])
 	if err != nil {
-		println(err)
+		handler.logger.Errorw("decode err", "err", err)
+		common.WriteJsonResp(w, err, "Plugin Id couldn't be parsed from input", http.StatusBadRequest)
 	}
-
-	values, err := handler.repository.FindByAppId(bean.Id)
-	println(values)
+	values, err := handler.repository.FindByAppId(id)
 	if err != nil {
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "Plugin not found", http.StatusInternalServerError)
 	}
-	common.WriteJsonResp(w, err, "", http.StatusOK)
+	common.WriteJsonResp(w, err, values, http.StatusOK)
 }
 
 func (handler PluginRestHandlerImpl) DeletePlugin(w http.ResponseWriter, r *http.Request) {
 	//for checking
-	decoder := json.NewDecoder(r.Body)
-	println(decoder)
-	var bean plugin
-	err := decoder.Decode(&bean)
+	vars := mux.Vars(r)
+	/* #nosec */
+	id, err := strconv.Atoi(vars["Id"])
 	if err != nil {
-		println(err)
+		handler.logger.Errorw("decode err", "err", err)
+		common.WriteJsonResp(w, err, "Plugin Id couldn't be parsed from input", http.StatusBadRequest)
 	}
 
-	test := &repository.Plugin{
-		Id:          bean.Id,
-		Name:        bean.Name,
-		Description: bean.Description,
-	}
-	err = handler.repository.Delete(test)
+	err = handler.repository.Delete(id)
 	if err != nil {
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, "Plugin couldn't be deleted", http.StatusInternalServerError)
 	}
-	common.WriteJsonResp(w, err, "", http.StatusOK)
+	common.WriteJsonResp(w, err, "Delete Successful", http.StatusOK)
 }
