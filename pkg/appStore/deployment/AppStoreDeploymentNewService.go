@@ -47,7 +47,6 @@ type AppStoreDeploymentService interface {
 	GetInstalledApp(id int) (*appStoreBean.InstallAppVersionDTO, error)
 	GetAllInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request, token string, appStoreId int) ([]appStoreBean.InstalledAppsResponse, error)
 	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
-	GetInstalledAppByClusterNamespaceAndName(clusterId int, namespace string, appName string) (*appStoreBean.InstallAppVersionDTO, error)
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -443,28 +442,6 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 	}
 
 	return installAppVersionRequest, nil
-}
-
-func (impl AppStoreDeploymentServiceImpl) GetInstalledAppByClusterNamespaceAndName(clusterId int, namespace string, appName string) (*appStoreBean.InstallAppVersionDTO, error) {
-	installedApps, err := impl.installedAppRepository.GetClusterComponentByClusterId(clusterId)
-
-	if err != nil {
-		if err == pg.ErrNoRows {
-			impl.logger.Warnw("no installed apps found", "clusterId", clusterId)
-			return nil, nil
-		} else {
-			impl.logger.Errorw("error while fetching installed apps", "clusterId", clusterId, "error", err)
-			return nil, err
-		}
-	}
-
-	for _, installedApp := range installedApps {
-		if namespace == installedApp.Environment.Namespace && appName == installedApp.App.AppName {
-			return impl.chartAdaptor2(installedApp), nil
-		}
-	}
-
-	return nil, nil
 }
 
 func (impl AppStoreDeploymentServiceImpl) createEnvironmentIfNotExists(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (int, error) {

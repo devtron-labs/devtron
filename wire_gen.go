@@ -55,6 +55,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore"
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/appStore/discover"
@@ -489,7 +490,8 @@ func InitializeApp() (*App, error) {
 	}
 	helmAppClientImpl := client4.NewHelmAppClientImpl(sugaredLogger, helmClientConfig)
 	helmAppServiceImpl := client4.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImplExtended, helmAppClientImpl, pumpImpl, enforcerUtilHelmImpl)
-	helmAppRestHandlerImpl := client4.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enforcerImpl, clusterServiceImplExtended, enforcerUtilHelmImpl)
+	appStoreDeploymentCommonServiceImpl := appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl(sugaredLogger, installedAppRepositoryImpl)
+	helmAppRestHandlerImpl := client4.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enforcerImpl, clusterServiceImplExtended, enforcerUtilHelmImpl, appStoreDeploymentCommonServiceImpl)
 	helmAppRouterImpl := client4.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
 	k8sClientServiceImpl := application2.NewK8sClientServiceImpl(sugaredLogger, clusterRepositoryImpl)
 	k8sApplicationServiceImpl := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImplExtended, pumpImpl, k8sClientServiceImpl, helmAppServiceImpl)

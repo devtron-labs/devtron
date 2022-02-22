@@ -6,7 +6,7 @@ import (
 	"errors"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
@@ -32,24 +32,24 @@ type HelmAppRestHandler interface {
 }
 
 type HelmAppRestHandlerImpl struct {
-	logger                    *zap.SugaredLogger
-	helmAppService            HelmAppService
-	enforcer                  casbin.Enforcer
-	clusterService            cluster.ClusterService
-	enforcerUtil              rbac.EnforcerUtilHelm
-	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService
+	logger                          *zap.SugaredLogger
+	helmAppService                  HelmAppService
+	enforcer                        casbin.Enforcer
+	clusterService                  cluster.ClusterService
+	enforcerUtil                    rbac.EnforcerUtilHelm
+	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService
 }
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 	helmAppService HelmAppService, enforcer casbin.Enforcer,
-	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm, appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService) *HelmAppRestHandlerImpl {
+	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
-		logger:                    logger,
-		helmAppService:            helmAppService,
-		enforcer:                  enforcer,
-		clusterService:            clusterService,
-		enforcerUtil:              enforcerUtil,
-		appStoreDeploymentService: appStoreDeploymentService,
+		logger:                          logger,
+		helmAppService:                  helmAppService,
+		enforcer:                        enforcer,
+		clusterService:                  clusterService,
+		enforcerUtil:                    enforcerUtil,
+		appStoreDeploymentCommonService: appStoreDeploymentCommonService,
 	}
 }
 
@@ -205,7 +205,7 @@ func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *h
 		return
 	}
 
-	installedApp, err := handler.appStoreDeploymentService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	installedApp, err := handler.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -216,7 +216,7 @@ func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *h
 
 	if installedApp != nil {
 		res.InstalledAppInfo = &InstalledAppInfo{
-			AppId: installedApp.AppId,
+			AppId:           installedApp.AppId,
 			EnvironmentName: installedApp.EnvironmentName,
 			AppOfferingMode: installedApp.AppOfferingMode,
 		}
