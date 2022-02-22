@@ -47,11 +47,11 @@ func (router PluginRouterImpl) initPluginRouter(pluginRouter *mux.Router) {
 		HandlerFunc(router.pluginRestHandler.UpdatePlugin).
 		Methods("PUT")
 
-	pluginRouter.Path("/plugin").
+	pluginRouter.Path("/plugin/{Id}").
 		HandlerFunc(router.pluginRestHandler.DeletePlugin).
 		Methods("DELETE")
 
-	pluginRouter.Path("/plugin").
+	pluginRouter.Path("/plugin/{Id}").
 		HandlerFunc(router.pluginRestHandler.FindByPlugin).
 		Methods("GET")
 }

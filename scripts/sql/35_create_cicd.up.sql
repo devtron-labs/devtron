@@ -14,8 +14,8 @@ CREATE TABLE public.plugin_scripts
 
 CREATE TABLE public.plugin_inputs
 (
-    "id"            INT4 NOT NULL,
-    "name"          VARCHAR(250),
+    "plugin_id"     INT4 NOT NULL,
+    "key_name"          VARCHAR(250),
     "default_value" VARCHAR(250),
-    "description"   VARCHAR(250)
+    "plugin_key_description"   VARCHAR(250)
 );

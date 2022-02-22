@@ -152,10 +152,11 @@ paths:
             application/json:
               schema:
                 type: string
+  /orchestrator/app/plugin/{Id}:
     delete:
       description: delete pre or post cicd scripts to the database
       parameters:
-        - name: id
+        - name: Id
           in: path
           description: ID of plugin
           required: true
@@ -178,7 +179,7 @@ paths:
     get:
       description: find pre or post cicd scripts to the database
       parameters:
-        - name: id
+        - name: Id
           in: path
           description: ID of plugin
           required: true

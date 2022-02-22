@@ -40,19 +40,20 @@ type PluginRestHandlerImpl struct {
 }
 
 type plugin struct {
-	Id                   int    `json:"Id"`
-	Name                 string `json:"Name"`
-	Description          string `json:"Description"`
-	Body                 string `json:"Body"`
-	StepTemplateLanguage string `json:"StepTemplateLanguage"`
-	StepTemplate         string `json:"StepTemplate"`
+	Id                   int            `json:"pluginId"`
+	Name                 string         `json:"name"`
+	Description          string         `json:"description"`
+	Body                 string         `json:"body"`
+	StepTemplateLanguage string         `json:"stepTemplateLanguage"`
+	StepTemplate         string         `json:"stepTemplate"`
+	PluginInputs         []pluginInputs `json:"pluginInputs"`
 }
 
 type pluginInputs struct {
-	Id          int    `json:"Id"`
-	Name        string `json:"Name"`
-	Value       string `json:"Value"`
-	Description string `json:"Description"`
+	Id          int    `json:"pluginId"`
+	Name        string `json:"keyName"`
+	Value       string `json:"defaultValue"`
+	Description string `json:"pluginKeyDescription"`
 }
 
 func NewPluginRestHandlerImpl(logger *zap.SugaredLogger, repository repository.PluginRepository) *PluginRestHandlerImpl {
@@ -66,13 +67,13 @@ func NewPluginRestHandlerImpl(logger *zap.SugaredLogger, repository repository.P
 func (handler PluginRestHandlerImpl) SavePlugin(w http.ResponseWriter, r *http.Request) {
 	//for checking
 	decoder := json.NewDecoder(r.Body)
-	println(decoder)
 	var bean plugin
 	err := decoder.Decode(&bean)
 	if err != nil {
 		common.WriteJsonResp(w, err, "Plugin Id couldn't be parsed from input", http.StatusBadRequest)
 	}
-	test := &repository.Plugin{
+
+	data := &repository.Plugin{
 		Id:                   bean.Id,
 		Name:                 bean.Name,
 		Description:          bean.Description,
@@ -80,7 +81,18 @@ func (handler PluginRestHandlerImpl) SavePlugin(w http.ResponseWriter, r *http.R
 		StepTemplateLanguage: bean.StepTemplateLanguage,
 		StepTemplate:         bean.StepTemplate,
 	}
-	err = handler.repository.Save(test)
+	var inputData []*repository.PluginInputs
+	for _, eachInput := range bean.PluginInputs {
+		input := &repository.PluginInputs{
+			Id:           bean.Id,
+			Name:         eachInput.Name,
+			DefaultValue: eachInput.Value,
+			Description:  eachInput.Description,
+		}
+		inputData = append(inputData, input)
+	}
+
+	err = handler.repository.Save(data, inputData)
 	if err != nil {
 		common.WriteJsonResp(w, err, "Plugin couldn't be saved", http.StatusInternalServerError)
 	}
@@ -106,7 +118,19 @@ func (handler PluginRestHandlerImpl) UpdatePlugin(w http.ResponseWriter, r *http
 		StepTemplateLanguage: bean.StepTemplateLanguage,
 		StepTemplate:         bean.StepTemplate,
 	}
-	err = handler.repository.Update(test)
+
+	var inputData []*repository.PluginInputs
+	for _, eachInput := range bean.PluginInputs {
+		input := &repository.PluginInputs{
+			Id:           bean.Id,
+			Name:         eachInput.Name,
+			DefaultValue: eachInput.Value,
+			Description:  eachInput.Description,
+		}
+		inputData = append(inputData, input)
+	}
+
+	err = handler.repository.Update(test, inputData)
 	if err != nil {
 		common.WriteJsonResp(w, err, "Plugin couldn't be updated", http.StatusInternalServerError)
 	}
@@ -121,11 +145,32 @@ func (handler PluginRestHandlerImpl) FindByPlugin(w http.ResponseWriter, r *http
 		handler.logger.Errorw("decode err", "err", err)
 		common.WriteJsonResp(w, err, "Plugin Id couldn't be parsed from input", http.StatusBadRequest)
 	}
-	values, err := handler.repository.FindByAppId(id)
+	values, params, err := handler.repository.FindByAppId(id)
 	if err != nil {
 		common.WriteJsonResp(w, err, "Plugin not found", http.StatusInternalServerError)
 	}
-	common.WriteJsonResp(w, err, values, http.StatusOK)
+
+	var inputValues []pluginInputs
+	for _, eachInput := range params {
+		input := pluginInputs{
+			Id:          eachInput.Id,
+			Name:        eachInput.Name,
+			Value:       eachInput.DefaultValue,
+			Description: eachInput.Description,
+		}
+		inputValues = append(inputValues, input)
+	}
+
+	pluginData := &plugin{
+		Id:                   values.Id,
+		Name:                 values.Name,
+		Description:          values.Description,
+		Body:                 values.Body,
+		StepTemplateLanguage: values.StepTemplateLanguage,
+		StepTemplate:         values.StepTemplate,
+		PluginInputs:         inputValues,
+	}
+	common.WriteJsonResp(w, err, pluginData, http.StatusOK)
 }
 
 func (handler PluginRestHandlerImpl) DeletePlugin(w http.ResponseWriter, r *http.Request) {
