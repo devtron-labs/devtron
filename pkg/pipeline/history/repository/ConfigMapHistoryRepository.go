@@ -1,4 +1,4 @@
-package history
+package repository
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -16,7 +16,6 @@ const (
 
 type ConfigMapHistoryRepository interface {
 	CreateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error)
-	UpdateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error)
 	GetHistoryForDeployedCMCS(pipelineId int) ([]*ConfigmapAndSecretHistory, error)
 }
 
@@ -45,15 +44,6 @@ func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(model *ConfigmapAndSecr
 	err := impl.dbConnection.Insert(model)
 	if err != nil {
 		impl.logger.Errorw("err in creating env config map/secret history entry", "err", err)
-		return model, err
-	}
-	return model, nil
-}
-
-func (impl ConfigMapHistoryRepositoryImpl) UpdateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error) {
-	err := impl.dbConnection.Update(model)
-	if err != nil {
-		impl.logger.Errorw("err in updating env config map/secret history entry", "err", err)
 		return model, err
 	}
 	return model, nil

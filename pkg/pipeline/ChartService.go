@@ -23,11 +23,11 @@ import (
 	"encoding/json"
 	"fmt"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"io/ioutil"
 	"net/http"
@@ -128,24 +128,24 @@ type ChartService interface {
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
 }
 type ChartServiceImpl struct {
-	chartRepository           chartRepoRepository.ChartRepository
-	logger                    *zap.SugaredLogger
-	repoRepository            chartRepoRepository.ChartRepoRepository
-	chartTemplateService      util.ChartTemplateService
-	pipelineGroupRepository   app.AppRepository
-	mergeUtil                 util.MergeUtil
-	repositoryService         repository.ServiceClient
-	refChartDir               RefChartDir
-	defaultChart              DefaultChart
-	chartRefRepository        chartRepoRepository.ChartRefRepository
-	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
-	pipelineConfigRepository  chartConfig.PipelineConfigRepository
-	configMapRepository       chartConfig.ConfigMapRepository
-	environmentRepository     repository4.EnvironmentRepository
-	pipelineRepository        pipelineConfig.PipelineRepository
-	appLevelMetricsRepository repository3.AppLevelMetricsRepository
-	client                    *http.Client
-	chartsHistoryService      history.ChartsHistoryService
+	chartRepository                  chartRepoRepository.ChartRepository
+	logger                           *zap.SugaredLogger
+	repoRepository                   chartRepoRepository.ChartRepoRepository
+	chartTemplateService             util.ChartTemplateService
+	pipelineGroupRepository          app.AppRepository
+	mergeUtil                        util.MergeUtil
+	repositoryService                repository.ServiceClient
+	refChartDir                      RefChartDir
+	defaultChart                     DefaultChart
+	chartRefRepository               chartRepoRepository.ChartRefRepository
+	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
+	pipelineConfigRepository         chartConfig.PipelineConfigRepository
+	configMapRepository              chartConfig.ConfigMapRepository
+	environmentRepository            repository4.EnvironmentRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
+	appLevelMetricsRepository        repository3.AppLevelMetricsRepository
+	client                           *http.Client
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 }
 
 func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -165,26 +165,26 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
 	client *http.Client,
-	chartsHistoryService history.ChartsHistoryService) *ChartServiceImpl {
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService) *ChartServiceImpl {
 	return &ChartServiceImpl{
-		chartRepository:           chartRepository,
-		logger:                    logger,
-		chartTemplateService:      chartTemplateService,
-		repoRepository:            repoRepository,
-		pipelineGroupRepository:   pipelineGroupRepository,
-		mergeUtil:                 mergeUtil,
-		refChartDir:               refChartDir,
-		defaultChart:              defaultChart,
-		repositoryService:         repositoryService,
-		chartRefRepository:        chartRefRepository,
-		envOverrideRepository:     envOverrideRepository,
-		pipelineConfigRepository:  pipelineConfigRepository,
-		configMapRepository:       configMapRepository,
-		environmentRepository:     environmentRepository,
-		pipelineRepository:        pipelineRepository,
-		appLevelMetricsRepository: appLevelMetricsRepository,
-		client:                    client,
-		chartsHistoryService:      chartsHistoryService,
+		chartRepository:                  chartRepository,
+		logger:                           logger,
+		chartTemplateService:             chartTemplateService,
+		repoRepository:                   repoRepository,
+		pipelineGroupRepository:          pipelineGroupRepository,
+		mergeUtil:                        mergeUtil,
+		refChartDir:                      refChartDir,
+		defaultChart:                     defaultChart,
+		repositoryService:                repositoryService,
+		chartRefRepository:               chartRefRepository,
+		envOverrideRepository:            envOverrideRepository,
+		pipelineConfigRepository:         pipelineConfigRepository,
+		configMapRepository:              configMapRepository,
+		environmentRepository:            environmentRepository,
+		pipelineRepository:               pipelineRepository,
+		appLevelMetricsRepository:        appLevelMetricsRepository,
+		client:                           client,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 	}
 }
 
@@ -356,8 +356,8 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
-	//creating history entry for chart
-	err = impl.chartsHistoryService.CreateChartsHistoryFromGlobalCharts(chart, nil)
+	//creating history entry for deployment template
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, templateRequest.IsAppMetricsEnabled)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for chart history", "err", err, "chart", chart)
 		return nil, err
@@ -478,8 +478,8 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		impl.logger.Errorw("error in saving chart ", "chart", chart, "error", err)
 		return nil, err
 	}
-	//creating history entry for chart
-	err = impl.chartsHistoryService.CreateChartsHistoryFromGlobalCharts(chart, nil)
+	//creating history entry for deployment template
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, templateRequest.IsAppMetricsEnabled)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for chart history", "err", err, "chart", chart)
 		return nil, err
@@ -741,8 +741,8 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 	if err != nil {
 		return nil, err
 	}
-	//creating history entry for chart
-	err = impl.chartsHistoryService.CreateChartsHistoryFromGlobalCharts(template, nil)
+	//creating history entry for deployment template
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(template, nil, templateRequest.IsAppMetricsEnabled)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for chart history", "err", err, "chart", template)
 		return nil, err

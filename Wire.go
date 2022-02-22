@@ -1,8 +1,6 @@
 //go:build wireinject
 // +build wireinject
 
-
-
 /*
  * Copyright (c) 2020 Devtron Labs
  *
@@ -56,7 +54,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/internal/sql/repository/history"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -66,6 +63,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
 	appStore "github.com/devtron-labs/devtron/pkg/appStore"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/history"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/history/repository"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -76,10 +75,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/event"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
-	history2 "github.com/devtron-labs/devtron/pkg/history"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -139,7 +139,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.PProfRestHandler), new(*restHandler.PProfRestHandlerImpl)),
 
 		router.NewPProfRouter,
-		wire.Bind(new(router.PProfRouter), new (*router.PProfRouterImpl)),
+		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
 		//---- pprof end ----
 
 		restHandler.NewPipelineRestHandler,
@@ -633,44 +633,40 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 
 		delete2.NewDeleteServiceExtendedImpl,
-		wire.Bind(new(delete2.DeleteService),new(*delete2.DeleteServiceExtendedImpl)),
+		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceExtendedImpl)),
 		delete2.NewDeleteServiceFullModeImpl,
-		wire.Bind(new(delete2.DeleteServiceFullMode),new(*delete2.DeleteServiceFullModeImpl)),
-	//	util2.NewGoJsonSchemaCustomFormatChecker,
+		wire.Bind(new(delete2.DeleteServiceFullMode), new(*delete2.DeleteServiceFullModeImpl)),
+		//	util2.NewGoJsonSchemaCustomFormatChecker,
 
 		//history starts
-		router.NewHistoryRouterImpl,
-		wire.Bind(new(router.HistoryRouter), new(*router.HistoryRouterImpl)),
+		restHandler.NewPipelineHistoryRestHandlerImpl,
+		wire.Bind(new(restHandler.PipelineHistoryRestHandler), new(*restHandler.PipelineHistoryRestHandlerImpl)),
 
-		restHandler.NewHistoryRestHandlerImpl,
-		wire.Bind(new(restHandler.HistoryRestHandler), new(*restHandler.HistoryRestHandlerImpl)),
+		repository3.NewConfigMapHistoryRepositoryImpl,
+		wire.Bind(new(repository3.ConfigMapHistoryRepository), new(*repository3.ConfigMapHistoryRepositoryImpl)),
+		repository3.NewDeploymentTemplateHistoryRepositoryImpl,
+		wire.Bind(new(repository3.DeploymentTemplateHistoryRepository), new(*repository3.DeploymentTemplateHistoryRepositoryImpl)),
+		repository4.NewChartsHistoryRepositoryImpl,
+		wire.Bind(new(repository4.AppStoreChartsHistoryRepository), new(*repository4.AppStoreChartsHistoryRepositoryImpl)),
+		repository3.NewPrePostCiScriptHistoryRepositoryImpl,
+		wire.Bind(new(repository3.PrePostCiScriptHistoryRepository), new(*repository3.PrePostCiScriptHistoryRepositoryImpl)),
+		repository3.NewPrePostCdScriptHistoryRepositoryImpl,
+		wire.Bind(new(repository3.PrePostCdScriptHistoryRepository), new(*repository3.PrePostCdScriptHistoryRepositoryImpl)),
+		repository3.NewPipelineStrategyHistoryRepositoryImpl,
+		wire.Bind(new(repository3.PipelineStrategyHistoryRepository), new(*repository3.PipelineStrategyHistoryRepositoryImpl)),
 
-		history.NewConfigMapHistoryRepositoryImpl,
-		wire.Bind(new(history.ConfigMapHistoryRepository),new(*history.ConfigMapHistoryRepositoryImpl)),
-		history.NewChartHistoryRepositoryImpl,
-		wire.Bind(new(history.ChartHistoryRepository),new(*history.ChartHistoryRepositoryImpl)),
-		history.NewInstalledAppHistoryRepositoryImpl,
-		wire.Bind(new(history.InstalledAppHistoryRepository),new(*history.InstalledAppHistoryRepositoryImpl)),
-		history.NewCiScriptHistoryRepositoryImpl,
-		wire.Bind(new(history.CiScriptHistoryRepository),new(*history.CiScriptHistoryRepositoryImpl)),
-		history.NewCdConfigHistoryRepositoryImpl,
-		wire.Bind(new(history.CdConfigHistoryRepository),new(*history.CdConfigHistoryRepositoryImpl)),
-		history.NewPipelineStrategyHistoryRepositoryImpl,
-		wire.Bind(new(history.PipelineStrategyHistoryRepository),new(*history.PipelineStrategyHistoryRepositoryImpl)),
-
-
-		history2.NewCdConfigHistoryServiceImpl,
-		wire.Bind(new(history2.CdConfigHistoryService),new(*history2.CdConfigHistoryServiceImpl)),
-		history2.NewCiScriptHistoryServiceImpl,
-		wire.Bind(new(history2.CiScriptHistoryService),new(*history2.CiScriptHistoryServiceImpl)),
-		history2.NewChartsHistoryServiceImpl,
-		wire.Bind(new(history2.ChartsHistoryService),new(*history2.ChartsHistoryServiceImpl)),
-		history2.NewConfigMapHistoryServiceImpl,
-		wire.Bind(new(history2.ConfigMapHistoryService),new(*history2.ConfigMapHistoryServiceImpl)),
-		history2.NewPipelineStrategyHistoryServiceImpl,
-		wire.Bind(new(history2.PipelineStrategyHistoryService),new(*history2.PipelineStrategyHistoryServiceImpl)),
-		history2.NewInstalledAppHistoryServiceImpl,
-		wire.Bind(new(history2.InstalledAppHistoryService),new(*history2.InstalledAppHistoryServiceImpl)),
+		history3.NewPrePostCdScriptHistoryServiceImpl,
+		wire.Bind(new(history3.PrePostCdScriptHistoryService), new(*history3.PrePostCdScriptHistoryServiceImpl)),
+		history3.NewPrePostCiScriptHistoryServiceImpl,
+		wire.Bind(new(history3.PrePostCiScriptHistoryService), new(*history3.PrePostCiScriptHistoryServiceImpl)),
+		history3.NewDeploymentTemplateHistoryServiceImpl,
+		wire.Bind(new(history3.DeploymentTemplateHistoryService), new(*history3.DeploymentTemplateHistoryServiceImpl)),
+		history3.NewConfigMapHistoryServiceImpl,
+		wire.Bind(new(history3.ConfigMapHistoryService), new(*history3.ConfigMapHistoryServiceImpl)),
+		history3.NewPipelineStrategyHistoryServiceImpl,
+		wire.Bind(new(history3.PipelineStrategyHistoryService), new(*history3.PipelineStrategyHistoryServiceImpl)),
+		history.NewAppStoreChartsHistoryServiceImpl,
+		wire.Bind(new(history.AppStoreChartsHistoryService), new(*history.AppStoreChartsHistoryServiceImpl)),
 
 		//history ends
 	//	AuthWireSet,

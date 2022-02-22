@@ -6,7 +6,7 @@ paths:
   /orchestrator/history/cm-cs/{pipelineId}:
     get:
       description: fetch history for deployed cm and cs
-      operationId: FetchDeployedCmCsHistory
+      operationId: FetchDeployedCMCSHistory
       parameters:
         - name: pipelineId
           in: path

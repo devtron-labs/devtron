@@ -24,7 +24,7 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/history"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
@@ -104,33 +104,33 @@ type PipelineBuilder interface {
 }
 
 type PipelineBuilderImpl struct {
-	logger                        *zap.SugaredLogger
-	dbPipelineOrchestrator        DbPipelineOrchestrator
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
-	materialRepo                  pipelineConfig.MaterialRepository
-	appRepo                       app2.AppRepository
-	pipelineRepository            pipelineConfig.PipelineRepository
-	propertiesConfigService       PropertiesConfigService
-	ciTemplateRepository          pipelineConfig.CiTemplateRepository
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	application                   application.ServiceClient
-	chartRepository               chartRepoRepository.ChartRepository
-	ciArtifactRepository          repository.CiArtifactRepository
-	ecrConfig                     *EcrConfig
-	envConfigOverrideRepository   chartConfig.EnvConfigOverrideRepository
-	environmentRepository         repository2.EnvironmentRepository
-	pipelineConfigRepository      chartConfig.PipelineConfigRepository
-	mergeUtil                     util.MergeUtil
-	appWorkflowRepository         appWorkflow.AppWorkflowRepository
-	ciConfig                      *CiConfig
-	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	appService                    app.AppService
-	imageScanResultRepository     security.ImageScanResultRepository
-	GitFactory                    *util.GitFactory
-	ArgoK8sClient                 argocdServer.ArgoK8sClient
-	attributesService             attributes.AttributesService
-	aCDAuthConfig                 *util3.ACDAuthConfig
-	gitOpsRepository              repository.GitOpsConfigRepository
+	logger                         *zap.SugaredLogger
+	dbPipelineOrchestrator         DbPipelineOrchestrator
+	dockerArtifactStoreRepository  repository.DockerArtifactStoreRepository
+	materialRepo                   pipelineConfig.MaterialRepository
+	appRepo                        app2.AppRepository
+	pipelineRepository             pipelineConfig.PipelineRepository
+	propertiesConfigService        PropertiesConfigService
+	ciTemplateRepository           pipelineConfig.CiTemplateRepository
+	ciPipelineRepository           pipelineConfig.CiPipelineRepository
+	application                    application.ServiceClient
+	chartRepository                chartRepoRepository.ChartRepository
+	ciArtifactRepository           repository.CiArtifactRepository
+	ecrConfig                      *EcrConfig
+	envConfigOverrideRepository    chartConfig.EnvConfigOverrideRepository
+	environmentRepository          repository2.EnvironmentRepository
+	pipelineConfigRepository       chartConfig.PipelineConfigRepository
+	mergeUtil                      util.MergeUtil
+	appWorkflowRepository          appWorkflow.AppWorkflowRepository
+	ciConfig                       *CiConfig
+	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
+	appService                     app.AppService
+	imageScanResultRepository      security.ImageScanResultRepository
+	GitFactory                     *util.GitFactory
+	ArgoK8sClient                  argocdServer.ArgoK8sClient
+	attributesService              attributes.AttributesService
+	aCDAuthConfig                  *util3.ACDAuthConfig
+	gitOpsRepository               repository.GitOpsConfigRepository
 	pipelineStrategyHistoryService history.PipelineStrategyHistoryService
 }
 
@@ -605,7 +605,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		Id:                originalCiConf.Id,
 		DockerRepository:  originalCiConf.DockerRepository,
 		DockerRegistryId:  originalCiConf.DockerRegistry,
-		Active: 		   true,
+		Active:            true,
 	}
 
 	err = impl.ciTemplateRepository.Update(ciTemplate)
@@ -1203,7 +1203,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	if err != nil {
 		return 0, err
 	}
-	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userID, false, models.CHARTSTATUS_NEW, false, pipeline.Namespace, tx)
+	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userID, false, models.CHARTSTATUS_NEW, false, pipeline.Namespace, tx, false)
 	if err != nil {
 		return 0, err
 	}

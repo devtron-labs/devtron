@@ -22,9 +22,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	history2 "github.com/devtron-labs/devtron/pkg/history"
+	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -67,30 +67,30 @@ type WorkflowDagExecutor interface {
 }
 
 type WorkflowDagExecutorImpl struct {
-	logger                     *zap.SugaredLogger
-	pipelineRepository         pipelineConfig.PipelineRepository
-	cdWorkflowRepository       pipelineConfig.CdWorkflowRepository
-	pubsubClient               *pubsub.PubSubClient
-	appService                 app.AppService
-	cdWorkflowService          CdWorkflowService
-	ciPipelineRepository       pipelineConfig.CiPipelineRepository
-	materialRepository         pipelineConfig.MaterialRepository
-	cdConfig                   *CdConfig
-	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
-	ciArtifactRepository       repository.CiArtifactRepository
-	user                       user.UserService
-	enforcer                   casbin.Enforcer
-	enforcerUtil               rbac.EnforcerUtil
-	groupRepository            repository.DeploymentGroupRepository
-	tokenCache                 *util3.TokenCache
-	acdAuthConfig              *util3.ACDAuthConfig
-	envRepository              repository2.EnvironmentRepository
-	eventFactory               client.EventFactory
-	eventClient                client.EventClient
-	cvePolicyRepository        security.CvePolicyRepository
-	scanResultRepository       security.ImageScanResultRepository
-	appWorkflowRepository      appWorkflow.AppWorkflowRepository
-	cdConfigHistoryService     history2.CdConfigHistoryService
+	logger                        *zap.SugaredLogger
+	pipelineRepository            pipelineConfig.PipelineRepository
+	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
+	pubsubClient                  *pubsub.PubSubClient
+	appService                    app.AppService
+	cdWorkflowService             CdWorkflowService
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	materialRepository            pipelineConfig.MaterialRepository
+	cdConfig                      *CdConfig
+	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
+	ciArtifactRepository          repository.CiArtifactRepository
+	user                          user.UserService
+	enforcer                      casbin.Enforcer
+	enforcerUtil                  rbac.EnforcerUtil
+	groupRepository               repository.DeploymentGroupRepository
+	tokenCache                    *util3.TokenCache
+	acdAuthConfig                 *util3.ACDAuthConfig
+	envRepository                 repository2.EnvironmentRepository
+	eventFactory                  client.EventFactory
+	eventClient                   client.EventClient
+	cvePolicyRepository           security.CvePolicyRepository
+	scanResultRepository          security.ImageScanResultRepository
+	appWorkflowRepository         appWorkflow.AppWorkflowRepository
+	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
 }
 
 type CiArtifactDTO struct {
@@ -144,31 +144,31 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	cdConfigHistoryService history2.CdConfigHistoryService) *WorkflowDagExecutorImpl {
+	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
-		pipelineRepository:         pipelineRepository,
-		cdWorkflowRepository:       cdWorkflowRepository,
-		pubsubClient:               pubsubClient,
-		appService:                 appService,
-		cdWorkflowService:          cdWorkflowService,
-		ciPipelineRepository:       ciPipelineRepository,
-		cdConfig:                   cdConfig,
-		ciArtifactRepository:       ciArtifactRepository,
-		materialRepository:         materialRepository,
-		pipelineOverrideRepository: pipelineOverrideRepository,
-		user:                       user,
-		enforcer:                   enforcer,
-		enforcerUtil:               enforcerUtil,
-		groupRepository:            groupRepository,
-		tokenCache:                 tokenCache,
-		acdAuthConfig:              acdAuthConfig,
-		envRepository:              envRepository,
-		eventFactory:               eventFactory,
-		eventClient:                eventClient,
-		cvePolicyRepository:        cvePolicyRepository,
-		scanResultRepository:       scanResultRepository,
-		appWorkflowRepository:      appWorkflowRepository,
-		cdConfigHistoryService:     cdConfigHistoryService,
+		pipelineRepository:            pipelineRepository,
+		cdWorkflowRepository:          cdWorkflowRepository,
+		pubsubClient:                  pubsubClient,
+		appService:                    appService,
+		cdWorkflowService:             cdWorkflowService,
+		ciPipelineRepository:          ciPipelineRepository,
+		cdConfig:                      cdConfig,
+		ciArtifactRepository:          ciArtifactRepository,
+		materialRepository:            materialRepository,
+		pipelineOverrideRepository:    pipelineOverrideRepository,
+		user:                          user,
+		enforcer:                      enforcer,
+		enforcerUtil:                  enforcerUtil,
+		groupRepository:               groupRepository,
+		tokenCache:                    tokenCache,
+		acdAuthConfig:                 acdAuthConfig,
+		envRepository:                 envRepository,
+		eventFactory:                  eventFactory,
+		eventClient:                   eventClient,
+		cvePolicyRepository:           cvePolicyRepository,
+		scanResultRepository:          scanResultRepository,
+		appWorkflowRepository:         appWorkflowRepository,
+		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
 	}
 	err := wde.Subscribe()
 	if err != nil {
@@ -384,7 +384,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
 	}
 	//creating cd config history entry
-	err = impl.cdConfigHistoryService.CreateCdConfigHistory(pipeline, nil, history.PRE_CD_TYPE, true, triggeredBy, triggeredAt)
+	err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, nil, repository3.PRE_CD_TYPE, true, triggeredBy, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in creating pre cd config entry", "err", err, "pipeline", pipeline)
 		return err
@@ -453,7 +453,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
 	}
 	//creating cd config history entry
-	err = impl.cdConfigHistoryService.CreateCdConfigHistory(pipeline, nil, history.POST_CD_TYPE, true, triggeredBy, triggeredAt)
+	err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, nil, repository3.POST_CD_TYPE, true, triggeredBy, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in creating post cd config entry", "err", err, "pipeline", pipeline)
 		return err

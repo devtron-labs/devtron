@@ -19,7 +19,7 @@ package pipeline
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/history"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -40,34 +40,34 @@ type CiService interface {
 }
 
 type CiServiceImpl struct {
-	Logger                       *zap.SugaredLogger
-	workflowService              WorkflowService
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
-	ciConfig                     *CiConfig
-	eventClient                  client.EventClient
-	eventFactory                 client.EventFactory
-	mergeUtil                    *util.MergeUtil
-	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	ciScriptHistoryService       history.CiScriptHistoryService
+	Logger                        *zap.SugaredLogger
+	workflowService               WorkflowService
+	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	ciConfig                      *CiConfig
+	eventClient                   client.EventClient
+	eventFactory                  client.EventFactory
+	mergeUtil                     *util.MergeUtil
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, ciConfig *CiConfig, eventClient client.EventClient,
 	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	ciScriptHistoryService history.CiScriptHistoryService) *CiServiceImpl {
+	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService) *CiServiceImpl {
 	return &CiServiceImpl{
-		Logger:                       Logger,
-		workflowService:              workflowService,
-		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
-		ciWorkflowRepository:         ciWorkflowRepository,
-		ciConfig:                     ciConfig,
-		eventClient:                  eventClient,
-		eventFactory:                 eventFactory,
-		mergeUtil:                    mergeUtil,
-		ciPipelineRepository:         ciPipelineRepository,
-		ciScriptHistoryService:       ciScriptHistoryService,
+		Logger:                        Logger,
+		workflowService:               workflowService,
+		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		ciConfig:                      ciConfig,
+		eventClient:                   eventClient,
+		eventFactory:                  eventFactory,
+		mergeUtil:                     mergeUtil,
+		ciPipelineRepository:          ciPipelineRepository,
+		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 	}
 }
 
@@ -137,7 +137,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
 	//creating entry of ci script history for build details
 	for _, ciPipelineScript := range ciPipelineScripts {
-		_, err = impl.ciScriptHistoryService.CreateCiScriptHistory(ciPipelineScript, nil, true, trigger.TriggeredBy, time.Now())
+		_, err = impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, nil, true, trigger.TriggeredBy, time.Now())
 		if err != nil {
 			impl.Logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
 			return 0, err

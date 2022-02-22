@@ -1,4 +1,4 @@
-package history
+package repository
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -11,7 +11,6 @@ import (
 type PipelineStrategyHistoryRepository interface {
 	CreateHistory(model *PipelineStrategyHistory) (*PipelineStrategyHistory, error)
 	CreateHistoryWithTxn(model *PipelineStrategyHistory, tx *pg.Tx) (*PipelineStrategyHistory, error)
-	UpdateHistory(model *PipelineStrategyHistory) (*PipelineStrategyHistory, error)
 	GetHistoryForDeployedStrategy(pipelineId int) ([]*PipelineStrategyHistory, error)
 }
 
@@ -50,15 +49,6 @@ func (impl PipelineStrategyHistoryRepositoryImpl) CreateHistoryWithTxn(model *Pi
 	err := tx.Insert(model)
 	if err != nil {
 		impl.logger.Errorw("err in creating strategy history entry", "err", err)
-		return model, err
-	}
-	return model, nil
-}
-
-func (impl PipelineStrategyHistoryRepositoryImpl) UpdateHistory(model *PipelineStrategyHistory) (*PipelineStrategyHistory, error) {
-	err := impl.dbConnection.Update(model)
-	if err != nil {
-		impl.logger.Errorw("err in updating strategy history entry", "err", err)
 		return model, err
 	}
 	return model, nil

@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/history"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
-	history2 "github.com/devtron-labs/devtron/pkg/history"
+	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -280,7 +280,7 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *ConfigDataR
 		}
 		configMapRequest.Id = configMap.Id
 	}
-	err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, history.CONFIGMAP_TYPE)
+	err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, repository.CONFIGMAP_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for configmap history", "err", err)
 		return nil, err
@@ -409,7 +409,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *Config
 		}
 		configMapRequest.Id = configMap.Id
 	}
-	err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, history.CONFIGMAP_TYPE)
+	err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, repository.CONFIGMAP_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for CM/CS history in bulk update", "err", err)
 		return nil, err
@@ -595,7 +595,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *ConfigDataR
 		}
 		configMapRequest.Id = secret.Id
 	}
-	err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, history.SECRET_TYPE)
+	err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, repository.SECRET_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for secret history", "err", err)
 		return nil, err
@@ -769,7 +769,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *Config
 		}
 		configMapRequest.Id = configMap.Id
 	}
-	err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, history.SECRET_TYPE)
+	err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, repository.SECRET_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for CM/CS history in bulk update", "err", err)
 		return nil, err
@@ -990,7 +990,7 @@ func (impl ConfigMapServiceImpl) CMGlobalDelete(name string, id int, userId int3
 			impl.logger.Errorw("error while updating at app level", "error", err)
 			return false, err
 		}
-		err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, history.CONFIGMAP_TYPE)
+		err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, repository.CONFIGMAP_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for configmap history", "err", err)
 			return false, err
@@ -1042,7 +1042,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDelete(name string, id int, userId
 			impl.logger.Errorw("error while updating at env level", "error", err)
 			return false, err
 		}
-		err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, history.CONFIGMAP_TYPE)
+		err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, repository.CONFIGMAP_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for configmap env history", "err", err)
 			return false, err
@@ -1093,7 +1093,7 @@ func (impl ConfigMapServiceImpl) CSGlobalDelete(name string, id int, userId int3
 			impl.logger.Errorw("error while updating at app level", "error", err)
 			return false, err
 		}
-		err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, history.SECRET_TYPE)
+		err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, repository.SECRET_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for secret history", "err", err)
 			return false, err
@@ -1145,7 +1145,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentDelete(name string, id int, userId
 			impl.logger.Errorw("error while updating at env level ", "error", err)
 			return false, err
 		}
-		err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, history.SECRET_TYPE)
+		err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, repository.SECRET_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for secret env history", "err", err)
 			return false, err
@@ -1566,7 +1566,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *B
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
 		}
-		err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, history.CONFIGMAP_TYPE)
+		err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(model, repository.CONFIGMAP_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for global CM/CS history in bulk update", "err", err)
 			return nil, err
@@ -1656,7 +1656,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchReque
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
 		}
-		err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, history.CONFIGMAP_TYPE)
+		err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(model, repository.CONFIGMAP_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for env CM/CS history in bulk update", "err", err)
 			return nil, err

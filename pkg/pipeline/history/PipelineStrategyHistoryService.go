@@ -2,7 +2,7 @@ package history
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/history"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -10,26 +10,26 @@ import (
 )
 
 type PipelineStrategyHistoryService interface {
-	CreatePipelineStrategyHistory(pipelineStrategy *chartConfig.PipelineStrategy, tx *pg.Tx) (historyModel *history.PipelineStrategyHistory, err error)
+	CreatePipelineStrategyHistory(pipelineStrategy *chartConfig.PipelineStrategy, tx *pg.Tx) (historyModel *repository.PipelineStrategyHistory, err error)
 	CreateStrategyHistoryForDeploymentTrigger(strategy *chartConfig.PipelineStrategy, deployedOn time.Time, deployedBy int32) error
 	GetHistoryForDeployedStrategy(pipelineId int) ([]*PipelineStrategyHistoryDto, error)
 }
 
 type PipelineStrategyHistoryServiceImpl struct {
 	logger                            *zap.SugaredLogger
-	pipelineStrategyHistoryRepository history.PipelineStrategyHistoryRepository
+	pipelineStrategyHistoryRepository repository.PipelineStrategyHistoryRepository
 }
 
-func NewPipelineStrategyHistoryServiceImpl(logger *zap.SugaredLogger, pipelineStrategyHistoryRepository history.PipelineStrategyHistoryRepository) *PipelineStrategyHistoryServiceImpl {
+func NewPipelineStrategyHistoryServiceImpl(logger *zap.SugaredLogger, pipelineStrategyHistoryRepository repository.PipelineStrategyHistoryRepository) *PipelineStrategyHistoryServiceImpl {
 	return &PipelineStrategyHistoryServiceImpl{
 		logger:                            logger,
 		pipelineStrategyHistoryRepository: pipelineStrategyHistoryRepository,
 	}
 }
 
-func (impl PipelineStrategyHistoryServiceImpl) CreatePipelineStrategyHistory(pipelineStrategy *chartConfig.PipelineStrategy, tx *pg.Tx) (historyModel *history.PipelineStrategyHistory, err error) {
+func (impl PipelineStrategyHistoryServiceImpl) CreatePipelineStrategyHistory(pipelineStrategy *chartConfig.PipelineStrategy, tx *pg.Tx) (historyModel *repository.PipelineStrategyHistory, err error) {
 	//creating new entry
-	historyModel = &history.PipelineStrategyHistory{
+	historyModel = &repository.PipelineStrategyHistory{
 		PipelineId: pipelineStrategy.PipelineId,
 		Strategy:   pipelineStrategy.Strategy,
 		Config:     pipelineStrategy.Config,
@@ -56,7 +56,7 @@ func (impl PipelineStrategyHistoryServiceImpl) CreatePipelineStrategyHistory(pip
 
 func (impl PipelineStrategyHistoryServiceImpl) CreateStrategyHistoryForDeploymentTrigger(pipelineStrategy *chartConfig.PipelineStrategy, deployedOn time.Time, deployedBy int32) error {
 	//creating new entry
-	historyModel := &history.PipelineStrategyHistory{
+	historyModel := &repository.PipelineStrategyHistory{
 		PipelineId: pipelineStrategy.PipelineId,
 		Strategy:   pipelineStrategy.Strategy,
 		Config:     pipelineStrategy.Config,
@@ -65,10 +65,10 @@ func (impl PipelineStrategyHistoryServiceImpl) CreateStrategyHistoryForDeploymen
 		DeployedBy: deployedBy,
 		DeployedOn: deployedOn,
 		AuditLog: sql.AuditLog{
-			CreatedOn: pipelineStrategy.CreatedOn,
-			CreatedBy: pipelineStrategy.CreatedBy,
-			UpdatedOn: pipelineStrategy.UpdatedOn,
-			UpdatedBy: pipelineStrategy.UpdatedBy,
+			CreatedOn: deployedOn,
+			CreatedBy: deployedBy,
+			UpdatedOn: deployedOn,
+			UpdatedBy: deployedBy,
 		},
 	}
 	_, err := impl.pipelineStrategyHistoryRepository.CreateHistory(historyModel)

@@ -25,9 +25,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/history"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -119,7 +119,7 @@ type InstalledAppServiceImpl struct {
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
-	installedAppHistoryService           history.InstalledAppHistoryService
+	appStoreChartsHistoryService         history.AppStoreChartsHistoryService
 	userService                          user.UserService
 }
 
@@ -139,7 +139,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	clusterInstalledAppsRepository appStoreRepository.ClusterInstalledAppsRepository,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository,
-	installedAppHistoryService history.InstalledAppHistoryService, userService user.UserService) (*InstalledAppServiceImpl, error) {
+	appStoreChartsHistoryService history.AppStoreChartsHistoryService, userService user.UserService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -161,7 +161,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		gitFactory:                           gitFactory,
 		aCDAuthConfig:                        aCDAuthConfig,
 		gitOpsRepository:                     gitOpsRepository,
-		installedAppHistoryService:           installedAppHistoryService,
+		appStoreChartsHistoryService:         appStoreChartsHistoryService,
 		userService:                          userService,
 	}
 	err := impl.Subscribe()
@@ -286,7 +286,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	}
 
 	//STEP 8 : creating entry for installed app history
-	_, err = impl.installedAppHistoryService.CreateInstalledAppHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, tx)
+	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating install app history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err
@@ -1403,7 +1403,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionR
 			return nil, err
 		}
 	}
-	_, err = impl.installedAppHistoryService.CreateInstalledAppHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, tx)
+	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating install app history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err

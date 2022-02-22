@@ -17,14 +17,15 @@ type ConfigMapAndSecretHistoryDto struct {
 	sql.AuditLog
 }
 
-type CdConfigHistoryDto struct {
+type PrePostCdScriptHistoryDto struct {
 	Id                   int                              `json:"id"`
 	PipelineId           int                              `json:"pipelineId"`
-	Config               string                           `json:"config"`
+	Script               string                           `json:"script"`
 	Stage                string                           `json:"stage"`
 	ConfigMapSecretNames PrePostStageConfigMapSecretNames `json:"configmapSecretNames"`
 	ConfigMapData        []*ConfigData                    `json:"configmapData"`
 	SecretData           []*ConfigData                    `json:"secretData"`
+	TriggerType          string                           `json:"triggerType"`
 	ExecInEnv            bool                             `json:"execInEnv"`
 	Deployed             bool                             `json:"deployed"`
 	DeployedOn           time.Time                        `json:"deployedOn"`
@@ -37,11 +38,14 @@ type PrePostStageConfigMapSecretNames struct {
 	Secrets    []string `json:"secrets"`
 }
 
-type ChartsHistoryDto struct {
+type DeploymentTemplateHistoryDto struct {
 	Id                      int       `json:"id"`
 	PipelineId              int       `json:"pipelineId,"`
 	ImageDescriptorTemplate string    `json:"imageDescriptorTemplate"`
 	Template                string    `json:"template"`
+	TemplateName            string    `json:"templateName"`
+	TemplateVersion         string    `json:"templateVersion"`
+	IsAppMetricsEnabled     bool      `json:"isAppMetricsEnabled"`
 	TargetEnvironment       int       `json:"targetEnvironment"`
 	Deployed                bool      `json:"deployed"`
 	DeployedOn              time.Time `json:"deployedOn"`
@@ -63,7 +67,7 @@ type PipelineStrategyHistoryDto struct {
 
 // duplicate structs below, because importing from pkg/pipeline was resulting in circular dependency
 
-type ConfigsList struct {
+type ConfigList struct {
 	ConfigData []*ConfigData `json:"maps"`
 }
 

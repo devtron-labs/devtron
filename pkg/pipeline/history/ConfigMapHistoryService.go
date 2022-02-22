@@ -3,8 +3,8 @@ package history
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/history"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -12,22 +12,22 @@ import (
 )
 
 type ConfigMapHistoryService interface {
-	CreateHistoryFromAppLevelConfig(appLevelConfig *chartConfig.ConfigMapAppModel, configType history.ConfigType) error
-	CreateHistoryFromEnvLevelConfig(envLevelConfig *chartConfig.ConfigMapEnvModel, configType history.ConfigType) error
+	CreateHistoryFromAppLevelConfig(appLevelConfig *chartConfig.ConfigMapAppModel, configType repository.ConfigType) error
+	CreateHistoryFromEnvLevelConfig(envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType) error
 	CreateConfigMapHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) error
-	MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType history.ConfigType, filterNameMap map[string]bool) (string, error)
+	MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType, configMapSecretNames []string) (string, error)
 	GetHistoryForDeployedCMCS(pipelineId int) ([]*ConfigMapAndSecretHistoryDto, error)
 }
 
 type ConfigMapHistoryServiceImpl struct {
 	logger                     *zap.SugaredLogger
-	configMapHistoryRepository history.ConfigMapHistoryRepository
+	configMapHistoryRepository repository.ConfigMapHistoryRepository
 	pipelineRepository         pipelineConfig.PipelineRepository
 	configMapRepository        chartConfig.ConfigMapRepository
 }
 
 func NewConfigMapHistoryServiceImpl(logger *zap.SugaredLogger,
-	configMapHistoryRepository history.ConfigMapHistoryRepository,
+	configMapHistoryRepository repository.ConfigMapHistoryRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	configMapRepository chartConfig.ConfigMapRepository) *ConfigMapHistoryServiceImpl {
 	return &ConfigMapHistoryServiceImpl{
@@ -38,7 +38,7 @@ func NewConfigMapHistoryServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromAppLevelConfig(appLevelConfig *chartConfig.ConfigMapAppModel, configType history.ConfigType) error {
+func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromAppLevelConfig(appLevelConfig *chartConfig.ConfigMapAppModel, configType repository.ConfigType) error {
 	pipelines, err := impl.pipelineRepository.FindActiveByAppId(appLevelConfig.AppId)
 	if err != nil {
 		impl.logger.Errorw("err in getting pipelines, CreateHistoryFromAppLevelConfig", "err", err, "appLevelConfig", appLevelConfig)
@@ -55,7 +55,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromAppLevelConfig(appLevel
 			impl.logger.Errorw("err in merging app and env level configs", "err", err)
 			return err
 		}
-		historyModel := &history.ConfigmapAndSecretHistory{
+		historyModel := &repository.ConfigmapAndSecretHistory{
 			PipelineId: pipeline.Id,
 			DataType:   configType,
 			Deployed:   false,
@@ -77,7 +77,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromAppLevelConfig(appLevel
 	return nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromEnvLevelConfig(envLevelConfig *chartConfig.ConfigMapEnvModel, configType history.ConfigType) error {
+func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromEnvLevelConfig(envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType) error {
 	pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(envLevelConfig.AppId, envLevelConfig.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("err in getting pipelines, CreateHistoryFromAppLevelConfig", "err", err, "envLevelConfig", envLevelConfig)
@@ -94,7 +94,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromEnvLevelConfig(envLevel
 			impl.logger.Errorw("err in merging app and env level configs", "err", err)
 			return err
 		}
-		historyModel := &history.ConfigmapAndSecretHistory{
+		historyModel := &repository.ConfigmapAndSecretHistory{
 			PipelineId: pipeline.Id,
 			DataType:   configType,
 			Deployed:   false,
@@ -127,46 +127,37 @@ func (impl ConfigMapHistoryServiceImpl) CreateConfigMapHistoryForDeploymentTrigg
 		impl.logger.Errorw("err in getting env level config", "err", err, "appId", pipeline.AppId)
 		return err
 	}
-	configMapData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, history.CONFIGMAP_TYPE, nil)
+	configMapData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, repository.CONFIGMAP_TYPE, nil)
 	if err != nil {
 		impl.logger.Errorw("err in merging app and env level configs", "err", err)
 		return err
 	}
-	historyModel := &history.ConfigmapAndSecretHistory{
+	historyModel := &repository.ConfigmapAndSecretHistory{
 		PipelineId: pipeline.Id,
-		DataType:   history.CONFIGMAP_TYPE,
+		DataType:   repository.CONFIGMAP_TYPE,
 		Deployed:   true,
 		DeployedBy: deployedBy,
 		DeployedOn: deployedOn,
 		Data:       configMapData,
-	}
-	if appLevelConfig.UpdatedOn.After(envLevelConfig.UpdatedOn) {
-		historyModel.AuditLog = sql.AuditLog{
-			CreatedBy: appLevelConfig.CreatedBy,
-			CreatedOn: appLevelConfig.CreatedOn,
-			UpdatedBy: appLevelConfig.UpdatedBy,
-			UpdatedOn: appLevelConfig.UpdatedOn,
-		}
-	} else {
-		historyModel.AuditLog = sql.AuditLog{
-			CreatedBy: envLevelConfig.CreatedBy,
-			CreatedOn: envLevelConfig.CreatedOn,
-			UpdatedBy: envLevelConfig.UpdatedBy,
-			UpdatedOn: envLevelConfig.UpdatedOn,
-		}
+		AuditLog: sql.AuditLog{
+			CreatedBy: deployedBy,
+			CreatedOn: deployedOn,
+			UpdatedBy: deployedBy,
+			UpdatedOn: deployedOn,
+		},
 	}
 	_, err = impl.configMapHistoryRepository.CreateHistory(historyModel)
 	if err != nil {
 		impl.logger.Errorw("error in creating new entry for cm history", "historyModel", historyModel)
 		return err
 	}
-	secretData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, history.SECRET_TYPE, nil)
+	secretData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, repository.SECRET_TYPE, nil)
 	if err != nil {
 		impl.logger.Errorw("err in merging app and env level configs", "err", err)
 		return err
 	}
 	//using old model, updating secret data
-	historyModel.DataType = history.SECRET_TYPE
+	historyModel.DataType = repository.SECRET_TYPE
 	historyModel.Id = 0
 	historyModel.Data = secretData
 	_, err = impl.configMapHistoryRepository.CreateHistory(historyModel)
@@ -177,68 +168,59 @@ func (impl ConfigMapHistoryServiceImpl) CreateConfigMapHistoryForDeploymentTrigg
 	return nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType history.ConfigType, filterNameMap map[string]bool) (string, error) {
+func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType, configMapSecretNames []string) (string, error) {
 	var configDataAppLevel string
 	var configDataEnvLevel string
-	if configType == history.CONFIGMAP_TYPE {
+	if configType == repository.CONFIGMAP_TYPE {
 		configDataAppLevel = appLevelConfig.ConfigMapData
 		configDataEnvLevel = envLevelConfig.ConfigMapData
-	} else if configType == history.SECRET_TYPE {
+	} else if configType == repository.SECRET_TYPE {
 		configDataAppLevel = appLevelConfig.SecretData
 		configDataEnvLevel = envLevelConfig.SecretData
 	}
-	configsListAppLevel := &ConfigsList{}
+	configListAppLevel := &ConfigList{}
 	if len(configDataAppLevel) > 0 {
-		err := json.Unmarshal([]byte(configDataAppLevel), configsListAppLevel)
+		err := json.Unmarshal([]byte(configDataAppLevel), configListAppLevel)
 		if err != nil {
 			impl.logger.Debugw("error while Unmarshal", "err", err)
 			return "", err
 		}
 	}
-	configsListEnvLevel := &ConfigsList{}
+	configListEnvLevel := &ConfigList{}
 	if len(configDataEnvLevel) > 0 {
-		err := json.Unmarshal([]byte(configDataEnvLevel), configsListEnvLevel)
+		err := json.Unmarshal([]byte(configDataEnvLevel), configListEnvLevel)
 		if err != nil {
 			impl.logger.Debugw("error while Unmarshal", "err", err)
 			return "", err
 		}
 	}
 	var finalConfigs []*ConfigData
-	envLevelConfigs := make(map[string]json.RawMessage)
-	if len(filterNameMap) > 0 {
-		//filter name map is not empty, to add configs by filtering names
-		for _, item := range configsListEnvLevel.ConfigData {
-			if _, ok := filterNameMap[item.Name]; ok {
-				//adding all env configs whose name is in filter name map
-				envLevelConfigs[item.Name] = item.Data
-				finalConfigs = append(finalConfigs, item)
-			}
-		}
-		for _, item := range configsListAppLevel.ConfigData {
-			//adding all global configs which are not present in env level and are present in filter name map to final configs
-			if _, ok := envLevelConfigs[item.Name]; !ok {
-				if _, ok = filterNameMap[item.Name]; ok {
-					finalConfigs = append(finalConfigs, item)
-				}
-			}
-		}
-	} else {
-		//filter name map is empty, no need to add config by filtering names
-		//adding all env level configs to final configs as these won't get affected by global changes
-		for _, item := range configsListEnvLevel.ConfigData {
-			envLevelConfigs[item.Name] = item.Data
+	envLevelConfigs := make(map[string]bool)
+	var filterNameMap map[string]bool
+	for _, name := range configMapSecretNames {
+		filterNameMap[name] = true
+	}
+	//if filter name map is not empty, to add configs by filtering names
+	//if filter name map is empty, adding all env level configs to final configs
+	for _, item := range configListEnvLevel.ConfigData {
+		if _, ok := filterNameMap[item.Name]; ok || len(filterNameMap) == 0 {
+			//adding all env configs whose name is in filter name map
+			envLevelConfigs[item.Name] = true
 			finalConfigs = append(finalConfigs, item)
 		}
-		for _, item := range configsListAppLevel.ConfigData {
-			//adding all global configs which are not present in env level to final configs
-			if _, ok := envLevelConfigs[item.Name]; !ok {
+	}
+	for _, item := range configListAppLevel.ConfigData {
+		//if filter name map is not empty, adding all global configs which are not present in env level and are present in filter name map to final configs
+		//if filter name map is empty,adding all global configs which are not present in env level to final configs
+		if _, ok := envLevelConfigs[item.Name]; !ok {
+			if _, ok = filterNameMap[item.Name]; ok || len(filterNameMap) == 0 {
 				finalConfigs = append(finalConfigs, item)
 			}
 		}
 	}
-	var finalConfigsList ConfigsList
-	finalConfigsList.ConfigData = finalConfigs
-	finalConfigDataByte, err := json.Marshal(finalConfigsList)
+	var finalConfigList ConfigList
+	finalConfigList.ConfigData = finalConfigs
+	finalConfigDataByte, err := json.Marshal(finalConfigList)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling config", "err", err)
 		return "", err
@@ -254,9 +236,9 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCS(pipelineId int
 	}
 	var historiesDto []*ConfigMapAndSecretHistoryDto
 	for _, history := range histories {
-		configsList := ConfigsList{}
+		configList := ConfigList{}
 		if len(history.Data) > 0 {
-			err := json.Unmarshal([]byte(history.Data), &configsList)
+			err := json.Unmarshal([]byte(history.Data), &configList)
 			if err != nil {
 				impl.logger.Debugw("error while Unmarshal", "err", err)
 				return nil, err
@@ -266,7 +248,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCS(pipelineId int
 			Id:         history.Id,
 			PipelineId: history.PipelineId,
 			DataType:   string(history.DataType),
-			ConfigData: configsList.ConfigData,
+			ConfigData: configList.ConfigData,
 			Deployed:   history.Deployed,
 			DeployedOn: history.DeployedOn,
 			DeployedBy: history.DeployedBy,
