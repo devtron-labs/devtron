@@ -49,6 +49,7 @@ type InstallAppVersionDTO struct {
 	ForceDelete             bool                     `json:"-"`
 	ClusterId               int                      `json:"clusterId"` // needed for hyperion mode
 	Namespace               string                   `json:"namespace"` // needed for hyperion mode
+	AppOfferingMode         string                   `json:"appOfferingMode"`
 }
 
 /// bean for v2

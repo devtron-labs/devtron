@@ -166,7 +166,7 @@ func InitializeApp() (*App, error) {
 	clusterInstalledAppsRepositoryImpl := appStoreRepository.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
 	appStoreDeploymentHelmServiceImpl := appStoreDeploymentTool.NewAppStoreDeploymentHelmServiceImpl(sugaredLogger, helmAppServiceImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl)
 	appStoreDeploymentServiceImpl := appStoreDeployment.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, appStoreDeploymentHelmServiceImpl, environmentServiceImpl, clusterServiceImpl)
-	appStoreDeploymentRestHandlerImpl := appStoreDeployment2.NewAppStoreDeploymentRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, enforcerUtilImpl, appStoreDeploymentServiceImpl, validate)
+	appStoreDeploymentRestHandlerImpl := appStoreDeployment2.NewAppStoreDeploymentRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, enforcerUtilImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, validate)
 	appStoreDeploymentRouterImpl := appStoreDeployment2.NewAppStoreDeploymentRouterImpl(appStoreDeploymentRestHandlerImpl)
 	muxRouter := NewMuxRouter(sugaredLogger, ssoLoginRouterImpl, teamRouterImpl, userAuthRouterImpl, userRouterImpl, clusterRouterImpl, dashboardRouterImpl, helmAppRouterImpl, environmentRouterImpl, k8sApplicationRouterImpl, chartRepositoryRouterImpl, appStoreDiscoverRouterImpl, appStoreValuesRouterImpl, appStoreDeploymentRouterImpl)
 	posthogClient, err := telemetry.NewPosthogClient(sugaredLogger)

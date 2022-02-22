@@ -315,9 +315,12 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledApp(id int) (*appStoreBean
 //converts db object to bean
 func (impl AppStoreDeploymentServiceImpl) chartAdaptor2(chart *appStoreRepository.InstalledApps) (*appStoreBean.InstallAppVersionDTO, error) {
 	return &appStoreBean.InstallAppVersionDTO{
-		EnvironmentId: chart.EnvironmentId,
-		Id:            chart.Id,
-		AppId:         chart.AppId,
+		EnvironmentId:   chart.EnvironmentId,
+		Id:              chart.Id,
+		AppId:           chart.AppId,
+		AppOfferingMode: chart.App.AppOfferingMode,
+		ClusterId:       chart.Environment.ClusterId,
+		Namespace:       chart.Environment.Namespace,
 	}, nil
 }
 

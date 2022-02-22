@@ -88,5 +88,13 @@ func (impl AppStoreDeploymentHelmServiceImpl) GetAppStatus(installedAppAndEnvDet
 }
 
 func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error {
-	return nil
+
+	appIdentifier := &client.AppIdentifier{
+		ClusterId: installAppVersionRequest.ClusterId,
+		ReleaseName: installAppVersionRequest.AppName,
+		Namespace: installAppVersionRequest.Namespace,
+	}
+
+	_, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
+	return err
 }

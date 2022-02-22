@@ -27,6 +27,7 @@ import (
 	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -47,12 +48,13 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	userAuthService           user.UserService
 	enforcer                  casbin.Enforcer
 	enforcerUtil              rbac.EnforcerUtil
+	enforcerUtilHelm          rbac.EnforcerUtilHelm
 	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService
 	validator                 *validator.Validate
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
 	validator *validator.Validate,
 ) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
@@ -60,6 +62,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		userAuthService:           userAuthService,
 		enforcer:                  enforcer,
 		enforcerUtil:              enforcerUtil,
+		enforcerUtilHelm:          enforcerUtilHelm,
 		appStoreDeploymentService: appStoreDeploymentService,
 		validator:                 validator,
 	}
@@ -132,7 +135,6 @@ func (handler AppStoreDeploymentRestHandlerImpl) CreateInstalledApp(w http.Respo
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-
 func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -197,25 +199,36 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	}
 	handler.Logger.Infow("request payload, DeleteInstalledApp", "installAppId", installAppId)
 	token := r.Header.Get("token")
-	//rbac block starts from here
 	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installAppId)
 	if err != nil {
 		handler.Logger.Error(err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	object := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.AppName, installedApp.EnvironmentId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, object); !ok {
+
+	//rbac block starts from here
+	var rbacObject string
+	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+	}else{
+		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.AppName, installedApp.EnvironmentId)
+	}
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	//rback block ends here
+	//rbac block ends here
+
 	request := appStoreBean.InstallAppVersionDTO{}
 	request.InstalledAppId = installAppId
+	request.AppName = installedApp.AppName
 	request.AppId = installedApp.AppId
 	request.EnvironmentId = installedApp.EnvironmentId
 	request.UserId = userId
 	request.ForceDelete = forceDelete
+	request.AppOfferingMode = installedApp.AppOfferingMode
+	request.ClusterId = installedApp.ClusterId
+	request.Namespace = installedApp.Namespace
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
 		go func(done <-chan struct{}, closed <-chan bool) {
