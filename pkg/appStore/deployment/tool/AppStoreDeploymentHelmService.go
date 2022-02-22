@@ -10,6 +10,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
+	"time"
 )
 
 type AppStoreDeploymentHelmServiceImpl struct {
@@ -75,7 +76,10 @@ func (impl AppStoreDeploymentHelmServiceImpl) GetAppStatus(installedAppAndEnvDet
 		ReleaseName: installedAppAndEnvDetails.AppName,
 	}
 
-	appDetail, err := impl.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	appDetail, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 	if err != nil {
 		return "", err
 	}
