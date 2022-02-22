@@ -128,7 +128,7 @@ func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, 
 		return nil, nil, err
 	}
 	values.Values = valuesYaml
-	gitRepoName := fmt.Sprintf("%s-%s", GitRepoPrefix, chartMetaData.Name)
+	gitRepoName := impl.getGitRepoName(chartMetaData.Name)
 	chartGitAttr, err := impl.createAndPushToGit(gitRepoName, templateName, chartMetaData.Version, chartDir)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
@@ -442,4 +442,8 @@ func (impl ChartTemplateServiceImpl) GitPull(clonedDir string, repoUrl string, a
 		return nil
 	}
 	return nil
+}
+
+func (ChartTemplateServiceImpl) getGitRepoName(appName string) string {
+	return fmt.Sprintf("%s-%s", GitRepoPrefix, appName)
 }

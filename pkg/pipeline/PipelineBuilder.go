@@ -1204,9 +1204,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 
-	repoUrl := chart.GitRepoUrl
-	repoUrl = repoUrl[strings.LastIndex(repoUrl, "/")+1:]
-	chartRepoName := strings.ReplaceAll(repoUrl, ".git", "")
+	chartRepoName := impl.appService.GetChartRepoName(chart.GitRepoUrl)
 	chartGitAttr := &util.ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
 		FileContent:    string(DefaultPipelineValue),
