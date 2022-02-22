@@ -28,6 +28,7 @@ service ApplicationService {
   rpc UpgradeRelease(UpgradeReleaseRequest) returns (UpgradeReleaseResponse){}
   rpc GetDeploymentDetail(DeploymentDetailRequest) returns (DeploymentDetailResponse){}
   rpc InstallRelease(InstallReleaseRequest) returns (InstallReleaseResponse){}
+  rpc UpgradeReleaseWithChartInfo(InstallReleaseRequest) returns (UpgradeReleaseResponse){}
 }
 
 message DeployedAppList {

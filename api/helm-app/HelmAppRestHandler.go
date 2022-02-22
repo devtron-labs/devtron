@@ -105,8 +105,8 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 	}
 
 	res := &AppDetailAndInstalledAppInfo{
-		AppDetail: appdetail,
-		InstalledAppInfo : convertToInstalledAppInfo(installedApp),
+		AppDetail:        appdetail,
+		InstalledAppInfo: convertToInstalledAppInfo(installedApp),
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
@@ -224,8 +224,8 @@ func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *h
 		return
 	}
 	res := &ReleaseAndInstalledAppInfo{
-		ReleaseInfo: releaseInfo,
-		InstalledAppInfo : convertToInstalledAppInfo(installedApp),
+		ReleaseInfo:      releaseInfo,
+		InstalledAppInfo: convertToInstalledAppInfo(installedApp),
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
@@ -298,14 +298,14 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 }
 
 func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, r *http.Request) {
-	updateReleaseRequest := &openapi.UpdateReleaseRequest{}
+	request := &openapi.UpdateReleaseRequest{}
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(updateReleaseRequest)
+	err := decoder.Decode(request)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(*updateReleaseRequest.AppId)
+	appIdentifier, err := handler.helmAppService.DecodeAppId(*request.AppId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -318,10 +318,45 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 		return
 	}
 	//RBAC enforcer Ends
-	res, err := handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, updateReleaseRequest)
+
+	installedApp, err := handler.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+
+	updateReleaseRequest := &InstallReleaseRequest{
+		ValuesYaml: request.GetValuesYaml(),
+		ReleaseIdentifier: &ReleaseIdentifier{
+			ReleaseNamespace: appIdentifier.Namespace,
+			ReleaseName:      appIdentifier.ReleaseName,
+		},
+	}
+
+	var res *openapi.UpdateReleaseResponse
+
+	if installedApp != nil {
+		chartInfo := installedApp.InstallAppVersionChartDTO
+		chartRepoInfo := chartInfo.InstallAppVersionChartRepoDTO
+		updateReleaseRequest.ChartName = chartInfo.ChartName
+		updateReleaseRequest.ChartVersion = chartInfo.ChartVersion
+		updateReleaseRequest.ChartRepository = &ChartRepository{
+			Name:     chartRepoInfo.RepoName,
+			Url:      chartRepoInfo.RepoUrl,
+			Username: chartRepoInfo.UserName,
+			Password: chartRepoInfo.Password,
+		}
+		res, err = handler.helmAppService.UpdateApplicationWithChartInfo(context.Background(), appIdentifier.ClusterId, updateReleaseRequest)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}else{
+		res, err = handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, request)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
@@ -386,7 +421,7 @@ func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) 
 		EnvironmentName: installedApp.EnvironmentName,
 		AppOfferingMode: installedApp.AppOfferingMode,
 		InstalledAppId:  installedApp.InstalledAppId,
-		AppStoreChartId: installedApp.AppStoreChartId,
+		AppStoreChartId: installedApp.InstallAppVersionChartDTO.AppStoreChartId,
 	}
 }
 

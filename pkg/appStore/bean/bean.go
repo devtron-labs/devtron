@@ -25,33 +25,47 @@ import (
 
 //v1
 type InstallAppVersionDTO struct {
-	Id                      int                      `json:"id,omitempty"`
-	AppId                   int                      `json:"appId,omitempty"`
-	AppName                 string                   `json:"appName,omitempty"`
-	TeamId                  int                      `json:"teamId,omitempty"`
-	EnvironmentId           int                      `json:"environmentId,omitempty"`
-	InstalledAppId          int                      `json:"installedAppId,omitempty,notnull"`
-	InstalledAppVersionId   int                      `json:"installedAppVersionId,omitempty,notnull"`
-	AppStoreVersion         int                      `json:"appStoreVersion,omitempty,notnull"`
-	ValuesOverrideYaml      string                   `json:"valuesOverrideYaml,omitempty"`
-	Readme                  string                   `json:"readme,omitempty"`
-	UserId                  int32                    `json:"-"`
-	ReferenceValueId        int                      `json:"referenceValueId, omitempty" validate:"required,number"`
-	ReferenceValueKind      string                   `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
-	ACDAppName              string                   `json:"-"`
-	Environment             *repository2.Environment `json:"-"`
-	ChartGroupEntryId       int                      `json:"-"`
-	DefaultClusterComponent bool                     `json:"-"`
-	Status                  AppstoreDeploymentStatus `json:"-"`
-	AppStoreId              int                      `json:"appStoreId"`
-	AppStoreName            string                   `json:"appStoreName"`
-	Deprecated              bool                     `json:"deprecated"`
-	ForceDelete             bool                     `json:"-"`
-	ClusterId               int                      `json:"clusterId"` // needed for hyperion mode
-	Namespace               string                   `json:"namespace"` // needed for hyperion mode
-	AppOfferingMode         string                   `json:"appOfferingMode"`
-	EnvironmentName         string                   `json:"-"`
-	AppStoreChartId         int                      `json:"-"`
+	Id                        int                        `json:"id,omitempty"`
+	AppId                     int                        `json:"appId,omitempty"`
+	AppName                   string                     `json:"appName,omitempty"`
+	TeamId                    int                        `json:"teamId,omitempty"`
+	EnvironmentId             int                        `json:"environmentId,omitempty"`
+	InstalledAppId            int                        `json:"installedAppId,omitempty,notnull"`
+	InstalledAppVersionId     int                        `json:"installedAppVersionId,omitempty,notnull"`
+	AppStoreVersion           int                        `json:"appStoreVersion,omitempty,notnull"`
+	ValuesOverrideYaml        string                     `json:"valuesOverrideYaml,omitempty"`
+	Readme                    string                     `json:"readme,omitempty"`
+	UserId                    int32                      `json:"-"`
+	ReferenceValueId          int                        `json:"referenceValueId, omitempty" validate:"required,number"`
+	ReferenceValueKind        string                     `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
+	ACDAppName                string                     `json:"-"`
+	Environment               *repository2.Environment   `json:"-"`
+	ChartGroupEntryId         int                        `json:"-"`
+	DefaultClusterComponent   bool                       `json:"-"`
+	Status                    AppstoreDeploymentStatus   `json:"-"`
+	AppStoreId                int                        `json:"appStoreId"`
+	AppStoreName              string                     `json:"appStoreName"`
+	Deprecated                bool                       `json:"deprecated"`
+	ForceDelete               bool                       `json:"-"`
+	ClusterId                 int                        `json:"clusterId"` // needed for hyperion mode
+	Namespace                 string                     `json:"namespace"` // needed for hyperion mode
+	AppOfferingMode           string                     `json:"appOfferingMode"`
+	EnvironmentName           string                     `json:"-"`
+	InstallAppVersionChartDTO *InstallAppVersionChartDTO `json:"-"`
+}
+
+type InstallAppVersionChartDTO struct {
+	AppStoreChartId               int                            `json:"-"`
+	ChartName                     string                         `json:"-"`
+	ChartVersion                  string                         `json:"-"`
+	InstallAppVersionChartRepoDTO *InstallAppVersionChartRepoDTO `json:"-"`
+}
+
+type InstallAppVersionChartRepoDTO struct {
+	RepoName string `json:"-"`
+	RepoUrl  string `json:"-"`
+	UserName string `json:"-"`
+	Password string `json:"-"`
 }
 
 /// bean for v2

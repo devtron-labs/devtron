@@ -29,14 +29,14 @@ type AppStoreDeploymentCommonService interface {
 }
 
 type AppStoreDeploymentCommonServiceImpl struct {
-	logger                               *zap.SugaredLogger
-	installedAppRepository               appStoreRepository.InstalledAppRepository
+	logger                 *zap.SugaredLogger
+	installedAppRepository appStoreRepository.InstalledAppRepository
 }
 
 func NewAppStoreDeploymentCommonServiceImpl(logger *zap.SugaredLogger, installedAppRepository appStoreRepository.InstalledAppRepository) *AppStoreDeploymentCommonServiceImpl {
 	return &AppStoreDeploymentCommonServiceImpl{
-		logger:                               logger,
-		installedAppRepository:               installedAppRepository,
+		logger:                 logger,
+		installedAppRepository: installedAppRepository,
 	}
 }
 
@@ -68,6 +68,8 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetInstalledAppByClusterNamespac
 
 //converts db object to bean
 func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *appStoreRepository.InstalledApps, installedAppVersion *appStoreRepository.InstalledAppVersions) *appStoreBean.InstallAppVersionDTO {
+	chartVersionApp := installedAppVersion.AppStoreApplicationVersion
+	chartRepo := installedAppVersion.AppStoreApplicationVersion.AppStore.ChartRepo
 	return &appStoreBean.InstallAppVersionDTO{
 		EnvironmentId:   chart.EnvironmentId,
 		Id:              chart.Id,
@@ -78,6 +80,16 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *appStoreRepositor
 		AppName:         chart.App.AppName,
 		EnvironmentName: chart.Environment.Name,
 		InstalledAppId:  chart.Id,
-		AppStoreChartId: installedAppVersion.AppStoreApplicationVersion.AppStore.Id,
+		InstallAppVersionChartDTO: &appStoreBean.InstallAppVersionChartDTO{
+			AppStoreChartId: chartVersionApp.AppStore.Id,
+			ChartName:       chartVersionApp.Name,
+			ChartVersion:    chartVersionApp.Version,
+			InstallAppVersionChartRepoDTO: &appStoreBean.InstallAppVersionChartRepoDTO{
+				RepoName: chartRepo.Name,
+				RepoUrl:  chartRepo.Url,
+				UserName: chartRepo.UserName,
+				Password: chartRepo.Password,
+			},
+		},
 	}
 }

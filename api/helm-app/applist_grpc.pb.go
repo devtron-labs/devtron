@@ -33,6 +33,7 @@ type ApplicationServiceClient interface {
 	UpgradeRelease(ctx context.Context, in *UpgradeReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, in *DeploymentDetailRequest, opts ...grpc.CallOption) (*DeploymentDetailResponse, error)
 	InstallRelease(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*InstallReleaseResponse, error)
+	UpgradeReleaseWithChartInfo(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error)
 }
 
 type applicationServiceClient struct {
@@ -165,6 +166,15 @@ func (c *applicationServiceClient) InstallRelease(ctx context.Context, in *Insta
 	return out, nil
 }
 
+func (c *applicationServiceClient) UpgradeReleaseWithChartInfo(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error) {
+	out := new(UpgradeReleaseResponse)
+	err := c.cc.Invoke(ctx, "/ApplicationService/UpgradeReleaseWithChartInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationServiceServer is the server API for ApplicationService service.
 // All implementations must embed UnimplementedApplicationServiceServer
 // for forward compatibility
@@ -180,6 +190,7 @@ type ApplicationServiceServer interface {
 	UpgradeRelease(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
 	GetDeploymentDetail(context.Context, *DeploymentDetailRequest) (*DeploymentDetailResponse, error)
 	InstallRelease(context.Context, *InstallReleaseRequest) (*InstallReleaseResponse, error)
+	UpgradeReleaseWithChartInfo(context.Context, *InstallReleaseRequest) (*UpgradeReleaseResponse, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
 
@@ -219,6 +230,9 @@ func (UnimplementedApplicationServiceServer) GetDeploymentDetail(context.Context
 }
 func (UnimplementedApplicationServiceServer) InstallRelease(context.Context, *InstallReleaseRequest) (*InstallReleaseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InstallRelease not implemented")
+}
+func (UnimplementedApplicationServiceServer) UpgradeReleaseWithChartInfo(context.Context, *InstallReleaseRequest) (*UpgradeReleaseResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpgradeReleaseWithChartInfo not implemented")
 }
 func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
 
@@ -434,6 +448,24 @@ func _ApplicationService_InstallRelease_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_UpgradeReleaseWithChartInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InstallReleaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).UpgradeReleaseWithChartInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/UpgradeReleaseWithChartInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).UpgradeReleaseWithChartInfo(ctx, req.(*InstallReleaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ApplicationService_ServiceDesc is the grpc.ServiceDesc for ApplicationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -480,6 +512,10 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InstallRelease",
 			Handler:    _ApplicationService_InstallRelease_Handler,
+		},
+		{
+			MethodName: "UpgradeReleaseWithChartInfo",
+			Handler:    _ApplicationService_UpgradeReleaseWithChartInfo_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
