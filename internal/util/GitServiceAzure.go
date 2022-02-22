@@ -145,7 +145,7 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig, bitbucketWorkspaceI
 	// if branch doesn't exists use default hash
 	clientAzure := *impl.client
 	fc, err := clientAzure.GetItem(ctx, git.GetItemArgs{
-		RepositoryId: &config.ChartName,
+		RepositoryId: &config.ChartRepoName,
 		Path:         &path,
 		Project:      &impl.project,
 	})
@@ -153,7 +153,7 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig, bitbucketWorkspaceI
 		notFoundStatus := 404
 		if e, ok := err.(azuredevops.WrappedError); ok && *e.StatusCode == notFoundStatus {
 			clientAzure := *impl.client
-			branchStat, err := clientAzure.GetBranch(ctx, git.GetBranchArgs{Project: &impl.project, Name: &branch, RepositoryId: &config.ChartName})
+			branchStat, err := clientAzure.GetBranch(ctx, git.GetBranchArgs{Project: &impl.project, Name: &branch, RepositoryId: &config.ChartRepoName})
 			if err != nil {
 				if e, ok := err.(azuredevops.WrappedError); !ok || *e.StatusCode >= 500 {
 					impl.logger.Errorw("error in fetching branch from azure devops", "err", err)
@@ -201,7 +201,7 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig, bitbucketWorkspaceI
 			Commits:    &commits,
 			RefUpdates: &refUpdates,
 		},
-		RepositoryId: &config.ChartName,
+		RepositoryId: &config.ChartRepoName,
 		Project:      &impl.project,
 	})
 

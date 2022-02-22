@@ -193,7 +193,7 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig, bitbucketWorksp
 
 	repoWriteOptions := &bitbucket.RepositoryBlobWriteOptions{
 		Owner:    bitbucketWorkspaceId,
-		RepoSlug: config.ChartName,
+		RepoSlug: config.ChartRepoName,
 		FilePath: bitbucketCommitFilePath,
 		FileName: fileName,
 		Message:  config.ReleaseMessage,
@@ -205,7 +205,7 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig, bitbucketWorksp
 		return "", err
 	}
 	commitOptions := &bitbucket.CommitsOptions{
-		RepoSlug:    config.ChartName,
+		RepoSlug:    config.ChartRepoName,
 		Owner:       bitbucketWorkspaceId,
 		Branchortag: "master",
 	}

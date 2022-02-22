@@ -453,7 +453,7 @@ func (impl GitLabClient) checkIfFileExists(projectName, ref, file string) (exist
 func (impl GitLabClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId string) (commitHash string, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
-	exists, err := impl.checkIfFileExists(config.ChartName, branch, path)
+	exists, err := impl.checkIfFileExists(config.ChartRepoName, branch, path)
 	var fileAction gitlab.FileAction
 	if exists {
 		fileAction = gitlab.FileUpdate
@@ -465,7 +465,7 @@ func (impl GitLabClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 		CommitMessage: gitlab.String(config.ReleaseMessage),
 		Actions:       []*gitlab.CommitAction{{Action: fileAction, FilePath: path, Content: config.FileContent}},
 	}
-	c, _, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.ChartName), actions)
+	c, _, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.ChartRepoName), actions)
 	if err != nil {
 		return "", err
 	}
