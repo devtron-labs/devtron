@@ -46,8 +46,8 @@ type UserRepositoryImpl struct {
 	Logger       *zap.SugaredLogger
 }
 
-func NewUserRepositoryImpl(dbConnection *pg.DB) *UserRepositoryImpl {
-	return &UserRepositoryImpl{dbConnection: dbConnection}
+func NewUserRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, ) *UserRepositoryImpl {
+	return &UserRepositoryImpl{dbConnection: dbConnection, Logger: logger}
 }
 
 type UserModel struct {

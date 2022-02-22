@@ -32,6 +32,13 @@ import (
 	"strings"
 )
 
+const (
+	PROJECT_TYPE     = "team"
+	ENV_TYPE         = "environment"
+	APP_TYPE         = "app"
+	CHART_GROUP_TYPE = "chart-group"
+)
+
 type UserAuthRepository interface {
 	CreateRole(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error)
 	GetRoleById(id int) (*RoleModel, error)
@@ -43,6 +50,7 @@ type UserAuthRepository interface {
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
+	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
 
 	CreateDefaultPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	CreateDefaultHelmPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error)
@@ -50,6 +58,11 @@ type UserAuthRepository interface {
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	UpdateTriggerPolicyForTerminalAccess() error
+	GetRolesForEnvironment(envName, envIdentifier string) ([]*RoleModel, error)
+	GetRolesForProject(teamName string) ([]*RoleModel, error)
+	GetRolesForApp(appName string) ([]*RoleModel, error)
+	GetRolesForChartGroup(chartGroupName string) ([]*RoleModel, error)
+	DeleteRole(role *RoleModel, tx *pg.Tx) error
 }
 
 type UserAuthRepositoryImpl struct {
@@ -281,6 +294,17 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleMapping(userRoleModel *UserRole
 		return false, err
 	}
 	return true, nil
+}
+
+func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error {
+	var userRoleModel *UserRoleModel
+	_, err := tx.Model(userRoleModel).
+		Where("role_id = ?", roleId).Delete()
+	if err != nil {
+		impl.Logger.Error("err in deleting user role by role id", "err", err, "roleId", roleId)
+		return err
+	}
+	return nil
 }
 
 func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error) {
@@ -1152,4 +1176,56 @@ func (impl UserAuthRepositoryImpl) GetUpdatedAddedOrDeletedPolicies(policies []c
 		return policyResp, err
 	}
 	return policyResp, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetRolesForEnvironment(envName, envIdentifier string) ([]*RoleModel, error) {
+	var roles []*RoleModel
+	err := impl.dbConnection.Model(&roles).WhereOr("environment = ?", envName).
+		WhereOr("environment = ?", envIdentifier).Select()
+	if err != nil {
+		impl.Logger.Errorw("error in getting roles for environment", "err", err, "envName", envName, "envIdentifier", envIdentifier)
+		return nil, err
+	}
+	return roles, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetRolesForProject(teamName string) ([]*RoleModel, error) {
+	var roles []*RoleModel
+	err := impl.dbConnection.Model(&roles).Where("team = ?", teamName).Select()
+	if err != nil {
+		impl.Logger.Errorw("error in getting roles for team", "err", err, "teamName", teamName)
+		return nil, err
+	}
+	return roles, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetRolesForApp(appName string) ([]*RoleModel, error) {
+	var roles []*RoleModel
+	err := impl.dbConnection.Model(&roles).Where("entity is NULL").
+		Where("entity_name = ?", appName).Select()
+	if err != nil {
+		impl.Logger.Errorw("error in getting roles for app", "err", err, "appName", appName)
+		return nil, err
+	}
+	return roles, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetRolesForChartGroup(chartGroupName string) ([]*RoleModel, error) {
+	var roles []*RoleModel
+	err := impl.dbConnection.Model(&roles).Where("entity = ?", CHART_GROUP_TYPE).
+		Where("entity_name = ?", chartGroupName).Select()
+	if err != nil {
+		impl.Logger.Errorw("error in getting roles for chart group", "err", err, "chartGroupName", chartGroupName)
+		return nil, err
+	}
+	return roles, nil
+}
+
+func (impl UserAuthRepositoryImpl) DeleteRole(role *RoleModel, tx *pg.Tx) error {
+	err := tx.Delete(role)
+	if err != nil {
+		impl.Logger.Errorw("error in deleting role", "err", err, "role", role)
+		return err
+	}
+	return nil
 }
