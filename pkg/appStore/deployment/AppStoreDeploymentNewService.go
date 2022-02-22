@@ -321,6 +321,7 @@ func (impl AppStoreDeploymentServiceImpl) chartAdaptor2(chart *appStoreRepositor
 		AppOfferingMode: chart.App.AppOfferingMode,
 		ClusterId:       chart.Environment.ClusterId,
 		Namespace:       chart.Environment.Namespace,
+		AppName:         chart.App.AppName,
 	}, nil
 }
 
