@@ -37,7 +37,7 @@ func NewApp(db *pg.DB,
 func (app *App) Start() {
 	fmt.Println("starting ea module")
 
-	port := 4040 //TODO: extract from environment variable
+	port := 8080 //TODO: extract from environment variable
 	app.Logger.Debugw("starting server")
 	app.Logger.Infow("starting server on ", "port", port)
 	app.MuxRouter.Init()
