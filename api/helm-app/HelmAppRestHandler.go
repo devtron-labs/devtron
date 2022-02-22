@@ -6,6 +6,7 @@ import (
 	"errors"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -96,7 +97,19 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, appdetail, http.StatusOK)
+
+	installedApp, err := handler.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	res := &AppDetailAndInstalledAppInfo{
+		AppDetail: appdetail,
+		InstalledAppInfo : convertToInstalledAppInfo(installedApp),
+	}
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.Request) {
@@ -212,15 +225,7 @@ func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *h
 	}
 	res := &ReleaseAndInstalledAppInfo{
 		ReleaseInfo: releaseInfo,
-	}
-
-	if installedApp != nil {
-		res.InstalledAppInfo = &InstalledAppInfo{
-			AppId:           installedApp.AppId,
-			EnvironmentName: installedApp.EnvironmentName,
-			AppOfferingMode: installedApp.AppOfferingMode,
-			InstalledAppId:  installedApp.InstalledAppId,
-		}
+		InstalledAppInfo : convertToInstalledAppInfo(installedApp),
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
@@ -371,6 +376,25 @@ func (handler *HelmAppRestHandlerImpl) CheckHelmAuth(token string, object string
 	return true
 }
 
+func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) *InstalledAppInfo {
+	if installedApp == nil {
+		return nil
+	}
+
+	return &InstalledAppInfo{
+		AppId:           installedApp.AppId,
+		EnvironmentName: installedApp.EnvironmentName,
+		AppOfferingMode: installedApp.AppOfferingMode,
+		InstalledAppId:  installedApp.InstalledAppId,
+		AppStoreChartId: installedApp.AppStoreChartId,
+	}
+}
+
+type AppDetailAndInstalledAppInfo struct {
+	InstalledAppInfo *InstalledAppInfo `json:"installedAppInfo"`
+	AppDetail        *AppDetail        `json:"appDetail"`
+}
+
 type ReleaseAndInstalledAppInfo struct {
 	InstalledAppInfo *InstalledAppInfo `json:"installedAppInfo"`
 	ReleaseInfo      *ReleaseInfo      `json:"releaseInfo"`
@@ -379,6 +403,7 @@ type ReleaseAndInstalledAppInfo struct {
 type InstalledAppInfo struct {
 	AppId           int    `json:"appId"`
 	InstalledAppId  int    `json:"installedAppId"`
+	AppStoreChartId int    `json:"appStoreChartId"`
 	EnvironmentName string `json:"environmentName"`
 	AppOfferingMode string `json:"appOfferingMode"`
 }

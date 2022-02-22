@@ -639,6 +639,9 @@ components:
         appOfferingMode:
           type: string
           description: EA_ONLY/FULL
+        appStoreChartId:
+          type: number
+          description: App store chart Id
     ReleaseAndInstalledAppInfo:
       type: object
       properties:

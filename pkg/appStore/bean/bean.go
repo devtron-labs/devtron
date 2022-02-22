@@ -51,6 +51,7 @@ type InstallAppVersionDTO struct {
 	Namespace               string                   `json:"namespace"` // needed for hyperion mode
 	AppOfferingMode         string                   `json:"appOfferingMode"`
 	EnvironmentName         string                   `json:"-"`
+	AppStoreChartId         int                      `json:"-"`
 }
 
 /// bean for v2

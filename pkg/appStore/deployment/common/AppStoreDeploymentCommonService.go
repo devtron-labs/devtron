@@ -55,7 +55,11 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetInstalledAppByClusterNamespac
 
 	for _, installedApp := range installedApps {
 		if namespace == installedApp.Environment.Namespace && appName == installedApp.App.AppName {
-			return impl.convert(installedApp), nil
+			installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedApp.Id, installedApp.EnvironmentId)
+			if err != nil {
+				return nil, err
+			}
+			return impl.convert(installedApp, installedAppVersion), nil
 		}
 	}
 
@@ -63,7 +67,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetInstalledAppByClusterNamespac
 }
 
 //converts db object to bean
-func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *appStoreRepository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
+func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *appStoreRepository.InstalledApps, installedAppVersion *appStoreRepository.InstalledAppVersions) *appStoreBean.InstallAppVersionDTO {
 	return &appStoreBean.InstallAppVersionDTO{
 		EnvironmentId:   chart.EnvironmentId,
 		Id:              chart.Id,
@@ -74,5 +78,6 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *appStoreRepositor
 		AppName:         chart.App.AppName,
 		EnvironmentName: chart.Environment.Name,
 		InstalledAppId:  chart.Id,
+		AppStoreChartId: installedAppVersion.AppStoreApplicationVersion.AppStore.Id,
 	}
 }
