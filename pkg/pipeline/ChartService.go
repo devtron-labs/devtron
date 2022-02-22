@@ -344,7 +344,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  true,
 		Previous:                false,
-		GitRepoName:             fmt.Sprintf("devtron-test-%s", chartMeta.Name),
 		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 

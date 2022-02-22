@@ -46,7 +46,6 @@ type Chart struct {
 	ChartRefId              int                `sql:"chart_ref_id"`
 	Latest                  bool               `sql:"latest,notnull"`
 	Previous                bool               `sql:"previous,notnull"`
-	GitRepoName             string             `sql:"git_repo_name"`
 	sql.AuditLog
 }
 

@@ -74,6 +74,8 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
+const GitRepoPrefix = "devtron"
+
 func (ChartTemplateServiceImpl) GetChartVersion(location string) (string, error) {
 	if fi, err := os.Stat(location); err != nil {
 		return "", err
@@ -126,7 +128,7 @@ func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, 
 		return nil, nil, err
 	}
 	values.Values = valuesYaml
-	gitRepoName := fmt.Sprintf("devtron-test-%s", chartMetaData.Name)
+	gitRepoName := fmt.Sprintf("%s-%s", GitRepoPrefix, chartMetaData.Name)
 	chartGitAttr, err := impl.createAndPushToGit(gitRepoName, templateName, chartMetaData.Version, chartDir)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
@@ -145,10 +147,10 @@ type ChartGitAttribute struct {
 	RepoUrl, ChartLocation string
 }
 
-func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateName, version, tmpChartLocation string) (chartGitAttribute *ChartGitAttribute, err error) {
+func (impl ChartTemplateServiceImpl) createAndPushToGit(gitRepoName, baseTemplateName, version, tmpChartLocation string) (chartGitAttribute *ChartGitAttribute, err error) {
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
-	appName = space.ReplaceAllString(appName, "-")
+	gitRepoName = space.ReplaceAllString(gitRepoName, "-")
 
 	gitOpsConfigBitbucket, err := impl.gitFactory.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
 	if err != nil {
@@ -160,16 +162,16 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 			return nil, err
 		}
 	}
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appName, fmt.Sprintf("helm chart for "+appName), gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitRepoName, fmt.Sprintf("helm chart for "+gitRepoName), gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
 
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
-			impl.logger.Errorw("error in creating git project", "name", appName, "err", err)
+			impl.logger.Errorw("error in creating git project", "name", gitRepoName, "err", err)
 			return nil, err
 		}
 	}
 
-	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
+	chartDir := fmt.Sprintf("%s-%s", gitRepoName, impl.getDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
@@ -178,7 +180,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 			return nil, err
 		}
 	} else {
-		err = impl.GitPull(clonedDir, repoUrl, appName)
+		err = impl.GitPull(clonedDir, repoUrl, gitRepoName)
 		if err != nil {
 			return nil, err
 		}
@@ -199,7 +201,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(appName, baseTemplateNam
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
-		err = impl.GitPull(clonedDir, repoUrl, appName)
+		err = impl.GitPull(clonedDir, repoUrl, gitRepoName)
 		if err != nil {
 			return nil, err
 		}
