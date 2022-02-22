@@ -125,6 +125,7 @@ func (impl GitAzureClient) createReadme(repoName string) (string, error) {
 		FileName:       "README.md",
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
+		ChartRepoName:  repoName,
 	}
 	hash, err := impl.CommitValues(cfg, "")
 	if err != nil {

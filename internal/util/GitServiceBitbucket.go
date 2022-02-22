@@ -147,6 +147,7 @@ func (impl GitBitbucketClient) createReadme(repoOptions *bitbucket.RepositoryOpt
 		FileName:       "README.md",
 		FileContent:    "@devtron",
 		ReleaseMessage: "pushing readme",
+		ChartRepoName:  repoOptions.RepoSlug,
 	}
 	_, err := impl.CommitValues(cfg, repoOptions.Owner)
 	if err != nil {
