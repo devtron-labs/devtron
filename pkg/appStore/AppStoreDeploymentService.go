@@ -317,6 +317,7 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *r
 		FileContent:    string(requirementDependenciesByte),
 		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ChartLocation:  argocdAppName,
+		ChartRepoName:  installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -363,6 +364,7 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 		FileContent:    string(valuesByte),
 		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ChartLocation:  argocdAppName,
+		ChartRepoName:  installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -1201,6 +1203,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 		FileContent:    string(requirementDependenciesByte),
 		ChartName:      chartMeta.Name,
 		ChartLocation:  argocdAppName,
+		ChartRepoName:  chartMeta.Name,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -1250,6 +1253,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 		FileContent:    string(valuesByte),
 		ChartName:      chartMeta.Name,
 		ChartLocation:  argocdAppName,
+		ChartRepoName:  chartMeta.Name,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
 	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, gitOpsConfigBitbucket.BitBucketWorkspaceId)
