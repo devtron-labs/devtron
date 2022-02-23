@@ -90,13 +90,19 @@ func (handler AppStoreDeploymentRestHandlerImpl) CreateInstalledApp(w http.Respo
 		return
 	}
 	token := r.Header.Get("token")
+
 	//rbac block starts from here
-	object := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(request.AppName, request.EnvironmentId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, object); !ok {
+	var rbacObject string
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
+		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(request.ClusterId, request.Namespace, request.AppName)
+	}else{
+		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(request.AppName, request.EnvironmentId)
+	}
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	//rback block ends here
+	//rbac block ends here
 
 	isChartRepoActive, err := handler.appStoreDeploymentService.IsChartRepoActive(request.AppStoreVersion)
 	if err != nil {
@@ -160,12 +166,19 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppsByAppStoreId(w 
 
 	var installedAppsResponse []appStoreBean.InstalledAppsResponse
 	for _, app := range res {
+
 		//rbac block starts from here
-		object := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(app.AppName, app.EnvironmentId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
+		var rbacObject string
+		if app.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+			rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(app.ClusterId, app.Namespace, app.AppName)
+		}else{
+			rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(app.AppName, app.EnvironmentId)
+		}
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
 			continue
 		}
 		//rback block ends here
+
 		installedAppsResponse = append(installedAppsResponse, app)
 	}
 
