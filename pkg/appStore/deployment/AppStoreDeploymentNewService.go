@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
+	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -56,7 +57,8 @@ type AppStoreDeploymentServiceImpl struct {
 	environmentRepository                clusterRepository.EnvironmentRepository
 	clusterInstalledAppsRepository       appStoreRepository.ClusterInstalledAppsRepository
 	appRepository                        app.AppRepository
-	appStoreDeploymentToolService        appStoreDeploymentTool.AppStoreDeploymentToolService
+	appStoreDeploymentHelmService        appStoreDeploymentTool.AppStoreDeploymentHelmService
+	appStoreDeploymentArgoCdService      appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService
 	environmentService                   cluster.EnvironmentService
 	clusterService                       cluster.ClusterService
 }
@@ -64,7 +66,8 @@ type AppStoreDeploymentServiceImpl struct {
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository appStoreRepository.InstalledAppRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, environmentRepository clusterRepository.EnvironmentRepository,
 	clusterInstalledAppsRepository appStoreRepository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
-	appStoreDeploymentToolService appStoreDeploymentTool.AppStoreDeploymentToolService, environmentService cluster.EnvironmentService,
+	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
+	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
@@ -73,7 +76,8 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		environmentRepository:                environmentRepository,
 		clusterInstalledAppsRepository:       clusterInstalledAppsRepository,
 		appRepository:                        appRepository,
-		appStoreDeploymentToolService:        appStoreDeploymentToolService,
+		appStoreDeploymentHelmService:        appStoreDeploymentHelmService,
+		appStoreDeploymentArgoCdService:      appStoreDeploymentArgoCdService,
 		environmentService:                   environmentService,
 		clusterService:                       clusterService,
 	}
@@ -224,7 +228,12 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 		return nil, err
 	}
 
-	err = impl.appStoreDeploymentToolService.InstallApp(installAppVersionRequest, ctx)
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
+		err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
+	} else {
+		err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, ctx)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +343,12 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 	}
 	var installedAppsEnvResponse []appStoreBean.InstalledAppsResponse
 	for _, a := range installedApps {
-		status, err := impl.appStoreDeploymentToolService.GetAppStatus(a, w, r, token)
+		var status string
+		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || a.AppOfferingMode == util2.SERVER_MODE_HYPERION  {
+			status, err = impl.appStoreDeploymentHelmService.GetAppStatus(a, w, r, token)
+		}else{
+			status, err = impl.appStoreDeploymentArgoCdService.GetAppStatus(a, w, r, token)
+		}
 		if apiErr, ok := err.(*util.ApiError); ok {
 			if apiErr.Code == constants.AppDetailResourceTreeNotFound {
 				status = "Not Found"
@@ -430,7 +444,12 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		}
 	}
 
-	err = impl.appStoreDeploymentToolService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || app.AppOfferingMode == util2.SERVER_MODE_HYPERION  {
+		err = impl.appStoreDeploymentHelmService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
+	}else{
+		err = impl.appStoreDeploymentArgoCdService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
+	}
+
 	if err != nil {
 		return nil, err
 	}

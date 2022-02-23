@@ -10,7 +10,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
-	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -19,22 +18,26 @@ import (
 	"time"
 )
 
+type AppStoreDeploymentArgoCdService interface {
+	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) error
+	GetAppStatus(installedAppAndEnvDetails appStoreRepository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
+	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error
+}
+
 type AppStoreDeploymentArgoCdServiceImpl struct {
+	Logger                            *zap.SugaredLogger
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	acdClient                         application2.ServiceClient
 	chartGroupDeploymentRepository    appStoreRepository.ChartGroupDeploymentRepository
-	*appStoreDeploymentTool.AppStoreDeploymentToolServiceImpl
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository appStoreRepository.ChartGroupDeploymentRepository) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
+		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
 		acdClient:                         acdClient,
 		chartGroupDeploymentRepository:    chartGroupDeploymentRepository,
-		AppStoreDeploymentToolServiceImpl: &appStoreDeploymentTool.AppStoreDeploymentToolServiceImpl{
-			Logger: logger,
-		},
 	}
 }
 

@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
+	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
@@ -79,9 +80,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiPipelineRepository), new(*pipelineConfig.CiPipelineRepositoryImpl)),
 		// // needed for enforcer util ends
 
-		appStoreDeploymentTool.NewAppStoreDeploymentHelmServiceImpl,
-		wire.Bind(new(appStoreDeploymentTool.AppStoreDeploymentToolService),new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
-
+		// binding gitops to helm (for hyperion)
+		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
 	)
 	return &App{}, nil
 }

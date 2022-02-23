@@ -66,7 +66,6 @@ import (
 	appStore "github.com/devtron-labs/devtron/pkg/appStore"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
-	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
@@ -635,7 +634,7 @@ func InitializeApp() (*App, error) {
 		appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl,
 		wire.Bind(new(appStoreDeploymentFullMode.AppStoreDeploymentFullModeService), new(*appStoreDeploymentFullMode.AppStoreDeploymentFullModeServiceImpl)),
 		appStoreDeploymentGitopsTool.NewAppStoreDeploymentArgoCdServiceImpl,
-		wire.Bind(new(appStoreDeploymentTool.AppStoreDeploymentToolService), new(*appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdServiceImpl)),
+		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdServiceImpl)),
 	)
 	return &App{}, nil
 }
