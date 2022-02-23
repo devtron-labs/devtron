@@ -182,6 +182,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	return wde
 }
 
+//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(CD_STAGE_COMPLETE_TOPIC, CD_COMPLETE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("cd stage event received")
@@ -189,7 +190,7 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 		cdStageCompleteEvent := CdStageCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &cdStageCompleteEvent)
 		if err != nil {
-			impl.logger.Errorw("error on cd stage complete", "err", err, "msg", string(msg.Data))
+			impl.logger.Errorw("error while unmarshalling cdStageCompleteEvent object", "err", err, "msg", string(msg.Data))
 			return
 		}
 		impl.logger.Debugw("cd stage event:", "workflowRunnerId", cdStageCompleteEvent.WorkflowRunnerId)
@@ -1164,6 +1165,7 @@ func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows [
 	}
 }
 
+//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(BULK_DEPLOY_TOPIC, BULK_DEPLOY_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("subscribeTriggerBulkAction event received")
@@ -1171,7 +1173,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 		cdWorkflow := new(pipelineConfig.CdWorkflow)
 		err := json.Unmarshal([]byte(string(msg.Data)), cdWorkflow)
 		if err != nil {
-			impl.logger.Error("err", err)
+			impl.logger.Error("Error while unmarshalling cdWorkflow json object", err)
 			return
 		}
 		impl.logger.Debugw("subscribeTriggerBulkAction event:", "cdWorkflow", cdWorkflow)
@@ -1221,6 +1223,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 	return err
 }
 
+//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(BULK_HIBERNATE_TOPIC, BULK_HIBERNATE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("subscribeHibernateBulkAction event received")
@@ -1228,7 +1231,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 		deploymentGroupAppWithEnv := new(DeploymentGroupAppWithEnv)
 		err := json.Unmarshal([]byte(string(msg.Data)), deploymentGroupAppWithEnv)
 		if err != nil {
-			impl.logger.Error("err", err)
+			impl.logger.Error("Error while unmarshalling deploymentGroupAppWithEnv json object", err)
 			return
 		}
 		impl.logger.Debugw("subscribeHibernateBulkAction event:", "DeploymentGroupAppWithEnv", deploymentGroupAppWithEnv)

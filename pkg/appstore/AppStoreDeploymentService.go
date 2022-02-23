@@ -1464,6 +1464,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 	}
 }
 
+//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *InstalledAppServiceImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(BULK_APPSTORE_DEPLOY_TOPIC, BULK_APPSTORE_DEPLOY_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("cd stage event received")
@@ -1471,7 +1472,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 		deployPayload := &DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
 		if err != nil {
-			impl.logger.Error("err", err)
+			impl.logger.Error("Error while unmarshalling deployPayload json object", err)
 			return
 		}
 		impl.logger.Debugw("deployPayload:", "deployPayload", deployPayload)

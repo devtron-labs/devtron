@@ -77,6 +77,7 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 	return workflowStatusUpdateHandlerImpl
 }
 
+//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(workflowStatusUpdate, workflowStatusUpdateGroup, func(msg *nats.Msg) {
 		impl.logger.Debug("received wf update request")
@@ -84,7 +85,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 		wfStatus := v1alpha1.WorkflowStatus{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
 		if err != nil {
-			impl.logger.Errorw("error on wf status update", "err", err, "msg", string(msg.Data))
+			impl.logger.Errorw("error while unmarshalling wf status update", "err", err, "msg", string(msg.Data))
 			return
 		}
 		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
@@ -101,6 +102,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 	return nil
 }
 
+//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(cdWorkflowStatusUpdate, cdWorkflowStatusUpdateGroup, func(msg *nats.Msg) {
 		impl.logger.Debug("received cd wf update request")
@@ -108,7 +110,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 		wfStatus := v1alpha1.WorkflowStatus{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
 		if err != nil {
-			impl.logger.Error("err", err)
+			impl.logger.Error("Error while unmarshalling wfStatus json object", err)
 			return
 		}
 		impl.logger.Debugw("received cd wf update request body", "body", wfStatus)

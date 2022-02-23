@@ -55,6 +55,7 @@ func NewCronBasedEventReceiverImpl(logger *zap.SugaredLogger, pubsubClient *pubs
 	return cronBasedEventReceiverImpl
 }
 
+//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *CronBasedEventReceiverImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(cronEvents, cronEventsGroup, func(msg *nats.Msg) {
 		impl.logger.Debug("received cron event")
@@ -62,7 +63,7 @@ func (impl *CronBasedEventReceiverImpl) Subscribe() error {
 		event := client.Event{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &event)
 		if err != nil {
-			impl.logger.Errorw("err", "err", err)
+			impl.logger.Errorw("Error while unmarshalling json data", err)
 			return
 		}
 		err = impl.eventService.HandleEvent(event)

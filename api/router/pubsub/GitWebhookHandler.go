@@ -55,13 +55,14 @@ func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSub
 	return gitWebhookHandlerImpl
 }
 
+//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *GitWebhookHandlerImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(newCiMaterialTopic, newCiMaterialTopicGroup, func(msg *nats.Msg) {
 		defer msg.Ack()
 		ciPipelineMaterial := gitSensor.CiPipelineMaterial{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciPipelineMaterial)
 		if err != nil {
-			impl.logger.Error("err", err)
+			impl.logger.Error("Error while unmarshalling json response", err)
 			return
 		}
 		resp, err := impl.gitWebhookService.HandleGitWebhook(ciPipelineMaterial)

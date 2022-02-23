@@ -71,6 +71,7 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 	return ciEventHandlerImpl
 }
 
+//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *CiEventHandlerImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(CI_COMPLETE_TOPIC, CI_COMPLETE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("ci complete event received")
@@ -78,7 +79,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
 		if err != nil {
-			impl.logger.Error("err", err)
+			impl.logger.Error("error while unmarshalling json data", err)
 			return
 		}
 		impl.logger.Debugw("ci complete event for ci", "ciPipelineId", ciCompleteEvent.PipelineId)

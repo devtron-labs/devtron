@@ -69,10 +69,10 @@ func (impl *PubSubClientRestHandlerImpl) PublishEventsToNats(w http.ResponseWrit
 		return
 	}
 
-	pubErr := impl.natsPublishClient.Publish(&publishRequest)
+	err = impl.natsPublishClient.Publish(&publishRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", publishRequest)
-		common.WriteJsonResp(w, pubErr, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	// result := make(map[string]string)

@@ -19,7 +19,6 @@ package pubsub
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/devtron-labs/devtron/util"
 	"github.com/nats-io/nats.go"
@@ -49,32 +48,27 @@ type PublishRequest struct {
 
 //TODO : adhiran : We need to define stream names and subjects which will be published under those streams. Will also help in binding
 func (impl *NatsPublishClientImpl) Publish(req *PublishRequest) error {
-	streamInfo, strInfoErr := impl.pubSubClient.JetStrCtxt.StreamInfo(req.Topic)
-	if strInfoErr != nil {
-		impl.logger.Errorw("Error while getting stream info", "topic", req.Topic, "error", strInfoErr)
+	streamInfo, err := impl.pubSubClient.JetStrCtxt.StreamInfo(req.Topic)
+	if err != nil {
+		impl.logger.Errorw("Error while getting stream info", "topic", req.Topic, "error", err)
 	}
 	if streamInfo == nil {
 		//Stream doesn't already exist. Create a new stream from jetStreamContext
-		_, addStrError := impl.pubSubClient.JetStrCtxt.AddStream(&nats.StreamConfig{
-			Name:     req.Topic,
+		_, err = impl.pubSubClient.JetStrCtxt.AddStream(&nats.StreamConfig{
+			Name:     req.Topic, //order
 			Subjects: []string{req.Topic + ".*"},
 		})
-		if addStrError != nil {
-			impl.logger.Errorw("Error while creating stream", "topic", req.Topic, "error", addStrError)
+		if err != nil {
+			impl.logger.Errorw("Error while creating stream", "topic", req.Topic, "error", err)
 		}
 	}
 
 	//Generate random string for passing as Header Id in message
 	randString := "MsgHeaderId-" + util.Generate(10)
-	_, publishErr := impl.pubSubClient.JetStrCtxt.PublishAsync(req.Topic, req.Payload, nats.MsgId(randString))
-	if publishErr != nil {
-		impl.logger.Errorw("Error while publishing asyncRequest", "topic", req.Topic, "body", string(req.Payload), "err", publishErr)
+	_, err = impl.pubSubClient.JetStrCtxt.Publish(req.Topic, req.Payload, nats.MsgId(randString))
+	if err != nil {
+		impl.logger.Errorw("Error while publishing Request", "topic", req.Topic, "body", string(req.Payload), "err", err)
 	}
-	//TODO : adhiran : Need to find out why we need below select case
-	select {
-	case <-impl.pubSubClient.JetStrCtxt.PublishAsyncComplete():
-	case <-time.After(5 * time.Second):
-		impl.logger.Errorw("Did not resolve in time")
-	}
-	return publishErr
+
+	return err
 }

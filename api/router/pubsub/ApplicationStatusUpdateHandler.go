@@ -59,9 +59,7 @@ func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClie
 	return appStatusUpdateHandlerImpl
 }
 
-//TODO : adhiran : We should be able to bind to a particular stream name. Not sure as of now how do we know the stream which is
-//going to be the publisher for this subscriber ? Check with Nishant. Can we create all required streams at once rather than
-//on the fly?
+//TODO : adhiran : Need to bind to one particular stream. Need to finalise with Nishant.
 func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(applicationStatusUpdate, applicationStatusUpdateGroup, func(msg *nats.Msg) {
 		impl.logger.Debug("received app update request")

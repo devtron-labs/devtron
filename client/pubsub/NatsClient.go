@@ -58,19 +58,12 @@ func NewPubSubClient(logger *zap.SugaredLogger) (*PubSubClient, error) {
 	}
 
 	//Create a jetstream context
-	js, _ := nc.JetStream()
+	js, err := nc.JetStream()
 
-	//
-	// 	sc, err := stan.Connect(cfg.ClusterId, uniqueClienId, stan.NatsConn(nc))
-	// 	if err != nil {
-	// 		log.Println("err", err)
-	// 		os.Exit(1)
-	// 	}
-	// 	ack, err := strconv.Atoi(cfg.AckDuration)
-	// 	if err != nil {
-	// 		log.Println("err", err)
-	// 		os.Exit(1)
-	// 	}
+	if err != nil {
+		logger.Errorw("Error while creating jetstream context", "error", err)
+	}
+
 	natsClient := &PubSubClient{
 		logger:     logger,
 		JetStrCtxt: js,
