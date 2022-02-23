@@ -32,7 +32,7 @@ apiVersion: batch/v1
 {{- end }}
 kind: CronJob
 metadata:
-  name: {{ include ".Chart.Name .fullname" $ }}
+  name: {{ include ".Chart.Name .fullname" $ }}-{{ .Release.Revision }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
