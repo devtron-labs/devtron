@@ -464,8 +464,9 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		clusterId := clusterMap[clusterName]
 		for namespace := range namespaces {
 			//deduplication for cluster and namespace combination
+			key := fmt.Sprintf("%s__%s", clusterName, namespace)
 			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
-			if _, ok := uniqueComboMap[groupKey]; !ok {
+			if _, ok := uniqueComboMap[key]; !ok {
 				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
 				// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
 				if !isActionUserSuperAdmin {
@@ -545,8 +546,9 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 		}
 		for namespace := range namespaces {
 			//deduplication for cluster and namespace combination
+			key := fmt.Sprintf("%s__%s", clusterName, namespace)
 			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
-			if _, ok := uniqueComboMap[groupKey]; !ok {
+			if _, ok := uniqueComboMap[key]; !ok {
 				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
 				// auth enforcer applied here
 				isValidAuth := auth(token, environmentIdentifier)

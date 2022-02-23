@@ -521,7 +521,7 @@ type CiArtifactBean struct {
 	Deployed                      bool            `json:"deployed,notnull"`
 	Latest                        bool            `json:"latest,notnull"`
 	LastSuccessfulTriggerOnParent bool            `json:"lastSuccessfulTriggerOnParent,notnull"`
-	RunningOnParentCd			  bool			  `json:"runningOnParentCd,omitempty"`
+	RunningOnParentCd             bool            `json:"runningOnParentCd,omitempty"`
 	IsVulnerable                  bool            `json:"vulnerable,notnull"`
 	ScanEnabled                   bool            `json:"scanEnabled,notnull"`
 	Scanned                       bool            `json:"scanned,notnull"`

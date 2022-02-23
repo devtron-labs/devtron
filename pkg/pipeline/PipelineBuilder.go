@@ -1204,11 +1204,13 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 
+	chartRepoName := impl.appService.GetChartRepoName(chart.GitRepoUrl)
 	chartGitAttr := &util.ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
 		FileContent:    string(DefaultPipelineValue),
 		ChartName:      chart.ChartName,
 		ChartLocation:  chart.ChartLocation,
+		ChartRepoName:  chartRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
 	}
 	//FIXME: why only bitbucket?
@@ -1614,7 +1616,7 @@ func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage
 	}
 	//setting parent cd id for checking latest image running on parent cd
 	parentCdId := 0
-	if parentType == bean2.CD_WORKFLOW_TYPE_POST || parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
+	if parentType == bean2.CD_WORKFLOW_TYPE_POST || (parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY && stage != bean2.CD_WORKFLOW_TYPE_POST) {
 		parentCdId = parentId
 	}
 	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
@@ -1658,7 +1660,6 @@ func (impl PipelineBuilderImpl) GetCdParentDetails(cdPipelineId int) (parentId i
 			return parentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, nil
 		}
 	}
-	// empty string used to denote CI pipeline
 	return parentId, bean2.CI_WORKFLOW_TYPE, nil
 }
 
