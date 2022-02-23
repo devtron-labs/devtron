@@ -26,7 +26,7 @@ type PluginInputs struct {
 
 type PluginRepository interface {
 	Save(plugin *Plugin, inputs []*PluginInputs) error
-	FindByAppId(pluginId int) (*Plugin, []PluginInputs, error)
+	FindByAppId(pluginId int) (*Plugin, []*PluginInputs, error)
 	Update(plugin *Plugin, inputs []*PluginInputs) error
 	Delete(pluginId int) error
 }
@@ -52,14 +52,14 @@ func (impl *PluginRepositoryImpl) Save(plugin *Plugin, inputs []*PluginInputs) e
 	return check
 }
 
-func (impl *PluginRepositoryImpl) FindByAppId(pluginId int) (*Plugin, []PluginInputs, error) {
+func (impl *PluginRepositoryImpl) FindByAppId(pluginId int) (*Plugin, []*PluginInputs, error) {
 	plugin := &Plugin{}
 	err := impl.dbConnection.Model(plugin).Where("id = ? ", pluginId).Select()
 	if err != nil {
 		impl.logger.Errorw("Plugin not found for given Id", "err", err)
 	}
-	var pluginInputs []PluginInputs
-	err = impl.dbConnection.Model(&pluginInputs).Where("id = ? ", pluginId).Select()
+	var pluginInputs []*PluginInputs
+	err = impl.dbConnection.Model(&pluginInputs).Where("plugin_id = ? ", pluginId).Select()
 	if err != nil {
 		impl.logger.Errorw("Plugin not found for given Id", "err", err)
 	}
