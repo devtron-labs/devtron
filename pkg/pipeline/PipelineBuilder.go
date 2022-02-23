@@ -1208,11 +1208,13 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 
+	chartRepoName := impl.appService.GetChartRepoName(chart.GitRepoUrl)
 	chartGitAttr := &util.ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
 		FileContent:    string(DefaultPipelineValue),
 		ChartName:      chart.ChartName,
 		ChartLocation:  chart.ChartLocation,
+		ChartRepoName:  chartRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
 	}
 	//FIXME: why only bitbucket?
