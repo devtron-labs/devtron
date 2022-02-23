@@ -25,6 +25,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
@@ -132,6 +133,8 @@ type PipelineBuilderImpl struct {
 	aCDAuthConfig                  *util3.ACDAuthConfig
 	gitOpsRepository               repository.GitOpsConfigRepository
 	pipelineStrategyHistoryService history.PipelineStrategyHistoryService
+	prePostCiScriptHistoryService  history.PrePostCiScriptHistoryService
+	prePostCdScriptHistoryService  history.PrePostCdScriptHistoryService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -159,7 +162,9 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	GitFactory *util.GitFactory, attributesService attributes.AttributesService,
 	aCDAuthConfig *util3.ACDAuthConfig, gitOpsRepository repository.GitOpsConfigRepository,
-	pipelineStrategyHistoryService history.PipelineStrategyHistoryService) *PipelineBuilderImpl {
+	pipelineStrategyHistoryService history.PipelineStrategyHistoryService,
+	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
+	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                         logger,
 		dbPipelineOrchestrator:         dbPipelineOrchestrator,
@@ -189,6 +194,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		aCDAuthConfig:                  aCDAuthConfig,
 		gitOpsRepository:               gitOpsRepository,
 		pipelineStrategyHistoryService: pipelineStrategyHistoryService,
+		prePostCiScriptHistoryService:  prePostCiScriptHistoryService,
+		prePostCdScriptHistoryService:  prePostCdScriptHistoryService,
 	}
 }
 
@@ -921,6 +928,24 @@ func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*b
 			return nil, err
 		}
 	}
+	for _, ciScript := range request.CiPipeline.BeforeDockerBuildScripts {
+		ciPipelineScript := impl.dbPipelineOrchestrator.BuildCiPipelineScript(request.UserId, ciScript, BEFORE_DOCKER_BUILD, request.CiPipeline)
+		//creating history entry
+		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			return nil, err
+		}
+	}
+	for _, ciScript := range request.CiPipeline.AfterDockerBuildScripts {
+		ciPipelineScript := impl.dbPipelineOrchestrator.BuildCiPipelineScript(request.UserId, ciScript, AFTER_DOCKER_BUILD, request.CiPipeline)
+		//creating history entry
+		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			return nil, err
+		}
+	}
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -1100,6 +1125,20 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 		}
 	}
 
+	if pipeline.PreStageConfig != "" {
+		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.PRE_CD_TYPE, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
+			return err
+		}
+	}
+	if pipeline.PostStageConfig != "" {
+		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.POST_CD_TYPE, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
+			return err
+		}
+	}
 	//delete app from argo cd
 	envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
 	if err != nil {

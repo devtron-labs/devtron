@@ -598,10 +598,11 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 }
 
 func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest *AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error) {
-
 	// validate app metrics compatibility
+	var currentChart *chartConfig.EnvConfigOverride
+	var err error
 	if appMetricRequest.IsAppMetricsEnabled == true {
-		currentChart, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appMetricRequest.AppId, appMetricRequest.EnvironmentId)
+		currentChart, err = impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appMetricRequest.AppId, appMetricRequest.EnvironmentId)
 		if err != nil && !errors.IsNotFound(err) {
 			impl.logger.Error(err)
 			return nil, err
@@ -662,6 +663,11 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 			impl.logger.Error("err", err)
 			return nil, err
 		}
+	}
+	//creating history entry
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(currentChart, nil, appMetricRequest.IsAppMetricsEnabled)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", currentChart)
 	}
 	return appMetricRequest, err
 }

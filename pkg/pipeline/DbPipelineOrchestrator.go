@@ -65,6 +65,7 @@ type DbPipelineOrchestrator interface {
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	GetByEnvOverrideId(envOverrideId int) (*bean.CdPipelines, error)
+	BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript
 }
 
 type DbPipelineOrchestratorImpl struct {
@@ -291,7 +292,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 
 func (impl DbPipelineOrchestratorImpl) patchCiScripts(userId int32, pipeline *bean.CiPipeline, existingCiScriptMap map[int]bool, existingCiScriptModelMap map[int]*pipelineConfig.CiPipelineScript, tx *pg.Tx) error {
 	for _, ciScript := range pipeline.BeforeDockerBuildScripts {
-		ciPipelineScript := impl.buildCiPipelineScript(userId, ciScript, BEFORE_DOCKER_BUILD, pipeline)
+		ciPipelineScript := impl.BuildCiPipelineScript(userId, ciScript, BEFORE_DOCKER_BUILD, pipeline)
 		if _, ok := existingCiScriptMap[ciScript.Id]; ok { // Update
 			err := impl.ciPipelineRepository.UpdateCiPipelineScript(ciPipelineScript, tx)
 			if err != nil {
@@ -315,7 +316,7 @@ func (impl DbPipelineOrchestratorImpl) patchCiScripts(userId int32, pipeline *be
 	}
 
 	for _, ciScript := range pipeline.AfterDockerBuildScripts {
-		ciPipelineScript := impl.buildCiPipelineScript(userId, ciScript, AFTER_DOCKER_BUILD, pipeline)
+		ciPipelineScript := impl.BuildCiPipelineScript(userId, ciScript, AFTER_DOCKER_BUILD, pipeline)
 		if _, ok := existingCiScriptMap[ciScript.Id]; ok { // Update
 			err := impl.ciPipelineRepository.UpdateCiPipelineScript(ciPipelineScript, tx)
 			if err != nil {
@@ -445,7 +446,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 		}
 
 		for i, ciScript := range ciPipeline.BeforeDockerBuildScripts {
-			ciPipelineScript := impl.buildCiPipelineScript(createRequest.UserId, ciScript, BEFORE_DOCKER_BUILD, ciPipeline)
+			ciPipelineScript := impl.BuildCiPipelineScript(createRequest.UserId, ciScript, BEFORE_DOCKER_BUILD, ciPipeline)
 			err = impl.ciPipelineRepository.SaveCiPipelineScript(ciPipelineScript, tx)
 			if err != nil {
 				impl.logger.Errorw("error while saving ci script", "err", err)
@@ -461,7 +462,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 		}
 
 		for i, ciScript := range ciPipeline.AfterDockerBuildScripts {
-			ciPipelineScript := impl.buildCiPipelineScript(createRequest.UserId, ciScript, AFTER_DOCKER_BUILD, ciPipeline)
+			ciPipelineScript := impl.BuildCiPipelineScript(createRequest.UserId, ciScript, AFTER_DOCKER_BUILD, ciPipeline)
 			err = impl.ciPipelineRepository.SaveCiPipelineScript(ciPipelineScript, tx)
 			if err != nil {
 				impl.logger.Errorw("error while saving ci script", "err", err)
@@ -559,7 +560,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 	return createRequest, nil
 }
 
-func (impl DbPipelineOrchestratorImpl) buildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript {
+func (impl DbPipelineOrchestratorImpl) BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript {
 	ciPipelineScript := &pipelineConfig.CiPipelineScript{
 		Name:           ciScript.Name,
 		Index:          ciScript.Index,

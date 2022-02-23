@@ -878,6 +878,11 @@ func (impl InstalledAppServiceImpl) DeleteInstalledApp(ctx context.Context, inst
 			return nil, err
 		}
 	}
+	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
+		return nil, err
+	}
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in commit db transaction on delete", "err", err)
