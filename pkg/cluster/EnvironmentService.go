@@ -464,8 +464,9 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		clusterId := clusterMap[clusterName]
 		for namespace := range namespaces {
 			//deduplication for cluster and namespace combination
+			key := fmt.Sprintf("%s__%s", clusterName, namespace)
 			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
-			if _, ok := uniqueComboMap[groupKey]; !ok {
+			if _, ok := uniqueComboMap[key]; !ok {
 				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
 				// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
 				if !isActionUserSuperAdmin {
@@ -545,8 +546,9 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 		}
 		for namespace := range namespaces {
 			//deduplication for cluster and namespace combination
+			key := fmt.Sprintf("%s__%s", clusterName, namespace)
 			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
-			if _, ok := uniqueComboMap[groupKey]; !ok {
+			if _, ok := uniqueComboMap[key]; !ok {
 				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
 				// auth enforcer applied here
 				isValidAuth := auth(token, environmentIdentifier)
@@ -602,7 +604,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		return err
 	}
 	//deleting auth roles entries for this environment
-	err = impl.userAuthService.DeleteRoles(repository2.ENV_TYPE, deleteRequest.Name, tx)
+	err = impl.userAuthService.DeleteRoles(repository2.ENV_TYPE, deleteRequest.Name, tx, existingEnv.EnvironmentIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err

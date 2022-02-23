@@ -453,7 +453,7 @@ func (impl GitLabClient) checkIfFileExists(projectName, ref, file string) (exist
 func (impl GitLabClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId string) (commitHash string, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
-	exists, err := impl.checkIfFileExists(config.ChartName, branch, path)
+	exists, err := impl.checkIfFileExists(config.ChartRepoName, branch, path)
 	var fileAction gitlab.FileAction
 	if exists {
 		fileAction = gitlab.FileUpdate
@@ -465,7 +465,7 @@ func (impl GitLabClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 		CommitMessage: gitlab.String(config.ReleaseMessage),
 		Actions:       []*gitlab.CommitAction{{Action: fileAction, FilePath: path, Content: config.FileContent}},
 	}
-	c, _, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.ChartName), actions)
+	c, _, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.ChartRepoName), actions)
 	if err != nil {
 		return "", err
 	}
@@ -478,6 +478,7 @@ type ChartConfig struct {
 	FileName       string //filename
 	FileContent    string
 	ReleaseMessage string
+	ChartRepoName  string
 }
 
 //-------------------- go-git integration -------------------
@@ -734,6 +735,7 @@ func (impl GitHubClient) createReadme(repoName string) (string, error) {
 		FileName:       "README.md",
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
+		ChartRepoName: repoName,
 	}
 	hash, err := impl.CommitValues(cfg, "")
 	if err != nil {
@@ -747,7 +749,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	ctx := context.Background()
 	newFile := false
-	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartName, path, &github.RepositoryContentGetOptions{Ref: branch})
+	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartRepoName, path, &github.RepositoryContentGetOptions{Ref: branch})
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
@@ -767,7 +769,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 		SHA:     &currentSHA,
 		Branch:  &branch,
 	}
-	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartName, path, options)
+	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)
 	if err != nil {
 		impl.logger.Errorw("error in commit github", "err", err, "config", config)
 		return "", err

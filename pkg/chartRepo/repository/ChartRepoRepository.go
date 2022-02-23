@@ -64,6 +64,7 @@ type ChartRepository interface {
 	FindChartByAppIdAndRefId(appId int, chartRefId int) (chart *Chart, err error)
 	FindNoLatestChartForAppByAppId(appId int) ([]*Chart, error)
 	FindPreviousChartByAppId(appId int) (chart *Chart, err error)
+	FindByGirRepoUrl(gitRepoUrl string) (chart *Chart, err error)
 }
 
 func NewChartRepository(dbConnection *pg.DB) *ChartRepositoryImpl {
@@ -194,6 +195,13 @@ func (repositoryImpl ChartRepositoryImpl) FindById(id int) (chart *Chart, err er
 	return chart, err
 }
 
+func (repositoryImpl ChartRepositoryImpl) FindByGirRepoUrl(gitRepoUrl string) (chart *Chart, err error) {
+	chart = &Chart{}
+	err = repositoryImpl.dbConnection.Model(chart).
+		Where("git_repo_url = ?", gitRepoUrl).Where("active=true").Where("latest=true").Select()
+	return chart, err
+}
+
 //---------------------------chart repository------------------
 
 type ChartRepo struct {
@@ -209,7 +217,7 @@ type ChartRepo struct {
 	AccessToken string              `sql:"access_token"`
 	AuthMode    repository.AuthMode `sql:"auth_mode,notnull"`
 	External    bool                `sql:"external,notnull"`
-	Deleted		bool				`sql:"deleted,notnull"`
+	Deleted     bool                `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
@@ -271,7 +279,7 @@ func (impl ChartRepoRepositoryImpl) FindAll() ([]*ChartRepo, error) {
 	return repo, err
 }
 
-func(impl ChartRepoRepositoryImpl) MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error{
+func (impl ChartRepoRepositoryImpl) MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error {
 	chartRepo.Deleted = true
 	return tx.Update(chartRepo)
 }
