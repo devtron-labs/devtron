@@ -104,6 +104,7 @@ type AppService interface {
 	UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Application, cdWorkflowId int) error
 	GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
+	GetChartRepoName(gitRepoUrl string) string
 }
 
 func NewAppService(
@@ -177,15 +178,21 @@ func (impl AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.Release
 func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1.Application) (bool, error) {
 	isHealthy := false
 	repoUrl := app.Spec.Source.RepoURL
-	repoUrl = repoUrl[strings.LastIndex(repoUrl, "/")+1:]
-	appName := strings.ReplaceAll(repoUrl, ".git", "")
-	evnName := strings.ReplaceAll(app.Name, appName+"-", "")
-	impl.logger.Debugw("event received ", "appName", appName, "evnName", evnName, "app", app)
-	dbApp, err := impl.appRepository.FindActiveByName(appName)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching app name", "err", err, "appName", appName)
+	// backward compatibility for updating application status - if unable to find app check it in charts
+	chart, err := impl.chartRepository.FindByGirRepoUrl(repoUrl)
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart", "err", err, "chart", chart.ChartName)
 		return isHealthy, err
 	}
+	dbApp, err := impl.appRepository.FindById(chart.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app", "err", err, "app", chart.AppId)
+		return isHealthy, err
+	}
+	// extract environment name from argocd app
+	evnName := strings.ReplaceAll(app.Name, dbApp.AppName+"-", "")
+	appName := dbApp.AppName
+
 	if dbApp.Id > 0 && dbApp.AppStore == true {
 		impl.logger.Debugw("skipping application status update as this app is chart", "appName", appName)
 		return isHealthy, nil
@@ -1024,6 +1031,12 @@ func (impl AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfig
 	return override, nil
 }
 
+func (impl AppServiceImpl) GetChartRepoName(gitRepoUrl string) string {
+	gitRepoUrl = gitRepoUrl[strings.LastIndex(gitRepoUrl, "/")+1:]
+	chartRepoName := strings.ReplaceAll(gitRepoUrl, ".git", "")
+	return chartRepoName
+}
+
 func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverride,
 	overrideRequest *bean.ValuesOverrideRequest,
 	dbMigrationOverride []byte,
@@ -1083,11 +1096,13 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
 
+	chartRepoName := impl.GetChartRepoName(envOverride.Chart.GitRepoUrl)
 	chartGitAttr := &ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
 		FileContent:    string(merged),
 		ChartName:      envOverride.Chart.ChartName,
 		ChartLocation:  envOverride.Chart.ChartLocation,
+		ChartRepoName:  chartRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", override.Id, envOverride.TargetEnvironment),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)

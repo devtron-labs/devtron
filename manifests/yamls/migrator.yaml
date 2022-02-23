@@ -171,7 +171,7 @@ spec:
   backoffLimit: 20
   activeDeadlineSeconds: 1500
 ---
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: app-sync-cronjob
