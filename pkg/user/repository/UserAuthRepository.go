@@ -50,6 +50,7 @@ type UserAuthRepository interface {
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
+	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
 
 	CreateDefaultPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	CreateDefaultHelmPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error)
@@ -57,11 +58,11 @@ type UserAuthRepository interface {
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	UpdateTriggerPolicyForTerminalAccess() error
-	GetRolesForEnvironment(envName string) ([]*RoleModel, error)
+	GetRolesForEnvironment(envName, envIdentifier string) ([]*RoleModel, error)
 	GetRolesForProject(teamName string) ([]*RoleModel, error)
 	GetRolesForApp(appName string) ([]*RoleModel, error)
 	GetRolesForChartGroup(chartGroupName string) ([]*RoleModel, error)
-	DeleteRoles(roles []*RoleModel, tx *pg.Tx) error
+	DeleteRole(role *RoleModel, tx *pg.Tx) error
 }
 
 type UserAuthRepositoryImpl struct {
@@ -293,6 +294,17 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleMapping(userRoleModel *UserRole
 		return false, err
 	}
 	return true, nil
+}
+
+func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error {
+	var userRoleModel *UserRoleModel
+	_, err := tx.Model(userRoleModel).
+		Where("role_id = ?", roleId).Delete()
+	if err != nil {
+		impl.Logger.Error("err in deleting user role by role id", "err", err, "roleId", roleId)
+		return err
+	}
+	return nil
 }
 
 func (impl UserAuthRepositoryImpl) CreateDefaultPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error) {
@@ -1166,11 +1178,12 @@ func (impl UserAuthRepositoryImpl) GetUpdatedAddedOrDeletedPolicies(policies []c
 	return policyResp, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetRolesForEnvironment(envName string) ([]*RoleModel, error) {
+func (impl UserAuthRepositoryImpl) GetRolesForEnvironment(envName, envIdentifier string) ([]*RoleModel, error) {
 	var roles []*RoleModel
-	err := impl.dbConnection.Model(&roles).Where("environment = ?", envName).Select()
+	err := impl.dbConnection.Model(&roles).WhereOr("environment = ?", envName).
+		WhereOr("environment = ?", envIdentifier).Select()
 	if err != nil {
-		impl.Logger.Errorw("error in getting roles for environment", "err", err, "envName", envName)
+		impl.Logger.Errorw("error in getting roles for environment", "err", err, "envName", envName, "envIdentifier", envIdentifier)
 		return nil, err
 	}
 	return roles, nil
@@ -1188,7 +1201,7 @@ func (impl UserAuthRepositoryImpl) GetRolesForProject(teamName string) ([]*RoleM
 
 func (impl UserAuthRepositoryImpl) GetRolesForApp(appName string) ([]*RoleModel, error) {
 	var roles []*RoleModel
-	err := impl.dbConnection.Model(&roles).Where("role not like ?", fmt.Sprintf("role:"+CHART_GROUP_TYPE+"%")).
+	err := impl.dbConnection.Model(&roles).Where("entity is NULL").
 		Where("entity_name = ?", appName).Select()
 	if err != nil {
 		impl.Logger.Errorw("error in getting roles for app", "err", err, "appName", appName)
@@ -1199,7 +1212,7 @@ func (impl UserAuthRepositoryImpl) GetRolesForApp(appName string) ([]*RoleModel,
 
 func (impl UserAuthRepositoryImpl) GetRolesForChartGroup(chartGroupName string) ([]*RoleModel, error) {
 	var roles []*RoleModel
-	err := impl.dbConnection.Model(&roles).Where("role like ?", fmt.Sprintf("role:"+CHART_GROUP_TYPE+"%")).
+	err := impl.dbConnection.Model(&roles).Where("entity = ?", CHART_GROUP_TYPE).
 		Where("entity_name = ?", chartGroupName).Select()
 	if err != nil {
 		impl.Logger.Errorw("error in getting roles for chart group", "err", err, "chartGroupName", chartGroupName)
@@ -1208,10 +1221,10 @@ func (impl UserAuthRepositoryImpl) GetRolesForChartGroup(chartGroupName string) 
 	return roles, nil
 }
 
-func (impl UserAuthRepositoryImpl) DeleteRoles(roles []*RoleModel, tx *pg.Tx) error {
-	err := tx.Delete(&roles)
+func (impl UserAuthRepositoryImpl) DeleteRole(role *RoleModel, tx *pg.Tx) error {
+	err := tx.Delete(role)
 	if err != nil {
-		impl.Logger.Errorw("error in deleting roles", "err", err)
+		impl.Logger.Errorw("error in deleting role", "err", err, "role", role)
 		return err
 	}
 	return nil

@@ -40,7 +40,7 @@ CREATE database casbin;
 ```
 5. Download the migrator file and re-apply using the following commands:
 ```
-kubectl delete -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/hyperion/migrator.yaml
-kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/hyperion/migrator.yaml
+kubectl delete -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/hyperion/migrator.yaml -n devtroncd
+kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/hyperion/migrator.yaml -n devtroncd
 ```
 After completing all the steps, you should see the helm apps on dashboard.
