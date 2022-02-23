@@ -767,6 +767,7 @@ func (impl InstalledAppServiceImpl) requestBuilderForBulkDeployment(installReque
 	return req, nil
 }
 
+
 func (impl InstalledAppServiceImpl) patchAcdApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()

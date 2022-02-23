@@ -179,6 +179,6 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	mainApp := NewApp(db, sessionManager, muxRouter, telemetryEventClientImpl, sugaredLogger, appStoreDeploymentHelmServiceImpl, appStoreDeploymentHelmServiceImpl)
+	mainApp := NewApp(db, sessionManager, muxRouter, telemetryEventClientImpl, sugaredLogger)
 	return mainApp, nil
 }
