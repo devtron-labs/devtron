@@ -148,11 +148,14 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/pipeline/suggest/{type}/{appId}").
 		HandlerFunc(router.restHandler.PipelineNameSuggestion).Methods("GET")
 
-	configRouter.Path("/history/cm-cs/{appId}/{pipelineId}").
-		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedCMCSHistory).
+	configRouter.Path("/history/cm/{appId}/{pipelineId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedCMHistory).
+		Methods("GET")
+	configRouter.Path("/history/cs/{appId}/{pipelineId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedCSHistory).
 		Methods("GET")
 
-	configRouter.Path("/history/charts/{appId}/{pipelineId}").
+	configRouter.Path("/history/template/{appId}/{pipelineId}").
 		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedTemplatesHistory).
 		Methods("GET")
 

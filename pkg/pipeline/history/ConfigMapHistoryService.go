@@ -16,7 +16,7 @@ type ConfigMapHistoryService interface {
 	CreateHistoryFromEnvLevelConfig(envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType) error
 	CreateConfigMapHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) error
 	MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType, configMapSecretNames []string) (string, error)
-	GetHistoryForDeployedCMCS(pipelineId int) ([]*ConfigMapAndSecretHistoryDto, error)
+	GetHistoryForDeployedCMCS(pipelineId int, configType repository.ConfigType) ([]*ConfigMapAndSecretHistoryDto, error)
 }
 
 type ConfigMapHistoryServiceImpl struct {
@@ -228,8 +228,8 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 	return string(finalConfigDataByte), err
 }
 
-func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCS(pipelineId int) ([]*ConfigMapAndSecretHistoryDto, error) {
-	histories, err := impl.configMapHistoryRepository.GetHistoryForDeployedCMCS(pipelineId)
+func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCS(pipelineId int, configType repository.ConfigType) ([]*ConfigMapAndSecretHistoryDto, error) {
+	histories, err := impl.configMapHistoryRepository.GetHistoryForDeployedCMCS(pipelineId, configType)
 	if err != nil {
 		impl.logger.Errorw("error in getting histories for cm/cs", "err", err, "pipelineId", pipelineId)
 		return nil, err

@@ -16,7 +16,7 @@ const (
 
 type ConfigMapHistoryRepository interface {
 	CreateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error)
-	GetHistoryForDeployedCMCS(pipelineId int) ([]*ConfigmapAndSecretHistory, error)
+	GetHistoryForDeployedCMCS(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error)
 }
 
 type ConfigMapHistoryRepositoryImpl struct {
@@ -49,9 +49,10 @@ func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(model *ConfigmapAndSecr
 	return model, nil
 }
 
-func (impl ConfigMapHistoryRepositoryImpl) GetHistoryForDeployedCMCS(pipelineId int) ([]*ConfigmapAndSecretHistory, error) {
+func (impl ConfigMapHistoryRepositoryImpl) GetHistoryForDeployedCMCS(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error) {
 	var histories []*ConfigmapAndSecretHistory
 	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
+		Where("data_type = ?", configType).
 		Where("deployed = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting CM/CS history", "err", err)
