@@ -33,7 +33,7 @@ func NewChartsHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.
 func (impl AppStoreChartsHistoryRepositoryImpl) CreateHistory(history *AppStoreChartsHistory, tx *pg.Tx) (*AppStoreChartsHistory, error) {
 	err := tx.Insert(history)
 	if err != nil {
-		impl.logger.Errorw("err in creating charts history entry", "err", err, "history", history)
+		impl.logger.Errorw("err in creating app store charts history entry", "err", err, "history", history)
 		return history, err
 	}
 	return history, nil

@@ -1307,7 +1307,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		//creating history entry for strategy
 		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
 		if err != nil {
-			impl.logger.Errorw("error in saving strategy history entry", "err", err)
+			impl.logger.Errorw("error in creating strategy history entry", "err", err)
 			return 0, err
 		}
 
@@ -1404,7 +1404,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 			//creating history entry for strategy
 			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
 			if err != nil {
-				impl.logger.Errorw("error in saving strategy history entry", "err", err)
+				impl.logger.Errorw("error in creating strategy history entry", "err", err)
 				return err
 			}
 		} else {
@@ -1424,7 +1424,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 			//creating history entry for strategy
 			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
 			if err != nil {
-				impl.logger.Errorw("error in saving strategy history entry", "err", err)
+				impl.logger.Errorw("error in creating strategy history entry", "err", err)
 				return err
 			}
 		}

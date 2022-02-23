@@ -288,7 +288,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	//STEP 8 : creating entry for installed app history
 	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, tx)
 	if err != nil {
-		impl.logger.Errorw("error in creating install app history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
+		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err
 	}
 	//STEP 9: finish with return response
@@ -1405,7 +1405,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationDB(installAppVersionR
 	}
 	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, tx)
 	if err != nil {
-		impl.logger.Errorw("error in creating install app history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
+		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err
 	}
 	return installAppVersionRequest, nil

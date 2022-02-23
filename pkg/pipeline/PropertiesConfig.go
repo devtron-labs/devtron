@@ -333,7 +333,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 
 	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(override, nil, *propertiesRequest.AppMetrics)
 	if err != nil {
-		impl.logger.Errorw("error in creating entry for env chart history", "err", err, "envOverride", override)
+		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", override)
 		return nil, err
 	}
 	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(oldEnvOverride.Chart.ChartVersion)
@@ -434,7 +434,7 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 		}
 		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, IsAppMetricsEnabled)
 		if err != nil {
-			impl.logger.Errorw("error in creating entry for env chart history", "err", err, "envOverride", envOverride)
+			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
 			return nil, err
 		}
 	}

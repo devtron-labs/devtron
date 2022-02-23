@@ -84,7 +84,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 			_, err = impl.deploymentTemplateHistoryRepository.CreateHistory(historyModel)
 		}
 		if err != nil {
-			impl.logger.Errorw("err in creating history entry for charts", "err", err, "history", historyModel)
+			impl.logger.Errorw("err in creating history entry for deployment template", "err", err, "history", historyModel)
 			return err
 		}
 	}

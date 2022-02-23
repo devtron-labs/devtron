@@ -48,7 +48,7 @@ func (impl PipelineStrategyHistoryServiceImpl) CreatePipelineStrategyHistory(pip
 		_, err = impl.pipelineStrategyHistoryRepository.CreateHistory(historyModel)
 	}
 	if err != nil {
-		impl.logger.Errorw("err in creating history entry for ci script", "err", err)
+		impl.logger.Errorw("err in creating history entry for pipeline strategy", "err", err)
 		return nil, err
 	}
 	return historyModel, err
@@ -73,7 +73,7 @@ func (impl PipelineStrategyHistoryServiceImpl) CreateStrategyHistoryForDeploymen
 	}
 	_, err := impl.pipelineStrategyHistoryRepository.CreateHistory(historyModel)
 	if err != nil {
-		impl.logger.Errorw("err in creating history entry for ci script", "err", err)
+		impl.logger.Errorw("err in creating history entry for pipeline strategy", "err", err)
 		return err
 	}
 	return err

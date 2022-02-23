@@ -386,7 +386,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 	//creating cd config history entry
 	err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, nil, repository3.PRE_CD_TYPE, true, triggeredBy, triggeredAt)
 	if err != nil {
-		impl.logger.Errorw("error in creating pre cd config entry", "err", err, "pipeline", pipeline)
+		impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
 		return err
 	}
 	return nil
@@ -455,7 +455,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	//creating cd config history entry
 	err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, nil, repository3.POST_CD_TYPE, true, triggeredBy, triggeredAt)
 	if err != nil {
-		impl.logger.Errorw("error in creating post cd config entry", "err", err, "pipeline", pipeline)
+		impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
 		return err
 	}
 	return nil

@@ -359,7 +359,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	//creating history entry for deployment template
 	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, templateRequest.IsAppMetricsEnabled)
 	if err != nil {
-		impl.logger.Errorw("error in creating entry for chart history", "err", err, "chart", chart)
+		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 		return nil, err
 	}
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(templateRequest.AppId)
@@ -481,7 +481,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	//creating history entry for deployment template
 	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, templateRequest.IsAppMetricsEnabled)
 	if err != nil {
-		impl.logger.Errorw("error in creating entry for chart history", "err", err, "chart", chart)
+		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 		return nil, err
 	}
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(templateRequest.AppId)
@@ -744,7 +744,7 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 	//creating history entry for deployment template
 	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(template, nil, templateRequest.IsAppMetricsEnabled)
 	if err != nil {
-		impl.logger.Errorw("error in creating entry for chart history", "err", err, "chart", template)
+		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", template)
 		return nil, err
 	}
 	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {

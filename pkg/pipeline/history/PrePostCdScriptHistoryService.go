@@ -72,7 +72,7 @@ func (impl PrePostCdScriptHistoryServiceImpl) CreatePrePostCdScriptHistory(pipel
 		_, err = impl.prePostCdScriptHistoryRepository.CreateHistory(historyModel)
 	}
 	if err != nil {
-		impl.logger.Errorw("err in creating history entry for cd config", "err", err)
+		impl.logger.Errorw("err in creating history entry for pre/post cd script", "err", err)
 		return err
 	}
 	return nil
@@ -81,7 +81,7 @@ func (impl PrePostCdScriptHistoryServiceImpl) CreatePrePostCdScriptHistory(pipel
 func (impl PrePostCdScriptHistoryServiceImpl) GetHistoryForDeployedPrePostCdScript(pipelineId int, stage repository.CdStageType) ([]*PrePostCdScriptHistoryDto, error) {
 	histories, err := impl.prePostCdScriptHistoryRepository.GetHistoryForDeployedPrePostScriptByStage(pipelineId, stage)
 	if err != nil {
-		impl.logger.Errorw("error in getting cd config history", "err", err, "pipelineId", pipelineId)
+		impl.logger.Errorw("error in getting pre/post cd script history", "err", err, "pipelineId", pipelineId)
 		return nil, err
 	}
 	var historiesDto []*PrePostCdScriptHistoryDto

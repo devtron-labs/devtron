@@ -14,7 +14,7 @@ import (
 type ConfigMapHistoryService interface {
 	CreateHistoryFromAppLevelConfig(appLevelConfig *chartConfig.ConfigMapAppModel, configType repository.ConfigType) error
 	CreateHistoryFromEnvLevelConfig(envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType) error
-	CreateConfigMapHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) error
+	CreateCMCSHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) error
 	MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType, configMapSecretNames []string) (string, error)
 	GetHistoryForDeployedCMCS(pipelineId int, configType repository.ConfigType) ([]*ConfigMapAndSecretHistoryDto, error)
 }
@@ -80,7 +80,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromAppLevelConfig(appLevel
 func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromEnvLevelConfig(envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType) error {
 	pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(envLevelConfig.AppId, envLevelConfig.EnvironmentId)
 	if err != nil {
-		impl.logger.Errorw("err in getting pipelines, CreateHistoryFromAppLevelConfig", "err", err, "envLevelConfig", envLevelConfig)
+		impl.logger.Errorw("err in getting pipelines, CreateHistoryFromEnvLevelConfig", "err", err, "envLevelConfig", envLevelConfig)
 		return err
 	}
 	appLevelConfig, err := impl.configMapRepository.GetByAppIdAppLevel(envLevelConfig.AppId)
@@ -115,7 +115,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromEnvLevelConfig(envLevel
 	return nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) CreateConfigMapHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) error {
+func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) error {
 	//creating history for configmaps, secrets(if any)
 	appLevelConfig, err := impl.configMapRepository.GetByAppIdAppLevel(pipeline.AppId)
 	if err != nil && err != pg.ErrNoRows {

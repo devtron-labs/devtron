@@ -1351,10 +1351,10 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 	//creating history for deployment template
 	err := impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline, envOverride, renderedImageTemplate, deployedOn, deployedBy)
 	if err != nil {
-		impl.logger.Errorw("error in creating charts history for deployment trigger", "err", err)
+		impl.logger.Errorw("error in creating deployment template history for deployment trigger", "err", err)
 		return err
 	}
-	err = impl.configMapHistoryService.CreateConfigMapHistoryForDeploymentTrigger(pipeline, deployedOn, deployedBy)
+	err = impl.configMapHistoryService.CreateCMCSHistoryForDeploymentTrigger(pipeline, deployedOn, deployedBy)
 	if err != nil {
 		impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
 		return err

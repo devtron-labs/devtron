@@ -1067,14 +1067,14 @@ func (impl DbPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean.C
 	if pipeline.PreStageConfig != "" {
 		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.PRE_CD_TYPE, false, 0, time.Time{})
 		if err != nil {
-			impl.logger.Errorw("error in creating pre cd config entry", "err", err, "pipeline", pipeline)
+			impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
 			return 0, err
 		}
 	}
 	if pipeline.PostStageConfig != "" {
 		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.POST_CD_TYPE, false, 0, time.Time{})
 		if err != nil {
-			impl.logger.Errorw("error in creating post cd config entry", "err", err, "pipeline", pipeline)
+			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
 			return 0, err
 		}
 	}
@@ -1135,14 +1135,14 @@ func (impl DbPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.CD
 	if pipeline.PreStageConfig != "" {
 		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.PRE_CD_TYPE, false, 0, time.Time{})
 		if err != nil {
-			impl.logger.Errorw("error in creating pre cd config entry", "err", err, "pipeline", pipeline)
+			impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
 			return err
 		}
 	}
 	if pipeline.PostStageConfig != "" {
 		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.POST_CD_TYPE, false, 0, time.Time{})
 		if err != nil {
-			impl.logger.Errorw("error in creating post cd config entry", "err", err, "pipeline", pipeline)
+			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
 			return err
 		}
 	}
