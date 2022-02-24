@@ -7,7 +7,7 @@ Deployment configuration is the Manifest for the application, it defines the run
 2. Yaml file
 3. Show application metrics
 
-![](../../../.gitbook/assets/deployment-template%20%282%29.gif)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-template.gif)
 
 ## 1. Chart version
 
@@ -59,6 +59,30 @@ ContainerPort:
 EnvVariables: []
 ```
 To set environment variables for the containers that run in the Pod.
+
+### Example of env variables
+
+`IMP` Docker image should have env variables, whatever we want to set.
+```yaml
+EnvVariables: 
+  - name: HOSTNAME
+    value: www.xyz.com
+  - name: DB_NAME
+    value: mydb
+  - name: USER_NAME
+    value: ajay
+```
+But `ConfigMap` and `Secret` are the prefered way to inject env variables. So we can create this in `App Configuration` Section
+
+### ConfigMap
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/configure-configmap.jpg)
+
+### Secret
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/created-secret.gif)
+
+`IMP` All key-values of `Secret` and `CofigMap` will reflect to your application.
 
 ### Liveness Probe
 
@@ -658,7 +682,7 @@ Wait for given period of time before scaling down the container.
 
 If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
 
-![](../../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment_application_metrics.png)
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
 
