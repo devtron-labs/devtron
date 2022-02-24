@@ -439,11 +439,9 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 		return
 	}
 
-	schema, readme, err := handler.chartService.GetSchemaAndReadmeForDefaultTemplate(chartRefId)
+	schema, readme, err := handler.chartService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
 	if err != nil {
-		handler.Logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+		handler.Logger.Errorw("err in getting schema and readme, GetEnvConfigOverride", "err", err, "appId", appId, "chartRefId", chartRefId)
 	}
 	env.Schema = schema
 	env.Readme = string(readme)
@@ -480,11 +478,9 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 	appConfigResponse := make(map[string]interface{})
 	appConfigResponse["globalConfig"] = nil
 
-	schema, readme, err := handler.chartService.GetSchemaAndReadmeForDefaultTemplate(chartRefId)
+	schema, readme, err := handler.chartService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
 	}
 
 	template, err := handler.chartService.FindLatestChartForAppByAppId(appId)
