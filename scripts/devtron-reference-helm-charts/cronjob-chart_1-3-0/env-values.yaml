@@ -1,4 +1,3 @@
-replicaCount: 1
 MaxSurge: 1
 MaxUnavailable: 0
 GracePeriod: 30
@@ -9,13 +8,6 @@ Spec:
  Affinity:
   key: ""
   Values: nodes
-
-autoscaling:
-  enabled: false
-  MinReplicas: 1
-  MaxReplicas: 2
-  TargetCPUUtilizationPercentage: 90
-  TargetMemoryUtilizationPercentage: 80
 
 secret:
  enabled: false
