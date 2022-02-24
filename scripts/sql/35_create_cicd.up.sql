@@ -1,21 +1,56 @@
 CREATE SEQUENCE IF NOT EXISTS public.id_seq_plugin_scripts;
+CREATE SEQUENCE IF NOT EXISTS public.id_seq_plugin_tags;
+CREATE SEQUENCE IF NOT EXISTS public.id_seq_plugin_steps;
+CREATE SEQUENCE IF NOT EXISTS public.id_seq_plugin_steps_seq;
 
 CREATE TABLE public.plugin_scripts
 (
-    "id"                        INT4 NOT NULL DEFAULT NEXTVAL('id_seq_plugin_scripts'::
+    "plugin_id"                        INT4 NOT NULL DEFAULT NEXTVAL('id_seq_plugin_scripts'::
      regclass),
-    "name"                      VARCHAR(250),
-    "description"               VARCHAR(250),
-    "body"                      TEXT,
-    "step_template_language"    VARCHAR(100),
-    "step_template"             TEXT,
-    PRIMARY KEY ("id")
+    "plugin_name"                      VARCHAR(250),
+    "plugin_description"               VARCHAR(250),
+    "plugin_body"                      TEXT,
+    PRIMARY KEY ("plugin_id")
 );
 
-CREATE TABLE public.plugin_inputs
+CREATE TABLE public.plugin_fields
 (
-    "plugin_id"     INT4 NOT NULL,
-    "key_name"          VARCHAR(250),
-    "default_value" VARCHAR(250),
-    "plugin_key_description"   VARCHAR(250)
+    "plugin_id"                     INT4 NOT NULL,
+    "key_name"                      VARCHAR(250),
+    "default_value"                 VARCHAR(250),
+    "plugin_key_description"        VARCHAR(250),
+    "plugin_field_type"             VARCHAR(100)
 );
+
+CREATE TABLE public.plugin_tags
+(
+    "tag_id"                        INT4 NOT NULL DEFAULT NEXTVAL('id_seq_plugin_tags'::
+     regclass),
+    "tag_name"                      VARCHAR(250),
+    PRIMARY KEY ("tag_id")
+)
+
+CREATE TABLE public.plugin_tags_map
+(
+    "tag_id"                        INT4 NOT NULL,
+    "plugin_id"                     INT4 NOT NULL,
+)
+
+CREATE TABLE public.plugin_steps
+(
+    "steps_id"                  INT4 NOT NULL DEFAULT NEXTVAL('id_seq_plugin_steps'::
+     regclass),
+    "steps_name"                VARCHAR(100),
+    "steps_template_language"   VARCHAR(100),
+    "steps_template"            TEXT,
+    PRIMARY KEY ("steps_id")
+);
+
+CREATE TABLE public.plugin_steps_sequence
+(
+    "sequence_id"                   INT4 NOT NULL DEFAULT NEXTVAL('id_seq_plugin_steps_seq'::
+     regclass),
+    "steps_id"                      INT4 NOT NULL,
+    "plugin_id"                     INT4 NOT NULL,
+    PRIMARY KEY ("sequence_id")
+)
