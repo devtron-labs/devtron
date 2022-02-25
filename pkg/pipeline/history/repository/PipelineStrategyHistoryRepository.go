@@ -11,7 +11,8 @@ import (
 type PipelineStrategyHistoryRepository interface {
 	CreateHistory(model *PipelineStrategyHistory) (*PipelineStrategyHistory, error)
 	CreateHistoryWithTxn(model *PipelineStrategyHistory, tx *pg.Tx) (*PipelineStrategyHistory, error)
-	GetHistoryForDeployedStrategy(pipelineId int) ([]*PipelineStrategyHistory, error)
+	GetHistoryForDeployedStrategyById(id, pipelineId int) (*PipelineStrategyHistory, error)
+	GetDeploymentDetailsForDeployedStrategyHistory(pipelineId int) ([]*PipelineStrategyHistory, error)
 }
 
 type PipelineStrategyHistoryRepositoryImpl struct {
@@ -54,10 +55,23 @@ func (impl PipelineStrategyHistoryRepositoryImpl) CreateHistoryWithTxn(model *Pi
 	return model, nil
 }
 
-func (impl PipelineStrategyHistoryRepositoryImpl) GetHistoryForDeployedStrategy(pipelineId int) ([]*PipelineStrategyHistory, error) {
+func (impl PipelineStrategyHistoryRepositoryImpl) GetHistoryForDeployedStrategyById(id, pipelineId int) (*PipelineStrategyHistory, error) {
+	var history *PipelineStrategyHistory
+	err := impl.dbConnection.Model(history).Where("id = ?", id).
+		Where("pipeline_id = ?", pipelineId).
+		Where("deployed = ?", true).Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting strategy history", "err", err)
+		return history, err
+	}
+	return history, nil
+}
+
+func (impl PipelineStrategyHistoryRepositoryImpl) GetDeploymentDetailsForDeployedStrategyHistory(pipelineId int) ([]*PipelineStrategyHistory, error) {
 	var histories []*PipelineStrategyHistory
 	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
-		Where("deployed = ?", true).Select()
+		Where("deployed = ?", true).
+		Column("id", "deployed_on", "deployed_by").Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting strategy history", "err", err)
 		return histories, err

@@ -16,7 +16,8 @@ const (
 
 type ConfigMapHistoryRepository interface {
 	CreateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error)
-	GetHistoryForDeployedCMCS(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error)
+	GetHistoryForDeployedCMCSById(id, pipelineId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
+	GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error)
 }
 
 type ConfigMapHistoryRepositoryImpl struct {
@@ -49,13 +50,27 @@ func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(model *ConfigmapAndSecr
 	return model, nil
 }
 
-func (impl ConfigMapHistoryRepositoryImpl) GetHistoryForDeployedCMCS(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error) {
-	var histories []*ConfigmapAndSecretHistory
-	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
+func (impl ConfigMapHistoryRepositoryImpl) GetHistoryForDeployedCMCSById(id, pipelineId int, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
+	var history *ConfigmapAndSecretHistory
+	err := impl.dbConnection.Model(history).Where("id = ?", id).
+		Where("pipeline_id = ?", pipelineId).
 		Where("data_type = ?", configType).
 		Where("deployed = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting CM/CS history", "err", err)
+		return history, err
+	}
+	return history, nil
+}
+
+func (impl ConfigMapHistoryRepositoryImpl) GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error) {
+	var histories []*ConfigmapAndSecretHistory
+	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
+		Where("data_type = ?", configType).
+		Where("deployed = ?", true).
+		Column("id", "deployed_on", "deployed_by").Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting deployed CM/CS history", "err", err)
 		return histories, err
 	}
 	return histories, nil

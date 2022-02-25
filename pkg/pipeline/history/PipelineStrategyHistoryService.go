@@ -12,7 +12,8 @@ import (
 type PipelineStrategyHistoryService interface {
 	CreatePipelineStrategyHistory(pipelineStrategy *chartConfig.PipelineStrategy, tx *pg.Tx) (historyModel *repository.PipelineStrategyHistory, err error)
 	CreateStrategyHistoryForDeploymentTrigger(strategy *chartConfig.PipelineStrategy, deployedOn time.Time, deployedBy int32) error
-	GetHistoryForDeployedStrategy(pipelineId int) ([]*PipelineStrategyHistoryDto, error)
+	GetHistoryForDeployedStrategyById(id, pipelineId int) (*PipelineStrategyHistoryDto, error)
+	GetDeploymentDetailsForDeployedStrategyHistory(pipelineId int) ([]*PipelineStrategyHistoryDto, error)
 }
 
 type PipelineStrategyHistoryServiceImpl struct {
@@ -79,8 +80,33 @@ func (impl PipelineStrategyHistoryServiceImpl) CreateStrategyHistoryForDeploymen
 	return err
 }
 
-func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategy(pipelineId int) ([]*PipelineStrategyHistoryDto, error) {
-	histories, err := impl.pipelineStrategyHistoryRepository.GetHistoryForDeployedStrategy(pipelineId)
+func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategyById(id, pipelineId int) (*PipelineStrategyHistoryDto, error) {
+	history, err := impl.pipelineStrategyHistoryRepository.GetHistoryForDeployedStrategyById(id, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting history for strategy", "err", err, "id", id, "pipelineId", pipelineId)
+		return nil, err
+	}
+	historyDto := &PipelineStrategyHistoryDto{
+		Id:         history.Id,
+		PipelineId: history.PipelineId,
+		Strategy:   string(history.Strategy),
+		Config:     history.Config,
+		Default:    history.Default,
+		Deployed:   history.Deployed,
+		DeployedOn: history.DeployedOn,
+		DeployedBy: history.DeployedBy,
+		AuditLog: sql.AuditLog{
+			CreatedBy: history.CreatedBy,
+			CreatedOn: history.CreatedOn,
+			UpdatedBy: history.UpdatedBy,
+			UpdatedOn: history.UpdatedOn,
+		},
+	}
+	return historyDto, nil
+}
+
+func (impl PipelineStrategyHistoryServiceImpl) GetDeploymentDetailsForDeployedStrategyHistory(pipelineId int) ([]*PipelineStrategyHistoryDto, error) {
+	histories, err := impl.pipelineStrategyHistoryRepository.GetDeploymentDetailsForDeployedStrategyHistory(pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting history for strategy", "err", err, "pipelineId", pipelineId)
 		return nil, err
@@ -89,19 +115,8 @@ func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategy(pip
 	for _, history := range histories {
 		historyDto := &PipelineStrategyHistoryDto{
 			Id:         history.Id,
-			PipelineId: history.PipelineId,
-			Strategy:   string(history.Strategy),
-			Config:     history.Config,
-			Default:    history.Default,
-			Deployed:   history.Deployed,
 			DeployedOn: history.DeployedOn,
 			DeployedBy: history.DeployedBy,
-			AuditLog: sql.AuditLog{
-				CreatedBy: history.CreatedBy,
-				CreatedOn: history.CreatedOn,
-				UpdatedBy: history.UpdatedBy,
-				UpdatedOn: history.UpdatedOn,
-			},
 		}
 		historiesDto = append(historiesDto, historyDto)
 	}

@@ -5,8 +5,8 @@ info:
 paths:
   /orchestrator/app/history/cm/{appId}/{pipelineId}:
     get:
-      description: fetch history for deployed config maps
-      operationId: FetchDeployedCMHistory
+      description: fetch deployment details in history for deployed config maps
+      operationId: FetchDeploymentDetailsForDeployedCMHistory
       parameters:
         - name: appId
           in: path
@@ -48,8 +48,8 @@ paths:
 
   /orchestrator/app/history/cs/{appId}/{pipelineId}:
     get:
-      description: fetch history for deployed secrets
-      operationId: FetchDeployedCSHistory
+      description: fetch deployment details in history for deployed secrets
+      operationId: FetchDeploymentDetailsForDeployedCSHistory
       parameters:
         - name: appId
           in: path
@@ -91,8 +91,8 @@ paths:
 
   /orchestrator/app/history/template/{appId}/{pipelineId}:
     get:
-      description: fetch history for deployed deployment templates
-      operationId: FetchDeployedTemplatesHistory
+      description: fetch deployment details in history for deployed deployment templates
+      operationId: FetchDeploymentDetailsForDeployedTemplatesHistory
       parameters:
         - name: appId
           in: path
@@ -134,8 +134,8 @@ paths:
 
   /orchestrator/app/history/strategy/{appId}/{pipelineId}:
     get:
-      description: fetch history for deployed pipeline stratedy
-      operationId: FetchDeployedStrategyHistory
+      description: fetch deployment details in history for deployed pipeline strategy
+      operationId: FetchDeploymentDetailsForDeployedStrategyHistory
       parameters:
         - name: appId
           in: path
@@ -174,6 +174,199 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/cm/{appId}/{pipelineId}/{id}:
+    get:
+      description: fetch history for deployed config map by id
+      operationId: FetchDeployedCMHistoryById
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeploymentDetailsDataType'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/cs/{appId}/{pipelineId}/{id}:
+    get:
+      description: fetch history for deployed secret by id
+      operationId: FetchDeployedCSHistoryById
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeploymentDetailsDataType'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/template/{appId}/{pipelineId}/{id}:
+    get:
+      description: fetch history for deployed deployment template by id
+      operationId: FetchDeployedTemplatesHistoryById
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeploymentDetailsDataType'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/strategy/{appId}/{pipelineId}/{id}:
+    get:
+      description: fetch history for deployed pipeline strategy by id
+      operationId: FetchDeployedStrategyHistoryById
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeploymentDetailsDataType'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 
   /orchestrator/app/history/cd-config/{appId}/{pipelineId}:
     get:
@@ -228,6 +421,16 @@ paths:
 
 components:
   schemas:
+    DeploymentDetailsDataType:
+      type: object
+      properties:
+        id:
+          type: integer
+        deployedOn:
+          type: string
+          format: timestamp
+        deployedBy:
+          type: integer
     ConfigMapAndSecretHistoryDto:
       type: object
       properties:
