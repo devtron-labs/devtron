@@ -58,6 +58,10 @@ ContainerPort:
 ```yaml
 EnvVariables: []
 ```
+`EnvVariables` provide run-time information to containers and allow to customize how the application works and the behavior of the applications on the system.
+
+Here we can pass the list of env variables , every record is an object which contain the `name` of variable along with `value`.
+
 To set environment variables for the containers that run in the Pod.
 
 ### Example of env variables
@@ -70,15 +74,20 @@ EnvVariables:
   - name: DB_NAME
     value: mydb
   - name: USER_NAME
-    value: ajay
+    value: xyz
 ```
+
 But `ConfigMap` and `Secret` are the prefered way to inject env variables. So we can create this in `App Configuration` Section
 
 ### ConfigMap
 
+It is a centralized storage, specific to k8s namespace where key-value pairs are stored in plain text.
+
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/configure-configmap.jpg)
 
 ### Secret
+
+It is a centralized storage, specific to k8s namespace where we can store the key-value pairs in plain text as well as in encrypted(`Base64`) form.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/created-secret.gif)
 
