@@ -1,6 +1,5 @@
 CREATE SEQUENCE IF NOT EXISTS public.id_seq_plugin_scripts;
 CREATE SEQUENCE IF NOT EXISTS public.id_seq_plugin_tags;
-CREATE SEQUENCE IF NOT EXISTS public.id_seq_plugin_steps;
 CREATE SEQUENCE IF NOT EXISTS public.id_seq_plugin_steps_seq;
 
 CREATE TABLE public.plugin_scripts
@@ -28,17 +27,17 @@ CREATE TABLE public.plugin_tags
      regclass),
     "tag_name"                      VARCHAR(250),
     PRIMARY KEY ("tag_id")
-)
+);
 
 CREATE TABLE public.plugin_tags_map
 (
     "tag_id"                        INT4 NOT NULL,
-    "plugin_id"                     INT4 NOT NULL,
-)
+    "plugin_id"                     INT4 NOT NULL
+);
 
 CREATE TABLE public.plugin_steps
 (
-    "steps_id"                  INT4 NOT NULL DEFAULT NEXTVAL('id_seq_plugin_steps'::
+    "steps_id"                  INT4 NOT NULL DEFAULT NEXTVAL('id_seq_plugin_scripts'::
      regclass),
     "steps_name"                VARCHAR(100),
     "steps_template_language"   VARCHAR(100),

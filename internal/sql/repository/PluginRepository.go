@@ -38,7 +38,7 @@ type PluginTagsMap struct {
 type PluginSteps struct {
 	tableName             struct{} `sql:"plugin_steps" pg:",discard_unknown_columns"`
 	StepId                int      `sql:"steps_id,pk"`
-	StepName              string   `sql:"step_name"`
+	StepName              string   `sql:"steps_name"`
 	StepsTemplateLanguage string   `sql:"steps_template_language,notnull"`
 	StepsTemplate         string   `sql:"steps_template,notnull"`
 }
