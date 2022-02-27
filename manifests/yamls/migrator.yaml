@@ -22,7 +22,7 @@ spec:
         image: quay.io/devtron/migrator:6687f572-133-2208
         env:
         - name: GIT_BRANCH
-          value: main
+          value: hyp_1151_depl
         - name: SCRIPT_LOCATION
           value: scripts/sql/
         - name: GIT_REPO_URL
@@ -40,7 +40,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: b1b935700ef3dbb3222bdbc1c6bf286d45a4566d
+          value: f35dcf35d25bcd8df030b6ae941e6fe7160cf33e
         envFrom:
           - secretRef:
               name: postgresql-migrator
