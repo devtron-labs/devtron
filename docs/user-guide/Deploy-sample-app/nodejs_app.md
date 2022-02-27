@@ -1,10 +1,10 @@
 # Let's deploy a sample App
 
-*Hurray!!* 
-Your Devtron stack is completely setup. Let's get started by deploying a sample application on it. 
+Hurray! 
+Your Devtron stack is completely setup. Let's get started by deploying a simple application on it. 
 
 ## Find out the steps here 
 
-This is a simple Nodejs application having no dependencies, to deploy it using Devtron. 
-Find out a detailed step-wise procedure from this link below. 
-`https://github.com/devtron-labs/getting-started-nodejs#getting-started-with-deploying-application-through-devtron`
+This is a sample Nodejs application which we are going to deploy using Devtron. For a detailed step-wise procedure, please have a look at the link below - 
+
+[Getting Started with Deploying application through devtron](https://github.com/devtron-labs/getting-started-nodejs#getting-started-with-deploying-application-through-devtron)
