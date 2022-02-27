@@ -82,7 +82,7 @@ spec:
 {{- end}}
       containers:
 {{- if $.Values.appMetrics }}
-        - name: envoy
+        - name: {{ template ".Chart.Name .name" $ }}-envoy
           image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
           resources:
 {{ toYaml $.Values.envoyproxy.resources | trim | indent 12 }}
