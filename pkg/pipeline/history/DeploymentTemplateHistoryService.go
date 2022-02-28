@@ -7,6 +7,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -28,6 +29,7 @@ type DeploymentTemplateHistoryServiceImpl struct {
 	chartRefRepository                  chartRepoRepository.ChartRefRepository
 	envLevelAppMetricsRepository        repository2.EnvLevelAppMetricsRepository
 	appLevelMetricsRepository           repository2.AppLevelMetricsRepository
+	userService                         user.UserService
 }
 
 func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deploymentTemplateHistoryRepository repository.DeploymentTemplateHistoryRepository,
@@ -35,7 +37,8 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 	chartRepository chartRepoRepository.ChartRepository,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
 	envLevelAppMetricsRepository repository2.EnvLevelAppMetricsRepository,
-	appLevelMetricsRepository repository2.AppLevelMetricsRepository) *DeploymentTemplateHistoryServiceImpl {
+	appLevelMetricsRepository repository2.AppLevelMetricsRepository,
+	userService user.UserService) *DeploymentTemplateHistoryServiceImpl {
 	return &DeploymentTemplateHistoryServiceImpl{
 		logger:                              logger,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
@@ -44,6 +47,7 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 		chartRefRepository:                  chartRefRepository,
 		envLevelAppMetricsRepository:        envLevelAppMetricsRepository,
 		appLevelMetricsRepository:           appLevelMetricsRepository,
+		userService:                         userService,
 	}
 }
 
@@ -207,6 +211,11 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplatesB
 		impl.logger.Errorw("error in getting deployment template history", "err", err, "id", id, "pipelineId", pipelineId)
 		return nil, err
 	}
+	user, err := impl.userService.GetById(history.DeployedBy)
+	if err != nil {
+		impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
+		return nil, err
+	}
 	historyDto := &DeploymentTemplateHistoryDto{
 		Id:                      history.Id,
 		PipelineId:              history.PipelineId,
@@ -218,6 +227,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplatesB
 		Deployed:                history.Deployed,
 		DeployedOn:              history.DeployedOn,
 		DeployedBy:              history.DeployedBy,
+		EmailId:                 user.EmailId,
 		AuditLog: sql.AuditLog{
 			CreatedBy: history.CreatedBy,
 			CreatedOn: history.CreatedOn,
@@ -236,10 +246,16 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 	}
 	var historiesDto []*DeploymentTemplateHistoryDto
 	for _, history := range histories {
+		user, err := impl.userService.GetById(history.DeployedBy)
+		if err != nil {
+			impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
+			return nil, err
+		}
 		historyDto := &DeploymentTemplateHistoryDto{
 			Id:         history.Id,
 			DeployedOn: history.DeployedOn,
 			DeployedBy: history.DeployedBy,
+			EmailId:    user.EmailId,
 		}
 		historiesDto = append(historiesDto, historyDto)
 	}

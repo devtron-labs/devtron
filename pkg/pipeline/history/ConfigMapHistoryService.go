@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -25,17 +26,20 @@ type ConfigMapHistoryServiceImpl struct {
 	configMapHistoryRepository repository.ConfigMapHistoryRepository
 	pipelineRepository         pipelineConfig.PipelineRepository
 	configMapRepository        chartConfig.ConfigMapRepository
+	userService                user.UserService
 }
 
 func NewConfigMapHistoryServiceImpl(logger *zap.SugaredLogger,
 	configMapHistoryRepository repository.ConfigMapHistoryRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	configMapRepository chartConfig.ConfigMapRepository) *ConfigMapHistoryServiceImpl {
+	configMapRepository chartConfig.ConfigMapRepository,
+	userService user.UserService) *ConfigMapHistoryServiceImpl {
 	return &ConfigMapHistoryServiceImpl{
 		logger:                     logger,
 		configMapHistoryRepository: configMapHistoryRepository,
 		pipelineRepository:         pipelineRepository,
 		configMapRepository:        configMapRepository,
+		userService:                userService,
 	}
 }
 
@@ -243,6 +247,11 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 			return nil, err
 		}
 	}
+	user, err := impl.userService.GetById(history.DeployedBy)
+	if err != nil {
+		impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
+		return nil, err
+	}
 	historyDto := &ConfigMapAndSecretHistoryDto{
 		Id:         history.Id,
 		PipelineId: history.PipelineId,
@@ -251,6 +260,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 		Deployed:   history.Deployed,
 		DeployedOn: history.DeployedOn,
 		DeployedBy: history.DeployedBy,
+		EmailId:    user.EmailId,
 		AuditLog: sql.AuditLog{
 			CreatedBy: history.CreatedBy,
 			CreatedOn: history.CreatedOn,
@@ -269,10 +279,16 @@ func (impl ConfigMapHistoryServiceImpl) GetDeploymentDetailsForDeployedCMCSHisto
 	}
 	var historiesDto []*ConfigMapAndSecretHistoryDto
 	for _, history := range histories {
+		user, err := impl.userService.GetById(history.DeployedBy)
+		if err != nil {
+			impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
+			return nil, err
+		}
 		historyDto := &ConfigMapAndSecretHistoryDto{
 			Id:         history.Id,
 			DeployedOn: history.DeployedOn,
 			DeployedBy: history.DeployedBy,
+			EmailId:    user.EmailId,
 		}
 		historiesDto = append(historiesDto, historyDto)
 	}

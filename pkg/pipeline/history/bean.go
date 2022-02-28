@@ -14,6 +14,7 @@ type ConfigMapAndSecretHistoryDto struct {
 	Deployed   bool          `json:"deployed"`
 	DeployedOn time.Time     `json:"deployedOn"`
 	DeployedBy int32         `json:"deployedBy"`
+	EmailId    string        `json:"emailId"`
 	sql.AuditLog
 }
 
@@ -50,6 +51,7 @@ type DeploymentTemplateHistoryDto struct {
 	Deployed                bool      `json:"deployed"`
 	DeployedOn              time.Time `json:"deployedOn"`
 	DeployedBy              int32     `json:"deployedBy"`
+	EmailId                 string    `json:"emailId"`
 	sql.AuditLog
 }
 
@@ -62,6 +64,7 @@ type PipelineStrategyHistoryDto struct {
 	Deployed   bool      `json:"deployed"`
 	DeployedOn time.Time `json:"deployedOn"`
 	DeployedBy int32     `json:"deployedBy"`
+	EmailId    string    `json:"emailId"`
 	sql.AuditLog
 }
 

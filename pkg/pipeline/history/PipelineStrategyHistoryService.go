@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -19,12 +20,16 @@ type PipelineStrategyHistoryService interface {
 type PipelineStrategyHistoryServiceImpl struct {
 	logger                            *zap.SugaredLogger
 	pipelineStrategyHistoryRepository repository.PipelineStrategyHistoryRepository
+	userService                       user.UserService
 }
 
-func NewPipelineStrategyHistoryServiceImpl(logger *zap.SugaredLogger, pipelineStrategyHistoryRepository repository.PipelineStrategyHistoryRepository) *PipelineStrategyHistoryServiceImpl {
+func NewPipelineStrategyHistoryServiceImpl(logger *zap.SugaredLogger,
+	pipelineStrategyHistoryRepository repository.PipelineStrategyHistoryRepository,
+	userService user.UserService) *PipelineStrategyHistoryServiceImpl {
 	return &PipelineStrategyHistoryServiceImpl{
 		logger:                            logger,
 		pipelineStrategyHistoryRepository: pipelineStrategyHistoryRepository,
+		userService:                       userService,
 	}
 }
 
@@ -86,6 +91,11 @@ func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategyById
 		impl.logger.Errorw("error in getting history for strategy", "err", err, "id", id, "pipelineId", pipelineId)
 		return nil, err
 	}
+	user, err := impl.userService.GetById(history.DeployedBy)
+	if err != nil {
+		impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
+		return nil, err
+	}
 	historyDto := &PipelineStrategyHistoryDto{
 		Id:         history.Id,
 		PipelineId: history.PipelineId,
@@ -95,6 +105,7 @@ func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategyById
 		Deployed:   history.Deployed,
 		DeployedOn: history.DeployedOn,
 		DeployedBy: history.DeployedBy,
+		EmailId:    user.EmailId,
 		AuditLog: sql.AuditLog{
 			CreatedBy: history.CreatedBy,
 			CreatedOn: history.CreatedOn,
@@ -113,10 +124,16 @@ func (impl PipelineStrategyHistoryServiceImpl) GetDeploymentDetailsForDeployedSt
 	}
 	var historiesDto []*PipelineStrategyHistoryDto
 	for _, history := range histories {
+		user, err := impl.userService.GetById(history.DeployedBy)
+		if err != nil {
+			impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
+			return nil, err
+		}
 		historyDto := &PipelineStrategyHistoryDto{
 			Id:         history.Id,
 			DeployedOn: history.DeployedOn,
 			DeployedBy: history.DeployedBy,
+			EmailId:    user.EmailId,
 		}
 		historiesDto = append(historiesDto, historyDto)
 	}
