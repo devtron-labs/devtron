@@ -1,8 +1,6 @@
 //go:build wireinject
 // +build wireinject
 
-
-
 /*
  * Copyright (c) 2020 Devtron Labs
  *
@@ -112,6 +110,7 @@ func InitializeApp() (*App, error) {
 		helper.NewAppListingRepositoryQueryBuilder,
 		//sql.GetConfig,
 		eClient.GetEventClientConfig,
+		util2.GetGlobalEnvVariables,
 		//sql.NewDbConnection,
 		//app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
@@ -138,7 +137,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.PProfRestHandler), new(*restHandler.PProfRestHandlerImpl)),
 
 		router.NewPProfRouter,
-		wire.Bind(new(router.PProfRouter), new (*router.PProfRouterImpl)),
+		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
 		//---- pprof end ----
 
 		restHandler.NewPipelineRestHandler,
@@ -633,9 +632,9 @@ func InitializeApp() (*App, error) {
 		util2.NewGoJsonSchemaCustomFormatChecker,
 
 		delete2.NewDeleteServiceExtendedImpl,
-		wire.Bind(new(delete2.DeleteService),new(*delete2.DeleteServiceExtendedImpl)),
+		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceExtendedImpl)),
 		delete2.NewDeleteServiceFullModeImpl,
-		wire.Bind(new(delete2.DeleteServiceFullMode),new(*delete2.DeleteServiceFullModeImpl)),
+		wire.Bind(new(delete2.DeleteServiceFullMode), new(*delete2.DeleteServiceFullModeImpl)),
 	)
 	return &App{}, nil
 }

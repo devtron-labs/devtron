@@ -19,6 +19,7 @@ package util
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -45,11 +46,12 @@ type ChartTemplateService interface {
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
 }
 type ChartTemplateServiceImpl struct {
-	randSource      rand.Source
-	logger          *zap.SugaredLogger
-	chartWorkingDir ChartWorkingDir
-	gitFactory      *GitFactory
-	client          *http.Client
+	randSource         rand.Source
+	logger             *zap.SugaredLogger
+	chartWorkingDir    ChartWorkingDir
+	gitFactory         *GitFactory
+	client             *http.Client
+	globalEnvVariables *util.GlobalEnvVariables
 }
 
 type ChartValues struct {
@@ -64,17 +66,16 @@ type ChartValues struct {
 func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	chartWorkingDir ChartWorkingDir,
 	client *http.Client,
-	gitFactory *GitFactory) *ChartTemplateServiceImpl {
+	gitFactory *GitFactory, globalEnvVariables *util.GlobalEnvVariables) *ChartTemplateServiceImpl {
 	return &ChartTemplateServiceImpl{
-		randSource:      rand.NewSource(time.Now().UnixNano()),
-		logger:          logger,
-		chartWorkingDir: chartWorkingDir,
-		client:          client,
-		gitFactory:      gitFactory,
+		randSource:         rand.NewSource(time.Now().UnixNano()),
+		logger:             logger,
+		chartWorkingDir:    chartWorkingDir,
+		client:             client,
+		gitFactory:         gitFactory,
+		globalEnvVariables: globalEnvVariables,
 	}
 }
-
-const GitRepoPrefix = "devtron"
 
 func (ChartTemplateServiceImpl) GetChartVersion(location string) (string, error) {
 	if fi, err := os.Stat(location); err != nil {
@@ -444,6 +445,12 @@ func (impl ChartTemplateServiceImpl) GitPull(clonedDir string, repoUrl string, a
 	return nil
 }
 
-func (ChartTemplateServiceImpl) getGitRepoName(appName string) string {
-	return fmt.Sprintf("%s-%s", GitRepoPrefix, appName)
+func (impl ChartTemplateServiceImpl) getGitRepoName(appName string) string {
+	var repoName string
+	if len(impl.globalEnvVariables.GitRepoPrefix) == 0 {
+		repoName = appName
+	} else {
+		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitRepoPrefix, appName)
+	}
+	return repoName
 }
