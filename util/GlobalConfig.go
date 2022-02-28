@@ -3,7 +3,7 @@ package util
 import "github.com/caarlos0/env"
 
 type GlobalEnvVariables struct {
-	GitRepoPrefix string `env:"GIT_REPO_PREFIX" envDefault:""`
+	GitOpsRepoPrefix string `env:"GIT_OPS_REPO_PREFIX" envDefault:""`
 }
 
 func GetGlobalEnvVariables() (*GlobalEnvVariables, error) {
