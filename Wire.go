@@ -113,6 +113,7 @@ func InitializeApp() (*App, error) {
 		helper.NewAppListingRepositoryQueryBuilder,
 		//sql.GetConfig,
 		eClient.GetEventClientConfig,
+		util2.GetGlobalEnvVariables,
 		//sql.NewDbConnection,
 		//app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
