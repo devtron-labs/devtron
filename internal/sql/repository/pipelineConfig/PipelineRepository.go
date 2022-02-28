@@ -276,7 +276,7 @@ func (impl PipelineRepositoryImpl) GetByEnvOverrideId(envOverrideId int) ([]Pipe
 	query := "" +
 		" SELECT p.*" +
 		" FROM chart_env_config_override ceco" +
-		" INNER JOIN chart ch on ch.id = ceco.chart_id" +
+		" INNER JOIN charts ch on ch.id = ceco.chart_id" +
 		" INNER JOIN environment env on env.id = ceco.target_environment" +
 		" INNER JOIN app ap on ap.id = ch.app_id" +
 		" INNER JOIN pipeline p on p.app_id = ap.id" +
@@ -321,7 +321,7 @@ func (impl PipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []*P
 		Select()
 	return pipelines, err
 }
-func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error){
+func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Where("environment_id = ?", envId).
 		Where("deleted = ?", false).
