@@ -84,6 +84,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/session"
@@ -670,7 +671,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history.AppStoreChartsHistoryService), new(*history.AppStoreChartsHistoryServiceImpl)),
 
 		//history ends
-	//	AuthWireSet,
+		//	AuthWireSet,
 	)
 	return &App{}, nil
 }
