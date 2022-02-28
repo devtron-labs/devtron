@@ -40,7 +40,8 @@ type PluginRestHandlerImpl struct {
 }
 
 type plugin struct {
-	Id           int            `json:"pluginId"`
+	Id           int            `json:"Id"`
+	PluginId     int            `json:"pluginId"`
 	Name         string         `json:"name"`
 	Description  string         `json:"description"`
 	Body         string         `json:"body"`
@@ -50,7 +51,8 @@ type plugin struct {
 }
 
 type pluginFields struct {
-	Id              int    `json:"pluginId"`
+	PluginId        int    `json:"pluginId"`
+	StepId          int    `json:"stepId"`
 	Name            string `json:"keyName"`
 	Value           string `json:"defaultValue"`
 	Description     string `json:"pluginKeyDescription"`
@@ -98,8 +100,8 @@ func (handler PluginRestHandlerImpl) SavePlugin(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	bean.Id = pluginResp.PluginId
-	inputData, err := SaveFieldsList(bean.Id, bean.PluginInputs)
+	bean.Id = pluginResp.Id
+	inputData, err := SaveFieldsList(bean.Id, -1, bean.PluginInputs)
 
 	if err != nil {
 		common.WriteJsonResp(w, err, "Plugin fields couldn't be saved", http.StatusInternalServerError)
@@ -113,7 +115,7 @@ func (handler PluginRestHandlerImpl) SavePlugin(w http.ResponseWriter, r *http.R
 			StepsTemplate:         eachInput.StepTemplate,
 		}
 		step, err := handler.repository.SaveSteps(input)
-		pluginStepsFields, err := SaveFieldsList(step.StepId, eachInput.PluginInputs)
+		pluginStepsFields, err := SaveFieldsList(pluginResp.Id, step.StepId, eachInput.PluginInputs)
 		stepSeq := &repository.PluginStepsSequence{
 			StepsId:  step.StepId,
 			PluginId: pluginResp.PluginId,
@@ -140,11 +142,12 @@ func (handler PluginRestHandlerImpl) SavePlugin(w http.ResponseWriter, r *http.R
 	common.WriteJsonResp(w, err, "Stored Successfully", http.StatusOK)
 }
 
-func SaveFieldsList(id int, pluginfields []pluginFields) ([]*repository.PluginFields, error) {
+func SaveFieldsList(id int, stepid int, pluginfields []pluginFields) ([]*repository.PluginFields, error) {
 	var inputData []*repository.PluginFields
 	for _, eachInput := range pluginfields {
 		input := &repository.PluginFields{
 			PluginId:          id,
+			StepId:            stepid,
 			FieldName:         eachInput.Name,
 			FieldDefaultValue: eachInput.Value,
 			FieldDescription:  eachInput.Description,
@@ -219,7 +222,7 @@ func (handler PluginRestHandlerImpl) UpdatePlugin(w http.ResponseWriter, r *http
 func (handler PluginRestHandlerImpl) FindByPlugin(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, _ := strconv.Atoi(vars["Id"])
-	values, _, _ := handler.repository.FindByAppId(id)
+	values, _, _, _, _ := handler.repository.FindByAppId(id)
 	common.WriteJsonResp(w, nil, values, http.StatusOK)
 }
 

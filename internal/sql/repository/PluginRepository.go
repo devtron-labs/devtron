@@ -8,7 +8,8 @@ import (
 
 type Plugin struct {
 	tableName         struct{} `sql:"plugin_scripts" pg:",discard_unknown_columns"`
-	PluginId          int      `sql:"plugin_id,pk"`
+	Id                int      `sql:"id,pk"`
+	PluginId          int      `sql:"plugin_id,notnull"`
 	PluginName        string   `sql:"plugin_name,notnull"`
 	PluginDescription string   `sql:"plugin_description,notnull"`
 	PluginBody        string   `sql:"plugin_body,notnull"`
@@ -17,6 +18,7 @@ type Plugin struct {
 type PluginFields struct {
 	tableName         struct{} `sql:"plugin_fields" pg:",discard_unknown_columns"`
 	PluginId          int      `sql:"plugin_id,notnull"`
+	StepId            int      `sql:"step_id,notnull"`
 	FieldName         string   `sql:"key_name,notnull"`
 	FieldDefaultValue string   `sql:"default_value,notnull"`
 	FieldDescription  string   `sql:"plugin_key_description,notnull"`
@@ -58,7 +60,7 @@ type PluginRepository interface {
 	SaveStepsSequence(stepSeq *PluginStepsSequence) error
 	SavePluginTagsMap(tagsMap *PluginTagsMap) error
 	FindTagId(tagName string) (*Tags, error)
-	FindByAppId(pluginId int) (*Plugin, []*PluginFields, error)
+	FindByAppId(pluginId int) (*Plugin, []*PluginFields, []*PluginSteps, []string, error)
 	Update(plugin *Plugin, inputs []*PluginFields) error
 	Delete(pluginId int) error
 }
@@ -106,18 +108,45 @@ func (impl *PluginRepositoryImpl) SavePluginTagsMap(tagsMap *PluginTagsMap) erro
 	return impl.dbConnection.Insert(tagsMap)
 }
 
-func (impl *PluginRepositoryImpl) FindByAppId(pluginId int) (*Plugin, []*PluginFields, error) {
+func (impl *PluginRepositoryImpl) FindByAppId(pluginId int) (*Plugin, []*PluginFields, []*PluginSteps, []string, error) {
 	plugin := &Plugin{}
 	err := impl.dbConnection.Model(plugin).Where("id = ? ", pluginId).Select()
 	if err != nil {
 		impl.logger.Errorw("Plugin not found for given Id", "err", err)
 	}
-	var pluginInputs []*PluginFields
-	err = impl.dbConnection.Model(&pluginInputs).Where("plugin_id = ? ", pluginId).Select()
+
+	pluginfields, err := impl.FindPluginFieldsById(pluginId)
+	if err != nil {
+		impl.logger.Errorw("Plugin fields not found for given Id", "err", err)
+	}
+
+	var pluginsteps []*PluginSteps
+	err = impl.dbConnection.Model(&pluginsteps).Where("plugin_id = ? ", pluginId).Select()
 	if err != nil {
 		impl.logger.Errorw("Plugin not found for given Id", "err", err)
 	}
-	return plugin, pluginInputs, err
+
+	tags, err := impl.FindTagsById(pluginId)
+
+	return plugin, pluginfields, pluginsteps, tags, err
+}
+
+func (impl *PluginRepositoryImpl) FindTagsById(id int) ([]string, error) {
+	var tagIdsMap []*PluginTagsMap
+	err := impl.dbConnection.Model(&tagIdsMap).Where("plugin_id = ? ", id).Select()
+	if err != nil {
+		impl.logger.Errorw("Tag Ids couldn't be found", "err", err)
+	}
+	var tags []string
+	for _, tagIdMap := range tagIdsMap {
+		tag := &Tags{}
+		err := impl.dbConnection.Model(tag).Where("tag_id = ? ", tagIdMap.TagId).Select()
+		if err != nil {
+			impl.logger.Errorw("Tags couldn't be found", "err", err)
+		}
+		tags = append(tags, tag.TagName)
+	}
+	return tags, err
 }
 
 func (impl *PluginRepositoryImpl) FindTagId(tagName string) (*Tags, error) {
@@ -138,7 +167,7 @@ func (impl *PluginRepositoryImpl) Update(plugin *Plugin, inputs []*PluginFields)
 }
 
 func (impl *PluginRepositoryImpl) Delete(pluginId int) error {
-	plugin, pluginInputs, err := impl.FindByAppId(pluginId)
+	plugin, _, pluginsteps, _, err := impl.FindByAppId(pluginId)
 	if err != nil {
 		impl.logger.Errorw("Plugin not found for given Id", "err", err)
 	}
@@ -146,7 +175,50 @@ func (impl *PluginRepositoryImpl) Delete(pluginId int) error {
 	if err != nil {
 		impl.logger.Errorw("Plugin couldn't be deleted", "err", err)
 	}
-	err = impl.dbConnection.Delete(pluginInputs)
+	err = impl.DeleteFieldsByID(pluginId)
+	if err != nil {
+		impl.logger.Errorw("Plugin couldn't be deleted", "err", err)
+	}
+	err = impl.dbConnection.Delete(pluginsteps)
+	if err != nil {
+		impl.logger.Errorw("Plugin couldn't be deleted", "err", err)
+	}
+
+	for _, pluginstep := range pluginsteps {
+		//stepfields, err := impl.FindPluginFieldsById(pluginstep.StepId)
+		//if err != nil {
+		//	impl.logger.Errorw("Plugin Steps fields couldn't be found", "err", err)
+		//}
+		err = impl.DeleteFieldsByID(pluginstep.StepId)
+		if err != nil {
+			impl.logger.Errorw("Plugin Steps fields couldn't be deleted", "err", err)
+		}
+	}
+
+	return err
+}
+
+func (impl *PluginRepositoryImpl) FindPluginFieldsById(id int) ([]*PluginFields, error) {
+	var pluginInputs []*PluginFields
+	err := impl.dbConnection.Model(&pluginInputs).Where("plugin_id = ? ", id).Select()
+	if err != nil {
+		impl.logger.Errorw("Plugin not found for given Id", "err", err)
+	}
+	return pluginInputs, err
+}
+
+func (impl *PluginRepositoryImpl) DeleteFieldsByID(id int) error {
+	plugin := &PluginFields{}
+	_, err := impl.dbConnection.Model(plugin).Where("plugin_id = ? ", id).Delete()
+	if err != nil {
+		impl.logger.Errorw("Plugin couldn't be deleted", "err", err)
+	}
+	return err
+}
+
+func (impl *PluginRepositoryImpl) DeleteTagsMapByID(id int) error {
+	plugin := &PluginTagsMap{}
+	_, err := impl.dbConnection.Model(plugin).Where("plugin_id = ? ", id).Delete()
 	if err != nil {
 		impl.logger.Errorw("Plugin couldn't be deleted", "err", err)
 	}
