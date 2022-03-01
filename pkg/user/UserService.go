@@ -803,8 +803,8 @@ func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
 	email := jwt.GetField(mapClaims, "email")
 	sub := jwt.GetField(mapClaims, "sub")
 
-	if email == "" && sub == "admin" {
-		email = sub
+	if email == "" && (sub == "admin" || sub == "admin:login") {
+		email = "admin"
 	}
 
 	userInfo, err := impl.GetUserByEmail(email)

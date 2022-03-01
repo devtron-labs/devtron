@@ -96,8 +96,8 @@ func (e *EnforcerImpl) enforce(enf *casbin.Enforcer, rvals ...interface{}) bool 
 	}
 	email := jwt.GetField(mapClaims, "email")
 	sub := jwt.GetField(mapClaims, "sub")
-	if email == "" {
-		email = sub
+	if email == "" && (sub == "admin" || sub == "admin:login") {
+		email = "admin"
 	}
 	rvals[0] = strings.ToLower(email)
 	return enf.Enforce(rvals...)
@@ -124,7 +124,7 @@ func MatchKeyByPartFunc(args ...interface{}) (interface{}, error) {
 // For example - key1 =  "a/b/c" matches key2 = "a/*/c" but not matches for key2 = "a/*/d"
 func MatchKeyByPart(key1 string, key2 string) bool {
 
-	if key2 == "*"{
+	if key2 == "*" {
 		//policy must be for super-admin role or global-env action
 		//no need to check further
 		return true
