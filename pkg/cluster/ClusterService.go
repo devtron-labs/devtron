@@ -69,6 +69,7 @@ type ClusterService interface {
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
 	FindAllActive() ([]ClusterBean, error)
+	DeleteFromDb(bean *ClusterBean, userId int32) error
 
 	FindById(id int) (*ClusterBean, error)
 	FindByIds(id []int) ([]ClusterBean, error)
@@ -441,4 +442,21 @@ func (impl *ClusterServiceImpl) buildInformer() {
 		})
 	}
 	impl.K8sInformerFactory.BuildInformer(clusterInfo)
+}
+
+func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) error {
+	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
+		return err
+	}
+	deleteReq := existingCluster
+	deleteReq.UpdatedOn = time.Now()
+	deleteReq.UpdatedBy = userId
+	err = impl.clusterRepository.MarkClusterDeleted(deleteReq)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
+		return err
+	}
+	return nil
 }

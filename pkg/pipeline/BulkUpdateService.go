@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"net/http"
 
@@ -110,15 +111,15 @@ type BulkUpdateService interface {
 
 type BulkUpdateServiceImpl struct {
 	bulkUpdateRepository      bulkUpdate.BulkUpdateRepository
-	chartRepository           chartConfig.ChartRepository
+	chartRepository           chartRepoRepository.ChartRepository
 	logger                    *zap.SugaredLogger
-	repoRepository            chartConfig.ChartRepoRepository
+	repoRepository            chartRepoRepository.ChartRepoRepository
 	chartTemplateService      util.ChartTemplateService
 	mergeUtil                 util.MergeUtil
 	repositoryService         repository.ServiceClient
 	refChartDir               RefChartDir
 	defaultChart              DefaultChart
-	chartRefRepository        chartConfig.ChartRefRepository
+	chartRefRepository        chartRepoRepository.ChartRefRepository
 	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository  chartConfig.PipelineConfigRepository
 	configMapRepository       chartConfig.ConfigMapRepository
@@ -130,15 +131,15 @@ type BulkUpdateServiceImpl struct {
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
-	chartRepository chartConfig.ChartRepository,
+	chartRepository chartRepoRepository.ChartRepository,
 	logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
-	repoRepository chartConfig.ChartRepoRepository,
+	repoRepository chartRepoRepository.ChartRepoRepository,
 	refChartDir RefChartDir,
 	defaultChart DefaultChart,
 	mergeUtil util.MergeUtil,
 	repositoryService repository.ServiceClient,
-	chartRefRepository chartConfig.ChartRefRepository,
+	chartRefRepository chartRepoRepository.ChartRefRepository,
 	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
@@ -400,7 +401,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 		impl.logger.Errorw("error in decoding JSON patch", "err", err)
 		deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, "The patch string you entered seems wrong, please check and try again")
 	}
-	var charts []*chartConfig.Chart
+	var charts []*chartRepoRepository.Chart
 	if bulkUpdatePayload.Global {
 		charts, err = impl.bulkUpdateRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
 		if err != nil {
