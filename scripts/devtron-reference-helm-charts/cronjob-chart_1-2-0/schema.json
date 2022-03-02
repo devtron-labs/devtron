@@ -80,11 +80,22 @@
           "description": "defines the maximum number of failures that are acceptable before a given container is not considered as live",
           "title": "Failure Threshold"
         },
-        "httpHeaders": {
-          "type": "array",
-          "items": {},
+        "httpHeader": {
+          "type": "object",
           "description": "used to override the default headers by defining .httpHeaders for the probe",
-          "title": "HTTP headers"
+          "title": "HTTP headers",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "name of header",
+              "title": "Name"
+            },
+            "value": {
+              "type": "string",
+              "description": "Value of header",
+              "title": "Value"
+            }
+          }
         },
         "initialDelaySeconds": {
           "type": "integer",
@@ -160,10 +171,21 @@
           "title": "Failure Threshold"
         },
         "httpHeader": {
-          "type": "array",
-          "items": {},
+          "type": "object",
           "description": "used to override the default headers by defining .httpHeaders for the probe",
-          "title": "HTTP headers"
+          "title": "HTTP headers",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "name of header",
+              "title": "Name"
+            },
+            "value": {
+              "type": "string",
+              "description": "Value of header",
+              "title": "Value"
+            }
+          }
         },
         "initialDelaySeconds": {
           "type": "integer",
@@ -289,11 +311,6 @@
           "description": "The target memory utilization that is expected for a container",
           "title": "TargetMemoryUtilizationPercentage"
         },
-        "behavior": {
-          "type": "object",
-          "description": "describes behavior and scaling policies for that behavior",
-          "title": "Behavior",
-        },
         "enabled": {
           "type": "boolean",
           "description": "used for enabling/disabling autoscaling",
@@ -328,6 +345,51 @@
       "type": "array",
       "items": {},
       "description": " used to run side-car containers along with the main container within same pod"
+    },
+    "cronjobConfigs": {
+      "type": "object",
+      "description": "runs a job periodically on a given schedule, written in Cron format",
+      "title": "CronJob Configs",
+      "properties": {
+        "concurrencyPolicy": {
+          "type": "string",
+          "description": "specifies how to treat concurrent executions of a job that is created by this cron job",
+          "title": "Concurrency Policy",
+          "enum": ["Forbid","Allow"]
+        },
+        "failedJobsHistoryLimit": {
+          "type": "integer",
+          "description": "",
+          "title": "Failed Job History Limit"
+        },
+        "restartPolicy": {
+          "type": "string",
+          "description": "specifies policy for restart of containers",
+          "title": "Restart Policy",
+          "enum": ["Always", "OnFailure", "Never"]
+        },
+        "schedule": {
+          "type": "string",
+          "description": "expression for scheduling CronJobs",
+          "title": "Schedule"
+        },
+        "startingDeadlineSeconds": {
+          "type": "integer",
+          "description": "if a CronJob controller cannot start a job run on its schedule, it will keep retrying until this value is reached",
+          "title": "Starting Deadline Seconds"
+        },
+        "successfulJobsHistoryLimit": {
+          "type": "integer",
+          "description": "specifies how many completed and failed jobs should be kept",
+          "title": "Successful Jobs History Limit"
+        },
+        "suspend": {
+          "type": "boolean",
+          "description": "used to suspend subsequent executions, does not apply on already started executions",
+          "title": "Suspend",
+          "default": false
+        }
+      }
     },
     "dbMigrationConfig": {
       "type": "object",
@@ -429,13 +491,23 @@
         "annotations": {
           "type": "object",
           "description": "used to configure some options depending on the Ingress controller",
-          "title": "Annotations"
-        },
-        "className": {
-          "type": "string",
-          "description": "name of ingress class, a reference to an IngressClass resource that contains additional configuration including the name of the controller",
-          "title": "Ingress class name",
-          "default": "nginx"
+          "title": "Annotations",
+          "properties": {
+            "kubernetes.io/ingress.class": {
+              "type": "string",
+              "default": "nginx"
+            },
+            "nginx.ingress.kubernetes.io/force-ssl-redirect": {
+              "type": "string",
+              "format": "boolean",
+              "default": "false"
+            },
+            "nginx.ingress.kubernetes.io/ssl-redirect": {
+              "type": "string",
+              "format": "boolean",
+              "default": "false"
+            }
+          }
         },
         "enabled": {
           "type": "boolean",
@@ -454,11 +526,6 @@
                   "type": "string",
                   "description": "host URL",
                   "title": "Host"
-                },
-                "pathType": {
-                  "type": "string",
-                  "description": "type of path",
-                  "title": "PathType"
                 },
                 "paths": {
                   "type": "array",
@@ -491,12 +558,6 @@
           "description": "used to configure some options depending on the Ingress controller",
           "title": "Annotations"
         },
-        "className": {
-          "type": "string",
-          "description": "name of ingress class, a reference to an IngressClass resource that contains additional configuration including the name of the controller",
-          "title": "Ingress class name",
-          "default": "nginx-internal"
-        },
         "enabled": {
           "type": "boolean",
           "description": "used to enable or disable ingress",
@@ -514,11 +575,6 @@
                   "type": "string",
                   "description": "host URL",
                   "title": "Host"
-                },
-                "pathType": {
-                  "type": "string",
-                  "description": "type of path",
-                  "title": "PathType"
                 },
                 "paths": {
                   "type": "array",
@@ -547,6 +603,53 @@
       "items": {},
       "description": "specialized containers that run before app containers in a Pod, can contain utilities or setup scripts not present in an app image",
       "title": "Init Containers"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["Job", "CronJob"],
+      "description": "kind of Job",
+      "title": "Job",
+      "default": "CronJob"
+    },
+    "jobConfigs": {
+      "type": "object",
+      "description": "creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate",
+      "title": "Job Configs",
+      "properties": {
+        "activeDeadlineSeconds": {
+          "type": "integer",
+          "description": "once a Job reaches activeDeadlineSeconds, all of its running Pods are terminated",
+          "title": "Active Deadline Seconds"
+        },
+        "backoffLimit": {
+          "type": "integer",
+          "description": "number of retries after which a job is failed",
+          "title": "BackOff Limit",
+          "default": 6
+        },
+        "completions": {
+          "type": "integer",
+          "description": "used for getting fixed completion count Job",
+          "title": "Completions"
+        },
+        "parallelism": {
+          "type": "integer",
+          "description": "used to run aKubernetes Job with multiple parallel worker processes in a given pod",
+          "title": "Parallelism",
+          "default": 1
+        },
+        "suspend": {
+          "type": "boolean",
+          "description": "used to suspend subsequent executions, does not apply on already started executions",
+          "title": "Suspend",
+          "default": false
+        },
+        "ttlSecondsAfterFinished": {
+          "type": "integer",
+          "description": "feature used for clean up of finished Jobs (Complete or Failed)",
+          "title": "TTL Seconds After Finished"
+        }
+      }
     },
     "pauseForSecondsBeforeSwitchActive": {
       "type": "integer",
