@@ -1,10 +1,10 @@
 # nginx.default
 
 server {
-    listen       8000 default_server;
-    listen       [::]:8000 default_server;
+    listen 8000 default_server;
+    listen [::]:8000 default_server;
     server_name  example.org;
-    root         /app;
+    root  /app;
 
     location / {
         include uwsgi_params;

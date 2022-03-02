@@ -743,7 +743,7 @@ func (impl DbPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) error 
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(repository3.PROJECT_TYPE, app.AppName, tx)
+	err = impl.userAuthService.DeleteRoles(repository3.APP_TYPE, app.AppName, tx, "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err

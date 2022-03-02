@@ -2,18 +2,18 @@
 
 ## Introduction
 
-Discover, Create, Deploy, Update, Upgrade, Delete App store applications.
-
+Discover, Create, Deploy, Update, Upgrade, Delete charts.
 
 ## 1. Discover the chart from the Chart Store
 
 Select the `Charts` section from the left pane, you will be landed to the `Chart Store` page. 
-Click on `Discover` and search `nginx` or any other charts in search filter.
+Search `nginx` or any other charts in search filter.
 
-![](../../.gitbook/assets/charts-1.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-1.jpg)
 
-Click on charts it will land you to the app store detail page. where you can see number of instances deployed by the same chart
-![](../../.gitbook/assets/charts-2.png)
+Click on chart and it will redirect you to `Chart Details` page where you can see number of instances deployed by using the same chart.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-2.jpg)
 
 ## 2. Configure the Chart
 
@@ -29,7 +29,7 @@ Enter the following details, to deploy chart:
 | `Chart Version` | Chart version |
 | `Chart Value` | Latest default value or create a custom value |
 
-![](../../.gitbook/assets/charts-3.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-3.jpg)
 
 you can choose any chart version, values and update it on values.yaml
 
@@ -37,37 +37,39 @@ Click on `Deploy` to deploy the Chart
 
 ## 3. Status of Deployment 
 
-After clicking on `Deploy` you will land on a page, that shows the Status of the deployment of the Chart.
+After clicking on `Deploy` you will land on a page that shows the status of the deployment of the Chart.
 
-The Status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
+The status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
+In case the status of the deployment is `Degraded` or takes a long time to get deployed, click on `Details` in `Application Status` section on same page or check the logs of the pods to debug the issue.
 
-![](../../.gitbook/assets/charts-4.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-4.jpg)
 
-In case the Status, of the deployment is `Degraded` or takes a long time to get deployed.
+1. shows status of deployed chart.
 
-Click on the `Status` or check the logs of the pods to debug the issue.
+2. Shows the controller service accounts being used.
 
-Arrow 3 will land you to the page where you can update or upgrade chart
+3. Clicking on `values` will land you to the page where you can update, upgrade or delete chart.
 
-Arrow 4 will land you to the page where you can se all the running instances of this chart.
+4. Clicking on `View Chart` will land you to the page where you can see all the running instances of this chart.
 
 ## 4. Update or Upgrade Chart
 
-![](../../.gitbook/assets/charts-6.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-5.jpg)
 
-For update you can change its chart version and values yaml and than click on `Update And Deploy` Button.
+For update you can change its `chart version` or `values.yaml` and then click on `Update And Deploy`.
 
-For upgrade click on `Repo/Chart` field and search any chart name like `minio` and change values corresponding to that chart and `Click on Update And Deploy` Button.
-![](../../.gitbook/assets/charts-5.png)
+For upgrade click on `Repo/Chart` field and search any chart name like `nginx-ingress` and change values corresponding to that chart and Click on `Update And Deploy`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-6.jpg)
 
 
-After Update and Upgrade you again will land on detail page where you can check pods and service name.
+After update or upgrade you again will land on `App Detail` page, where you can check pods and service name.
 
-![](../../.gitbook/assets/charts-7.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-7.jpg)
 
-## 5. App Store Detail and Delete Charts
+## 5. Chart Details and Delete Charts
 
-From detail page there is link to redirect you to the app store detail page. where you can see number of instances installed by this chart. 
-also you can delete chart instance from here.
+By clicking on `View Chart` in `Chart Used` section on `App Details` page, it will redirect you to `Chart Details` page where you can see number of instances installed by this chart and also you can delete chart instance from here.
 
-![](../../.gitbook/assets/charts-8.png)
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-8.jpg)
