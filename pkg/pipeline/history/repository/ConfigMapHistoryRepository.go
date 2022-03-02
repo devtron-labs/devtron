@@ -32,7 +32,7 @@ func NewConfigMapHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *
 type ConfigmapAndSecretHistory struct {
 	TableName  struct{}   `sql:"config_map_history" pg:",discard_unknown_columns"`
 	Id         int        `sql:"id,pk"`
-	PipelineId int        `sql:"pipeline_id, notnull"`
+	PipelineId int        `sql:"pipeline_id"`
 	DataType   ConfigType `sql:"data_type"`
 	Data       string     `sql:"data"`
 	Deployed   bool       `sql:"deployed"`

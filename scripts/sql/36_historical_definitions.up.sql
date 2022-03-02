@@ -4,7 +4,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_config_map_history;
 CREATE TABLE "public"."config_map_history"
 (
     "id"                          integer NOT NULL DEFAULT nextval('id_seq_config_map_history'::regclass),
-    "pipeline_id"                 integer NOT NULL,
+    "pipeline_id"                 integer,
     "data_type"                   varchar(255),
     "data"                        text,
     "deployed"                    boolean,
@@ -24,7 +24,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_deployment_template_history;
 CREATE TABLE "public"."deployment_template_history"
 (
     "id"                            integer NOT NULL DEFAULT nextval('id_seq_deployment_template_history'::regclass),
-    "pipeline_id"                   integer NOT NULL,
+    "pipeline_id"                   integer,
     "target_environment"            integer,
     "image_descriptor_template"     text NOT NULL,
     "template"                      text NOT NULL,
