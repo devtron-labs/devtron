@@ -331,7 +331,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		return nil, fmt.Errorf("namespace name update not supported")
 	}
 
-	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(override, nil, *propertiesRequest.AppMetrics)
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(override, nil, *propertiesRequest.AppMetrics, 0)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", override)
 		return nil, err
@@ -432,7 +432,7 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 			impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
 			return nil, err
 		}
-		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, IsAppMetricsEnabled)
+		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, IsAppMetricsEnabled, 0)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
 			return nil, err
@@ -665,7 +665,7 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 		}
 	}
 	//creating history entry
-	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(currentChart, nil, appMetricRequest.IsAppMetricsEnabled)
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(currentChart, nil, appMetricRequest.IsAppMetricsEnabled, 0)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", currentChart)
 	}
