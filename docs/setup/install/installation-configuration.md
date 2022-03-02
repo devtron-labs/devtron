@@ -35,6 +35,12 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 |ENABLE_INGRESS | To enable Ingress (True/False)| False| Optional|
 |INGRESS_ANNOTATIONS | Annotations for ingress| ""| Optional|
 |PROMETHEUS_URL | Existing Prometheus URL if it is installed| ""| Optional|
+|CI_DEFAULT_ADDRESS_POOL_BASE_CIDR | "" | "" | Optional|
+|CI_DEFAULT_ADDRESS_POOL_SIZE | "" | "" | Optional|
+|CD_DEFAULT_ADDRESS_POOL_BASE_CIDR | "" | "" | Optional|
+|CD_DEFAULT_ADDRESS_POOL_SIZE | "" | "" | Optional|
+|GITOPS_REPO_PREFIX | "" | devtron |Optional|
+
 
 ### Dashboard Configurations
 
