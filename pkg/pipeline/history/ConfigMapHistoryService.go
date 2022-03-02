@@ -49,22 +49,47 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromAppLevelConfig(appLevel
 		impl.logger.Errorw("err in getting pipelines, CreateHistoryFromAppLevelConfig", "err", err, "appLevelConfig", appLevelConfig)
 		return err
 	}
-	for _, pipeline := range pipelines {
-		envLevelConfig, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(pipeline.AppId, pipeline.EnvironmentId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("err in getting env level config", "err", err, "appId", appLevelConfig.AppId)
-			return err
+
+	if len(pipelines) > 0 {
+		for _, pipeline := range pipelines {
+			envLevelConfig, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(pipeline.AppId, pipeline.EnvironmentId)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("err in getting env level config", "err", err, "appId", appLevelConfig.AppId)
+				return err
+			}
+			configData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, configType, nil)
+			if err != nil {
+				impl.logger.Errorw("err in merging app and env level configs", "err", err)
+				return err
+			}
+			historyModel := &repository.ConfigmapAndSecretHistory{
+				PipelineId: pipeline.Id,
+				DataType:   configType,
+				Deployed:   false,
+				Data:       configData,
+				AuditLog: sql.AuditLog{
+					CreatedBy: appLevelConfig.CreatedBy,
+					CreatedOn: appLevelConfig.CreatedOn,
+					UpdatedBy: appLevelConfig.UpdatedBy,
+					UpdatedOn: appLevelConfig.UpdatedOn,
+				},
+			}
+			_, err = impl.configMapHistoryRepository.CreateHistory(historyModel)
+			if err != nil {
+				impl.logger.Errorw("error in creating new entry for CM/CS history", "historyModel", historyModel)
+				return err
+			}
 		}
-		configData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, envLevelConfig, configType, nil)
+	} else {
+		configData, err := impl.MergeAppLevelAndEnvLevelConfigs(appLevelConfig, nil, configType, nil)
 		if err != nil {
 			impl.logger.Errorw("err in merging app and env level configs", "err", err)
 			return err
 		}
 		historyModel := &repository.ConfigmapAndSecretHistory{
-			PipelineId: pipeline.Id,
-			DataType:   configType,
-			Deployed:   false,
-			Data:       configData,
+			DataType: configType,
+			Deployed: false,
+			Data:     configData,
 			AuditLog: sql.AuditLog{
 				CreatedBy: appLevelConfig.CreatedBy,
 				CreatedOn: appLevelConfig.CreatedOn,
@@ -77,7 +102,6 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromAppLevelConfig(appLevel
 			impl.logger.Errorw("error in creating new entry for CM/CS history", "historyModel", historyModel)
 			return err
 		}
-
 	}
 	return nil
 }
