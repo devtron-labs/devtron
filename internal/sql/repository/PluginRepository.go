@@ -13,6 +13,7 @@ type Plugin struct {
 	PluginName        string   `sql:"plugin_name,notnull"`
 	PluginDescription string   `sql:"plugin_description,notnull"`
 	PluginBody        string   `sql:"plugin_body,notnull"`
+	//PluginVersion     int      `sql:"plugin_version,notnull"`
 }
 
 type PluginFields struct {
@@ -63,6 +64,9 @@ type PluginRepository interface {
 	FindByAppId(pluginId int) (*Plugin, []*PluginFields, []*PluginSteps, []string, error)
 	Update(plugin *Plugin, inputs []*PluginFields) error
 	Delete(pluginId int) error
+	DeleteFieldsByID(id int, stepId int) error
+	DeleteStepSequenceByID(id int) error
+	DeleteTagsMapByID(id int) error
 }
 
 type PluginRepositoryImpl struct {
@@ -175,7 +179,7 @@ func (impl *PluginRepositoryImpl) Delete(pluginId int) error {
 	if err != nil {
 		impl.logger.Errorw("Plugin couldn't be deleted", "err", err)
 	}
-	err = impl.DeleteFieldsByID(pluginId)
+	err = impl.DeleteFieldsByID(pluginId, -1)
 	if err != nil {
 		impl.logger.Errorw("Plugin couldn't be deleted", "err", err)
 	}
@@ -183,13 +187,14 @@ func (impl *PluginRepositoryImpl) Delete(pluginId int) error {
 	if err != nil {
 		impl.logger.Errorw("Plugin couldn't be deleted", "err", err)
 	}
+	_ = impl.DeleteStepSequenceByID(pluginId)
 
 	for _, pluginstep := range pluginsteps {
 		//stepfields, err := impl.FindPluginFieldsById(pluginstep.StepId)
 		//if err != nil {
 		//	impl.logger.Errorw("Plugin Steps fields couldn't be found", "err", err)
 		//}
-		err = impl.DeleteFieldsByID(pluginstep.StepId)
+		err = impl.DeleteFieldsByID(pluginId, pluginstep.StepId)
 		if err != nil {
 			impl.logger.Errorw("Plugin Steps fields couldn't be deleted", "err", err)
 		}
@@ -207,11 +212,21 @@ func (impl *PluginRepositoryImpl) FindPluginFieldsById(id int) ([]*PluginFields,
 	return pluginInputs, err
 }
 
-func (impl *PluginRepositoryImpl) DeleteFieldsByID(id int) error {
+func (impl *PluginRepositoryImpl) DeleteFieldsByID(id int, stepId int) error {
 	plugin := &PluginFields{}
-	_, err := impl.dbConnection.Model(plugin).Where("plugin_id = ? ", id).Delete()
+	_, err := impl.dbConnection.Model(plugin).Where("plugin_id = ? ", id).
+		Where("steps_id = ? ", stepId).Delete()
 	if err != nil {
 		impl.logger.Errorw("Plugin couldn't be deleted", "err", err)
+	}
+	return err
+}
+
+func (impl *PluginRepositoryImpl) DeleteStepSequenceByID(id int) error {
+	stepSeq := &PluginStepsSequence{}
+	_, err := impl.dbConnection.Model(stepSeq).Where("plugin_id = ? ", id).Delete()
+	if err != nil {
+		impl.logger.Errorw("Plugin Steps Sequences couldn't be deleted", "err", err)
 	}
 	return err
 }
@@ -222,5 +237,8 @@ func (impl *PluginRepositoryImpl) DeleteTagsMapByID(id int) error {
 	if err != nil {
 		impl.logger.Errorw("Plugin couldn't be deleted", "err", err)
 	}
+	query := "DELETE FROM plugin_tags WHERE tag_id not in (SELECT t.tag_id FROM plugin_tags_map t)"
+	output := &Tags{}
+	_, err = impl.dbConnection.Query(output, query)
 	return err
 }

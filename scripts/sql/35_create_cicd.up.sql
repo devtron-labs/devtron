@@ -11,6 +11,7 @@ CREATE TABLE public.plugin_scripts
     "plugin_name"                      VARCHAR(250),
     "plugin_description"               VARCHAR(250),
     "plugin_body"                      TEXT,
+    "plugin_version"                   INT4,
     PRIMARY KEY ("plugin_id")
 );
 
