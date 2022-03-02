@@ -12,7 +12,7 @@ CREATE TABLE public.plugin_scripts
     "plugin_description"               VARCHAR(250),
     "plugin_body"                      TEXT,
     "plugin_version"                   INT4,
-    PRIMARY KEY ("plugin_id")
+    PRIMARY KEY ("id")
 );
 
 CREATE TABLE public.plugin_fields
@@ -56,4 +56,4 @@ CREATE TABLE public.plugin_steps_sequence
     "steps_id"                      INT4 NOT NULL,
     "plugin_id"                     INT4 NOT NULL,
     PRIMARY KEY ("sequence_id")
-)
+);

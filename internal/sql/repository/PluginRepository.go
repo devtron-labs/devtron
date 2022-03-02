@@ -19,7 +19,7 @@ type Plugin struct {
 type PluginFields struct {
 	tableName         struct{} `sql:"plugin_fields" pg:",discard_unknown_columns"`
 	PluginId          int      `sql:"plugin_id,notnull"`
-	StepId            int      `sql:"step_id,notnull"`
+	StepId            int      `sql:"steps_id,notnull"`
 	FieldName         string   `sql:"key_name,notnull"`
 	FieldDefaultValue string   `sql:"default_value,notnull"`
 	FieldDescription  string   `sql:"plugin_key_description,notnull"`
@@ -200,6 +200,8 @@ func (impl *PluginRepositoryImpl) Delete(pluginId int) error {
 		}
 	}
 
+	_ = impl.DeleteTagsMapByID(pluginId)
+
 	return err
 }
 
@@ -214,10 +216,10 @@ func (impl *PluginRepositoryImpl) FindPluginFieldsById(id int) ([]*PluginFields,
 
 func (impl *PluginRepositoryImpl) DeleteFieldsByID(id int, stepId int) error {
 	plugin := &PluginFields{}
-	_, err := impl.dbConnection.Model(plugin).Where("plugin_id = ? ", id).
-		Where("steps_id = ? ", stepId).Delete()
+	check, err := impl.dbConnection.Model(plugin).Where("plugin_id = ? ", id).Delete()
 	if err != nil {
 		impl.logger.Errorw("Plugin couldn't be deleted", "err", err)
+		print(check)
 	}
 	return err
 }

@@ -118,7 +118,7 @@ func (handler PluginRestHandlerImpl) SavePlugin(w http.ResponseWriter, r *http.R
 		pluginStepsFields, err := SaveFieldsList(pluginResp.Id, step.StepId, eachInput.PluginInputs)
 		stepSeq := &repository.PluginStepsSequence{
 			StepsId:  step.StepId,
-			PluginId: pluginResp.PluginId,
+			PluginId: pluginResp.Id,
 		}
 		err = handler.repository.SaveStepsSequence(stepSeq)
 		if err != nil {
@@ -222,8 +222,23 @@ func (handler PluginRestHandlerImpl) UpdatePlugin(w http.ResponseWriter, r *http
 func (handler PluginRestHandlerImpl) FindByPlugin(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, _ := strconv.Atoi(vars["Id"])
-	values, _, _, _, _ := handler.repository.FindByAppId(id)
-	common.WriteJsonResp(w, nil, values, http.StatusOK)
+	values, fields, _, tags, _ := handler.repository.FindByAppId(id)
+	var pluginfields []*repository.PluginFields
+
+	for _, field := range fields {
+		if field.PluginId == id && field.StepId == -1 {
+			pluginfields = append(pluginfields, field)
+		}
+	}
+	var bean = &plugin{
+		Id:          values.Id,
+		PluginId:    values.PluginId,
+		Name:        values.PluginName,
+		Description: values.PluginDescription,
+		Body:        values.PluginBody,
+		PluginTags:  tags,
+	}
+	common.WriteJsonResp(w, nil, bean, http.StatusOK)
 }
 
 //func (handler PluginRestHandlerImpl) FindByPlugin(w http.ResponseWriter, r *http.Request) {
