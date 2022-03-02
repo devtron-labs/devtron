@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/ktrysmt/go-bitbucket"
 
 	/* #nosec */
@@ -1434,8 +1435,6 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationStatusUpdate(installA
 	return true, nil
 }
 
-//------------ nats config
-
 func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions []*InstallAppVersionDTO) {
 
 	for _, versions := range installAppVersions {
@@ -1445,7 +1444,25 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 		if err != nil {
 			status = appstore.QUE_ERROR
 		} else {
-			err := impl.pubsubClient.Conn.Publish(BULK_APPSTORE_DEPLOY_TOPIC, data)
+			streamInfo, err := impl.pubsubClient.JetStrCtxt.StreamInfo(BULK_APPSTORE_DEPLOY_TOPIC)
+			if err != nil {
+				impl.logger.Errorw("Error while getting stream info", "topic", BULK_APPSTORE_DEPLOY_TOPIC, "error", err)
+			}
+			if streamInfo == nil {
+				//Stream doesn't already exist. Create a new stream from jetStreamContext
+				_, err = impl.pubsubClient.JetStrCtxt.AddStream(&nats.StreamConfig{
+					Name:     BULK_APPSTORE_DEPLOY_TOPIC,
+					Subjects: []string{BULK_APPSTORE_DEPLOY_TOPIC + ".*"},
+				})
+				if err != nil {
+					impl.logger.Errorw("Error while creating stream", "topic", BULK_APPSTORE_DEPLOY_TOPIC, "error", err)
+					return
+				}
+			}
+
+			//Generate random string for passing as Header Id in message
+			randString := "MsgHeaderId-" + util3.Generate(10)
+			_, err = impl.pubsubClient.JetStrCtxt.Publish(BULK_APPSTORE_DEPLOY_TOPIC, data, nats.MsgId(randString))
 			if err != nil {
 				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
 				status = appstore.QUE_ERROR
@@ -1472,7 +1489,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 		deployPayload := &DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
 		if err != nil {
-			impl.logger.Error("Error while unmarshalling deployPayload json object", err)
+			impl.logger.Error("Error while unmarshalling deployPayload json object", "error", err)
 			return
 		}
 		impl.logger.Debugw("deployPayload:", "deployPayload", deployPayload)

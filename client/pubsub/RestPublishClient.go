@@ -60,6 +60,7 @@ func (impl *NatsPublishClientImpl) Publish(req *PublishRequest) error {
 		})
 		if err != nil {
 			impl.logger.Errorw("Error while creating stream", "topic", req.Topic, "error", err)
+			return err
 		}
 	}
 

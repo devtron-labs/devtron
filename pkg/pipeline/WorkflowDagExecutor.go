@@ -1173,7 +1173,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 		cdWorkflow := new(pipelineConfig.CdWorkflow)
 		err := json.Unmarshal([]byte(string(msg.Data)), cdWorkflow)
 		if err != nil {
-			impl.logger.Error("Error while unmarshalling cdWorkflow json object", err)
+			impl.logger.Error("Error while unmarshalling cdWorkflow json object", "error", err)
 			return
 		}
 		impl.logger.Debugw("subscribeTriggerBulkAction event:", "cdWorkflow", cdWorkflow)

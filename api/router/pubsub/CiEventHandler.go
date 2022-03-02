@@ -79,7 +79,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
 		if err != nil {
-			impl.logger.Error("error while unmarshalling json data", err)
+			impl.logger.Error("error while unmarshalling json data", "error", err)
 			return
 		}
 		impl.logger.Debugw("ci complete event for ci", "ciPipelineId", ciCompleteEvent.PipelineId)

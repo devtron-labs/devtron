@@ -62,7 +62,7 @@ func (impl *GitWebhookHandlerImpl) Subscribe() error {
 		ciPipelineMaterial := gitSensor.CiPipelineMaterial{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciPipelineMaterial)
 		if err != nil {
-			impl.logger.Error("Error while unmarshalling json response", err)
+			impl.logger.Error("Error while unmarshalling json response", "error", err)
 			return
 		}
 		resp, err := impl.gitWebhookService.HandleGitWebhook(ciPipelineMaterial)

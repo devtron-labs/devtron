@@ -63,7 +63,7 @@ func (impl *CronBasedEventReceiverImpl) Subscribe() error {
 		event := client.Event{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &event)
 		if err != nil {
-			impl.logger.Errorw("Error while unmarshalling json data", err)
+			impl.logger.Errorw("Error while unmarshalling json data", "error", err)
 			return
 		}
 		err = impl.eventService.HandleEvent(event)
