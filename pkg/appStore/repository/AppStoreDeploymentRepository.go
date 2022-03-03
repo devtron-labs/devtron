@@ -48,11 +48,12 @@ type InstalledAppRepository interface {
 	GetInstalledAppVersionByInstalledAppId(id int) ([]*InstalledAppVersions, error)
 	GetConnection() (dbConnection *pg.DB)
 	GetInstalledAppVersionByInstalledAppIdMeta(appStoreApplicationId int) ([]*InstalledAppVersions, error)
-	GetClusterComponentByClusterId(clusterId int) ([]*InstalledApps, error)
+	GetClusterComponentByClusterId(clusterId int) ([]*InstalledApps, error) //unused
 	GetClusterComponentByClusterIds(clusterIds []int) ([]*InstalledApps, error) //unused
 	GetInstalledAppVersionByAppIdAndEnvId(appId int, envId int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionByClusterIds(clusterIds []int) ([]*InstalledAppVersions, error) //unused
 	GetInstalledAppVersionByClusterIdsV2(clusterIds []int) ([]*InstalledAppVersions, error)
+	GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -407,4 +408,18 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIdsV2(clus
 		Order("installed_app_versions.id desc").
 		Select()
 	return installedAppVersions, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error) {
+	model := &InstalledApps{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_apps.*", "App", "Environment").
+		Where("environment.cluster_id = ?", clusterId).
+		Where("environment.namespace = ?", namespace).
+		Where("app.app_name = ?", appName).
+		Where("installed_apps.active = ?", true).
+		Where("app.active = ?", true).
+		Where("environment.active = ?", true).
+		Select()
+	return model, err
 }

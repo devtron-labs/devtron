@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type HelmAppRestHandler interface {
@@ -334,6 +335,8 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	}
 
 	var res *openapi.UpdateReleaseResponse
+	ctxt, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 
 	if installedApp != nil {
 		chartInfo := installedApp.InstallAppVersionChartDTO
@@ -346,13 +349,13 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 			Username: chartRepoInfo.UserName,
 			Password: chartRepoInfo.Password,
 		}
-		res, err = handler.helmAppService.UpdateApplicationWithChartInfo(context.Background(), appIdentifier.ClusterId, updateReleaseRequest)
+		res, err = handler.helmAppService.UpdateApplicationWithChartInfo(ctxt, appIdentifier.ClusterId, updateReleaseRequest)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 	}else{
-		res, err = handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, request)
+		res, err = handler.helmAppService.UpdateApplication(ctxt, appIdentifier, request)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return

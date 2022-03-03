@@ -41,7 +41,7 @@ func NewAppStoreDeploymentCommonServiceImpl(logger *zap.SugaredLogger, installed
 }
 
 func (impl AppStoreDeploymentCommonServiceImpl) GetInstalledAppByClusterNamespaceAndName(clusterId int, namespace string, appName string) (*appStoreBean.InstallAppVersionDTO, error) {
-	installedApps, err := impl.installedAppRepository.GetClusterComponentByClusterId(clusterId)
+	installedApp, err := impl.installedAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appName)
 
 	if err != nil {
 		if err == pg.ErrNoRows {
@@ -53,14 +53,12 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetInstalledAppByClusterNamespac
 		}
 	}
 
-	for _, installedApp := range installedApps {
-		if namespace == installedApp.Environment.Namespace && appName == installedApp.App.AppName {
-			installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedApp.Id, installedApp.EnvironmentId)
-			if err != nil {
-				return nil, err
-			}
-			return impl.convert(installedApp, installedAppVersion), nil
+	if installedApp.Id > 0 {
+		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedApp.Id, installedApp.EnvironmentId)
+		if err != nil {
+			return nil, err
 		}
+		return impl.convert(installedApp, installedAppVersion), nil
 	}
 
 	return nil, nil
