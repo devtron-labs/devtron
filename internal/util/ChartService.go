@@ -363,6 +363,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
+	gitOpsRepoName := impl.getGitOpsRepoName(appStoreName)
 	gitOpsConfigBitbucket, err := impl.gitFactory.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
 	if err != nil {
 		if err == pg.ErrNoRows {
@@ -373,10 +374,10 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			return nil, err
 		}
 	}
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitOpsRepoName, "helm chart for "+gitOpsRepoName, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
-			impl.logger.Errorw("error in creating git project", "name", appStoreName, "err", err)
+			impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
 			return nil, err
 		}
 	}

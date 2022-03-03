@@ -31,6 +31,7 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/ktrysmt/go-bitbucket"
 
 	/* #nosec */
@@ -119,6 +120,7 @@ type InstalledAppServiceImpl struct {
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
 	userService                          user.UserService
+	globalEnvVariables                   *util3.GlobalEnvVariables
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -136,7 +138,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	envService cluster2.EnvironmentService,
 	clusterInstalledAppsRepository appStoreRepository.ClusterInstalledAppsRepository,
 	argoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService) (*InstalledAppServiceImpl, error) {
+	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository,
+	userService user.UserService, globalEnvVariables *util3.GlobalEnvVariables) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -159,6 +162,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		aCDAuthConfig:                        aCDAuthConfig,
 		gitOpsRepository:                     gitOpsRepository,
 		userService:                          userService,
+		globalEnvVariables:                   globalEnvVariables,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -1203,7 +1207,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 		FileContent:    string(requirementDependenciesByte),
 		ChartName:      chartMeta.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  chartMeta.Name,
+		ChartRepoName:  impl.getGitOpsRepoName(chartMeta.Name), //TODO - 3mar
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -1214,7 +1218,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 			return installAppVersionRequest, nil, err
 		}
 	}
-	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement, gitOpsConfigBitbucket.BitBucketWorkspaceId) //TODO - 3mar
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return installAppVersionRequest, nil, err
@@ -1224,7 +1228,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 	space := regexp.MustCompile(`\s+`)
 	appStoreName := space.ReplaceAllString(chartMeta.Name, "-")
 	clonedDir := impl.gitFactory.GitWorkingDir + "" + appStoreName
-	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName)
+	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName) //TODO - 3mar
 	if err != nil {
 		impl.logger.Errorw("error in git pull", "err", err)
 		return installAppVersionRequest, nil, err
@@ -1253,16 +1257,16 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 		FileContent:    string(valuesByte),
 		ChartName:      chartMeta.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  chartMeta.Name,
+		ChartRepoName:  impl.getGitOpsRepoName(chartMeta.Name), //TODO - 3mar
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
-	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, gitOpsConfigBitbucket.BitBucketWorkspaceId) //TODO - 3mar
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return installAppVersionRequest, nil, err
 	}
 	//sync local dir with remote
-	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName)
+	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName) //TODO - 3mar
 	if err != nil {
 		impl.logger.Errorw("error in git pull", "err", err)
 		return installAppVersionRequest, nil, err
@@ -1706,4 +1710,14 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		DeploymentDetailContainer: deploymentContainer,
 	}
 	return appDetail, nil
+}
+
+func (impl *InstalledAppServiceImpl) getGitOpsRepoName(appName string) string {
+	var repoName string
+	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
+		repoName = appName
+	} else {
+		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
+	}
+	return repoName
 }
