@@ -104,7 +104,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveForAutocomplete() ([]
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
 		Where("active = ?", true).
-		Column("id", "registry_url", "is_default").
+		Column("id", "registry_url", "registry_type", "is_default").
 		Select()
 	return providers, err
 }
@@ -154,7 +154,7 @@ func (impl DockerArtifactStoreRepositoryImpl) Delete(storeId string) error {
 	return impl.dbConnection.Delete(artifactStore)
 }
 
-func (impl DockerArtifactStoreRepositoryImpl) MarkRegistryDeleted(deleteReq *DockerArtifactStore) error{
+func (impl DockerArtifactStoreRepositoryImpl) MarkRegistryDeleted(deleteReq *DockerArtifactStore) error {
 	if deleteReq.IsDefault {
 		return errors.New("default registry can't be deleted")
 	}

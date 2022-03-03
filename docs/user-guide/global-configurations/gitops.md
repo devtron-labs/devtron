@@ -20,7 +20,7 @@ Select the GitOps section of global configuration. At the top of the section, fo
 * **Azure**
 * **BitBucket Cloud**
 
-![](../../user-guide/global-configurations/images/git-providers.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/git-providers.jpg)
 
 Select one of the Git providers. To add git account, You need to provide the following inputs as given below:
 1. Git Host / Azure DevOps Organisation Url / BitBucket Host <br />
@@ -75,6 +75,6 @@ A personal access token (PAT) is used as an alternate password to authenticate i
 Click on Save to save your gitOps configuration details.
  
 
-![](../../user-guide/global-configurations/images/bit-bucket-cloud.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket-cloud.jpg)
 
 > Note: A Green tick will appear on the active gitOps provider.
