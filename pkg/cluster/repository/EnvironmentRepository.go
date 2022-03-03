@@ -53,6 +53,7 @@ type EnvironmentRepository interface {
 	FindByClusterId(clusterId int) ([]*Environment, error)
 	FindByIds(ids []*int) ([]*Environment, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*Environment, error)
+	FindOneByNamespaceAndClusterId(namespace string, clusterId int) (*Environment, error)
 	FindByClusterIdAndNamespace(namespaceClusterPair []*ClusterNamespacePair) ([]*Environment, error)
 	FindByClusterIds(clusterIds []int) ([]*Environment, error)
 }
@@ -89,6 +90,20 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByNamespaceAndClusterName(na
 		Where("environment.active = ?", true).
 		Where("c.active = ?", true).
 		Where("c.cluster_name =?", clusterName).
+		Select()
+	return environmentCluster, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindOneByNamespaceAndClusterId(namespace string, clusterId int) (*Environment, error) {
+	environmentCluster := &Environment{}
+	err := repositoryImpl.dbConnection.
+		Model(environmentCluster).
+		Column("environment.*", "Cluster").
+		Join("inner join cluster c on environment.cluster_id = c.id").
+		Where("namespace = ?", namespace).
+		Where("environment.active = ?", true).
+		Where("c.active = ?", true).
+		Where("c.id =?", clusterId).
 		Select()
 	return environmentCluster, err
 }

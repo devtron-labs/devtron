@@ -19,6 +19,7 @@ package appStoreRepository
 
 import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -33,7 +34,7 @@ type ChartGroupEntry struct {
 	Deleted                      bool     `sql:"deleted,notnull"`
 	sql.AuditLog
 	AppStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion
-	AppStoreValuesVersion      *AppStoreVersionValues
+	AppStoreValuesVersion      *appStoreValuesRepository.AppStoreVersionValues
 }
 
 type ChartGroupEntriesRepositoryImpl struct {

@@ -27,6 +27,8 @@ service ApplicationService {
   rpc UninstallRelease(ReleaseIdentifier) returns (UninstallReleaseResponse){}
   rpc UpgradeRelease(UpgradeReleaseRequest) returns (UpgradeReleaseResponse){}
   rpc GetDeploymentDetail(DeploymentDetailRequest) returns (DeploymentDetailResponse){}
+  rpc InstallRelease(InstallReleaseRequest) returns (InstallReleaseResponse){}
+  rpc UpgradeReleaseWithChartInfo(InstallReleaseRequest) returns (UpgradeReleaseResponse){}
 }
 
 message DeployedAppList {
@@ -210,4 +212,23 @@ message DeploymentDetailRequest {
 message DeploymentDetailResponse {
   string manifest = 1;
   string valuesYaml = 2;
+}
+
+message ChartRepository {
+  string name = 1;
+  string url = 2;
+  string username = 3;
+  string password = 4;
+}
+
+message InstallReleaseRequest {
+  ReleaseIdentifier releaseIdentifier = 1;
+  string chartName = 2;
+  string chartVersion = 3;
+  string valuesYaml = 4;
+  ChartRepository chartRepository = 5;
+}
+
+message InstallReleaseResponse {
+  bool success = 1;
 }

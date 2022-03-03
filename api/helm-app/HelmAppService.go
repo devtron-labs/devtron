@@ -29,6 +29,8 @@ type HelmAppService interface {
 	DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error)
 	UpdateApplication(ctx context.Context, app *AppIdentifier, request *openapi.UpdateReleaseRequest) (*openapi.UpdateReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
+	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (*InstallReleaseResponse, error)
+	UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, updateReleaseRequest *InstallReleaseRequest) (*openapi.UpdateReleaseResponse, error)
 }
 
 type HelmAppServiceImpl struct {
@@ -330,6 +332,46 @@ func (impl *HelmAppServiceImpl) GetDeploymentDetail(ctx context.Context, app *Ap
 	response := &openapi.HelmAppDeploymentManifestDetail{
 		Manifest:   &deploymentDetail.Manifest,
 		ValuesYaml: &deploymentDetail.ValuesYaml,
+	}
+
+	return response, nil
+}
+
+func (impl *HelmAppServiceImpl) InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (*InstallReleaseResponse, error) {
+	config, err := impl.getClusterConf(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+
+	installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
+
+	installReleaseResponse, err := impl.helmAppClient.InstallRelease(ctx, installReleaseRequest)
+	if err != nil {
+		impl.logger.Errorw("error in installing release", "err", err)
+		return nil, err
+	}
+
+	return installReleaseResponse, nil
+}
+
+func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, updateReleaseRequest *InstallReleaseRequest) (*openapi.UpdateReleaseResponse, error) {
+	config, err := impl.getClusterConf(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+
+	updateReleaseRequest.ReleaseIdentifier.ClusterConfig = config
+
+	updateReleaseResponse, err := impl.helmAppClient.UpdateApplicationWithChartInfo(ctx, updateReleaseRequest)
+	if err != nil {
+		impl.logger.Errorw("error in installing release", "err", err)
+		return nil, err
+	}
+
+	response := &openapi.UpdateReleaseResponse{
+		Success: &updateReleaseResponse.Success,
 	}
 
 	return response, nil
