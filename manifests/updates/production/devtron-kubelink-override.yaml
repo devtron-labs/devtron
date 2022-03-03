@@ -1,23 +1,23 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: nats-server-override-cm
+  name: kubelink-override-cm
   namespace:  devtroncd
 data:
   override: |
     apiVersion: apps/v1
-    kind: StatefulSet
+    kind: Deployment
     metadata:
-      name: devtron-nats
+      name: kubelink
     update:
       spec:
         template:
-          spec: 
+          spec:
             containers:
             - resources:
-                limits: 
+                limits:
                   cpu: 0.1
-                  memory: 40Mi
+                  memory: 100Mi
                 requests:
                   cpu: 0.05
-                  memory: 20Mi
+                  memory: 50Mi
