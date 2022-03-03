@@ -438,6 +438,13 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	schema, readme, err := handler.chartService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("err in getting schema and readme, GetEnvConfigOverride", "err", err, "appId", appId, "chartRefId", chartRefId)
+	}
+	env.Schema = schema
+	env.Readme = string(readme)
 	common.WriteJsonResp(w, err, env, http.StatusOK)
 }
 
@@ -468,8 +475,13 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		return
 	}
 
-	appConfigResponse := map[string]json.RawMessage{}
+	appConfigResponse := make(map[string]interface{})
 	appConfigResponse["globalConfig"] = nil
+
+	schema, readme, err := handler.chartService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
+	}
 
 	template, err := handler.chartService.FindLatestChartForAppByAppId(appId)
 	if err != nil && pg.ErrNoRows != err {
@@ -485,12 +497,14 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		mapB, _ := json.Marshal(appOverride)
+		appOverride["schema"] = json.RawMessage(schema)
+		appOverride["readme"] = string(readme)
+		mapB, err := json.Marshal(appOverride)
 		if err != nil {
 			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 			return
 		}
-		appConfigResponse["globalConfig"] = mapB
+		appConfigResponse["globalConfig"] = json.RawMessage(mapB)
 	} else {
 		if template.ChartRefId != chartRefId {
 			templateRequested, err := handler.chartService.GetByAppIdAndChartRefId(appId, chartRefId)
@@ -513,7 +527,8 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 				template.Latest = templateRequested.Latest
 			}
 		}
-
+		template.Schema = schema
+		template.Readme = string(readme)
 		bytes, err := json.Marshal(template)
 		if err != nil {
 			handler.Logger.Errorw("marshal err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)

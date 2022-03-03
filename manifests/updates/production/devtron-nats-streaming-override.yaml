@@ -8,22 +8,21 @@ data:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      name: nats-streaming
+      name: devtron-stan
     update:
       spec:
-        replicas: 3
         template:
           spec:
             containers:
             - resources:
                 limits:
-                  cpu: 0.01
-                  memory: 60Mi
+                  cpu: 0.2
+                  memory: 100Mi
                 requests:
-                  cpu: 0.01
-                  memory: 60Mi
-    #             env:
-    #             - name: POD_NAME
-    #                valueFrom:
-    #                  fieldRef:
-    #                    fieldPath: metadata.name
+                  cpu: 0.1
+                  memory: 50Mi
+#             env:
+#             - name: POD_NAME
+#                valueFrom:
+#                  fieldRef:
+#                    fieldPath: metadata.name
