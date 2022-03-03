@@ -46,6 +46,7 @@ CREATE TABLE public.plugin_steps
     "steps_name"                VARCHAR(100),
     "steps_template_language"   VARCHAR(100),
     "steps_template"            TEXT,
+    "depends_on"                INT4[],
     PRIMARY KEY ("steps_id")
 );
 
