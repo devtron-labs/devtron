@@ -17,9 +17,11 @@
 package util
 
 var (
-	GitCommit  string = ""
-	BuildTime  string = ""
-	ServerMode string = ""
+	GitCommit            = ""
+	BuildTime            = ""
+	ServerMode           = ""
+	SERVER_MODE_FULL     = "FULL"
+	SERVER_MODE_HYPERION = "EA_ONLY"
 )
 
 type ServerVersion struct {
