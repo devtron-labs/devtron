@@ -34,7 +34,6 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
-	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/ktrysmt/go-bitbucket"
 
 	/* #nosec */
@@ -104,7 +103,6 @@ type InstalledAppServiceImpl struct {
 	userService                          user.UserService
 	appStoreDeploymentService            appStoreDeployment.AppStoreDeploymentService
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
-	globalEnvVariables                   *util3.GlobalEnvVariables
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -122,8 +120,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	envService cluster2.EnvironmentService, argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
 	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
-	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
-	globalEnvVariables *util3.GlobalEnvVariables) (*InstalledAppServiceImpl, error) {
+	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -147,7 +144,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		userService:                          userService,
 		appStoreDeploymentService:            appStoreDeploymentService,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
-		globalEnvVariables:                   globalEnvVariables,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -1066,14 +1062,4 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		DeploymentDetailContainer: deploymentContainer,
 	}
 	return appDetail, nil
-}
-
-func (impl *InstalledAppServiceImpl) getGitOpsRepoName(appName string) string {
-	var repoName string
-	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
-		repoName = appName
-	} else {
-		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
-	}
-	return repoName
 }

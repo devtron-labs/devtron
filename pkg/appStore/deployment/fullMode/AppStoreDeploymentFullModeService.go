@@ -24,6 +24,7 @@ import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
+	util3 "github.com/devtron-labs/devtron/util"
 
 	"encoding/json"
 	"fmt"
@@ -69,6 +70,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
+	globalEnvVariables                   *util3.GlobalEnvVariables
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -78,7 +80,8 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	environmentRepository repository5.EnvironmentRepository,
 	acdClient application2.ServiceClient,
 	argoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository) *AppStoreDeploymentFullModeServiceImpl {
+	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
+	gitOpsRepository repository3.GitOpsConfigRepository, globalEnvVariables *util3.GlobalEnvVariables) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
@@ -91,6 +94,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		gitFactory:                           gitFactory,
 		aCDAuthConfig:                        aCDAuthConfig,
 		gitOpsRepository:                     gitOpsRepository,
+		globalEnvVariables:                   globalEnvVariables,
 	}
 }
 
@@ -151,7 +155,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		FileContent:    string(requirementDependenciesByte),
 		ChartName:      chartMeta.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  chartMeta.Name,
+		ChartRepoName:  impl.getGitOpsRepoName(chartMeta.Name),
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -162,6 +166,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 			return installAppVersionRequest, nil, err
 		}
 	}
+	impl.logger.Infow(">>>>>>>>1", "crn", chartGitAttrForRequirement.ChartRepoName)
 	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
@@ -201,9 +206,10 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		FileContent:    string(valuesByte),
 		ChartName:      chartMeta.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  chartMeta.Name,
+		ChartRepoName:  impl.getGitOpsRepoName(chartMeta.Name),
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
+	impl.logger.Infow(">>>>>>>>2", "crn", chartGitAttrForRequirement.ChartRepoName)
 	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
@@ -289,4 +295,14 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 	}
 
 	return nil
+}
+
+func (impl *AppStoreDeploymentFullModeServiceImpl) getGitOpsRepoName(appName string) string {
+	var repoName string
+	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
+		repoName = appName
+	} else {
+		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
+	}
+	return repoName
 }
