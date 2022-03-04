@@ -735,7 +735,7 @@ func (impl GitHubClient) createReadme(repoName string) (string, error) {
 		FileName:       "README.md",
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
-		ChartRepoName: repoName,
+		ChartRepoName:  repoName,
 	}
 	hash, err := impl.CommitValues(cfg, "")
 	if err != nil {
@@ -749,6 +749,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	ctx := context.Background()
 	newFile := false
+	impl.logger.Infow(">>>>>>>>>>>3", "path", path, "org", impl.org, "crn", config.ChartRepoName)
 	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartRepoName, path, &github.RepositoryContentGetOptions{Ref: branch})
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
@@ -769,6 +770,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 		SHA:     &currentSHA,
 		Branch:  &branch,
 	}
+	impl.logger.Infow(">>>>>>>>>>>4", "path", path, "org", impl.org, "crn", config.ChartRepoName)
 	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)
 	if err != nil {
 		impl.logger.Errorw("error in commit github", "err", err, "config", config)

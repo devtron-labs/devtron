@@ -1202,6 +1202,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 	if err != nil {
 		return installAppVersionRequest, nil, err
 	}
+	impl.logger.Infow(">>>>>>>>>>>>1", "crn", impl.getGitOpsRepoName(chartMeta.Name))
 	chartGitAttrForRequirement := &util.ChartConfig{
 		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
 		FileContent:    string(requirementDependenciesByte),
@@ -1260,6 +1261,7 @@ func (impl InstalledAppServiceImpl) AppStoreDeployOperationGIT(installAppVersion
 		ChartRepoName:  impl.getGitOpsRepoName(chartMeta.Name), //TODO - 3mar
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
+	impl.logger.Infow(">>>>>>>>>>>>2", "crn", impl.getGitOpsRepoName(chartMeta.Name), "a", valuesYaml.ChartRepoName)
 	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, gitOpsConfigBitbucket.BitBucketWorkspaceId) //TODO - 3mar
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
