@@ -56,6 +56,7 @@ type AppStoreDeploymentFullModeService interface {
 	AppStoreDeployOperationACD(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 	SyncACD(acdAppName string, ctx context.Context)
+	GetGitOpsRepoName(appName string) string
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
@@ -155,7 +156,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		FileContent:    string(requirementDependenciesByte),
 		ChartName:      chartMeta.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  impl.getGitOpsRepoName(chartMeta.Name),
+		ChartRepoName:  impl.GetGitOpsRepoName(chartMeta.Name),
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -166,7 +167,6 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 			return installAppVersionRequest, nil, err
 		}
 	}
-	impl.logger.Infow(">>>>>>>>1", "crn", chartGitAttrForRequirement.ChartRepoName)
 	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
@@ -206,10 +206,9 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		FileContent:    string(valuesByte),
 		ChartName:      chartMeta.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  impl.getGitOpsRepoName(chartMeta.Name),
+		ChartRepoName:  impl.GetGitOpsRepoName(chartMeta.Name),
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
-	impl.logger.Infow(">>>>>>>>2", "crn", chartGitAttrForRequirement.ChartRepoName)
 	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
@@ -297,7 +296,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 	return nil
 }
 
-func (impl *AppStoreDeploymentFullModeServiceImpl) getGitOpsRepoName(appName string) string {
+func (impl *AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(appName string) string {
 	var repoName string
 	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
 		repoName = appName
