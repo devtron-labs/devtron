@@ -97,3 +97,27 @@ https://grafana.com/api/dashboards/13325/revisions/4/download
 https://grafana.com/api/dashboards/13321/revisions/6/download
 ```
 After that, your issue should be resolved and you should be able to see all the graphs on UI.
+
+#### 6. Unable to Login Devtron dashboard even if the password is correct
+
+If you are not able to login your Devtron dashboard after giving the correct password, there can be high chance that the `argocd token` of previous session has been stored in the cookies and is not able to override the new token that is generated for the new session. If this is the issue you are facing, please follow the following steps.
+1. Goto login page of Devtron and open inspect.
+2. Navigate to storage tab in inspect.
+3. Click on url where Devtron has been installed under `Cookies` tab and you could see an argocd token with its value, something similar to below image.
+![inspect-cookies](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/argocd-cookie.png)
+4. Now right click on token, and click on `Delete All Session Cookies` option.
+
+After clearing `Cookies`, try again to login, you should be able to login now.
+
+
+#### 7. No charts found in Charts Discover Section
+
+In the Devtron's Discover Chart section, if you are not able to see any charts available, goto `Global Configuration` >> `Chart Repositories` and click on `Refresh Chart` at the top-right as shown in the image below. After clicking the button, it might take 4-5mins to show all the charts in `Discover` section depending upon the chart repositories added. 
+![charts-not-found](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/refresh-charts.png)
+
+
+
+
+
+
+
