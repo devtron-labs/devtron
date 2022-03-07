@@ -676,7 +676,7 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 		}
 	}
 
-	if len(filterGroups) > 1 {
+	if len(filterGroups) > 0 {
 		filterGroupsModels, err := impl.roleGroupRepository.GetRoleGroupListByCasbinNames(filterGroups)
 		if err != nil {
 			impl.logger.Warnw("No Roles Found for user", "id", model.Id)
