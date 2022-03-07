@@ -101,11 +101,28 @@ After that, your issue should be resolved and you should be able to see all the 
 #### 6. Unable to Login Devtron dashboard even if the password is correct
 
 If you are not able to login your Devtron dashboard after giving the correct password, there can be high chance that the `argocd token` of previous session has been stored in the cookies and is not able to override the new token that is generated for the new session. If this is the issue you are facing, please follow the following steps.
+
+If using Firefox -
 1. Goto login page of Devtron and open inspect.
 2. Navigate to storage tab in inspect.
 3. Click on url where Devtron has been installed under `Cookies` tab and you could see an argocd token with its value, something similar to below image.
 ![inspect-cookies](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/argocd-cookie.png)
 4. Now right click on token, and click on `Delete All Session Cookies` option.
+
+If using Chrome -
+1. Goto login page of Devtron and open inspect.
+2. Navigate to Application tab, and under `Storage` tab click on `Cookies`.
+3. Click on url under `Cookie` and you would be able tto see an argocd token with its value, as shown in the image below.
+![chrome-cookie](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/chrome-cookie.png)
+4. Now right click on token and click on `delete` option.
+
+If using Safari -
+1. Goto Safari preferences >> Advanced options and check the show develop menu as shown in the image below.
+![safari-preferences](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/safari-preferences.png)
+2. Now goto login page of Devtron and press `option+command+I`. It will open inspect element.
+3. Then navigate to `Storage`, click on `Cookies` and you would be able to see an argocd token with its value as shown in the image below.
+![safari-cookie](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/safari-cookie.png)
+4. Now right click on token and select `delete` option.
 
 After clearing `Cookies`, try again to login, you should be able to login now.
 
