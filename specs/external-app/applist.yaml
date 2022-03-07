@@ -53,11 +53,11 @@ paths:
             type: string
       responses:
         "200":
-          description: release info
+          description: release and installed app info
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReleaseInfo"
+                $ref: "#/components/schemas/ReleaseAndInstalledAppInfo"
   /orchestrator/application/hibernate:
     post:
       description: hibernate the app
@@ -624,6 +624,35 @@ components:
       description: deployment history
       items:
         $ref: "#/components/schemas/HelmAppDeploymentDetail"
+    InstalledAppInfo:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: appId
+        installedAppId:
+          type: integer
+          description: installedAppId
+        environmentName:
+          type: string
+          description: environment Name
+        appOfferingMode:
+          type: string
+          description: EA_ONLY/FULL
+        appStoreChartId:
+          type: number
+          description: App store chart Id
+    ReleaseAndInstalledAppInfo:
+      type: object
+      properties:
+        releaseInfo:
+          type: object
+          $ref: "#/components/schemas/ReleaseInfo"
+          description: release info
+        installedAppInfo:
+          type: object
+            $ref: "#/components/schemas/InstalledAppInfo"
+            description: Installed app info
     ReleaseInfo:
       type: object
       properties:

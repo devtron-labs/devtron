@@ -48,11 +48,12 @@ type InstalledAppRepository interface {
 	GetInstalledAppVersionByInstalledAppId(id int) ([]*InstalledAppVersions, error)
 	GetConnection() (dbConnection *pg.DB)
 	GetInstalledAppVersionByInstalledAppIdMeta(appStoreApplicationId int) ([]*InstalledAppVersions, error)
-	GetClusterComponentByClusterId(clusterId int) ([]*InstalledApps, error)     //unused
+	GetClusterComponentByClusterId(clusterId int) ([]*InstalledApps, error) //unused
 	GetClusterComponentByClusterIds(clusterIds []int) ([]*InstalledApps, error) //unused
 	GetInstalledAppVersionByAppIdAndEnvId(appId int, envId int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionByClusterIds(clusterIds []int) ([]*InstalledAppVersions, error) //unused
 	GetInstalledAppVersionByClusterIdsV2(clusterIds []int) ([]*InstalledAppVersions, error)
+	GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -65,11 +66,11 @@ func NewInstalledAppRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.D
 }
 
 type InstalledApps struct {
-	TableName     struct{}                                `sql:"installed_apps" pg:",discard_unknown_columns"`
-	Id            int                                     `sql:"id,pk"`
-	AppId         int                                     `sql:"app_id,notnull"`
-	EnvironmentId int                                     `sql:"environment_id,notnull"`
-	Active        bool                                    `sql:"active, notnull"`
+	TableName     struct{}                              `sql:"installed_apps" pg:",discard_unknown_columns"`
+	Id            int                                   `sql:"id,pk"`
+	AppId         int                                   `sql:"app_id,notnull"`
+	EnvironmentId int                                   `sql:"environment_id,notnull"`
+	Active        bool                                  `sql:"active, notnull"`
 	Status        appStoreBean.AppstoreDeploymentStatus `sql:"status"`
 	App           app.App
 	Environment   repository.Environment
@@ -114,6 +115,7 @@ type InstalledAppAndEnvDetails struct {
 	EnvironmentName              string    `json:"environment_name"`
 	EnvironmentId                int       `json:"environment_id"`
 	AppName                      string    `json:"app_name"`
+	AppOfferingMode              string    `json:"appOfferingMode"`
 	UpdatedOn                    time.Time `json:"updated_on"`
 	EmailId                      string    `json:"email_id"`
 	InstalledAppVersionId        int       `json:"installed_app_version_id"`
@@ -252,7 +254,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 
 func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error) {
 	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
-	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, ia.updated_on, u.email_id, asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id " +
+	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, ia.updated_on, u.email_id, asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id " +
 		" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id" +
 		" inner join app a on a.id = ia.app_id " +
 		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id " +
@@ -269,7 +271,7 @@ func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId
 
 func (impl InstalledAppRepositoryImpl) GetAllInstalledAppsByChartRepoId(chartRepoId int) ([]InstalledAppAndEnvDetails, error) {
 	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
-	var queryTemp string = "select env.environment_name, env.id as environment_id, a.app_name, ia.updated_on, u.email_id, asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id " +
+	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, ia.updated_on, u.email_id, asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id " +
 		" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id" +
 		" inner join app a on a.id = ia.app_id " +
 		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id " +
@@ -406,4 +408,18 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIdsV2(clus
 		Order("installed_app_versions.id desc").
 		Select()
 	return installedAppVersions, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error) {
+	model := &InstalledApps{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_apps.*", "App", "Environment").
+		Where("environment.cluster_id = ?", clusterId).
+		Where("environment.namespace = ?", namespace).
+		Where("app.app_name = ?", appName).
+		Where("installed_apps.active = ?", true).
+		Where("app.active = ?", true).
+		Where("environment.active = ?", true).
+		Select()
+	return model, err
 }

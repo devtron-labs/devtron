@@ -81,6 +81,7 @@ type TelemetryEventEA struct {
 	Summary        *SummaryEA         `json:"summary,omitempty"`
 	ServerVersion  string             `json:"serverVersion,omitempty"`
 	DevtronVersion string             `json:"devtronVersion,omitempty"`
+	DevtronMode    string             `json:"devtronMode,omitempty"`
 }
 
 type SummaryEA struct {
@@ -152,6 +153,7 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
 
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
+	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 
 	summary := &SummaryEA{
 		UserCount:    len(users),
@@ -222,6 +224,8 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 	}
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Heartbeat, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
+	payload.DevtronMode = util.GetDevtronVersion().ServerMode
+
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
 		impl.logger.Errorw("HeartbeatEventForTelemetry, payload marshal error", "error", err)
@@ -271,13 +275,27 @@ func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEv
 		return nil, err
 	}
 
+	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: InstallationSuccess, DevtronVersion: "v1"}
+	payload.DevtronMode = util.GetDevtronVersion().ServerMode
+
+	reqBody, err := json.Marshal(payload)
+	if err != nil {
+		impl.logger.Errorw("Installation EventForTelemetry EA Mode, payload marshal error", "error", err)
+		return nil, nil
+	}
+	prop := make(map[string]interface{})
+	err = json.Unmarshal(reqBody, &prop)
+	if err != nil {
+		impl.logger.Errorw("Installation EventForTelemetry EA Mode, payload unmarshal error", "error", err)
+		return nil, nil
+	}
 	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
 	datamap := cm.Data
 
 	installEventValue, installEventKeyExists := datamap[InstallEventKey]
 
 	if installEventKeyExists == false || installEventValue == "1" {
-		err = impl.EnqueuePostHog(ucid, InstallationSuccess, nil)
+		err = impl.EnqueuePostHog(ucid, InstallationSuccess, prop)
 		if err == nil {
 			datamap[InstallEventKey] = "2"
 			cm.Data = datamap

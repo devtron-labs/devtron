@@ -28,8 +28,9 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
-	appStore "github.com/devtron-labs/devtron/pkg/appStore"
+	"github.com/devtron-labs/devtron/pkg/appStore"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -45,12 +46,9 @@ import (
 )
 
 type InstalledAppRestHandler interface {
-	CreateInstalledApp(w http.ResponseWriter, r *http.Request)
 	UpdateInstalledApp(w http.ResponseWriter, r *http.Request)
 	GetAllInstalledApp(w http.ResponseWriter, r *http.Request)
-	GetInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request)
 	GetInstalledAppVersion(w http.ResponseWriter, r *http.Request)
-	DeleteInstalledApp(w http.ResponseWriter, r *http.Request)
 	DeployBulk(w http.ResponseWriter, r *http.Request)
 	CheckAppExists(w http.ResponseWriter, r *http.Request)
 	DefaultComponentInstallation(w http.ResponseWriter, r *http.Request)
@@ -58,97 +56,33 @@ type InstalledAppRestHandler interface {
 }
 
 type InstalledAppRestHandlerImpl struct {
-	Logger              *zap.SugaredLogger
-	userAuthService     user.UserService
-	enforcer            casbin.Enforcer
-	enforcerUtil        rbac.EnforcerUtil
-	installedAppService appStore.InstalledAppService
-	validator           *validator.Validate
-	clusterService      cluster.ClusterService
-	acdServiceClient    application.ServiceClient
+	Logger                    *zap.SugaredLogger
+	userAuthService           user.UserService
+	enforcer                  casbin.Enforcer
+	enforcerUtil              rbac.EnforcerUtil
+	installedAppService       appStore.InstalledAppService
+	validator                 *validator.Validate
+	clusterService            cluster.ClusterService
+	acdServiceClient          application.ServiceClient
+	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, installedAppService appStore.InstalledAppService,
 	validator *validator.Validate, clusterService cluster.ClusterService, acdServiceClient application.ServiceClient,
+	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
 ) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
-		Logger:              Logger,
-		userAuthService:     userAuthService,
-		enforcer:            enforcer,
-		enforcerUtil:        enforcerUtil,
-		installedAppService: installedAppService,
-		validator:           validator,
-		clusterService:      clusterService,
-		acdServiceClient:    acdServiceClient,
+		Logger:                    Logger,
+		userAuthService:           userAuthService,
+		enforcer:                  enforcer,
+		enforcerUtil:              enforcerUtil,
+		installedAppService:       installedAppService,
+		validator:                 validator,
+		clusterService:            clusterService,
+		acdServiceClient:          acdServiceClient,
+		appStoreDeploymentService: appStoreDeploymentService,
 	}
-}
-
-func (handler InstalledAppRestHandlerImpl) CreateInstalledApp(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	var request appStoreBean.InstallAppVersionDTO
-
-	err = decoder.Decode(&request)
-	if err != nil {
-		handler.Logger.Errorw("request err, CreateInstalledApp", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	err = handler.validator.Struct(request)
-	if err != nil {
-		handler.Logger.Errorw("validation err, CreateInstalledApp", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	token := r.Header.Get("token")
-	//rbac block starts from here
-	object := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(request.AppName, request.EnvironmentId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
-	//rback block ends here
-
-	isChartRepoActive, err := handler.installedAppService.IsChartRepoActive(request.AppStoreVersion)
-	if err != nil {
-		handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	if !isChartRepoActive {
-		common.WriteJsonResp(w, fmt.Errorf("chart repo is disabled"), nil, http.StatusNotAcceptable)
-		return
-	}
-
-	request.UserId = userId
-	handler.Logger.Infow("request payload, CreateInstalledApp", "payload", request)
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(r.Context(), "token", token)
-	defer cancel()
-	res, err := handler.installedAppService.CreateInstalledAppV2(&request, ctx)
-	if err != nil {
-		if strings.Contains(err.Error(), "application spec is invalid") {
-			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}
-		}
-		handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler InstalledAppRestHandlerImpl) UpdateInstalledApp(w http.ResponseWriter, r *http.Request) {
@@ -173,7 +107,7 @@ func (handler InstalledAppRestHandlerImpl) UpdateInstalledApp(w http.ResponseWri
 	}
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, UpdateInstalledApp", "payload", request)
-	installedApp, err := handler.installedAppService.GetInstalledApp(request.InstalledAppId)
+	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(request.InstalledAppId)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -309,43 +243,6 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler InstalledAppRestHandlerImpl) GetInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	vars := mux.Vars(r)
-	appStoreId, err := strconv.Atoi(vars["appStoreId"])
-	if err != nil {
-		handler.Logger.Errorw("request err, GetInstalledAppsByAppStoreId", "err", err, "appStoreId", appStoreId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	token := r.Header.Get("token")
-	handler.Logger.Infow("request payload, GetInstalledAppsByAppStoreId", "appStoreId", appStoreId)
-	res, err := handler.installedAppService.GetAllInstalledAppsByAppStoreId(w, r, token, appStoreId)
-	if err != nil {
-		handler.Logger.Errorw("service err, GetInstalledAppsByAppStoreId", "err", err, "appStoreId", appStoreId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	var installedAppsResponse []appStoreBean.InstalledAppsResponse
-	for _, app := range res {
-		//rbac block starts from here
-		object := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(app.AppName, app.EnvironmentId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
-			continue
-		}
-		//rback block ends here
-		installedAppsResponse = append(installedAppsResponse, app)
-	}
-
-	common.WriteJsonResp(w, err, installedAppsResponse, http.StatusOK)
-}
-
 func (handler InstalledAppRestHandlerImpl) GetInstalledAppVersion(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -377,72 +274,6 @@ func (handler InstalledAppRestHandlerImpl) GetInstalledAppVersion(w http.Respons
 	//rback block ends here
 
 	common.WriteJsonResp(w, err, dto, http.StatusOK)
-}
-
-func (handler InstalledAppRestHandlerImpl) DeleteInstalledApp(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	installAppId, err := strconv.Atoi(vars["id"])
-	if err != nil {
-		handler.Logger.Errorw("request err, DeleteInstalledApp", "err", err, "installAppId", installAppId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	v := r.URL.Query()
-	forceDelete := false
-	force := v.Get("force")
-	if len(force) > 0 {
-		forceDelete, err = strconv.ParseBool(force)
-		if err != nil {
-			handler.Logger.Errorw("request err, DeleteInstalledApp", "err", err, "installAppId", installAppId)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-	}
-	handler.Logger.Infow("request payload, DeleteInstalledApp", "installAppId", installAppId)
-	token := r.Header.Get("token")
-	//rbac block starts from here
-	installedApp, err := handler.installedAppService.GetInstalledApp(installAppId)
-	if err != nil {
-		handler.Logger.Error(err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	object := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.AppName, installedApp.EnvironmentId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
-	//rback block ends here
-	request := appStoreBean.InstallAppVersionDTO{}
-	request.InstalledAppId = installAppId
-	request.AppId = installedApp.AppId
-	request.EnvironmentId = installedApp.EnvironmentId
-	request.UserId = userId
-	request.ForceDelete = forceDelete
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(r.Context(), "token", token)
-	res, err := handler.installedAppService.DeleteInstalledApp(ctx, &request)
-	if err != nil {
-		handler.Logger.Errorw("service err, DeleteInstalledApp", "err", err, "installAppId", installAppId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r *http.Request) {
@@ -477,7 +308,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 	//RBAC block ends here
 
 	for _, item := range request.ChartGroupInstallChartRequest {
-		isChartRepoActive, err := handler.installedAppService.IsChartRepoActive(item.AppStoreVersion)
+		isChartRepoActive, err := handler.appStoreDeploymentService.IsChartRepoActive(item.AppStoreVersion)
 		if err != nil {
 			handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

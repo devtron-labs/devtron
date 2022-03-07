@@ -17,5 +17,4 @@ var HelmAppWireSet = wire.NewSet(
 	GetConfig,
 	rbac.NewEnforcerUtilHelmImpl,
 	wire.Bind(new(rbac.EnforcerUtilHelm), new(*rbac.EnforcerUtilHelmImpl)),
-
 )

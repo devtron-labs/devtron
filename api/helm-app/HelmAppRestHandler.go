@@ -6,6 +6,8 @@ import (
 	"errors"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
@@ -31,22 +33,24 @@ type HelmAppRestHandler interface {
 }
 
 type HelmAppRestHandlerImpl struct {
-	logger         *zap.SugaredLogger
-	helmAppService HelmAppService
-	enforcer       casbin.Enforcer
-	clusterService cluster.ClusterService
-	enforcerUtil   rbac.EnforcerUtilHelm
+	logger                          *zap.SugaredLogger
+	helmAppService                  HelmAppService
+	enforcer                        casbin.Enforcer
+	clusterService                  cluster.ClusterService
+	enforcerUtil                    rbac.EnforcerUtilHelm
+	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService
 }
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 	helmAppService HelmAppService, enforcer casbin.Enforcer,
-	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm) *HelmAppRestHandlerImpl {
+	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
-		logger:         logger,
-		helmAppService: helmAppService,
-		enforcer:       enforcer,
-		clusterService: clusterService,
-		enforcerUtil:   enforcerUtil,
+		logger:                          logger,
+		helmAppService:                  helmAppService,
+		enforcer:                        enforcer,
+		clusterService:                  clusterService,
+		enforcerUtil:                    enforcerUtil,
+		appStoreDeploymentCommonService: appStoreDeploymentCommonService,
 	}
 }
 
@@ -93,7 +97,19 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, appdetail, http.StatusOK)
+
+	installedApp, err := handler.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	res := &AppDetailAndInstalledAppInfo{
+		AppDetail:        appdetail,
+		InstalledAppInfo: convertToInstalledAppInfo(installedApp),
+	}
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.Request) {
@@ -196,11 +212,22 @@ func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *h
 		return
 	}
 	//RBAC enforcer Ends
-	res, err := handler.helmAppService.GetValuesYaml(context.Background(), appIdentifier)
+	releaseInfo, err := handler.helmAppService.GetValuesYaml(context.Background(), appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	installedApp, err := handler.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	res := &ReleaseAndInstalledAppInfo{
+		ReleaseInfo:      releaseInfo,
+		InstalledAppInfo: convertToInstalledAppInfo(installedApp),
+	}
+
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
@@ -271,14 +298,14 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 }
 
 func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, r *http.Request) {
-	updateReleaseRequest := &openapi.UpdateReleaseRequest{}
+	request := &openapi.UpdateReleaseRequest{}
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(updateReleaseRequest)
+	err := decoder.Decode(request)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(*updateReleaseRequest.AppId)
+	appIdentifier, err := handler.helmAppService.DecodeAppId(*request.AppId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -291,10 +318,45 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 		return
 	}
 	//RBAC enforcer Ends
-	res, err := handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, updateReleaseRequest)
+
+	installedApp, err := handler.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+
+	updateReleaseRequest := &InstallReleaseRequest{
+		ValuesYaml: request.GetValuesYaml(),
+		ReleaseIdentifier: &ReleaseIdentifier{
+			ReleaseNamespace: appIdentifier.Namespace,
+			ReleaseName:      appIdentifier.ReleaseName,
+		},
+	}
+
+	var res *openapi.UpdateReleaseResponse
+
+	if installedApp != nil {
+		chartInfo := installedApp.InstallAppVersionChartDTO
+		chartRepoInfo := chartInfo.InstallAppVersionChartRepoDTO
+		updateReleaseRequest.ChartName = chartInfo.ChartName
+		updateReleaseRequest.ChartVersion = chartInfo.ChartVersion
+		updateReleaseRequest.ChartRepository = &ChartRepository{
+			Name:     chartRepoInfo.RepoName,
+			Url:      chartRepoInfo.RepoUrl,
+			Username: chartRepoInfo.UserName,
+			Password: chartRepoInfo.Password,
+		}
+		res, err = handler.helmAppService.UpdateApplicationWithChartInfo(context.Background(), appIdentifier.ClusterId, updateReleaseRequest)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}else{
+		res, err = handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, request)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
@@ -347,4 +409,36 @@ func (handler *HelmAppRestHandlerImpl) CheckHelmAuth(token string, object string
 		return false
 	}
 	return true
+}
+
+func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) *InstalledAppInfo {
+	if installedApp == nil {
+		return nil
+	}
+
+	return &InstalledAppInfo{
+		AppId:           installedApp.AppId,
+		EnvironmentName: installedApp.EnvironmentName,
+		AppOfferingMode: installedApp.AppOfferingMode,
+		InstalledAppId:  installedApp.InstalledAppId,
+		AppStoreChartId: installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+	}
+}
+
+type AppDetailAndInstalledAppInfo struct {
+	InstalledAppInfo *InstalledAppInfo `json:"installedAppInfo"`
+	AppDetail        *AppDetail        `json:"appDetail"`
+}
+
+type ReleaseAndInstalledAppInfo struct {
+	InstalledAppInfo *InstalledAppInfo `json:"installedAppInfo"`
+	ReleaseInfo      *ReleaseInfo      `json:"releaseInfo"`
+}
+
+type InstalledAppInfo struct {
+	AppId           int    `json:"appId"`
+	InstalledAppId  int    `json:"installedAppId"`
+	AppStoreChartId int    `json:"appStoreChartId"`
+	EnvironmentName string `json:"environmentName"`
+	AppOfferingMode string `json:"appOfferingMode"`
 }

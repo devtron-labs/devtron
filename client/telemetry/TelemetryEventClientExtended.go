@@ -72,6 +72,7 @@ type TelemetryEventDto struct {
 	Summary        *SummaryDto        `json:"summary,omitempty"`
 	ServerVersion  string             `json:"serverVersion,omitempty"`
 	DevtronVersion string             `json:"devtronVersion,omitempty"`
+	DevtronMode    string             `json:"devtronMode,omitempty"`
 }
 
 type SummaryDto struct {
@@ -85,7 +86,6 @@ type SummaryDto struct {
 	HelmChartCount          int    `json:"helmChartCount,omitempty"`
 	SecurityScanCountPerDay int    `json:"securityScanCountPerDay,omitempty"`
 	DevtronVersion          string `json:"devtronVersion,omitempty"`
-	DevtronMode             string `json:"devtronMode,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -146,10 +146,9 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		CiCountPerDay:    len(ciPipeline),
 		CdCountPerDay:    len(cdPipeline),
 		DevtronVersion:   devtronVersion.GitCommit,
-		DevtronMode:      devtronVersion.ServerMode,
 	}
 	payload.Summary = summary
-
+	payload.DevtronMode = devtronVersion.ServerMode
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)

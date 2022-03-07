@@ -20,6 +20,7 @@ package appStore
 import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
+	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
@@ -34,14 +35,14 @@ type ChartGroupServiceImpl struct {
 	Logger                          *zap.SugaredLogger
 	chartGroupDeploymentRepository  appStoreRepository.ChartGroupDeploymentRepository
 	installedAppRepository          appStoreRepository.InstalledAppRepository
-	appStoreVersionValuesRepository appStoreRepository.AppStoreVersionValuesRepository
+	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository
 	userAuthService                 user.UserAuthService
 }
 
 func NewChartGroupServiceImpl(chartGroupEntriesRepository appStoreRepository.ChartGroupEntriesRepository,
 	chartGroupRepository appStoreRepository.ChartGroupReposotory,
 	Logger *zap.SugaredLogger, chartGroupDeploymentRepository appStoreRepository.ChartGroupDeploymentRepository,
-	installedAppRepository appStoreRepository.InstalledAppRepository, appStoreVersionValuesRepository appStoreRepository.AppStoreVersionValuesRepository, userAuthService user.UserAuthService) *ChartGroupServiceImpl {
+	installedAppRepository appStoreRepository.InstalledAppRepository, appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository, userAuthService user.UserAuthService) *ChartGroupServiceImpl {
 	return &ChartGroupServiceImpl{
 		chartGroupEntriesRepository:     chartGroupEntriesRepository,
 		chartGroupRepository:            chartGroupRepository,

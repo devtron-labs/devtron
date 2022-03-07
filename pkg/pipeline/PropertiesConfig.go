@@ -60,6 +60,8 @@ type EnvironmentPropertiesResponse struct {
 	GlobalChartRefId  int                   `json:"globalChartRefId,omitempty"  validate:"number"`
 	ChartRefId        int                   `json:"chartRefId,omitempty"  validate:"number"`
 	Namespace         string                `json:"namespace" validate:"name-component"`
+	Schema            json.RawMessage       `json:"schema"`
+	Readme			  string				`json:"readme"`
 }
 
 type PropertiesConfigService interface {
