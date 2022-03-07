@@ -120,6 +120,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	chartGroupDeploymentRepository appStoreRepository.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService, argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
+	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreChartsHistoryService history.AppStoreChartsHistoryService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
@@ -305,12 +306,13 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *r
 	if err != nil {
 		return err
 	}
-	chartGitAttrForRequirement := &util.ChartConfig{
+	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installedAppVersion.AppStoreApplicationVersion.AppStore.Name)
+	requirmentYamlConfig := &util.ChartConfig{
 		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
 		FileContent:    string(requirementDependenciesByte),
 		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+		ChartRepoName:  gitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -322,7 +324,7 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *r
 			return err
 		}
 	}
-	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	_, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return err
@@ -352,12 +354,13 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 		impl.logger.Errorw("error in marshaling", "err", err)
 		return err
 	}
-	valuesYaml := &util.ChartConfig{
+	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installedAppVersion.AppStoreApplicationVersion.AppStore.Name)
+	valuesConfig := &util.ChartConfig{
 		FileName:       appStoreBean.VALUES_YAML_FILE,
 		FileContent:    string(valuesByte),
 		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+		ChartRepoName:  gitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -369,7 +372,7 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 			return err
 		}
 	}
-	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	_, err = impl.gitFactory.Client.CommitValues(valuesConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return err
@@ -667,10 +670,10 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		installedAppVersion.Status == appStoreBean.QUE_ERROR ||
 		installedAppVersion.Status == appStoreBean.GIT_ERROR {
 		//step 2 git operation pull push
-		installAppVersionRequest, chartGitAttrDB, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installedAppVersion)
+		_, chartGitAttrDB, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installedAppVersion)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
-			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appStoreBean.GIT_ERROR)
+			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_ERROR)
 			if err != nil {
 				impl.logger.Errorw(" error", "err", err)
 				return nil, err
@@ -678,7 +681,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 			return nil, err
 		}
 		impl.logger.Infow("GIT SUCCESSFUL", "chartGitAttrDB", chartGitAttrDB)
-		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appStoreBean.GIT_SUCCESS)
+		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_SUCCESS)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
 			return nil, err
