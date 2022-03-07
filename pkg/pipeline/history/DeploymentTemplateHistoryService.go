@@ -223,7 +223,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		return err
 	} else if err == pg.ErrNoRows {
 		appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(pipeline.AppId)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", pipeline.AppId)
 			return err
 		}
