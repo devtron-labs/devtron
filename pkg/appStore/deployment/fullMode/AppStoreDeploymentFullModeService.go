@@ -56,7 +56,6 @@ type AppStoreDeploymentFullModeService interface {
 	AppStoreDeployOperationACD(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 	SyncACD(acdAppName string, ctx context.Context)
-	GetGitOpsRepoName2(appName string) string
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
@@ -296,14 +295,4 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 	}
 
 	return nil
-}
-
-func (impl *AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName2(appName string) string {
-	var repoName string
-	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
-		repoName = appName
-	} else {
-		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
-	}
-	return repoName
 }
