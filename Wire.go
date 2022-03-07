@@ -67,8 +67,6 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
-	"github.com/devtron-labs/devtron/pkg/appStore/history"
-	repository4 "github.com/devtron-labs/devtron/pkg/appStore/history/repository"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -485,7 +483,6 @@ func InitializeApp() (*App, error) {
 		pubsub2.NewNatsPublishClientImpl,
 		wire.Bind(new(pubsub2.NatsPublishClient), new(*pubsub2.NatsPublishClientImpl)),
 
-
 		//Batch actions
 		batch.NewWorkflowActionImpl,
 		wire.Bind(new(batch.WorkflowAction), new(*batch.WorkflowActionImpl)),
@@ -635,7 +632,6 @@ func InitializeApp() (*App, error) {
 		delete2.NewDeleteServiceFullModeImpl,
 		wire.Bind(new(delete2.DeleteServiceFullMode), new(*delete2.DeleteServiceFullModeImpl)),
 
-
 		appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl,
 		wire.Bind(new(appStoreDeploymentFullMode.AppStoreDeploymentFullModeService), new(*appStoreDeploymentFullMode.AppStoreDeploymentFullModeServiceImpl)),
 		appStoreDeploymentGitopsTool.NewAppStoreDeploymentArgoCdServiceImpl,
@@ -650,8 +646,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository3.ConfigMapHistoryRepository), new(*repository3.ConfigMapHistoryRepositoryImpl)),
 		repository3.NewDeploymentTemplateHistoryRepositoryImpl,
 		wire.Bind(new(repository3.DeploymentTemplateHistoryRepository), new(*repository3.DeploymentTemplateHistoryRepositoryImpl)),
-		repository4.NewChartsHistoryRepositoryImpl,
-		wire.Bind(new(repository4.AppStoreChartsHistoryRepository), new(*repository4.AppStoreChartsHistoryRepositoryImpl)),
 		repository3.NewPrePostCiScriptHistoryRepositoryImpl,
 		wire.Bind(new(repository3.PrePostCiScriptHistoryRepository), new(*repository3.PrePostCiScriptHistoryRepositoryImpl)),
 		repository3.NewPrePostCdScriptHistoryRepositoryImpl,
@@ -669,8 +663,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history3.ConfigMapHistoryService), new(*history3.ConfigMapHistoryServiceImpl)),
 		history3.NewPipelineStrategyHistoryServiceImpl,
 		wire.Bind(new(history3.PipelineStrategyHistoryService), new(*history3.PipelineStrategyHistoryServiceImpl)),
-		history.NewAppStoreChartsHistoryServiceImpl,
-		wire.Bind(new(history.AppStoreChartsHistoryService), new(*history.AppStoreChartsHistoryServiceImpl)),
 
 		//history ends
 		//	AuthWireSet,

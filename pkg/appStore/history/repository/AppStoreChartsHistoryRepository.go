@@ -26,7 +26,7 @@ type AppStoreChartsHistoryRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
-func NewChartsHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB) *AppStoreChartsHistoryRepositoryImpl {
+func NewAppStoreChartsHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB) *AppStoreChartsHistoryRepositoryImpl {
 	return &AppStoreChartsHistoryRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
