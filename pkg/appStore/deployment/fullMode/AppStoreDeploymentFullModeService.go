@@ -24,6 +24,7 @@ import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
+	util3 "github.com/devtron-labs/devtron/util"
 
 	"encoding/json"
 	"fmt"
@@ -69,6 +70,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
+	globalEnvVariables                   *util3.GlobalEnvVariables
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -78,7 +80,8 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	environmentRepository repository5.EnvironmentRepository,
 	acdClient application2.ServiceClient,
 	argoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository) *AppStoreDeploymentFullModeServiceImpl {
+	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
+	gitOpsRepository repository3.GitOpsConfigRepository, globalEnvVariables *util3.GlobalEnvVariables) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
@@ -91,6 +94,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		gitFactory:                           gitFactory,
 		aCDAuthConfig:                        aCDAuthConfig,
 		gitOpsRepository:                     gitOpsRepository,
+		globalEnvVariables:                   globalEnvVariables,
 	}
 }
 
@@ -98,13 +102,13 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
-		return installAppVersionRequest, nil, err
+		return nil, nil, err
 	}
 
 	environment, err := impl.environmentRepository.FindById(installAppVersionRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
-		return installAppVersionRequest, nil, err
+		return nil, nil, err
 	}
 
 	//STEP 1: Commit and PUSH on Gitlab
@@ -113,7 +117,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	valid, err := chartutil.IsChartDir(chartPath)
 	if err != nil || !valid {
 		impl.logger.Errorw("invalid base chart", "dir", chartPath, "err", err)
-		return installAppVersionRequest, nil, err
+		return nil, nil, err
 	}
 	chartMeta := &chart.Metadata{
 		Name:    appStoreAppVersion.AppStore.Name,
@@ -121,7 +125,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	}
 	_, chartGitAttr, err := impl.chartTemplateService.CreateChartProxy(chartMeta, chartPath, template, appStoreAppVersion.Version, environment.Name, installAppVersionRequest.AppName)
 	if err != nil {
-		return installAppVersionRequest, nil, err
+		return nil, nil, err
 	}
 
 	//STEP 3 - update requirements and values
@@ -140,18 +144,20 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	}
 	requirementDependenciesByte, err := json.Marshal(requirementDependencies)
 	if err != nil {
-		return installAppVersionRequest, nil, err
+		return nil, nil, err
 	}
 	requirementDependenciesByte, err = yaml.JSONToYAML(requirementDependenciesByte)
 	if err != nil {
-		return installAppVersionRequest, nil, err
+		return nil, nil, err
 	}
-	chartGitAttrForRequirement := &util.ChartConfig{
+
+	gitOpsRepoName:=impl.chartTemplateService.GetGitOpsRepoName(chartMeta.Name)
+	requirmentYamlConfig := &util.ChartConfig{
 		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
 		FileContent:    string(requirementDependenciesByte),
 		ChartName:      chartMeta.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  chartMeta.Name,
+		ChartRepoName:  gitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -159,13 +165,13 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
-			return installAppVersionRequest, nil, err
+			return nil, nil, err
 		}
 	}
-	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	_, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
-		return installAppVersionRequest, nil, err
+		return nil, nil, err
 	}
 
 	//GIT PULL
@@ -175,14 +181,14 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName)
 	if err != nil {
 		impl.logger.Errorw("error in git pull", "err", err)
-		return installAppVersionRequest, nil, err
+		return nil, nil, err
 	}
 
 	//update values yaml in chart
 	ValuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
 	if err != nil {
 		impl.logger.Errorw("error in json patch", "err", err)
-		return installAppVersionRequest, nil, err
+		return nil, nil, err
 	}
 
 	var dat map[string]interface{}
@@ -193,27 +199,27 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	valuesByte, err := json.Marshal(valuesMap)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling", "err", err)
-		return installAppVersionRequest, nil, err
+		return nil, nil, err
 	}
 
-	valuesYaml := &util.ChartConfig{
+	valuesYamlConfig := &util.ChartConfig{
 		FileName:       appStoreBean.VALUES_YAML_FILE,
 		FileContent:    string(valuesByte),
 		ChartName:      chartMeta.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  chartMeta.Name,
+		ChartRepoName:  gitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
-	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	_, err = impl.gitFactory.Client.CommitValues(valuesYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
-		return installAppVersionRequest, nil, err
+		return nil, nil, err
 	}
 	//sync local dir with remote
 	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName)
 	if err != nil {
 		impl.logger.Errorw("error in git pull", "err", err)
-		return installAppVersionRequest, nil, err
+		return nil, nil, err
 	}
 	installAppVersionRequest.ACDAppName = argocdAppName
 	installAppVersionRequest.Environment = environment
