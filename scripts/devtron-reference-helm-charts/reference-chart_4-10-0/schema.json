@@ -292,7 +292,7 @@
         "behavior": {
           "type": "object",
           "description": "describes behavior and scaling policies for that behavior",
-          "title": "Behavior",
+          "title": "Behavior"
         },
         "enabled": {
           "type": "boolean",

@@ -22,7 +22,9 @@ package main
 
 import (
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
+	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
+	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -63,6 +65,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
 	appStore "github.com/devtron-labs/devtron/pkg/appStore"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
+	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/appStore/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/history/repository"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
@@ -106,6 +110,8 @@ func InitializeApp() (*App, error) {
 		k8s.K8sApplicationWireSet,
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
+		appStoreValues.AppStoreValuesWireSet,
+		appStoreDeployment.AppStoreDeploymentWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -413,8 +419,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appStoreRestHandler.InstalledAppRestHandler), new(*appStoreRestHandler.InstalledAppRestHandlerImpl)),
 		appStore.NewInstalledAppServiceImpl,
 		wire.Bind(new(appStore.InstalledAppService), new(*appStore.InstalledAppServiceImpl)),
-		appStoreRepository.NewInstalledAppRepositoryImpl,
-		wire.Bind(new(appStoreRepository.InstalledAppRepository), new(*appStoreRepository.InstalledAppRepositoryImpl)),
 
 		appStoreRestHandler.NewAppStoreRouterImpl,
 		wire.Bind(new(appStoreRestHandler.AppStoreRouter), new(*appStoreRestHandler.AppStoreRouterImpl)),
@@ -481,12 +485,6 @@ func InitializeApp() (*App, error) {
 		pubsub2.NewNatsPublishClientImpl,
 		wire.Bind(new(pubsub2.NatsPublishClient), new(*pubsub2.NatsPublishClientImpl)),
 
-		appStoreRestHandler.NewAppStoreValuesRestHandlerImpl,
-		wire.Bind(new(appStoreRestHandler.AppStoreValuesRestHandler), new(*appStoreRestHandler.AppStoreValuesRestHandlerImpl)),
-		appStore.NewAppStoreValuesServiceImpl,
-		wire.Bind(new(appStore.AppStoreValuesService), new(*appStore.AppStoreValuesServiceImpl)),
-		appStoreRepository.NewAppStoreVersionValuesRepositoryImpl,
-		wire.Bind(new(appStoreRepository.AppStoreVersionValuesRepository), new(*appStoreRepository.AppStoreVersionValuesRepositoryImpl)),
 
 		//Batch actions
 		batch.NewWorkflowActionImpl,
@@ -549,8 +547,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(security.PolicyService), new(*security.PolicyServiceImpl)),
 		security2.NewPolicyRepositoryImpl,
 		wire.Bind(new(security2.CvePolicyRepository), new(*security2.CvePolicyRepositoryImpl)),
-		appStoreRepository.NewClusterInstalledAppsRepositoryImpl,
-		wire.Bind(new(appStoreRepository.ClusterInstalledAppsRepository), new(*appStoreRepository.ClusterInstalledAppsRepositoryImpl)),
 
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
@@ -638,6 +634,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceExtendedImpl)),
 		delete2.NewDeleteServiceFullModeImpl,
 		wire.Bind(new(delete2.DeleteServiceFullMode), new(*delete2.DeleteServiceFullModeImpl)),
+
+
+		appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl,
+		wire.Bind(new(appStoreDeploymentFullMode.AppStoreDeploymentFullModeService), new(*appStoreDeploymentFullMode.AppStoreDeploymentFullModeServiceImpl)),
+		appStoreDeploymentGitopsTool.NewAppStoreDeploymentArgoCdServiceImpl,
+		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdServiceImpl)),
 		//	util2.NewGoJsonSchemaCustomFormatChecker,
 
 		//history starts

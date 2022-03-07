@@ -15,7 +15,7 @@
  *
  */
 
-package appStoreRepository
+package appStoreValuesRepository
 
 import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
