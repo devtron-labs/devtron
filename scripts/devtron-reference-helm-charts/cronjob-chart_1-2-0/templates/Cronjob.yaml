@@ -88,8 +88,8 @@ spec:
     {{- toYaml .Values.tolerations | nindent 12 }}
       {{- end }}
 {{- if $.Values.podSecurityContext }}
-      securityContext:
-{{ toYaml .Values.podSecurityContext | indent 8 }}
+          securityContext:
+{{ toYaml .Values.podSecurityContext | indent 12 }}
 {{- end }}
     {{- if $.Values.imagePullSecrets}}
           imagePullSecrets:
@@ -154,13 +154,13 @@ spec:
                 privileged: true
     {{- end}}
 {{- if $.Values.containerSecurityContext }}
-          securityContext:
-{{ toYaml .Values.containerSecurityContext | indent 12 }}
+              securityContext:
+{{ toYaml .Values.containerSecurityContext | indent 16 }}
 {{- end }}
 {{- if and $.Values.containerSecurityContext $.Values.privileged }}
-          securityContext:
-            privileged: true
-{{ toYaml .Values.containerSecurityContext | indent 12 }}
+              securityContext:
+                privileged: true
+{{ toYaml .Values.containerSecurityContext | indent 16 }}
 {{- end }}
               ports:
               {{- range $.Values.ContainerPort }}
