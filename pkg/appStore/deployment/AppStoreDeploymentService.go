@@ -48,6 +48,7 @@ type AppStoreDeploymentService interface {
 	GetInstalledApp(id int) (*appStoreBean.InstallAppVersionDTO, error)
 	GetAllInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request, token string, appStoreId int) ([]appStoreBean.InstalledAppsResponse, error)
 	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
+	GetInstalledAppVersion(id int) (*appStoreBean.InstallAppVersionDTO, error)
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -462,6 +463,34 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 
 	return installAppVersionRequest, nil
 }
+
+
+func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int) (*appStoreBean.InstallAppVersionDTO, error) {
+	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return nil, err
+	}
+	installAppVersion := &appStoreBean.InstallAppVersionDTO{
+		InstalledAppId:     app.InstalledAppId,
+		AppName:            app.InstalledApp.App.AppName,
+		AppId:              app.InstalledApp.App.Id,
+		Id:                 app.Id,
+		TeamId:             app.InstalledApp.App.TeamId,
+		EnvironmentId:      app.InstalledApp.EnvironmentId,
+		ValuesOverrideYaml: app.ValuesYaml,
+		Readme:             app.AppStoreApplicationVersion.Readme,
+		ReferenceValueKind: app.ReferenceValueKind,
+		ReferenceValueId:   app.ReferenceValueId,
+		AppStoreVersion:    app.AppStoreApplicationVersionId, //check viki
+		Status:             app.InstalledApp.Status,
+		AppStoreId:         app.AppStoreApplicationVersion.AppStoreId,
+		AppStoreName:       app.AppStoreApplicationVersion.AppStore.Name,
+		Deprecated:         app.AppStoreApplicationVersion.Deprecated,
+	}
+	return installAppVersion, err
+}
+
 
 func (impl AppStoreDeploymentServiceImpl) createEnvironmentIfNotExists(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (int, error) {
 	clusterId := installAppVersionRequest.ClusterId

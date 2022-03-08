@@ -41,6 +41,7 @@ type AppStoreDeploymentRestHandler interface {
 	CreateInstalledApp(w http.ResponseWriter, r *http.Request)
 	GetInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request)
 	DeleteInstalledApp(w http.ResponseWriter, r *http.Request)
+	GetInstalledAppVersion(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreDeploymentRestHandlerImpl struct {
@@ -260,4 +261,38 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+
+func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppVersion(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	installedAppId, err := strconv.Atoi(vars["installedAppVersionId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, GetInstalledAppVersion", "err", err, "installedAppVersionId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	handler.Logger.Infow("request payload, GetInstalledAppVersion", "installedAppVersionId", installedAppId)
+	dto, err := handler.appStoreDeploymentService.GetInstalledAppVersion(installedAppId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetInstalledAppVersion", "err", err, "installedAppVersionId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	//rbac block starts from here
+	object := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(dto.AppName, dto.EnvironmentId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rback block ends here
+
+	common.WriteJsonResp(w, err, dto, http.StatusOK)
 }
