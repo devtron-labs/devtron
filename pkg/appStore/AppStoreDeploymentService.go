@@ -178,6 +178,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
+	impl.logger.Info(team)
 	argocdAppName := installedApp.App.AppName + "-" + environment.Name
 	gitOpsRepoName := installedApp.GitOpsRepoName
 	if len(gitOpsRepoName) == 0 {
