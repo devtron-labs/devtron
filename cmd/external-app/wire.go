@@ -26,6 +26,7 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
@@ -49,7 +50,7 @@ func InitializeApp() (*App, error) {
 
 		NewApp,
 		NewMuxRouter,
-
+		util3.GetGlobalEnvVariables,
 		util.NewHttpClient,
 		util.NewSugardLogger,
 		util.NewK8sUtil,
