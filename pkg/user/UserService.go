@@ -686,7 +686,7 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 			filterGroups = append(filterGroups, item.Name)
 		}
 	} else {
-		impl.logger.Infow("no roles found for user", "email", model.EmailId)
+		impl.logger.Warnw("no roles found for user", "email", model.EmailId)
 	}
 
 	if len(filterGroups) == 0 {
