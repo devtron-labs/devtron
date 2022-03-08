@@ -180,6 +180,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	return installAppVersionRequest, nil
 }
 
+//TODO - dedupe, move it to one location
 func (impl AppStoreDeploymentServiceImpl) GetGitOpsRepoName(appName string) string {
 	var repoName string
 	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
