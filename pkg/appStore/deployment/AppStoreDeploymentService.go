@@ -61,6 +61,7 @@ type AppStoreDeploymentServiceImpl struct {
 	appStoreDeploymentArgoCdService      appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService
 	environmentService                   cluster.EnvironmentService
 	clusterService                       cluster.ClusterService
+	globalEnvVariables                   *util2.GlobalEnvVariables
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository appStoreRepository.InstalledAppRepository,
@@ -68,7 +69,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	clusterInstalledAppsRepository appStoreRepository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
 	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
 	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
-	clusterService cluster.ClusterService) *AppStoreDeploymentServiceImpl {
+	clusterService cluster.ClusterService, globalEnvVariables *util2.GlobalEnvVariables) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -80,6 +81,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		appStoreDeploymentArgoCdService:      appStoreDeploymentArgoCdService,
 		environmentService:                   environmentService,
 		clusterService:                       clusterService,
+		globalEnvVariables:                   globalEnvVariables,
 	}
 }
 
@@ -130,6 +132,9 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installedAppModel.CreatedOn = time.Now()
 	installedAppModel.UpdatedOn = time.Now()
 	installedAppModel.Active = true
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
+		installedAppModel.GitOpsRepoName = impl.GetGitOpsRepoName(appStoreAppVersion.AppStore.Name)
+	}
 	installedApp, err := impl.installedAppRepository.CreateInstalledApp(installedAppModel, tx)
 	if err != nil {
 		impl.logger.Errorw("error while creating install app", "error", err)
@@ -173,6 +178,17 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		}
 	}
 	return installAppVersionRequest, nil
+}
+
+//TODO - dedupe, move it to one location
+func (impl AppStoreDeploymentServiceImpl) GetGitOpsRepoName(appName string) string {
+	var repoName string
+	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
+		repoName = appName
+	} else {
+		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
+	}
+	return repoName
 }
 
 func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationStatusUpdate(installAppId int, status appStoreBean.AppstoreDeploymentStatus) (bool, error) {
@@ -344,9 +360,9 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 	var installedAppsEnvResponse []appStoreBean.InstalledAppsResponse
 	for _, a := range installedApps {
 		var status string
-		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || a.AppOfferingMode == util2.SERVER_MODE_HYPERION  {
+		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || a.AppOfferingMode == util2.SERVER_MODE_HYPERION {
 			status, err = impl.appStoreDeploymentHelmService.GetAppStatus(a, w, r, token)
-		}else{
+		} else {
 			status, err = impl.appStoreDeploymentArgoCdService.GetAppStatus(a, w, r, token)
 		}
 		if apiErr, ok := err.(*util.ApiError); ok {
@@ -444,9 +460,9 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		}
 	}
 
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || app.AppOfferingMode == util2.SERVER_MODE_HYPERION  {
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || app.AppOfferingMode == util2.SERVER_MODE_HYPERION {
 		err = impl.appStoreDeploymentHelmService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
-	}else{
+	} else {
 		err = impl.appStoreDeploymentArgoCdService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
 	}
 

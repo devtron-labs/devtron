@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -45,6 +46,7 @@ type ChartTemplateService interface {
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
 	GetGitOpsRepoName(appName string) string
+	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 }
 type ChartTemplateServiceImpl struct {
 	randSource         rand.Source
@@ -455,4 +457,10 @@ func (impl ChartTemplateServiceImpl) GetGitOpsRepoName(appName string) string {
 		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
 	}
 	return repoName
+}
+
+func (impl ChartTemplateServiceImpl) GetGitOpsRepoNameFromUrl(gitRepoUrl string) string {
+	gitRepoUrl = gitRepoUrl[strings.LastIndex(gitRepoUrl, "/")+1:]
+	gitRepoUrl = strings.ReplaceAll(gitRepoUrl, ".git", "")
+	return gitRepoUrl
 }

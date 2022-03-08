@@ -35,7 +35,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ktrysmt/go-bitbucket"
-
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -179,9 +178,21 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
-	impl.logger.Debug(team.Name)
+	impl.logger.Info(team)
 	argocdAppName := installedApp.App.AppName + "-" + environment.Name
-
+	gitOpsRepoName := installedApp.GitOpsRepoName
+	if len(gitOpsRepoName) == 0 {
+		application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &argocdAppName})
+		if err != nil {
+			impl.logger.Errorw("no argo app exists", "app", argocdAppName)
+			return nil, err
+		}
+		if application != nil {
+			gitOpsRepoUrl := application.Spec.Source.RepoURL
+			gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
+		}
+	}
+	installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
 		_, _, err := impl.upgradeInstalledApp(ctx, installAppVersionRequest, installedApp, tx)
@@ -297,13 +308,12 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *r
 	if err != nil {
 		return err
 	}
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installedAppVersion.AppStoreApplicationVersion.AppStore.Name)
 	requirmentYamlConfig := &util.ChartConfig{
 		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
 		FileContent:    string(requirementDependenciesByte),
 		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  gitOpsRepoName,
+		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -345,13 +355,12 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 		impl.logger.Errorw("error in marshaling", "err", err)
 		return err
 	}
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installedAppVersion.AppStoreApplicationVersion.AppStore.Name)
 	valuesConfig := &util.ChartConfig{
 		FileName:       appStoreBean.VALUES_YAML_FILE,
 		FileContent:    string(valuesByte),
 		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  gitOpsRepoName,
+		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
