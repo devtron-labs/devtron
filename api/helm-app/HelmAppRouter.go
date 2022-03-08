@@ -27,7 +27,7 @@ func (impl *HelmAppRouterImpl) InitAppListRouter(helmRouter *mux.Router) {
 		HandlerFunc(impl.helmAppRestHandler.GetDeploymentHistory).Methods("GET")
 
 	helmRouter.Path("/release-info").Queries("appId", "{appId}").
-		HandlerFunc(impl.helmAppRestHandler.GetValuesYaml).Methods("GET")
+		HandlerFunc(impl.helmAppRestHandler.GetReleaseInfo).Methods("GET")
 
 	helmRouter.Path("/desired-manifest").HandlerFunc(impl.helmAppRestHandler.GetDesiredManifest).Methods("POST")
 
