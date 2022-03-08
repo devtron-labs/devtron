@@ -13,9 +13,10 @@ ContainerPort:
   - name: app
     port: 8080
     servicePort: 80
+    envoyTimeout: 15
     envoyPort: 8799
-    useHTTP2: true
-    supportStreaming: true
+    useHTTP2: false
+    supportStreaming: false
     idleTimeout: 1800s
     servicemonitor:
       enabled: true

@@ -40,7 +40,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 4555196bb2b920b2b96a4c702a506852eeeb2049
+          value: fed99b263372746d637cf35b44d95d5c127c5d62
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -55,7 +55,12 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccountName: devtron
       containers:
+      - name: devtron-rollout
+        image: quay.io/bitnami/kubectl:latest
+        command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
+      initContainers:
       - name: postgresql-migrate-casbin
         image: quay.io/devtron/migrator:6687f572-133-2208
         env:
@@ -76,12 +81,16 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 4ed6cdfcf6f13a93eb0c3c58d8b4f13292856960
+          value: fed99b263372746d637cf35b44d95d5c127c5d62
         - name: GIT_BRANCH
           value: main
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        resources:
+          requests:
+            cpu: 0.5
+            memory: 500Mi
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -116,7 +125,7 @@ spec:
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: 8779da13af354a17bd233fb176c0c34429ef9dbe
+          value: 5e0080657ffd9ccc04889ab94a014294f57e5fe3
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -162,7 +171,7 @@ spec:
   backoffLimit: 20
   activeDeadlineSeconds: 1500
 ---
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: app-sync-cronjob
@@ -187,28 +196,3 @@ spec:
                 name: devtron-secret
           restartPolicy: Never
       backoffLimit: 4
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: app-sync-job
-spec:
-  template:
-    spec:
-      containers:
-      - name: chart-sync
-        image: quay.io/devtron/chart-sync:1227622d-132-3775
-        env:
-        - name: PG_ADDR
-          value: postgresql-postgresql.devtroncd
-        - name: PG_DATABASE
-          value: orchestrator
-        - name: PG_USER
-          value: postgres
-        envFrom:
-        - secretRef:
-            name: devtron-secret
-      restartPolicy: OnFailure
-  backoffLimit: 4
-  activeDeadlineSeconds: 15000
-  

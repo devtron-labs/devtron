@@ -1,0 +1,11 @@
+.openapi-generator-ignore
+Apis/DefaultApi.md
+Models/AppEnvironmentDetail.md
+Models/AppEnvironmentDetail_allOf.md
+Models/AppList.md
+Models/ClusterEnvironmentDetail.md
+Models/DevtronApp.md
+Models/EnvironmentDetail.md
+Models/HelmApp.md
+Models/appListRequest.md
+README.md

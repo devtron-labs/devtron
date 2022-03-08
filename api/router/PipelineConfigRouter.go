@@ -42,6 +42,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/{appId}").HandlerFunc(router.restHandler.DeleteApp).Methods("DELETE")
 	configRouter.Path("/material").HandlerFunc(router.restHandler.CreateMaterial).Methods("POST")
 	configRouter.Path("/material").HandlerFunc(router.restHandler.UpdateMaterial).Methods("PUT")
+	configRouter.Path("/material/delete").HandlerFunc(router.restHandler.DeleteMaterial).Methods("DELETE")
 	configRouter.Path("/get/{appId}").HandlerFunc(router.restHandler.GetApp).Methods("GET")
 	configRouter.Path("/autocomplete").HandlerFunc(router.restHandler.GetAppListForAutocomplete).Methods("GET")
 	configRouter.Path("/min").HandlerFunc(router.restHandler.GetAppListByTeamIds).Methods("GET")

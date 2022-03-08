@@ -22,7 +22,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	dirCopy "github.com/otiai10/copy"
@@ -64,6 +67,8 @@ type TemplateRequest struct {
 	ChartRefId              int             `json:"chartRefId,omitempty"  validate:"number"`
 	Latest                  bool            `json:"latest"`
 	IsAppMetricsEnabled     bool            `json:"isAppMetricsEnabled"`
+	Schema                  json.RawMessage `json:"schema"`
+	Readme                  string          `json:"readme"`
 	UserId                  int32           `json:"-"`
 }
 
@@ -113,29 +118,30 @@ type ChartService interface {
 	CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
 	FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	GetByAppIdAndChartRefId(appId int, chartRefId int) (chartTemplate *TemplateRequest, err error)
-	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]json.RawMessage, error)
+	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, error)
 	UpdateAppOverride(templateRequest *TemplateRequest) (*TemplateRequest, error)
 	IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error)
 	ChartRefAutocomplete() ([]chartRef, error)
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefResponse, error)
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
-	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]json.RawMessage, userId int32, ctx context.Context) (bool, error)
+	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
 	DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
+	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
 	ExtractChartIfMissing(ChartRefId int) error
 }
 type ChartServiceImpl struct {
-	chartRepository           chartConfig.ChartRepository
+	chartRepository           chartRepoRepository.ChartRepository
 	logger                    *zap.SugaredLogger
-	repoRepository            chartConfig.ChartRepoRepository
+	repoRepository            chartRepoRepository.ChartRepoRepository
 	chartTemplateService      util.ChartTemplateService
 	pipelineGroupRepository   app.AppRepository
 	mergeUtil                 util.MergeUtil
 	repositoryService         repository.ServiceClient
 	refChartDir               RefChartDir
 	defaultChart              DefaultChart
-	chartRefRepository        chartConfig.ChartRefRepository
+	chartRefRepository        chartRepoRepository.ChartRefRepository
 	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository  chartConfig.PipelineConfigRepository
 	configMapRepository       chartConfig.ConfigMapRepository
@@ -145,16 +151,16 @@ type ChartServiceImpl struct {
 	client                    *http.Client
 }
 
-func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
+func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
-	repoRepository chartConfig.ChartRepoRepository,
+	repoRepository chartRepoRepository.ChartRepoRepository,
 	pipelineGroupRepository app.AppRepository,
 	refChartDir RefChartDir,
 	defaultChart DefaultChart,
 	mergeUtil util.MergeUtil,
 	repositoryService repository.ServiceClient,
-	chartRefRepository chartConfig.ChartRefRepository,
+	chartRefRepository chartRepoRepository.ChartRefRepository,
 	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
@@ -185,7 +191,26 @@ func NewChartServiceImpl(chartRepository chartConfig.ChartRepository,
 	}
 }
 
-func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]json.RawMessage, error) {
+func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error) {
+	refChart, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	if err != nil {
+		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+		return nil, nil, err
+	}
+	var schemaByte []byte
+	var readmeByte []byte
+	schemaByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "schema.json")))
+	if err != nil {
+		impl.logger.Errorw("error in reading schema.json file for refChart", "err", err, "chartRefId", chartRefId)
+	}
+	readmeByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "README.md")))
+	if err != nil {
+		impl.logger.Errorw("error in reading readme file for refChart", "err", err, "chartRefId", chartRefId)
+	}
+	return schemaByte, readmeByte, nil
+}
+
+func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, error) {
 	err := impl.ExtractChartIfMissing(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in getting missing chart for chartRefId","err",err,"chartRefId")
@@ -219,7 +244,7 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 	}
 
 	appOverride := json.RawMessage(merged)
-	messages := map[string]json.RawMessage{}
+	messages := make(map[string]interface{})
 	messages["defaultAppOverride"] = appOverride
 	return messages, nil
 }
@@ -334,7 +359,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
-	chart := &chartConfig.Chart{
+	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
 		ChartRepoId:             chartRepo.Id,
 		Values:                  string(merged),
@@ -458,7 +483,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 
-	chart := &chartConfig.Chart{
+	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
 		ChartRepoId:             chartRepo.Id,
 		Values:                  string(merged),
@@ -509,7 +534,7 @@ func (impl ChartServiceImpl) registerInArgo(chartGitAttribute *util.ChartGitAttr
 }
 
 //converts db object to bean
-func (impl ChartServiceImpl) chartAdaptor(chart *chartConfig.Chart, appLevelMetrics *repository3.AppLevelMetrics) (*TemplateRequest, error) {
+func (impl ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, appLevelMetrics *repository3.AppLevelMetrics) (*TemplateRequest, error) {
 	var appMetrics bool
 	if chart == nil || chart.Id == 0 {
 		return &TemplateRequest{}, &util.ApiError{UserMessage: "no chart found"}
@@ -594,7 +619,7 @@ func (impl ChartServiceImpl) getRefChartVersion(templateRequest TemplateRequest)
 	return version, nil
 }
 
-func (impl ChartServiceImpl) getChartRepo(templateRequest TemplateRequest) (*chartConfig.ChartRepo, error) {
+func (impl ChartServiceImpl) getChartRepo(templateRequest TemplateRequest) (*chartRepoRepository.ChartRepo, error) {
 	if templateRequest.ChartRepositoryId == 0 {
 		chartRepo, err := impl.repoRepository.GetDefault()
 		if err != nil {
@@ -909,7 +934,7 @@ func (impl ChartServiceImpl) FindPreviousChartByAppId(appId int) (chartTemplate 
 	return chartTemplate, err
 }
 
-func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]json.RawMessage, userId int32, ctx context.Context) (bool, error) {
+func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error) {
 
 	currentChart, err := impl.FindLatestChartForAppByAppId(appId)
 	if err != nil && pg.ErrNoRows != err {
@@ -925,7 +950,7 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 	templateRequest.ChartRefId = chartRefId
 	templateRequest.AppId = appId
 	templateRequest.ChartRepositoryId = currentChart.ChartRepositoryId
-	templateRequest.DefaultAppOverride = newAppOverride["defaultAppOverride"]
+	templateRequest.DefaultAppOverride = newAppOverride["defaultAppOverride"].(json.RawMessage)
 	templateRequest.ValuesOverride = currentChart.DefaultAppOverride
 	templateRequest.UserId = userId
 

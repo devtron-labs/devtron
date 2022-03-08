@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -33,6 +34,8 @@ import (
 	"strings"
 )
 
+const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
+
 type EnvironmentRestHandler interface {
 	Create(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
@@ -41,6 +44,9 @@ type EnvironmentRestHandler interface {
 	Update(w http.ResponseWriter, r *http.Request)
 	FindById(w http.ResponseWriter, r *http.Request)
 	GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request)
+	GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request)
+	DeleteEnvironment(w http.ResponseWriter, r *http.Request)
+	GetCombinedEnvironmentListForDropDownByClusterIds(w http.ResponseWriter, r *http.Request)
 }
 
 type EnvironmentRestHandlerImpl struct {
@@ -49,16 +55,20 @@ type EnvironmentRestHandlerImpl struct {
 	userService                       user.UserService
 	validator                         *validator.Validate
 	enforcer                          casbin.Enforcer
+	deleteService                     delete2.DeleteService
 }
 
 func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer) *EnvironmentRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer,
+	deleteService delete2.DeleteService,
+) *EnvironmentRestHandlerImpl {
 	return &EnvironmentRestHandlerImpl{
 		environmentClusterMappingsService: svc,
 		logger:                            logger,
 		userService:                       userService,
 		validator:                         validator,
 		enforcer:                          enforcer,
+		deleteService:                     deleteService,
 	}
 }
 
@@ -126,7 +136,7 @@ func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.Environment)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.EnvironmentIdentifier)); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -147,7 +157,7 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 	token := r.Header.Get("token")
 	for _, item := range bean {
 		// RBAC enforcer applying
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.Environment)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
 			result = append(result, item)
 		}
 		//RBAC enforcer Ends
@@ -168,7 +178,7 @@ func (impl EnvironmentRestHandlerImpl) GetAllActive(w http.ResponseWriter, r *ht
 	token := r.Header.Get("token")
 	for _, item := range bean {
 		// RBAC enforcer applying
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.Environment)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
 			result = append(result, item)
 		}
 		//RBAC enforcer Ends
@@ -202,7 +212,12 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionUpdate, strings.ToLower(bean.Environment)); !ok {
+	modifiedEnvironment, err := impl.environmentClusterMappingsService.FindById(bean.Id)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionUpdate, strings.ToLower(modifiedEnvironment.EnvironmentIdentifier)); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -233,7 +248,7 @@ func (impl EnvironmentRestHandlerImpl) FindById(w http.ResponseWriter, r *http.R
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.Environment)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.EnvironmentIdentifier)); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -271,7 +286,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	var grantedEnvironment []request.EnvironmentBean
 	for _, item := range environments {
 		if authEnabled == true {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.Environment)); ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
 				grantedEnvironment = append(grantedEnvironment, item)
 			}
 		} else {
@@ -283,4 +298,109 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		grantedEnvironment = make([]request.EnvironmentBean, 0)
 	}
 	common.WriteJsonResp(w, err, grantedEnvironment, http.StatusOK)
+}
+
+func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	isActionUserSuperAdmin, err := impl.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
+		return
+	}
+	token := r.Header.Get("token")
+	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, isActionUserSuperAdmin, impl.CheckAuthorizationForGlobalEnvironment)
+	if err != nil {
+		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if len(clusters) == 0 {
+		clusters = make([]*request.ClusterEnvDto, 0)
+	}
+	common.WriteJsonResp(w, err, clusters, http.StatusOK)
+}
+
+func (handler EnvironmentRestHandlerImpl) CheckAuthorizationForGlobalEnvironment(token string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(object)); !ok {
+		return false
+	}
+	return true
+}
+
+func (impl EnvironmentRestHandlerImpl) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var bean request.EnvironmentBean
+	err = decoder.Decode(&bean)
+	if err != nil {
+		impl.logger.Errorw("request err, Delete", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	impl.logger.Debugw("request payload, Delete", "payload", bean)
+
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validation err, Delete", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	err = impl.deleteService.DeleteEnvironment(&bean, userId)
+	if err != nil {
+		impl.logger.Errorw("service err, Delete", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, ENV_DELETE_SUCCESS_RESP, http.StatusOK)
+}
+
+func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByClusterIds(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	v := r.URL.Query()
+	clusterIdString := v.Get("ids")
+	var clusterIds []int
+	if clusterIdString != "" {
+		clusterIdSlices := strings.Split(clusterIdString, ",")
+		for _, clusterId := range clusterIdSlices {
+			id, err := strconv.Atoi(clusterId)
+			if err != nil {
+				impl.logger.Errorw("request err, GetCombinedEnvironmentListForDropDownByClusterIds", "err", err, "clusterIdString", clusterIdString)
+				common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
+				return
+			}
+			clusterIds = append(clusterIds, id)
+		}
+	}
+	token := r.Header.Get("token")
+	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDownByClusterIds(token, clusterIds, impl.CheckAuthorizationForGlobalEnvironment)
+	if err != nil {
+		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	if len(clusters) == 0 {
+		clusters = make([]*request.ClusterEnvDto, 0)
+	}
+	common.WriteJsonResp(w, err, clusters, http.StatusOK)
 }

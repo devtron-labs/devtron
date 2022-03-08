@@ -1,0 +1,412 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/k8s/resource:
+    post:
+      description: this api will be used for fetching all kind of manifest.
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: manifest fetch responces
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ResourceGetResponse'
+    put:
+      description: this api will be used for edit requested manifest.
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: manifest edit responces
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ResourceGetResponse'
+  /orchestrator/k8s/resource/create:
+    post:
+      description: this api will be used for applying desired manifest
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: create resource response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ResourceGetResponse'
+  /orchestrator/k8s/resource/delete:
+    post:
+      description: this api will be used for delete any resource.
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: manifest fetch responces
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    $ref: '#/components/schemas/ResourceGetResponse'
+  /orchestrator/k8s/events:
+    post:
+      description: this api will be used for fetching events for resources.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        "200":
+          description: events success
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/EventsResponseObject"
+  /orchestrator/k8s/pods/logs/{podName}:
+    get:
+      description: this api will be used for fetching logs for container.
+      parameters:
+        - name: podName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: containerName
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: follow
+          in: query
+          schema:
+            type: boolean
+        - name: sinceSeconds
+          in: query
+          schema:
+            type: integer
+        - name: tailLines
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: events success
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/LogsResponseObject"
+  /orchestrator/k8s/pod/exec/session/{applicationId}/{namespace}/{pod}/{shell}/{container}:
+    get:
+      description: get session for the terminal
+      parameters:
+        - in: path
+          name: applicationId
+          schema:
+            type: string
+          required: true
+          description: application id
+          example: "2|devtroncd|devtron"
+        - in: path
+          name: namespace
+          schema:
+            type: string
+          required: true
+          description: namespace name
+          example: "devtroncd"
+        - in: path
+          name: pod
+          schema:
+            type: string
+          required: true
+          description: pod name
+          example: inception-58d44d99fd-tfw4s
+        - in: path
+          name: shell
+          schema:
+            type: string
+            oneOf:
+              - "bash"
+              - "sh"
+              - "powershell"
+              - "cmd"
+          required: true
+          description: shell to invoke
+          example: "bash"
+        - in: path
+          name: container
+          schema:
+            type: string
+          required: true
+          description: name of the container
+          example: "devtron"
+      responses:
+        200:
+          description: session id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminalMessage"
+components:
+  schemas:
+    TerminalMessage:
+      type: object
+      properties:
+        Op:
+          type: string
+        Data:
+          type: string
+        SessionID:
+          type: string
+    ResourceRequestObject:
+      type: object
+      properties:
+        appId:
+          type: string
+        k8sRequest:
+          $ref: '#/components/schemas/K8sRequestObject'
+    K8sRequestObject:
+      type: object
+      properties:
+        resourceIdentifier:
+          type: object
+          properties:
+            groupVersionKind:
+              type: object
+              properties:
+                Group:
+                  type: string
+                Version:
+                  type: string
+                Kind:
+                  type: string
+            namespace:
+              type: string
+            name:
+              type: string
+          required:
+            - name
+        podLogsRequest:
+          type: object
+          properties:
+            containerName:
+              type: string
+        patch:
+          type: string
+    ResourceGetResponse:
+      type: object
+      properties:
+        manifest:
+          type: object
+          properties:
+            apiVersion:
+              type: string
+            data:
+              type: object
+              properties:
+                envoy.yaml:
+                  type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+              properties:
+                annotations:
+                  type: object
+                  properties:
+                    meta.helm.sh/release-name:
+                      type: string
+                    meta.helm.sh/release-namespace:
+                      type: string
+                creationTimestamp:
+                  type: string
+                  format: date-time
+                labels:
+                  type: object
+                  properties:
+                    app:
+                      type: string
+                    app.kubernetes.io/managed-by:
+                      type: string
+                    chart:
+                      type: string
+                    heritage:
+                      type: string
+                    release:
+                      type: string
+                name:
+                  type: string
+                namespace:
+                  type: string
+                resourceVersion:
+                  type: string
+                selfLink:
+                  type: string
+                uid:
+                  type: string
+    EventsResponseObject:
+      type: object
+      properties:
+        events:
+          type: object
+          properties:
+            metadata:
+              type: object
+              properties:
+                selfLink:
+                  type: string
+                resourceVersion:
+                  type: string
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  metadata:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                      selfLink:
+                        type: string
+                      uid:
+                        type: string
+                      resourceVersion:
+                        type: string
+                      creationTimestamp:
+                        type: string
+                        format: date-time
+                      managedFields:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            manager:
+                              type: string
+                            operation:
+                              type: string
+                            apiVersion:
+                              type: string
+                            time:
+                              type: string
+                              format: date-time
+                  involvedObject:
+                    type: object
+                    properties:
+                      kind:
+                        type: string
+                      namespace:
+                        type: string
+                      name:
+                        type: string
+                      uid:
+                        type: string
+                      apiVersion:
+                        type: string
+                      resourceVersion:
+                        type: string
+                  reason:
+                    type: string
+                  message:
+                    type: string
+                  source:
+                    type: object
+                    properties:
+                      component:
+                        type: string
+                  firstTimestamp:
+                    type: string
+                    format: date-time
+                  lastTimestamp:
+                    type: string
+                    format: date-time
+                  count:
+                    type: integer
+                    format: int32
+                  type:
+                    type: string
+                  eventTime:
+                    type: string
+                    format: nullable
+                  reportingComponent:
+                    type: string
+                  reportingInstance:
+                    type: string
+    LogsResponseObject:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              type:
+                type: string
+              data:
+                type: string
+              time:
+                type: string

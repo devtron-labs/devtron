@@ -20,12 +20,12 @@ package util
 import (
 	"encoding/json"
 	error2 "errors"
+	"flag"
+	"github.com/devtron-labs/authenticator/client"
 	"github.com/davecgh/go-spew/spew"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
 	"net/http"
-	"time"
-
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	batchV1 "k8s.io/api/batch/v1"
@@ -38,9 +38,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"os/user"
+	"path/filepath"
+	"time"
 )
 type K8sUtil struct {
-	logger *zap.SugaredLogger
+	logger        *zap.SugaredLogger
+	runTimeConfig *client.RuntimeConfig
+	kubeconfig    *string
 }
 
 type ClusterConfig struct {
@@ -48,8 +54,18 @@ type ClusterConfig struct {
 	BearerToken string
 }
 
-func NewK8sUtil(logger *zap.SugaredLogger) *K8sUtil {
-	return &K8sUtil{logger: logger}
+func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sUtil {
+	usr, err := user.Current()
+	if err != nil {
+		return nil
+	}
+	var kubeconfig *string;
+	if runTimeConfig.LocalDevMode {
+		kubeconfig = flag.String("kubeconfig-authenticator-xyz", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	}
+
+	flag.Parse()
+	return &K8sUtil{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig}
 }
 
 func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
@@ -70,13 +86,25 @@ func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clie
 	return client, err
 }
 
+func (impl K8sUtil) getKubeConfig(devMode client.LocalDevMode) (*rest.Config, error) {
+	if devMode {
+		restConfig, err := clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
+		if err != nil {
+			return nil, err
+		}
+		return restConfig, nil
+	} else {
+		restConfig, err := rest.InClusterConfig()
+		if err != nil {
+			return nil, err
+		}
+		return restConfig, nil
+	}
+}
+
 func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 	// creates the in-cluster config
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error", "error", err)
-		return nil, err
-	}
+	config, err := impl.getKubeConfig(impl.runTimeConfig.LocalDevMode)
 	// creates the clientset
 	clientset, err := v12.NewForConfig(config)
 	if err != nil {
@@ -100,7 +128,14 @@ func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discov
 }
 
 func (impl K8sUtil) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient, error) {
-	config, err := rest.InClusterConfig()
+	var config *rest.Config
+	var err error
+	if impl.runTimeConfig.LocalDevMode {
+		config, err = clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
+	} else {
+		config, err = rest.InClusterConfig()
+	}
+
 	if err != nil {
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
@@ -461,4 +496,26 @@ func (impl K8sUtil) DeleteAndCreateJob(content []byte, namespace string, cluster
 	}
 
 	return nil
+}
+
+func (impl K8sUtil) ListNamespaces(client *v12.CoreV1Client) (*v1.NamespaceList, error) {
+	nsList, err := client.Namespaces().List(metav1.ListOptions{})
+	if errors.IsNotFound(err) {
+		return nsList, nil
+	} else if err != nil {
+		return nsList, err
+	} else {
+		return nsList, nil
+	}
+}
+
+func (impl K8sUtil) GetClientByToken(serverUrl string, token map[string]string) (*v12.CoreV1Client, error) {
+	bearerToken := token["bearer_token"]
+	clusterCfg := &ClusterConfig{Host: serverUrl, BearerToken: bearerToken}
+	client, err := impl.GetClient(clusterCfg)
+	if err != nil {
+		impl.logger.Errorw("error in k8s client", "error", err)
+		return nil, err
+	}
+	return client, nil
 }

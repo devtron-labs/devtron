@@ -41,12 +41,12 @@ func SessionManager(settings *settings.SettingsManager, cfg *dex.Config) *sessio
 	return session.NewSessionManager(settings, dexServerAddress)
 }
 
-func CDSettingsManager(settings *settings.SettingsManager) *settings.ArgoCDSettings {
+func CDSettingsManager(settings *settings.SettingsManager) (*settings.ArgoCDSettings, error) {
 	at, err := settings.GetSettings()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	return at
+	return at, nil
 }
 
 func SettingsManager(cfg *argocdServer.Config) (*settings.SettingsManager, error) {

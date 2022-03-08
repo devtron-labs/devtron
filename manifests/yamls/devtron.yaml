@@ -57,7 +57,7 @@ data:
   CD_NODE_TAINTS_VALUE: "ci"
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
-  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:76a0f1bb-138-5415"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:a60f4ab4-138-6833"
   DEFAULT_CD_TIMEOUT: "3600"
   WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
   CI_LOGS_KEY_PREFIX: "ci-artifacts"
@@ -88,6 +88,7 @@ data:
   GRAFANA_HOST: "devtron-grafana.devtroncd"
   GRAFANA_PORT: "80"
   GRAFANA_NAMESPACE: "devtroncd"
+  HELM_CLIENT_URL: kubelink-service.devtroncd:50051
 
 ---
 apiVersion: v1
@@ -153,7 +154,7 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:4555196b-146-6310"
+          image: "quay.io/devtron/devtron:fed99b26-146-7118"
           imagePullPolicy: IfNotPresent
           ports:
             - name: devtron

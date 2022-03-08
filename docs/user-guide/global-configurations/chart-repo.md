@@ -4,6 +4,8 @@ This feature allows you to add more chart repositories to Devtron. Once added th
 
 Learn more about [Discover chart link](https://docs.devtron.ai/user-guide/deploy-chart/overview-of-charts#deploying-chart)
 
+> Note : After the successfull installation of Devtron, click on `Refresh Charts` to sync & download all the default charts listed on the dashboard. 
+
 ## Add Chart Repository
 
 Select the Chart Repository section of global configuration and click on `Add Repository` button at the top of the Chart Repository Section. To add new chart, you need to provide three inputs as below:

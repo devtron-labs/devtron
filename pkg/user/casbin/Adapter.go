@@ -63,6 +63,8 @@ func Create() *casbin.Enforcer {
 	if err != nil {
 		log.Fatal(err)
 	}
+	//adding our key matching func - MatchKeyFunc, to enforcer
+	e.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
 	return e
 }
 
@@ -142,4 +144,9 @@ func GetRolesForUser(user string) ([]string, error) {
 func GetUserByRole(role string) ([]string, error) {
 	role = strings.ToLower(role)
 	return e.GetUsersForRole(role)
+}
+
+func RemovePoliciesByRoles(roles string) bool{
+	roles = strings.ToLower(roles)
+	return e.RemovePolicy([]string{roles})
 }

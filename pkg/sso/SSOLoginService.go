@@ -177,37 +177,40 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 }
 
 func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.SSOLoginDto) (bool, error) {
-
-	//TODO- update argocd-cm
 	flag := false
 	k8sClient, err := impl.K8sUtil.GetClientForInCluster()
 	if err != nil {
+		impl.logger.Errorw("exception in fetching client", "error", err)
 		return flag, err
 	}
 	updateSuccess := false
 	retryCount := 0
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
-
 		cm, err := impl.K8sUtil.GetConfigMap(client.ArgocdNamespaceName, client.ArgoCDConfigMapName, k8sClient)
 		if err != nil {
+			impl.logger.Errorw("exception in fetching configmap", "error", err)
 			return flag, err
 		}
 		updatedData, err := impl.updateSSODexConfigOnAcdConfigMap(request.Config)
 		if err != nil {
+			impl.logger.Errorw("exception in update configmap sso config", "error", err)
 			return flag, err
 		}
 		data := cm.Data
+		if cm.Data == nil {
+			data = make(map[string]string)
+		}
 		data["dex.config"] = updatedData["dex.config"]
 		data["url"] = request.Url
 		cm.Data = data
 		_, err = impl.K8sUtil.UpdateConfigMap(client.ArgocdNamespaceName, cm, k8sClient)
 		if err != nil {
-			impl.logger.Warnw("config map failed", "err", err)
+			impl.logger.Warnw("config map update failed for sso config", "err", err)
 			continue
 		}
 		if err == nil {
-			impl.logger.Debugw("config map apply succeeded", "on retryCount", retryCount)
+			impl.logger.Debugw("config map apply succeeded for sso config", "on retryCount", retryCount)
 			updateSuccess = true
 		}
 	}
@@ -227,11 +230,13 @@ func (impl SSOLoginServiceImpl) updateSSODexConfigOnAcdConfigMap(config json.Raw
 	connectorConfig["connectors"] = connectors
 	connectorsJsonByte, err := json.Marshal(connectorConfig)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("exception in update configmap sso config", "error", err)
+		return nil, err
 	}
 	connectorsYamlByte, err := yaml.JSONToYAML(connectorsJsonByte)
 	if err != nil {
-		panic(err)
+		impl.logger.Errorw("exception in update configmap sso config", "error", err)
+		return nil, err
 	}
 	dexConfig := map[string]string{}
 	dexConfig["dex.config"] = string(connectorsYamlByte)

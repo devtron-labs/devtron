@@ -7,39 +7,46 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
+	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	"github.com/devtron-labs/devtron/internal/util"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
+	"time"
 )
 
 //extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
 type ClusterServiceImplExtended struct {
 	environmentRepository  repository.EnvironmentRepository
 	grafanaClient          grafana.GrafanaClient
-	installedAppRepository appstore.InstalledAppRepository
+	installedAppRepository appStoreRepository.InstalledAppRepository
 	clusterServiceCD       cluster2.ServiceClient
+	K8sInformerFactory     informer.K8sInformerFactory
 	*ClusterServiceImpl
 }
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
-	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository appstore.InstalledAppRepository,
+	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository appStoreRepository.InstalledAppRepository,
 	K8sUtil *util.K8sUtil,
-	clusterServiceCD cluster2.ServiceClient) *ClusterServiceImplExtended {
-	return &ClusterServiceImplExtended{
+	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory) *ClusterServiceImplExtended {
+	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:  environmentRepository,
 		grafanaClient:          grafanaClient,
 		installedAppRepository: installedAppRepository,
 		clusterServiceCD:       clusterServiceCD,
 		ClusterServiceImpl: &ClusterServiceImpl{
-			clusterRepository: repository,
-			logger:            logger,
-			K8sUtil:           K8sUtil,
+			clusterRepository:  repository,
+			logger:             logger,
+			K8sUtil:            K8sUtil,
+			K8sInformerFactory: K8sInformerFactory,
 		},
 	}
+	go clusterServiceExt.buildInformer()
+	return clusterServiceExt
 }
 
 func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
@@ -52,7 +59,7 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	for _, cluster := range beans {
 		clusterIds = append(clusterIds, cluster.Id)
 	}
-	clusterComponentsMap := make(map[int][]*appstore.InstalledAppVersions)
+	clusterComponentsMap := make(map[int][]*appStoreRepository.InstalledAppVersions)
 	charts, err := impl.installedAppRepository.GetInstalledAppVersionByClusterIdsV2(clusterIds)
 	if err != nil {
 		impl.logger.Errorw("error on fetching installed apps for cluster ids", "err", err, "clusterIds", clusterIds)
@@ -60,7 +67,7 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	}
 	for _, item := range charts {
 		if _, ok := clusterComponentsMap[item.InstalledApp.Environment.ClusterId]; !ok {
-			var charts []*appstore.InstalledAppVersions
+			var charts []*appStoreRepository.InstalledAppVersions
 			charts = append(charts, item)
 			clusterComponentsMap[item.InstalledApp.Environment.ClusterId] = charts
 		} else {
@@ -89,12 +96,12 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 				defaultClusterComponent.ComponentName = chart.AppStoreApplicationVersion.AppStore.Name
 				defaultClusterComponent.Status = chart.InstalledApp.Status.String()
 				defaultClusterComponents = append(defaultClusterComponents, defaultClusterComponent)
-				if chart.InstalledApp.Status == appstore.QUE_ERROR || chart.InstalledApp.Status == appstore.TRIGGER_ERROR ||
-					chart.InstalledApp.Status == appstore.DEQUE_ERROR || chart.InstalledApp.Status == appstore.GIT_ERROR ||
-					chart.InstalledApp.Status == appstore.ACD_ERROR {
+				if chart.InstalledApp.Status == appStoreBean.QUE_ERROR || chart.InstalledApp.Status == appStoreBean.TRIGGER_ERROR ||
+					chart.InstalledApp.Status == appStoreBean.DEQUE_ERROR || chart.InstalledApp.Status == appStoreBean.GIT_ERROR ||
+					chart.InstalledApp.Status == appStoreBean.ACD_ERROR {
 					failed = true
 				}
-				if chart.InstalledApp.Status == appstore.DEPLOY_SUCCESS {
+				if chart.InstalledApp.Status == appStoreBean.DEPLOY_SUCCESS {
 					chartPass = chartPass + 1
 				}
 			}
@@ -217,6 +224,10 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		}
 		return nil, err
 	}
+
+	if bean.HasConfigOrUrlChanged {
+		impl.ClusterServiceImpl.SyncNsInformer(bean)
+	}
 	return bean, err
 }
 
@@ -318,5 +329,25 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 		return nil, err
 
 	}
+	//on successful creation of new cluster, update informer cache for namespace group by cluster
+	impl.SyncNsInformer(bean)
+
 	return clusterBean, nil
+}
+
+func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId int32) error {
+	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
+		return err
+	}
+	deleteReq := existingCluster
+	deleteReq.UpdatedOn = time.Now()
+	deleteReq.UpdatedBy = userId
+	err = impl.clusterRepository.MarkClusterDeleted(deleteReq)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
+		return err
+	}
+	return nil
 }

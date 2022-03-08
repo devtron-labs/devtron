@@ -1,6 +1,8 @@
 # Global Configurations
 
-This documentation consists of the Global Configurations available in Devtron.
+_**This documentation consists of the Global Configurations available in Devtron.**_
+
+{% embed url="https://www.youtube.com/watch?v=4VFjrjtieMI" caption="" %}
 
 **Parts of the Documentation**
 

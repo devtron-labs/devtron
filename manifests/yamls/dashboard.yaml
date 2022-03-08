@@ -20,6 +20,7 @@ data:
   HOTJAR_ENABLED: "false"
   SENTRY_ENABLED: "false"
   SENTRY_ENV: PRODUCTION
+  APPLICATION_METRICS_ENABLED: "true"
 ---
 # Source: dashboard/templates/sidecar-configmap.yaml
 apiVersion: v1
@@ -230,7 +231,7 @@ spec:
             - name: envoy-config-volume
               mountPath: /etc/envoy-config/
         - name: dashboard
-          image: "quay.io/devtron/dashboard:075cba2a-136-6172"
+          image: "quay.io/devtron/dashboard:e569e1de-136-7119"
           imagePullPolicy: IfNotPresent
           ports:
             - name: app
