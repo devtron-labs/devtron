@@ -48,7 +48,7 @@ type InstalledAppRepository interface {
 	GetInstalledAppVersionByInstalledAppId(id int) ([]*InstalledAppVersions, error)
 	GetConnection() (dbConnection *pg.DB)
 	GetInstalledAppVersionByInstalledAppIdMeta(appStoreApplicationId int) ([]*InstalledAppVersions, error)
-	GetClusterComponentByClusterId(clusterId int) ([]*InstalledApps, error) //unused
+	GetClusterComponentByClusterId(clusterId int) ([]*InstalledApps, error)     //unused
 	GetClusterComponentByClusterIds(clusterIds []int) ([]*InstalledApps, error) //unused
 	GetInstalledAppVersionByAppIdAndEnvId(appId int, envId int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionByClusterIds(clusterIds []int) ([]*InstalledAppVersions, error) //unused
@@ -66,14 +66,15 @@ func NewInstalledAppRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.D
 }
 
 type InstalledApps struct {
-	TableName     struct{}                              `sql:"installed_apps" pg:",discard_unknown_columns"`
-	Id            int                                   `sql:"id,pk"`
-	AppId         int                                   `sql:"app_id,notnull"`
-	EnvironmentId int                                   `sql:"environment_id,notnull"`
-	Active        bool                                  `sql:"active, notnull"`
-	Status        appStoreBean.AppstoreDeploymentStatus `sql:"status"`
-	App           app.App
-	Environment   repository.Environment
+	TableName      struct{}                              `sql:"installed_apps" pg:",discard_unknown_columns"`
+	Id             int                                   `sql:"id,pk"`
+	AppId          int                                   `sql:"app_id,notnull"`
+	EnvironmentId  int                                   `sql:"environment_id,notnull"`
+	Active         bool                                  `sql:"active, notnull"`
+	GitOpsRepoName string                                `sql:"git_ops_repo_name"`
+	Status         appStoreBean.AppstoreDeploymentStatus `sql:"status"`
+	App            app.App
+	Environment    repository.Environment
 	sql.AuditLog
 }
 
