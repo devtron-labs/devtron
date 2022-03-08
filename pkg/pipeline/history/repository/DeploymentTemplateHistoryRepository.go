@@ -27,6 +27,7 @@ type DeploymentTemplateHistory struct {
 	tableName               struct{}  `sql:"deployment_template_history" pg:",discard_unknown_columns"`
 	Id                      int       `sql:"id,pk"`
 	PipelineId              int       `sql:"pipeline_id"`
+	AppId                   int       `sql:"app_id"`
 	ImageDescriptorTemplate string    `sql:"image_descriptor_template"`
 	Template                string    `sql:"template"`
 	TargetEnvironment       int       `sql:"target_environment"`

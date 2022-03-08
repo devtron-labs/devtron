@@ -9,6 +9,7 @@ import (
 type ConfigMapAndSecretHistoryDto struct {
 	Id         int           `json:"id"`
 	PipelineId int           `json:"pipelineId"`
+	AppId      int           `json:"appId"`
 	DataType   string        `json:"dataType"`
 	ConfigData []*ConfigData `json:"configData"`
 	Deployed   bool          `json:"deployed"`
@@ -41,7 +42,8 @@ type PrePostStageConfigMapSecretNames struct {
 
 type DeploymentTemplateHistoryDto struct {
 	Id                      int       `json:"id"`
-	PipelineId              int       `json:"pipelineId,"`
+	PipelineId              int       `json:"pipelineId"`
+	AppId                   int       `json:"appId"`
 	ImageDescriptorTemplate string    `json:"imageDescriptorTemplate"`
 	Template                string    `json:"template"`
 	TemplateName            string    `json:"templateName"`

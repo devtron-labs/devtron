@@ -68,6 +68,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 	}
 	//creating history without pipeline id
 	historyModel := &repository.DeploymentTemplateHistory{
+		AppId:                   chart.AppId,
 		ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
 		Template:                chart.GlobalOverride,
 		Deployed:                false,
@@ -93,6 +94,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 	}
 	for _, pipeline := range pipelines {
 		historyModel := &repository.DeploymentTemplateHistory{
+			AppId:                   chart.AppId,
 			PipelineId:              pipeline.Id,
 			ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
 			Template:                chart.GlobalOverride,
@@ -137,6 +139,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 	}
 	if pipelineId > 0 {
 		historyModel := &repository.DeploymentTemplateHistory{
+			AppId:                   chart.AppId,
 			PipelineId:              pipelineId,
 			ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
 			Deployed:                false,
@@ -174,6 +177,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 	}
 	for _, pipeline := range pipelines {
 		historyModel := &repository.DeploymentTemplateHistory{
+			AppId:                   chart.AppId,
 			PipelineId:              pipeline.Id,
 			ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
 			Deployed:                false,
@@ -232,6 +236,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
 	}
 	historyModel := &repository.DeploymentTemplateHistory{
+		AppId:                   pipeline.AppId,
 		PipelineId:              pipeline.Id,
 		ImageDescriptorTemplate: renderedImageTemplate,
 		Deployed:                true,
@@ -275,6 +280,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplatesB
 	historyDto := &DeploymentTemplateHistoryDto{
 		Id:                      history.Id,
 		PipelineId:              history.PipelineId,
+		AppId:                   history.AppId,
 		ImageDescriptorTemplate: history.ImageDescriptorTemplate,
 		Template:                history.Template,
 		TemplateVersion:         history.TemplateVersion,

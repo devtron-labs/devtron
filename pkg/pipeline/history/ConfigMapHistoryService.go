@@ -56,6 +56,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromAppLevelConfig(appLevel
 		return err
 	}
 	historyModel := &repository.ConfigmapAndSecretHistory{
+		AppId:    appLevelConfig.AppId,
 		DataType: configType,
 		Deployed: false,
 		Data:     configData,
@@ -83,6 +84,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromAppLevelConfig(appLevel
 			return err
 		}
 		historyModel := &repository.ConfigmapAndSecretHistory{
+			AppId:      appLevelConfig.AppId,
 			PipelineId: pipeline.Id,
 			DataType:   configType,
 			Deployed:   false,
@@ -122,6 +124,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromEnvLevelConfig(envLevel
 			return err
 		}
 		historyModel := &repository.ConfigmapAndSecretHistory{
+			AppId:      envLevelConfig.AppId,
 			PipelineId: pipeline.Id,
 			DataType:   configType,
 			Deployed:   false,
@@ -160,6 +163,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pi
 		return err
 	}
 	historyModel := &repository.ConfigmapAndSecretHistory{
+		AppId:      pipeline.AppId,
 		PipelineId: pipeline.Id,
 		DataType:   repository.CONFIGMAP_TYPE,
 		Deployed:   true,
@@ -281,6 +285,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 	historyDto := &ConfigMapAndSecretHistoryDto{
 		Id:         history.Id,
 		PipelineId: history.PipelineId,
+		AppId:      history.AppId,
 		DataType:   string(history.DataType),
 		ConfigData: configList.ConfigData,
 		Deployed:   history.Deployed,
