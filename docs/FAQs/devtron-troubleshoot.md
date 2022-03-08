@@ -133,6 +133,16 @@ In the Devtron's Discover Chart section, if you are not able to see any charts a
 ![charts-not-found](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/refresh-charts.png)
 
 
+#### 8. Not able to update cluster
+
+In `Global Configurations` >> `Cluters & Environments`, if you try to update a cluster which has been already added in Devtron, you might get an error as `{"message":"Failed to update datasource. Reload new version and try again"}`. If you are facing such issue, please follow the following steps - 
+
+1. Edit the changes you want to make in respective cluster
+2. Click on save after making changes, hopefully you will get error message as stated above.
+3. Go to cluster where devtron has been installed and execute - `kubectl -ndevtroncd delete po -l app=devtron`
+4. Now refresh the page and you should be able to save it.
+
+[Note: If you already have created some environments in that cluster, its needs to be updated again, `click on environment` >> `click on update`]
 
 
 
