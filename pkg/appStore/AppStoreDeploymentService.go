@@ -35,9 +35,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ktrysmt/go-bitbucket"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -181,7 +178,6 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
-	impl.logger.Debug(team.Name)
 	argocdAppName := installedApp.App.AppName + "-" + environment.Name
 	gitOpsRepoName := installedApp.GitOpsRepoName
 	if len(gitOpsRepoName) == 0 {
@@ -190,8 +186,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 			impl.logger.Errorw("no argo app exists", "app", argocdAppName)
 			return nil, err
 		}
-		appStatus, _ := status.FromError(err)
-		if appStatus.Code() == codes.OK {
+		if application != nil {
 			gitOpsRepoUrl := application.Spec.Source.RepoURL
 			gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
 		}
