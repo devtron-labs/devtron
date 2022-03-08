@@ -24,13 +24,14 @@ import (
 )
 
 type App struct {
-	tableName struct{} `sql:"app" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id,pk"`
-	AppName   string   `sql:"app_name,notnull"` //same as app name
-	Active    bool     `sql:"active, notnull"`
-	TeamId    int      `sql:"team_id"`
-	AppStore  bool     `sql:"app_store, notnull"`
-	Team      team.Team
+	tableName       struct{} `sql:"app" pg:",discard_unknown_columns"`
+	Id              int      `sql:"id,pk"`
+	AppName         string   `sql:"app_name,notnull"` //same as app name
+	Active          bool     `sql:"active, notnull"`
+	TeamId          int      `sql:"team_id"`
+	AppStore        bool     `sql:"app_store, notnull"`
+	AppOfferingMode string   `sql:"app_offering_mode,notnull"`
+	Team            team.Team
 	sql.AuditLog
 }
 

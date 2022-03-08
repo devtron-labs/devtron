@@ -18,7 +18,9 @@
 package appStore
 
 import (
+	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
+	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
 	"github.com/gorilla/mux"
 )
 
@@ -27,30 +29,37 @@ type AppStoreRouter interface {
 }
 
 type AppStoreRouterImpl struct {
-	deployRestHandler         InstalledAppRestHandler
-	appStoreValuesRestHandler AppStoreValuesRestHandler
-	appStoreDiscoverRouter    appStoreDiscover.AppStoreDiscoverRouter
+	deployRestHandler        InstalledAppRestHandler
+	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
+	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
+	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
 }
 
 func NewAppStoreRouterImpl(restHandler InstalledAppRestHandler,
-	appStoreValuesRestHandler AppStoreValuesRestHandler, appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter) *AppStoreRouterImpl {
+	appStoreValuesRouter appStoreValues.AppStoreValuesRouter, appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
+	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter) *AppStoreRouterImpl {
 	return &AppStoreRouterImpl{
-		deployRestHandler:         restHandler,
-		appStoreValuesRestHandler: appStoreValuesRestHandler,
-		appStoreDiscoverRouter:    appStoreDiscoverRouter,
+		deployRestHandler:      restHandler,
+		appStoreValuesRouter:   appStoreValuesRouter,
+		appStoreDiscoverRouter: appStoreDiscoverRouter,
+		appStoreDeploymentRouter: appStoreDeploymentRouter,
 	}
 }
 
 func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
-	configRouter.Path("/application/install").
-		HandlerFunc(router.deployRestHandler.CreateInstalledApp).Methods("POST")
+
+	configRouter.Path("/application/update").
+		HandlerFunc(router.deployRestHandler.UpdateInstalledApp).Methods("PUT")
+
+	// deployment router starts
+	appStoreDeploymentSubRouter := configRouter.PathPrefix("/deployment").Subrouter()
+	router.appStoreDeploymentRouter.Init(appStoreDeploymentSubRouter)
+	// deployment router ends
 
 	configRouter.Path("/application/exists").
 		HandlerFunc(router.deployRestHandler.CheckAppExists).Methods("POST")
 	configRouter.Path("/group/install").
 		HandlerFunc(router.deployRestHandler.DeployBulk).Methods("POST")
-	configRouter.Path("/application/update").
-		HandlerFunc(router.deployRestHandler.UpdateInstalledApp).Methods("PUT")
 
 	// discover router starts
 	appStoreDiscoverSubRouter := configRouter.PathPrefix("/discover").Subrouter()
@@ -64,31 +73,13 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/installed-app").
 		HandlerFunc(router.deployRestHandler.GetAllInstalledApp).Methods("GET")
 
-	configRouter.Path("/installed-app/{appStoreId}").
-		HandlerFunc(router.deployRestHandler.GetInstalledAppsByAppStoreId).Methods("GET")
-
 	configRouter.Path("/application/version/{installedAppVersionId}").
 		HandlerFunc(router.deployRestHandler.GetInstalledAppVersion).Methods("GET")
-	configRouter.Path("/application/delete/{id}").
-		HandlerFunc(router.deployRestHandler.DeleteInstalledApp).Methods("DELETE")
 
-	configRouter.Path("/template/values").
-		HandlerFunc(router.appStoreValuesRestHandler.CreateAppStoreVersionValues).Methods("POST")
-	configRouter.Path("/template/values").
-		HandlerFunc(router.appStoreValuesRestHandler.UpdateAppStoreVersionValues).Methods("PUT")
-	configRouter.Path("/template/values").Queries("referenceId", "{referenceId}", "kind", "{kind}").
-		HandlerFunc(router.appStoreValuesRestHandler.FindValuesById).Methods("GET")
-	configRouter.Path("/template/values/{appStoreValueId}").
-		HandlerFunc(router.appStoreValuesRestHandler.DeleteAppStoreVersionValues).Methods("DELETE")
-
-	//used for manage api listing, will return only saved(template) values
-	configRouter.Path("/template/values/list/{appStoreId}").
-		HandlerFunc(router.appStoreValuesRestHandler.FindValuesByAppStoreIdAndReferenceType).Methods("GET")
-	//used for all types of values category wise
-	configRouter.Path("/application/values/list/{appStoreId}").
-		HandlerFunc(router.appStoreValuesRestHandler.FetchTemplateValuesByAppStoreId).Methods("GET")
-	configRouter.Path("/chart/selected/metadata").
-		HandlerFunc(router.appStoreValuesRestHandler.GetSelectedChartMetadata).Methods("POST")
+	// values router starts
+	appStoreValuesSubRouter := configRouter.PathPrefix("/values").Subrouter()
+	router.appStoreValuesRouter.Init(appStoreValuesSubRouter)
+	// values router ends
 
 	configRouter.Path("/cluster-component/install/{clusterId}").
 		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")
