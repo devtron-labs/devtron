@@ -141,6 +141,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		historyModel := &repository.DeploymentTemplateHistory{
 			AppId:                   chart.AppId,
 			PipelineId:              pipelineId,
+			TargetEnvironment:       envOverride.TargetEnvironment,
 			ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
 			Deployed:                false,
 			TemplateName:            chartRef.Name,
@@ -180,6 +181,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 			AppId:                   chart.AppId,
 			PipelineId:              pipeline.Id,
 			ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
+			TargetEnvironment:       envOverride.TargetEnvironment,
 			Deployed:                false,
 			TemplateName:            chartRef.Name,
 			TemplateVersion:         chartRef.Version,
