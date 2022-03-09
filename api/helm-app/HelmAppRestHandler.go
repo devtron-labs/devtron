@@ -423,6 +423,8 @@ func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) 
 		InstalledAppId:        installedApp.InstalledAppId,
 		InstalledAppVersionId: installedApp.InstalledAppVersionId,
 		AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+		ClusterId:             installedApp.ClusterId,
+		EnvironmentId:         installedApp.EnvironmentId,
 	}
 }
 
@@ -443,4 +445,6 @@ type InstalledAppInfo struct {
 	AppStoreChartId       int    `json:"appStoreChartId"`
 	EnvironmentName       string `json:"environmentName"`
 	AppOfferingMode       string `json:"appOfferingMode"`
+	ClusterId             int    `json:"clusterId"`
+	EnvironmentId         int    `json:"environmentId"`
 }
