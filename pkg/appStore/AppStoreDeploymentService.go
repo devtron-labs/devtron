@@ -197,16 +197,16 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		}
 	}
 	installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
+	var installedAppVersion *appStoreRepository.InstalledAppVersions
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
-		_, _, err := impl.upgradeInstalledApp(ctx, installAppVersionRequest, installedApp, tx)
+		_, installedAppVersion, err = impl.upgradeInstalledApp(ctx, installAppVersionRequest, installedApp, tx)
 		if err != nil {
 			impl.logger.Errorw("error while upgrade the chart", "error", err)
 			return nil, err
 		}
 	} else {
 		// update same chart or upgrade its version only
-		var installedAppVersion *appStoreRepository.InstalledAppVersions
 		installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
 		if err != nil {
 			impl.logger.Errorw("error while fetching chart installed version", "error", err)
@@ -288,7 +288,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	}
 	//STEP 9: creating entry for installed app history
 	//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.InstalledAppVersionId, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
+	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.InstalledAppId, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
 	if err != nil {
 		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err
@@ -620,7 +620,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 	}
 	for _, versions := range installAppVersions {
 		//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.InstalledAppVersionId, versions.ValuesOverrideYaml, versions.UserId, nil)
+		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.InstalledAppId, versions.ValuesOverrideYaml, versions.UserId, nil)
 		if err != nil {
 			impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", versions)
 			return nil, err
@@ -1056,7 +1056,7 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 			}
 		}
 		//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.InstalledAppVersionId, versions.ValuesOverrideYaml, versions.UserId, nil)
+		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.InstalledAppId, versions.ValuesOverrideYaml, versions.UserId, nil)
 		if err != nil {
 			impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", versions)
 			return nil, err

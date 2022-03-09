@@ -51,7 +51,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_app_store_charts_history;
 CREATE TABLE "public"."app_store_charts_history"
 (
     "id"                            integer NOT NULL DEFAULT nextval('id_seq_app_store_charts_history'::regclass),
-    "installed_app_version_id"      integer NOT NULL,
+    "installed_apps_id"             integer NOT NULL,
     "values_yaml"                   text,
     "deployed_on"                   timestamptz,
     "deployed_by"                   int4,
@@ -59,7 +59,7 @@ CREATE TABLE "public"."app_store_charts_history"
     "created_by"                    int4,
     "updated_on"                    timestamptz,
     "updated_by"                    int4,
-    CONSTRAINT "app_store_charts_history_installed_app_version_id_fkey" FOREIGN KEY ("installed_app_version_id") REFERENCES "public"."installed_app_versions" ("id"),
+    CONSTRAINT "app_store_charts_history_installed_apps_id_fkey" FOREIGN KEY ("installed_apps_id") REFERENCES "public"."installed_apps" ("id"),
     PRIMARY KEY ("id")
 );
 

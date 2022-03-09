@@ -9,7 +9,7 @@ import (
 )
 
 type AppStoreChartsHistoryService interface {
-	CreateAppStoreChartsHistory(installedAppVersionId int, values string, userId int32, tx *pg.Tx) (historyModel *repository.AppStoreChartsHistory, err error)
+	CreateAppStoreChartsHistory(installedAppsId int, values string, userId int32, tx *pg.Tx) (historyModel *repository.AppStoreChartsHistory, err error)
 }
 
 type AppStoreChartsHistoryServiceImpl struct {
@@ -24,12 +24,12 @@ func NewAppStoreChartsHistoryServiceImpl(logger *zap.SugaredLogger, appStoreChar
 	}
 }
 
-func (impl AppStoreChartsHistoryServiceImpl) CreateAppStoreChartsHistory(installedAppVersionId int, values string, userId int32, tx *pg.Tx) (historyModel *repository.AppStoreChartsHistory, err error) {
+func (impl AppStoreChartsHistoryServiceImpl) CreateAppStoreChartsHistory(installedAppsId int, values string, userId int32, tx *pg.Tx) (historyModel *repository.AppStoreChartsHistory, err error) {
 	historyModel = &repository.AppStoreChartsHistory{
-		InstalledAppVersionId: installedAppVersionId,
-		Values:                values,
-		DeployedBy:            userId,
-		DeployedOn:            time.Now(),
+		InstalledAppsId: installedAppsId,
+		Values:          values,
+		DeployedBy:      userId,
+		DeployedOn:      time.Now(),
 		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: userId,

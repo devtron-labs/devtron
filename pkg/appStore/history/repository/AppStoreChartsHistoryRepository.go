@@ -8,12 +8,12 @@ import (
 )
 
 type AppStoreChartsHistory struct {
-	tableName             struct{}  `sql:"app_store_charts_history" pg:",discard_unknown_columns"`
-	Id                    int       `sql:"id,pk"`
-	InstalledAppVersionId int       `sql:"installed_app_version_id, notnull"`
-	Values                string    `sql:"values_yaml"`
-	DeployedOn            time.Time `sql:"deployed_on"`
-	DeployedBy            int32     `sql:"deployed_by"`
+	tableName       struct{}  `sql:"app_store_charts_history" pg:",discard_unknown_columns"`
+	Id              int       `sql:"id,pk"`
+	InstalledAppsId int       `sql:"installed_apps_id, notnull"`
+	Values          string    `sql:"values_yaml"`
+	DeployedOn      time.Time `sql:"deployed_on"`
+	DeployedBy      int32     `sql:"deployed_by"`
 	sql.AuditLog
 }
 
