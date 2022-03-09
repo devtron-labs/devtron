@@ -18,7 +18,8 @@ type AppStoreChartsHistory struct {
 }
 
 type AppStoreChartsHistoryRepository interface {
-	CreateHistory(chart *AppStoreChartsHistory, tx *pg.Tx) (*AppStoreChartsHistory, error)
+	CreateHistoryWithTxn(chart *AppStoreChartsHistory, tx *pg.Tx) (*AppStoreChartsHistory, error)
+	CreateHistory(chart *AppStoreChartsHistory) (*AppStoreChartsHistory, error)
 }
 
 type AppStoreChartsHistoryRepositoryImpl struct {
@@ -30,8 +31,17 @@ func NewAppStoreChartsHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnect
 	return &AppStoreChartsHistoryRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
-func (impl AppStoreChartsHistoryRepositoryImpl) CreateHistory(history *AppStoreChartsHistory, tx *pg.Tx) (*AppStoreChartsHistory, error) {
+func (impl AppStoreChartsHistoryRepositoryImpl) CreateHistoryWithTxn(history *AppStoreChartsHistory, tx *pg.Tx) (*AppStoreChartsHistory, error) {
 	err := tx.Insert(history)
+	if err != nil {
+		impl.logger.Errorw("err in creating app store charts history entry", "err", err, "history", history)
+		return history, err
+	}
+	return history, nil
+}
+
+func (impl AppStoreChartsHistoryRepositoryImpl) CreateHistory(history *AppStoreChartsHistory) (*AppStoreChartsHistory, error) {
+	err := impl.dbConnection.Insert(history)
 	if err != nil {
 		impl.logger.Errorw("err in creating app store charts history entry", "err", err, "history", history)
 		return history, err

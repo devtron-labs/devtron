@@ -37,7 +37,11 @@ func (impl AppStoreChartsHistoryServiceImpl) CreateAppStoreChartsHistory(install
 			UpdatedBy: userId,
 		},
 	}
-	_, err = impl.appStoreChartsHistoryRepository.CreateHistory(historyModel, tx)
+	if tx != nil {
+		_, err = impl.appStoreChartsHistoryRepository.CreateHistoryWithTxn(historyModel, tx)
+	} else {
+		_, err = impl.appStoreChartsHistoryRepository.CreateHistory(historyModel)
+	}
 	if err != nil {
 		impl.logger.Errorw("error in creating history entry for app store charts", "err", err, "history", historyModel)
 		return nil, err
