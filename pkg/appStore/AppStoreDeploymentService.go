@@ -288,7 +288,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	}
 	//STEP 9: creating entry for installed app history
 	//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
+	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.InstalledAppVersionId, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
 	if err != nil {
 		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err
@@ -620,7 +620,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 	}
 	for _, versions := range installAppVersions {
 		//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.Id, versions.ValuesOverrideYaml, versions.UserId, nil)
+		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.InstalledAppVersionId, versions.ValuesOverrideYaml, versions.UserId, nil)
 		if err != nil {
 			impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", versions)
 			return nil, err
@@ -1056,7 +1056,7 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 			}
 		}
 		//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.Id, versions.ValuesOverrideYaml, versions.UserId, nil)
+		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.InstalledAppVersionId, versions.ValuesOverrideYaml, versions.UserId, nil)
 		if err != nil {
 			impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", versions)
 			return nil, err
