@@ -280,17 +280,17 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 			return nil, err
 		}
 	}
-
-	//STEP 8 : creating entry for installed app history
-	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, tx)
-	if err != nil {
-		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
-		return nil, err
-	}
-	//STEP 9: finish with return response
+	//STEP 8: finish with return response
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error while committing transaction to db", "error", err)
+		return nil, err
+	}
+	//STEP 9: creating entry for installed app history
+	//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
+	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.Id, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
+	if err != nil {
+		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err
 	}
 	return installAppVersionRequest, nil
@@ -617,6 +617,14 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 	if err != nil {
 		impl.logger.Errorw("DeployBulk, error in tx commit", "err", err)
 		return nil, err
+	}
+	for _, versions := range installAppVersions {
+		//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
+		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.Id, versions.ValuesOverrideYaml, versions.UserId, nil)
+		if err != nil {
+			impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", versions)
+			return nil, err
+		}
 	}
 	//nats event
 	impl.triggerDeploymentEvent(installAppVersions)
@@ -1046,6 +1054,12 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 			if err != nil {
 				impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
 			}
+		}
+		//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
+		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.Id, versions.ValuesOverrideYaml, versions.UserId, nil)
+		if err != nil {
+			impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", versions)
+			return nil, err
 		}
 	}
 
