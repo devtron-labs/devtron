@@ -76,6 +76,10 @@ type ConfigList struct {
 	ConfigData []*ConfigData `json:"maps"`
 }
 
+type SecretList struct {
+	ConfigData []*ConfigData `json:"secrets"`
+}
+
 type ConfigData struct {
 	Name                  string           `json:"name"`
 	Type                  string           `json:"type"`
