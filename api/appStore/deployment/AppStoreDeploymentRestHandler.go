@@ -38,7 +38,7 @@ import (
 )
 
 type AppStoreDeploymentRestHandler interface {
-	CreateInstalledApp(w http.ResponseWriter, r *http.Request)
+	InstallApp(w http.ResponseWriter, r *http.Request)
 	GetInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request)
 	DeleteInstalledApp(w http.ResponseWriter, r *http.Request)
 	GetInstalledAppVersion(w http.ResponseWriter, r *http.Request)
@@ -69,7 +69,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 	}
 }
 
-func (handler AppStoreDeploymentRestHandlerImpl) CreateInstalledApp(w http.ResponseWriter, r *http.Request) {
+func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
