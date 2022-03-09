@@ -200,6 +200,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pi
 }
 
 func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType, configMapSecretNames []string) (string, error) {
+	var err error
 	var appLevelConfigData []*ConfigData
 	var envLevelConfigData []*ConfigData
 	if configType == repository.CONFIGMAP_TYPE {
@@ -211,7 +212,7 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 		}
 		configListAppLevel := &ConfigList{}
 		if len(configDataAppLevel) > 0 {
-			err := json.Unmarshal([]byte(configDataAppLevel), configListAppLevel)
+			err = json.Unmarshal([]byte(configDataAppLevel), configListAppLevel)
 			if err != nil {
 				impl.logger.Debugw("error while Unmarshal", "err", err)
 				return "", err
@@ -219,7 +220,7 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 		}
 		configListEnvLevel := &ConfigList{}
 		if len(configDataEnvLevel) > 0 {
-			err := json.Unmarshal([]byte(configDataEnvLevel), configListEnvLevel)
+			err = json.Unmarshal([]byte(configDataEnvLevel), configListEnvLevel)
 			if err != nil {
 				impl.logger.Debugw("error while Unmarshal", "err", err)
 				return "", err
@@ -236,7 +237,7 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 		}
 		secretListAppLevel := &SecretList{}
 		if len(secretDataAppLevel) > 0 {
-			err := json.Unmarshal([]byte(secretDataAppLevel), secretListAppLevel)
+			err = json.Unmarshal([]byte(secretDataAppLevel), secretListAppLevel)
 			if err != nil {
 				impl.logger.Debugw("error while Unmarshal", "err", err)
 				return "", err
@@ -244,7 +245,7 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 		}
 		secretListEnvLevel := &SecretList{}
 		if len(secretDataEnvLevel) > 0 {
-			err := json.Unmarshal([]byte(secretDataEnvLevel), secretListEnvLevel)
+			err = json.Unmarshal([]byte(secretDataEnvLevel), secretListEnvLevel)
 			if err != nil {
 				impl.logger.Debugw("error while Unmarshal", "err", err)
 				return "", err
@@ -278,12 +279,23 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 			}
 		}
 	}
-	var finalConfigList ConfigList
-	finalConfigList.ConfigData = finalConfigs
-	finalConfigDataByte, err := json.Marshal(finalConfigList)
-	if err != nil {
-		impl.logger.Errorw("error in marshaling config", "err", err)
-		return "", err
+	var finalConfigDataByte []byte
+	if configType == repository.CONFIGMAP_TYPE {
+		var finalConfigList ConfigList
+		finalConfigList.ConfigData = finalConfigs
+		finalConfigDataByte, err = json.Marshal(finalConfigList)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling config", "err", err)
+			return "", err
+		}
+	} else if configType == repository.SECRET_TYPE {
+		var finalConfigList SecretList
+		finalConfigList.ConfigData = finalConfigs
+		finalConfigDataByte, err = json.Marshal(finalConfigList)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling config", "err", err)
+			return "", err
+		}
 	}
 	return string(finalConfigDataByte), err
 }
