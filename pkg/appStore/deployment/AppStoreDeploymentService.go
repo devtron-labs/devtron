@@ -498,7 +498,6 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 	return installAppVersionRequest, nil
 }
 
-
 func (impl AppStoreDeploymentServiceImpl) UpdateHelmApplicationWithChartStoreLinking(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest,
 	appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, error) {
 
@@ -515,6 +514,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateHelmApplicationWithChartStoreLin
 
 	// Initialise bean
 	installAppVersionRequestDto := &appStoreBean.InstallAppVersionDTO{
+		AppName:            appIdentifier.ReleaseName,
 		UserId:             userId,
 		AppOfferingMode:    util2.SERVER_MODE_HYPERION,
 		ClusterId:          appIdentifier.ClusterId,
@@ -533,7 +533,6 @@ func (impl AppStoreDeploymentServiceImpl) UpdateHelmApplicationWithChartStoreLin
 	}
 	// STEP-2 ends
 
-
 	// STEP-3 update APP with chart info
 	installedApp, err := impl.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	if err != nil {
@@ -543,8 +542,8 @@ func (impl AppStoreDeploymentServiceImpl) UpdateHelmApplicationWithChartStoreLin
 	chartInfo := installedApp.InstallAppVersionChartDTO
 	chartRepoInfo := chartInfo.InstallAppVersionChartRepoDTO
 	updateReleaseRequest := &client.InstallReleaseRequest{
-		ValuesYaml: request.GetValuesYaml(),
-		ChartName : chartInfo.ChartName,
+		ValuesYaml:   request.GetValuesYaml(),
+		ChartName:    chartInfo.ChartName,
 		ChartVersion: chartInfo.ChartVersion,
 		ReleaseIdentifier: &client.ReleaseIdentifier{
 			ReleaseNamespace: appIdentifier.Namespace,
