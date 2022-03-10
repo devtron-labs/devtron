@@ -49,4 +49,6 @@ func (router AppStoreDeploymentRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/application/version/{installedAppVersionId}").
 		HandlerFunc(router.appStoreDeploymentRestHandler.GetInstalledAppVersion).Methods("GET")
 
+	configRouter.Path("/application/helm/update-with-chart-linking").
+		HandlerFunc(router.appStoreDeploymentRestHandler.UpdateHelmApplicationWithChartStoreLinking).Methods("PUT")
 }

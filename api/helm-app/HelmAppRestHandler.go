@@ -72,7 +72,7 @@ func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r
 		clusterIds = append(clusterIds, j)
 	}
 	token := r.Header.Get("token")
-	handler.helmAppService.ListHelmApplications(clusterIds, w, token, handler.CheckHelmAuth)
+	handler.helmAppService.ListHelmApplications(clusterIds, w, token, handler.checkHelmAuth)
 }
 
 func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {
@@ -404,7 +404,7 @@ func (handler *HelmAppRestHandlerImpl) GetDeploymentDetail(w http.ResponseWriter
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *HelmAppRestHandlerImpl) CheckHelmAuth(token string, object string) bool {
+func (handler *HelmAppRestHandlerImpl) checkHelmAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, strings.ToLower(object)); !ok {
 		return false
 	}
