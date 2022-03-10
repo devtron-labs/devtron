@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -44,6 +45,8 @@ type ChartTemplateService interface {
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
+	GetGitOpsRepoName(appName string) string
+	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 }
 type ChartTemplateServiceImpl struct {
 	randSource         rand.Source
@@ -129,7 +132,7 @@ func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, 
 		return nil, nil, err
 	}
 	values.Values = valuesYaml
-	gitOpsRepoName := impl.getGitOpsRepoName(chartMetaData.Name)
+	gitOpsRepoName := impl.GetGitOpsRepoName(chartMetaData.Name)
 	chartGitAttr, err := impl.createAndPushToGit(gitOpsRepoName, templateName, chartMetaData.Version, chartDir)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
@@ -363,6 +366,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
+	gitOpsRepoName := impl.GetGitOpsRepoName(appStoreName)
 	gitOpsConfigBitbucket, err := impl.gitFactory.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
 	if err != nil {
 		if err == pg.ErrNoRows {
@@ -373,10 +377,10 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			return nil, err
 		}
 	}
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(appStoreName, "helm chart for "+appStoreName, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitOpsRepoName, "helm chart for "+gitOpsRepoName, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
-			impl.logger.Errorw("error in creating git project", "name", appStoreName, "err", err)
+			impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
 			return nil, err
 		}
 	}
@@ -445,7 +449,7 @@ func (impl ChartTemplateServiceImpl) GitPull(clonedDir string, repoUrl string, a
 	return nil
 }
 
-func (impl ChartTemplateServiceImpl) getGitOpsRepoName(appName string) string {
+func (impl ChartTemplateServiceImpl) GetGitOpsRepoName(appName string) string {
 	var repoName string
 	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
 		repoName = appName
@@ -453,4 +457,10 @@ func (impl ChartTemplateServiceImpl) getGitOpsRepoName(appName string) string {
 		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
 	}
 	return repoName
+}
+
+func (impl ChartTemplateServiceImpl) GetGitOpsRepoNameFromUrl(gitRepoUrl string) string {
+	gitRepoUrl = gitRepoUrl[strings.LastIndex(gitRepoUrl, "/")+1:]
+	gitRepoUrl = strings.ReplaceAll(gitRepoUrl, ".git", "")
+	return gitRepoUrl
 }

@@ -97,3 +97,54 @@ https://grafana.com/api/dashboards/13325/revisions/4/download
 https://grafana.com/api/dashboards/13321/revisions/6/download
 ```
 After that, your issue should be resolved and you should be able to see all the graphs on UI.
+
+#### 6. Unable to Login Devtron dashboard even if the password is correct
+
+If you are not able to login into Devtron dashboard even after giving the correct password, it is possible that the argocd token of previous session has been stored in the cookies and is not able to override the new token that is generated for the new session. If you are facing this issue, follow the steps below -
+
+If using Firefox -
+1. Goto login page of Devtron and open inspect.
+2. Navigate to storage tab in inspect.
+3. Click on url where Devtron has been installed under `Cookies` tab and you could see an argocd token with its value, something similar to below image.
+![inspect-cookies](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/argocd-cookie.png)
+4. Now right click on token, and click on `Delete All Session Cookies` option.
+
+If using Chrome -
+1. Goto login page of Devtron and open inspect.
+2. Navigate to Application tab, and under `Storage` tab click on `Cookies`.
+3. Click on url under `Cookie` and you would be able tto see an argocd token with its value, as shown in the image below.
+![chrome-cookie](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/chrome-cookie.png)
+4. Now right click on token and click on `delete` option.
+
+If using Safari -
+1. Goto Safari preferences >> Advanced options and check the show develop menu as shown in the image below.
+![safari-preferences](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/safari-preferences.png)
+2. Now goto login page of Devtron and press `option+command+I`. It will open inspect element.
+3. Then navigate to `Storage`, click on `Cookies` and you would be able to see an argocd token with its value as shown in the image below.
+![safari-cookie](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/safari-cookie.png)
+4. Now right click on token and select `delete` option.
+
+After clearing `Cookies`, try again to login, you should be able to login now.
+
+
+#### 7. No charts found in Charts Discover Section
+
+In the Devtron's Discover Chart section, if you are not able to see any charts available, goto `Global Configuration` >> `Chart Repositories` and click on `Refresh Chart` at the top-right as shown in the image below. After clicking the button, it might take 4-5mins to show all the charts in `Discover` section depending upon the chart repositories added. 
+![charts-not-found](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/refresh-charts.png)
+
+
+#### 8. Not able to update cluster
+
+In `Global Configurations` >> `Cluters & Environments`, if you try to update a cluster which has been already added in Devtron, you might get an error as `{"message":"Failed to update datasource. Reload new version and try again"}`. If you are facing such issue, please follow the following steps - 
+
+1. Edit the changes you want to make in respective cluster
+2. Click on save after making changes and you may get error message stated above.
+3. Go to cluster where devtron has been installed and execute - `kubectl -ndevtroncd delete po -l app=devtron`
+4. Now refresh the page and you should be able to save it.
+
+[Note: If you already have created some environments in that cluster, it needs to be updated again]
+
+
+
+
+

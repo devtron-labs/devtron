@@ -35,7 +35,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ktrysmt/go-bitbucket"
-
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -119,7 +118,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	chartGroupDeploymentRepository appStoreRepository.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService, argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
-	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService) (*InstalledAppServiceImpl, error) {
+	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
+	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -178,9 +178,21 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
-	impl.logger.Debug(team.Name)
+	impl.logger.Info(team)
 	argocdAppName := installedApp.App.AppName + "-" + environment.Name
-
+	gitOpsRepoName := installedApp.GitOpsRepoName
+	if len(gitOpsRepoName) == 0 {
+		application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &argocdAppName})
+		if err != nil {
+			impl.logger.Errorw("no argo app exists", "app", argocdAppName)
+			return nil, err
+		}
+		if application != nil {
+			gitOpsRepoUrl := application.Spec.Source.RepoURL
+			gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
+		}
+	}
+	installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
 		_, _, err := impl.upgradeInstalledApp(ctx, installAppVersionRequest, installedApp, tx)
@@ -296,12 +308,12 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *r
 	if err != nil {
 		return err
 	}
-	chartGitAttrForRequirement := &util.ChartConfig{
+	requirmentYamlConfig := &util.ChartConfig{
 		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
 		FileContent:    string(requirementDependenciesByte),
 		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -313,7 +325,7 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *r
 			return err
 		}
 	}
-	_, err = impl.gitFactory.Client.CommitValues(chartGitAttrForRequirement, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	_, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return err
@@ -343,12 +355,12 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 		impl.logger.Errorw("error in marshaling", "err", err)
 		return err
 	}
-	valuesYaml := &util.ChartConfig{
+	valuesConfig := &util.ChartConfig{
 		FileName:       appStoreBean.VALUES_YAML_FILE,
 		FileContent:    string(valuesByte),
 		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -360,7 +372,7 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 			return err
 		}
 	}
-	_, err = impl.gitFactory.Client.CommitValues(valuesYaml, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	_, err = impl.gitFactory.Client.CommitValues(valuesConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return err
@@ -658,10 +670,10 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		installedAppVersion.Status == appStoreBean.QUE_ERROR ||
 		installedAppVersion.Status == appStoreBean.GIT_ERROR {
 		//step 2 git operation pull push
-		installAppVersionRequest, chartGitAttrDB, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installedAppVersion)
+		_, chartGitAttrDB, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installedAppVersion)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
-			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appStoreBean.GIT_ERROR)
+			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_ERROR)
 			if err != nil {
 				impl.logger.Errorw(" error", "err", err)
 				return nil, err
@@ -669,7 +681,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 			return nil, err
 		}
 		impl.logger.Infow("GIT SUCCESSFUL", "chartGitAttrDB", chartGitAttrDB)
-		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appStoreBean.GIT_SUCCESS)
+		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_SUCCESS)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
 			return nil, err
@@ -766,7 +778,6 @@ func (impl InstalledAppServiceImpl) requestBuilderForBulkDeployment(installReque
 	}
 	return req, nil
 }
-
 
 func (impl InstalledAppServiceImpl) patchAcdApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)

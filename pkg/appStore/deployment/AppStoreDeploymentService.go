@@ -68,6 +68,7 @@ type AppStoreDeploymentServiceImpl struct {
 	clusterService                       cluster.ClusterService
 	helmAppService                       client.HelmAppService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	globalEnvVariables                   *util2.GlobalEnvVariables
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository appStoreRepository.InstalledAppRepository,
@@ -75,7 +76,8 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	clusterInstalledAppsRepository appStoreRepository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
 	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
 	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
-	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService) *AppStoreDeploymentServiceImpl {
+	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	globalEnvVariables *util2.GlobalEnvVariables) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -89,6 +91,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		clusterService:                       clusterService,
 		helmAppService:                       helmAppService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
+		globalEnvVariables:                   globalEnvVariables,
 	}
 }
 
@@ -146,6 +149,9 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installedAppModel.CreatedOn = time.Now()
 	installedAppModel.UpdatedOn = time.Now()
 	installedAppModel.Active = true
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
+		installedAppModel.GitOpsRepoName = impl.GetGitOpsRepoName(appStoreAppVersion.AppStore.Name)
+	}
 	installedApp, err := impl.installedAppRepository.CreateInstalledApp(installedAppModel, tx)
 	if err != nil {
 		impl.logger.Errorw("error while creating install app", "error", err)
@@ -189,6 +195,17 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		}
 	}
 	return installAppVersionRequest, nil
+}
+
+//TODO - dedupe, move it to one location
+func (impl AppStoreDeploymentServiceImpl) GetGitOpsRepoName(appName string) string {
+	var repoName string
+	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
+		repoName = appName
+	} else {
+		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
+	}
+	return repoName
 }
 
 func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationStatusUpdate(installAppId int, status appStoreBean.AppstoreDeploymentStatus) (bool, error) {

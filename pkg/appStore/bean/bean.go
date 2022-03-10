@@ -50,6 +50,7 @@ type InstallAppVersionDTO struct {
 	ClusterId                 int                        `json:"clusterId"` // needed for hyperion mode
 	Namespace                 string                     `json:"namespace"` // needed for hyperion mode
 	AppOfferingMode           string                     `json:"appOfferingMode"`
+	GitOpsRepoName            string                     `json:"gitOpsRepoName"`
 	EnvironmentName           string                     `json:"-"`
 	InstallAppVersionChartDTO *InstallAppVersionChartDTO `json:"-"`
 }
