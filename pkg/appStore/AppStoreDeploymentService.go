@@ -70,6 +70,7 @@ const (
 
 type InstalledAppService interface {
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
+	GetInstalledAppVersion(id int) (*appStoreBean.InstallAppVersionDTO, error)
 	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
 	DeployBulk(chartGroupInstallRequest *appStoreBean.ChartGroupInstallRequest) (*appStoreBean.ChartGroupInstallAppRes, error)
 	performDeployStage(appId int) (*appStoreBean.InstallAppVersionDTO, error)
@@ -434,6 +435,31 @@ func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, ins
 	return installAppVersionRequest, installedAppVersion, err
 }
 
+func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int) (*appStoreBean.InstallAppVersionDTO, error) {
+	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return nil, err
+	}
+	installAppVersion := &appStoreBean.InstallAppVersionDTO{
+		InstalledAppId:     app.InstalledAppId,
+		AppName:            app.InstalledApp.App.AppName,
+		AppId:              app.InstalledApp.App.Id,
+		Id:                 app.Id,
+		TeamId:             app.InstalledApp.App.TeamId,
+		EnvironmentId:      app.InstalledApp.EnvironmentId,
+		ValuesOverrideYaml: app.ValuesYaml,
+		Readme:             app.AppStoreApplicationVersion.Readme,
+		ReferenceValueKind: app.ReferenceValueKind,
+		ReferenceValueId:   app.ReferenceValueId,
+		AppStoreVersion:    app.AppStoreApplicationVersionId, //check viki
+		Status:             app.InstalledApp.Status,
+		AppStoreId:         app.AppStoreApplicationVersion.AppStoreId,
+		AppStoreName:       app.AppStoreApplicationVersion.AppStore.Name,
+		Deprecated:         app.AppStoreApplicationVersion.Deprecated,
+	}
+	return installAppVersion, err
+}
 
 func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error) {
 	applicationType := "DEVTRON-CHART-STORE"

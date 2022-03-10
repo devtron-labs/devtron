@@ -73,6 +73,8 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/installed-app").
 		HandlerFunc(router.deployRestHandler.GetAllInstalledApp).Methods("GET")
 
+	configRouter.Path("/application/version/{installedAppVersionId}").
+		HandlerFunc(router.deployRestHandler.GetInstalledAppVersion).Methods("GET")
 
 	// values router starts
 	appStoreValuesSubRouter := configRouter.PathPrefix("/values").Subrouter()
