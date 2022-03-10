@@ -648,7 +648,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		return nil, err
 	}*/
 
-	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId)
+	installedAppVersion, err := impl.GetInstalledAppVersion(installedAppVersionId)
 	if err != nil {
 		return nil, err
 	}
