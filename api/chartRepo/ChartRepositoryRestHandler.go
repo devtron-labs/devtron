@@ -18,22 +18,42 @@
 package chartRepo
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
+	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"io/ioutil"
+	"k8s.io/helm/pkg/chartutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 )
 
 const CHART_REPO_DELETE_SUCCESS_RESP = "Chart repo deleted successfully."
+
+type ChartBinary struct {
+	Version        string `json:"binaryVersion"  validate:"required"`
+	BinaryFile     string `json:"binaryFile"  validate:"required"`
+	BinaryFileName string `json:"binaryFileName" validate:"required"`
+}
 
 type ChartRepositoryRestHandler interface {
 	GetChartRepoById(w http.ResponseWriter, r *http.Request)
@@ -43,6 +63,7 @@ type ChartRepositoryRestHandler interface {
 	ValidateChartRepo(w http.ResponseWriter, r *http.Request)
 	TriggerChartSyncManual(w http.ResponseWriter, r *http.Request)
 	DeleteChartRepo(w http.ResponseWriter, r *http.Request)
+	CreateChartFromBinary(w http.ResponseWriter, r *http.Request)
 }
 
 type ChartRepositoryRestHandlerImpl struct {
@@ -283,4 +304,94 @@ func (handler *ChartRepositoryRestHandlerImpl) DeleteChartRepo(w http.ResponseWr
 		return
 	}
 	common.WriteJsonResp(w, nil, CHART_REPO_DELETE_SUCCESS_RESP, http.StatusOK)
+}
+
+func (handler *ChartRepositoryRestHandlerImpl) CreateChartFromBinary(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var bean ChartBinary
+	err := decoder.Decode(&bean)
+	if err != nil {
+		handler.Logger.Errorw("request err, HandleGitWebhook", "err", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	binaryfile, err := base64.StdEncoding.DecodeString(bean.BinaryFile)
+	var chartTemplateService util.ChartTemplateServiceImpl
+	dir := chartTemplateService.GetDir()
+	var ChartWorkingDir util.ChartWorkingDir
+	chartDir := filepath.Join(string(ChartWorkingDir), dir)
+	err = os.MkdirAll(chartDir, os.ModePerm)
+	if err != nil {
+		handler.Logger.Errorw("error in creating directory, CallbackConfigMap", "err", err)
+	}
+	err = util2.ExtractTarGz(bytes.NewReader(binaryfile), chartDir)
+	if err != nil {
+		fmt.Println("Error Retrieving the File")
+		fmt.Println(err)
+	}
+	configmapDirectoryName := strings.Split(bean.BinaryFileName, ".")
+
+	readFile, err := ioutil.ReadFile(filepath.Join(string(ChartWorkingDir), configmapDirectoryName[0], "Chart.Yaml"))
+	if err != nil {
+		handler.Logger.Errorw("error in read file, CallbackConfigMap", "err", err)
+	}
+
+	chartContent, err := chartutil.UnmarshalChartfile(readFile)
+	if err != nil {
+		handler.Logger.Errorw("error in Unmarshal Chartfile, CallbackConfigMap", "err", err)
+	}
+
+	chartName := chartContent.Name
+	chartVersion := chartContent.Version
+
+	var chartLocation string
+	if !strings.Contains(chartName, strings.ReplaceAll(chartVersion, ".", "-")) {
+		chartLocation = chartName + "_" + strings.ReplaceAll(chartVersion, ".", "-")
+	} else {
+		chartLocation = chartName
+	}
+
+	var RefChartDir pipeline.RefChartDir
+	refChartDir := filepath.Join(string(RefChartDir), chartLocation)
+	files, err := ioutil.ReadDir(chartDir)
+	if err != nil {
+		handler.Logger.Errorw("error in reading chart directory", "err", err)
+	}
+	CurrentChartWorkingDir := filepath.Join(chartDir, files[0].Name())
+	err = dirCopy.Copy(CurrentChartWorkingDir, refChartDir)
+	if err != nil {
+		handler.Logger.Errorw("error in copy directory, CallbackConfigMap", "err", err)
+	}
+
+	chartConfigMap := chartRepoRepository.ChartRefRepositoryImpl{}
+	charts, err := chartConfigMap.GetAll()
+	if err != nil {
+		handler.Logger.Errorw("error in getAll ConfigMap, CallbackConfigMap", "err", err)
+	}
+	for _, chart := range charts {
+		if (chart.Name == chartName && chart.Version == chartVersion) || (chart.Location == chartLocation) {
+			return
+		}
+	}
+
+	chartRefs := &chartRepoRepository.ChartRef{
+		Name:      chartName,
+		Version:   chartVersion,
+		Location:  chartLocation,
+		Active:    true,
+		Default:   false,
+		ChartData: nil,
+		AuditLog: sql.AuditLog{
+			CreatedBy: 1,
+			CreatedOn: time.Now(),
+			UpdatedOn: time.Now(),
+			UpdatedBy: 1,
+		},
+	}
+
+	err = chartConfigMap.Save(chartRefs)
+	if err != nil {
+		handler.Logger.Errorw("error in saving ConfigMap, CallbackConfigMap", "err", err)
+	}
 }
