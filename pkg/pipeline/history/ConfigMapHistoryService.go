@@ -344,12 +344,6 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 		DeployedOn: history.DeployedOn,
 		DeployedBy: history.DeployedBy,
 		EmailId:    userInfo.EmailId,
-		AuditLog: sql.AuditLog{
-			CreatedBy: history.CreatedBy,
-			CreatedOn: history.CreatedOn,
-			UpdatedBy: history.UpdatedBy,
-			UpdatedOn: history.UpdatedOn,
-		},
 	}
 	return historyDto, nil
 }
@@ -369,6 +363,9 @@ func (impl ConfigMapHistoryServiceImpl) GetDeploymentDetailsForDeployedCMCSHisto
 		}
 		historyDto := &ConfigMapAndSecretHistoryDto{
 			Id:         history.Id,
+			AppId:      history.AppId,
+			PipelineId: history.PipelineId,
+			Deployed:   history.Deployed,
 			DeployedOn: history.DeployedOn,
 			DeployedBy: history.DeployedBy,
 			EmailId:    userInfo.EmailId,

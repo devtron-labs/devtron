@@ -70,8 +70,7 @@ func (impl PipelineStrategyHistoryRepositoryImpl) GetHistoryForDeployedStrategyB
 func (impl PipelineStrategyHistoryRepositoryImpl) GetDeploymentDetailsForDeployedStrategyHistory(pipelineId int) ([]*PipelineStrategyHistory, error) {
 	var histories []*PipelineStrategyHistory
 	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
-		Where("deployed = ?", true).
-		Column("id", "deployed_on", "deployed_by").Select()
+		Where("deployed = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting strategy history", "err", err)
 		return histories, err

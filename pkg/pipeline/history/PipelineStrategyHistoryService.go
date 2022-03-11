@@ -106,12 +106,6 @@ func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategyById
 		DeployedOn: history.DeployedOn,
 		DeployedBy: history.DeployedBy,
 		EmailId:    user.EmailId,
-		AuditLog: sql.AuditLog{
-			CreatedBy: history.CreatedBy,
-			CreatedOn: history.CreatedOn,
-			UpdatedBy: history.UpdatedBy,
-			UpdatedOn: history.UpdatedOn,
-		},
 	}
 	return historyDto, nil
 }
@@ -131,6 +125,8 @@ func (impl PipelineStrategyHistoryServiceImpl) GetDeploymentDetailsForDeployedSt
 		}
 		historyDto := &PipelineStrategyHistoryDto{
 			Id:         history.Id,
+			PipelineId: history.PipelineId,
+			Deployed:   history.Deployed,
 			DeployedOn: history.DeployedOn,
 			DeployedBy: history.DeployedBy,
 			EmailId:    user.EmailId,

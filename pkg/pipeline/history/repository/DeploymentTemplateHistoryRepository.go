@@ -73,8 +73,7 @@ func (impl DeploymentTemplateHistoryRepositoryImpl) GetHistoryForDeployedTemplat
 func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeploymentDetailsForDeployedTemplateHistory(pipelineId int) ([]*DeploymentTemplateHistory, error) {
 	var histories []*DeploymentTemplateHistory
 	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
-		Where("deployed = ?", true).
-		Column("id", "deployed_on", "deployed_by").Select()
+		Where("deployed = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment template history", "err", err)
 		return histories, err

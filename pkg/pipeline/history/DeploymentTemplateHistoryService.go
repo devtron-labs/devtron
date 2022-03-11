@@ -292,12 +292,6 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplatesB
 		DeployedOn:              history.DeployedOn,
 		DeployedBy:              history.DeployedBy,
 		EmailId:                 user.EmailId,
-		AuditLog: sql.AuditLog{
-			CreatedBy: history.CreatedBy,
-			CreatedOn: history.CreatedOn,
-			UpdatedBy: history.UpdatedBy,
-			UpdatedOn: history.UpdatedOn,
-		},
 	}
 	return historyDto, nil
 }
@@ -317,6 +311,9 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 		}
 		historyDto := &DeploymentTemplateHistoryDto{
 			Id:         history.Id,
+			AppId:      history.AppId,
+			PipelineId: history.PipelineId,
+			Deployed:   history.Deployed,
 			DeployedOn: history.DeployedOn,
 			DeployedBy: history.DeployedBy,
 			EmailId:    user.EmailId,

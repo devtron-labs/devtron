@@ -68,8 +68,7 @@ func (impl ConfigMapHistoryRepositoryImpl) GetDeploymentDetailsForDeployedCMCSHi
 	var histories []*ConfigmapAndSecretHistory
 	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
 		Where("data_type = ?", configType).
-		Where("deployed = ?", true).
-		Column("id", "deployed_on", "deployed_by").Select()
+		Where("deployed = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting deployed CM/CS history", "err", err)
 		return histories, err

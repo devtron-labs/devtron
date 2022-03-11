@@ -2,7 +2,6 @@ package history
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 )
 
@@ -10,13 +9,12 @@ type ConfigMapAndSecretHistoryDto struct {
 	Id         int           `json:"id"`
 	PipelineId int           `json:"pipelineId"`
 	AppId      int           `json:"appId"`
-	DataType   string        `json:"dataType"`
-	ConfigData []*ConfigData `json:"configData"`
+	DataType   string        `json:"dataType,omitempty"`
+	ConfigData []*ConfigData `json:"configData,omitempty"`
 	Deployed   bool          `json:"deployed"`
 	DeployedOn time.Time     `json:"deployedOn"`
 	DeployedBy int32         `json:"deployedBy"`
 	EmailId    string        `json:"emailId"`
-	sql.AuditLog
 }
 
 type PrePostCdScriptHistoryDto struct {
@@ -32,7 +30,6 @@ type PrePostCdScriptHistoryDto struct {
 	Deployed             bool                             `json:"deployed"`
 	DeployedOn           time.Time                        `json:"deployedOn"`
 	DeployedBy           int32                            `json:"deployedBy"`
-	sql.AuditLog
 }
 
 type PrePostStageConfigMapSecretNames struct {
@@ -44,30 +41,28 @@ type DeploymentTemplateHistoryDto struct {
 	Id                      int       `json:"id"`
 	PipelineId              int       `json:"pipelineId"`
 	AppId                   int       `json:"appId"`
-	ImageDescriptorTemplate string    `json:"imageDescriptorTemplate"`
-	Template                string    `json:"template"`
-	TemplateName            string    `json:"templateName"`
-	TemplateVersion         string    `json:"templateVersion"`
-	IsAppMetricsEnabled     bool      `json:"isAppMetricsEnabled"`
-	TargetEnvironment       int       `json:"targetEnvironment"`
+	ImageDescriptorTemplate string    `json:"imageDescriptorTemplate,omitempty"`
+	Template                string    `json:"template,omitempty"`
+	TemplateName            string    `json:"templateName,omitempty"`
+	TemplateVersion         string    `json:"templateVersion,omitempty"`
+	IsAppMetricsEnabled     bool      `json:"isAppMetricsEnabled,omitempty"`
+	TargetEnvironment       int       `json:"targetEnvironment,omitempty"`
 	Deployed                bool      `json:"deployed"`
 	DeployedOn              time.Time `json:"deployedOn"`
 	DeployedBy              int32     `json:"deployedBy"`
 	EmailId                 string    `json:"emailId"`
-	sql.AuditLog
 }
 
 type PipelineStrategyHistoryDto struct {
 	Id         int       `json:"id"`
 	PipelineId int       `json:"pipelineId"`
-	Strategy   string    `json:"strategy"`
-	Config     string    `json:"config"`
-	Default    bool      `json:"default"`
+	Strategy   string    `json:"strategy,omitempty"`
+	Config     string    `json:"config,omitempty"`
+	Default    bool      `json:"default,omitempty"`
 	Deployed   bool      `json:"deployed"`
 	DeployedOn time.Time `json:"deployedOn"`
 	DeployedBy int32     `json:"deployedBy"`
 	EmailId    string    `json:"emailId"`
-	sql.AuditLog
 }
 
 // duplicate structs below, because importing from pkg/pipeline was resulting in circular dependency
