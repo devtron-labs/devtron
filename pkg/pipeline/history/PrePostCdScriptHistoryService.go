@@ -124,12 +124,6 @@ func (impl PrePostCdScriptHistoryServiceImpl) GetHistoryForDeployedPrePostCdScri
 			Deployed:             history.Deployed,
 			DeployedOn:           history.DeployedOn,
 			DeployedBy:           history.DeployedBy,
-			AuditLog: sql.AuditLog{
-				CreatedBy: history.CreatedBy,
-				CreatedOn: history.CreatedOn,
-				UpdatedBy: history.UpdatedBy,
-				UpdatedOn: history.UpdatedOn,
-			},
 		}
 		historiesDto = append(historiesDto, historyDto)
 	}
