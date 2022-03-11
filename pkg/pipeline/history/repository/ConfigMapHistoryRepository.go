@@ -52,16 +52,16 @@ func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(model *ConfigmapAndSecr
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) GetHistoryForDeployedCMCSById(id, pipelineId int, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
-	var history *ConfigmapAndSecretHistory
-	err := impl.dbConnection.Model(history).Where("id = ?", id).
+	var history ConfigmapAndSecretHistory
+	err := impl.dbConnection.Model(&history).Where("id = ?", id).
 		Where("pipeline_id = ?", pipelineId).
 		Where("data_type = ?", configType).
 		Where("deployed = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting CM/CS history", "err", err)
-		return history, err
+		return &history, err
 	}
-	return history, nil
+	return &history, nil
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error) {

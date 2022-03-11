@@ -56,15 +56,15 @@ func (impl PipelineStrategyHistoryRepositoryImpl) CreateHistoryWithTxn(model *Pi
 }
 
 func (impl PipelineStrategyHistoryRepositoryImpl) GetHistoryForDeployedStrategyById(id, pipelineId int) (*PipelineStrategyHistory, error) {
-	var history *PipelineStrategyHistory
-	err := impl.dbConnection.Model(history).Where("id = ?", id).
+	var history PipelineStrategyHistory
+	err := impl.dbConnection.Model(&history).Where("id = ?", id).
 		Where("pipeline_id = ?", pipelineId).
 		Where("deployed = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting strategy history", "err", err)
-		return history, err
+		return &history, err
 	}
-	return history, nil
+	return &history, nil
 }
 
 func (impl PipelineStrategyHistoryRepositoryImpl) GetDeploymentDetailsForDeployedStrategyHistory(pipelineId int) ([]*PipelineStrategyHistory, error) {

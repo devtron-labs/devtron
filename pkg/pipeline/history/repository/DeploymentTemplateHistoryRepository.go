@@ -59,15 +59,15 @@ func (impl DeploymentTemplateHistoryRepositoryImpl) CreateHistoryWithTxn(chart *
 }
 
 func (impl DeploymentTemplateHistoryRepositoryImpl) GetHistoryForDeployedTemplateById(id, pipelineId int) (*DeploymentTemplateHistory, error) {
-	var history *DeploymentTemplateHistory
-	err := impl.dbConnection.Model(history).Where("id = ?", id).
+	var history DeploymentTemplateHistory
+	err := impl.dbConnection.Model(&history).Where("id = ?", id).
 		Where("pipeline_id = ?", pipelineId).
 		Where("deployed = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment template history", "err", err)
-		return history, err
+		return &history, err
 	}
-	return history, nil
+	return &history, nil
 }
 
 func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeploymentDetailsForDeployedTemplateHistory(pipelineId int) ([]*DeploymentTemplateHistory, error) {
