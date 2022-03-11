@@ -123,7 +123,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		Name:    appStoreAppVersion.AppStore.Name,
 		Version: "1.0.1",
 	}
-	_, chartGitAttr, err := impl.chartTemplateService.CreateChartProxy(chartMeta, chartPath, template, appStoreAppVersion.Version, environment.Name, installAppVersionRequest.AppName)
+	_, chartGitAttr, err := impl.chartTemplateService.CreateChartProxy(chartMeta, chartPath, template, appStoreAppVersion.Version, environment.Name, installAppVersionRequest)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -151,7 +151,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		return nil, nil, err
 	}
 
-	gitOpsRepoName:=impl.chartTemplateService.GetGitOpsRepoName(chartMeta.Name)
+	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(chartMeta.Name)
 	requirmentYamlConfig := &util.ChartConfig{
 		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
 		FileContent:    string(requirementDependenciesByte),

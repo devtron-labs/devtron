@@ -134,6 +134,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installedAppModel.Active = true
 	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
 		installedAppModel.GitOpsRepoName = impl.GetGitOpsRepoName(appStoreAppVersion.AppStore.Name)
+		installAppVersionRequest.GitOpsRepoName = installedAppModel.GitOpsRepoName
 	}
 	installedApp, err := impl.installedAppRepository.CreateInstalledApp(installedAppModel, tx)
 	if err != nil {
