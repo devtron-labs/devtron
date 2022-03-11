@@ -30,7 +30,6 @@ type ChartRefRestHandler interface {
 	ChartRefAutocomplete(w http.ResponseWriter, r *http.Request)
 	ChartRefAutocompleteForApp(w http.ResponseWriter, r *http.Request)
 	ChartRefAutocompleteForEnv(w http.ResponseWriter, r *http.Request)
-	CreateChartFromBinary(w http.ResponseWriter, r *http.Request)
 }
 
 type ChartRefRestHandlerImpl struct {
