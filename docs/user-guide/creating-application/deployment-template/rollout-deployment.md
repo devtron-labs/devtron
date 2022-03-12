@@ -214,14 +214,14 @@ ingress:
   annotations: {}
   hosts:
       - host: example1.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example
-        pathType:
       - host: example2.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example2
             - /example2/healthz
-        pathType:   
   tls: []
 ```
 Legacy deployment-template ingress format
@@ -241,8 +241,9 @@ ingress:
 | :--- | :--- |
 | `enabled` | Enable or disable ingress |
 | `annotations` | To configure some options depending on the Ingress controller |
-| `path` | Path name |
 | `host` | Host name |
+| `pathType` | Path in an Ingress is required to have a corresponding path type. Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`. |
+| `path` | Path name |
 | `tls` | It contains security details |
 
 ### Ingress Internal
@@ -257,14 +258,14 @@ ingressInternal:
   annotations: {}
   hosts:
       - host: example1.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example
-        pathType:
       - host: example2.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example2
             - /example2/healthz
-        pathType:
   tls: []
 ```
 
@@ -273,6 +274,7 @@ ingressInternal:
 | `enabled` | Enable or disable ingress |
 | `annotations` | To configure some options depending on the Ingress controller |
 | `host` | Host name |
+| `pathType` | Path in an Ingress is required to have a corresponding path type. Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`. |
 | `path` | Path name |
 | `pathType` | Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`.|
 | `tls` | It contains security details |
