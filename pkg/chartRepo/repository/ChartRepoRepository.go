@@ -291,8 +291,8 @@ type ChartRef struct {
 	Id        int      `sql:"id,pk"`
 	Location  string   `sql:"location"`
 	Version   string   `sql:"version"`
-	Active    bool     `sql:"active"`
-	Default   bool     `sql:"is_default"`
+	Active    bool     `sql:"active,notnull"`
+	Default   bool     `sql:"is_default,notnull"`
 	Name      string   `sql:"name"`
 	ChartData []byte   `sql:"chart_data"`
 	sql.AuditLog

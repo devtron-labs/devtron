@@ -34,14 +34,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
-	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"io/ioutil"
-	"k8s.io/helm/pkg/chartutil"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -73,10 +68,13 @@ type ChartRepositoryRestHandlerImpl struct {
 	enforcer               casbin.Enforcer
 	validator              *validator.Validate
 	deleteService          delete2.DeleteService
+	chartRefRepository     chartRepoRepository.ChartRefRepository
+	refChartDir            pipeline.RefChartDir
 }
 
 func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, chartRepositoryService chartRepo.ChartRepositoryService,
-	enforcer casbin.Enforcer, validator *validator.Validate, deleteService delete2.DeleteService) *ChartRepositoryRestHandlerImpl {
+	enforcer casbin.Enforcer, validator *validator.Validate, deleteService delete2.DeleteService,
+	chartRefRepository chartRepoRepository.ChartRefRepository, refChartDir pipeline.RefChartDir) *ChartRepositoryRestHandlerImpl {
 	return &ChartRepositoryRestHandlerImpl{
 		Logger:                 Logger,
 		chartRepositoryService: chartRepositoryService,
@@ -84,6 +82,8 @@ func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServic
 		enforcer:               enforcer,
 		validator:              validator,
 		deleteService:          deleteService,
+		chartRefRepository:     chartRefRepository,
+		refChartDir:            refChartDir,
 	}
 }
 
@@ -317,33 +317,16 @@ func (handler *ChartRepositoryRestHandlerImpl) CreateChartFromBinary(w http.Resp
 	}
 
 	binaryfile, err := base64.StdEncoding.DecodeString(bean.BinaryFile)
-	var chartTemplateService util.ChartTemplateServiceImpl
-	dir := chartTemplateService.GetDir()
-	var ChartWorkingDir util.ChartWorkingDir
-	chartDir := filepath.Join(string(ChartWorkingDir), dir)
-	err = os.MkdirAll(chartDir, os.ModePerm)
-	if err != nil {
-		handler.Logger.Errorw("error in creating directory, CallbackConfigMap", "err", err)
-	}
-	err = util2.ExtractTarGz(bytes.NewReader(binaryfile), chartDir)
+
+	err = util2.ExtractTarGz(bytes.NewReader(binaryfile), string(handler.refChartDir))
 	if err != nil {
 		fmt.Println("Error Retrieving the File")
-		fmt.Println(err)
-	}
-	configmapDirectoryName := strings.Split(bean.BinaryFileName, ".")
-
-	readFile, err := ioutil.ReadFile(filepath.Join(string(ChartWorkingDir), configmapDirectoryName[0], "Chart.Yaml"))
-	if err != nil {
-		handler.Logger.Errorw("error in read file, CallbackConfigMap", "err", err)
+		common.WriteJsonResp(w, err, "Error Retrieving the File", http.StatusBadRequest)
+		return
 	}
 
-	chartContent, err := chartutil.UnmarshalChartfile(readFile)
-	if err != nil {
-		handler.Logger.Errorw("error in Unmarshal Chartfile, CallbackConfigMap", "err", err)
-	}
-
-	chartName := chartContent.Name
-	chartVersion := chartContent.Version
+	chartName := bean.BinaryFileName
+	chartVersion := bean.Version
 
 	var chartLocation string
 	if !strings.Contains(chartName, strings.ReplaceAll(chartVersion, ".", "-")) {
@@ -352,25 +335,13 @@ func (handler *ChartRepositoryRestHandlerImpl) CreateChartFromBinary(w http.Resp
 		chartLocation = chartName
 	}
 
-	var RefChartDir pipeline.RefChartDir
-	refChartDir := filepath.Join(string(RefChartDir), chartLocation)
-	files, err := ioutil.ReadDir(chartDir)
-	if err != nil {
-		handler.Logger.Errorw("error in reading chart directory", "err", err)
-	}
-	CurrentChartWorkingDir := filepath.Join(chartDir, files[0].Name())
-	err = dirCopy.Copy(CurrentChartWorkingDir, refChartDir)
-	if err != nil {
-		handler.Logger.Errorw("error in copy directory, CallbackConfigMap", "err", err)
-	}
-
-	chartConfigMap := chartRepoRepository.ChartRefRepositoryImpl{}
-	charts, err := chartConfigMap.GetAll()
+	charts, err := handler.chartRefRepository.GetAll()
 	if err != nil {
 		handler.Logger.Errorw("error in getAll ConfigMap, CallbackConfigMap", "err", err)
 	}
 	for _, chart := range charts {
 		if (chart.Name == chartName && chart.Version == chartVersion) || (chart.Location == chartLocation) {
+			common.WriteJsonResp(w, err, "Chart Name and Version is already present", http.StatusBadRequest)
 			return
 		}
 	}
@@ -390,8 +361,12 @@ func (handler *ChartRepositoryRestHandlerImpl) CreateChartFromBinary(w http.Resp
 		},
 	}
 
-	err = chartConfigMap.Save(chartRefs)
+	err = handler.chartRefRepository.Save(chartRefs)
 	if err != nil {
 		handler.Logger.Errorw("error in saving ConfigMap, CallbackConfigMap", "err", err)
+		common.WriteJsonResp(w, err, "Chart couldn't be saved", http.StatusBadRequest)
+		return
 	}
+	common.WriteJsonResp(w, err, "Chart Saved Successfully", http.StatusOK)
+	return
 }
