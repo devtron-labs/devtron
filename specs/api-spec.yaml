@@ -1,0 +1,65 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/app-store/deployment/application/rollback:
+    put:
+      description: Rollback application if the application is installed from the chartStore
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackReleaseRequest'
+      responses:
+        "200":
+          description: application rollback response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RollbackReleaseResponse"
+  /orchestrator/application/rollback:
+    put:
+      description: Rollback application if the application is installed externally using helm (external-app)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackReleaseRequest'
+      responses:
+        "200":
+          description: application rollback response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RollbackReleaseResponse"
+components:
+  schemas:
+    RollbackReleaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
+    RollbackReleaseRequest:
+      type: object
+      properties:
+        installedAppId:
+          type: integer
+          description: Installed App Id if the app is installed from chart store
+          example: 1
+        installedAppVersionId:
+          type: integer
+          description: Installed App Version Id if the app is installed from chart store
+          example: 2
+        hAppId:
+          type: string
+          description: helm App Id if the application is installed from using helm (for example "clusterId|namespace|appName" )
+          example: "1|default|someName"
+        version:
+          type: integer
+          description: rollback to this version
+          example: 10

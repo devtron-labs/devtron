@@ -23,6 +23,7 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -53,6 +54,7 @@ type AppStoreDeploymentService interface {
 	GetAllInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request, token string, appStoreId int) ([]appStoreBean.InstalledAppsResponse, error)
 	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateHelmApplicationWithChartStoreLinking(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, error)
+	RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest, installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error)
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -597,4 +599,54 @@ func (impl AppStoreDeploymentServiceImpl) createEnvironmentIfNotExists(installAp
 	}
 
 	return envCreateRes.Id, nil
+}
+
+func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest,
+	installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error) {
+
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return false, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	// update same chart or upgrade its version only
+	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(int(request.GetInstalledAppVersionId()))
+	if err != nil {
+		impl.logger.Errorw("error while fetching chart installed version", "error", err)
+		return false, err
+	}
+
+	var valuesYaml string
+	var success bool
+	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		valuesYaml, success, err = impl.appStoreDeploymentHelmService.RollbackRelease(ctx, installedApp, request.GetVersion())
+		if err != nil {
+			impl.logger.Errorw("error while rollback helm release", "error", err)
+			return false, err
+		}
+	} else {
+		// TODO : handle acd
+	}
+
+	//DB operation
+	installedAppVersion.ValuesYaml = valuesYaml
+	installedAppVersion.UpdatedOn = time.Now()
+	installedAppVersion.UpdatedBy = userId
+	_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
+	if err != nil {
+		impl.logger.Errorw("error while updating db", "error", err)
+		return false, err
+	}
+
+	//STEP 8: finish with return response
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while committing transaction to db", "error", err)
+		return false, err
+	}
+	return success, nil
+
 }

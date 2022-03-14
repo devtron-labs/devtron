@@ -35,6 +35,7 @@ type ApplicationServiceClient interface {
 	InstallRelease(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*InstallReleaseResponse, error)
 	UpgradeReleaseWithChartInfo(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error)
 	IsReleaseInstalled(ctx context.Context, in *ReleaseIdentifier, opts ...grpc.CallOption) (*BooleanResponse, error)
+	RollbackRelease(ctx context.Context, in *RollbackReleaseRequest, opts ...grpc.CallOption) (*BooleanResponse, error)
 }
 
 type applicationServiceClient struct {
@@ -185,6 +186,15 @@ func (c *applicationServiceClient) IsReleaseInstalled(ctx context.Context, in *R
 	return out, nil
 }
 
+func (c *applicationServiceClient) RollbackRelease(ctx context.Context, in *RollbackReleaseRequest, opts ...grpc.CallOption) (*BooleanResponse, error) {
+	out := new(BooleanResponse)
+	err := c.cc.Invoke(ctx, "/ApplicationService/RollbackRelease", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationServiceServer is the server API for ApplicationService service.
 // All implementations must embed UnimplementedApplicationServiceServer
 // for forward compatibility
@@ -202,6 +212,7 @@ type ApplicationServiceServer interface {
 	InstallRelease(context.Context, *InstallReleaseRequest) (*InstallReleaseResponse, error)
 	UpgradeReleaseWithChartInfo(context.Context, *InstallReleaseRequest) (*UpgradeReleaseResponse, error)
 	IsReleaseInstalled(context.Context, *ReleaseIdentifier) (*BooleanResponse, error)
+	RollbackRelease(context.Context, *RollbackReleaseRequest) (*BooleanResponse, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
 
@@ -247,6 +258,9 @@ func (UnimplementedApplicationServiceServer) UpgradeReleaseWithChartInfo(context
 }
 func (UnimplementedApplicationServiceServer) IsReleaseInstalled(context.Context, *ReleaseIdentifier) (*BooleanResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method IsReleaseInstalled not implemented")
+}
+func (UnimplementedApplicationServiceServer) RollbackRelease(context.Context, *RollbackReleaseRequest) (*BooleanResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RollbackRelease not implemented")
 }
 func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
 
@@ -498,6 +512,24 @@ func _ApplicationService_IsReleaseInstalled_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_RollbackRelease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RollbackReleaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).RollbackRelease(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/RollbackRelease",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).RollbackRelease(ctx, req.(*RollbackReleaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ApplicationService_ServiceDesc is the grpc.ServiceDesc for ApplicationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -552,6 +584,10 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "IsReleaseInstalled",
 			Handler:    _ApplicationService_IsReleaseInstalled_Handler,
+		},
+		{
+			MethodName: "RollbackRelease",
+			Handler:    _ApplicationService_RollbackRelease_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

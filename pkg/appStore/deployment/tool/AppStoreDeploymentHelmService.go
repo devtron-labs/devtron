@@ -17,6 +17,7 @@ type AppStoreDeploymentHelmService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) error
 	GetAppStatus(installedAppAndEnvDetails appStoreRepository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error
+	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (string, bool, error)
 }
 
 type AppStoreDeploymentHelmServiceImpl struct {
@@ -101,4 +102,30 @@ func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Con
 
 	_, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
 	return err
+}
+
+func (impl AppStoreDeploymentHelmServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (string, bool, error) {
+
+	// TODO : fetch values yaml from DB instead of fetching from helm cli
+	// TODO Dependency : on updating helm APP, DB is not being updated. values yaml is sent directly to helm cli. After DB updatation development, we can fetch values yaml from DB, not from CLI.
+
+	helmAppIdeltifier := &client.AppIdentifier{
+		ClusterId:   installedApp.ClusterId,
+		Namespace:   installedApp.Namespace,
+		ReleaseName: installedApp.AppName,
+	}
+
+	helmAppDeploymentDetail, err := impl.helmAppService.GetDeploymentDetail(ctx, helmAppIdeltifier, deploymentVersion)
+	if err != nil {
+		return "", false, err
+	}
+	valuesYaml := helmAppDeploymentDetail.GetValuesYaml()
+
+	// send to helm
+	success, err := impl.helmAppService.RollbackRelease(ctx, helmAppIdeltifier, deploymentVersion)
+	if err != nil {
+		return "", false, err
+	}
+
+	return valuesYaml, success, nil
 }
