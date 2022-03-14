@@ -204,7 +204,7 @@ func (handler *HelmAppRestHandlerImpl) GetDeploymentHistory(w http.ResponseWrite
 	}
 
 	res := &DeploymentHistoryAndInstalledAppInfo{
-		DeploymentHistory: deploymentHistory,
+		DeploymentHistory: deploymentHistory.GetDeploymentHistory(),
 		InstalledAppInfo:  convertToInstalledAppInfo(installedApp),
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
@@ -489,8 +489,8 @@ type ReleaseAndInstalledAppInfo struct {
 }
 
 type DeploymentHistoryAndInstalledAppInfo struct {
-	InstalledAppInfo  *InstalledAppInfo         `json:"installedAppInfo"`
-	DeploymentHistory *HelmAppDeploymentHistory `json:"deploymentHistory"`
+	InstalledAppInfo  *InstalledAppInfo          `json:"installedAppInfo"`
+	DeploymentHistory []*HelmAppDeploymentDetail `json:"deploymentHistory"`
 }
 
 type InstalledAppInfo struct {

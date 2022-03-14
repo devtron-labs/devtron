@@ -639,9 +639,10 @@ components:
       type: object
       properties:
         deploymentHistory:
-          type: object
-          $ref: "#/components/schemas/HelmAppDeploymentHistory"
+          type: array
           description: deployment history
+          items:
+            $ref: "#/components/schemas/HelmAppDeploymentDetail"
         installedAppInfo:
           type: object
           $ref: "#/components/schemas/InstalledAppInfo"
