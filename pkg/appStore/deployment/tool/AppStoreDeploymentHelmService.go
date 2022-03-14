@@ -7,6 +7,7 @@ import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -72,6 +73,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) GetAppStatus(installedAppAndEnvDet
 
 	environment, err := impl.environmentRepository.FindById(installedAppAndEnvDetails.EnvironmentId)
 	if err != nil {
+		impl.Logger.Errorw("Error in getting environment", "err", err)
 		return "", err
 	}
 
@@ -86,6 +88,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) GetAppStatus(installedAppAndEnvDet
 
 	appDetail, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 	if err != nil {
+		impl.Logger.Errorw("Error in getting helm application detail", "err", err)
 		return "", err
 	}
 
@@ -117,15 +120,22 @@ func (impl AppStoreDeploymentHelmServiceImpl) RollbackRelease(ctx context.Contex
 
 	helmAppDeploymentDetail, err := impl.helmAppService.GetDeploymentDetail(ctx, helmAppIdeltifier, deploymentVersion)
 	if err != nil {
+		impl.Logger.Errorw("Error in getting helm application deployment detail", "err", err)
 		return "", false, err
 	}
-	valuesYaml := helmAppDeploymentDetail.GetValuesYaml()
+	valuesYamlJson := helmAppDeploymentDetail.GetValuesYaml()
+	valuesYamlByteArr, err := yaml.JSONToYAML([]byte(valuesYamlJson))
+	if err != nil {
+		impl.Logger.Errorw("Error in converting json to yaml", "err", err)
+		return "", false, err
+	}
 
 	// send to helm
 	success, err := impl.helmAppService.RollbackRelease(ctx, helmAppIdeltifier, deploymentVersion)
 	if err != nil {
+		impl.Logger.Errorw("Error in helm rollback release", "err", err)
 		return "", false, err
 	}
 
-	return valuesYaml, success, nil
+	return string(valuesYamlByteArr), success, nil
 }
