@@ -19,7 +19,6 @@ package chartRepo
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,6 +35,8 @@ import (
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
@@ -45,9 +46,9 @@ import (
 const CHART_REPO_DELETE_SUCCESS_RESP = "Chart repo deleted successfully."
 
 type ChartBinary struct {
-	Version        string `json:"binaryVersion"  validate:"required"`
-	BinaryFile     string `json:"binaryFile"  validate:"required"`
-	BinaryFileName string `json:"binaryFileName" validate:"required"`
+	Version        string         `json:"binaryVersion"  validate:"required"`
+	BinaryFile     multipart.File `json:"binaryFile"  validate:"required"`
+	BinaryFileName string         `json:"binaryFileName" validate:"required"`
 }
 
 type ChartRepositoryRestHandler interface {
@@ -307,57 +308,77 @@ func (handler *ChartRepositoryRestHandlerImpl) DeleteChartRepo(w http.ResponseWr
 }
 
 func (handler *ChartRepositoryRestHandlerImpl) CreateChartFromBinary(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
 	var bean ChartBinary
-	err := decoder.Decode(&bean)
+	file, fileHeader, err := r.FormFile("BinaryFile")
 	if err != nil {
-		handler.Logger.Errorw("request err, HandleGitWebhook", "err", err, "payload", bean)
+		handler.Logger.Errorw("request err, File parsing error", "err", err, "payload", file)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	binaryfile, err := base64.StdEncoding.DecodeString(bean.BinaryFile)
+	if err := r.ParseForm(); err != nil {
+		handler.Logger.Errorw("request err, Corrupted form data", "err", err, "payload", file)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
-	err = util2.ExtractTarGz(bytes.NewReader(binaryfile), string(handler.refChartDir))
+	bean.BinaryFileName = r.PostForm.Get("BinaryFileName")
+	bean.Version = r.PostForm.Get("Version")
+
+	fileBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		handler.Logger.Errorw("request err, File parsing error", "err", err, "payload", file)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	}
+
+	err = util2.ExtractTarGz(bytes.NewReader(fileBytes), string(handler.refChartDir))
 	if err != nil {
 		fmt.Println("Error Retrieving the File")
 		common.WriteJsonResp(w, err, "Error Retrieving the File", http.StatusBadRequest)
 		return
 	}
 
-	chartName := bean.BinaryFileName
+	chartName := strings.Split(fileHeader.Filename, ".")
 	chartVersion := bean.Version
 
 	var chartLocation string
-	if !strings.Contains(chartName, strings.ReplaceAll(chartVersion, ".", "-")) {
-		chartLocation = chartName + "_" + strings.ReplaceAll(chartVersion, ".", "-")
+	chartVersion = strings.ReplaceAll(chartVersion, ".", "-")
+	if !strings.Contains(chartName[0], chartVersion) {
+		chartLocation = chartName[0] + "_" + chartVersion
 	} else {
-		chartLocation = chartName
+		chartLocation = chartName[0]
 	}
 
-	charts, err := handler.chartRefRepository.GetAll()
-	if err != nil {
-		handler.Logger.Errorw("error in getAll ConfigMap, CallbackConfigMap", "err", err)
-	}
-	for _, chart := range charts {
-		if (chart.Name == chartName && chart.Version == chartVersion) || (chart.Location == chartLocation) {
-			common.WriteJsonResp(w, err, "Chart Name and Version is already present", http.StatusBadRequest)
-			return
-		}
+	exists, err := handler.chartRefRepository.DataExists(bean.BinaryFileName, chartVersion, chartLocation)
+	if exists {
+		common.WriteJsonResp(w, errors.New("chart Name and Version is already present"), "", http.StatusBadRequest)
+		return
 	}
 
 	chartRefs := &chartRepoRepository.ChartRef{
-		Name:      chartName,
+		Name:      bean.BinaryFileName,
 		Version:   chartVersion,
 		Location:  chartLocation,
 		Active:    true,
 		Default:   false,
-		ChartData: nil,
+		ChartData: fileBytes,
 		AuditLog: sql.AuditLog{
-			CreatedBy: 1,
+			CreatedBy: userId,
 			CreatedOn: time.Now(),
 			UpdatedOn: time.Now(),
-			UpdatedBy: 1,
+			UpdatedBy: userId,
 		},
 	}
 

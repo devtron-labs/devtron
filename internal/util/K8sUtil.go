@@ -22,14 +22,9 @@ import (
 	error2 "errors"
 	"flag"
 	"github.com/devtron-labs/authenticator/client"
-	"github.com/davecgh/go-spew/spew"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/klog"
-	"net/http"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	batchV1 "k8s.io/api/batch/v1"
-	coreV1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +38,7 @@ import (
 	"path/filepath"
 	"time"
 )
+
 type K8sUtil struct {
 	logger        *zap.SugaredLogger
 	runTimeConfig *client.RuntimeConfig
@@ -59,7 +55,7 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 	if err != nil {
 		return nil
 	}
-	var kubeconfig *string;
+	var kubeconfig *string
 	if runTimeConfig.LocalDevMode {
 		kubeconfig = flag.String("kubeconfig-authenticator-xyz", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	}
@@ -202,81 +198,6 @@ func (impl K8sUtil) GetConfigMap(namespace string, name string, client *v12.Core
 		return nil, err
 	} else {
 		return cm, nil
-	}
-}
-
-func (impl K8sUtil) RetryWatchConfigMapWithCallback(namespace string, client kubernetes.Interface, CallbackConfigMap func(*v1.ConfigMap)) {
-	for{
-		_, retryTime := impl.WatchConfigMapWithCallback(namespace,client,CallbackConfigMap)
-		time.Sleep(retryTime)
-	}
-}
-
-func (impl K8sUtil) WatchConfigMapWithCallback(namespace string, client kubernetes.Interface, CallbackConfigMap func(*v1.ConfigMap)) (error, time.Duration){
-	api := client.CoreV1().ConfigMaps(namespace)
-	configMaps, err := api.List(metav1.ListOptions{})
-	if err != nil {
-		impl.logger.Errorw("err in configmaps list, WatchConfigMapWithCallback", "err", err)
-		return err, 0
-	}
-	resourceVersion := configMaps.ListMeta.ResourceVersion
-	watcher, err := api.Watch(metav1.ListOptions{ResourceVersion: resourceVersion})
-	if err != nil {
-		impl.logger.Errorw("err in configmaps watcher, WatchConfigMapWithCallback", "err", err)
-		return err, 0
-	}
-	ch := watcher.ResultChan()
-	defer watcher.Stop()
-
-	for {
-		select {
-		case event, ok := <-ch:
-
-			if !ok {
-				impl.logger.Errorw("configmap event not found, WatchConfigMapWithCallback", "err", err)
-				return err, 0
-			}
-			configMaps, ok := event.Object.(*coreV1.ConfigMap)
-			if !ok {
-				impl.logger.Errorw("configMaps not found err, WatchConfigMapWithCallback", "err", err)
-				return err, 0
-			}
-			CallbackConfigMap(configMaps)
-
-			switch event.Type {
-			case watch.Error:
-				// This round trip allows us to handle unstructured status
-				errObject := errors.FromObject(event.Object)
-				statusErr, ok := errObject.(*errors.StatusError)
-				if !ok {
-					klog.Error(spew.Sprintf("Received an error which is not *metav1.Status but %#+v", event.Object))
-					return err, 0
-				}
-
-				status := statusErr.ErrStatus
-
-				statusDelay := time.Duration(0)
-				if status.Details != nil {
-					statusDelay = time.Duration(status.Details.RetryAfterSeconds) * time.Second
-				}
-
-				switch status.Code {
-				case http.StatusGone:
-					impl.logger.Errorw("statusGone in watcher err, WatchConfigMapWithCallback", "err", err)
-					return nil, 0
-
-				case http.StatusGatewayTimeout, http.StatusInternalServerError:
-					// Retry
-					impl.logger.Errorw("statusGatewayTimeout and/or statusInternalServerError in watcher, WatchConfigMapWithCallback", "err", err)
-					return err, statusDelay
-
-				default:
-					klog.V(5).Info(spew.Sprintf("Retrying after unexpected error: %#+v", event.Object))
-					return err, statusDelay
-				}
-
-			}
-		}
 	}
 }
 

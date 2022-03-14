@@ -21,30 +21,22 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
-	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
-	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/getter"
 	"k8s.io/helm/pkg/helm/environment"
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/helm/pkg/version"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -568,110 +560,4 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 		return err
 	}
 	return nil
-}
-
-var CallbackConfigMap = func(configMaps *v1.ConfigMap) {
-	annotations, ok := configMaps.Annotations["charts.devtron.ai/data"]
-	if !ok || annotations != "mount" {
-		return
-	}
-
-	logger := zap.SugaredLogger{}
-	for filename, binaryData := range configMaps.BinaryData {
-		binaryDataReader := bytes.NewReader(binaryData)
-		var chartTemplateService util.ChartTemplateServiceImpl
-		dir := chartTemplateService.GetDir()
-		var ChartWorkingDir util.ChartWorkingDir
-		chartDir := filepath.Join(string(ChartWorkingDir), dir)
-		err := os.MkdirAll(chartDir, os.ModePerm)
-		if err != nil {
-			logger.Errorw("error in creating directory, CallbackConfigMap", "err", err)
-		}
-
-		err = util3.ExtractTarGz(binaryDataReader, chartDir)
-		if err != nil {
-			logger.Errorw("error in extraction of binary data, CallbackConfigMap", "err", err)
-		}
-		configmapDirectoryName := strings.Split(filename, ".")
-
-		readFile, err := ioutil.ReadFile(filepath.Join(string(ChartWorkingDir), configmapDirectoryName[0], "Chart.Yaml"))
-		if err != nil {
-			logger.Errorw("error in read file, CallbackConfigMap", "err", err)
-		}
-
-		chartContent, err := chartutil.UnmarshalChartfile(readFile)
-		if err != nil {
-			logger.Errorw("error in Unmarshal Chartfile, CallbackConfigMap", "err", err)
-		}
-
-		chartName := chartContent.Name
-		chartVersion := chartContent.Version
-
-		var chartLocation string
-		if !strings.Contains(chartName, strings.ReplaceAll(chartVersion, ".", "-")) {
-			chartLocation = chartName + "_" + strings.ReplaceAll(chartVersion, ".", "-")
-		} else {
-			chartLocation = chartName
-		}
-
-		var RefChartDir pipeline.RefChartDir
-		refChartDir := filepath.Join(string(RefChartDir), chartLocation)
-		files, err := ioutil.ReadDir(chartDir)
-		if err != nil {
-			logger.Errorw("error in reading chart directory", "err", err)
-		}
-		CurrentChartWorkingDir := filepath.Join(chartDir, files[0].Name())
-		err = dirCopy.Copy(CurrentChartWorkingDir, refChartDir)
-		if err != nil {
-			logger.Errorw("error in copy directory, CallbackConfigMap", "err", err)
-		}
-
-		chartConfigMap := chartRepoRepository.ChartRefRepositoryImpl{}
-		charts, err := chartConfigMap.GetAll()
-		if err != nil {
-			logger.Errorw("error in getAll ConfigMap, CallbackConfigMap", "err", err)
-		}
-		for _, chart := range charts {
-			if (chart.Name == chartName && chart.Version == chartVersion) || (chart.Location == chartLocation) {
-				return
-			}
-		}
-
-		chartRefs := &chartRepoRepository.ChartRef{
-			Name:      chartName,
-			Version:   chartVersion,
-			Location:  chartLocation,
-			Active:    true,
-			Default:   false,
-			ChartData: binaryData,
-			AuditLog: sql.AuditLog{
-				CreatedBy: 1,
-				CreatedOn: time.Now(),
-				UpdatedOn: time.Now(),
-				UpdatedBy: 1,
-			},
-		}
-
-		err = chartConfigMap.Save(chartRefs)
-		if err != nil {
-			logger.Errorw("error in saving ConfigMap, CallbackConfigMap", "err", err)
-		}
-	}
-	return
-}
-
-func (impl *ChartRepositoryServiceImpl) WatchAndSaveConfigMapWithChartData() {
-	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
-	if err != nil {
-		impl.logger.Errorw("error in clusterBean, WatchAndSaveConfigMapWithChartData", "err", err)
-	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config, WatchAndSaveConfigMapWithChartData", "err", err)
-	}
-	client, err := impl.K8sUtil.GetClientSet(cfg)
-	if err != nil {
-		impl.logger.Errorw("error in getting client set, WatchAndSaveConfigMapWithChartData", "err", err)
-	}
-	go impl.K8sUtil.RetryWatchConfigMapWithCallback(argocdServer.DevtronInstalationNs, client, CallbackConfigMap)
 }
