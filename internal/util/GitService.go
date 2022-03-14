@@ -735,7 +735,7 @@ func (impl GitHubClient) createReadme(repoName string) (string, error) {
 		FileName:       "README.md",
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
-		ChartRepoName: repoName,
+		ChartRepoName:  repoName,
 	}
 	hash, err := impl.CommitValues(cfg, "")
 	if err != nil {

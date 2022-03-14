@@ -20,6 +20,8 @@ type HelmAppClient interface {
 	DeleteApplication(ctx context.Context, in *ReleaseIdentifier) (*UninstallReleaseResponse, error)
 	UpdateApplication(ctx context.Context, in *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, in *DeploymentDetailRequest) (*DeploymentDetailResponse, error)
+	InstallRelease(ctx context.Context, in *InstallReleaseRequest) (*InstallReleaseResponse, error)
+	UpdateApplicationWithChartInfo(ctx context.Context, in *InstallReleaseRequest) (*UpgradeReleaseResponse, error)
 }
 
 type HelmAppClientImpl struct {
@@ -195,4 +197,28 @@ func (impl *HelmAppClientImpl) GetDeploymentDetail(ctx context.Context, in *Depl
 		return nil, err
 	}
 	return deploymentDetail, nil
+}
+
+func (impl *HelmAppClientImpl) InstallRelease(ctx context.Context, in *InstallReleaseRequest) (*InstallReleaseResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	installReleaseResponse, err := applicationClient.InstallRelease(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return installReleaseResponse, nil
+}
+
+func (impl *HelmAppClientImpl) UpdateApplicationWithChartInfo(ctx context.Context, in *InstallReleaseRequest) (*UpgradeReleaseResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	updateReleaseResponse, err := applicationClient.UpgradeReleaseWithChartInfo(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return updateReleaseResponse, nil
 }

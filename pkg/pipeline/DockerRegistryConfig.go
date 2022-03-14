@@ -112,9 +112,10 @@ func (impl DockerRegistryConfigImpl) ListAllActive() ([]DockerArtifactStoreBean,
 	var storeBeans []DockerArtifactStoreBean
 	for _, store := range stores {
 		storeBean := DockerArtifactStoreBean{
-			Id:          store.Id,
-			RegistryURL: store.RegistryURL,
-			IsDefault:   store.IsDefault,
+			Id:           store.Id,
+			RegistryURL:  store.RegistryURL,
+			IsDefault:    store.IsDefault,
+			RegistryType: store.RegistryType,
 		}
 		storeBeans = append(storeBeans, storeBean)
 	}

@@ -1,434 +1,680 @@
+
 {
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "type": "object",
-    "properties": {
-      "ContainerPort": {
-        "type": "array",
-        "items": {
-            "type": "object",
-            "properties": {
-              "envoyPort": {
-                "type": "integer"
-              },
-              "idleTimeout": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "port": {
-                "type": "integer"
-              },
-              "servicePort": {
-                "type": "integer"
-              },
-              "supportStreaming": {
-                "type": "boolean"
-              },
-              "useHTTP2": {
-                "type": "boolean"
-              }
-            }
-          }
-      },
-      "EnvVariables": {
-        "type": "array",
-        "items": {}
-      },
-      "GracePeriod": {
-        "type": "integer"
-      },
-      "LivenessProbe": {
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "ContainerPort": {
+      "type": "array",
+      "description": "defines ports on which application services will be exposed to other services",
+      "title": "Container Port",
+      "items": {
         "type": "object",
         "properties": {
-          "Path": {
-            "type": "string"
+          "envoyPort": {
+            "type": "integer",
+            "description": "envoy port for the container",
+            "title": "Envoy Port"
           },
-          "command": {
-            "type": "array",
-            "items": {}
-          },
-          "failureThreshold": {
-            "type": "integer"
-          },
-          "httpHeader": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            }
-          },
-          "initialDelaySeconds": {
-            "type": "integer"
-          },
-          "periodSeconds": {
-            "type": "integer"
-          },
-          "port": {
-            "type": "integer"
-          },
-          "scheme": {
-            "type": "string"
-          },
-          "successThreshold": {
-            "type": "integer"
-          },
-          "tcp": {
-            "type": "boolean"
-          },
-          "timeoutSeconds": {
-            "type": "integer"
-          }
-        }
-      },
-      "MinReadySeconds": {
-        "type": "integer"
-      },
-      "ReadinessProbe": {
-        "type": "object",
-        "properties": {
-          "Path": {
-            "type": "string"
-          },
-          "command": {
-            "type": "array",
-            "items": {}
-          },
-          "failureThreshold": {
-            "type": "integer"
-          },
-          "httpHeader": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            }
-          },
-          "initialDelaySeconds": {
-            "type": "integer"
-          },
-          "periodSeconds": {
-            "type": "integer"
-          },
-          "port": {
-            "type": "integer"
-          },
-          "scheme": {
-            "type": "string"
-          },
-          "successThreshold": {
-            "type": "integer"
-          },
-          "tcp": {
-            "type": "boolean"
-          },
-          "timeoutSeconds": {
-            "type": "integer"
-          }
-        }
-      },
-      "Spec": {
-        "type": "object"
-      },
-      "args": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "value": {
-            "type": "array",
-            "items": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "string"
-              }
-            ]
-          }
-        }
-      },
-      "autoscaling": {
-        "type": "object",
-        "properties": {
-          "MaxReplicas": {
-            "type": "integer"
-          },
-          "MinReplicas": {
-            "type": "integer"
-          },
-          "TargetCPUUtilizationPercentage": {
-            "type": "integer"
-          },
-          "TargetMemoryUtilizationPercentage": {
-            "type": "integer"
-          },
-          "enabled": {
-            "type": "boolean"
-          },
-          "extraMetrics": {
-            "type": "array",
-            "items": {}
-          }
-        }
-      },
-      "command": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "value": {
-            "type": "array",
-            "items": {}
-          }
-        }
-      },
-      "containers": {
-        "type": "array",
-        "items": {}
-      },
-      "dbMigrationConfig": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          }
-        }
-      },
-      "envoyproxy": {
-        "type": "object",
-        "properties": {
-          "configMapName": {
-            "type": "string"
-          },
-          "image": {
-            "type": "string"
-          },
-          "resources": {
-            "type": "object",
-            "properties": {
-              "limits": {
-                "type": "object",
-                "properties": {
-                  "cpu": {
-                    "type": "string",
-                    "format": "cpu"
-                  },
-                  "memory": {
-                    "type": "string",
-                    "format": "memory"
-                  }
-                }
-              },
-              "requests": {
-                "type": "object",
-                "properties": {
-                  "cpu": {
-                    "type": "string",
-                    "format": "cpu"
-                  },
-                  "memory": {
-                    "type": "string",
-                    "format": "memory"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "image": {
-        "type": "object",
-        "properties": {
-          "pullPolicy": {
-            "type": "string"
-          }
-        }
-      },
-      "ingress": {
-        "type": "object",
-        "properties": {
-          "annotations": {
-            "type": "object",
-            "patternproperties": {
-              "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/><,.": {
-                  "type": "string"
-              }
-            }
-          },
-          "enabled": {
-            "type": "boolean"
-          },
-          "host": {
-            "type": "string"
-          },
-          "path": {
-            "type": "string"
-          },
-          "tls": {
-            "type": "array",
-            "items": {}
-          }
-        }
-      },
-      "ingressInternal": {
-        "type": "object",
-        "properties": {
-          "annotations": {
-            "type": "object",
-            "patternproperties": {
-              "[a-zA-Z_]+[0-9.]+!@#%&*+-=:;?/><,.": {
-                  "type": "string"
-              }
-          }
-          },
-          "enabled": {
-            "type": "boolean"
-          },
-          "host": {
-            "type": "string"
-          },
-          "path": {
-            "type": "string"
-          },
-          "tls": {
-            "type": "array",
-            "items": {}
-          }
-        }
-      },
-      "initContainers": {
-        "type": "array",
-        "items": {}
-      },
-      "pauseForSecondsBeforeSwitchActive": {
-        "type": "integer"
-      },
-      "prometheus": {
-        "type": "object",
-        "properties": {
-          "release": {
-            "type": "string"
-          }
-        }
-      },
-      "rawYaml": {
-        "type": "array",
-        "items": {}
-      },
-      "replicaCount": {
-        "type": "integer"
-      },
-      "resources": {
-        "type": "object",
-        "properties": {
-          "limits": {
-            "type": "object",
-            "properties": {
-              "cpu": {
-                "type": "string",
-                "format": "cpu"
-              },
-              "memory": {
-                "type": "string",
-                "format": "memory"
-              }
-            }
-          },
-          "requests": {
-            "type": "object",
-            "properties": {
-              "cpu": {
-                "type": "string",
-                "format": "cpu"
-              },
-              "memory": {
-                "type": "string",
-                "format": "memory"
-              }
-            }
-          }
-        }
-      },
-      "secret": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "type": "object"
-          },
-          "enabled": {
-            "type": "boolean"
-          }
-        }
-      },
-      "server": {
-        "type": "object",
-        "properties": {
-          "deployment": {
-            "type": "object",
-            "properties": {
-              "image": {
-                "type": "string"
-              },
-              "image_tag": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      },
-      "service": {
-        "type": "object",
-        "properties": {
-          "annotations": {
-            "type": "object"
-          },
-          "type": {
+          "idleTimeout": {
             "type": "string",
-            "enum": [
-              "ClusterIP",
-              "LoadBalancer",
-              "NodePort",
-              "ExternalName"
-            ]
+            "description": "duration of time for which a connection is idle before the connection is terminated",
+            "title": "Idle Timeout"
+          },
+          "name": {
+            "type": "string",
+            "description": "name of the port",
+            "title": "Name"
+          },
+          "port": {
+            "type": "integer",
+            "description": "Port",
+            "title": "port for the container"
+          },
+          "servicePort": {
+            "type": "integer",
+            "description": "port of the corresponding kubernetes service",
+            "title": "Service Port"
+          },
+          "supportStreaming": {
+            "type": "boolean",
+            "description": "field to enable/disable timeout for high performance protocols like grpc",
+            "title": "Support Streaming"
+          },
+          "useHTTP2": {
+            "type": "boolean",
+            "description": " field for setting if envoy container can accept(or not) HTTP2 requests",
+            "title": "Use HTTP2"
           }
         }
-      },
-      "servicemonitor": {
-        "type": "object",
-        "properties": {
-          "additionalLabels": {
-            "type": "object"
-          }
-        }
-      },
-      "tolerations": {
-        "type": "array",
-        "items": {}
-      },
-      "volumeMounts": {
-        "type": "array",
-        "items": {}
-      },
-      "volumes": {
-        "type": "array",
-        "items": {}
-      },
-      "waitForSecondsBeforeScalingDown": {
-        "type": "integer"
       }
+    },
+    "EnvVariables": {
+      "type": "array",
+      "items": {},
+      "description": "contains environment variables needed by the containers",
+      "title": "Environment Variables"
+    },
+    "GracePeriod": {
+      "type": "integer",
+      "description": "time for which Kubernetes waits before terminating the pods",
+      "title": "Grace Period"
+    },
+    "LivenessProbe": {
+      "type": "object",
+      "description": "used by the kubelet to know when to restart a container",
+      "title": "Liveness Probe",
+      "properties": {
+        "Path": {
+          "type": "string",
+          "description": "defines the path where the liveness needs to be checked",
+          "title": "Path"
+        },
+        "command": {
+          "type": "array",
+          "items": {},
+          "description": "commands executed to perform a probe",
+          "title": "Command"
+        },
+        "failureThreshold": {
+          "type": "integer",
+          "description": "defines the maximum number of failures that are acceptable before a given container is not considered as live",
+          "title": "Failure Threshold"
+        },
+        "httpHeader": {
+          "type": "object",
+          "description": "used to override the default headers by defining .httpHeaders for the probe",
+          "title": "HTTP headers",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "name of header",
+              "title": "Name"
+            },
+            "value": {
+              "type": "string",
+              "description": "Value of header",
+              "title": "Value"
+            }
+          }
+        },
+        "initialDelaySeconds": {
+          "type": "integer",
+          "description": "defines the time to wait before a given container is checked for liveness",
+          "title": "Initial Delay Seconds"
+        },
+        "periodSeconds": {
+          "type": "integer",
+          "description": "defines the time to check a given container for liveness",
+          "title": "Period Seconds"
+        },
+        "port": {
+          "type": "integer",
+          "description": "port to access on the container",
+          "title": "Port"
+        },
+        "scheme": {
+          "type": "string",
+          "description": "Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.",
+          "title": "Scheme"
+        },
+        "successThreshold": {
+          "type": "integer",
+          "description": "defines the number of successes required before a given container is said to fulfil the liveness probe",
+          "title": "Success Threshold"
+        },
+        "tcp": {
+          "type": "boolean",
+          "description": "If enabled, the kubelet will attempt to open a socket to container. If connection is established, the container is considered healthy",
+          "title": "TCP"
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "description": "defines the time for checking timeout",
+          "title": "Timeout Seconds"
+        }
+      }
+    },
+    "MaxSurge": {
+      "type": "integer",
+      "description": "maximum number of pods that can be created over the desired number of pods",
+      "title": "Maximum Surge"
+    },
+    "MaxUnavailable": {
+      "type": "integer",
+      "description": "maximum number of pods that can be unavailable during the update process",
+      "title": "Maximum Unavailable"
+    },
+    "MinReadySeconds": {
+      "type": "integer",
+      "description": "minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available",
+      "title": "Minimum Ready Seconds"
+    },
+    "ReadinessProbe": {
+      "type": "object",
+      "description": "kubelet uses readiness probes to know when a container is ready to start accepting traffic",
+      "title": "Readiness Probe",
+      "properties": {
+        "Path": {
+          "type": "string",
+          "description": "defines the path where the readiness needs to be checked",
+          "title": "Path"
+        },
+        "command": {
+          "type": "array",
+          "items": {},
+          "description": "commands executed to perform a probe",
+          "title": "Command"
+        },
+        "failureThreshold": {
+          "type": "integer",
+          "description": "defines the maximum number of failures that are acceptable before a given container is not considered as ready",
+          "title": "Failure Threshold"
+        },
+        "httpHeader": {
+          "type": "object",
+          "description": "used to override the default headers by defining .httpHeaders for the probe",
+          "title": "HTTP headers",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "name of header",
+              "title": "Name"
+            },
+            "value": {
+              "type": "string",
+              "description": "Value of header",
+              "title": "Value"
+            }
+          }
+        },
+        "initialDelaySeconds": {
+          "type": "integer",
+          "description": "defines the time to wait before a given container is checked for readiness",
+          "title": "Initial Delay Seconds"
+        },
+        "periodSeconds": {
+          "type": "integer",
+          "description": "defines the time to check a given container for readiness",
+          "title": "Period Seconds"
+        },
+        "port": {
+          "type": "integer",
+          "description": "port to access on the container",
+          "title": "Port"
+        },
+        "scheme": {
+          "type": "string",
+          "description": "Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.",
+          "title": "Scheme"
+        },
+        "successThreshold": {
+          "type": "integer",
+          "description": "defines the number of successes required before a given container is said to fulfil the readiness probe",
+          "title": "Success Threshold"
+        },
+        "tcp": {
+          "type": "boolean",
+          "description": "If enabled, the kubelet will attempt to open a socket to container. If connection is established, the container is considered healthy",
+          "title": "TCP"
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "description": "defines the time for checking timeout",
+          "title": "Timeout Seconds"
+        }
+      }
+    },
+    "Spec": {
+      "type": "object",
+      "description": "used to define the desire state of the given container",
+      "title": "Spec",
+      "properties": {
+        "Affinity": {
+          "type": "object",
+          "description": "Node/Inter-pod Affinity allows you to constrain which nodes your pod is eligible to schedule on, based on labels of the node/pods",
+          "title": "Affinity",
+          "properties": {
+            "Key": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "description": "Key part of the label for node/pod selection",
+                  "title": "Key"
+                }
+              ]
+            },
+            "Values": {
+              "type": "string",
+              "description": "Value part of the label for node/pod selection",
+              "title": "Values"
+            },
+            "key": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "args": {
+      "type": "object",
+      "description": " used to give arguments to command",
+      "title": "Arguments",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "used for enabling/disabling aruguments",
+          "title": "Enabled"
+        },
+        "value": {
+          "type": "array",
+          "description": "values of the arguments",
+          "title": "Value",
+          "items": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    "autoscaling": {
+      "type": "object",
+      "description": "connected to HPA and controls scaling up and down in response to request load",
+      "title": "Autoscaling",
+      "properties": {
+        "MaxReplicas": {
+          "type": "integer",
+          "description": "Maximum number of replicas allowed for scaling",
+          "title": "Maximum Replicas"
+        },
+        "MinReplicas": {
+          "type": "integer",
+          "description": "Minimum number of replicas allowed for scaling",
+          "title": "Minimum Replicas"
+        },
+        "TargetCPUUtilizationPercentage": {
+          "type": "integer",
+          "description": "The target CPU utilization that is expected for a container",
+          "title": "TargetCPUUtilizationPercentage"
+        },
+        "TargetMemoryUtilizationPercentage": {
+          "type": "integer",
+          "description": "The target memory utilization that is expected for a container",
+          "title": "TargetMemoryUtilizationPercentage"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "used for enabling/disabling autoscaling",
+          "title": "Enabled"
+        },
+        "extraMetrics": {
+          "type": "array",
+          "items": {},
+          "description": "used to give external metrics for autoscaling",
+          "title": "Extra Metrics"
+        }
+      }
+    },
+    "command": {
+      "type": "object",
+      "description": "contains the commands for the server",
+      "title": "Command",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "used for enabling/disabling commands"
+        },
+        "value": {
+          "type": "array",
+          "items": {},
+          "description": "contains the commands",
+          "title": "Value"
+        }
+      }
+    },
+    "containers": {
+      "type": "array",
+      "items": {},
+      "description": " used to run side-car containers along with the main container within same pod"
+    },
+    "dbMigrationConfig": {
+      "type": "object",
+      "description": "used to configure database migration",
+      "title": "Db Migration Config",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "used for enabling/disabling the config",
+          "title": "Enabled"
+        }
+      }
+    },
+    "envoyproxy": {
+      "type": "object",
+      "description": "envoy is attached as a sidecar to the application container to collect metrics like 4XX, 5XX, throughput and latency",
+      "title": "Envoy Proxy",
+      "properties": {
+        "configMapName": {
+          "type": "string",
+          "description": "configMap containing configuration for Envoy",
+          "title": "ConfigMap"
+        },
+        "image": {
+          "type": "string",
+          "description": "image of envoy to be used"
+        },
+        "resources": {
+          "type": "object",
+          "description": "minimum and maximum RAM and CPU available to the application",
+          "title": "Resources",
+          "properties": {
+            "limits": {
+              "type": "object",
+              "description": "the maximum values a container can reach",
+              "title": "Limits",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "format": "cpu",
+                  "description": "limit of CPU",
+                  "title": "CPU"
+                },
+                "memory": {
+                  "type": "string",
+                  "format": "memory",
+                  "description": "limit of memory",
+                  "title": "Memory"
+                }
+              }
+            },
+            "requests": {
+              "type": "object",
+              "description": "request is what the container is guaranteed to get",
+              "title": "Requests",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "format": "cpu",
+                  "description": "request value of CPU",
+                  "title": "CPU"
+                },
+                "memory": {
+                  "type": "string",
+                  "format": "memory",
+                  "description": "request value of memory",
+                  "title": "Memory"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "description": "used to access images in kubernetes",
+      "title": "Image",
+      "properties": {
+        "pullPolicy": {
+          "type": "string",
+          "description": "used to define the instances calling the image",
+          "title": "Pull Policy",
+          "enum": ["IfNotPresent", "Always"]
+        }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "description": "allows public access to URLs",
+      "title": "Ingress",
+      "properties": {
+        "annotations": {
+          "type": "object",
+          "description": "used to configure some options depending on the Ingress controller",
+          "title": "Annotations",
+          "properties": {
+            "kubernetes.io/ingress.class": {
+              "type": "string",
+              "default": "nginx"
+            },
+            "nginx.ingress.kubernetes.io/force-ssl-redirect": {
+              "type": "string",
+              "format": "boolean",
+              "default": "false"
+            },
+            "nginx.ingress.kubernetes.io/ssl-redirect": {
+              "type": "string",
+              "format": "boolean",
+              "default": "false"
+            },
+            "nginx.ingress.kubernetes.io/rewrite-target": {
+              "type": "string",
+              "default": "/$2"
+            }
+          }
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "used to enable or disable ingress",
+          "title": "Enabled"
+        },
+        "host": {
+          "type": "string",
+          "description": "host URL",
+          "title": "Host"
+        },
+        "path": {
+          "type": "string",
+          "description": "path for a given host",
+          "title": "Path"
+        },
+        "tls": {
+          "type": "array",
+          "items": {},
+          "description": "contains security details - private key and certificate",
+          "title": "TLS"
+        }
+      }
+    },
+    "ingressInternal": {
+      "type": "object",
+      "description": "allows private access to the URLs",
+      "properties": {
+        "annotations": {
+          "type": "object",
+          "description": "used to configure some options depending on the Ingress controller",
+          "title": "Annotations"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "used to enable or disable ingress",
+          "title": "Enabled"
+        },
+        "tls": {
+          "type": "array",
+          "items": {},
+          "description": "contains security details - private key and certificate",
+          "title": "TLS"
+        }
+      }
+    },
+    "initContainers": {
+      "type": "array",
+      "items": {},
+      "description": "specialized containers that run before app containers in a Pod, can contain utilities or setup scripts not present in an app image",
+      "title": "Init Containers"
+    },
+    "pauseForSecondsBeforeSwitchActive": {
+      "type": "integer",
+      "description": "tell how much to wait for given period of time before switch active the container",
+      "title": "Pause For Seconds Before SwitchActive"
+    },
+    "prometheus": {
+      "type": "object",
+      "description": "a kubernetes monitoring tool",
+      "title": "Prometheus",
+      "properties": {
+        "release": {
+          "type": "string",
+          "description": "name of the file to be monitored, describes the state of prometheus"
+        }
+      }
+    },
+    "rawYaml": {
+      "type": "array",
+      "items": {},
+      "description": "Accepts an array of Kubernetes objects. One can specify any kubernetes yaml here & it will be applied when a app gets deployed.",
+      "title": "Raw YAML"
+    },
+    "replicaCount": {
+      "type": "integer",
+      "description": "count of Replicas of pod",
+      "title": "REplica Count"
+    },
+    "resources": {
+      "type": "object",
+      "description": "minimum and maximum RAM and CPU available to the application",
+      "title": "Resources",
+      "properties": {
+        "limits": {
+          "type": "object",
+          "description": "the maximum values a container can reach",
+          "title": "Limits",
+          "properties": {
+            "cpu": {
+              "type": "string",
+              "format": "cpu",
+              "description": "limit of CPU",
+              "title": "CPU"
+            },
+            "memory": {
+              "type": "string",
+              "format": "memory",
+              "description": "limit of memory",
+              "title": "Memory"
+            }
+          }
+        },
+        "requests": {
+          "type": "object",
+          "description": "request is what the container is guaranteed to get",
+          "title": "Requests",
+          "properties": {
+            "cpu": {
+              "type": "string",
+              "format": "cpu",
+              "description": "request value of CPU",
+              "title": "CPU"
+            },
+            "memory": {
+              "type": "string",
+              "format": "memory",
+              "description": "request value of memory",
+              "title": "Memory"
+            }
+          }
+        }
+      }
+    },
+    "secret": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "server": {
+      "type": "object",
+      "description": "used for providing server configurations.",
+      "title": "Server",
+      "properties": {
+        "deployment": {
+          "type": "object",
+          "description": "gives the details for deployment",
+          "title": "Deployment",
+          "properties": {
+            "image": {
+              "type": "string",
+              "description": "URL of the image",
+              "title": "Image"
+            },
+            "image_tag": {
+              "type": "string",
+              "description": "tag of the image",
+              "title": "Image Tag"
+            }
+          }
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "description": "defines annotations and the type of service",
+      "title": "Service",
+      "properties": {
+        "annotations": {
+          "type": "object",
+          "title": "Annotations",
+          "description": "annotations of service"
+        },
+        "type": {
+          "type": "string",
+          "description": "type of service",
+          "title": "Type",
+          "enum": [
+            "ClusterIP",
+            "LoadBalancer",
+            "NodePort",
+            "ExternalName"
+          ]
+        }
+      }
+    },
+    "servicemonitor": {
+      "type": "object",
+      "description": "gives the set of targets to be monitored",
+      "title": "Service Monitor",
+      "properties": {
+        "additionalLabels": {
+          "type": "object"
+        }
+      }
+    },
+    "tolerations": {
+      "type": "array",
+      "items": {},
+      "description": "a mechanism which work together with Taints which ensures that pods are not placed on inappropriate nodes",
+      "title": "Tolerations"
+    },
+    "volumeMounts": {
+      "type": "array",
+      "items": {},
+      "description": "used to provide mounts to the volume",
+      "title": "Volume Mounts"
+    },
+    "volumes": {
+      "type": "array",
+      "items": {},
+      "description": "required when some values need to be read from or written to an external disk",
+      "title": "Volumes"
+    },
+    "waitForSecondsBeforeScalingDown": {
+      "type": "integer",
+      "description": "Wait for given period of time before scaling down the container",
+      "title": "Wait For Seconds Before Scaling Down"
     }
   }
+}
