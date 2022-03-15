@@ -8,6 +8,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/go-pg/pg"
 	"net/http"
 
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
@@ -515,8 +516,15 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							//creating history entry for deployment template
 							envLevelAppMetricsEnabled := false
 							envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(chartEnv.Chart.AppId, chartEnv.TargetEnvironment)
-							if err != nil {
+							if err != nil && err != pg.ErrNoRows {
 								impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", chartEnv.Chart.AppId, "envId", chartEnv.TargetEnvironment)
+							} else if err == pg.ErrNoRows {
+								appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chartEnv.Chart.AppId)
+								if err != nil && err != pg.ErrNoRows {
+									impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", chartEnv.Chart.AppId)
+								} else if err == nil {
+									envLevelAppMetricsEnabled = appLevelAppMetrics.AppMetrics
+								}
 							} else {
 								envLevelAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
 							}

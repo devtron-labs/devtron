@@ -136,6 +136,7 @@ type PipelineBuilderImpl struct {
 	prePostCiScriptHistoryService    history.PrePostCiScriptHistoryService
 	prePostCdScriptHistoryService    history.PrePostCdScriptHistoryService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
+	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -1245,7 +1246,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	if err != nil {
 		return 0, err
 	}
-	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userID, false, models.CHARTSTATUS_NEW, false, pipeline.Namespace, tx, false)
+	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userID, false, models.CHARTSTATUS_NEW, false, pipeline.Namespace, tx)
 	if err != nil {
 		return 0, err
 	}
@@ -1322,7 +1323,15 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			return 0, err
 		}
 	}
-	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, false, pipelineId)
+	//getting global app metrics for cd pipeline create because env level metrics is not created yet
+	appLevelAppMetricsEnabled := false
+	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chart.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+	} else {
+		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, appLevelAppMetricsEnabled, pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
 		return 0, err
