@@ -45,7 +45,7 @@ type DeploymentTemplateHistoryDto struct {
 	Template                string    `json:"template,omitempty"`
 	TemplateName            string    `json:"templateName,omitempty"`
 	TemplateVersion         string    `json:"templateVersion,omitempty"`
-	IsAppMetricsEnabled     bool      `json:"isAppMetricsEnabled"`
+	IsAppMetricsEnabled     bool      `json:"isAppMetricsEnabled,omitempty"`
 	TargetEnvironment       int       `json:"targetEnvironment,omitempty"`
 	Deployed                bool      `json:"deployed"`
 	DeployedOn              time.Time `json:"deployedOn"`
