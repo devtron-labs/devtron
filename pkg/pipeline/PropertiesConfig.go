@@ -316,6 +316,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	override := &chartConfig.EnvConfigOverride{
 		Active:            propertiesRequest.Active,
 		Id:                propertiesRequest.Id,
+		ChartId:           oldEnvOverride.ChartId,
 		EnvOverrideValues: string(overrideByte),
 		Status:            propertiesRequest.Status,
 		ManualReviewed:    propertiesRequest.ManualReviewed,
@@ -639,21 +640,20 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 	// validate app metrics compatibility
 	var currentChart *chartConfig.EnvConfigOverride
 	var err error
+	currentChart, err = impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appMetricRequest.AppId, appMetricRequest.EnvironmentId)
+	if err != nil && !errors.IsNotFound(err) {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	if errors.IsNotFound(err) {
+		impl.logger.Errorw("no chart configured for this app", "appId", appMetricRequest.AppId)
+		err = &util.ApiError{
+			InternalMessage: "no chart configured for this app",
+			UserMessage:     "no chart configured for this app",
+		}
+		return nil, err
+	}
 	if appMetricRequest.IsAppMetricsEnabled == true {
-		currentChart, err = impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appMetricRequest.AppId, appMetricRequest.EnvironmentId)
-		if err != nil && !errors.IsNotFound(err) {
-			impl.logger.Error(err)
-			return nil, err
-		}
-		if errors.IsNotFound(err) {
-			impl.logger.Errorw("no chart configured for this app", "appId", appMetricRequest.AppId)
-			err = &util.ApiError{
-				InternalMessage: "no chart configured for this app",
-				UserMessage:     "no chart configured for this app",
-			}
-			return nil, err
-		}
-
 		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(currentChart.Chart.ChartVersion)
 		if err != nil {
 			impl.logger.Errorw("chart version parsing", "err", err)
