@@ -240,6 +240,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 	historyModel := &repository.DeploymentTemplateHistory{
 		AppId:                   pipeline.AppId,
 		PipelineId:              pipeline.Id,
+		TargetEnvironment:       pipeline.EnvironmentId,
 		ImageDescriptorTemplate: renderedImageTemplate,
 		Deployed:                true,
 		DeployedBy:              deployedBy,
