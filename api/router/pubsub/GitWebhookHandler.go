@@ -39,7 +39,8 @@ type GitWebhookHandlerImpl struct {
 
 const newCiMaterialTopic = "GIT-SENSOR.NEW-CI-MATERIAL"
 const newCiMaterialTopicGroup = "GIT-SENSOR.NEW-CI-MATERIAL_GROUP-1"
-const newCiMaterialTopicDurable = "GIT-SENSOR.NEW-CI-MATERIAL_DURABLE-1"
+const newCiMaterialTopicDurable = "GIT-SENSOR-NEW-CI-MATERIAL_DURABLE-1"
+const GIT_SENSOR_STREAM = "GIT-SENSOR"
 
 func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, gitWebhookService git.GitWebhookService) *GitWebhookHandlerImpl {
 	gitWebhookHandlerImpl := &GitWebhookHandlerImpl{
@@ -55,7 +56,6 @@ func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSub
 	return gitWebhookHandlerImpl
 }
 
-//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *GitWebhookHandlerImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(newCiMaterialTopic, newCiMaterialTopicGroup, func(msg *nats.Msg) {
 		defer msg.Ack()
@@ -71,7 +71,7 @@ func (impl *GitWebhookHandlerImpl) Subscribe() error {
 			impl.logger.Error("err", err)
 			return
 		}
-	}, nats.Durable(newCiMaterialTopicDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
+	}, nats.Durable(newCiMaterialTopicDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(GIT_SENSOR_STREAM))
 
 	if err != nil {
 		impl.logger.Error("err", err)

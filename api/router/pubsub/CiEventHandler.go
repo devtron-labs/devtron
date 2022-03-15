@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -55,7 +56,7 @@ type CiCompleteEvent struct {
 
 const CI_COMPLETE_TOPIC = "CI-RUNNER.CI-COMPLETE"
 const CI_COMPLETE_GROUP = "CI-RUNNER.CI-COMPLETE_GROUP-1"
-const CI_COMPLETE_DURABLE = "CI-RUNNER.CI-COMPLETE_DURABLE-1"
+const CI_COMPLETE_DURABLE = "CI-RUNNER-CI-COMPLETE_DURABLE-1"
 
 func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, webhookService pipeline.WebhookService) *CiEventHandlerImpl {
 	ciEventHandlerImpl := &CiEventHandlerImpl{
@@ -71,7 +72,6 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 	return ciEventHandlerImpl
 }
 
-//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *CiEventHandlerImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(CI_COMPLETE_TOPIC, CI_COMPLETE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("ci complete event received")
@@ -93,7 +93,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			return
 		}
 		impl.logger.Debug(resp)
-	}, nats.Durable(CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
+	}, nats.Durable(CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(constants.CI_RUNNER_STREAM))
 	if err != nil {
 		impl.logger.Error(err)
 		return err

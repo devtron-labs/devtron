@@ -18,10 +18,11 @@
 package appstore
 
 import (
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appstore"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"time"
 )
 
 //v1
@@ -110,10 +111,10 @@ type Dependency struct {
 	Repository string `json:"repository"`
 }
 
-const BULK_APPSTORE_DEPLOY_TOPIC = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY"
+const BULK_APPSTORE_DEPLOY_TOPIC = "ORCHESTRATOR_STREAM.ORCHESTRATOR.APP-STORE.BULK-DEPLOY"
 const BULK_APPSTORE_DEPLOY_GROUP = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY-GROUP-1"
 
-const BULK_APPSTORE_DEPLOY_DURABLE = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY.DURABLE-1"
+const BULK_APPSTORE_DEPLOY_DURABLE = "ORCHESTRATOR-APP-STORE-BULK-DEPLOY-DURABLE-1"
 
 type DeployPayload struct {
 	InstalledAppVersionId int

@@ -1444,18 +1444,18 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 		if err != nil {
 			status = appstore.QUE_ERROR
 		} else {
-			streamInfo, err := impl.pubsubClient.JetStrCtxt.StreamInfo(BULK_APPSTORE_DEPLOY_TOPIC)
+			streamInfo, err := impl.pubsubClient.JetStrCtxt.StreamInfo(constants.ORCHESTRATOR_STREAM)
 			if err != nil {
-				impl.logger.Errorw("Error while getting stream info", "topic", BULK_APPSTORE_DEPLOY_TOPIC, "error", err)
+				impl.logger.Errorw("Error while getting stream info", "stream name", constants.ORCHESTRATOR_STREAM, "error", err)
 			}
 			if streamInfo == nil {
 				//Stream doesn't already exist. Create a new stream from jetStreamContext
 				_, err = impl.pubsubClient.JetStrCtxt.AddStream(&nats.StreamConfig{
-					Name:     BULK_APPSTORE_DEPLOY_TOPIC,
-					Subjects: []string{BULK_APPSTORE_DEPLOY_TOPIC + ".*"},
+					Name:     constants.ORCHESTRATOR_STREAM,
+					Subjects: []string{constants.ORCHESTRATOR_STREAM + ".*"},
 				})
 				if err != nil {
-					impl.logger.Errorw("Error while creating stream", "topic", BULK_APPSTORE_DEPLOY_TOPIC, "error", err)
+					impl.logger.Errorw("Error while creating stream", "stream name", constants.ORCHESTRATOR_STREAM, "error", err)
 					return
 				}
 			}
@@ -1481,7 +1481,6 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 	}
 }
 
-//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *InstalledAppServiceImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(BULK_APPSTORE_DEPLOY_TOPIC, BULK_APPSTORE_DEPLOY_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("cd stage event received")
@@ -1497,7 +1496,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
 		}
-	}, nats.Durable(BULK_APPSTORE_DEPLOY_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
+	}, nats.Durable(BULK_APPSTORE_DEPLOY_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(constants.ORCHESTRATOR_STREAM))
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err

@@ -37,7 +37,7 @@ type CronBasedEventReceiverImpl struct {
 	eventService event.EventService
 }
 
-const cronEvents = "CRON_EVENTS"
+const cronEvents = "KUBEWATCH.CRON_EVENTS"
 const cronEventsGroup = "CRON_EVENTS_GROUP-2"
 const cronEventsDurable = "CRON_EVENTS_DURABLE-2"
 
@@ -55,7 +55,6 @@ func NewCronBasedEventReceiverImpl(logger *zap.SugaredLogger, pubsubClient *pubs
 	return cronBasedEventReceiverImpl
 }
 
-//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *CronBasedEventReceiverImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(cronEvents, cronEventsGroup, func(msg *nats.Msg) {
 		impl.logger.Debug("received cron event")
@@ -71,7 +70,7 @@ func (impl *CronBasedEventReceiverImpl) Subscribe() error {
 			impl.logger.Errorw("err while handle event on subscribe", "err", err)
 			return
 		}
-	}, nats.Durable(cronEventsDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
+	}, nats.Durable(cronEventsDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(KUBEWATCH_STREAM))
 
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)

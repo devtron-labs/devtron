@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -260,18 +261,18 @@ func (impl *EventRESTClientImpl) WriteNatsEvent(topic string, payload interface{
 		return err
 	}
 
-	streamInfo, err := impl.pubsubClient.JetStrCtxt.StreamInfo(topic)
+	streamInfo, err := impl.pubsubClient.JetStrCtxt.StreamInfo(constants.ORCHESTRATOR_STREAM)
 	if err != nil {
-		impl.logger.Errorw("Error while getting stream info", "topic", topic, "error", err)
+		impl.logger.Errorw("Error while getting stream info", "stream name", constants.ORCHESTRATOR_STREAM, "error", err)
 	}
 	if streamInfo == nil {
 		//Stream doesn't already exist. Create a new stream from jetStreamContext
 		_, err = impl.pubsubClient.JetStrCtxt.AddStream(&nats.StreamConfig{
-			Name:     topic,
-			Subjects: []string{topic + ".*"},
+			Name:     constants.ORCHESTRATOR_STREAM,
+			Subjects: []string{constants.ORCHESTRATOR_STREAM + ".*"},
 		})
 		if err != nil {
-			impl.logger.Errorw("Error while creating stream", "topic", topic, "error", err)
+			impl.logger.Errorw("Error while creating stream", "stream name", constants.ORCHESTRATOR_STREAM, "error", err)
 			return err
 		}
 	}

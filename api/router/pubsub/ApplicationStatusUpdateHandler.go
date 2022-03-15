@@ -39,7 +39,7 @@ type ApplicationStatusUpdateHandlerImpl struct {
 	workflowDagExecutor pipeline.WorkflowDagExecutor
 }
 
-const applicationStatusUpdate = "APPLICATION_STATUS_UPDATE"
+const applicationStatusUpdate = "KUBEWATCH.APPLICATION_STATUS_UPDATE"
 const applicationStatusUpdateGroup = "APPLICATION_STATUS_UPDATE_GROUP-1"
 const applicationStatusUpdateDurable = "APPLICATION_STATUS_UPDATE_DURABLE-1"
 
@@ -59,7 +59,6 @@ func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClie
 	return appStatusUpdateHandlerImpl
 }
 
-//TODO : adhiran : Need to bind to one particular stream. Need to finalise with Nishant.
 func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(applicationStatusUpdate, applicationStatusUpdateGroup, func(msg *nats.Msg) {
 		impl.logger.Debug("received app update request")
@@ -93,7 +92,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			}
 		}
 		impl.logger.Debug("app" + application.Name + " updated")
-	}, nats.Durable(applicationStatusUpdateDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
+	}, nats.Durable(applicationStatusUpdateDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(KUBEWATCH_STREAM))
 
 	if err != nil {
 		impl.logger.Error(err)

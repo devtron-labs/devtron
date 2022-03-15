@@ -20,6 +20,7 @@ package pubsub
 import (
 	"encoding/json"
 
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -46,20 +47,19 @@ type PublishRequest struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
-//TODO : adhiran : We need to define stream names and subjects which will be published under those streams. Will also help in binding
 func (impl *NatsPublishClientImpl) Publish(req *PublishRequest) error {
-	streamInfo, err := impl.pubSubClient.JetStrCtxt.StreamInfo(req.Topic)
+	streamInfo, err := impl.pubSubClient.JetStrCtxt.StreamInfo(constants.ORCHESTRATOR_STREAM)
 	if err != nil {
-		impl.logger.Errorw("Error while getting stream info", "topic", req.Topic, "error", err)
+		impl.logger.Errorw("Error while getting stream info", "stream name", constants.ORCHESTRATOR_STREAM, "error", err)
 	}
 	if streamInfo == nil {
 		//Stream doesn't already exist. Create a new stream from jetStreamContext
 		_, err = impl.pubSubClient.JetStrCtxt.AddStream(&nats.StreamConfig{
-			Name:     req.Topic, //order
-			Subjects: []string{req.Topic + ".*"},
+			Name:     constants.ORCHESTRATOR_STREAM,
+			Subjects: []string{constants.ORCHESTRATOR_STREAM + ".*"},
 		})
 		if err != nil {
-			impl.logger.Errorw("Error while creating stream", "topic", req.Topic, "error", err)
+			impl.logger.Errorw("Error while creating stream", "Stream name", constants.ORCHESTRATOR_STREAM, "error", err)
 			return err
 		}
 	}

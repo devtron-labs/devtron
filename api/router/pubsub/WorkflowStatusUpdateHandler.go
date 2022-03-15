@@ -45,13 +45,14 @@ type WorkflowStatusUpdateHandlerImpl struct {
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
 }
 
-const workflowStatusUpdate = "WORKFLOW_STATUS_UPDATE"
+const workflowStatusUpdate = "KUBEWATCH.WORKFLOW_STATUS_UPDATE"
 const workflowStatusUpdateGroup = "WORKFLOW_STATUS_UPDATE_GROUP-1"
 const workflowStatusUpdateDurable = "WORKFLOW_STATUS_UPDATE_DURABLE-1"
 
-const cdWorkflowStatusUpdate = "CD_WORKFLOW_STATUS_UPDATE"
+const cdWorkflowStatusUpdate = "KUBEWATCH.CD_WORKFLOW_STATUS_UPDATE"
 const cdWorkflowStatusUpdateGroup = "CD_WORKFLOW_STATUS_UPDATE_GROUP-1"
 const cdWorkflowStatusUpdateDurable = "CD_WORKFLOW_STATUS_UPDATE_DURABLE-1"
+const KUBEWATCH_STREAM = "KUBEWATCH"
 
 func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, ciHandler pipeline.CiHandler, cdHandler pipeline.CdHandler,
 	eventFactory client.EventFactory, eventClient client.EventClient, cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *WorkflowStatusUpdateHandlerImpl {
@@ -77,7 +78,6 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 	return workflowStatusUpdateHandlerImpl
 }
 
-//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(workflowStatusUpdate, workflowStatusUpdateGroup, func(msg *nats.Msg) {
 		impl.logger.Debug("received wf update request")
@@ -93,7 +93,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))
 			return
 		}
-	}, nats.Durable(workflowStatusUpdateDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
+	}, nats.Durable(workflowStatusUpdateDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(KUBEWATCH_STREAM))
 
 	if err != nil {
 		impl.logger.Error("err", err)
@@ -102,7 +102,6 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 	return nil
 }
 
-//TODO : adhiran : Need to bind to one particular stream. Need to finalise with nishant
 func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(cdWorkflowStatusUpdate, cdWorkflowStatusUpdateGroup, func(msg *nats.Msg) {
 		impl.logger.Debug("received cd wf update request")
@@ -153,7 +152,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				}
 			}
 		}
-	}, nats.Durable(cdWorkflowStatusUpdateDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(""))
+	}, nats.Durable(cdWorkflowStatusUpdateDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(KUBEWATCH_STREAM))
 
 	if err != nil {
 		impl.logger.Error("err", err)
