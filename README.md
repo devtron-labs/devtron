@@ -40,14 +40,108 @@ Devtron is a web based CI/CD orchestrator for Kubernetes. It integrates various 
 
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
-<b> The Devtron product is built in a modular fashion. It consists of the below modules which can be installed independently: </b>
+<h3><b> The Devtron product is built in a modular fashion. It consists of the below modules which can be installed independently: </b></h3>
 
-- [Hyperion](https://github.com/devtron-labs/devtron#tada-featuresfor-hyperion) - Devtron's web-based module to manage Helm apps. This can be installed separately to manage & observe existing Helm apps in all your clusters. Start with Hyperion to help you understand how Devtron can be fit into your workflow. You can always switch / upgrade to Devtron for full features, like GitOps implementation, setting up Pipelines and Security.
-
-- [Devtron](https://github.com/devtron-labs/devtron#tada-Full-Devtron-Experience) - Gives you all the features of Devtron as a full experience, providing you with CI / CD, Security, Observability & Stability.
+- [Hyperion](https://github.com/devtron-labs/devtron#-hyperion) - Devtron's Light-Weight module to manage Helm apps. This can be installed separately to  observe, deploy, manage & debug existing Helm apps in all your clusters. Start with Hyperion to help you understand how Devtron can fit into your workflow. You can always switch / upgrade to Devtron for full features, like GitOps implementation, setting up Pipelines and Security.
+- [Devtron](https://github.com/devtron-labs/devtron#computer-devtron) - Devtron gives you all the features of Devtron as a full experience, providing you with CI / CD, Security, Observability & Stability. All the modules stated above are included here.
 
 <br>
 
+## 🦹 Hyperion
+
+<details>
+ <summary> <b> Hyperion is one of Devtron's Web-based modules to manage helm apps that can be installed seperately too. It helps you observe, manage and debug the applications deployed through Helm across multiple clusters minimizing Kubernetes Complexities. Please expand this column to find Hyperion's features and to get Started with it:</b></summary>
+<br>
+
+
+## :tada: Features(For Hyperion)
+ 
+<details><summary> <b> Application-level resource grouping for easier Debugging </b></summary>
+<br>
+
+- Hyperion groups your deployed Helm charts and display them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Hyperion UI and even edit them!
+
+</details>
+ 
+<details><summary> <b>  Centralized Access Management </b></summary>
+<br>
+ 
+- Control and give customizable view-only, edit access to users on Project, Environment and App level.
+ 
+</details>
+ 
+<details><summary> <b>  Manage and observe Multiple Clusters </b></summary>
+<br>
+ 
+- Manage Helm charts, Applications across multiple Kubernetes clusters (hosted on multiple cloud/on-prem) right from a single Hyperion setup.
+
+</details>
+ 
+<details><summary> <b> View and Edit Kubernetes Manifests </b></summary>
+<br>
+ 
+ - View and Edit all Kubernetes resources right from the Hyperion dashboard.
+
+</details>
+
+#### Side Note:
+
+Hyperion module is also a great way to get to know Devtron's UI and some of its features. You can always switch from Hyperion to Devtron which includes all the features. [Just a Couple of Commands away.](https://github.com/devtron-labs/devtron#rocket-getting-started)
+ 
+## :rocket: Getting Started(For Hyperion)
+
+### Install Hyperion using Helm3
+
+To install Helm3, please check [Installing Helm3](https://helm.sh/docs/intro/install/)
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd --set installer.mode=hyperion
+```
+
+For those countries/users where Github is blocked , you can download the [Hyperion Helm chart](https://s3-ap-southeast-1.amazonaws.com/devtron.ai/devtron-operator-latest.tgz)
+
+
+```bash
+wget https://s3-ap-southeast-1.amazonaws.com/devtron.ai/devtron-operator-latest.tgz
+helm install devtron devtron-operator-latest.tgz --create-namespace --namespace devtroncd --set installer.mode=hyperion
+```
+
+### Access Hyperion dashboard
+
+If you did not provide a **BASE\_URL** during install or have used the default installation, Devtron creates a loadbalancer for you on its own. Use the following command to get the dashboard url.
+
+```text
+kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+```
+
+You will get result something like below
+
+```text
+[test2@server ~]$ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+[map[hostname:devtronsdashboardurlhere]]
+```
+
+The hostname mentioned here \( devtronsdashboardurlhere \) is the Loadbalancer URL where you can access the Devtron dashboard.
+ 
+### Hyperion Admin credentials
+
+For admin login use username:`admin` and for password run the following command.
+
+```bash
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+```
+
+#### If you want to perform CI/CD, App creation present in Devtron you are always few commands away:
+ 
+[Getting Started for Devtron](https://github.com/devtron-labs/devtron#rocket-getting-started)
+
+ 
+</details>
+
+
+## :computer: Devtron
+Explore Devtron here for CI / CD, Security Scanning, GitOps, Access Control and Debugging / Observability
 ## :tada: Features
 <br>
 <img src="./assets/preview.gif">
@@ -167,97 +261,6 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 - Application metrics only works for k8s 1.16+
 
 
-## 🦹 Hyperion
-
-<details>
- <summary> <b> Hyperion is one of Devtron's Web-based modules to manage helm apps that can be installed seperately too. It helps you observe, manage and debug the applications deployed through Helm across multiple clusters minimizing Kubernetes Complexities. Please expand this column to find Hyperion's features and to get Started with it:</b></summary>
-<br>
-
-
-## :tada: Features(For Hyperion)
- 
-<details><summary> <b> Application-level resource grouping for easier Debugging </b></summary>
-<br>
-
-- Hyperion groups your deployed Helm charts and display them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Hyperion UI and even edit them!
-
-</details>
- 
-<details><summary> <b>  Centralized Access Management </b></summary>
-<br>
- 
-- Control and give customizable view-only, edit access to users on Project, Environment and App level.
- 
-</details>
- 
-<details><summary> <b>  Manage and observe Multiple Clusters </b></summary>
-<br>
- 
-- Manage Helm charts, Applications across multiple Kubernetes clusters (hosted on multiple cloud/on-prem) right from a single Hyperion setup.
-
-</details>
- 
-<details><summary> <b> View and Edit Kubernetes Manifests </b></summary>
-<br>
- 
- - View and Edit all Kubernetes resources right from the Hyperion dashboard.
-
-</details>
-
-#### Side Note:
-
-Hyperion module is also a great way to get to know Devtron's UI and some of its features. You can always switch from Hyperion to Devtron which includes all the features. [Just a Couple of Commands away.](https://github.com/devtron-labs/devtron#rocket-getting-started)
- 
-## :rocket: Getting Started(For Hyperion)
-
-### Install Hyperion using Helm3
-
-To install Helm3, please check [Installing Helm3](https://helm.sh/docs/intro/install/)
-
-```bash
-helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd --set installer.mode=hyperion
-```
-
-For those countries/users where Github is blocked , you can download the [Hyperion Helm chart](https://s3-ap-southeast-1.amazonaws.com/devtron.ai/devtron-operator-latest.tgz)
-
-
-```bash
-wget https://s3-ap-southeast-1.amazonaws.com/devtron.ai/devtron-operator-latest.tgz
-helm install devtron devtron-operator-latest.tgz --create-namespace --namespace devtroncd --set installer.mode=hyperion
-```
-
-### Access Hyperion dashboard
-
-If you did not provide a **BASE\_URL** during install or have used the default installation, Devtron creates a loadbalancer for you on its own. Use the following command to get the dashboard url.
-
-```text
-kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
-```
-
-You will get result something like below
-
-```text
-[test2@server ~]$ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
-[map[hostname:devtronsdashboardurlhere]]
-```
-
-The hostname mentioned here \( devtronsdashboardurlhere \) is the Loadbalancer URL where you can access the Devtron dashboard.
- 
-### Hyperion Admin credentials
-
-For admin login use username:`admin` and for password run the following command.
-
-```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
-```
-
-#### If you want to perform CI/CD, App creation present in Devtron you are always few commands away:
- 
-[Getting Started for Devtron](https://github.com/devtron-labs/devtron#rocket-getting-started)
-
- 
-</details>
 
 
 ## :video_camera: Videos:
