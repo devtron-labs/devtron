@@ -288,6 +288,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplatesB
 		TemplateVersion:         history.TemplateVersion,
 		TemplateName:            history.TemplateName,
 		TargetEnvironment:       history.TargetEnvironment,
+		IsAppMetricsEnabled:     history.IsAppMetricsEnabled,
 		Deployed:                history.Deployed,
 		DeployedOn:              history.DeployedOn,
 		DeployedBy:              history.DeployedBy,
