@@ -54,10 +54,10 @@ Devtron is a web based CI/CD orchestrator for Kubernetes. It integrates various 
 <br>
   
 Please expand this column to find Hyperion's features and to get Started with it:</b></summary>
-<br>
-
 
 ## :tada: Features(For Hyperion)
+ 
+https://user-images.githubusercontent.com/66381465/158415047-b318fb5c-e467-4822-8d0b-bfe1747dfe49.mp4
  
 <details><summary> <b> Application-level resource grouping for easier Debugging </b></summary>
 <br>
@@ -144,7 +144,8 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 
 
 ## :computer: Devtron
-Explore Devtron here for CI / CD, Security Scanning, GitOps, Access Control and Debugging / Observability
+Explore Devtron here for CI / CD, Security Scanning, GitOps, Access Control, Debugging / Observability and other features.
+
 ## :tada: Features
 <br>
 <img src="./assets/preview.gif">
