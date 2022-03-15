@@ -36,6 +36,7 @@ type MuxRouter struct {
 	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
 	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
+	k8sCapacityRouter        k8s.K8sCapacityRouter
 }
 
 func NewMuxRouter(
@@ -53,7 +54,7 @@ func NewMuxRouter(
 	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
-
+	k8sCapacityRouter k8s.K8sCapacityRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -71,6 +72,7 @@ func NewMuxRouter(
 		appStoreDiscoverRouter:   appStoreDiscoverRouter,
 		appStoreValuesRouter:     appStoreValuesRouter,
 		appStoreDeploymentRouter: appStoreDeploymentRouter,
+		k8sCapacityRouter:        k8sCapacityRouter,
 	}
 	return r
 }
@@ -129,6 +131,8 @@ func (r *MuxRouter) Init() {
 	r.helmAppRouter.InitAppListRouter(helmApp)
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
 	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
+	k8sCapacityApp := r.Router.PathPrefix("/orchestrator/k8s/capacity").Subrouter()
+	r.k8sCapacityRouter.InitK8sCapacityRouter(k8sCapacityApp)
 
 	// chart-repo router starts
 	chartRepoRouter := r.Router.PathPrefix("/orchestrator/chart-repo").Subrouter()

@@ -25,7 +25,6 @@ require (
 	github.com/emicklei/go-restful v2.11.0+incompatible // indirect
 	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-openapi/jsonreference v0.19.3 // indirect
 	github.com/go-openapi/spec v0.19.4 // indirect
 	github.com/go-pg/pg v6.15.1+incompatible
 	github.com/go-playground/locales v0.13.0 // indirect
@@ -64,7 +63,6 @@ require (
 	github.com/ktrysmt/go-bitbucket v0.9.27
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/lib/pq v1.2.0
-	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/nats-io/nats-streaming-server v0.15.1 // indirect
 	github.com/nats-io/nats.go v1.8.1
@@ -105,7 +103,6 @@ require (
 	k8s.io/metrics v0.17.14
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
 	mellium.im/sasl v0.2.1 // indirect
-	sigs.k8s.io/structured-merge-diff v0.0.0-20190525122527-15d366b2352e // indirect
 	sigs.k8s.io/yaml v1.3.0
 	xorm.io/core v0.7.2 // indirect
 )
