@@ -1,9 +1,9 @@
 
 <p align="center"><img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
-<h1 align= "center">Web based CI/CD Platform for Kubernetes</h1>
+<h1 align= "center">No-Code Open Source CI/CD workflow for Kubernetes</h1>
 </p>
 
-<p align="center">A Web based CI/CD platform leveraging open source tools to provide a No-Code SaaS-like experience for Kubernetes.
+<p align="center">A web based CI/CD platform leveraging Open Source tools to provide a No-Code, SaaS-like experience for Kubernetes.
 <br>
 <a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
 <br>
@@ -28,43 +28,25 @@
 <a href="http://devtron.ai/"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
 <a href="https://twitter.com/intent/tweet?text=Devtron%20helps%20in%20simplifying%20software delivery%20workflow%20for%20Kubernetes,%20check%20it%20out!!%20&hashtags=OpenSource,Kubernetes,DevOps,CICD,go&url=https://github.com/devtron-labs/devtron%0a"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Tweet"></a>
 
- 
-<!--</p>
-<p align = "center">
-<a href="https://github.com/devtron-labs/devtron"><img src="https://github-readme-stats-one-bice.vercel.app/api?username=Abhinav-26&show_icons=true&include_all_commits=true&count_private=true&role=OWNER,ORGANIZATION_MEMBER,COLLABORATOR" alt="Devtron's GitHub stats"></a>
-</p>-->
-
 <p align="center">
-<a href="https://devtron.ai/support.html">🔥 Want to accelerate K8s adoption? Our core team would love to help 30 companies do it the Devtron way! 🔥 Apply Now 👋</a></p>
+<a href="https://devtron.ai/support.html">🔥 Want to accelerate K8s adoption? Our core team would love to help 100 companies do it the Devtron way! 🔥 Apply Now 👋</a></p>
+<br>
 
-## :book: Menu
+## :bulb: What is Devtron?
 
-- [Devtron?](https://github.com/devtron-labs/devtron#bulb-devtron)
-- [Devtron](https://github.com/devtron-labs/devtron#computer-devtron)
-- [Hyperion](https://github.com/devtron-labs/devtron#-hyperion)
-- [Documentation](https://docs.devtron.ai/)
-- [Compatibility Notes](https://github.com/devtron-labs/devtron#memo-compatibility-notes)
-- [Community](https://github.com/devtron-labs/devtron#busts_in_silhouette-community)
-- [Trusted By](https://github.com/devtron-labs/devtron#muscle-Trusted-By)
-- [FAQ & Troubleshooting](https://github.com/devtron-labs/devtron#question-faq--troubleshooting)
-- [Contribute](https://github.com/devtron-labs/devtron#handshake-contribute)
+Devtron is a web based CI/CD orchestrator for Kubernetes. It integrates various Open Source tools to provide a modular AppOps way, that also includes Security Scanning, GitOps, Access Control and Debugging / Observability.
 
-## :bulb: Devtron?
-
-### Why use it?
-
-Devtron is a Web-Based CI/CD Platform for Kubernetes. It integrates various OpenSource tools to provide a modular CI/CD platform that also includes Security Scanning, GitOps, Access Control, and Debugging/Observability.
-
+<br>
 
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
-<b> Devtron is built in a modular approach. These modules can be installed independently: </b>
-- [Devtron](https://github.com/devtron-labs/devtron#tada-Full-Devtron-Experience) - This option gives you all the features of Devtron as a Full Experience providing you with CI, CD, security, cost, observability, stabilization. All the modules stated below are included here.
-- [Hyperion](https://github.com/devtron-labs/devtron#tada-featuresfor-hyperion) - Devtron's Web-based module to manage helm apps that can be installed seperately. Install Hyperion -> manage, Observe helm apps of all your clusters. This module is also a great way to manage existing helm apps and gradually understand how Devtron fits into your workflow. You can always switch to Devtron for all the features.
+<b> The Devtron product is built in a modular fashion. It consists of the below modules which can be installed independently: </b>
 
-## :computer: Devtron
+- [Hyperion](https://github.com/devtron-labs/devtron#tada-featuresfor-hyperion) - Devtron's web-based module to manage Helm apps. This can be installed separately to manage & observe existing Helm apps in all your clusters. Start with Hyperion to help you understand how Devtron can be fit into your workflow. You can always switch / upgrade to Devtron for full features, like GitOps implementation, setting up Pipelines and Security.
 
-Devtron provides a full feldged web based CI/CD platform including features like Security Scanning, GitOps, Access Control, and Debugging/Observability. Modules like Hyperion are included as additional modules here.
+- [Devtron](https://github.com/devtron-labs/devtron#tada-Full-Devtron-Experience) - Gives you all the features of Devtron as a full experience, providing you with CI / CD, Security, Observability & Stability.
+
+<br>
 
 ## :tada: Features
 <br>
