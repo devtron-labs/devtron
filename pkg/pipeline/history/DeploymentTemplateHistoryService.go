@@ -18,7 +18,7 @@ type DeploymentTemplateHistoryService interface {
 	CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride *chartConfig.EnvConfigOverride, tx *pg.Tx, IsAppMetricsEnabled bool, pipelineId int) error
 	CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error
 	GetHistoryForDeployedTemplatesById(id, pipelineId int) (*DeploymentTemplateHistoryDto, error)
-	GetDeploymentDetailsForDeployedTemplateHistory(pipelineId int) ([]*DeploymentTemplateHistoryDto, error)
+	GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistoryDto, error)
 }
 
 type DeploymentTemplateHistoryServiceImpl struct {
@@ -30,6 +30,7 @@ type DeploymentTemplateHistoryServiceImpl struct {
 	envLevelAppMetricsRepository        repository2.EnvLevelAppMetricsRepository
 	appLevelMetricsRepository           repository2.AppLevelMetricsRepository
 	userService                         user.UserService
+	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
 }
 
 func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deploymentTemplateHistoryRepository repository.DeploymentTemplateHistoryRepository,
@@ -38,7 +39,8 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 	chartRefRepository chartRepoRepository.ChartRefRepository,
 	envLevelAppMetricsRepository repository2.EnvLevelAppMetricsRepository,
 	appLevelMetricsRepository repository2.AppLevelMetricsRepository,
-	userService user.UserService) *DeploymentTemplateHistoryServiceImpl {
+	userService user.UserService,
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *DeploymentTemplateHistoryServiceImpl {
 	return &DeploymentTemplateHistoryServiceImpl{
 		logger:                              logger,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
@@ -48,6 +50,7 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 		envLevelAppMetricsRepository:        envLevelAppMetricsRepository,
 		appLevelMetricsRepository:           appLevelMetricsRepository,
 		userService:                         userService,
+		cdWorkflowRepository:                cdWorkflowRepository,
 	}
 }
 
@@ -299,11 +302,21 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplatesB
 	return historyDto, nil
 }
 
-func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployedTemplateHistory(pipelineId int) ([]*DeploymentTemplateHistoryDto, error) {
-	histories, err := impl.deploymentTemplateHistoryRepository.GetDeploymentDetailsForDeployedTemplateHistory(pipelineId)
+func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistoryDto, error) {
+	histories, err := impl.deploymentTemplateHistoryRepository.GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment template history", "err", err, "pipelineId", pipelineId)
 		return nil, err
+	}
+	//getting wfrList for status of history
+	wfrList, err := impl.cdWorkflowRepository.FindCdWorkflowMetaByPipelineId(pipelineId, offset, limit)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting ")
+		return nil, err
+	}
+	deploymentTimeStatusMap := make(map[time.Time]string)
+	for _, wfr := range wfrList {
+		deploymentTimeStatusMap[wfr.StartedOn] = wfr.Status
 	}
 	var historiesDto []*DeploymentTemplateHistoryDto
 	for _, history := range histories {
@@ -320,6 +333,9 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 			DeployedOn: history.DeployedOn,
 			DeployedBy: history.DeployedBy,
 			EmailId:    user.EmailId,
+		}
+		if status, ok := deploymentTimeStatusMap[history.DeployedOn]; ok {
+			historyDto.DeploymentStatus = status
 		}
 		historiesDto = append(historiesDto, historyDto)
 	}

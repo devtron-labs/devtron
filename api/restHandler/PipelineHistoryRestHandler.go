@@ -94,6 +94,22 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedT
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	offsetQueryParam := r.URL.Query().Get("offset")
+	offset, err := strconv.Atoi(offsetQueryParam)
+	if offsetQueryParam == "" || err != nil {
+		handler.logger.Errorw("request err, FetchDeploymentDetailsForDeployedTemplatesHistory", "err", err, "offset", offset)
+		common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+		return
+	}
+	sizeQueryParam := r.URL.Query().Get("size")
+	limit, err := strconv.Atoi(sizeQueryParam)
+	if sizeQueryParam == "" || err != nil {
+		handler.logger.Errorw("request err, FetchDeploymentDetailsForDeployedTemplatesHistory", "err", err, "limit", limit)
+		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+		return
+	}
+
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -101,7 +117,7 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedT
 	}
 	//RBAC END
 
-	res, err := handler.deploymentTemplateHistoryService.GetDeploymentDetailsForDeployedTemplateHistory(pipelineId)
+	res, err := handler.deploymentTemplateHistoryService.GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit)
 	if err != nil {
 		handler.logger.Errorw("service err, GetDeploymentDetailsForDeployedTemplateHistory", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
