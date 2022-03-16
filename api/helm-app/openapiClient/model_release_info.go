@@ -16,13 +16,15 @@ import (
 
 // ReleaseInfo struct for ReleaseInfo
 type ReleaseInfo struct {
-	DeployedAppDetail *HelmAppDeploymentDetail `json:"deployedAppDetail,omitempty"`
+	DeployedAppDetail *HelmApp `json:"deployedAppDetail,omitempty"`
 	// default chat values
 	DefaultValues *string `json:"defaultValues,omitempty"`
 	// overrides passed by user
 	OverrideValues *string `json:"overrideValues,omitempty"`
 	// merged values
 	MergedValues *string `json:"mergedValues,omitempty"`
+	// readme of the chart
+	Readme *string `json:"readme,omitempty"`
 }
 
 // NewReleaseInfo instantiates a new ReleaseInfo object
@@ -43,9 +45,9 @@ func NewReleaseInfoWithDefaults() *ReleaseInfo {
 }
 
 // GetDeployedAppDetail returns the DeployedAppDetail field value if set, zero value otherwise.
-func (o *ReleaseInfo) GetDeployedAppDetail() HelmAppDeploymentDetail {
+func (o *ReleaseInfo) GetDeployedAppDetail() HelmApp {
 	if o == nil || o.DeployedAppDetail == nil {
-		var ret HelmAppDeploymentDetail
+		var ret HelmApp
 		return ret
 	}
 	return *o.DeployedAppDetail
@@ -53,7 +55,7 @@ func (o *ReleaseInfo) GetDeployedAppDetail() HelmAppDeploymentDetail {
 
 // GetDeployedAppDetailOk returns a tuple with the DeployedAppDetail field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *ReleaseInfo) GetDeployedAppDetailOk() (*HelmAppDeploymentDetail, bool) {
+func (o *ReleaseInfo) GetDeployedAppDetailOk() (*HelmApp, bool) {
 	if o == nil || o.DeployedAppDetail == nil {
 		return nil, false
 	}
@@ -69,8 +71,8 @@ func (o *ReleaseInfo) HasDeployedAppDetail() bool {
 	return false
 }
 
-// SetDeployedAppDetail gets a reference to the given HelmAppDeploymentDetail and assigns it to the DeployedAppDetail field.
-func (o *ReleaseInfo) SetDeployedAppDetail(v HelmAppDeploymentDetail) {
+// SetDeployedAppDetail gets a reference to the given HelmApp and assigns it to the DeployedAppDetail field.
+func (o *ReleaseInfo) SetDeployedAppDetail(v HelmApp) {
 	o.DeployedAppDetail = &v
 }
 
@@ -170,6 +172,38 @@ func (o *ReleaseInfo) SetMergedValues(v string) {
 	o.MergedValues = &v
 }
 
+// GetReadme returns the Readme field value if set, zero value otherwise.
+func (o *ReleaseInfo) GetReadme() string {
+	if o == nil || o.Readme == nil {
+		var ret string
+		return ret
+	}
+	return *o.Readme
+}
+
+// GetReadmeOk returns a tuple with the Readme field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ReleaseInfo) GetReadmeOk() (*string, bool) {
+	if o == nil || o.Readme == nil {
+		return nil, false
+	}
+	return o.Readme, true
+}
+
+// HasReadme returns a boolean if a field has been set.
+func (o *ReleaseInfo) HasReadme() bool {
+	if o != nil && o.Readme != nil {
+		return true
+	}
+
+	return false
+}
+
+// SetReadme gets a reference to the given string and assigns it to the Readme field.
+func (o *ReleaseInfo) SetReadme(v string) {
+	o.Readme = &v
+}
+
 func (o ReleaseInfo) MarshalJSON() ([]byte, error) {
 	toSerialize := map[string]interface{}{}
 	if o.DeployedAppDetail != nil {
@@ -183,6 +217,9 @@ func (o ReleaseInfo) MarshalJSON() ([]byte, error) {
 	}
 	if o.MergedValues != nil {
 		toSerialize["mergedValues"] = o.MergedValues
+	}
+	if o.Readme != nil {
+		toSerialize["readme"] = o.Readme
 	}
 	return json.Marshal(toSerialize)
 }

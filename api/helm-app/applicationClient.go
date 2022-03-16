@@ -22,6 +22,7 @@ type HelmAppClient interface {
 	GetDeploymentDetail(ctx context.Context, in *DeploymentDetailRequest) (*DeploymentDetailResponse, error)
 	InstallRelease(ctx context.Context, in *InstallReleaseRequest) (*InstallReleaseResponse, error)
 	UpdateApplicationWithChartInfo(ctx context.Context, in *InstallReleaseRequest) (*UpgradeReleaseResponse, error)
+	IsReleaseInstalled(ctx context.Context, in *ReleaseIdentifier) (*BooleanResponse, error)
 }
 
 type HelmAppClientImpl struct {
@@ -221,4 +222,16 @@ func (impl *HelmAppClientImpl) UpdateApplicationWithChartInfo(ctx context.Contex
 		return nil, err
 	}
 	return updateReleaseResponse, nil
+}
+
+func (impl *HelmAppClientImpl) IsReleaseInstalled(ctx context.Context, in *ReleaseIdentifier) (*BooleanResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	response, err := applicationClient.IsReleaseInstalled(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }

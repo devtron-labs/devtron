@@ -28,7 +28,9 @@ type HelmApp struct {
 	// url/location of the chart icon
 	ChartAvatar *string `json:"chartAvatar,omitempty"`
 	// unique identifier for the project, APP with no project will have id `0`
-	ProjectId         *int32                `json:"projectId,omitempty"`
+	ProjectId *int32 `json:"projectId,omitempty"`
+	// chart version
+	ChartVersion *string `json:"chartVersion,omitempty"`
 	EnvironmentDetail *AppEnvironmentDetail `json:"environmentDetail,omitempty"`
 }
 
@@ -241,6 +243,38 @@ func (o *HelmApp) SetProjectId(v int32) {
 	o.ProjectId = &v
 }
 
+// GetChartVersion returns the ChartVersion field value if set, zero value otherwise.
+func (o *HelmApp) GetChartVersion() string {
+	if o == nil || o.ChartVersion == nil {
+		var ret string
+		return ret
+	}
+	return *o.ChartVersion
+}
+
+// GetChartVersionOk returns a tuple with the ChartVersion field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *HelmApp) GetChartVersionOk() (*string, bool) {
+	if o == nil || o.ChartVersion == nil {
+		return nil, false
+	}
+	return o.ChartVersion, true
+}
+
+// HasChartVersion returns a boolean if a field has been set.
+func (o *HelmApp) HasChartVersion() bool {
+	if o != nil && o.ChartVersion != nil {
+		return true
+	}
+
+	return false
+}
+
+// SetChartVersion gets a reference to the given string and assigns it to the ChartVersion field.
+func (o *HelmApp) SetChartVersion(v string) {
+	o.ChartVersion = &v
+}
+
 // GetEnvironmentDetail returns the EnvironmentDetail field value if set, zero value otherwise.
 func (o *HelmApp) GetEnvironmentDetail() AppEnvironmentDetail {
 	if o == nil || o.EnvironmentDetail == nil {
@@ -293,6 +327,9 @@ func (o HelmApp) MarshalJSON() ([]byte, error) {
 	if o.ProjectId != nil {
 		toSerialize["projectId"] = o.ProjectId
 	}
+	if o.ChartVersion != nil {
+		toSerialize["chartVersion"] = o.ChartVersion
+	}
 	if o.EnvironmentDetail != nil {
 		toSerialize["environmentDetail"] = o.EnvironmentDetail
 	}
@@ -334,3 +371,5 @@ func (v *NullableHelmApp) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+
