@@ -167,7 +167,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	pipelineStrategyHistoryService history.PipelineStrategyHistoryService,
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService) *PipelineBuilderImpl {
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	appLevelMetricsRepository repository.AppLevelMetricsRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -200,6 +201,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		prePostCiScriptHistoryService:    prePostCiScriptHistoryService,
 		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		appLevelMetricsRepository:        appLevelMetricsRepository,
 	}
 }
 
