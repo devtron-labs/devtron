@@ -1325,7 +1325,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	}
 	//getting global app metrics for cd pipeline create because env level metrics is not created yet
 	appLevelAppMetricsEnabled := false
-	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chart.AppId)
+	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(app.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
 	} else {
