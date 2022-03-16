@@ -257,7 +257,7 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 
 	var finalConfigs []*ConfigData
 	envLevelConfigs := make(map[string]bool)
-	var filterNameMap map[string]bool
+	filterNameMap := make(map[string]bool)
 	for _, name := range configMapSecretNames {
 		filterNameMap[name] = true
 	}
