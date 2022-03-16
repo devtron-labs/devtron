@@ -176,8 +176,8 @@ func InitializeApp() (*App, error) {
 	}
 	appStoreChartsHistoryRepositoryImpl := repository3.NewAppStoreChartsHistoryRepositoryImpl(sugaredLogger, db)
 	appStoreChartsHistoryServiceImpl := history.NewAppStoreChartsHistoryServiceImpl(sugaredLogger, appStoreChartsHistoryRepositoryImpl)
-	appStoreDeploymentServiceImpl := appStoreDeployment.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, appStoreDeploymentHelmServiceImpl, appStoreDeploymentHelmServiceImpl, environmentServiceImpl, clusterServiceImpl, globalEnvVariables, appStoreChartsHistoryServiceImpl)
-	appStoreDeploymentRestHandlerImpl := appStoreDeployment2.NewAppStoreDeploymentRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, enforcerUtilImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, validate)
+	appStoreDeploymentServiceImpl := appStoreDeployment.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, appStoreDeploymentHelmServiceImpl, appStoreDeploymentHelmServiceImpl, environmentServiceImpl, clusterServiceImpl, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, globalEnvVariables, appStoreChartsHistoryServiceImpl)
+	appStoreDeploymentRestHandlerImpl := appStoreDeployment2.NewAppStoreDeploymentRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, enforcerUtilImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, validate, helmAppServiceImpl)
 	appStoreDeploymentRouterImpl := appStoreDeployment2.NewAppStoreDeploymentRouterImpl(appStoreDeploymentRestHandlerImpl)
 	muxRouter := NewMuxRouter(sugaredLogger, ssoLoginRouterImpl, teamRouterImpl, userAuthRouterImpl, userRouterImpl, clusterRouterImpl, dashboardRouterImpl, helmAppRouterImpl, environmentRouterImpl, k8sApplicationRouterImpl, chartRepositoryRouterImpl, appStoreDiscoverRouterImpl, appStoreValuesRouterImpl, appStoreDeploymentRouterImpl)
 	posthogClient, err := telemetry.NewPosthogClient(sugaredLogger)
