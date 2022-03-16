@@ -78,6 +78,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *appStoreRepositor
 		AppName:         chart.App.AppName,
 		EnvironmentName: chart.Environment.Name,
 		InstalledAppId:  chart.Id,
+		InstalledAppVersionId: installedAppVersion.Id,
 		InstallAppVersionChartDTO: &appStoreBean.InstallAppVersionChartDTO{
 			AppStoreChartId: chartVersionApp.AppStore.Id,
 			ChartName:       chartVersionApp.Name,

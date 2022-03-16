@@ -25,7 +25,7 @@ type HelmAppRestHandler interface {
 	Hibernate(w http.ResponseWriter, r *http.Request)
 	UnHibernate(w http.ResponseWriter, r *http.Request)
 	GetDeploymentHistory(w http.ResponseWriter, r *http.Request)
-	GetValuesYaml(w http.ResponseWriter, r *http.Request)
+	GetReleaseInfo(w http.ResponseWriter, r *http.Request)
 	GetDesiredManifest(w http.ResponseWriter, r *http.Request)
 	DeleteApplication(w http.ResponseWriter, r *http.Request)
 	UpdateApplication(w http.ResponseWriter, r *http.Request)
@@ -72,7 +72,7 @@ func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r
 		clusterIds = append(clusterIds, j)
 	}
 	token := r.Header.Get("token")
-	handler.helmAppService.ListHelmApplications(clusterIds, w, token, handler.CheckHelmAuth)
+	handler.helmAppService.ListHelmApplications(clusterIds, w, token, handler.checkHelmAuth)
 }
 
 func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {
@@ -196,7 +196,7 @@ func (handler *HelmAppRestHandlerImpl) GetDeploymentHistory(w http.ResponseWrite
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *http.Request) {
+func (handler *HelmAppRestHandlerImpl) GetReleaseInfo(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId := vars["appId"]
 	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
@@ -351,7 +351,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-	}else{
+	} else {
 		res, err = handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, request)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -404,7 +404,7 @@ func (handler *HelmAppRestHandlerImpl) GetDeploymentDetail(w http.ResponseWriter
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *HelmAppRestHandlerImpl) CheckHelmAuth(token string, object string) bool {
+func (handler *HelmAppRestHandlerImpl) checkHelmAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, strings.ToLower(object)); !ok {
 		return false
 	}
@@ -417,11 +417,14 @@ func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) 
 	}
 
 	return &InstalledAppInfo{
-		AppId:           installedApp.AppId,
-		EnvironmentName: installedApp.EnvironmentName,
-		AppOfferingMode: installedApp.AppOfferingMode,
-		InstalledAppId:  installedApp.InstalledAppId,
-		AppStoreChartId: installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+		AppId:                 installedApp.AppId,
+		EnvironmentName:       installedApp.EnvironmentName,
+		AppOfferingMode:       installedApp.AppOfferingMode,
+		InstalledAppId:        installedApp.InstalledAppId,
+		InstalledAppVersionId: installedApp.InstalledAppVersionId,
+		AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+		ClusterId:             installedApp.ClusterId,
+		EnvironmentId:         installedApp.EnvironmentId,
 	}
 }
 
@@ -436,9 +439,12 @@ type ReleaseAndInstalledAppInfo struct {
 }
 
 type InstalledAppInfo struct {
-	AppId           int    `json:"appId"`
-	InstalledAppId  int    `json:"installedAppId"`
-	AppStoreChartId int    `json:"appStoreChartId"`
-	EnvironmentName string `json:"environmentName"`
-	AppOfferingMode string `json:"appOfferingMode"`
+	AppId                 int    `json:"appId"`
+	InstalledAppId        int    `json:"installedAppId"`
+	InstalledAppVersionId int    `json:"installedAppVersionId"`
+	AppStoreChartId       int    `json:"appStoreChartId"`
+	EnvironmentName       string `json:"environmentName"`
+	AppOfferingMode       string `json:"appOfferingMode"`
+	ClusterId             int    `json:"clusterId"`
+	EnvironmentId         int    `json:"environmentId"`
 }
