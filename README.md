@@ -209,17 +209,11 @@ For admin login, use username:`admin` and for password run the following command
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
-# :blue_heart: Tools:
+# :blue_heart: Technology
+
 Devtron is built on some of the most trusted and loved technologies
 <br>
 <p align="center"><img width="70%" height="70%" src="./assets/we-support.jpg"></p>
-
-# :memo: Compatibility
-
-## Current build: 
-
-- Devtron uses modified version of [Argo Rollout](https://argoproj.github.io/argo-rollouts/)
-- Application metrics only works for k8s version 1.16+
 
 # :video_camera: Videos
 
@@ -239,14 +233,90 @@ Devtron is trusted by Enterprises and Community, all across the globe:
 - [Moglix:](https://www.moglix.com/) A B2B commerce company working in the B2B procurement of industrial supplies
 - [Xoxoday:](https://www.xoxoday.com/) Xoxoday helps to send rewards, perks & incentives to employees, customers and partners
 
+# :question: FAQ & Troubleshooting
+
+## FAQ
+
+<details>
+<summary>1.How to resolve unauthorized error/s, while trying to save global configuration like Hostname, GitOps etc, after successful Devtron installation?</summary>
+<br>
+A. This occurs most of the times, because any one or more jobs get failed during installation. To resolve this, you will need to first check, which jobs have failed. Follow these steps:
+
+- Run the following command and check which are the jobs with 0/1 completions:
+```bash
+kubectl get jobs -n devtroncd
+```
+
+ - Note the names of the jobs with 0/1 completions and check if their pods are in running state, by running the command:
+ ```bash
+kubectl get pods -n devtroncd
+ ```
+ 
+- If they are in running condition, please wait for the jobs to complete. This may be due to connectivity issue. If the job is not in running condition, delete those incomplete jobs using:
+
+```bash
+kubectl delete jobs <job1-name> <job2-name> -n devtroncd..
+```
+[Read More](https://github.com/devtron-labs/devtron/blob/main/Troubleshooting.md#1-how-to-resolve-unauthorized-error-while-trying-to-save-global-configurations-like-hostname-gitops-etc-after-successful-devtron-installation)
+
+<br><br>
+</details>
+ 
+<details>
+<summary>2.What to do if Devtron dashboard is not accessible in browser, even after successful completion of all the jobs and all pods are in running mode?</summary>
+<br>
+
+A. Check if nats-cluster is created. You can check using the following command:
+ 
+```bash
+kubectl get natscluster -n devtroncd
+```
+ 
+- You should see a natscluster with the name devtron-nats. If not, run the following command:
+ 
+```bash
+kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/nats-server.yaml -n devtroncd
+```
+ 
+- Wait util all nats pods are created and the pods are in running condition. Once completed, delete devtron and dashboard pods. Then you should be able to access the devtron dashboard without any issues.
+ 
+- If your problem is still not resolved, you can post your query in our [Discord](https://discord.gg/jsRG5qx2gp) channel
+<br><br>
+</details>
+
+<details>
+<summary>3.Not able to see deployment metrics in production environment / Problem with enabling application-metrics / Not able to deploy the app after creating a configmap or secret, with data-volume option enabled</summary>
+<br>
+A. Update the rollout crds to latest version, run the following command
+ 
+```bash
+kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/rollout.yaml -n devtroncd
+```
+</details>
+ 
+## Troubleshooting
+ 
+- Installation issues - [see here](https://docs.devtron.ai/setup/install)
+- All other issues - [see here](https://docs.devtron.ai/user-guide/command-bar)
+
+# :memo: Compatibility
+
+## Current build
+
+- Devtron uses modified version of [Argo Rollout](https://argoproj.github.io/argo-rollouts/)
+- Application metrics only works for k8s version 1.16+
+
+# Support, Contribution and Community
+
 ## :busts_in_silhouette: Community
 
-Get updates on Devtron's development and chat with the project maintainers, contributors, and community members.
+Get updates on Devtron's development and chat with project maintainers, contributors and community members
+ 
 - Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
-- Raise feature requests, suggest enhancements, report bugs in our [GitHub issues](https://github.com/devtron-labs/devtron/issues)
-- Read the [Devtron blog](https://devtron.ai/blog/)
+- Raise feature requests, suggest enhancements, report bugs in our [GitHub Issues](https://github.com/devtron-labs/devtron/issues)
+- Articles, Howtos, Tutorials - [Devtron Blogs](https://devtron.ai/blog/)
 
-### Join Our Discord Community
+### Join us at Discord channel
 <p>
 <a href="https://discord.gg/jsRG5qx2gp">
     <img 
@@ -254,69 +324,17 @@ Get updates on Devtron's development and chat with the project maintainers, cont
     alt="Join Devtron : Heroku for Kubernetes"
     >
 </a>
- </p>
+</p>
  
-
-
-## :question: FAQ & Troubleshooting:
-### FAQ:
-
-<details>
-<summary> <b>1.How to resolve unauthorized error/s, while trying to save global configurations like hostname, GitOps etc. after successful devtron installation</b></summary>
-<br>
-A. This occurs most of the time because any one or multiple jobs get failed during installation. To resolve this, you'll need to first check which jobs have failed. Follow these steps:
-
-- Run the following command and check which are the jobs with 0/1 completions:
-```bash
-kubectl get jobs -n devtroncd
-```
-- Note the names of the jobs with 0/1 completions and check if their pods are in running state or not by running the command:
-kubectl get pods -n devtroncd
-- If they are in running condition, please wait for the jobs to be completed. This may be due to internet issue. If the job is not in running condition, delete those incomplete jobs using:
-kubectl delete jobs <job1-name> <job2-name> -n devtroncd..[Read More](https://github.com/devtron-labs/devtron/blob/main/Troubleshooting.md#1-how-to-resolve-unauthorized-error-while-trying-to-save-global-configurations-like-hostname-gitops-etc-after-successful-devtron-installation)
-<br><br>
-</details>
- 
-<details>
-<summary> <b>2.What to do if devtron dashboard is not accessible on browser, even after successful completion of all jobs and all pods are in running mode?</b></summary>
-<br>
-
-A. Check if nats-cluster is created or not, you can check it using the following command:
-```bash
-kubectl get natscluster -n devtroncd
-```
-- You should see a natscluster with the name devtron-nats. If not, run the following command:
-```bash
-kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/nats-server.yaml -n devtroncd
-```
-- Wait util all nats pods are created, and the pods are in running condition. Once complete, delete devtron and dashboard pods. Then you should be able to access the devtron dashboard without any issues.
-- If your problem is still not resolved, you can post your query in our [discord](https://discord.gg/jsRG5qx2gp) channel
-<br><br>
-</details>
-
-<details>
-<summary> <b>3.Not able to see deployment metrics on production environment or Not able to enable application-metrics or Not able to deploy the app after creating a configmap or secret with data-volume option enabled</b></summary>
-<br>
-A. Update the rollout crds to latest version, run the following command
-```bash
-kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/rollout.yaml -n devtroncd
-```
-</details>
- 
-### Troubleshooting:
-- For Installation Troubleshooting, check this [documentation](https://docs.devtron.ai/setup/install)
-- For other troubleshooting, Check the [Common troubleshooting documentation](https://docs.devtron.ai/user-guide/command-bar)
-
-
 ## :handshake: Contribute
 
-Check out our [contributing guidelines](CONTRIBUTING.md). Included are directions for opening issues, coding standards, and notes on our development processes. We deeply appreciate your contributions.
+Check out our [contributing guidelines](CONTRIBUTING.md). Included are directions for opening issues, coding standards and notes on our development processes. We deeply appreciate your contributions.
 
-Also please checkout our [community contributions](COMMUNITY_CONTRIBUTIONS.md) and feel free to create a video or blog around Devtron and add your valuable contribution in the list.
+Please look at our [community contributions](COMMUNITY_CONTRIBUTIONS.md) and feel free to create a video or blog around Devtron and add your valuable contribution in the list.
 
-### Our Contributors:
+### Contributors:
 
-We are deeply grateful for all our amazing contributors!    
+We are deeply grateful to all our amazing contributors!
 
 <a href="https://github.com/devtron-labs/devtron/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=devtron-labs/devtron" />
@@ -324,7 +342,8 @@ We are deeply grateful for all our amazing contributors!
 
 ## :bug: Vulnerability Reporting
 
-We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose this to us at security@devtron.ai.
+We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue, please disclose this to us at <b>security@devtron.ai</b>.
 
-## :bookmark: License
-Devtron is available under the [Apache License, Version 2.0](LICENSE)
+# :bookmark: License
+
+Devtron is licensed under [Apache License, Version 2.0](LICENSE)
