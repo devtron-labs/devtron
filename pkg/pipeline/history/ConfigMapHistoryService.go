@@ -206,7 +206,9 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 	if configType == repository.CONFIGMAP_TYPE {
 		var configDataAppLevel string
 		var configDataEnvLevel string
-		configDataAppLevel = appLevelConfig.ConfigMapData
+		if appLevelConfig != nil {
+			configDataAppLevel = appLevelConfig.ConfigMapData
+		}
 		if envLevelConfig != nil {
 			configDataEnvLevel = envLevelConfig.ConfigMapData
 		}
@@ -231,7 +233,9 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 	} else if configType == repository.SECRET_TYPE {
 		var secretDataAppLevel string
 		var secretDataEnvLevel string
-		secretDataAppLevel = appLevelConfig.SecretData
+		if appLevelConfig != nil {
+			secretDataAppLevel = appLevelConfig.SecretData
+		}
 		if envLevelConfig != nil {
 			secretDataEnvLevel = envLevelConfig.SecretData
 		}
