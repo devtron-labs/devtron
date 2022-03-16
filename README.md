@@ -42,7 +42,7 @@ Devtron is a web based CI/CD orchestrator for Kubernetes. It integrates various 
 <h3><b>Devtron is built in a modular fashion. It consists of the below modules which can be installed independently:</b></h3>
 
 - [Hyperion](https://github.com/devtron-labs/devtron#-hyperion) - Devtron's light weight module to observe, deploy, manage & debug existing Helm apps in all your clusters. Start with Hyperion, to understand how Devtron can fit into your workflow. You can always switch / upgrade to Devtron for full features, like GitOps implementation, setting up Pipelines and Security.
-- [Devtron](https://github.com/devtron-labs/devtron#computer-devtron) - Devtron gives you all the features of the system with a complete experience - providing you with CI/CD, Security, Observability etc, from a single web-console. Hyperion module is included by default.
+- [Devtron](https://github.com/devtron-labs/devtron#tada-features) - Devtron gives you all the features of the system with a complete experience - providing you with CI/CD, Security, Observability etc, from a single web-console. Hyperion module is included by default.
 
 ## :tada: Features
 <br>
