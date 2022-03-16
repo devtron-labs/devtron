@@ -91,7 +91,7 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedT
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
@@ -157,7 +157,7 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeployedTemplatesHistoryById(
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
@@ -201,7 +201,7 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedS
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
@@ -251,7 +251,7 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeployedStrategyHistoryById(w
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
@@ -295,7 +295,7 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedC
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
@@ -345,7 +345,7 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeployedCMHistoryById(w http.
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
@@ -389,7 +389,7 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedC
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
@@ -439,7 +439,7 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeployedCSHistoryById(w http.
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
@@ -484,7 +484,7 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeployedPrePostCdScriptHistor
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
