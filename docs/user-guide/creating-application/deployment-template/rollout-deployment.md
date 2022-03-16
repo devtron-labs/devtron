@@ -106,6 +106,9 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  command:
+    - python
+    - /etc/app/healthcheck.py
   httpHeaders:
     - name: Custom-Header
       value: abc
@@ -121,6 +124,7 @@ LivenessProbe:
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
 | `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
+| `command` | The mentioned command is executed to perform the livenessProbe. If the command returns a non-zero value, it's equivalent to a failed probe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
@@ -161,6 +165,9 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  command:
+    - python
+    - /etc/app/healthcheck.py
   httpHeaders:
     - name: Custom-Header
       value: abc
@@ -176,6 +183,7 @@ ReadinessProbe:
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
 | `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
+| `command` | The mentioned command is executed to perform the readinessProbe. If the command returns a non-zero value, it's equivalent to a failed probe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
@@ -241,9 +249,11 @@ ingress:
   annotations: {}
   hosts:
       - host: example1.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example
       - host: example2.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example2
             - /example2/healthz
@@ -266,8 +276,9 @@ ingress:
 | :--- | :--- |
 | `enabled` | Enable or disable ingress |
 | `annotations` | To configure some options depending on the Ingress controller |
-| `path` | Path name |
 | `host` | Host name |
+| `pathType` | Path in an Ingress is required to have a corresponding path type. Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`. |
+| `path` | Path name |
 | `tls` | It contains security details |
 
 ### Ingress Internal
@@ -282,9 +293,11 @@ ingressInternal:
   annotations: {}
   hosts:
       - host: example1.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example
       - host: example2.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example2
             - /example2/healthz
@@ -295,8 +308,10 @@ ingressInternal:
 | :--- | :--- |
 | `enabled` | Enable or disable ingress |
 | `annotations` | To configure some options depending on the Ingress controller |
-| `path` | Path name |
 | `host` | Host name |
+| `pathType` | Path in an Ingress is required to have a corresponding path type. Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`. |
+| `path` | Path name |
+| `pathType` | Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`.|
 | `tls` | It contains security details |
 
 ### Init Containers
