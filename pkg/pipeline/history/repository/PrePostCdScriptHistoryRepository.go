@@ -25,7 +25,7 @@ type PrePostCdScriptHistory struct {
 	ConfigMapSecretNames string                     `sql:"configmap_secret_names"`
 	ConfigMapData        string                     `sql:"configmap_data"`
 	SecretData           string                     `sql:"secret_data"`
-	ExecInEnv            bool                       `sql:"exec_in_env"`
+	ExecInEnv            bool                       `sql:"exec_in_env,notnull"`
 	Deployed             bool                       `sql:"deployed"`
 	DeployedOn           time.Time                  `sql:"deployed_on"`
 	DeployedBy           int32                      `sql:"deployed_by"`
