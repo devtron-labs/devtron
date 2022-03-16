@@ -33,7 +33,7 @@ type DeploymentTemplateHistory struct {
 	TargetEnvironment       int       `sql:"target_environment"`
 	TemplateName            string    `sql:"template_name"`
 	TemplateVersion         string    `sql:"template_version"`
-	IsAppMetricsEnabled     bool      `sql:"is_app_metrics_enabled"`
+	IsAppMetricsEnabled     bool      `sql:"is_app_metrics_enabled,notnull"`
 	Deployed                bool      `sql:"deployed"`
 	DeployedOn              time.Time `sql:"deployed_on"`
 	DeployedBy              int32     `sql:"deployed_by"`
