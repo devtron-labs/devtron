@@ -316,7 +316,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UpdateReleaseResponse"
-  /orchestrator/app-store/deployment/application/helm/update-with-chart-linking:
+  /orchestrator/app-store/deployment/application/helm/link-to-chart-store:
     put:
       description: update the helm EA application with chartstore linking
       requestBody:

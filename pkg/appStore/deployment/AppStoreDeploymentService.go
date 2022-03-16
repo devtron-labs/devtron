@@ -52,7 +52,7 @@ type AppStoreDeploymentService interface {
 	GetInstalledApp(id int) (*appStoreBean.InstallAppVersionDTO, error)
 	GetAllInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request, token string, appStoreId int) ([]appStoreBean.InstalledAppsResponse, error)
 	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
-	UpdateHelmApplicationWithChartStoreLinking(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, error)
+	LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error)
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -498,17 +498,30 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 	return installAppVersionRequest, nil
 }
 
-func (impl AppStoreDeploymentServiceImpl) UpdateHelmApplicationWithChartStoreLinking(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest,
-	appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, error) {
+func (impl AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest,
+	appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error) {
+
+	impl.logger.Infow("Linking helm application to chart store", "appId", request.GetAppId())
+
+	// check if chart repo is active starts
+	isChartRepoActive, err := impl.IsChartRepoActive(int(request.GetAppStoreApplicationVersionId()))
+	if err != nil {
+		impl.logger.Errorw("Error in checking if chart repo is active or not", "err", err)
+		return nil, isChartRepoActive, err
+	}
+	if !isChartRepoActive {
+		return nil, isChartRepoActive, nil
+	}
+	// check if chart repo is active ends
 
 	// STEP-1 check if the app is installed or not
 	isInstalled, err := impl.helmAppService.IsReleaseInstalled(ctx, appIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error while checking if the release is installed", "error", err)
-		return nil, err
+		return nil, isChartRepoActive, err
 	}
 	if !isInstalled {
-		return nil, errors.New("release is not installed. so can not be updated")
+		return nil, isChartRepoActive, errors.New("release is not installed. so can not be updated")
 	}
 	// STEP-1 ends
 
@@ -529,7 +542,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateHelmApplicationWithChartStoreLin
 	_, err = impl.InstallApp(installAppVersionRequestDto, ctx, false)
 	if err != nil {
 		impl.logger.Errorw("error while updating app DB operations", "error", err)
-		return nil, err
+		return nil,isChartRepoActive,  err
 	}
 	// STEP-2 ends
 
@@ -537,7 +550,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateHelmApplicationWithChartStoreLin
 	installedApp, err := impl.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	if err != nil {
 		impl.logger.Errorw("error while getting installed app", "error", err)
-		return nil, err
+		return nil, isChartRepoActive, err
 	}
 	chartInfo := installedApp.InstallAppVersionChartDTO
 	chartRepoInfo := chartInfo.InstallAppVersionChartRepoDTO
@@ -559,9 +572,9 @@ func (impl AppStoreDeploymentServiceImpl) UpdateHelmApplicationWithChartStoreLin
 	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, appIdentifier.ClusterId, updateReleaseRequest)
 	if err != nil {
 		impl.logger.Errorw("error while updating app", "error", err)
-		return nil, err
+		return nil, isChartRepoActive, err
 	}
-	return res, err
+	return res, isChartRepoActive, nil
 	// STEP-3 ends
 }
 
