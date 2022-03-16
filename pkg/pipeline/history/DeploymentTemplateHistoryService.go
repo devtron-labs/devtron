@@ -314,30 +314,31 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 		impl.logger.Errorw("error in getting ")
 		return nil, err
 	}
-	deploymentTimeStatusMap := make(map[time.Time]string)
-	for _, wfr := range wfrList {
-		deploymentTimeStatusMap[wfr.StartedOn] = wfr.Status
+	deploymentTimeStatusMap := make(map[time.Time]int)
+	for index, wfr := range wfrList {
+		deploymentTimeStatusMap[wfr.StartedOn] = index
 	}
 	var historiesDto []*DeploymentTemplateHistoryDto
 	for _, history := range histories {
-		user, err := impl.userService.GetById(history.DeployedBy)
-		if err != nil {
-			impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
-			return nil, err
+		if wfrIndex, ok := deploymentTimeStatusMap[history.DeployedOn]; ok {
+			user, err := impl.userService.GetById(history.DeployedBy)
+			if err != nil {
+				impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
+				return nil, err
+			}
+			historyDto := &DeploymentTemplateHistoryDto{
+				Id:         history.Id,
+				AppId:      history.AppId,
+				PipelineId: history.PipelineId,
+				Deployed:   history.Deployed,
+				DeployedOn: history.DeployedOn,
+				DeployedBy: history.DeployedBy,
+				EmailId:    user.EmailId,
+			}
+			historyDto.DeploymentStatus = wfrList[wfrIndex].Status
+			historyDto.WfrId = wfrList[wfrIndex].Id
+			historiesDto = append(historiesDto, historyDto)
 		}
-		historyDto := &DeploymentTemplateHistoryDto{
-			Id:         history.Id,
-			AppId:      history.AppId,
-			PipelineId: history.PipelineId,
-			Deployed:   history.Deployed,
-			DeployedOn: history.DeployedOn,
-			DeployedBy: history.DeployedBy,
-			EmailId:    user.EmailId,
-		}
-		if status, ok := deploymentTimeStatusMap[history.DeployedOn]; ok {
-			historyDto.DeploymentStatus = status
-		}
-		historiesDto = append(historiesDto, historyDto)
 	}
 	return historiesDto, nil
 }
