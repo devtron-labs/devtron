@@ -454,9 +454,9 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							//creating history entry for deployment template
 							appLevelAppMetricsEnabled := false
 							appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chart.AppId)
-							if err != nil {
+							if err != nil && err != pg.ErrNoRows {
 								impl.logger.Errorw("error in getting app level metrics app level", "error", err)
-							} else {
+							} else if err == nil {
 								appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
 							}
 							chart.GlobalOverride = modified

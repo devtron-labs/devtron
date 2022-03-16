@@ -383,17 +383,18 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 
 	//creating history entry for deployment template
 	//TODO : remove default value(false) app metrics flag for history when app metrics request is combined with template save request
-	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, false)
+	appLevelAppMetricsEnabled := false
+	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(templateRequest.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+	} else if err == nil {
+		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, appLevelAppMetricsEnabled)
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 		return nil, err
 	}
-	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(templateRequest.AppId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in app metrics app level flag", "error", err)
-		return nil, err
-	}
-
 	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
 		appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
 		_, err = impl.updateAppLevelMetrics(&appMetricsRequest)
@@ -506,14 +507,16 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	}
 	//creating history entry for deployment template
 	//TODO : remove default value(false) app metrics flag for history when app metrics request is combined with template save request
-	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, false)
-	if err != nil {
-		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
-		return nil, err
-	}
+	appLevelAppMetricsEnabled := false
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(templateRequest.AppId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in app metrics app level flag", "error", err)
+		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+	} else if err == nil {
+		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, appLevelAppMetricsEnabled)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 		return nil, err
 	}
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
@@ -781,9 +784,9 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 	//TODO : remove fetching and setting app metrics flag for history when app metrics update request is combined with template update request
 	appLevelAppMetricsEnabled := false
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(template.AppId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
-	} else {
+	} else if err == nil {
 		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
 	}
 	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(template, nil, appLevelAppMetricsEnabled)
@@ -1081,25 +1084,22 @@ func (impl ChartServiceImpl) filterDeploymentTemplateForBackground(deploymentTem
 }
 
 func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error) {
-
+	currentChart, err := impl.chartRepository.FindLatestChartForAppByAppId(appMetricRequest.AppId)
+	if err != nil && pg.ErrNoRows != err {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	if pg.ErrNoRows == err {
+		impl.logger.Errorw("no chart configured for this app", "appId", appMetricRequest.AppId)
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusNotFound,
+			InternalMessage: "no chart configured for this app",
+			UserMessage:     "no chart configured for this app",
+		}
+		return nil, err
+	}
 	// validate app metrics compatibility
-	var currentChart *chartRepoRepository.Chart
-	var err error
 	if appMetricRequest.IsAppMetricsEnabled == true {
-		currentChart, err = impl.chartRepository.FindLatestChartForAppByAppId(appMetricRequest.AppId)
-		if err != nil && pg.ErrNoRows != err {
-			impl.logger.Error(err)
-			return nil, err
-		}
-		if pg.ErrNoRows == err {
-			impl.logger.Errorw("no chart configured for this app", "appId", appMetricRequest.AppId)
-			err = &util.ApiError{
-				HttpStatusCode:  http.StatusNotFound,
-				InternalMessage: "no chart configured for this app",
-				UserMessage:     "no chart configured for this app",
-			}
-			return nil, err
-		}
 		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(currentChart.ChartVersion)
 		if err != nil {
 			impl.logger.Errorw("chart version parsing", "err", err)
@@ -1114,7 +1114,6 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 			return nil, err
 		}
 	}
-
 	//update or create app level app metrics
 	appLevelMetrics, err := impl.updateAppLevelMetrics(&appMetricRequest)
 	if err != nil {
