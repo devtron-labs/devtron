@@ -30,7 +30,7 @@ type PipelineStrategyHistory struct {
 	PipelineId int                               `sql:"pipeline_id, notnull"`
 	Strategy   pipelineConfig.DeploymentTemplate `sql:"strategy,notnull"`
 	Config     string                            `sql:"config"`
-	Default    bool                              `sql:"default"`
+	Default    bool                              `sql:"default,notnull"`
 	Deployed   bool                              `sql:"deployed"`
 	DeployedOn time.Time                         `sql:"deployed_on"`
 	DeployedBy int32                             `sql:"deployed_by"`
