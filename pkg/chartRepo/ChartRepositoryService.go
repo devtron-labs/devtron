@@ -20,6 +20,7 @@ package chartRepo
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -51,6 +52,7 @@ type ChartRepositoryService interface {
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
 	DeleteChartRepo(request *ChartRepoDto) error
+	ValidateChartDetails(FileName string, chartVersion string) (string, error)
 }
 
 type ChartRepositoryServiceImpl struct {
@@ -560,4 +562,23 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 		return err
 	}
 	return nil
+}
+
+func (impl *ChartRepositoryServiceImpl) ValidateChartDetails(FileName string, chartVersion string) (string, error) {
+	if !strings.HasSuffix(FileName, ".tar.gz") {
+		return "", errors.New("unsupported format")
+	}
+
+	chartName := strings.TrimSuffix(FileName, ".tar.gz")
+	var chartLocation string
+
+	chartName = strings.ReplaceAll(chartName, ".", "-")
+	chartName = strings.ReplaceAll(chartName, " ", "_")
+	chartVersion = strings.ReplaceAll(chartVersion, ".", "-")
+	if !strings.Contains(chartName, chartVersion) {
+		chartLocation = chartName + "_" + chartVersion
+	} else {
+		chartLocation = chartName
+	}
+	return chartLocation, nil
 }

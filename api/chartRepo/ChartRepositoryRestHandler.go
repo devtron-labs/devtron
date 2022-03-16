@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
@@ -39,7 +38,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -328,6 +326,15 @@ func (handler *ChartRepositoryRestHandlerImpl) CreateChartFromBinary(w http.Resp
 		return
 	}
 
+	//chartName := strings.Split(fileHeader.Filename, ".")
+	chartVersion := bean.Version
+	chartLocation, err := handler.chartRepositoryService.ValidateChartDetails(fileHeader.Filename, chartVersion)
+	if err != nil {
+		handler.Logger.Errorw("request err, Unsupported format", "err", err, "payload", file)
+		common.WriteJsonResp(w, err, "Unsupported format file is uploaded, please upload file with .tar.gz extension", http.StatusBadRequest)
+		return
+	}
+
 	if err := r.ParseForm(); err != nil {
 		handler.Logger.Errorw("request err, Corrupted form data", "err", err, "payload", file)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -345,20 +352,8 @@ func (handler *ChartRepositoryRestHandlerImpl) CreateChartFromBinary(w http.Resp
 
 	err = util2.ExtractTarGz(bytes.NewReader(fileBytes), string(handler.refChartDir))
 	if err != nil {
-		fmt.Println("Error Retrieving the File")
-		common.WriteJsonResp(w, err, "Error Retrieving the File", http.StatusBadRequest)
+		common.WriteJsonResp(w, err, "Error Retrieving the Files or missing files in the folder", http.StatusBadRequest)
 		return
-	}
-
-	chartName := strings.Split(fileHeader.Filename, ".")
-	chartVersion := bean.Version
-
-	var chartLocation string
-	chartVersion = strings.ReplaceAll(chartVersion, ".", "-")
-	if !strings.Contains(chartName[0], chartVersion) {
-		chartLocation = chartName[0] + "_" + chartVersion
-	} else {
-		chartLocation = chartName[0]
 	}
 
 	exists, err := handler.chartRefRepository.DataExists(bean.BinaryFileName, chartVersion, chartLocation)

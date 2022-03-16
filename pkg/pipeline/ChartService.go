@@ -213,7 +213,7 @@ func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefI
 func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, error) {
 	err := impl.ExtractChartIfMissing(chartRefId)
 	if err != nil {
-		impl.logger.Errorw("error in getting missing chart for chartRefId","err",err,"chartRefId")
+		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
 		return nil, err
 	}
 
@@ -256,7 +256,7 @@ type AppMetricsEnabled struct {
 func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
 	err := impl.ExtractChartIfMissing(templateRequest.ChartRefId)
 	if err != nil {
-		impl.logger.Errorw("error in getting missing chart for chartRefId","err",err,"chartRefId")
+		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
 		return nil, err
 	}
 	chartMeta, err := impl.getChartMetaData(templateRequest)
@@ -411,7 +411,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
 	err := impl.ExtractChartIfMissing(templateRequest.ChartRefId)
 	if err != nil {
-		impl.logger.Errorw("error in getting missing chart for chartRefId","err",err,"chartRefId")
+		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
 		return nil, err
 	}
 
@@ -1202,7 +1202,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(ChartRefId int) error {
 		dir := chartTemplateService.GetDir()
 
 		var ChartWorkingDir util.ChartWorkingDir
-		RandomChartWorkingDir := filepath.Join(string(ChartWorkingDir),dir)
+		RandomChartWorkingDir := filepath.Join(string(ChartWorkingDir), dir)
 		err := os.MkdirAll(RandomChartWorkingDir, os.ModePerm)
 		if err != nil {
 			impl.logger.Errorw("error in creating directory, CallbackConfigMap", "err", err)
@@ -1210,7 +1210,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(ChartRefId int) error {
 		}
 		err = util2.ExtractTarGz(binaryDataReader, RandomChartWorkingDir)
 		if err != nil {
-			impl.logger.Errorw("error in extracting binary data of charts","err",err)
+			impl.logger.Errorw("error in extracting binary data of charts", "err", err)
 			return err
 		}
 		files, err := ioutil.ReadDir(RandomChartWorkingDir)
@@ -1220,9 +1220,25 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(ChartRefId int) error {
 		}
 		CurrentChartWorkingDir := filepath.Join(RandomChartWorkingDir, files[0].Name())
 		err = dirCopy.Copy(CurrentChartWorkingDir, refChartDir)
-		if err!=nil{
-			impl.logger.Errorw("error in copying chart from temp dir to ref chart dir","err",err)
+		if err != nil {
+			impl.logger.Errorw("error in copying chart from temp dir to ref chart dir", "err", err)
 			return err
+		}
+		listofFiles := [7]string{"app-values.yaml", "Chart.yaml", "env-values.yaml", "pipeline-values.yaml",
+			"release-values.yaml", "values.yaml", ".image_descriptor_template.json"}
+
+		var missingFiles []string
+		itemId := 0
+		for _, file := range listofFiles {
+			if _, err := os.Stat(""); errors.IsNotFound(err) {
+				// path/to/whatever does not exist
+				fmt.Println("file doesnt exist")
+				missingFiles[itemId] = file
+				itemId = itemId + 1
+			}
+		}
+		if len(missingFiles) != 0 {
+			return errors.New("Missing files " + strings.Join(missingFiles, ","))
 		}
 	}
 	return nil
