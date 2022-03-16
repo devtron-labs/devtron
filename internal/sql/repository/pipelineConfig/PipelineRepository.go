@@ -74,6 +74,7 @@ type PipelineRepository interface {
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
 	FindAutomaticByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
 	GetByEnvOverrideId(envOverrideId int) ([]Pipeline, error)
+	GetByEnvOverrideIdAndEnvId(envOverrideId, envId int) (Pipeline, error)
 	FindActiveByAppIdAndEnvironmentId(appId int, environmentId int) (pipelines []*Pipeline, err error)
 	UndoDelete(id int) error
 	UniqueAppEnvironmentPipelines() ([]*Pipeline, error)
@@ -287,6 +288,24 @@ func (impl PipelineRepositoryImpl) GetByEnvOverrideId(envOverrideId int) ([]Pipe
 		return nil, err
 	}
 	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) GetByEnvOverrideIdAndEnvId(envOverrideId, envId int) (Pipeline, error) {
+	var pipeline Pipeline
+	query := "" +
+		" SELECT p.*" +
+		" FROM chart_env_config_override ceco" +
+		" INNER JOIN charts ch on ch.id = ceco.chart_id" +
+		" INNER JOIN environment env on env.id = ceco.target_environment" +
+		" INNER JOIN app ap on ap.id = ch.app_id" +
+		" INNER JOIN pipeline p on p.app_id = ap.id" +
+		" WHERE ceco.id=? and p.environment_id=?;"
+	_, err := impl.dbConnection.Query(&pipeline, query, envOverrideId, envId)
+
+	if err != nil {
+		return pipeline, err
+	}
+	return pipeline, err
 }
 
 func (impl PipelineRepositoryImpl) UniqueAppEnvironmentPipelines() ([]*Pipeline, error) {

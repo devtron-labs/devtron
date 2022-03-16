@@ -140,78 +140,45 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 	if len(chartRef.Name) == 0 {
 		chartRef.Name = "Rollout Deployment"
 	}
-	if pipelineId > 0 {
-		historyModel := &repository.DeploymentTemplateHistory{
-			AppId:                   chart.AppId,
-			PipelineId:              pipelineId,
-			TargetEnvironment:       envOverride.TargetEnvironment,
-			ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
-			Deployed:                false,
-			TemplateName:            chartRef.Name,
-			TemplateVersion:         chartRef.Version,
-			IsAppMetricsEnabled:     IsAppMetricsEnabled,
-			AuditLog: sql.AuditLog{
-				CreatedOn: envOverride.CreatedOn,
-				CreatedBy: envOverride.CreatedBy,
-				UpdatedOn: envOverride.UpdatedOn,
-				UpdatedBy: envOverride.UpdatedBy,
-			},
-		}
-		if envOverride.IsOverride {
-			historyModel.Template = envOverride.EnvOverrideValues
-		} else {
-			//this is for the case when env override is created for new cd pipelines with template = "{}"
-			historyModel.Template = chart.GlobalOverride
-		}
-		//creating new entry
-		if tx != nil {
-			_, err = impl.deploymentTemplateHistoryRepository.CreateHistoryWithTxn(historyModel, tx)
-		} else {
-			_, err = impl.deploymentTemplateHistoryRepository.CreateHistory(historyModel)
-		}
-		if err != nil {
-			impl.logger.Errorw("err in creating history entry for deployment template", "err", err, "history", historyModel)
+	if pipelineId == 0 {
+		pipeline, err := impl.pipelineRepository.GetByEnvOverrideIdAndEnvId(envOverride.Id, envOverride.TargetEnvironment)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("err in getting pipelines, CreateDeploymentTemplateHistoryFromEnvOverrideTemplate", "err", err, "envOverrideId", envOverride.Id)
 			return err
 		}
+		pipelineId = pipeline.Id
 	}
-	pipelines, err := impl.pipelineRepository.GetByEnvOverrideId(envOverride.Id)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("err in getting pipelines, CreateDeploymentTemplateHistoryFromEnvOverrideTemplate", "err", err, "envOverrideId", envOverride.Id)
+	historyModel := &repository.DeploymentTemplateHistory{
+		AppId:                   chart.AppId,
+		PipelineId:              pipelineId,
+		ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
+		TargetEnvironment:       envOverride.TargetEnvironment,
+		Deployed:                false,
+		TemplateName:            chartRef.Name,
+		TemplateVersion:         chartRef.Version,
+		IsAppMetricsEnabled:     IsAppMetricsEnabled,
+		AuditLog: sql.AuditLog{
+			CreatedOn: envOverride.CreatedOn,
+			CreatedBy: envOverride.CreatedBy,
+			UpdatedOn: envOverride.UpdatedOn,
+			UpdatedBy: envOverride.UpdatedBy,
+		},
+	}
+	if envOverride.IsOverride {
+		historyModel.Template = envOverride.EnvOverrideValues
+	} else {
+		//this is for the case when env override is created for new cd pipelines with template = "{}"
+		historyModel.Template = chart.GlobalOverride
+	}
+	//creating new entry
+	if tx != nil {
+		_, err = impl.deploymentTemplateHistoryRepository.CreateHistoryWithTxn(historyModel, tx)
+	} else {
+		_, err = impl.deploymentTemplateHistoryRepository.CreateHistory(historyModel)
+	}
+	if err != nil {
+		impl.logger.Errorw("err in creating history entry for deployment template", "err", err, "history", historyModel)
 		return err
-	}
-	for _, pipeline := range pipelines {
-		historyModel := &repository.DeploymentTemplateHistory{
-			AppId:                   chart.AppId,
-			PipelineId:              pipeline.Id,
-			ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
-			TargetEnvironment:       envOverride.TargetEnvironment,
-			Deployed:                false,
-			TemplateName:            chartRef.Name,
-			TemplateVersion:         chartRef.Version,
-			IsAppMetricsEnabled:     IsAppMetricsEnabled,
-			AuditLog: sql.AuditLog{
-				CreatedOn: envOverride.CreatedOn,
-				CreatedBy: envOverride.CreatedBy,
-				UpdatedOn: envOverride.UpdatedOn,
-				UpdatedBy: envOverride.UpdatedBy,
-			},
-		}
-		if envOverride.IsOverride {
-			historyModel.Template = envOverride.EnvOverrideValues
-		} else {
-			//this is for the case when env override is created for new cd pipelines with template = "{}"
-			historyModel.Template = chart.GlobalOverride
-		}
-		//creating new entry
-		if tx != nil {
-			_, err = impl.deploymentTemplateHistoryRepository.CreateHistoryWithTxn(historyModel, tx)
-		} else {
-			_, err = impl.deploymentTemplateHistoryRepository.CreateHistory(historyModel)
-		}
-		if err != nil {
-			impl.logger.Errorw("err in creating history entry for deployment template", "err", err, "history", historyModel)
-			return err
-		}
 	}
 	return nil
 }
