@@ -2,6 +2,7 @@ package appStoreDeploymentTool
 
 import (
 	"context"
+	"errors"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -115,10 +116,13 @@ func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Con
 	}
 
 	if isInstalled {
-		_, err = impl.helmAppService.DeleteApplication(ctx, appIdentifier)
+		deleteResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
 		if err != nil {
 			impl.Logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
 			return err
+		}
+		if deleteResponse == nil || !deleteResponse.GetSuccess() {
+			return errors.New("delete application response unsuccessful")
 		}
 	}
 
