@@ -3,7 +3,7 @@
 <h1 align= "center">No-Code CI/CD Orchestrator for Kubernetes</h1>
 </p>
 
-<p align="center">A web based CI/CD platform leveraging Open Source tools to provide a No-Code, SaaS-like experience for Kubernetes
+<p align="center">A web based CI/CD Orchestrator leveraging Open Source tools to provide a No-Code, SaaS-like experience for Kubernetes
 <br>
 <a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
 <br>
