@@ -18,7 +18,7 @@ import (
 type AppStoreDeploymentHelmService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) error
 	GetAppStatus(installedAppAndEnvDetails appStoreRepository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
-	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error
+	DeleteInstalledAppIfExists(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error
 }
 
 type AppStoreDeploymentHelmServiceImpl struct {
@@ -99,7 +99,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) GetAppStatus(installedAppAndEnvDet
 	return appDetail.ApplicationStatus, nil
 }
 
-func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error {
+func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledAppIfExists(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error {
 
 	appIdentifier := &client.AppIdentifier{
 		ClusterId:   installAppVersionRequest.ClusterId,
@@ -107,6 +107,30 @@ func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Con
 		Namespace:   installAppVersionRequest.Namespace,
 	}
 
-	_, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
-	return err
+	isInstalled, err := impl.helmAppService.IsReleaseInstalled(ctx, appIdentifier)
+	if err != nil {
+		impl.Logger.Errorw("error in checking if helm release is installed or not", "error", err, "appIdentifier", appIdentifier)
+		return err
+	}
+
+	if isInstalled {
+		_, err = impl.helmAppService.DeleteApplication(ctx, appIdentifier)
+		if err != nil {
+			impl.Logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (impl AppStoreDeploymentHelmServiceImpl) IsAppInstalled(ctx context.Context, clusterId int, appName string, namespace string) (bool, error) {
+
+	appIdentifier := &client.AppIdentifier{
+		ClusterId:   clusterId,
+		ReleaseName: appName,
+		Namespace:   namespace,
+	}
+
+	return impl.helmAppService.IsReleaseInstalled(ctx, appIdentifier)
 }
