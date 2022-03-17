@@ -124,14 +124,3 @@ func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledAppIfExists(ctx con
 
 	return nil
 }
-
-func (impl AppStoreDeploymentHelmServiceImpl) IsAppInstalled(ctx context.Context, clusterId int, appName string, namespace string) (bool, error) {
-
-	appIdentifier := &client.AppIdentifier{
-		ClusterId:   clusterId,
-		ReleaseName: appName,
-		Namespace:   namespace,
-	}
-
-	return impl.helmAppService.IsReleaseInstalled(ctx, appIdentifier)
-}
