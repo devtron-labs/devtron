@@ -481,6 +481,9 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 	}
 
 	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || app.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		// there might be a case if helm release gets uninstalled from helm cli.
+		//in this case on deleting the app from API, it should not give error as it should get deleted from db, otherwise due to delete error, db does not get clean
+		// so in helm, we need to check first if the release exists or not, if exists then only delete
 		err = impl.appStoreDeploymentHelmService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
 	} else {
 		err = impl.appStoreDeploymentArgoCdService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
@@ -543,7 +546,7 @@ func (impl AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx co
 	_, err = impl.InstallApp(installAppVersionRequestDto, ctx, false)
 	if err != nil {
 		impl.logger.Errorw("error while updating app DB operations", "error", err)
-		return nil,isChartRepoActive,  err
+		return nil, isChartRepoActive, err
 	}
 	// STEP-2 ends
 
