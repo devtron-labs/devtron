@@ -87,6 +87,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) GetAppStatus(installedAppAndEnvDet
 
 	appDetail, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 	if err != nil {
+		// handling like argocd
 		impl.Logger.Errorw("error fetching helm app resource tree", "error", err, "appIdentifier", appIdentifier)
 		err = &util.ApiError{
 			Code:            constants.AppDetailResourceTreeNotFound,
