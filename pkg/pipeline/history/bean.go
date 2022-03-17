@@ -53,6 +53,7 @@ type DeploymentTemplateHistoryDto struct {
 	EmailId                 string    `json:"emailId"`
 	DeploymentStatus        string    `json:"deploymentStatus,omitempty"`
 	WfrId                   int       `json:"wfrId,omitempty"`
+	WorkflowType            string    `json:"workflowType,omitempty"`
 }
 
 type PipelineStrategyHistoryDto struct {

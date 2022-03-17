@@ -294,16 +294,17 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 				return nil, err
 			}
 			historyDto := &DeploymentTemplateHistoryDto{
-				Id:         history.Id,
-				AppId:      history.AppId,
-				PipelineId: history.PipelineId,
-				Deployed:   history.Deployed,
-				DeployedOn: history.DeployedOn,
-				DeployedBy: history.DeployedBy,
-				EmailId:    user.EmailId,
+				Id:               history.Id,
+				AppId:            history.AppId,
+				PipelineId:       history.PipelineId,
+				Deployed:         history.Deployed,
+				DeployedOn:       history.DeployedOn,
+				DeployedBy:       history.DeployedBy,
+				EmailId:          user.EmailId,
+				DeploymentStatus: wfrList[wfrIndex].Status,
+				WfrId:            wfrList[wfrIndex].Id,
+				WorkflowType:     string(wfrList[wfrIndex].WorkflowType),
 			}
-			historyDto.DeploymentStatus = wfrList[wfrIndex].Status
-			historyDto.WfrId = wfrList[wfrIndex].Id
 			historiesDto = append(historiesDto, historyDto)
 		}
 	}
