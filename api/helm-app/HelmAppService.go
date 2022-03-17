@@ -31,6 +31,7 @@ type HelmAppService interface {
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (*InstallReleaseResponse, error)
 	UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, updateReleaseRequest *InstallReleaseRequest) (*openapi.UpdateReleaseResponse, error)
+	IsReleaseInstalled(ctx context.Context, app *AppIdentifier) (bool, error)
 }
 
 type HelmAppServiceImpl struct {
@@ -376,6 +377,30 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfo(ctx context.Conte
 
 	return response, nil
 }
+
+
+func (impl *HelmAppServiceImpl) IsReleaseInstalled(ctx context.Context, app *AppIdentifier) (bool, error) {
+	config, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
+		return false, err
+	}
+
+	req := &ReleaseIdentifier{
+		ClusterConfig:    config,
+		ReleaseName:      app.ReleaseName,
+		ReleaseNamespace: app.Namespace,
+	}
+
+	apiResponse, err := impl.helmAppClient.IsReleaseInstalled(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in checking if helm release is installed", "err", err)
+		return false, err
+	}
+
+	return apiResponse.Result, nil
+}
+
 
 type AppIdentifier struct {
 	ClusterId   int    `json:"clusterId"`

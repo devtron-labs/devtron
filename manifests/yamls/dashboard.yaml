@@ -231,7 +231,7 @@ spec:
             - name: envoy-config-volume
               mountPath: /etc/envoy-config/
         - name: dashboard
-          image: "quay.io/devtron/dashboard:0a473777-136-7240"
+          image: "quay.io/devtron/dashboard:eedb38e6-136-7284"
           imagePullPolicy: IfNotPresent
           ports:
             - name: app
