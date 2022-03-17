@@ -57,7 +57,7 @@ type ChartRepositoryRestHandler interface {
 	ValidateChartRepo(w http.ResponseWriter, r *http.Request)
 	TriggerChartSyncManual(w http.ResponseWriter, r *http.Request)
 	DeleteChartRepo(w http.ResponseWriter, r *http.Request)
-	CreateChartFromBinary(w http.ResponseWriter, r *http.Request)
+	CreateChartFromFile(w http.ResponseWriter, r *http.Request)
 }
 
 type ChartRepositoryRestHandlerImpl struct {
@@ -305,7 +305,7 @@ func (handler *ChartRepositoryRestHandlerImpl) DeleteChartRepo(w http.ResponseWr
 	common.WriteJsonResp(w, nil, CHART_REPO_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
-func (handler *ChartRepositoryRestHandlerImpl) CreateChartFromBinary(w http.ResponseWriter, r *http.Request) {
+func (handler *ChartRepositoryRestHandlerImpl) CreateChartFromFile(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
