@@ -484,7 +484,7 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		// there might be a case if helm release gets uninstalled from helm cli.
 		//in this case on deleting the app from API, it should not give error as it should get deleted from db, otherwise due to delete error, db does not get clean
 		// so in helm, we need to check first if the release exists or not, if exists then only delete
-		err = impl.appStoreDeploymentHelmService.DeleteInstalledAppIfExists(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
+		err = impl.appStoreDeploymentHelmService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
 	} else {
 		err = impl.appStoreDeploymentArgoCdService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
 	}
