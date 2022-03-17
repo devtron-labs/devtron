@@ -66,7 +66,7 @@ https://user-images.githubusercontent.com/66381465/158799442-9ac09c27-7604-46bd-
 <details><summary><b>Application-level Resource grouping for easier Debugging</b></summary>
 <br>
 
-- Hyperion groups your deployed Helm charts and display them in a slick UI, for easier monitoring or debugging. Access pod logs and resource manifests right from the Hyperion UI and even edit them!
+- Hyperion groups your Kubernetes objects deployed via Helm charts and display them in a slick UI, for easier monitoring or debugging. Access pod logs and resource manifests right from the Hyperion UI and even edit them!
 
 </details>
  
@@ -77,10 +77,10 @@ https://user-images.githubusercontent.com/66381465/158799442-9ac09c27-7604-46bd-
  
 </details>
  
-<details><summary> <b>Manage and Observe multiple Clusters</b></summary>
+<details><summary> <b>Deploy, Manage and Observe on multiple Clusters</b></summary>
 <br>
  
-- Manage Helm charts, Applications across multiple Kubernetes clusters (hosted on multiple clouds / on-prem) right from a single Hyperion setup
+- Deploy and Manage Helm charts, Applications across multiple Kubernetes clusters (hosted on multiple clouds / on-prem) right from a single Hyperion setup
 
 </details>
  
@@ -113,7 +113,7 @@ helm install devtron devtron-operator-latest.tgz --create-namespace --namespace 
 
 ### Hyperion Dashboard
 
-If you did not provide a **BASE\_URL** during install or have used the default installation, Devtron creates a Load Balancer for you. Use the following command to get the dashboard URL.
+If you did not provide a **BASE\_URL** during install or have used the default installation, Devtron creates a Load Balancer for you. Use the following command to get the dashboard URL. Please note it may take some time for cloud provider to provision the loadbalancer and in case of on-prem installation of kubernetes please use port-forward or ingress.
 
 ```text
 kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
@@ -130,7 +130,11 @@ The hostname mentioned here \( devtronsdashboardurlhere \) is the load balancer 
  
 ### Hyperion Admin credentials
 
-For admin login, use username:`admin` and for password run the following command
+For admin login, use 
+<br>
+Username:`admin` 
+<br>
+and for password run the following command
 
 ```bash
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
@@ -139,7 +143,7 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 
 # :bulb: Devtron
 
-Devtron gives you all the features of the system with a complete experience - providing you with CI/CD, Security scanning, GitOps, Access Control and Debugging / Observability from a single web-console. Hyperion module is included by default.
+Devtron is a No-Code CI/CD Orchestrator with a complete experience - providing you with CI/CD, Security scanning, GitOps, Access Control and Debugging / Observability from a single web-console. Hyperion module is included in Devtron.
 
 ## :tada: Features
 <br>
@@ -210,7 +214,7 @@ For detailed setup instructions and other options, check out [Devtron setup](htt
 
 ### :key: Devtron Dashboard
 
-By default, Devtron creates a Load Balancer. Use the following command to get the dashboard URL:
+By default, Devtron creates a Load Balancer. Use the following command to get the dashboard URL. Please note it may take some time for cloud provider to provision the loadbalancer and in case of on-prem installation of kubernetes please use port-forward or ingress.
 
 ```text
 kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
@@ -218,7 +222,11 @@ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.
 
 *****Devtron Admin credentials*****
 
-For admin login, use the username:`admin`. And for the password, run the following command:
+For admin login, use 
+<br>
+Username:`admin`. 
+<br>
+And for the password, run the following command:
 
 ```bash
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
