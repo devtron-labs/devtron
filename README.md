@@ -1,6 +1,6 @@
 
 <p align="center"><img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
-<h1 align= "center">No-Code DevOps Orchestrator for Kubernetes</h1>
+<h1 align= "center">No-Code CI/CD Orchestrator for Kubernetes</h1>
 </p>
 
 <p align="center">A web based CI/CD platform leveraging Open Source tools to provide a No-Code, SaaS-like experience for Kubernetes
