@@ -1,6 +1,6 @@
 
 <p align="center"><img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
-<h1 align= "center">No-Code AppOps workflow for Kubernetes</h1>
+<h1 align= "center">No-Code DevOps Orchestrator for Kubernetes</h1>
 </p>
 
 <p align="center">A web based CI/CD platform leveraging Open Source tools to provide a No-Code, SaaS-like experience for Kubernetes
@@ -28,8 +28,12 @@
 <a href="https://twitter.com/intent/tweet?text=Devtron%20helps%20in%20simplifying%20software delivery%20workflow%20for%20Kubernetes,%20check%20it%20out!!%20&hashtags=OpenSource,Kubernetes,DevOps,CICD,go&url=https://github.com/devtron-labs/devtron%0a"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Tweet"></a>
 
 <p align="center">
-<a href="https://devtron.ai/support.html">🔥 Want to accelerate K8s adoption? Our core team would love to help 100 companies do it the Devtron way! 🔥 <br>
- Apply Now 👋</a></p>
+<a href="https://devtron.ai/support.html">🔥 Want to accelerate K8s adoption? Our team would love to help 100 companies do it the Devtron way! 🔥
+<br>
+<br>
+ Apply Now 👋
+ </a>
+</p>
 <br>
 
 # :bulb: Devtron
