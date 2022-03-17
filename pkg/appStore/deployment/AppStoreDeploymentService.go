@@ -546,7 +546,7 @@ func (impl AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx co
 	_, err = impl.InstallApp(installAppVersionRequestDto, ctx, false)
 	if err != nil {
 		impl.logger.Errorw("error while updating app DB operations", "error", err)
-		return nil,isChartRepoActive,  err
+		return nil, isChartRepoActive, err
 	}
 	// STEP-2 ends
 
