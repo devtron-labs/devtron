@@ -60,8 +60,8 @@ Devtron is a web based CI/CD orchestrator for Kubernetes. It integrates various 
 Hyperion is Devtron's light weight module to manage Helm apps. It helps you deploy, observe, manage and debug applications deployed through Helm across multiple clusters, minimizing Kubernetes complexities. 
   
 ## :tada: Features
- 
-https://user-images.githubusercontent.com/66381465/158799314-71b05993-78a2-44ae-a9a7-b145be28e8bc.mp4
+
+https://user-images.githubusercontent.com/66381465/158799442-9ac09c27-7604-46bd-b0f1-36a1072893b3.mp4
  
 <details><summary><b>Application-level Resource grouping for easier Debugging</b></summary>
 <br>
