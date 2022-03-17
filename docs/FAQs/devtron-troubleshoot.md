@@ -106,22 +106,30 @@ If using Firefox -
 1. Goto login page of Devtron and open inspect.
 2. Navigate to storage tab in inspect.
 3. Click on url where Devtron has been installed under `Cookies` tab and you could see an argocd token with its value, something similar to below image.
+
 ![inspect-cookies](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/argocd-cookie.png)
+
 4. Now right click on token, and click on `Delete All Session Cookies` option.
 
 If using Chrome -
 1. Goto login page of Devtron and open inspect.
 2. Navigate to Application tab, and under `Storage` tab click on `Cookies`.
 3. Click on url under `Cookie` and you would be able tto see an argocd token with its value, as shown in the image below.
+
 ![chrome-cookie](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/chrome-cookie.png)
+
 4. Now right click on token and click on `delete` option.
 
 If using Safari -
 1. Goto Safari preferences >> Advanced options and check the show develop menu as shown in the image below.
+
 ![safari-preferences](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/safari-preferences.png)
+
 2. Now goto login page of Devtron and press `option+command+I`. It will open inspect element.
 3. Then navigate to `Storage`, click on `Cookies` and you would be able to see an argocd token with its value as shown in the image below.
+
 ![safari-cookie](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/safari-cookie.png)
+
 4. Now right click on token and select `delete` option.
 
 After clearing `Cookies`, try again to login, you should be able to login now.
@@ -129,7 +137,8 @@ After clearing `Cookies`, try again to login, you should be able to login now.
 
 #### 7. No charts found in Charts Discover Section
 
-In the Devtron's Discover Chart section, if you are not able to see any charts available, goto `Global Configuration` >> `Chart Repositories` and click on `Refresh Chart` at the top-right as shown in the image below. After clicking the button, it might take 4-5mins to show all the charts in `Discover` section depending upon the chart repositories added. 
+In the Devtron's Discover Chart section, if you are not able to see any charts available, goto `Global Configuration` >> `Chart Repositories` and click on `Refresh Chart` at the top-right as shown in the image below. After clicking the button, it might take 4-5mins to show all the charts in `Discover` section depending upon the chart repositories added.
+
 ![charts-not-found](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/refresh-charts.png)
 
 

@@ -20,8 +20,8 @@ Devtron supports 4 levels of access
 |Admin| Yes | Yes | Yes | Yes | Yes |
 |Super Admin| Yes | Yes | Yes | Yes | Yes |
 <br/>
-## Visualize using access table (Charts)
 
+## Visualize using access table (Charts)
 | Access Level | View Charts | Install Charts | Edit Charts | Delete Charts |
 |--|--|--|--|--|
 | View | Yes  | No | No | No|

@@ -19,6 +19,7 @@ package util
 
 import (
 	"fmt"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/util"
 	"io/ioutil"
 	"math/rand"
@@ -43,7 +44,7 @@ type ChartWorkingDir string
 type ChartTemplateService interface {
 	CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error)
 	GetChartVersion(location string) (string, error)
-	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error)
+	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
 	GetGitOpsRepoName(appName string) string
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
@@ -322,7 +323,7 @@ func (impl ChartTemplateServiceImpl) getDir() string {
 	return strconv.FormatInt(r1, 10)
 }
 
-func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, appName string) (string, *ChartGitAttribute, error) {
+func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v2" // ensure always v2
 	dir := impl.getDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
@@ -345,7 +346,7 @@ func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metad
 		return "", nil, err
 	}
 
-	chartGitAttr, err := impl.createAndPushToGitChartProxy(chartMetaData.Name, templateName, version, chartDir, envName, appName)
+	chartGitAttr, err := impl.createAndPushToGitChartProxy(chartMetaData.Name, templateName, version, chartDir, envName, installAppVersionRequest)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
 		return "", nil, err
@@ -362,11 +363,14 @@ func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metad
 	return valuesYaml, chartGitAttr, nil
 }
 
-func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, baseTemplateName, version, tmpChartLocation string, envName string, appName string) (chartGitAttribute *ChartGitAttribute, err error) {
+func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, baseTemplateName, version, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error) {
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
-	gitOpsRepoName := impl.GetGitOpsRepoName(appStoreName)
+	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
+		gitOpsRepoName := impl.GetGitOpsRepoName(appStoreName)
+		installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
+	}
 	gitOpsConfigBitbucket, err := impl.gitFactory.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
 	if err != nil {
 		if err == pg.ErrNoRows {
@@ -377,14 +381,14 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			return nil, err
 		}
 	}
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitOpsRepoName, "helm chart for "+gitOpsRepoName, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(installAppVersionRequest.GitOpsRepoName, "helm chart for "+installAppVersionRequest.GitOpsRepoName, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
-			impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
+			impl.logger.Errorw("error in creating git project", "name", installAppVersionRequest.GitOpsRepoName, "err", err)
 			return nil, err
 		}
 	}
-	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
+	chartDir := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, impl.getDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
@@ -399,7 +403,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 		}
 	}
 
-	acdAppName := fmt.Sprintf("%s-%s", appName, envName)
+	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, envName)
 	dir := filepath.Join(clonedDir, acdAppName)
 	err = os.MkdirAll(dir, os.ModePerm)
 	if err != nil {

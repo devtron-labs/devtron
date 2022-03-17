@@ -26,5 +26,6 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 * [ ] I have performed a self-review of my own code
 * [ ] I have commented my code, particularly in hard-to-understand areas
 * [ ] I have tested it for all user roles
+* [ ] I have added all requird unit/api test cases
 
 

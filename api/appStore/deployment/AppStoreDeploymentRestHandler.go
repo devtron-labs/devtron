@@ -46,7 +46,7 @@ type AppStoreDeploymentRestHandler interface {
 	InstallApp(w http.ResponseWriter, r *http.Request)
 	GetInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request)
 	DeleteInstalledApp(w http.ResponseWriter, r *http.Request)
-	UpdateHelmApplicationWithChartStoreLinking(w http.ResponseWriter, r *http.Request)
+	LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request)
 	RollbackApplication(w http.ResponseWriter, r *http.Request)
 }
 
@@ -272,7 +272,8 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 }
 
 
-func (handler *AppStoreDeploymentRestHandlerImpl) UpdateHelmApplicationWithChartStoreLinking(w http.ResponseWriter, r *http.Request) {
+
+func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request) {
 	request := &openapi.UpdateReleaseWithChartLinkingRequest{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(request)
@@ -301,25 +302,16 @@ func (handler *AppStoreDeploymentRestHandlerImpl) UpdateHelmApplicationWithChart
 	}
 	//RBAC enforcer Ends
 
-	// check if chart repo is active starts
-	isChartRepoActive, err := handler.appStoreDeploymentService.IsChartRepoActive(int(request.GetAppStoreApplicationVersionId()))
+	res, isChartRepoActive, err := handler.appStoreDeploymentService.LinkHelmApplicationToChartStore(context.Background(), request, appIdentifier, userId)
 	if err != nil {
 		handler.Logger.Errorw("Error in UpdateApplicationWithChartStoreLinking", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
-	}
-	if !isChartRepoActive {
+	}else if !isChartRepoActive {
 		common.WriteJsonResp(w, fmt.Errorf("chart repo is disabled"), nil, http.StatusNotAcceptable)
 		return
 	}
-	// check if chart repo is active ends
 
-	res, err := handler.appStoreDeploymentService.UpdateHelmApplicationWithChartStoreLinking(context.Background(), request, appIdentifier, userId)
-	if err != nil {
-		handler.Logger.Errorw("Error in UpdateApplicationWithChartStoreLinking", "err", err, "payload", request)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
@@ -377,5 +369,4 @@ func (handler *AppStoreDeploymentRestHandlerImpl) RollbackApplication(w http.Res
 		Success: &success,
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
-
 }
