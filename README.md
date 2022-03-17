@@ -61,7 +61,7 @@ Hyperion is Devtron's light weight module to manage Helm apps. It helps you depl
   
 ## :tada: Features
  
-https://user-images.githubusercontent.com/66381465/158796173-c4f4cb00-36f7-4f07-bcc6-e4f7ce16d708.mp4
+https://user-images.githubusercontent.com/66381465/158799314-71b05993-78a2-44ae-a9a7-b145be28e8bc.mp4
  
 <details><summary><b>Application-level Resource grouping for easier Debugging</b></summary>
 <br>
