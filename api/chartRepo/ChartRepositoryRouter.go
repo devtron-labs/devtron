@@ -48,6 +48,4 @@ func (router ChartRepositoryRouterImpl) Init(configRouter *mux.Router) {
 		HandlerFunc(router.chartRepositoryRestHandler.ValidateChartRepo).Methods("POST")
 	configRouter.Path("/").
 		HandlerFunc(router.chartRepositoryRestHandler.DeleteChartRepo).Methods("DELETE")
-	configRouter.Path("/upload").
-		HandlerFunc(router.chartRepositoryRestHandler.CreateChartFromFile).Methods("POST")
 }

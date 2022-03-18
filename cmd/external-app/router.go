@@ -7,6 +7,7 @@ import (
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
 	"github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
+	"github.com/devtron-labs/devtron/api/deployment"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/sso"
@@ -36,6 +37,7 @@ type MuxRouter struct {
 	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
 	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
+	deploymentRouter         deployment.DeploymentRouter
 }
 
 func NewMuxRouter(
@@ -53,7 +55,7 @@ func NewMuxRouter(
 	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
-
+	deploymentRouter deployment.DeploymentRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -71,6 +73,7 @@ func NewMuxRouter(
 		appStoreDiscoverRouter:   appStoreDiscoverRouter,
 		appStoreValuesRouter:     appStoreValuesRouter,
 		appStoreDeploymentRouter: appStoreDeploymentRouter,
+		deploymentRouter:         deploymentRouter,
 	}
 	return r
 }
@@ -149,4 +152,9 @@ func (r *MuxRouter) Init() {
 	appStoreDeploymentSubRouter := r.Router.PathPrefix("/orchestrator/app-store/deployment").Subrouter()
 	r.appStoreDeploymentRouter.Init(appStoreDeploymentSubRouter)
 	// app-store deployment router ends
+
+	//  deployment router starts
+	deploymentSubRouter := r.Router.PathPrefix("/orchestrator/deployment").Subrouter()
+	r.deploymentRouter.Init(deploymentSubRouter)
+	// deployment router ends
 }

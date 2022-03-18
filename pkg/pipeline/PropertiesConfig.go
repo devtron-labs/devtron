@@ -61,7 +61,7 @@ type EnvironmentPropertiesResponse struct {
 	ChartRefId        int                   `json:"chartRefId,omitempty"  validate:"number"`
 	Namespace         string                `json:"namespace" validate:"name-component"`
 	Schema            json.RawMessage       `json:"schema"`
-	Readme			  string				`json:"readme"`
+	Readme            string                `json:"readme"`
 }
 
 type PropertiesConfigService interface {
@@ -220,9 +220,9 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 
 func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *EnvironmentProperties) (*EnvironmentProperties, error) {
 	var chartService ChartService
-	err := chartService.ExtractChartIfMissing(environmentProperties.ChartRefId)
-	if err != nil{
-		impl.logger.Errorw("error in getting missing chart for chartRefId","err",err,"chartRefId")
+	err := chartService.CheckChartExists(environmentProperties.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
 		return nil, err
 	}
 

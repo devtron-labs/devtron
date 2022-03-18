@@ -22,6 +22,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/juju/errors"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -125,7 +126,25 @@ func HttpRequest(url string) (map[string]interface{}, error) {
 	return nil, err
 }
 
-func ExtractTarGz(gzipStream io.Reader, chartDir string) error{
+func CheckForMissingFiles(ChartLocation string) error {
+	listofFiles := [7]string{"app-values.yaml", "Chart.yaml", "env-values.yaml", "pipeline-values.yaml",
+		"release-values.yaml", "values.yaml", ".image_descriptor_template.json"}
+
+	var missingFiles []string
+	itemId := 0
+	for _, file := range listofFiles {
+		if _, err := os.Stat(filepath.Join(ChartLocation, ChartLocation)); errors.IsNotFound(err) {
+			missingFiles[itemId] = file
+			itemId = itemId + 1
+		}
+	}
+	if len(missingFiles) != 0 {
+		return errors.New("Missing files " + strings.Join(missingFiles, ","))
+	}
+	return nil
+}
+
+func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
 		return err
