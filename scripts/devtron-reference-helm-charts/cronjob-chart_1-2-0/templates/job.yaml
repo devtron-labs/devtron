@@ -64,6 +64,9 @@ spec:
       terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
       restartPolicy: OnFailure
 {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
+{{- if $.Values.shareProcessNamespace }}
+      shareProcessNamespace: {{ $.Values.shareProcessNamespace }}
+{{- end }}
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
