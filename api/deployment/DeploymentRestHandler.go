@@ -84,6 +84,15 @@ func (handler *DeploymentRestHandlerImpl) CreateChartFromFile(w http.ResponseWri
 
 	chartLocation, chartName, chartVersion, err := handler.chartService.ExtractChartIfMissing(fileBytes, string(handler.refChartDir), "")
 
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	}
+
+	exists, err := handler.chartRefRepository.DataExists(chartName, chartVersion)
+	if exists {
+		handler.Logger.Errorw("request err, chart name and version exists already in the database", "err", err, "payload", file)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	}
 	chartRefs := &chartRepoRepository.ChartRef{
 		Name:      chartName,
 		Version:   chartVersion,
