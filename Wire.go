@@ -28,6 +28,7 @@ import (
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
+	"github.com/devtron-labs/devtron/api/deployment"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
@@ -161,6 +162,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(chartConfig.PipelineOverrideRepository), new(*chartConfig.PipelineOverrideRepositoryImpl)),
 		util.MergeUtil{},
 		util.NewSugardLogger,
+
+		deployment.NewDeploymentRestHandlerImpl,
+		wire.Bind(new(deployment.DeploymentRestHandler), new(*deployment.DeploymentRestHandlerImpl)),
+		deployment.NewDeploymentRouterImpl,
+		wire.Bind(new(deployment.DeploymentRouter), new(*deployment.DeploymentRouterImpl)),
 		router.NewMuxRouter,
 
 		app2.NewAppRepositoryImpl,

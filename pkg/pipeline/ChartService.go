@@ -871,7 +871,7 @@ type chartRefResponse struct {
 
 type chartYamlStruct struct {
 	Name    string `yaml:"name"`
-	version string `yaml:"version"`
+	Version string `yaml:"version"`
 }
 
 func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
@@ -1256,7 +1256,7 @@ func (impl ChartServiceImpl) ReadChartYamlForLocation(ChartDir string, FileName 
 					impl.logger.Errorw("Unmarshal error of yaml file", "err", err)
 					return "", "", err
 				}
-				return chartYaml.Name, chartYaml.version, nil
+				return chartYaml.Name, chartYaml.Version, nil
 			}
 		}
 	}
@@ -1267,13 +1267,12 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(ChartData []byte, RefChartDir
 
 	chartData := ChartData
 	binaryDataReader := bytes.NewReader(chartData)
-	var chartTemplateService util.ChartTemplateServiceImpl
-	dir := chartTemplateService.GetDir()
 
-	var ChartWorkingDir util.ChartWorkingDir
-	RandomChartWorkingDir := filepath.Join(string(ChartWorkingDir), Location)
+	dir := impl.chartTemplateService.GetDir()
+
+	RandomChartWorkingDir := filepath.Join(RefChartDir, Location)
 	if Location == "" {
-		RandomChartWorkingDir = filepath.Join(string(ChartWorkingDir), dir)
+		RandomChartWorkingDir = filepath.Join(RefChartDir, dir)
 	}
 	err := os.MkdirAll(RandomChartWorkingDir, os.ModePerm)
 	if err != nil {
@@ -1293,8 +1292,13 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(ChartData []byte, RefChartDir
 	var chartLocation string
 	var chartName string
 	var chartVersion string
+	var fileName string
 	if Location == "" {
-		chartName, chartVersion, err = impl.ReadChartYamlForLocation(RandomChartWorkingDir, files[0].Name())
+		fileName = files[0].Name()
+		if strings.HasPrefix(files[0].Name(), ".") {
+			fileName = files[1].Name()
+		}
+		chartName, chartVersion, err = impl.ReadChartYamlForLocation(RandomChartWorkingDir, fileName)
 		if err != nil {
 			return "", "", "", err
 		}
@@ -1303,12 +1307,13 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(ChartData []byte, RefChartDir
 			impl.logger.Errorw("error in fetching name and version in Chart yaml", "err", err)
 			return "", "", "", err
 		}
-		CurrentChartWorkingDir := filepath.Join(RandomChartWorkingDir, chartLocation)
+		CurrentChartWorkingDir := filepath.Join(RandomChartWorkingDir, fileName)
 		err = dirCopy.Copy(CurrentChartWorkingDir, RefChartDir)
 		if err != nil {
 			impl.logger.Errorw("error in copying chart from temp dir to ref chart dir", "err", err)
 			return "", "", "", err
 		}
+		Location = chartLocation
 	}
 
 	err = util2.CheckForMissingFiles(filepath.Join(string(RefChartDir), Location))
@@ -1316,5 +1321,5 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(ChartData []byte, RefChartDir
 		impl.logger.Errorw("Missing files in the folder", "err", err)
 		return "", "", "", err
 	}
-	return chartLocation, chartName, chartVersion, nil
+	return Location, chartName, chartVersion, nil
 }
