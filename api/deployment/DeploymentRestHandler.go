@@ -72,7 +72,7 @@ func (handler *DeploymentRestHandlerImpl) CreateChartFromFile(w http.ResponseWri
 	err = handler.chartService.ValidateFileUploaded(fileHeader.Filename)
 	if err != nil {
 		handler.Logger.Errorw("request err, Unsupported format", "err", err, "payload", file)
-		common.WriteJsonResp(w, err, "Unsupported format file is uploaded, please upload file with .tar.gz extension", http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New("Unsupported format file is uploaded, please upload file with .tar.gz extension"), nil, http.StatusBadRequest)
 		return
 	}
 
@@ -80,18 +80,21 @@ func (handler *DeploymentRestHandlerImpl) CreateChartFromFile(w http.ResponseWri
 	if err != nil {
 		handler.Logger.Errorw("request err, File parsing error", "err", err, "payload", file)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 
 	chartLocation, chartName, chartVersion, err := handler.chartService.ExtractChartIfMissing(fileBytes, string(handler.refChartDir), "")
 
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 
 	exists, err := handler.chartRefRepository.DataExists(chartName, chartVersion)
 	if exists {
 		handler.Logger.Errorw("request err, chart name and version exists already in the database", "err", err, "payload", file)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New("request err, chart name and version exists already in the database"), nil, http.StatusBadRequest)
+		return
 	}
 	chartRefs := &chartRepoRepository.ChartRef{
 		Name:      chartName,
