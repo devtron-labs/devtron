@@ -335,16 +335,9 @@
         "description": " used to run side-car containers along with the main container within same pod"
       },
       "dbMigrationConfig": {
-        "type": "object",
+        "type": "array",
         "description": "used to configure database migration",
-        "title": "Db Migration Config",
-        "properties": {
-          "enabled": {
-            "type": "boolean",
-            "description": "used for enabling/disabling the config",
-            "title": "Enabled"
-          }
-        }
+        "title": "Db Migration Config"
       },
       "envoyproxy": {
         "type": "object",
