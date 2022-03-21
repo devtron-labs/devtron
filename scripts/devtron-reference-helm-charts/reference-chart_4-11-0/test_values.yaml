@@ -64,7 +64,7 @@ autoscaling:
   behavior: {}
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
-#      policies:
+#      policies
 #      - type: Percent
 #        value: 100
 #        periodSeconds: 15
@@ -227,8 +227,7 @@ ingressInternal:
   #    hosts:
   #      - chart-example.local
 
-dbMigrationConfig:
-  enabled: false
+dbMigrationConfig: []
 
 command:
   enabled: false

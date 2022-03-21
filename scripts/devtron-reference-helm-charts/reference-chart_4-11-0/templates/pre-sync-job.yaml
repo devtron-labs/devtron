@@ -1,23 +1,65 @@
-{{- if $.Values.dbMigrationConfig.enabled }}
+{{- range .Values.dbMigrationConfig }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ template ".Chart.Name .fullname" $ }}-migrator
+  name: {{ .name }}-{{ randAlphaNum 5 | lower }}
   annotations:
     argocd.argoproj.io/hook: PreSync
 #    argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
+  backoffLimit: {{ .backoffLimit }}
+  activeDeadlineSeconds: {{ .activeDeadlineSeconds }}
+  parallelism: {{ .parallelism }}
+  completions: {{ .completions }}
+  suspend: {{ .suspend }}
+  ttlSecondsAfterFinished: {{ .ttlSecondsAfterFinished }}
   template:
     spec:
+      terminationGracePeriodSeconds: {{ .GracePeriod }}
+      shareProcessNamespace: {{ .shareProcessNamespace | default false }}
+{{- if $.Values.podSecurityContext }}
+      securityContext:
+{{ toYaml $.Values.podSecurityContext | indent 8 }}
+{{- end }}
       containers:
-        - name: migrator
-          image: 686244538589.dkr.ecr.us-east-2.amazonaws.com/migrator:0.0.1-rc14
+        - name: postgresql-migrate-{{ .name }}
+          image: {{ .image }}
           env:
-            {{- range $.Values.dbMigrationConfig.envValues }}
+            {{- range .envValues }}
             - name: {{ .key}}
               value: {{ .value  | quote }}
             {{- end}}
+          envFrom:
+          {{- range .envFrom }}
+            - secretRef:
+                name: {{ .secretName }}
+            {{- end}}
+{{- if and .commands.value .commands.enabled }}
+          command:
+{{ toYaml .commands.value | indent 12 -}}
+{{- end}}
+{{- if and .args.value .args.enabled}}
+          args:
+{{ toYaml .args.value | indent 12 -}}
+{{- end }}
+{{- if $.Values.privileged }}
+          securityContext:
+            privileged: true
+{{- end}}
+{{- if $.Values.containerSecurityContext }}
+          securityContext:
+{{ toYaml $.Values.containerSecurityContext | indent 12 }}
+{{- end }}
+{{- if and $.Values.containerSecurityContext $.Values.privileged }}
+          securityContext:
+            privileged: true
+{{ toYaml $.Values.containerSecurityContext | indent 12 }}
+{{- end }}
+{{- if .resources}}
+          resources:
+{{ toYaml .resources | indent 12 -}}
+{{- end}}
       restartPolicy: Never
   backoffLimit: 0
 {{- end }}
