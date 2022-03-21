@@ -631,7 +631,7 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	// update same chart or upgrade its version only
+	// Rollback starts
 	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(int(request.GetInstalledAppVersionId()))
 	if err != nil {
 		impl.logger.Errorw("error while fetching chart installed version", "error", err)

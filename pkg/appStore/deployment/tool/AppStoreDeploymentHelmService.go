@@ -132,6 +132,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Con
 	return nil
 }
 
+// returns - valuesYamlStr, success, error
 func (impl AppStoreDeploymentHelmServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (string, bool, error) {
 
 	// TODO : fetch values yaml from DB instead of fetching from helm cli
