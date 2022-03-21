@@ -2,7 +2,10 @@ package appStoreDeploymentTool
 
 import (
 	"context"
+	"errors"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
@@ -85,6 +88,13 @@ func (impl AppStoreDeploymentHelmServiceImpl) GetAppStatus(installedAppAndEnvDet
 
 	appDetail, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 	if err != nil {
+		// handling like argocd
+		impl.Logger.Errorw("error fetching helm app resource tree", "error", err, "appIdentifier", appIdentifier)
+		err = &util.ApiError{
+			Code:            constants.AppDetailResourceTreeNotFound,
+			InternalMessage: "Failed to get resource tree from helm",
+			UserMessage:     "Failed to get resource tree from helm",
+		}
 		return "", err
 	}
 
@@ -99,6 +109,22 @@ func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Con
 		Namespace:   installAppVersionRequest.Namespace,
 	}
 
-	_, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
-	return err
+	isInstalled, err := impl.helmAppService.IsReleaseInstalled(ctx, appIdentifier)
+	if err != nil {
+		impl.Logger.Errorw("error in checking if helm release is installed or not", "error", err, "appIdentifier", appIdentifier)
+		return err
+	}
+
+	if isInstalled {
+		deleteResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
+		if err != nil {
+			impl.Logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
+			return err
+		}
+		if deleteResponse == nil || !deleteResponse.GetSuccess() {
+			return errors.New("delete application response unsuccessful")
+		}
+	}
+
+	return nil
 }
