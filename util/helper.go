@@ -126,20 +126,41 @@ func HttpRequest(url string) (map[string]interface{}, error) {
 	return nil, err
 }
 
-func CheckForMissingFiles(ChartLocation string) error {
-	listofFiles := [7]string{"app-values.yaml", "Chart.yaml", "env-values.yaml", "pipeline-values.yaml",
-		"release-values.yaml", "values.yaml", ".image_descriptor_template.json"}
+func CheckForMissingFiles(chartLocation string) error {
+	listofFiles := [1]string{"chart"}
 
-	var missingFiles []string
-	itemId := 0
-	for _, file := range listofFiles {
-		if _, err := os.Stat(filepath.Join(ChartLocation, ChartLocation)); errors.IsNotFound(err) {
-			missingFiles[itemId] = file
-			itemId = itemId + 1
+	missingFilesMap := map[string]bool{
+		".image_descriptor_template.json": true,
+		"chart":                           true,
+	}
+	missingFilesMap[".image_descriptor_template.json"] = true
+
+	files, err := ioutil.ReadDir(chartLocation)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		if !file.IsDir() {
+			name := strings.ToLower(file.Name())
+			if name == listofFiles[0]+".yaml" || name == listofFiles[0]+".yml" {
+				missingFilesMap[listofFiles[0]] = false
+			} else if name == ".image_descriptor_template.json" {
+				missingFilesMap[".image_descriptor_template.json"] = false
+			}
 		}
 	}
-	if len(missingFiles) != 0 {
-		return errors.New("Missing files " + strings.Join(missingFiles, ","))
+
+	if len(missingFilesMap) != 0 {
+		missingFiles := make([]string, 0, len(missingFilesMap))
+		for k, v := range missingFilesMap {
+			if v {
+				missingFiles = append(missingFiles, k)
+			}
+		}
+		if len(missingFiles) != 0 {
+			return errors.New("Missing files " + strings.Join(missingFiles, ",") + " files")
+		}
 	}
 	return nil
 }

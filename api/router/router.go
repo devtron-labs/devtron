@@ -327,7 +327,7 @@ func (r MuxRouter) Init() {
 	r.pProfRouter.initPProfRouter(pProfListenerRouter)
 
 	//  deployment router starts
-	deploymentSubRouter := r.Router.PathPrefix("/orchestrator/deployment").Subrouter()
+	deploymentSubRouter := r.Router.PathPrefix("/orchestrator/deployment/template").Subrouter()
 	r.deploymentRouter.Init(deploymentSubRouter)
 	// deployment router ends
 }

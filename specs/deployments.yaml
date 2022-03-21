@@ -3,14 +3,14 @@ info:
   version: 1.0.0
   title: Devtron Labs
 paths:
-  /orchestrator/deployment/upload:
+  /orchestrator/deployment/template/upload:
     post:
       description: upload template file from this api.
       requestBody:
         description: form-data as request body
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               properties:
                 binaryFile:
