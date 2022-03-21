@@ -35,7 +35,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ktrysmt/go-bitbucket"
-
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -76,7 +75,6 @@ type InstalledAppService interface {
 	performDeployStage(appId int) (*appStoreBean.InstallAppVersionDTO, error)
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
-	DeployDefaultComponent(chartGroupInstallRequest *appStoreBean.ChartGroupInstallRequest) (*appStoreBean.ChartGroupInstallAppRes, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 }
 
@@ -179,9 +177,21 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
-	impl.logger.Debug(team.Name)
+	impl.logger.Info(team)
 	argocdAppName := installedApp.App.AppName + "-" + environment.Name
-
+	gitOpsRepoName := installedApp.GitOpsRepoName
+	if len(gitOpsRepoName) == 0 {
+		application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &argocdAppName})
+		if err != nil {
+			impl.logger.Errorw("no argo app exists", "app", argocdAppName)
+			return nil, err
+		}
+		if application != nil {
+			gitOpsRepoUrl := application.Spec.Source.RepoURL
+			gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
+		}
+	}
+	installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
 		_, _, err := impl.upgradeInstalledApp(ctx, installAppVersionRequest, installedApp, tx)
@@ -297,13 +307,12 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *r
 	if err != nil {
 		return err
 	}
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installedAppVersion.AppStoreApplicationVersion.AppStore.Name)
 	requirmentYamlConfig := &util.ChartConfig{
 		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
 		FileContent:    string(requirementDependenciesByte),
 		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  gitOpsRepoName,
+		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -345,13 +354,12 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 		impl.logger.Errorw("error in marshaling", "err", err)
 		return err
 	}
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installedAppVersion.AppStoreApplicationVersion.AppStore.Name)
 	valuesConfig := &util.ChartConfig{
 		FileName:       appStoreBean.VALUES_YAML_FILE,
 		FileContent:    string(valuesByte),
 		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
 		ChartLocation:  argocdAppName,
-		ChartRepoName:  gitOpsRepoName,
+		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -460,6 +468,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int) (*appStoreBea
 		AppStoreId:         app.AppStoreApplicationVersion.AppStoreId,
 		AppStoreName:       app.AppStoreApplicationVersion.AppStore.Name,
 		Deprecated:         app.AppStoreApplicationVersion.Deprecated,
+		GitOpsRepoName:     app.InstalledApp.GitOpsRepoName,
 	}
 	return installAppVersion, err
 }
@@ -850,7 +859,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error) {
 	// STEP 1 - create environment with name "devton"
 	impl.logger.Infow("STEP 1", "create environment for cluster component", bean)
-	envName := fmt.Sprintf("%s-%s", bean.ClusterName, DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
+	envName := fmt.Sprintf("%d-%s", bean.Id, DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
 	env, err := impl.envService.FindOne(envName)
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
@@ -935,7 +944,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 					return false, err
 				}
 				chartGroupInstallChartRequest := &appStoreBean.ChartGroupInstallChartRequest{
-					AppName:                 fmt.Sprintf("%s-%s-%s", bean.ClusterName, env.Environment, item.Name),
+					AppName:                 fmt.Sprintf("%d-%d-%s", bean.Id, env.Id, item.Name),
 					EnvironmentId:           env.Id,
 					ValuesOverrideYaml:      item.Values,
 					AppStoreVersion:         appStore.AppStoreApplicationVersionId,
@@ -973,8 +982,8 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 	// raise nats event
 
 	var installAppVersionDTOList []*appStoreBean.InstallAppVersionDTO
-	for _, chartGroupInstall := range chartGroupInstallRequest.ChartGroupInstallChartRequest {
-		installAppVersionDTO, err := impl.requestBuilderForBulkDeployment(chartGroupInstall, chartGroupInstallRequest.ProjectId, chartGroupInstallRequest.UserId)
+	for _, installRequest := range chartGroupInstallRequest.ChartGroupInstallChartRequest {
+		installAppVersionDTO, err := impl.requestBuilderForBulkDeployment(installRequest, chartGroupInstallRequest.ProjectId, chartGroupInstallRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error in request builder", "err", err)
 			return nil, err

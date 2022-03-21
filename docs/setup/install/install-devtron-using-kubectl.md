@@ -35,7 +35,11 @@ kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync
 ```
 
 The install commands initiates Devtron-operator which spins up all the Devtron micro-services one by one in about 20 mins. You can use the above command to check the status of the installation if the installation is still in progress, it will print `Downloaded`. When the installation is complete, it prints `Applied`.
+Meanwhile, you can check logs of the installer by executing the following command:
 
+```bash
+kubectl logs -f -l app=inception -n devtroncd
+```
 ## Access Devtron dashboard
 
 If you did not provide a **BASE\_URL** during install or have used the default installation, Devtron creates a loadbalancer for you on its own. Use the following command to get the dashboard url.

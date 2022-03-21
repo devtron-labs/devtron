@@ -3,7 +3,7 @@ syntax = "proto3";
 import "google/protobuf/timestamp.proto";
 
 
-option go_package = "github.com/devtron-labs/go-helm-client/bean/grpc/client";
+option go_package = "github.com/devtron-labs/kubelink/bean/grpc/client";
 
 message ClusterConfig {
   string apiServerUrl = 1;
@@ -29,6 +29,7 @@ service ApplicationService {
   rpc GetDeploymentDetail(DeploymentDetailRequest) returns (DeploymentDetailResponse){}
   rpc InstallRelease(InstallReleaseRequest) returns (InstallReleaseResponse){}
   rpc UpgradeReleaseWithChartInfo(InstallReleaseRequest) returns (UpgradeReleaseResponse){}
+  rpc IsReleaseInstalled(ReleaseIdentifier) returns (BooleanResponse){}
 }
 
 message DeployedAppList {
@@ -231,4 +232,8 @@ message InstallReleaseRequest {
 
 message InstallReleaseResponse {
   bool success = 1;
+}
+
+message BooleanResponse {
+  bool result = 1;
 }

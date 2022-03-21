@@ -316,6 +316,22 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UpdateReleaseResponse"
+  /orchestrator/app-store/deployment/application/helm/link-to-chart-store:
+    put:
+      description: update the helm EA application with chartstore linking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReleaseWithChartLinkingRequest'
+      responses:
+        "200":
+          description: application update success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateReleaseResponse"
   /orchestrator/application/deployment-detail:
     get:
       description: deployment details of helm app
@@ -642,6 +658,15 @@ components:
         appStoreChartId:
           type: number
           description: App store chart Id
+        installedAppVersionId:
+          type: number
+          description: App store installed app version Id
+        clusterId:
+          type: number
+          description: Cluster Id
+        environmentId:
+          type: number
+          description: Environment Id
     ReleaseAndInstalledAppInfo:
       type: object
       properties:
@@ -651,8 +676,8 @@ components:
           description: release info
         installedAppInfo:
           type: object
-            $ref: "#/components/schemas/InstalledAppInfo"
-            description: Installed app info
+          $ref: "#/components/schemas/InstalledAppInfo"
+          description: Installed app info
     ReleaseInfo:
       type: object
       properties:
@@ -730,6 +755,29 @@ components:
           type: string
           description: updated values yaml string
           example: ""
+    UpdateReleaseWithChartLinkingRequest:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: helm app id
+          example: "1|test|testapp"
+        valuesYaml:
+          type: string
+          description: updated values yaml string
+          example: ""
+        appStoreApplicationVersionId:
+          type: number
+          description: app store application version Id
+          example: 1
+        referenceValueId:
+          type: number
+          description: Reference value Id of selected chart values
+          example: 1
+        referenceValueKind:
+          type: string
+          description: Reference value Kind of selected chart values "oneof=DEFAULT TEMPLATE DEPLOYED EXISTING" (can be null)
+          example: 1
     UpdateReleaseResponse:
       type: object
       properties:

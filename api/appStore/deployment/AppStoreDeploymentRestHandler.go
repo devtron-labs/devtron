@@ -20,7 +20,10 @@ package appStoreDeployment
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	client "github.com/devtron-labs/devtron/api/helm-app"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -38,9 +41,10 @@ import (
 )
 
 type AppStoreDeploymentRestHandler interface {
-	CreateInstalledApp(w http.ResponseWriter, r *http.Request)
+	InstallApp(w http.ResponseWriter, r *http.Request)
 	GetInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request)
 	DeleteInstalledApp(w http.ResponseWriter, r *http.Request)
+	LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreDeploymentRestHandlerImpl struct {
@@ -51,11 +55,12 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	enforcerUtilHelm          rbac.EnforcerUtilHelm
 	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService
 	validator                 *validator.Validate
+	helmAppService            client.HelmAppService
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
-	validator *validator.Validate,
+	validator *validator.Validate, helmAppService client.HelmAppService,
 ) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                    Logger,
@@ -65,10 +70,11 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		enforcerUtilHelm:          enforcerUtilHelm,
 		appStoreDeploymentService: appStoreDeploymentService,
 		validator:                 validator,
+		helmAppService:            helmAppService,
 	}
 }
 
-func (handler AppStoreDeploymentRestHandlerImpl) CreateInstalledApp(w http.ResponseWriter, r *http.Request) {
+func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -95,7 +101,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) CreateInstalledApp(w http.Respo
 	var rbacObject string
 	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(request.ClusterId, request.Namespace, request.AppName)
-	}else{
+	} else {
 		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(request.AppName, request.EnvironmentId)
 	}
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject); !ok {
@@ -129,7 +135,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) CreateInstalledApp(w http.Respo
 	}
 	ctx = context.WithValue(r.Context(), "token", token)
 	defer cancel()
-	res, err := handler.appStoreDeploymentService.InstallApp(&request, ctx)
+	res, err := handler.appStoreDeploymentService.InstallApp(&request, ctx, true)
 	if err != nil {
 		if strings.Contains(err.Error(), "application spec is invalid") {
 			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}
@@ -171,7 +177,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppsByAppStoreId(w 
 		var rbacObject string
 		if app.AppOfferingMode == util2.SERVER_MODE_HYPERION {
 			rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(app.ClusterId, app.Namespace, app.AppName)
-		}else{
+		} else {
 			rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(app.AppName, app.EnvironmentId)
 		}
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
@@ -223,7 +229,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	var rbacObject string
 	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
-	}else{
+	} else {
 		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.AppName, installedApp.EnvironmentId)
 	}
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject); !ok {
@@ -259,5 +265,48 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+
+func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request) {
+	request := &openapi.UpdateReleaseWithChartLinkingRequest{}
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	appIdentifier, err := handler.helmAppService.DecodeAppId(*request.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtilHelm.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+
+	res, isChartRepoActive, err := handler.appStoreDeploymentService.LinkHelmApplicationToChartStore(context.Background(), request, appIdentifier, userId)
+	if err != nil {
+		handler.Logger.Errorw("Error in UpdateApplicationWithChartStoreLinking", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}else if !isChartRepoActive {
+		common.WriteJsonResp(w, fmt.Errorf("chart repo is disabled"), nil, http.StatusNotAcceptable)
+		return
+	}
+
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }

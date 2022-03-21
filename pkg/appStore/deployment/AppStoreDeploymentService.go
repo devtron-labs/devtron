@@ -19,11 +19,15 @@ package appStoreDeployment
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	client "github.com/devtron-labs/devtron/api/helm-app"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -44,10 +48,11 @@ type AppStoreDeploymentService interface {
 	AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	AppStoreDeployOperationStatusUpdate(installAppId int, status appStoreBean.AppstoreDeploymentStatus) (bool, error)
 	IsChartRepoActive(appStoreVersionId int) (bool, error)
-	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
+	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context, doActualInstallation bool) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledApp(id int) (*appStoreBean.InstallAppVersionDTO, error)
 	GetAllInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request, token string, appStoreId int) ([]appStoreBean.InstalledAppsResponse, error)
 	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
+	LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error)
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -61,6 +66,9 @@ type AppStoreDeploymentServiceImpl struct {
 	appStoreDeploymentArgoCdService      appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService
 	environmentService                   cluster.EnvironmentService
 	clusterService                       cluster.ClusterService
+	helmAppService                       client.HelmAppService
+	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	globalEnvVariables                   *util2.GlobalEnvVariables
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository appStoreRepository.InstalledAppRepository,
@@ -68,7 +76,8 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	clusterInstalledAppsRepository appStoreRepository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
 	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
 	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
-	clusterService cluster.ClusterService) *AppStoreDeploymentServiceImpl {
+	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	globalEnvVariables *util2.GlobalEnvVariables) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -80,6 +89,9 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		appStoreDeploymentArgoCdService:      appStoreDeploymentArgoCdService,
 		environmentService:                   environmentService,
 		clusterService:                       clusterService,
+		helmAppService:                       helmAppService,
+		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
+		globalEnvVariables:                   globalEnvVariables,
 	}
 }
 
@@ -91,8 +103,15 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		return nil, err
 	}
 
+	var appInstallationMode string
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || installAppVersionRequest.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		appInstallationMode = util2.SERVER_MODE_HYPERION
+	} else {
+		appInstallationMode = util2.SERVER_MODE_FULL
+	}
+
 	// create env if env not exists for clusterId and namespace for hyperion mode
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
+	if appInstallationMode == util2.SERVER_MODE_HYPERION {
 		envId, err := impl.createEnvironmentIfNotExists(installAppVersionRequest)
 		if err != nil {
 			return nil, err
@@ -113,7 +132,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		UserId:  installAppVersionRequest.UserId,
 	}
 
-	appCreateRequest, err = impl.createAppForAppStore(appCreateRequest, tx)
+	appCreateRequest, err = impl.createAppForAppStore(appCreateRequest, tx, appInstallationMode)
 	if err != nil {
 		impl.logger.Errorw("error while creating app", "error", err)
 		return nil, err
@@ -130,6 +149,10 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installedAppModel.CreatedOn = time.Now()
 	installedAppModel.UpdatedOn = time.Now()
 	installedAppModel.Active = true
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
+		installedAppModel.GitOpsRepoName = impl.GetGitOpsRepoName(appStoreAppVersion.AppStore.Name)
+		installAppVersionRequest.GitOpsRepoName = installedAppModel.GitOpsRepoName
+	}
 	installedApp, err := impl.installedAppRepository.CreateInstalledApp(installedAppModel, tx)
 	if err != nil {
 		impl.logger.Errorw("error while creating install app", "error", err)
@@ -175,6 +198,17 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	return installAppVersionRequest, nil
 }
 
+//TODO - dedupe, move it to one location
+func (impl AppStoreDeploymentServiceImpl) GetGitOpsRepoName(appName string) string {
+	var repoName string
+	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
+		repoName = appName
+	} else {
+		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
+	}
+	return repoName
+}
+
 func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationStatusUpdate(installAppId int, status appStoreBean.AppstoreDeploymentStatus) (bool, error) {
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -211,7 +245,7 @@ func (impl *AppStoreDeploymentServiceImpl) IsChartRepoActive(appStoreVersionId i
 	return appStoreAppVersion.AppStore.ChartRepo.Active, nil
 }
 
-func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context, doActualInstallation bool) (*appStoreBean.InstallAppVersionDTO, error) {
 
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -228,10 +262,12 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 		return nil, err
 	}
 
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
-		err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
-	} else {
-		err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, ctx)
+	if doActualInstallation {
+		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || installAppVersionRequest.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+			err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
+		} else {
+			err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, ctx)
+		}
 	}
 
 	if err != nil {
@@ -254,7 +290,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	return installAppVersionRequest, nil
 }
 
-func (impl AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx) (*bean.CreateAppDTO, error) {
+func (impl AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx, appInstallationMode string) (*bean.CreateAppDTO, error) {
 	app1, err := impl.appRepository.FindActiveByName(createRequest.AppName)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -273,7 +309,7 @@ func (impl AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *be
 		AppName:         createRequest.AppName,
 		TeamId:          createRequest.TeamId,
 		AppStore:        true,
-		AppOfferingMode: util2.GetDevtronVersion().ServerMode,
+		AppOfferingMode: appInstallationMode,
 		AuditLog:        sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.appRepository.SaveWithTxn(pg, tx)
@@ -344,9 +380,9 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 	var installedAppsEnvResponse []appStoreBean.InstalledAppsResponse
 	for _, a := range installedApps {
 		var status string
-		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || a.AppOfferingMode == util2.SERVER_MODE_HYPERION  {
+		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || a.AppOfferingMode == util2.SERVER_MODE_HYPERION {
 			status, err = impl.appStoreDeploymentHelmService.GetAppStatus(a, w, r, token)
-		}else{
+		} else {
 			status, err = impl.appStoreDeploymentArgoCdService.GetAppStatus(a, w, r, token)
 		}
 		if apiErr, ok := err.(*util.ApiError); ok {
@@ -444,9 +480,12 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		}
 	}
 
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || app.AppOfferingMode == util2.SERVER_MODE_HYPERION  {
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || app.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		// there might be a case if helm release gets uninstalled from helm cli.
+		//in this case on deleting the app from API, it should not give error as it should get deleted from db, otherwise due to delete error, db does not get clean
+		// so in helm, we need to check first if the release exists or not, if exists then only delete
 		err = impl.appStoreDeploymentHelmService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
-	}else{
+	} else {
 		err = impl.appStoreDeploymentArgoCdService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
 	}
 
@@ -461,6 +500,86 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 	}
 
 	return installAppVersionRequest, nil
+}
+
+func (impl AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest,
+	appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error) {
+
+	impl.logger.Infow("Linking helm application to chart store", "appId", request.GetAppId())
+
+	// check if chart repo is active starts
+	isChartRepoActive, err := impl.IsChartRepoActive(int(request.GetAppStoreApplicationVersionId()))
+	if err != nil {
+		impl.logger.Errorw("Error in checking if chart repo is active or not", "err", err)
+		return nil, isChartRepoActive, err
+	}
+	if !isChartRepoActive {
+		return nil, isChartRepoActive, nil
+	}
+	// check if chart repo is active ends
+
+	// STEP-1 check if the app is installed or not
+	isInstalled, err := impl.helmAppService.IsReleaseInstalled(ctx, appIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error while checking if the release is installed", "error", err)
+		return nil, isChartRepoActive, err
+	}
+	if !isInstalled {
+		return nil, isChartRepoActive, errors.New("release is not installed. so can not be updated")
+	}
+	// STEP-1 ends
+
+	// Initialise bean
+	installAppVersionRequestDto := &appStoreBean.InstallAppVersionDTO{
+		AppName:            appIdentifier.ReleaseName,
+		UserId:             userId,
+		AppOfferingMode:    util2.SERVER_MODE_HYPERION,
+		ClusterId:          appIdentifier.ClusterId,
+		Namespace:          appIdentifier.Namespace,
+		AppStoreVersion:    int(request.GetAppStoreApplicationVersionId()),
+		ValuesOverrideYaml: request.GetValuesYaml(),
+		ReferenceValueId:   int(request.GetReferenceValueId()),
+		ReferenceValueKind: request.GetReferenceValueKind(),
+	}
+
+	// STEP-2 InstallApp with only DB operations
+	_, err = impl.InstallApp(installAppVersionRequestDto, ctx, false)
+	if err != nil {
+		impl.logger.Errorw("error while updating app DB operations", "error", err)
+		return nil, isChartRepoActive, err
+	}
+	// STEP-2 ends
+
+	// STEP-3 update APP with chart info
+	installedApp, err := impl.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	if err != nil {
+		impl.logger.Errorw("error while getting installed app", "error", err)
+		return nil, isChartRepoActive, err
+	}
+	chartInfo := installedApp.InstallAppVersionChartDTO
+	chartRepoInfo := chartInfo.InstallAppVersionChartRepoDTO
+	updateReleaseRequest := &client.InstallReleaseRequest{
+		ValuesYaml:   request.GetValuesYaml(),
+		ChartName:    chartInfo.ChartName,
+		ChartVersion: chartInfo.ChartVersion,
+		ReleaseIdentifier: &client.ReleaseIdentifier{
+			ReleaseNamespace: appIdentifier.Namespace,
+			ReleaseName:      appIdentifier.ReleaseName,
+		},
+		ChartRepository: &client.ChartRepository{
+			Name:     chartRepoInfo.RepoName,
+			Url:      chartRepoInfo.RepoUrl,
+			Username: chartRepoInfo.UserName,
+			Password: chartRepoInfo.Password,
+		},
+	}
+	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, appIdentifier.ClusterId, updateReleaseRequest)
+	if err != nil {
+		impl.logger.Errorw("error while updating app", "error", err)
+		return nil, isChartRepoActive, err
+	}
+	return res, isChartRepoActive, nil
+	// STEP-3 ends
 }
 
 func (impl AppStoreDeploymentServiceImpl) createEnvironmentIfNotExists(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (int, error) {
