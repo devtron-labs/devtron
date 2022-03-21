@@ -12,6 +12,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -83,7 +84,14 @@ func (handler *DeploymentRestHandlerImpl) CreateChartFromFile(w http.ResponseWri
 		return
 	}
 
-	chartLocation, chartName, chartVersion, err := handler.chartService.ExtractChartIfMissing(fileBytes, string(handler.refChartDir), "")
+	chartLocation, chartName, chartVersion, temporaryFolder, err := handler.chartService.ExtractChartIfMissing(fileBytes, string(handler.refChartDir), "")
+
+	if temporaryFolder != "" {
+		err1 := os.RemoveAll(temporaryFolder)
+		if err1 != nil {
+			handler.Logger.Errorw("error in deleting temp dir ", "err", err)
+		}
+	}
 
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
