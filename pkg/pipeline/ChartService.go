@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 
@@ -130,23 +131,25 @@ type ChartService interface {
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
 }
 type ChartServiceImpl struct {
-	chartRepository           chartRepoRepository.ChartRepository
-	logger                    *zap.SugaredLogger
-	repoRepository            chartRepoRepository.ChartRepoRepository
-	chartTemplateService      util.ChartTemplateService
-	pipelineGroupRepository   app.AppRepository
-	mergeUtil                 util.MergeUtil
-	repositoryService         repository.ServiceClient
-	refChartDir               RefChartDir
-	defaultChart              DefaultChart
-	chartRefRepository        chartRepoRepository.ChartRefRepository
-	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
-	pipelineConfigRepository  chartConfig.PipelineConfigRepository
-	configMapRepository       chartConfig.ConfigMapRepository
-	environmentRepository     repository4.EnvironmentRepository
-	pipelineRepository        pipelineConfig.PipelineRepository
-	appLevelMetricsRepository repository3.AppLevelMetricsRepository
-	client                    *http.Client
+	chartRepository                  chartRepoRepository.ChartRepository
+	logger                           *zap.SugaredLogger
+	repoRepository                   chartRepoRepository.ChartRepoRepository
+	chartTemplateService             util.ChartTemplateService
+	pipelineGroupRepository          app.AppRepository
+	mergeUtil                        util.MergeUtil
+	repositoryService                repository.ServiceClient
+	refChartDir                      RefChartDir
+	defaultChart                     DefaultChart
+	chartRefRepository               chartRepoRepository.ChartRefRepository
+	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
+	pipelineConfigRepository         chartConfig.PipelineConfigRepository
+	configMapRepository              chartConfig.ConfigMapRepository
+	environmentRepository            repository4.EnvironmentRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
+	appLevelMetricsRepository        repository3.AppLevelMetricsRepository
+	envLevelAppMetricsRepository     repository3.EnvLevelAppMetricsRepository
+	client                           *http.Client
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 }
 
 func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -165,27 +168,29 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	environmentRepository repository4.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
+	envLevelAppMetricsRepository repository3.EnvLevelAppMetricsRepository,
 	client *http.Client,
-	CustomFormatCheckers *util2.CustomFormatCheckers,
-) *ChartServiceImpl {
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService) *ChartServiceImpl {
 	return &ChartServiceImpl{
-		chartRepository:           chartRepository,
-		logger:                    logger,
-		chartTemplateService:      chartTemplateService,
-		repoRepository:            repoRepository,
-		pipelineGroupRepository:   pipelineGroupRepository,
-		mergeUtil:                 mergeUtil,
-		refChartDir:               refChartDir,
-		defaultChart:              defaultChart,
-		repositoryService:         repositoryService,
-		chartRefRepository:        chartRefRepository,
-		envOverrideRepository:     envOverrideRepository,
-		pipelineConfigRepository:  pipelineConfigRepository,
-		configMapRepository:       configMapRepository,
-		environmentRepository:     environmentRepository,
-		pipelineRepository:        pipelineRepository,
-		appLevelMetricsRepository: appLevelMetricsRepository,
-		client:                    client,
+		chartRepository:                  chartRepository,
+		logger:                           logger,
+		chartTemplateService:             chartTemplateService,
+		repoRepository:                   repoRepository,
+		pipelineGroupRepository:          pipelineGroupRepository,
+		mergeUtil:                        mergeUtil,
+		refChartDir:                      refChartDir,
+		defaultChart:                     defaultChart,
+		repositoryService:                repositoryService,
+		chartRefRepository:               chartRefRepository,
+		envOverrideRepository:            envOverrideRepository,
+		pipelineConfigRepository:         pipelineConfigRepository,
+		configMapRepository:              configMapRepository,
+		environmentRepository:            environmentRepository,
+		pipelineRepository:               pipelineRepository,
+		appLevelMetricsRepository:        appLevelMetricsRepository,
+		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
+		client:                           client,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 	}
 }
 
@@ -376,12 +381,20 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
+	//creating history entry for deployment template
+	//TODO : remove default value(false) app metrics flag for history when app metrics request is combined with template save request
+	appLevelAppMetricsEnabled := false
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(templateRequest.AppId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in app metrics app level flag", "error", err)
+		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+	} else if err == nil {
+		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, appLevelAppMetricsEnabled)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 		return nil, err
 	}
-
 	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
 		appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
 		_, err = impl.updateAppLevelMetrics(&appMetricsRequest)
@@ -492,10 +505,18 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		impl.logger.Errorw("error in saving chart ", "chart", chart, "error", err)
 		return nil, err
 	}
-
+	//creating history entry for deployment template
+	//TODO : remove default value(false) app metrics flag for history when app metrics request is combined with template save request
+	appLevelAppMetricsEnabled := false
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(templateRequest.AppId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in app metrics app level flag", "error", err)
+		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+	} else if err == nil {
+		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, appLevelAppMetricsEnabled)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 		return nil, err
 	}
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
@@ -759,7 +780,20 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 			return nil, err
 		}
 	}
-
+	//creating history entry for deployment template
+	//TODO : remove fetching and setting app metrics flag for history when app metrics update request is combined with template update request
+	appLevelAppMetricsEnabled := false
+	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(template.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+	} else if err == nil {
+		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(template, nil, appLevelAppMetricsEnabled)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", template)
+		return nil, err
+	}
 	return templateRequest, nil
 }
 
@@ -980,6 +1014,29 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 			impl.logger.Errorw("error in creating env config", "data", envOverride, "error", err)
 			return false, err
 		}
+		//creating history entry for deployment template
+		//TODO : remove fetching and setting app metrics flag for history when app metrics update request is combined with template update request
+		isAppMetricsEnabled := false
+		envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(appId, envOverrideNew.TargetEnvironment)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", appId, "envId", envOverrideNew.TargetEnvironment)
+			return false, err
+		} else if err == pg.ErrNoRows {
+			appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", appId)
+				return false, err
+			} else if err == nil {
+				isAppMetricsEnabled = appLevelAppMetrics.AppMetrics
+			}
+		} else {
+			isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
+		}
+		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverrideNew, nil, isAppMetricsEnabled, 0)
+		if err != nil {
+			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverrideNew)
+			return false, err
+		}
 	}
 
 	return true, nil
@@ -1027,23 +1084,22 @@ func (impl ChartServiceImpl) filterDeploymentTemplateForBackground(deploymentTem
 }
 
 func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error) {
-
+	currentChart, err := impl.chartRepository.FindLatestChartForAppByAppId(appMetricRequest.AppId)
+	if err != nil && pg.ErrNoRows != err {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	if pg.ErrNoRows == err {
+		impl.logger.Errorw("no chart configured for this app", "appId", appMetricRequest.AppId)
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusNotFound,
+			InternalMessage: "no chart configured for this app",
+			UserMessage:     "no chart configured for this app",
+		}
+		return nil, err
+	}
 	// validate app metrics compatibility
 	if appMetricRequest.IsAppMetricsEnabled == true {
-		currentChart, err := impl.chartRepository.FindLatestChartForAppByAppId(appMetricRequest.AppId)
-		if err != nil && pg.ErrNoRows != err {
-			impl.logger.Error(err)
-			return nil, err
-		}
-		if pg.ErrNoRows == err {
-			impl.logger.Errorw("no chart configured for this app", "appId", appMetricRequest.AppId)
-			err = &util.ApiError{
-				HttpStatusCode:  http.StatusNotFound,
-				InternalMessage: "no chart configured for this app",
-				UserMessage:     "no chart configured for this app",
-			}
-			return nil, err
-		}
 		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(currentChart.ChartVersion)
 		if err != nil {
 			impl.logger.Errorw("chart version parsing", "err", err)
@@ -1058,11 +1114,16 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 			return nil, err
 		}
 	}
-
 	//update or create app level app metrics
 	appLevelMetrics, err := impl.updateAppLevelMetrics(&appMetricRequest)
 	if err != nil {
 		impl.logger.Errorw("error in saving app level metrics flag", "error", err)
+		return nil, err
+	}
+	//creating history entry for deployment template
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(currentChart, nil, appMetricRequest.IsAppMetricsEnabled)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", currentChart)
 		return nil, err
 	}
 	if appLevelMetrics.Id > 0 {

@@ -6,6 +6,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/go-pg/pg"
 	"net/http"
 
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
@@ -110,24 +113,27 @@ type BulkUpdateService interface {
 }
 
 type BulkUpdateServiceImpl struct {
-	bulkUpdateRepository      bulkUpdate.BulkUpdateRepository
-	chartRepository           chartRepoRepository.ChartRepository
-	logger                    *zap.SugaredLogger
-	repoRepository            chartRepoRepository.ChartRepoRepository
-	chartTemplateService      util.ChartTemplateService
-	mergeUtil                 util.MergeUtil
-	repositoryService         repository.ServiceClient
-	refChartDir               RefChartDir
-	defaultChart              DefaultChart
-	chartRefRepository        chartRepoRepository.ChartRefRepository
-	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
-	pipelineConfigRepository  chartConfig.PipelineConfigRepository
-	configMapRepository       chartConfig.ConfigMapRepository
-	environmentRepository     repository2.EnvironmentRepository
-	pipelineRepository        pipelineConfig.PipelineRepository
-	appLevelMetricsRepository repository3.AppLevelMetricsRepository
-	client                    *http.Client
-	appRepository             app.AppRepository
+	bulkUpdateRepository             bulkUpdate.BulkUpdateRepository
+	chartRepository                  chartRepoRepository.ChartRepository
+	logger                           *zap.SugaredLogger
+	repoRepository                   chartRepoRepository.ChartRepoRepository
+	chartTemplateService             util.ChartTemplateService
+	mergeUtil                        util.MergeUtil
+	repositoryService                repository.ServiceClient
+	refChartDir                      RefChartDir
+	defaultChart                     DefaultChart
+	chartRefRepository               chartRepoRepository.ChartRefRepository
+	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
+	pipelineConfigRepository         chartConfig.PipelineConfigRepository
+	configMapRepository              chartConfig.ConfigMapRepository
+	environmentRepository            repository2.EnvironmentRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
+	appLevelMetricsRepository        repository3.AppLevelMetricsRepository
+	envLevelAppMetricsRepository     repository3.EnvLevelAppMetricsRepository
+	client                           *http.Client
+	appRepository                    app.AppRepository
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
+	configMapHistoryService          history.ConfigMapHistoryService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -146,28 +152,33 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
+	envLevelAppMetricsRepository repository3.EnvLevelAppMetricsRepository,
 	client *http.Client,
 	appRepository app.AppRepository,
-) *BulkUpdateServiceImpl {
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	configMapHistoryService history.ConfigMapHistoryService) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
-		bulkUpdateRepository:      bulkUpdateRepository,
-		chartRepository:           chartRepository,
-		logger:                    logger,
-		chartTemplateService:      chartTemplateService,
-		repoRepository:            repoRepository,
-		mergeUtil:                 mergeUtil,
-		refChartDir:               refChartDir,
-		defaultChart:              defaultChart,
-		repositoryService:         repositoryService,
-		chartRefRepository:        chartRefRepository,
-		envOverrideRepository:     envOverrideRepository,
-		pipelineConfigRepository:  pipelineConfigRepository,
-		configMapRepository:       configMapRepository,
-		environmentRepository:     environmentRepository,
-		pipelineRepository:        pipelineRepository,
-		appLevelMetricsRepository: appLevelMetricsRepository,
-		client:                    client,
-		appRepository:             appRepository,
+		bulkUpdateRepository:             bulkUpdateRepository,
+		chartRepository:                  chartRepository,
+		logger:                           logger,
+		chartTemplateService:             chartTemplateService,
+		repoRepository:                   repoRepository,
+		mergeUtil:                        mergeUtil,
+		refChartDir:                      refChartDir,
+		defaultChart:                     defaultChart,
+		repositoryService:                repositoryService,
+		chartRefRepository:               chartRefRepository,
+		envOverrideRepository:            envOverrideRepository,
+		pipelineConfigRepository:         pipelineConfigRepository,
+		configMapRepository:              configMapRepository,
+		environmentRepository:            environmentRepository,
+		pipelineRepository:               pipelineRepository,
+		appLevelMetricsRepository:        appLevelMetricsRepository,
+		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
+		client:                           client,
+		appRepository:                    appRepository,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		configMapHistoryService:          configMapHistoryService,
 	}
 }
 
@@ -439,6 +450,21 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 								Message: "Updated Successfully",
 							}
 							deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
+
+							//creating history entry for deployment template
+							appLevelAppMetricsEnabled := false
+							appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chart.AppId)
+							if err != nil && err != pg.ErrNoRows {
+								impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+							} else if err == nil {
+								appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+							}
+							chart.GlobalOverride = modified
+							chart.Values = modified
+							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, appLevelAppMetricsEnabled)
+							if err != nil {
+								impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
+							}
 						}
 					}
 				}
@@ -486,6 +512,27 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 								Message: "Updated Successfully",
 							}
 							deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
+
+							//creating history entry for deployment template
+							envLevelAppMetricsEnabled := false
+							envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(chartEnv.Chart.AppId, chartEnv.TargetEnvironment)
+							if err != nil && err != pg.ErrNoRows {
+								impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", chartEnv.Chart.AppId, "envId", chartEnv.TargetEnvironment)
+							} else if err == pg.ErrNoRows {
+								appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chartEnv.Chart.AppId)
+								if err != nil && err != pg.ErrNoRows {
+									impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", chartEnv.Chart.AppId)
+								} else if err == nil {
+									envLevelAppMetricsEnabled = appLevelAppMetrics.AppMetrics
+								}
+							} else {
+								envLevelAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
+							}
+							chartEnv.EnvOverrideValues = modified
+							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(chartEnv, nil, envLevelAppMetricsEnabled, 0)
+							if err != nil {
+								impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", chartEnv)
+							}
 						}
 					}
 				}
@@ -563,6 +610,11 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpd
 							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							messageCmNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageCmNamesMap["Updated Successfully"]
 							delete(messageCmNamesMap, "Updated Successfully")
+						}
+						//creating history for config map history
+						err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(configMapAppModel, repository4.CONFIGMAP_TYPE)
+						if err != nil {
+							impl.logger.Errorw("error in creating entry for configmap history", "err", err)
 						}
 					}
 					if len(messageCmNamesMap) != 0 {
@@ -650,6 +702,11 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpd
 							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							messageCmNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageCmNamesMap["Updated Successfully"]
 							delete(messageCmNamesMap, "Updated Successfully")
+						}
+						//creating history for config map history
+						err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(configMapEnvModel, repository4.CONFIGMAP_TYPE)
+						if err != nil {
+							impl.logger.Errorw("error in creating entry for configmap history", "err", err)
 						}
 					}
 					if len(messageCmNamesMap) != 0 {
@@ -751,6 +808,11 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 							messageSecretNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageSecretNamesMap["Updated Successfully"]
 							delete(messageSecretNamesMap, "Updated Successfully")
 						}
+						//creating history for config map history
+						err = impl.configMapHistoryService.CreateHistoryFromAppLevelConfig(secretAppModel, repository4.SECRET_TYPE)
+						if err != nil {
+							impl.logger.Errorw("error in creating entry for secret history", "err", err)
+						}
 					}
 					if len(messageSecretNamesMap) != 0 {
 						appDetailsById, _ := impl.appRepository.FindById(secretAppModel.AppId)
@@ -837,6 +899,11 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 							impl.logger.Errorw("error in bulk updating charts", "err", err)
 							messageSecretNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageSecretNamesMap["Updated Successfully"]
 							delete(messageSecretNamesMap, "Updated Successfully")
+						}
+						//creating history for config map history
+						err = impl.configMapHistoryService.CreateHistoryFromEnvLevelConfig(secretEnvModel, repository4.SECRET_TYPE)
+						if err != nil {
+							impl.logger.Errorw("error in creating entry for secret history", "err", err)
 						}
 					}
 					if len(messageSecretNamesMap) != 0 {

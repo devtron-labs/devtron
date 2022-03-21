@@ -292,7 +292,7 @@ func (impl AppStoreValuesServiceImpl) adapter(values *appStoreValuesRepository.A
 	}, nil
 }
 
-/*func (impl AppStoreValuesServiceImpl) adaptorForValuesCategoryWise(values *appstore.AppStoreVersionValues) (val *AppStoreVersionValuesCategoryWiseDTO) {
+/*func (impl AppStoreValuesServiceImpl) adaptorForValuesCategoryWise(values *appStore.AppStoreVersionValues) (val *AppStoreVersionValuesCategoryWiseDTO) {
 	version := ""
 	if values.AppStoreApplicationVersion != nil {
 		version = values.AppStoreApplicationVersion.Version

@@ -27,13 +27,22 @@ type PipelineConfigRouter interface {
 	initPipelineConfigRouter(configRouter *mux.Router)
 }
 type PipelineConfigRouterImpl struct {
-	restHandler            app.PipelineConfigRestHandler
-	appWorkflowRestHandler restHandler.AppWorkflowRestHandler
-	webhookDataRestHandler restHandler.WebhookDataRestHandler
+	restHandler                app.PipelineConfigRestHandler
+	appWorkflowRestHandler     restHandler.AppWorkflowRestHandler
+	webhookDataRestHandler     restHandler.WebhookDataRestHandler
+	pipelineHistoryRestHandler restHandler.PipelineHistoryRestHandler
 }
 
-func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler, appWorkflowRestHandler restHandler.AppWorkflowRestHandler, webhookDataRestHandler restHandler.WebhookDataRestHandler) *PipelineConfigRouterImpl {
-	return &PipelineConfigRouterImpl{restHandler: restHandler, appWorkflowRestHandler: appWorkflowRestHandler, webhookDataRestHandler: webhookDataRestHandler}
+func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler,
+	appWorkflowRestHandler restHandler.AppWorkflowRestHandler,
+	webhookDataRestHandler restHandler.WebhookDataRestHandler,
+	pipelineHistoryRestHandler restHandler.PipelineHistoryRestHandler) *PipelineConfigRouterImpl {
+	return &PipelineConfigRouterImpl{
+		restHandler:                restHandler,
+		appWorkflowRestHandler:     appWorkflowRestHandler,
+		webhookDataRestHandler:     webhookDataRestHandler,
+		pipelineHistoryRestHandler: pipelineHistoryRestHandler,
+	}
 
 }
 
@@ -138,4 +147,38 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/pipeline/suggest/{type}/{appId}").
 		HandlerFunc(router.restHandler.PipelineNameSuggestion).Methods("GET")
+
+	configRouter.Path("/history/cm/{appId}/{pipelineId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeploymentDetailsForDeployedCMHistory).
+		Methods("GET")
+	configRouter.Path("/history/cs/{appId}/{pipelineId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeploymentDetailsForDeployedCSHistory).
+		Methods("GET")
+
+	configRouter.Path("/history/template/{appId}/{pipelineId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeploymentDetailsForDeployedTemplatesHistory).
+		Methods("GET")
+
+	configRouter.Path("/history/strategy/{appId}/{pipelineId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeploymentDetailsForDeployedStrategyHistory).
+		Methods("GET")
+
+	configRouter.Path("/history/cm/{appId}/{pipelineId}/{id}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedCMHistoryById).
+		Methods("GET")
+	configRouter.Path("/history/cs/{appId}/{pipelineId}/{id}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedCSHistoryById).
+		Methods("GET")
+
+	configRouter.Path("/history/template/{appId}/{pipelineId}/{id}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedTemplatesHistoryById).
+		Methods("GET")
+
+	configRouter.Path("/history/strategy/{appId}/{pipelineId}/{id}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedStrategyHistoryById).
+		Methods("GET")
+
+	configRouter.Path("/history/cd-config/{appId}/{pipelineId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedPrePostCdScriptHistory).
+		Methods("GET")
 }

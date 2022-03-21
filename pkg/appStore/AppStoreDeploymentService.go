@@ -27,6 +27,7 @@ import (
 	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/history"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	appStoreValues "github.com/devtron-labs/devtron/pkg/appStore/values"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -98,6 +99,7 @@ type InstalledAppServiceImpl struct {
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
+	appStoreChartsHistoryService         history.AppStoreChartsHistoryService
 	userService                          user.UserService
 	appStoreDeploymentService            appStoreDeployment.AppStoreDeploymentService
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
@@ -117,8 +119,9 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	chartGroupDeploymentRepository appStoreRepository.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService, argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
+	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
-	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService) (*InstalledAppServiceImpl, error) {
+	appStoreChartsHistoryService history.AppStoreChartsHistoryService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -139,6 +142,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		gitFactory:                           gitFactory,
 		aCDAuthConfig:                        aCDAuthConfig,
 		gitOpsRepository:                     gitOpsRepository,
+		appStoreChartsHistoryService:         appStoreChartsHistoryService,
 		userService:                          userService,
 		appStoreDeploymentService:            appStoreDeploymentService,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
@@ -192,16 +196,16 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		}
 	}
 	installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
+	var installedAppVersion *appStoreRepository.InstalledAppVersions
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
-		_, _, err := impl.upgradeInstalledApp(ctx, installAppVersionRequest, installedApp, tx)
+		_, installedAppVersion, err = impl.upgradeInstalledApp(ctx, installAppVersionRequest, installedApp, tx)
 		if err != nil {
 			impl.logger.Errorw("error while upgrade the chart", "error", err)
 			return nil, err
 		}
 	} else {
 		// update same chart or upgrade its version only
-		var installedAppVersion *appStoreRepository.InstalledAppVersions
 		installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
 		if err != nil {
 			impl.logger.Errorw("error while fetching chart installed version", "error", err)
@@ -275,11 +279,17 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 			return nil, err
 		}
 	}
-
 	//STEP 8: finish with return response
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error while committing transaction to db", "error", err)
+		return nil, err
+	}
+	//STEP 9: creating entry for installed app history
+	//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
+	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.InstalledAppId, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
+	if err != nil {
+		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err
 	}
 	return installAppVersionRequest, nil
@@ -607,6 +617,14 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 	if err != nil {
 		impl.logger.Errorw("DeployBulk, error in tx commit", "err", err)
 		return nil, err
+	}
+	for _, versions := range installAppVersions {
+		//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
+		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.InstalledAppId, versions.ValuesOverrideYaml, versions.UserId, nil)
+		if err != nil {
+			impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", versions)
+			return nil, err
+		}
 	}
 	//nats event
 	impl.triggerDeploymentEvent(installAppVersions)
@@ -1036,6 +1054,12 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 			if err != nil {
 				impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
 			}
+		}
+		//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
+		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.InstalledAppId, versions.ValuesOverrideYaml, versions.UserId, nil)
+		if err != nil {
+			impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", versions)
+			return nil, err
 		}
 	}
 
