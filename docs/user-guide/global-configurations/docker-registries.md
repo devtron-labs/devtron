@@ -22,6 +22,7 @@ Provide a name to your registry, this name will be shown to you in Docker Build 
 ### Registry type
 
 Select type of Registry from the drop-down, Currently we are Supporting Multiple Types of Container Registry across Global Platforms. Default `ECR` is Selected
+Registries we are Supporting are-:
 
   * ECR
   * Docker-Hub
@@ -49,6 +50,7 @@ Provide your AWS secret access key ID.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-ECR.PNG)
 
+
 ### Registry Type- Docker Hub 
 
 You have to provide the below information if you select the registry type as Docker Hub.
@@ -63,11 +65,13 @@ Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) cor
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-docker-hub.PNG)
 
+
 ### Azure Container Registry (ACR)
 
  Service principal authentication method can be used to authenticate with username and password. Please follow [link](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) for getting the Username and password for this registry.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-Azure-registry.PNG)
+
 
 ### Google Artifact Registry (GAR) 
 
@@ -75,11 +79,13 @@ JSON key file authentication method can be used to authenticate with username an
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-Artifact-registry.PNG)
 
+
 ### Google Container Registry (GCR)
  
 JSON key file authentication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) for getting the username and password for this registry. Please remove all the white spaces from json key and wrap it in single quote while putting in the password field.  
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-GCR.PNG)
+
 
 
 ### Quay Container Registry
@@ -91,6 +97,8 @@ You have to provide the below information if you select the registry type as oth
 Give the username of your account, where you have created your registry in.
 
 * **Password**
+
+Give the password corresponding to the username of your registry.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-Quay.PNG)
 
