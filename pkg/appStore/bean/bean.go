@@ -24,6 +24,28 @@ import (
 )
 
 //v1
+type InstallAppVersionHistoryDto struct {
+	IavhDeploymentHistory []*IavhDeploymentHistory `json:"deploymentHistory,omitempty"`
+}
+type IavhDeploymentHistory struct {
+	ChartMetaData IavhChartMetaData `json:"chartMetaData,omitempty"`
+	DeployedAt    time.Time         `json:"deployedAt,omitempty"`
+	DockerImages  []string          `json:"dockerImages,omitempty"`
+	Version       string            `json:"version,omitempty"`
+}
+type IavhChartMetaData struct {
+	ChartName    string   `json:"chartName,omitempty"`
+	ChartVersion string   `json:"chartVersion,omitempty"`
+	Description  string   `json:"home,omitempty"`
+	Home         string   `json:"teamId,omitempty"`
+	Sources      []string `json:"sources"`
+}
+
+type IavhDeployedAt struct {
+	Nanos   string `json:"nanos,omitempty"`
+	Seconds string `json:"seconds,omitempty"`
+}
+
 type InstallAppVersionDTO struct {
 	Id                        int                        `json:"id,omitempty"`
 	AppId                     int                        `json:"appId,omitempty"`
@@ -51,6 +73,8 @@ type InstallAppVersionDTO struct {
 	Namespace                 string                     `json:"namespace"` // needed for hyperion mode
 	AppOfferingMode           string                     `json:"appOfferingMode"`
 	GitOpsRepoName            string                     `json:"gitOpsRepoName"`
+	GitOpsPath                string                     `json:"gitOpsPath"`
+	GitHash                   string                     `json:"gitHash"`
 	EnvironmentName           string                     `json:"-"`
 	InstallAppVersionChartDTO *InstallAppVersionChartDTO `json:"-"`
 }

@@ -35,6 +35,7 @@ type InstalledAppRepository interface {
 	UpdateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error)
 	UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
 	GetInstalledApp(id int) (*InstalledApps, error)
+	GetInstalledAppByPath(path string) (*InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
@@ -47,7 +48,9 @@ type InstalledAppRepository interface {
 	DeleteInstalledAppVersion(model *InstalledAppVersions) (*InstalledAppVersions, error)
 	GetInstalledAppVersionByInstalledAppId(id int) ([]*InstalledAppVersions, error)
 	GetConnection() (dbConnection *pg.DB)
-	GetInstalledAppVersionByInstalledAppIdMeta(appStoreApplicationId int) ([]*InstalledAppVersions, error)
+	GetInstalledAppVersionByInstalledAppIdMeta(installedAppId int) ([]*InstalledAppVersions, error)
+	GetLatestInstalledAppVersion(installedAppId int) (*InstalledAppVersions, error)
+	GetLatestInstalledAppVersionByGitHash(gitHash string) (*InstalledAppVersions, error)
 	GetClusterComponentByClusterId(clusterId int) ([]*InstalledApps, error)     //unused
 	GetClusterComponentByClusterIds(clusterIds []int) ([]*InstalledApps, error) //unused
 	GetInstalledAppVersionByAppIdAndEnvId(appId int, envId int) (*InstalledAppVersions, error)
@@ -168,6 +171,14 @@ func (impl InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, 
 	return model, err
 }
 
+func (impl InstalledAppRepositoryImpl) GetInstalledAppByPath(path string) (*InstalledApps, error) {
+	model := &InstalledApps{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_apps.*", "App", "Environment").
+		Where("installed_apps.path = ?", path).Where("installed_apps.active = true").Select()
+	return model, err
+}
+
 func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error) {
 	var model []*InstalledAppVersions
 	err := impl.dbConnection.Model(&model).
@@ -185,6 +196,26 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdMet
 		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
 		Where("installed_app_versions.installed_app_id = ?", installedAppId).
 		Where("installed_app_versions.active = true").Select()
+	return model, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetLatestInstalledAppVersion(installedAppId int) (*InstalledAppVersions, error) {
+	model := &InstalledAppVersions{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore").
+		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
+		Where("installed_app_versions.installed_app_id = ?", installedAppId).
+		Where("installed_app_versions.active = true").Order("installed_app_versions.id desc").Limit(1).Select()
+	return model, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetLatestInstalledAppVersionByGitHash(gitHash string) (*InstalledAppVersions, error) {
+	model := &InstalledAppVersions{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_app_versions.*", "InstalledApp").
+		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
+		Where("installed_app_versions.git_hash = ?", gitHash).
+		Where("installed_app_versions.active = true").Order("installed_app_versions.id desc").Limit(1).Select()
 	return model, err
 }
 
@@ -333,11 +364,11 @@ func (impl InstalledAppRepositoryImpl) DeleteInstalledAppVersion(model *Installe
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppId(id int) ([]*InstalledAppVersions, error) {
+func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppId(installedAppId int) ([]*InstalledAppVersions, error) {
 	model := make([]*InstalledAppVersions, 0)
 	err := impl.dbConnection.Model(&model).
 		Column("installed_app_versions.*").
-		Where("installed_app_versions.installed_app_id = ?", id).
+		Where("installed_app_versions.installed_app_id = ?", installedAppId).
 		Where("installed_app_versions.active = true").Select()
 
 	return model, err

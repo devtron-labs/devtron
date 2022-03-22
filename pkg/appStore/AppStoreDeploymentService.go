@@ -77,6 +77,8 @@ type InstalledAppService interface {
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
+	GetInstalledAppVersionHistory(installedAppId int) (*appStoreBean.InstallAppVersionHistoryDto, error)
+	UpdateInstalledAppVersionStatus(application v1alpha1.Application) (bool, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -103,6 +105,7 @@ type InstalledAppServiceImpl struct {
 	userService                          user.UserService
 	appStoreDeploymentService            appStoreDeployment.AppStoreDeploymentService
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
+	installedAppRepositoryHistory        appStoreRepository.InstalledAppVersionHistoryRepository
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -121,7 +124,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
-	appStoreChartsHistoryService history.AppStoreChartsHistoryService) (*InstalledAppServiceImpl, error) {
+	appStoreChartsHistoryService history.AppStoreChartsHistoryService,
+	installedAppRepositoryHistory appStoreRepository.InstalledAppVersionHistoryRepository) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -146,6 +150,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		userService:                          userService,
 		appStoreDeploymentService:            appStoreDeploymentService,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
+		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -155,7 +160,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
-
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -212,6 +216,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 			return nil, err
 		}
 		if installedAppVersionModel.AppStoreApplicationVersionId != installAppVersionRequest.AppStoreVersion {
+			// upgrade to new version of same chart
 			installedAppVersionModel.Active = false
 			installedAppVersionModel.UpdatedOn = time.Now()
 			installedAppVersionModel.UpdatedBy = installAppVersionRequest.UserId
@@ -250,13 +255,13 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 				impl.logger.Errorw("error while commit required dependencies to git", "error", err)
 				return nil, err
 			}
-
+			installAppVersionRequest.Id = installedAppVersion.Id
 		} else {
 			installedAppVersion = installedAppVersionModel
 		}
 
 		//update values yaml in chart
-		err = impl.updateValuesYaml(environment, installedAppVersion, installAppVersionRequest)
+		installAppVersionRequest, err = impl.updateValuesYaml(environment, installedAppVersion, installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error while commit values to git", "error", err)
 			return nil, err
@@ -290,6 +295,13 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.InstalledAppId, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
 	if err != nil {
 		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
+		return nil, err
+	}
+
+	// create build history for version upgrade, chart upgrade or simple update
+	err = impl.appStoreDeploymentService.UpdateInstallAppVersionHistory(installAppVersionRequest)
+	if err != nil {
+		impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 		return nil, err
 	}
 	return installAppVersionRequest, nil
@@ -343,26 +355,26 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *r
 }
 
 func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.Environment, installedAppVersion *appStoreRepository.InstalledAppVersions,
-	installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
+	installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
 
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
 	valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
 	if err != nil {
 		impl.logger.Errorw("error in json patch", "err", err)
-		return err
+		return installAppVersionRequest, err
 	}
 	var dat map[string]interface{}
 	err = json.Unmarshal(valuesOverrideByte, &dat)
 	if err != nil {
 		impl.logger.Errorw("error in unmarshal", "err", err)
-		return err
+		return installAppVersionRequest, err
 	}
 	valuesMap := make(map[string]map[string]interface{})
 	valuesMap[installedAppVersion.AppStoreApplicationVersion.AppStore.Name] = dat
 	valuesByte, err := json.Marshal(valuesMap)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling", "err", err)
-		return err
+		return installAppVersionRequest, err
 	}
 	valuesConfig := &util.ChartConfig{
 		FileName:       appStoreBean.VALUES_YAML_FILE,
@@ -378,15 +390,16 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
 			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return err
+			return installAppVersionRequest, err
 		}
 	}
-	_, err = impl.gitFactory.Client.CommitValues(valuesConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	commitHash, err := impl.gitFactory.Client.CommitValues(valuesConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
-		return err
+		return installAppVersionRequest, err
 	}
-	return nil
+	installAppVersionRequest.GitHash = commitHash
+	return installAppVersionRequest, nil
 }
 
 func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApp *appStoreRepository.InstalledApps, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, *appStoreRepository.InstalledAppVersions, error) {
@@ -430,7 +443,7 @@ func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, ins
 		return installAppVersionRequest, installedAppVersion, err
 	}
 	installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
-
+	installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
 	//step 2 git operation pull push
 	installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
 	if err != nil {
@@ -688,7 +701,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		installedAppVersion.Status == appStoreBean.QUE_ERROR ||
 		installedAppVersion.Status == appStoreBean.GIT_ERROR {
 		//step 2 git operation pull push
-		_, chartGitAttrDB, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installedAppVersion)
+		installedAppVersion, chartGitAttrDB, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installedAppVersion)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
 			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_ERROR)
@@ -768,6 +781,13 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 	_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.DEPLOY_SUCCESS)
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
+		return nil, err
+	}
+
+	// create build history for chart on default component
+	err = impl.appStoreDeploymentService.UpdateInstallAppVersionHistory(installedAppVersion)
+	if err != nil {
+		impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 		return nil, err
 	}
 	return installedAppVersion, nil
@@ -1097,4 +1117,140 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		DeploymentDetailContainer: deploymentContainer,
 	}
 	return appDetail, nil
+}
+
+func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId int) (*appStoreBean.InstallAppVersionHistoryDto, error) {
+	result := &appStoreBean.InstallAppVersionHistoryDto{}
+	var history []*appStoreBean.IavhDeploymentHistory
+	//TODO - response setup
+
+	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching installed version", "error", err)
+		return result, err
+	}
+	for _, installedAppVersionModel := range installedAppVersions {
+		history = append(history, &appStoreBean.IavhDeploymentHistory{
+			ChartMetaData: appStoreBean.IavhChartMetaData{
+				ChartName:    installedAppVersionModel.InstalledApp.App.AppName,
+				ChartVersion: installedAppVersionModel.AppStoreApplicationVersion.Version,
+				Description:  installedAppVersionModel.AppStoreApplicationVersion.Description,
+				Home:         installedAppVersionModel.AppStoreApplicationVersion.Home,
+				Sources:      []string{installedAppVersionModel.AppStoreApplicationVersion.Source},
+			},
+			DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
+			DeployedAt:   installedAppVersionModel.UpdatedOn, //todo - split it into second and nano
+			Version:      "v1",                               //todo - fix with correct
+		})
+		versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistoryByVersionId(installedAppVersionModel.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error while fetching installed version history", "error", err)
+			return result, err
+		}
+		for _, updateHistory := range versionHistory {
+			history = append(history, &appStoreBean.IavhDeploymentHistory{
+				ChartMetaData: appStoreBean.IavhChartMetaData{
+					ChartName:    installedAppVersionModel.InstalledApp.App.AppName,
+					ChartVersion: installedAppVersionModel.AppStoreApplicationVersion.Version,
+					Description:  installedAppVersionModel.AppStoreApplicationVersion.Description,
+					Home:         installedAppVersionModel.AppStoreApplicationVersion.Home,
+					Sources:      []string{installedAppVersionModel.AppStoreApplicationVersion.Source},
+				},
+				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
+				DeployedAt:   updateHistory.CreatedOn, //todo - split it into second and nano
+				Version:      "v1",                    //todo - fix with correct
+			})
+		}
+	}
+
+	result.IavhDeploymentHistory = history
+	return result, err
+}
+
+func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application v1alpha1.Application) (bool, error) {
+	isHealthy := false
+	/*
+		path := application.Spec.Source.Path
+		installedApp, err := impl.installedAppRepository.GetInstalledAppByPath(path)
+		if err != nil {
+			impl.logger.Errorw("error in fetching chart", "err", err, "chart", installedApp.Id, "application", application)
+			return isHealthy, err
+		}
+
+		installedAppVersion, err := impl.installedAppRepository.GetLatestInstalledAppVersion(installedApp.Id)
+		if err != nil {
+			impl.logger.Errorw("error while fetching installed version history", "error", err)
+			return isHealthy, err
+		}
+
+		versionHistory, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistory(installedAppVersion.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error while fetching installed version history", "error", err)
+			return isHealthy, err
+		}
+		if versionHistory != nil && versionHistory.Id > 0 {
+			versionHistory.Status = application.Status.Health.Status
+			versionHistory.UpdatedOn = time.Now()
+			impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(versionHistory, nil)
+		} else {
+			installedAppVersion.Status = application.Status.Health.Status
+			installedAppVersion.UpdatedOn = time.Now()
+			impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, nil)
+		}
+
+	*/
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return isHealthy, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	gitHash := ""
+	if application.Operation != nil && application.Operation.Sync != nil {
+		gitHash = application.Operation.Sync.Revision
+	} else if application.Status.OperationState != nil && application.Status.OperationState.Operation.Sync != nil {
+		gitHash = application.Status.OperationState.Operation.Sync.Revision
+	}
+	versionHistory, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistoryByGitHash(gitHash)
+	if err != nil {
+		impl.logger.Errorw("error while fetching installed version history", "error", err)
+		return isHealthy, err
+	}
+	if versionHistory.Status != (application2.Healthy) {
+		versionHistory.Status = application.Status.Health.Status
+		versionHistory.UpdatedOn = time.Now()
+		versionHistory.UpdatedBy = 1
+		impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(versionHistory, tx)
+	}
+	/*
+		installedAppVersion, err := impl.installedAppRepository.GetLatestInstalledAppVersionByGitHash(gitHash)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error while fetching installed version history", "error", err)
+			return isHealthy, err
+		}
+		if installedAppVersion.Id > 0 {
+			installedAppVersion.Status = application.Status.Health.Status
+			installedAppVersion.UpdatedOn = time.Now()
+			installedAppVersion.UpdatedBy = 1
+			impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
+		} else if installedAppVersion.Id == 0 {
+			versionHistory, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistoryByGitHash(gitHash)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error while fetching installed version history", "error", err)
+				return isHealthy, err
+			}
+			versionHistory.Status = application.Status.Health.Status
+			versionHistory.UpdatedOn = time.Now()
+			versionHistory.UpdatedBy = 1
+			impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(versionHistory, tx)
+		}
+	*/
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while committing transaction to db", "error", err)
+		return isHealthy, err
+	}
+
+	return true, nil
 }

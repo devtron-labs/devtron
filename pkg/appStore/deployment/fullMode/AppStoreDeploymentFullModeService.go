@@ -210,7 +210,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		ChartRepoName:  gitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
 	}
-	_, err = impl.gitFactory.Client.CommitValues(valuesYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	commitHash, err := impl.gitFactory.Client.CommitValues(valuesYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return nil, nil, err
@@ -221,6 +221,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		impl.logger.Errorw("error in git pull", "err", err)
 		return nil, nil, err
 	}
+	installAppVersionRequest.GitHash = commitHash
 	installAppVersionRequest.ACDAppName = argocdAppName
 	installAppVersionRequest.Environment = environment
 	return installAppVersionRequest, chartGitAttr, nil

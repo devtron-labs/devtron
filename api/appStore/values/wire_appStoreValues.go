@@ -18,4 +18,6 @@ var AppStoreValuesWireSet = wire.NewSet(
 	wire.Bind(new(appStoreValuesRepository.AppStoreVersionValuesRepository), new(*appStoreValuesRepository.AppStoreVersionValuesRepositoryImpl)),
 	appStoreRepository.NewInstalledAppRepositoryImpl,
 	wire.Bind(new(appStoreRepository.InstalledAppRepository), new(*appStoreRepository.InstalledAppRepositoryImpl)),
+	appStoreRepository.NewInstalledAppVersionHistoryRepositoryImpl,
+	wire.Bind(new(appStoreRepository.InstalledAppVersionHistoryRepository), new(*appStoreRepository.InstalledAppVersionHistoryRepositoryImpl)),
 )

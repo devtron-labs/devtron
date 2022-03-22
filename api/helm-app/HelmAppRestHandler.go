@@ -39,6 +39,7 @@ type HelmAppRestHandlerImpl struct {
 	clusterService                  cluster.ClusterService
 	enforcerUtil                    rbac.EnforcerUtilHelm
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService
+
 }
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
