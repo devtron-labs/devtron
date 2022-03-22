@@ -22,6 +22,7 @@ Provide a name to your registry, this name will be shown to you in Docker Build 
 ### Registry type
 
 Select type of Registry from the drop-down, Currently we are Supporting Multiple Types of Container Registry across Global Platforms. Default `ECR` is Selected
+
 Registries we are Supporting are-:
 
   * ECR
