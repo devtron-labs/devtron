@@ -25,9 +25,9 @@ Select type of Registry from the drop-down, Currently we are Supporting Multiple
 
 Registries we are Supporting are-:
 
-  * ECR
+  * Elastic Container Registry (ECR)
   * Docker-Hub
-  * Azure
+  * Azure Container Registry (ACR)
   * Google Artifact Registry (GAR)
   * Google Container Registry (GCR)
   * Quay
@@ -91,7 +91,7 @@ JSON key file authentication method can be used to authenticate with username an
 
 ### Quay Container Registry
 
-You have to provide the below information if you select the registry type as others.
+You have to provide the below information if you select the registry type as Quay.
 
 * **Username**
 
