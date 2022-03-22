@@ -222,13 +222,6 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 }
 
 func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *EnvironmentProperties) (*EnvironmentProperties, error) {
-	var chartService ChartService
-	err := chartService.CheckChartExists(environmentProperties.ChartRefId)
-	if err != nil {
-		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
-		return nil, err
-	}
-
 	chart, err := impl.chartRepo.FindChartByAppIdAndRefId(appId, environmentProperties.ChartRefId)
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err

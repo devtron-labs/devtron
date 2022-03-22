@@ -93,7 +93,7 @@ type MuxRouter struct {
 	helmAppRouter                    client.HelmAppRouter
 	k8sApplicationRouter             k8s.K8sApplicationRouter
 	pProfRouter                      PProfRouter
-	deploymentRouter                 deployment.DeploymentRouter
+	deploymentConfigRouter           deployment.DeploymentConfigRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -115,7 +115,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
-	pProfRouter PProfRouter, deploymentRouter deployment.DeploymentRouter) *MuxRouter {
+	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -168,7 +168,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		helmAppRouter:                    helmAppRouter,
 		k8sApplicationRouter:             k8sApplicationRouter,
 		pProfRouter:                      pProfRouter,
-		deploymentRouter:                 deploymentRouter,
+		deploymentConfigRouter:           deploymentConfigRouter,
 	}
 	return r
 }
@@ -327,7 +327,7 @@ func (r MuxRouter) Init() {
 	r.pProfRouter.initPProfRouter(pProfListenerRouter)
 
 	//  deployment router starts
-	deploymentSubRouter := r.Router.PathPrefix("/orchestrator/deployment/template").Subrouter()
-	r.deploymentRouter.Init(deploymentSubRouter)
+	deploymentConfigSubRouter := r.Router.PathPrefix("/orchestrator/deployment/template").Subrouter()
+	r.deploymentConfigRouter.Init(deploymentConfigSubRouter)
 	// deployment router ends
 }

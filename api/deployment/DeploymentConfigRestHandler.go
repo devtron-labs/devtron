@@ -16,11 +16,11 @@ import (
 	"time"
 )
 
-type DeploymentRestHandler interface {
+type DeploymentConfigRestHandler interface {
 	CreateChartFromFile(w http.ResponseWriter, r *http.Request)
 }
 
-type DeploymentRestHandlerImpl struct {
+type DeploymentConfigRestHandlerImpl struct {
 	Logger             *zap.SugaredLogger
 	userAuthService    user.UserService
 	enforcer           casbin.Enforcer
@@ -30,9 +30,9 @@ type DeploymentRestHandlerImpl struct {
 	chartRefRepository chartRepoRepository.ChartRefRepository
 }
 
-func NewDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, enforcer casbin.Enforcer, validator *validator.Validate,
-	refChartDir pipeline.RefChartDir, chartService pipeline.ChartService, chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentRestHandlerImpl {
-	return &DeploymentRestHandlerImpl{
+func NewDeploymentConfigRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, enforcer casbin.Enforcer, validator *validator.Validate,
+	refChartDir pipeline.RefChartDir, chartService pipeline.ChartService, chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigRestHandlerImpl {
+	return &DeploymentConfigRestHandlerImpl{
 		Logger:             Logger,
 		userAuthService:    userAuthService,
 		enforcer:           enforcer,
@@ -43,7 +43,7 @@ func NewDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService use
 	}
 }
 
-func (handler *DeploymentRestHandlerImpl) CreateChartFromFile(w http.ResponseWriter, r *http.Request) {
+func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
@@ -63,14 +63,13 @@ func (handler *DeploymentRestHandlerImpl) CreateChartFromFile(w http.ResponseWri
 		return
 	}
 
-	//chartName := strings.Split(fileHeader.Filename, ".")
 	if err := r.ParseForm(); err != nil {
 		handler.Logger.Errorw("request err, Corrupted form data", "err", err, "payload", file)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	err = handler.chartService.ValidateFileUploaded(fileHeader.Filename)
+	err = handler.chartService.ValidateUploadedFileFormat(fileHeader.Filename)
 	if err != nil {
 		handler.Logger.Errorw("request err, Unsupported format", "err", err, "payload", file)
 		common.WriteJsonResp(w, errors.New("Unsupported format file is uploaded, please upload file with .tar.gz extension"), nil, http.StatusBadRequest)
@@ -116,7 +115,7 @@ func (handler *DeploymentRestHandlerImpl) CreateChartFromFile(w http.ResponseWri
 	err = handler.chartRefRepository.Save(chartRefs)
 	if err != nil {
 		handler.Logger.Errorw("error in saving ConfigMap, CallbackConfigMap", "err", err)
-		common.WriteJsonResp(w, err, "Chart couldn't be saved", http.StatusBadRequest)
+		common.WriteJsonResp(w, err, "Chart couldn't be saved", http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, "Chart Saved Successfully", http.StatusOK)

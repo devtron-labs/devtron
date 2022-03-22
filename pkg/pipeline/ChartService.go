@@ -133,7 +133,7 @@ type ChartService interface {
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error)
 	CheckChartExists(chartRefId int) error
 	GetChartLocation(chartDir string, fileName string) string
-	ValidateFileUploaded(fileName string) error
+	ValidateUploadedFileFormat(fileName string) error
 	ReadChartYamlForLocation(chartDir string, fileName string) (string, string, error)
 }
 type ChartServiceImpl struct {
@@ -1293,7 +1293,7 @@ func (impl *ChartServiceImpl) GetChartLocation(chartName string, chartVersion st
 	return chartLocation
 }
 
-func (impl *ChartServiceImpl) ValidateFileUploaded(fileName string) error {
+func (impl *ChartServiceImpl) ValidateUploadedFileFormat(fileName string) error {
 	if !strings.HasSuffix(fileName, ".tar.gz") {
 		return errors.New("unsupported format")
 	}
@@ -1377,7 +1377,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			impl.logger.Errorw("Chart yaml file not found")
 			return chartInfo, err
 		}
-		exists, err := impl.chartRefRepository.DataExists(chartName, chartVersion)
+		exists, err := impl.chartRefRepository.CheckIfDataExists(chartName, chartVersion)
 		if exists {
 			impl.logger.Errorw("request err, chart name and version exists already in the database")
 			return chartInfo, errors.New("chart name and version exists already in the database")

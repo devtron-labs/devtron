@@ -2,21 +2,21 @@ package deployment
 
 import "github.com/gorilla/mux"
 
-type DeploymentRouter interface {
+type DeploymentConfigRouter interface {
 	Init(configRouter *mux.Router)
 }
 
-type DeploymentRouterImpl struct {
-	deploymentRestHandler DeploymentRestHandler
+type DeploymentConfigRouterImpl struct {
+	deploymentRestHandler DeploymentConfigRestHandler
 }
 
-func NewDeploymentRouterImpl(deploymentRestHandler DeploymentRestHandler) *DeploymentRouterImpl {
-	return &DeploymentRouterImpl{
+func NewDeploymentRouterImpl(deploymentRestHandler DeploymentConfigRestHandler) *DeploymentConfigRouterImpl {
+	return &DeploymentConfigRouterImpl{
 		deploymentRestHandler: deploymentRestHandler,
 	}
 }
 
-func (router DeploymentRouterImpl) Init(configRouter *mux.Router) {
+func (router DeploymentConfigRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/upload").
 		HandlerFunc(router.deploymentRestHandler.CreateChartFromFile).Methods("POST")
 }

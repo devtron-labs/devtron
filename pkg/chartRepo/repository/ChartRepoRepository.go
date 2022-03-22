@@ -303,7 +303,7 @@ type ChartRefRepository interface {
 	GetDefault() (*ChartRef, error)
 	FindById(id int) (*ChartRef, error)
 	GetAll() ([]*ChartRef, error)
-	DataExists(name string, version string) (bool, error)
+	CheckIfDataExists(name string, version string) (bool, error)
 }
 type ChartRefRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -342,7 +342,7 @@ func (impl ChartRefRepositoryImpl) GetAll() ([]*ChartRef, error) {
 	return chartRefs, err
 }
 
-func (impl ChartRefRepositoryImpl) DataExists(name string, version string) (bool, error) {
+func (impl ChartRefRepositoryImpl) CheckIfDataExists(name string, version string) (bool, error) {
 	repo := &ChartRef{}
 	return impl.dbConnection.Model(repo).
 		Where("name = ?", name).

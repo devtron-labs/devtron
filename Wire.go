@@ -165,10 +165,10 @@ func InitializeApp() (*App, error) {
 		util.MergeUtil{},
 		util.NewSugardLogger,
 
-		deployment.NewDeploymentRestHandlerImpl,
-		wire.Bind(new(deployment.DeploymentRestHandler), new(*deployment.DeploymentRestHandlerImpl)),
+		deployment.NewDeploymentConfigRestHandlerImpl,
+		wire.Bind(new(deployment.DeploymentConfigRestHandler), new(*deployment.DeploymentConfigRestHandlerImpl)),
 		deployment.NewDeploymentRouterImpl,
-		wire.Bind(new(deployment.DeploymentRouter), new(*deployment.DeploymentRouterImpl)),
+		wire.Bind(new(deployment.DeploymentConfigRouter), new(*deployment.DeploymentConfigRouterImpl)),
 		router.NewMuxRouter,
 
 		app2.NewAppRepositoryImpl,
