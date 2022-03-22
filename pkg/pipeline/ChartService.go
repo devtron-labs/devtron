@@ -129,10 +129,10 @@ type ChartService interface {
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (string, string, string, string, error)
-	CheckChartExists(ChartRefId int) error
-	GetChartLocation(ChartDir string, FileName string) string
-	ValidateFileUploaded(FileName string) error
-	ReadChartYamlForLocation(ChartDir string, FileName string) (string, string, error)
+	CheckChartExists(chartRefId int) error
+	GetChartLocation(chartDir string, fileName string) string
+	ValidateFileUploaded(fileName string) error
+	ReadChartYamlForLocation(chartDir string, fileName string) (string, string, error)
 }
 type ChartServiceImpl struct {
 	chartRepository           chartRepoRepository.ChartRepository
@@ -1195,8 +1195,8 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 	}
 }
 
-func (impl ChartServiceImpl) CheckChartExists(ChartRefId int) error {
-	chartRef, err := impl.chartRefRepository.FindById(ChartRefId)
+func (impl ChartServiceImpl) CheckChartExists(chartRefId int) error {
+	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in finding ref chart by id", "err", err)
 		return err
@@ -1210,29 +1210,29 @@ func (impl ChartServiceImpl) CheckChartExists(ChartRefId int) error {
 	return nil
 }
 
-func (impl *ChartServiceImpl) GetChartLocation(ChartName string, ChartVersion string) string {
+func (impl *ChartServiceImpl) GetChartLocation(chartName string, chartVersion string) string {
 	var chartLocation string
 
-	chartName := strings.ReplaceAll(ChartName, ".", "-")
-	chartName = strings.ReplaceAll(chartName, " ", "_")
-	chartVersion := strings.ReplaceAll(ChartVersion, ".", "-")
-	if !strings.Contains(chartName, chartVersion) {
-		chartLocation = chartName + "_" + chartVersion
+	chartname := strings.ReplaceAll(chartName, ".", "-")
+	chartname = strings.ReplaceAll(chartname, " ", "_")
+	chartversion := strings.ReplaceAll(chartVersion, ".", "-")
+	if !strings.Contains(chartname, chartversion) {
+		chartLocation = chartname + "_" + chartversion
 	} else {
-		chartLocation = chartName
+		chartLocation = chartname
 	}
 	return chartLocation
 }
 
-func (impl *ChartServiceImpl) ValidateFileUploaded(FileName string) error {
-	if !strings.HasSuffix(FileName, ".tar.gz") {
+func (impl *ChartServiceImpl) ValidateFileUploaded(fileName string) error {
+	if !strings.HasSuffix(fileName, ".tar.gz") {
 		return errors.New("unsupported format")
 	}
 	return nil
 }
 
-func (impl ChartServiceImpl) ReadChartYamlForLocation(ChartDir string, FileName string) (string, string, error) {
-	chartLocation := filepath.Join(ChartDir, FileName)
+func (impl ChartServiceImpl) ReadChartYamlForLocation(chartDir string, fileName string) (string, string, error) {
+	chartLocation := filepath.Join(chartDir, fileName)
 
 	files, err := ioutil.ReadDir(chartLocation)
 	if err != nil {
