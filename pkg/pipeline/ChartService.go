@@ -23,9 +23,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -132,7 +132,7 @@ type ChartService interface {
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error)
 	CheckChartExists(chartRefId int) error
-	GetChartLocation(chartDir string, fileName string) string
+	GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string
 	ValidateUploadedFileFormat(fileName string) error
 	ReadChartYamlForLocation(chartDir string, fileName string) (string, string, error)
 }
@@ -1279,7 +1279,7 @@ func (impl ChartServiceImpl) CheckChartExists(chartRefId int) error {
 	return nil
 }
 
-func (impl *ChartServiceImpl) GetChartLocation(chartName string, chartVersion string) string {
+func (impl *ChartServiceImpl) GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string {
 	var chartLocation string
 
 	chartname := strings.ReplaceAll(chartName, ".", "-")
@@ -1386,7 +1386,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			impl.logger.Errorw("Error in searching the database")
 			return chartInfo, err
 		}
-		chartLocation = impl.GetChartLocation(chartName, chartVersion)
+		chartLocation = impl.GetLocationFromChartNameAndVersion(chartName, chartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in fetching name and version in Chart yaml", "err", err)
 			return chartInfo, err
