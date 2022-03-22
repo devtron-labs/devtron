@@ -84,10 +84,10 @@ func (handler *DeploymentRestHandlerImpl) CreateChartFromFile(w http.ResponseWri
 		return
 	}
 
-	chartLocation, chartName, chartVersion, temporaryFolder, err := handler.chartService.ExtractChartIfMissing(fileBytes, string(handler.refChartDir), "")
+	chartInfo, err := handler.chartService.ExtractChartIfMissing(fileBytes, string(handler.refChartDir), "")
 
-	if temporaryFolder != "" {
-		err1 := os.RemoveAll(temporaryFolder)
+	if chartInfo.TemporaryFolder != "" {
+		err1 := os.RemoveAll(chartInfo.TemporaryFolder)
 		if err1 != nil {
 			handler.Logger.Errorw("error in deleting temp dir ", "err", err)
 		}
@@ -99,9 +99,9 @@ func (handler *DeploymentRestHandlerImpl) CreateChartFromFile(w http.ResponseWri
 	}
 
 	chartRefs := &chartRepoRepository.ChartRef{
-		Name:      chartName,
-		Version:   chartVersion,
-		Location:  chartLocation,
+		Name:      chartInfo.ChartName,
+		Version:   chartInfo.ChartVersion,
+		Location:  chartInfo.ChartLocation,
 		Active:    true,
 		Default:   false,
 		ChartData: fileBytes,
