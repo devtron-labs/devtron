@@ -290,13 +290,6 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		impl.logger.Errorw("error while committing transaction to db", "error", err)
 		return nil, err
 	}
-	//STEP 9: creating entry for installed app history
-	//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.InstalledAppId, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
-	if err != nil {
-		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
-		return nil, err
-	}
 
 	// create build history for version upgrade, chart upgrade or simple update
 	err = impl.appStoreDeploymentService.UpdateInstallAppVersionHistory(installAppVersionRequest)
@@ -630,14 +623,6 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 	if err != nil {
 		impl.logger.Errorw("DeployBulk, error in tx commit", "err", err)
 		return nil, err
-	}
-	for _, versions := range installAppVersions {
-		//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.InstalledAppId, versions.ValuesOverrideYaml, versions.UserId, nil)
-		if err != nil {
-			impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", versions)
-			return nil, err
-		}
 	}
 	//nats event
 	impl.triggerDeploymentEvent(installAppVersions)
@@ -1075,12 +1060,6 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 				impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
 			}
 		}
-		//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-		_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(versions.InstalledAppId, versions.ValuesOverrideYaml, versions.UserId, nil)
-		if err != nil {
-			impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", versions)
-			return nil, err
-		}
 	}
 
 	return &appStoreBean.ChartGroupInstallAppRes{}, nil
@@ -1169,36 +1148,6 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId
 
 func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application v1alpha1.Application) (bool, error) {
 	isHealthy := false
-	/*
-		path := application.Spec.Source.Path
-		installedApp, err := impl.installedAppRepository.GetInstalledAppByPath(path)
-		if err != nil {
-			impl.logger.Errorw("error in fetching chart", "err", err, "chart", installedApp.Id, "application", application)
-			return isHealthy, err
-		}
-
-		installedAppVersion, err := impl.installedAppRepository.GetLatestInstalledAppVersion(installedApp.Id)
-		if err != nil {
-			impl.logger.Errorw("error while fetching installed version history", "error", err)
-			return isHealthy, err
-		}
-
-		versionHistory, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistory(installedAppVersion.Id)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error while fetching installed version history", "error", err)
-			return isHealthy, err
-		}
-		if versionHistory != nil && versionHistory.Id > 0 {
-			versionHistory.Status = application.Status.Health.Status
-			versionHistory.UpdatedOn = time.Now()
-			impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(versionHistory, nil)
-		} else {
-			installedAppVersion.Status = application.Status.Health.Status
-			installedAppVersion.UpdatedOn = time.Now()
-			impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, nil)
-		}
-
-	*/
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -1223,29 +1172,6 @@ func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application 
 		versionHistory.UpdatedBy = 1
 		impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(versionHistory, tx)
 	}
-	/*
-		installedAppVersion, err := impl.installedAppRepository.GetLatestInstalledAppVersionByGitHash(gitHash)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error while fetching installed version history", "error", err)
-			return isHealthy, err
-		}
-		if installedAppVersion.Id > 0 {
-			installedAppVersion.Status = application.Status.Health.Status
-			installedAppVersion.UpdatedOn = time.Now()
-			installedAppVersion.UpdatedBy = 1
-			impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
-		} else if installedAppVersion.Id == 0 {
-			versionHistory, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistoryByGitHash(gitHash)
-			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error while fetching installed version history", "error", err)
-				return isHealthy, err
-			}
-			versionHistory.Status = application.Status.Health.Status
-			versionHistory.UpdatedOn = time.Now()
-			versionHistory.UpdatedBy = 1
-			impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(versionHistory, tx)
-		}
-	*/
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error while committing transaction to db", "error", err)

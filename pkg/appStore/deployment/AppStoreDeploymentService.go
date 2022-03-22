@@ -285,12 +285,6 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	if err != nil {
 		return nil, err
 	}
-	//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.InstalledAppId, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
-	if err != nil {
-		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
-		return nil, err
-	}
 
 	//step 4 db operation status update to deploy success
 	_, err = impl.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appStoreBean.DEPLOY_SUCCESS)
@@ -546,12 +540,6 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in commit db transaction on delete", "err", err)
-		return nil, err
-	}
-	//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.InstalledAppId, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
-	if err != nil {
-		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err
 	}
 

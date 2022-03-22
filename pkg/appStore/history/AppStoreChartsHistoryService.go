@@ -9,6 +9,7 @@ import (
 )
 
 type AppStoreChartsHistoryService interface {
+	// Deprecated:
 	CreateAppStoreChartsHistory(installedAppsId int, values string, userId int32, tx *pg.Tx) (historyModel *repository.AppStoreChartsHistory, err error)
 }
 
