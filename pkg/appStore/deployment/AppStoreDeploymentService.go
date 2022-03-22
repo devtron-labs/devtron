@@ -31,6 +31,7 @@ import (
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/history"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -69,6 +70,7 @@ type AppStoreDeploymentServiceImpl struct {
 	helmAppService                       client.HelmAppService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	globalEnvVariables                   *util2.GlobalEnvVariables
+	appStoreChartsHistoryService         history.AppStoreChartsHistoryService
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository appStoreRepository.InstalledAppRepository,
@@ -77,7 +79,8 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
 	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	globalEnvVariables *util2.GlobalEnvVariables) *AppStoreDeploymentServiceImpl {
+	globalEnvVariables *util2.GlobalEnvVariables,
+	appStoreChartsHistoryService history.AppStoreChartsHistoryService) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -92,11 +95,11 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		helmAppService:                       helmAppService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		globalEnvVariables:                   globalEnvVariables,
+		appStoreChartsHistoryService:         appStoreChartsHistoryService,
 	}
 }
 
 func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
-
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
@@ -277,6 +280,12 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	// tx commit here because next operation will be process after this commit.
 	err = tx.Commit()
 	if err != nil {
+		return nil, err
+	}
+	//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
+	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.InstalledAppId, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
+	if err != nil {
+		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err
 	}
 
@@ -492,10 +501,15 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
-
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in commit db transaction on delete", "err", err)
+		return nil, err
+	}
+	//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
+	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.InstalledAppId, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
+	if err != nil {
+		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err
 	}
 

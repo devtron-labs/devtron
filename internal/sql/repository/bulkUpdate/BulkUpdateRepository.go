@@ -213,6 +213,7 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsEnvByAppNameSubstri
 		Where("app.active = ?", true).
 		Where("env_config_override.target_environment = ?", envId).
 		Where("env_config_override.latest = ?", true).
+		Column("env_config_override.*", "Chart").
 		Select()
 	return charts, err
 }

@@ -36,6 +36,7 @@ type ConfigMapRepository interface {
 
 	GetByAppIdAppLevel(appId int) (*ConfigMapAppModel, error)
 	GetByAppIdAndEnvIdEnvLevel(appId int, envId int) (*ConfigMapEnvModel, error)
+	GetEnvLevelByAppId(appId int) ([]*ConfigMapEnvModel, error)
 }
 
 type ConfigMapRepositoryImpl struct {
@@ -136,4 +137,14 @@ func (impl ConfigMapRepositoryImpl) GetByAppIdAndEnvIdEnvLevel(appId int, envId 
 	var model ConfigMapEnvModel
 	err := impl.dbConnection.Model(&model).Where("app_id = ?", appId).Where("environment_id = ?", envId).Select()
 	return &model, err
+}
+
+func (impl ConfigMapRepositoryImpl) GetEnvLevelByAppId(appId int) ([]*ConfigMapEnvModel, error) {
+	var models []*ConfigMapEnvModel
+	err := impl.dbConnection.Model(&models).Where("app_id = ?", appId).Select()
+	if err != nil {
+		impl.Logger.Errorw("err in getting cm/cs env level", "err", err)
+		return models, err
+	}
+	return models, err
 }
