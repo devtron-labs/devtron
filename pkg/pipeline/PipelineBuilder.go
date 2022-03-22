@@ -24,6 +24,8 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
@@ -103,33 +105,38 @@ type PipelineBuilder interface {
 }
 
 type PipelineBuilderImpl struct {
-	logger                        *zap.SugaredLogger
-	dbPipelineOrchestrator        DbPipelineOrchestrator
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
-	materialRepo                  pipelineConfig.MaterialRepository
-	appRepo                       app2.AppRepository
-	pipelineRepository            pipelineConfig.PipelineRepository
-	propertiesConfigService       PropertiesConfigService
-	ciTemplateRepository          pipelineConfig.CiTemplateRepository
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	application                   application.ServiceClient
-	chartRepository               chartRepoRepository.ChartRepository
-	ciArtifactRepository          repository.CiArtifactRepository
-	ecrConfig                     *EcrConfig
-	envConfigOverrideRepository   chartConfig.EnvConfigOverrideRepository
-	environmentRepository         repository2.EnvironmentRepository
-	pipelineConfigRepository      chartConfig.PipelineConfigRepository
-	mergeUtil                     util.MergeUtil
-	appWorkflowRepository         appWorkflow.AppWorkflowRepository
-	ciConfig                      *CiConfig
-	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	appService                    app.AppService
-	imageScanResultRepository     security.ImageScanResultRepository
-	GitFactory                    *util.GitFactory
-	ArgoK8sClient                 argocdServer.ArgoK8sClient
-	attributesService             attributes.AttributesService
-	aCDAuthConfig                 *util3.ACDAuthConfig
-	gitOpsRepository              repository.GitOpsConfigRepository
+	logger                           *zap.SugaredLogger
+	dbPipelineOrchestrator           DbPipelineOrchestrator
+	dockerArtifactStoreRepository    repository.DockerArtifactStoreRepository
+	materialRepo                     pipelineConfig.MaterialRepository
+	appRepo                          app2.AppRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
+	propertiesConfigService          PropertiesConfigService
+	ciTemplateRepository             pipelineConfig.CiTemplateRepository
+	ciPipelineRepository             pipelineConfig.CiPipelineRepository
+	application                      application.ServiceClient
+	chartRepository                  chartRepoRepository.ChartRepository
+	ciArtifactRepository             repository.CiArtifactRepository
+	ecrConfig                        *EcrConfig
+	envConfigOverrideRepository      chartConfig.EnvConfigOverrideRepository
+	environmentRepository            repository2.EnvironmentRepository
+	pipelineConfigRepository         chartConfig.PipelineConfigRepository
+	mergeUtil                        util.MergeUtil
+	appWorkflowRepository            appWorkflow.AppWorkflowRepository
+	ciConfig                         *CiConfig
+	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	appService                       app.AppService
+	imageScanResultRepository        security.ImageScanResultRepository
+	GitFactory                       *util.GitFactory
+	ArgoK8sClient                    argocdServer.ArgoK8sClient
+	attributesService                attributes.AttributesService
+	aCDAuthConfig                    *util3.ACDAuthConfig
+	gitOpsRepository                 repository.GitOpsConfigRepository
+	pipelineStrategyHistoryService   history.PipelineStrategyHistoryService
+	prePostCiScriptHistoryService    history.PrePostCiScriptHistoryService
+	prePostCdScriptHistoryService    history.PrePostCdScriptHistoryService
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
+	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -156,35 +163,45 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	imageScanResultRepository security.ImageScanResultRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	GitFactory *util.GitFactory, attributesService attributes.AttributesService,
-	aCDAuthConfig *util3.ACDAuthConfig, gitOpsRepository repository.GitOpsConfigRepository) *PipelineBuilderImpl {
+	aCDAuthConfig *util3.ACDAuthConfig, gitOpsRepository repository.GitOpsConfigRepository,
+	pipelineStrategyHistoryService history.PipelineStrategyHistoryService,
+	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
+	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	appLevelMetricsRepository repository.AppLevelMetricsRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
-		logger:                        logger,
-		dbPipelineOrchestrator:        dbPipelineOrchestrator,
-		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
-		materialRepo:                  materialRepo,
-		appService:                    appService,
-		appRepo:                       pipelineGroupRepo,
-		pipelineRepository:            pipelineRepository,
-		propertiesConfigService:       propertiesConfigService,
-		ciTemplateRepository:          ciTemplateRepository,
-		ciPipelineRepository:          ciPipelineRepository,
-		application:                   application,
-		chartRepository:               chartRepository,
-		ciArtifactRepository:          ciArtifactRepository,
-		ecrConfig:                     ecrConfig,
-		envConfigOverrideRepository:   envConfigOverrideRepository,
-		environmentRepository:         environmentRepository,
-		pipelineConfigRepository:      pipelineConfigRepository,
-		mergeUtil:                     mergeUtil,
-		appWorkflowRepository:         appWorkflowRepository,
-		ciConfig:                      ciConfig,
-		cdWorkflowRepository:          cdWorkflowRepository,
-		imageScanResultRepository:     imageScanResultRepository,
-		ArgoK8sClient:                 ArgoK8sClient,
-		GitFactory:                    GitFactory,
-		attributesService:             attributesService,
-		aCDAuthConfig:                 aCDAuthConfig,
-		gitOpsRepository:              gitOpsRepository,
+		logger:                           logger,
+		dbPipelineOrchestrator:           dbPipelineOrchestrator,
+		dockerArtifactStoreRepository:    dockerArtifactStoreRepository,
+		materialRepo:                     materialRepo,
+		appService:                       appService,
+		appRepo:                          pipelineGroupRepo,
+		pipelineRepository:               pipelineRepository,
+		propertiesConfigService:          propertiesConfigService,
+		ciTemplateRepository:             ciTemplateRepository,
+		ciPipelineRepository:             ciPipelineRepository,
+		application:                      application,
+		chartRepository:                  chartRepository,
+		ciArtifactRepository:             ciArtifactRepository,
+		ecrConfig:                        ecrConfig,
+		envConfigOverrideRepository:      envConfigOverrideRepository,
+		environmentRepository:            environmentRepository,
+		pipelineConfigRepository:         pipelineConfigRepository,
+		mergeUtil:                        mergeUtil,
+		appWorkflowRepository:            appWorkflowRepository,
+		ciConfig:                         ciConfig,
+		cdWorkflowRepository:             cdWorkflowRepository,
+		imageScanResultRepository:        imageScanResultRepository,
+		ArgoK8sClient:                    ArgoK8sClient,
+		GitFactory:                       GitFactory,
+		attributesService:                attributesService,
+		aCDAuthConfig:                    aCDAuthConfig,
+		gitOpsRepository:                 gitOpsRepository,
+		pipelineStrategyHistoryService:   pipelineStrategyHistoryService,
+		prePostCiScriptHistoryService:    prePostCiScriptHistoryService,
+		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		appLevelMetricsRepository:        appLevelMetricsRepository,
 	}
 }
 
@@ -917,6 +934,24 @@ func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*b
 			return nil, err
 		}
 	}
+	for _, ciScript := range request.CiPipeline.BeforeDockerBuildScripts {
+		ciPipelineScript := impl.dbPipelineOrchestrator.BuildCiPipelineScript(request.UserId, ciScript, BEFORE_DOCKER_BUILD, request.CiPipeline)
+		//creating history entry
+		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			return nil, err
+		}
+	}
+	for _, ciScript := range request.CiPipeline.AfterDockerBuildScripts {
+		ciPipelineScript := impl.dbPipelineOrchestrator.BuildCiPipelineScript(request.UserId, ciScript, AFTER_DOCKER_BUILD, request.CiPipeline)
+		//creating history entry
+		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			return nil, err
+		}
+	}
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -1096,6 +1131,20 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 		}
 	}
 
+	if pipeline.PreStageConfig != "" {
+		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.PRE_CD_TYPE, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
+			return err
+		}
+	}
+	if pipeline.PostStageConfig != "" {
+		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.POST_CD_TYPE, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
+			return err
+		}
+	}
 	//delete app from argo cd
 	envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
 	if err != nil {
@@ -1234,9 +1283,9 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	//new pipeline
 	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
 	name, err := impl.createArgoPipelineIfRequired(ctx, app, pipeline, envOverride)
-	if err != nil {
-		return 0, err
-	}
+	//if err != nil {
+	//	return 0, err
+	//}
 	impl.logger.Debugw("argocd application created", "name", name)
 
 	// Get pipeline override based on Deployment strategy
@@ -1276,7 +1325,19 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			return 0, err
 		}
 	}
-
+	//getting global app metrics for cd pipeline create because env level metrics is not created yet
+	appLevelAppMetricsEnabled := false
+	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(app.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+	} else if err == nil {
+		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, appLevelAppMetricsEnabled, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
+		return 0, err
+	}
 	// strategies for pipeline ids, there is only one is default
 	defaultCount := 0
 	for _, item := range pipeline.Strategies {
@@ -1300,6 +1361,13 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
 			return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
 		}
+		//creating history entry for strategy
+		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating strategy history entry", "err", err)
+			return 0, err
+		}
+
 	}
 
 	err = tx.Commit()
@@ -1390,6 +1458,12 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				impl.logger.Errorw("error in updating strategy", "strategy", item.DeploymentTemplate)
 				return fmt.Errorf("pipeline updated but failed to update one strategy")
 			}
+			//creating history entry for strategy
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating strategy history entry", "err", err)
+				return err
+			}
 		} else {
 			strategy := &chartConfig.PipelineStrategy{
 				PipelineId: pipeline.Id,
@@ -1403,6 +1477,12 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 			if err != nil {
 				impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
 				return fmt.Errorf("pipeline created but failed to add strategy")
+			}
+			//creating history entry for strategy
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating strategy history entry", "err", err)
+				return err
 			}
 		}
 	}

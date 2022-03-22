@@ -80,6 +80,8 @@ import (
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -481,7 +483,6 @@ func InitializeApp() (*App, error) {
 		pubsub2.NewNatsPublishClientImpl,
 		wire.Bind(new(pubsub2.NatsPublishClient), new(*pubsub2.NatsPublishClientImpl)),
 
-
 		//Batch actions
 		batch.NewWorkflowActionImpl,
 		wire.Bind(new(batch.WorkflowAction), new(*batch.WorkflowActionImpl)),
@@ -625,18 +626,46 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
-		util2.NewGoJsonSchemaCustomFormatChecker,
 
 		delete2.NewDeleteServiceExtendedImpl,
 		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceExtendedImpl)),
 		delete2.NewDeleteServiceFullModeImpl,
 		wire.Bind(new(delete2.DeleteServiceFullMode), new(*delete2.DeleteServiceFullModeImpl)),
 
-
 		appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl,
 		wire.Bind(new(appStoreDeploymentFullMode.AppStoreDeploymentFullModeService), new(*appStoreDeploymentFullMode.AppStoreDeploymentFullModeServiceImpl)),
 		appStoreDeploymentGitopsTool.NewAppStoreDeploymentArgoCdServiceImpl,
 		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdServiceImpl)),
+		//	util2.NewGoJsonSchemaCustomFormatChecker,
+
+		//history starts
+		restHandler.NewPipelineHistoryRestHandlerImpl,
+		wire.Bind(new(restHandler.PipelineHistoryRestHandler), new(*restHandler.PipelineHistoryRestHandlerImpl)),
+
+		repository3.NewConfigMapHistoryRepositoryImpl,
+		wire.Bind(new(repository3.ConfigMapHistoryRepository), new(*repository3.ConfigMapHistoryRepositoryImpl)),
+		repository3.NewDeploymentTemplateHistoryRepositoryImpl,
+		wire.Bind(new(repository3.DeploymentTemplateHistoryRepository), new(*repository3.DeploymentTemplateHistoryRepositoryImpl)),
+		repository3.NewPrePostCiScriptHistoryRepositoryImpl,
+		wire.Bind(new(repository3.PrePostCiScriptHistoryRepository), new(*repository3.PrePostCiScriptHistoryRepositoryImpl)),
+		repository3.NewPrePostCdScriptHistoryRepositoryImpl,
+		wire.Bind(new(repository3.PrePostCdScriptHistoryRepository), new(*repository3.PrePostCdScriptHistoryRepositoryImpl)),
+		repository3.NewPipelineStrategyHistoryRepositoryImpl,
+		wire.Bind(new(repository3.PipelineStrategyHistoryRepository), new(*repository3.PipelineStrategyHistoryRepositoryImpl)),
+
+		history3.NewPrePostCdScriptHistoryServiceImpl,
+		wire.Bind(new(history3.PrePostCdScriptHistoryService), new(*history3.PrePostCdScriptHistoryServiceImpl)),
+		history3.NewPrePostCiScriptHistoryServiceImpl,
+		wire.Bind(new(history3.PrePostCiScriptHistoryService), new(*history3.PrePostCiScriptHistoryServiceImpl)),
+		history3.NewDeploymentTemplateHistoryServiceImpl,
+		wire.Bind(new(history3.DeploymentTemplateHistoryService), new(*history3.DeploymentTemplateHistoryServiceImpl)),
+		history3.NewConfigMapHistoryServiceImpl,
+		wire.Bind(new(history3.ConfigMapHistoryService), new(*history3.ConfigMapHistoryServiceImpl)),
+		history3.NewPipelineStrategyHistoryServiceImpl,
+		wire.Bind(new(history3.PipelineStrategyHistoryService), new(*history3.PipelineStrategyHistoryServiceImpl)),
+
+		//history ends
+		//	AuthWireSet,
 	)
 	return &App{}, nil
 }
