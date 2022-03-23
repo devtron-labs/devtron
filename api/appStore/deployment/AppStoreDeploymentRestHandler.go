@@ -27,7 +27,6 @@ import (
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/appStore"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
@@ -64,13 +63,11 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	validator                  *validator.Validate
 	helmAppService             client.HelmAppService
-	installedAppService        appStore.InstalledAppService
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
-	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	installedAppService appStore.InstalledAppService) *AppStoreDeploymentRestHandlerImpl {
+	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                     Logger,
 		userAuthService:            userAuthService,
@@ -81,7 +78,6 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		validator:                  validator,
 		helmAppService:             helmAppService,
 		appStoreDeploymentServiceC: appStoreDeploymentServiceC,
-		installedAppService:        installedAppService,
 	}
 }
 
@@ -409,7 +405,7 @@ func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Re
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		response, err := handler.installedAppService.GetInstalledAppVersionHistory(installedAppId)
+		response, err := handler.appStoreDeploymentService.GetInstalledAppVersionHistory(installedAppId)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
@@ -444,7 +440,7 @@ func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w h
 		return
 	}
 
-	response, err := handler.installedAppService.GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId)
+	response, err := handler.appStoreDeploymentService.GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

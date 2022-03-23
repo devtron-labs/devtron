@@ -57,6 +57,8 @@ type AppStoreDeploymentService interface {
 	LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error)
 	RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest, installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error)
 	UpdateInstallAppVersionHistory(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
+	GetInstalledAppVersionHistory(installedAppId int) (*appStoreBean.InstallAppVersionHistoryDto, error)
+	GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId int) (*appStoreBean.IAVHistoryValues, error)
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -712,4 +714,52 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 	}
 	return success, nil
 
+}
+
+func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersionHistory(installedAppId int) (*appStoreBean.InstallAppVersionHistoryDto, error) {
+	result := &appStoreBean.InstallAppVersionHistoryDto{}
+	var history []*appStoreBean.IAVHistory
+	//TODO - response setup
+
+	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching installed version", "error", err)
+		return result, err
+	}
+	for _, installedAppVersionModel := range installedAppVersions {
+		versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistoryByVersionId(installedAppVersionModel.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error while fetching installed version history", "error", err)
+			return result, err
+		}
+		for _, updateHistory := range versionHistory {
+			history = append(history, &appStoreBean.IAVHistory{
+				ChartMetaData: appStoreBean.IAVHistoryChartMetaData{
+					ChartName:    installedAppVersionModel.InstalledApp.App.AppName,
+					ChartVersion: installedAppVersionModel.AppStoreApplicationVersion.Version,
+					Description:  installedAppVersionModel.AppStoreApplicationVersion.Description,
+					Home:         installedAppVersionModel.AppStoreApplicationVersion.Home,
+					Sources:      []string{installedAppVersionModel.AppStoreApplicationVersion.Source},
+				},
+				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
+				DeployedAt:   updateHistory.CreatedOn, //todo - split it into second and nano
+				Version:      "v1",                    //todo - fix with correct
+			})
+		}
+	}
+
+	result.IAVHistory = history
+	return result, err
+}
+
+func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId int) (*appStoreBean.IAVHistoryValues, error) {
+	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching installed version history", "error", err)
+		return nil, err
+	}
+	values := &appStoreBean.IAVHistoryValues{
+		ValuesYaml: versionHistory.ValuesYamlRaw,
+	}
+	return values, err
 }

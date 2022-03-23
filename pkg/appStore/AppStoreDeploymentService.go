@@ -77,9 +77,7 @@ type InstalledAppService interface {
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
-	GetInstalledAppVersionHistory(installedAppId int) (*appStoreBean.InstallAppVersionHistoryDto, error)
 	UpdateInstalledAppVersionStatus(application v1alpha1.Application) (bool, error)
-	GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId int) (*appStoreBean.IAVHistoryValues, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -1099,41 +1097,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 	return appDetail, nil
 }
 
-func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId int) (*appStoreBean.InstallAppVersionHistoryDto, error) {
-	result := &appStoreBean.InstallAppVersionHistoryDto{}
-	var history []*appStoreBean.IAVHistory
-	//TODO - response setup
 
-	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching installed version", "error", err)
-		return result, err
-	}
-	for _, installedAppVersionModel := range installedAppVersions {
-		versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistoryByVersionId(installedAppVersionModel.Id)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error while fetching installed version history", "error", err)
-			return result, err
-		}
-		for _, updateHistory := range versionHistory {
-			history = append(history, &appStoreBean.IAVHistory{
-				ChartMetaData: appStoreBean.IAVHistoryChartMetaData{
-					ChartName:    installedAppVersionModel.InstalledApp.App.AppName,
-					ChartVersion: installedAppVersionModel.AppStoreApplicationVersion.Version,
-					Description:  installedAppVersionModel.AppStoreApplicationVersion.Description,
-					Home:         installedAppVersionModel.AppStoreApplicationVersion.Home,
-					Sources:      []string{installedAppVersionModel.AppStoreApplicationVersion.Source},
-				},
-				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
-				DeployedAt:   updateHistory.CreatedOn, //todo - split it into second and nano
-				Version:      "v1",                    //todo - fix with correct
-			})
-		}
-	}
-
-	result.IAVHistory = history
-	return result, err
-}
 
 func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application v1alpha1.Application) (bool, error) {
 	isHealthy := false
@@ -1168,16 +1132,4 @@ func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application 
 	}
 
 	return true, nil
-}
-
-func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId int) (*appStoreBean.IAVHistoryValues, error) {
-	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error while fetching installed version history", "error", err)
-		return nil, err
-	}
-	values := &appStoreBean.IAVHistoryValues{
-		ValuesYaml: versionHistory.ValuesYamlRaw,
-	}
-	return values, err
 }
