@@ -31,6 +31,7 @@ type InstalledAppVersionHistory struct {
 	ValuesYamlRaw         string   `sql:"values_yaml_raw"`
 	Status                string   `sql:"status"`
 	GitHash               string   `sql:"git_hash"`
+	InstalledAppVersions  InstalledAppVersions
 	sql.AuditLog
 }
 
@@ -53,15 +54,16 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) UpdateInstalledAppVersionHi
 func (impl InstalledAppVersionHistoryRepositoryImpl) GetInstalledAppVersionHistory(id int) (*InstalledAppVersionHistory, error) {
 	model := &InstalledAppVersionHistory{}
 	err := impl.dbConnection.Model(model).
-		Where("id = ?", id).Select()
+		Column("installed_app_version_history.*").
+		Where("installed_app_version_history.id = ?", id).Select()
 	return model, err
 }
-
 func (impl InstalledAppVersionHistoryRepositoryImpl) GetInstalledAppVersionHistoryByVersionId(installAppVersionId int) ([]*InstalledAppVersionHistory, error) {
 	var model []*InstalledAppVersionHistory
 	err := impl.dbConnection.Model(&model).
 		Column("installed_app_version_history.*").
 		Where("installed_app_version_history.installed_app_version_id = ?", installAppVersionId).
+		Order("installed_app_version_history.id desc").
 		Select()
 	return model, err
 }

@@ -54,6 +54,7 @@ type InstalledAppRestHandler interface {
 	DefaultComponentInstallation(w http.ResponseWriter, r *http.Request)
 	FetchAppDetailsForInstalledApp(w http.ResponseWriter, r *http.Request)
 	GetDeploymentHistory(w http.ResponseWriter, r *http.Request)
+	GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -479,6 +480,24 @@ func (handler *InstalledAppRestHandlerImpl) GetDeploymentHistory(w http.Response
 	}
 
 	response, err := handler.installedAppService.GetInstalledAppVersionHistory(installedAppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, response, http.StatusOK)
+}
+
+func (handler *InstalledAppRestHandlerImpl) GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	installedAppVersionHistoryId, err := strconv.Atoi(vars["version"])
+	if err != nil {
+		handler.Logger.Errorw("request err", "error", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	response, err := handler.installedAppService.GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

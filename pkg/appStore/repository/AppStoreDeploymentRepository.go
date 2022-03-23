@@ -195,7 +195,9 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdMet
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore").
 		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
 		Where("installed_app_versions.installed_app_id = ?", installedAppId).
-		Where("installed_app_versions.active = true").Select()
+		Where("installed_app_versions.active = true").
+		Order("installed_app_versions.id desc").
+		Select()
 	return model, err
 }
 

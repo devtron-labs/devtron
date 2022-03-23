@@ -25,15 +25,15 @@ import (
 
 //v1
 type InstallAppVersionHistoryDto struct {
-	IavhDeploymentHistory []*IavhDeploymentHistory `json:"deploymentHistory,omitempty"`
+	IAVHistory []*IAVHistory `json:"deploymentHistory,omitempty"`
 }
-type IavhDeploymentHistory struct {
-	ChartMetaData IavhChartMetaData `json:"chartMetaData,omitempty"`
-	DeployedAt    time.Time         `json:"deployedAt,omitempty"`
-	DockerImages  []string          `json:"dockerImages,omitempty"`
-	Version       string            `json:"version,omitempty"`
+type IAVHistory struct {
+	ChartMetaData IAVHistoryChartMetaData `json:"chartMetaData,omitempty"`
+	DeployedAt    time.Time               `json:"deployedAt,omitempty"`
+	DockerImages  []string                `json:"dockerImages,omitempty"`
+	Version       string                  `json:"version,omitempty"`
 }
-type IavhChartMetaData struct {
+type IAVHistoryChartMetaData struct {
 	ChartName    string   `json:"chartName,omitempty"`
 	ChartVersion string   `json:"chartVersion,omitempty"`
 	Description  string   `json:"home,omitempty"`
@@ -41,9 +41,14 @@ type IavhChartMetaData struct {
 	Sources      []string `json:"sources"`
 }
 
-type IavhDeployedAt struct {
+type IAVHistoryDeployedAt struct {
 	Nanos   string `json:"nanos,omitempty"`
 	Seconds string `json:"seconds,omitempty"`
+}
+
+type IAVHistoryValues struct {
+	Manifest   string `json:"manifest"`
+	ValuesYaml string `json:"valuesYaml"`
 }
 
 type InstallAppVersionDTO struct {
