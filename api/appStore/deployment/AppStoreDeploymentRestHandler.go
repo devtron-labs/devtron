@@ -27,6 +27,7 @@ import (
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStore"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
@@ -49,6 +50,8 @@ type AppStoreDeploymentRestHandler interface {
 	DeleteInstalledApp(w http.ResponseWriter, r *http.Request)
 	LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request)
 	RollbackApplication(w http.ResponseWriter, r *http.Request)
+	GetDeploymentHistory(w http.ResponseWriter, r *http.Request)
+	GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreDeploymentRestHandlerImpl struct {
@@ -61,12 +64,13 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	validator                  *validator.Validate
 	helmAppService             client.HelmAppService
+	installedAppService        appStore.InstalledAppService
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
 	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-) *AppStoreDeploymentRestHandlerImpl {
+	installedAppService appStore.InstalledAppService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                     Logger,
 		userAuthService:            userAuthService,
@@ -77,6 +81,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		validator:                  validator,
 		helmAppService:             helmAppService,
 		appStoreDeploymentServiceC: appStoreDeploymentServiceC,
+		installedAppService:        installedAppService,
 	}
 }
 
@@ -274,8 +279,6 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-
-
 func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request) {
 	request := &openapi.UpdateReleaseWithChartLinkingRequest{}
 	decoder := json.NewDecoder(r.Body)
@@ -317,8 +320,6 @@ func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStor
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-
-
 
 func (handler *AppStoreDeploymentRestHandlerImpl) RollbackApplication(w http.ResponseWriter, r *http.Request) {
 	request := &openapi2.RollbackReleaseRequest{}
@@ -370,8 +371,84 @@ func (handler *AppStoreDeploymentRestHandlerImpl) RollbackApplication(w http.Res
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	res := &openapi2.RollbackReleaseResponse {
+	res := &openapi2.RollbackReleaseResponse{
 		Success: &success,
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistory(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId := vars["appId"]
+	if strings.Contains(appId, "|") {
+		appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		deploymentHistory, err := handler.helmAppService.GetDeploymentHistory(context.Background(), appIdentifier)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+
+		installedApp, err := handler.appStoreDeploymentServiceC.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		response := &client.DeploymentHistoryAndInstalledAppInfo{
+			DeploymentHistory: deploymentHistory.GetDeploymentHistory(),
+			InstalledAppInfo:  handler.convertToInstalledAppInfo(installedApp),
+		}
+		common.WriteJsonResp(w, err, response, http.StatusOK)
+	} else {
+		installedAppId, err := strconv.Atoi(appId)
+		if err != nil {
+			handler.Logger.Errorw("request err", "err", err, "installedAppId", installedAppId)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		response, err := handler.installedAppService.GetInstalledAppVersionHistory(installedAppId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, err, response, http.StatusOK)
+	}
+}
+
+func (handler *AppStoreDeploymentRestHandlerImpl) convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) *client.InstalledAppInfo {
+	if installedApp == nil {
+		return nil
+	}
+
+	return &client.InstalledAppInfo{
+		AppId:                 installedApp.AppId,
+		EnvironmentName:       installedApp.EnvironmentName,
+		AppOfferingMode:       installedApp.AppOfferingMode,
+		InstalledAppId:        installedApp.InstalledAppId,
+		InstalledAppVersionId: installedApp.InstalledAppVersionId,
+		AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+		ClusterId:             installedApp.ClusterId,
+		EnvironmentId:         installedApp.EnvironmentId,
+	}
+}
+
+func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	installedAppVersionHistoryId, err := strconv.Atoi(vars["version"])
+	if err != nil {
+		handler.Logger.Errorw("request err", "error", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	response, err := handler.installedAppService.GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
