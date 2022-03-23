@@ -1126,7 +1126,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId
 				},
 				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
 				DeployedAt:   updateHistory.CreatedOn, //todo - split it into second and nano
-				Version:      "v1",                    //todo - fix with correct
+				Version:      installedAppVersionModel.Id,
 			})
 		}
 	}

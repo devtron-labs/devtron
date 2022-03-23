@@ -31,13 +31,13 @@ type IAVHistory struct {
 	ChartMetaData IAVHistoryChartMetaData `json:"chartMetaData,omitempty"`
 	DeployedAt    time.Time               `json:"deployedAt,omitempty"`
 	DockerImages  []string                `json:"dockerImages,omitempty"`
-	Version       string                  `json:"version,omitempty"`
+	Version       int                     `json:"version,omitempty"`
 }
 type IAVHistoryChartMetaData struct {
 	ChartName    string   `json:"chartName,omitempty"`
 	ChartVersion string   `json:"chartVersion,omitempty"`
-	Description  string   `json:"home,omitempty"`
-	Home         string   `json:"teamId,omitempty"`
+	Description  string   `json:"description,omitempty"`
+	Home         string   `json:"home,omitempty"`
 	Sources      []string `json:"sources"`
 }
 
