@@ -38,7 +38,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HelmAppDeploymentHistory"
+                $ref: "#/components/schemas/DeploymentHistoryAndInstalledAppInfo"
   /orchestrator/application/release-info:
     get:
       description: deployment values.yaml/release-info
@@ -635,6 +635,18 @@ components:
           type: string
           format: date-time
           example: "2021-12-15T05:44:05Z"
+    DeploymentHistoryAndInstalledAppInfo:
+      type: object
+      properties:
+        deploymentHistory:
+          type: array
+          description: deployment history
+          items:
+            $ref: "#/components/schemas/HelmAppDeploymentDetail"
+        installedAppInfo:
+          type: object
+          $ref: "#/components/schemas/InstalledAppInfo"
+          description: Installed app info
     HelmAppDeploymentHistory:
       type: array
       description: deployment history

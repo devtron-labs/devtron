@@ -1,0 +1,77 @@
+openapi: 3.0.3
+info:
+  title: Devtron Labs
+  version: 1.0.0
+servers:
+- url: /
+paths:
+  /orchestrator/app-store/deployment/application/rollback:
+    put:
+      description: Rollback application if the application is installed from the chartStore
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackReleaseRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RollbackReleaseResponse'
+          description: application rollback response
+  /orchestrator/application/rollback:
+    put:
+      description: Rollback application if the application is installed externally
+        using helm (external-app)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackReleaseRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RollbackReleaseResponse'
+          description: application rollback response
+components:
+  schemas:
+    RollbackReleaseResponse:
+      example:
+        success: true
+      properties:
+        success:
+          description: success or failure
+          example: true
+          type: boolean
+      type: object
+    RollbackReleaseRequest:
+      example:
+        installedAppVersionId: 2
+        installedAppId: 1
+        hAppId: 1|default|someName
+        version: 10
+      properties:
+        installedAppId:
+          description: Installed App Id if the app is installed from chart store
+          example: 1
+          type: integer
+        installedAppVersionId:
+          description: Installed App Version Id if the app is installed from chart
+            store
+          example: 2
+          type: integer
+        hAppId:
+          description: helm App Id if the application is installed from using helm
+            (for example "clusterId|namespace|appName" )
+          example: 1|default|someName
+          type: string
+        version:
+          description: rollback to this version
+          example: 10
+          type: integer
+      type: object

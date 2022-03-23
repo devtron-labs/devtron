@@ -30,6 +30,7 @@ service ApplicationService {
   rpc InstallRelease(InstallReleaseRequest) returns (InstallReleaseResponse){}
   rpc UpgradeReleaseWithChartInfo(InstallReleaseRequest) returns (UpgradeReleaseResponse){}
   rpc IsReleaseInstalled(ReleaseIdentifier) returns (BooleanResponse){}
+  rpc RollbackRelease(RollbackReleaseRequest) returns (BooleanResponse){}
 }
 
 message DeployedAppList {
@@ -236,4 +237,9 @@ message InstallReleaseResponse {
 
 message BooleanResponse {
   bool result = 1;
+}
+
+message RollbackReleaseRequest {
+  ReleaseIdentifier releaseIdentifier = 1;
+  int32 version = 2;
 }
