@@ -10,6 +10,7 @@ import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -20,6 +21,7 @@ type AppStoreDeploymentHelmService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) error
 	GetAppStatus(installedAppAndEnvDetails appStoreRepository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error
+	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (string, bool, error)
 }
 
 type AppStoreDeploymentHelmServiceImpl struct {
@@ -74,6 +76,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) GetAppStatus(installedAppAndEnvDet
 
 	environment, err := impl.environmentRepository.FindById(installedAppAndEnvDetails.EnvironmentId)
 	if err != nil {
+		impl.Logger.Errorw("Error in getting environment", "err", err)
 		return "", err
 	}
 
@@ -127,4 +130,38 @@ func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Con
 	}
 
 	return nil
+}
+
+// returns - valuesYamlStr, success, error
+func (impl AppStoreDeploymentHelmServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (string, bool, error) {
+
+	// TODO : fetch values yaml from DB instead of fetching from helm cli
+	// TODO Dependency : on updating helm APP, DB is not being updated. values yaml is sent directly to helm cli. After DB updatation development, we can fetch values yaml from DB, not from CLI.
+
+	helmAppIdeltifier := &client.AppIdentifier{
+		ClusterId:   installedApp.ClusterId,
+		Namespace:   installedApp.Namespace,
+		ReleaseName: installedApp.AppName,
+	}
+
+	helmAppDeploymentDetail, err := impl.helmAppService.GetDeploymentDetail(ctx, helmAppIdeltifier, deploymentVersion)
+	if err != nil {
+		impl.Logger.Errorw("Error in getting helm application deployment detail", "err", err)
+		return "", false, err
+	}
+	valuesYamlJson := helmAppDeploymentDetail.GetValuesYaml()
+	valuesYamlByteArr, err := yaml.JSONToYAML([]byte(valuesYamlJson))
+	if err != nil {
+		impl.Logger.Errorw("Error in converting json to yaml", "err", err)
+		return "", false, err
+	}
+
+	// send to helm
+	success, err := impl.helmAppService.RollbackRelease(ctx, helmAppIdeltifier, deploymentVersion)
+	if err != nil {
+		impl.Logger.Errorw("Error in helm rollback release", "err", err)
+		return "", false, err
+	}
+
+	return string(valuesYamlByteArr), success, nil
 }

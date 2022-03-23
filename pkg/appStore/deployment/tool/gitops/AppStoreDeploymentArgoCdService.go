@@ -22,6 +22,7 @@ type AppStoreDeploymentArgoCdService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) error
 	GetAppStatus(installedAppAndEnvDetails appStoreRepository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error
+	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (string, bool, error)
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -139,6 +140,12 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.C
 	}
 
 	return nil
+}
+
+// returns - valuesYamlStr, success, error
+func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (string, bool, error) {
+	// TODO: implement this
+	return "", false, nil
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx context.Context) error {

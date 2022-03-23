@@ -24,6 +24,7 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -38,6 +39,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type AppStoreDeploymentRestHandler interface {
@@ -45,6 +47,7 @@ type AppStoreDeploymentRestHandler interface {
 	GetInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request)
 	DeleteInstalledApp(w http.ResponseWriter, r *http.Request)
 	LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request)
+	RollbackApplication(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreDeploymentRestHandlerImpl struct {
@@ -269,6 +272,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 }
 
 
+
 func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request) {
 	request := &openapi.UpdateReleaseWithChartLinkingRequest{}
 	decoder := json.NewDecoder(r.Body)
@@ -308,5 +312,61 @@ func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStor
 		return
 	}
 
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *AppStoreDeploymentRestHandlerImpl) RollbackApplication(w http.ResponseWriter, r *http.Request) {
+	request := &openapi2.RollbackReleaseRequest{}
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// get installed app which can not be null
+	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(int(request.GetInstalledAppId()))
+	if err != nil {
+		handler.Logger.Errorw("Error in getting installed app", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if installedApp == nil {
+		handler.Logger.Errorw("Installed App can not be null", "request", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	//rbac block starts from here
+	var rbacObject string
+	token := r.Header.Get("token")
+	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+	} else {
+		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.AppName, installedApp.EnvironmentId)
+	}
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rbac block ends here
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	success, err := handler.appStoreDeploymentService.RollbackApplication(ctx, request, installedApp, userId)
+	if err != nil {
+		handler.Logger.Errorw("Error in Rollback release", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	res := &openapi2.RollbackReleaseResponse {
+		Success: &success,
+	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
