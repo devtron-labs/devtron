@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -382,6 +383,15 @@ func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Re
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
+
+		// RBAC enforcer applying
+		rbacObject := handler.enforcerUtilHelm.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+		token := r.Header.Get("token")
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+		//RBAC enforcer Ends
 		deploymentHistory, err := handler.helmAppService.GetDeploymentHistory(context.Background(), appIdentifier)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -399,6 +409,7 @@ func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Re
 		}
 		common.WriteJsonResp(w, err, response, http.StatusOK)
 	} else {
+		//TODO - rbac for devtron charts ACD
 		installedAppId, err := strconv.Atoi(appId)
 		if err != nil {
 			handler.Logger.Errorw("request err", "err", err, "installedAppId", installedAppId)
@@ -406,6 +417,59 @@ func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Re
 			return
 		}
 		response, err := handler.appStoreDeploymentService.GetInstalledAppVersionHistory(installedAppId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, err, response, http.StatusOK)
+	}
+}
+
+func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	version, err := strconv.Atoi(vars["version"])
+	if err != nil {
+		handler.Logger.Errorw("request err", "error", err, "installedAppVersionHistoryId", version)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	appId := vars["appId"]
+	if strings.Contains(appId, "|") {
+		appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		// RBAC enforcer applying
+		rbacObject := handler.enforcerUtilHelm.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+		token := r.Header.Get("token")
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+		//RBAC enforcer Ends
+		res, err := handler.helmAppService.GetDeploymentDetail(context.Background(), appIdentifier, int32(version))
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+
+		// Obfuscate secrets if user does not have edit access
+		canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
+		if !canUpdate && res != nil && res.Manifest != nil {
+			modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecretForWholeYamlInput(*res.Manifest)
+			if err != nil {
+				handler.Logger.Errorw("error in hiding secret values", "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+			res.Manifest = &modifiedManifest
+		}
+		common.WriteJsonResp(w, err, res, http.StatusOK)
+	} else {
+
+		//TODO - rbac for devtron charts ACD
+		response, err := handler.appStoreDeploymentService.GetInstalledAppVersionHistoryValues(version)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
@@ -429,22 +493,4 @@ func (handler *AppStoreDeploymentRestHandlerImpl) convertToInstalledAppInfo(inst
 		ClusterId:             installedApp.ClusterId,
 		EnvironmentId:         installedApp.EnvironmentId,
 	}
-}
-
-func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	installedAppVersionHistoryId, err := strconv.Atoi(vars["version"])
-	if err != nil {
-		handler.Logger.Errorw("request err", "error", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	response, err := handler.appStoreDeploymentService.GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	common.WriteJsonResp(w, err, response, http.StatusOK)
 }

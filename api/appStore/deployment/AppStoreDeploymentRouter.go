@@ -52,9 +52,12 @@ func (router AppStoreDeploymentRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/application/rollback").
 		HandlerFunc(router.appStoreDeploymentRestHandler.RollbackApplication).Methods("PUT")
 
-	configRouter.Path("/application/deployment-history").Queries("installedAppId", "{installedAppId}").
+	// listing
+	configRouter.Path("/application/deployment-history").Queries("appId", "{appId}").
 		HandlerFunc(router.appStoreDeploymentRestHandler.GetDeploymentHistory).Methods("GET")
-	configRouter.Path("/application/deployment-history/values").Queries("version", "{version}").
+
+	// single history info, values
+	configRouter.Path("/application/deployment-history/info").Queries("appId", "{appId}").Queries("version", "{version}").
 		HandlerFunc(router.appStoreDeploymentRestHandler.GetDeploymentHistoryValues).Methods("GET")
 
 }

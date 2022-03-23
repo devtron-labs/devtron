@@ -550,7 +550,6 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 	return installAppVersionRequest, nil
 }
 
-
 func (impl AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest,
 	appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error) {
 
@@ -566,7 +565,6 @@ func (impl AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx co
 		return nil, isChartRepoActive, nil
 	}
 	// check if chart repo is active ends
-
 
 	// STEP-1 check if the app is installed or not
 	isInstalled, err := impl.helmAppService.IsReleaseInstalled(ctx, appIdentifier)
