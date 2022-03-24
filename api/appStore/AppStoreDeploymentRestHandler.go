@@ -478,7 +478,20 @@ func (handler *InstalledAppRestHandlerImpl) GetDeploymentHistory(w http.Response
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	token := r.Header.Get("token")
+	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetDeploymentHistoryValues", "err", err, "installedAppId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	//rbac block starts from here
+	object := handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rback block ends here
 	response, err := handler.installedAppService.GetInstalledAppVersionHistory(installedAppId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -502,6 +515,21 @@ func (handler *InstalledAppRestHandlerImpl) GetDeploymentHistoryValues(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	token := r.Header.Get("token")
+	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetDeploymentHistoryValues", "err", err, "installedAppId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	//rbac block starts from here
+	object := handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rback block ends here
 
 	response, err := handler.installedAppService.GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId)
 	if err != nil {
