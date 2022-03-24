@@ -68,10 +68,10 @@ spec:
         spec:
           terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
           restartPolicy: {{ $.Values.cronjobConfigs.restartPolicy }}
-    {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
-    {{- if $.Values.shareProcessNamespace }}
+    {{ - if $.Values.shareProcessNamespace }}
           shareProcessNamespace: {{ $.Values.shareProcessNamespace }}
-    {{- end }}
+    {{ - end }}
+    {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
           affinity:
             nodeAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
