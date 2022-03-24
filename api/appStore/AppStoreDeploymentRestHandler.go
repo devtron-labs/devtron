@@ -490,6 +490,12 @@ func (handler *InstalledAppRestHandlerImpl) GetDeploymentHistory(w http.Response
 
 func (handler *InstalledAppRestHandlerImpl) GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	installedAppId, err := strconv.Atoi(vars["installedAppId"])
+	if err != nil {
+		handler.Logger.Errorw("request err", "error", err, "installedAppId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	installedAppVersionHistoryId, err := strconv.Atoi(vars["version"])
 	if err != nil {
 		handler.Logger.Errorw("request err", "error", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)

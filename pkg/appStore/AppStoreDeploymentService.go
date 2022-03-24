@@ -1127,7 +1127,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId
 				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
 				DeployedAt: appStoreBean.IAVHistoryDeployedAt{
 					Nanos:   updateHistory.CreatedOn.Nanosecond(),
-					Seconds: updateHistory.CreatedOn.Second(),
+					Seconds: updateHistory.CreatedOn.Unix(),
 				},
 				Version: installedAppVersionModel.Id,
 			})

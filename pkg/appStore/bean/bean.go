@@ -44,7 +44,7 @@ type IAVHistoryChartMetaData struct {
 
 type IAVHistoryDeployedAt struct {
 	Nanos   int `json:"nanos,omitempty"`
-	Seconds int `json:"seconds,omitempty"`
+	Seconds int64 `json:"seconds,omitempty"`
 }
 
 type IAVHistoryValues struct {
