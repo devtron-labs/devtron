@@ -35,7 +35,6 @@ type InstalledAppRepository interface {
 	UpdateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error)
 	UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
 	GetInstalledApp(id int) (*InstalledApps, error)
-	GetInstalledAppByPath(path string) (*InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
@@ -168,14 +167,6 @@ func (impl InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, 
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App", "Environment").
 		Where("installed_apps.id = ?", id).Where("installed_apps.active = true").Select()
-	return model, err
-}
-
-func (impl InstalledAppRepositoryImpl) GetInstalledAppByPath(path string) (*InstalledApps, error) {
-	model := &InstalledApps{}
-	err := impl.dbConnection.Model(model).
-		Column("installed_apps.*", "App", "Environment").
-		Where("installed_apps.path = ?", path).Where("installed_apps.active = true").Select()
 	return model, err
 }
 
