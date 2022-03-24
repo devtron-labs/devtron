@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -93,7 +94,7 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 	}
 
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, fmt.Errorf(err.Error()), nil, http.StatusBadRequest)
 		return
 	}
 
