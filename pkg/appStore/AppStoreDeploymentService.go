@@ -1134,6 +1134,9 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId
 		}
 	}
 
+	if len(history) == 0 {
+		history = make([]*appStoreBean.IAVHistory, 0)
+	}
 	result.IAVHistory = history
 	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
 	if err != nil {

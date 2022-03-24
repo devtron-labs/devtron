@@ -394,7 +394,6 @@ func (impl AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *be
 }
 
 func (impl AppStoreDeploymentServiceImpl) GetInstalledApp(id int) (*appStoreBean.InstallAppVersionDTO, error) {
-
 	app, err := impl.installedAppRepository.GetInstalledApp(id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)

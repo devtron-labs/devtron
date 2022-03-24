@@ -26,24 +26,24 @@ import (
 //v1
 type InstallAppVersionHistoryDto struct {
 	InstalledAppInfo *InstalledAppDto `json:"installedAppInfo"`
-	IAVHistory       []*IAVHistory    `json:"deploymentHistory,omitempty"`
+	IAVHistory       []*IAVHistory    `json:"deploymentHistory"`
 }
 type IAVHistory struct {
-	ChartMetaData IAVHistoryChartMetaData `json:"chartMetadata,omitempty"`
-	DeployedAt    IAVHistoryDeployedAt    `json:"deployedAt,omitempty"`
-	DockerImages  []string                `json:"dockerImages,omitempty"`
-	Version       int                     `json:"version,omitempty"`
+	ChartMetaData IAVHistoryChartMetaData `json:"chartMetadata"`
+	DeployedAt    IAVHistoryDeployedAt    `json:"deployedAt"`
+	DockerImages  []string                `json:"dockerImages"`
+	Version       int                     `json:"version"`
 }
 type IAVHistoryChartMetaData struct {
-	ChartName    string   `json:"chartName,omitempty"`
-	ChartVersion string   `json:"chartVersion,omitempty"`
-	Description  string   `json:"description,omitempty"`
-	Home         string   `json:"home,omitempty"`
+	ChartName    string   `json:"chartName"`
+	ChartVersion string   `json:"chartVersion"`
+	Description  string   `json:"description"`
+	Home         string   `json:"home"`
 	Sources      []string `json:"sources"`
 }
 
 type IAVHistoryDeployedAt struct {
-	Nanos   int `json:"nanos,omitempty"`
+	Nanos   int   `json:"nanos,omitempty"`
 	Seconds int64 `json:"seconds,omitempty"`
 }
 
