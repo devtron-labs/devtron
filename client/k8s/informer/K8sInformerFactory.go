@@ -1,6 +1,13 @@
 package informer
 
 import (
+	"flag"
+	"os/user"
+	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/api/bean"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -8,8 +15,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"sync"
-	"time"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 func NewGlobalMapClusterNamespace() map[string]map[string]bool {
@@ -22,6 +28,7 @@ type K8sInformerFactoryImpl struct {
 	globalMapClusterNamespace map[string]map[string]bool // {"cluster1":{"ns1":true","ns2":true"}}
 	mutex                     sync.Mutex
 	informerStopper           map[string]chan struct{}
+	runtimeConfig             *client.RuntimeConfig
 }
 
 type K8sInformerFactory interface {
@@ -30,10 +37,11 @@ type K8sInformerFactory interface {
 	CleanNamespaceInformer(clusterName string)
 }
 
-func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool) *K8sInformerFactoryImpl {
+func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, runtimeConfig *client.RuntimeConfig) *K8sInformerFactoryImpl {
 	informerFactory := &K8sInformerFactoryImpl{
 		logger:                    logger,
 		globalMapClusterNamespace: globalMapClusterNamespace,
+		runtimeConfig:             runtimeConfig,
 	}
 	informerFactory.informerStopper = make(map[string]chan struct{})
 	return informerFactory
@@ -58,14 +66,29 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 }
 
 func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInfo) {
+	var restConfig *rest.Config
 	for _, info := range clusterInfo {
 		if info.ClusterName == "default_cluster" {
-			c, err := rest.InClusterConfig()
-			if err != nil {
-				impl.logger.Errorw("error in fetch default cluster config", "err", err)
-				continue
+			if impl.runtimeConfig.LocalDevMode {
+				usr, err := user.Current()
+				if err != nil {
+					impl.logger.Errorw("Error while getting user current env details", "error", err)
+				}
+				kubeconfig := flag.String("build-informer", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+				flag.Parse()
+				restConfig, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
+				if err != nil {
+					impl.logger.Errorw("Error while building config from flags", "error", err)
+				}
+			} else {
+				restConfig, err := rest.InClusterConfig()
+				if err != nil {
+					impl.logger.Errorw("error in fetch default cluster config", "err", err, "servername", restConfig.ServerName)
+					continue
+				}
 			}
-			impl.buildInformerAndNamespaceList(info.ClusterName, c, &impl.mutex)
+
+			impl.buildInformerAndNamespaceList(info.ClusterName, restConfig, &impl.mutex)
 		} else {
 			c := &rest.Config{
 				Host:            info.ServerUrl,
