@@ -86,6 +86,6 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 
 	configRouter.Path("/installed-app/deployment-history").Queries("installedAppId", "{installedAppId}").
 		HandlerFunc(router.deployRestHandler.GetDeploymentHistory).Methods("GET")
-	configRouter.Path("/installed-app/deployment-history/values").Queries("version", "{version}").
+	configRouter.Path("/installed-app/deployment-history/info").Queries("installedAppId", "{installedAppId}").Queries("installedAppVersionId", "{installedAppVersionId}").
 		HandlerFunc(router.deployRestHandler.GetDeploymentHistoryValues).Methods("GET")
 }

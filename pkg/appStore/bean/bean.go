@@ -25,11 +25,12 @@ import (
 
 //v1
 type InstallAppVersionHistoryDto struct {
-	IAVHistory []*IAVHistory `json:"deploymentHistory,omitempty"`
+	InstalledAppInfo *InstalledAppDto `json:"installedAppInfo"`
+	IAVHistory       []*IAVHistory    `json:"deploymentHistory,omitempty"`
 }
 type IAVHistory struct {
-	ChartMetaData IAVHistoryChartMetaData `json:"chartMetaData,omitempty"`
-	DeployedAt    time.Time               `json:"deployedAt,omitempty"`
+	ChartMetaData IAVHistoryChartMetaData `json:"chartMetadata,omitempty"`
+	DeployedAt    IAVHistoryDeployedAt    `json:"deployedAt,omitempty"`
 	DockerImages  []string                `json:"dockerImages,omitempty"`
 	Version       int                     `json:"version,omitempty"`
 }
@@ -42,13 +43,22 @@ type IAVHistoryChartMetaData struct {
 }
 
 type IAVHistoryDeployedAt struct {
-	Nanos   string `json:"nanos,omitempty"`
-	Seconds string `json:"seconds,omitempty"`
+	Nanos   int `json:"nanos,omitempty"`
+	Seconds int `json:"seconds,omitempty"`
 }
 
 type IAVHistoryValues struct {
 	Manifest   string `json:"manifest"`
 	ValuesYaml string `json:"valuesYaml"`
+}
+
+type InstalledAppDto struct {
+	AppId           int    `json:"appId"`
+	InstalledAppId  int    `json:"installedAppId"`
+	EnvironmentName string `json:"environmentName"`
+	AppOfferingMode string `json:"appOfferingMode"`
+	ClusterId       int    `json:"clusterId"`
+	EnvironmentId   int    `json:"environmentId"`
 }
 
 type InstallAppVersionDTO struct {

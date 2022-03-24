@@ -1125,13 +1125,29 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId
 					Sources:      []string{installedAppVersionModel.AppStoreApplicationVersion.Source},
 				},
 				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
-				DeployedAt:   updateHistory.CreatedOn, //todo - split it into second and nano
-				Version:      installedAppVersionModel.Id,
+				DeployedAt: appStoreBean.IAVHistoryDeployedAt{
+					Nanos:   updateHistory.CreatedOn.Nanosecond(),
+					Seconds: updateHistory.CreatedOn.Second(),
+				},
+				Version: installedAppVersionModel.Id,
 			})
 		}
 	}
 
 	result.IAVHistory = history
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching installed version", "error", err)
+		return result, err
+	}
+	result.InstalledAppInfo = &appStoreBean.InstalledAppDto{
+		AppId:           installedApp.AppId,
+		EnvironmentName: installedApp.Environment.Name,
+		AppOfferingMode: installedApp.App.AppOfferingMode,
+		InstalledAppId:  installedApp.Id,
+		ClusterId:       installedApp.Environment.ClusterId,
+		EnvironmentId:   installedApp.EnvironmentId,
+	}
 	return result, err
 }
 
