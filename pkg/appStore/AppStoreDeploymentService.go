@@ -1187,13 +1187,12 @@ func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application 
 }
 
 func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId int) (*appStoreBean.IAVHistoryValues, error) {
+	values := &appStoreBean.IAVHistoryValues{}
 	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("error while fetching installed version history", "error", err)
 		return nil, err
 	}
-	values := &appStoreBean.IAVHistoryValues{
-		ValuesYaml: versionHistory.ValuesYamlRaw,
-	}
+	values.ValuesYaml = versionHistory.ValuesYamlRaw
 	return values, err
 }

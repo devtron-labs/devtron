@@ -31,7 +31,6 @@ type InstalledAppVersionHistory struct {
 	ValuesYamlRaw         string   `sql:"values_yaml_raw"`
 	Status                string   `sql:"status"`
 	GitHash               string   `sql:"git_hash"`
-	InstalledAppVersions  InstalledAppVersions
 	sql.AuditLog
 }
 
