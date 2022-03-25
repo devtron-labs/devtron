@@ -27,4 +27,6 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 	wire.Bind(new(history.AppStoreChartsHistoryService), new(*history.AppStoreChartsHistoryServiceImpl)),
 	repository.NewAppStoreChartsHistoryRepositoryImpl,
 	wire.Bind(new(repository.AppStoreChartsHistoryRepository), new(*repository.AppStoreChartsHistoryRepositoryImpl)),
+	appStoreRepository.NewInstalledAppVersionHistoryRepositoryImpl,
+	wire.Bind(new(appStoreRepository.InstalledAppVersionHistoryRepository), new(*appStoreRepository.InstalledAppVersionHistoryRepositoryImpl)),
 )

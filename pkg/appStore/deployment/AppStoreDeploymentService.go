@@ -56,6 +56,7 @@ type AppStoreDeploymentService interface {
 	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error)
 	RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest, installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error)
+	UpdateInstallAppVersionHistory(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -73,6 +74,7 @@ type AppStoreDeploymentServiceImpl struct {
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	globalEnvVariables                   *util2.GlobalEnvVariables
 	appStoreChartsHistoryService         history.AppStoreChartsHistoryService
+	installedAppRepositoryHistory        appStoreRepository.InstalledAppVersionHistoryRepository
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository appStoreRepository.InstalledAppRepository,
@@ -82,7 +84,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	globalEnvVariables *util2.GlobalEnvVariables,
-	appStoreChartsHistoryService history.AppStoreChartsHistoryService) *AppStoreDeploymentServiceImpl {
+	appStoreChartsHistoryService history.AppStoreChartsHistoryService, installedAppRepositoryHistory appStoreRepository.InstalledAppVersionHistoryRepository) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -98,6 +100,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		globalEnvVariables:                   globalEnvVariables,
 		appStoreChartsHistoryService:         appStoreChartsHistoryService,
+		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 	}
 }
 
@@ -184,7 +187,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		return nil, err
 	}
 	installAppVersionRequest.InstalledAppVersionId = installedAppVersions.Id
-
+	installAppVersionRequest.Id = installedAppVersions.Id
 	if installAppVersionRequest.DefaultClusterComponent {
 		clusterInstalledAppsModel := &appStoreRepository.ClusterInstalledApps{
 			ClusterId:      environment.ClusterId,
@@ -269,9 +272,9 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 
 	if doActualInstallation {
 		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || installAppVersionRequest.AppOfferingMode == util2.SERVER_MODE_HYPERION {
-			err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
+			_, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
 		} else {
-			err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, ctx)
+			installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, ctx)
 		}
 	}
 
@@ -284,12 +287,6 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	if err != nil {
 		return nil, err
 	}
-	//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.InstalledAppId, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
-	if err != nil {
-		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
-		return nil, err
-	}
 
 	//step 4 db operation status update to deploy success
 	_, err = impl.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appStoreBean.DEPLOY_SUCCESS)
@@ -298,7 +295,46 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 		return nil, err
 	}
 
+	//step 5 create build history first entry for install app version
+	if len(installAppVersionRequest.GitHash) > 0 {
+		err = impl.UpdateInstallAppVersionHistory(installAppVersionRequest)
+		if err != nil {
+			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
+			return nil, err
+		}
+	}
+
 	return installAppVersionRequest, nil
+}
+func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	installedAppVersionHistory := &appStoreRepository.InstalledAppVersionHistory{
+		InstalledAppVersionId: installAppVersionRequest.Id,
+	}
+	installedAppVersionHistory.ValuesYamlRaw = installAppVersionRequest.ValuesOverrideYaml
+	installedAppVersionHistory.CreatedBy = installAppVersionRequest.UserId
+	installedAppVersionHistory.CreatedOn = time.Now()
+	installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
+	installedAppVersionHistory.UpdatedOn = time.Now()
+	installedAppVersionHistory.GitHash = installAppVersionRequest.GitHash
+	installedAppVersionHistory.Status = "Unknown"
+	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while committing transaction to db", "error", err)
+		return err
+	}
+	return nil
 }
 
 func (impl AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx, appInstallationMode string) (*bean.CreateAppDTO, error) {
@@ -358,7 +394,6 @@ func (impl AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *be
 }
 
 func (impl AppStoreDeploymentServiceImpl) GetInstalledApp(id int) (*appStoreBean.InstallAppVersionDTO, error) {
-
 	app, err := impl.installedAppRepository.GetInstalledApp(id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -506,12 +541,6 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in commit db transaction on delete", "err", err)
-		return nil, err
-	}
-	//creating history after transaction commit due to FK constraint, and go-pg does not support deferred constraints
-	_, err = impl.appStoreChartsHistoryService.CreateAppStoreChartsHistory(installAppVersionRequest.InstalledAppId, installAppVersionRequest.ValuesOverrideYaml, installAppVersionRequest.UserId, nil)
-	if err != nil {
-		impl.logger.Errorw("error in creating app store charts history entry", "err", err, "installAppVersionRequest", installAppVersionRequest)
 		return nil, err
 	}
 

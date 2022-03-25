@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -51,29 +52,31 @@ type AppStoreDeploymentRestHandler interface {
 }
 
 type AppStoreDeploymentRestHandlerImpl struct {
-	Logger                    *zap.SugaredLogger
-	userAuthService           user.UserService
-	enforcer                  casbin.Enforcer
-	enforcerUtil              rbac.EnforcerUtil
-	enforcerUtilHelm          rbac.EnforcerUtilHelm
-	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService
-	validator                 *validator.Validate
-	helmAppService            client.HelmAppService
+	Logger                     *zap.SugaredLogger
+	userAuthService            user.UserService
+	enforcer                   casbin.Enforcer
+	enforcerUtil               rbac.EnforcerUtil
+	enforcerUtilHelm           rbac.EnforcerUtilHelm
+	appStoreDeploymentService  appStoreDeployment.AppStoreDeploymentService
+	appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	validator                  *validator.Validate
+	helmAppService             client.HelmAppService
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
-	validator *validator.Validate, helmAppService client.HelmAppService,
+	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 ) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
-		Logger:                    Logger,
-		userAuthService:           userAuthService,
-		enforcer:                  enforcer,
-		enforcerUtil:              enforcerUtil,
-		enforcerUtilHelm:          enforcerUtilHelm,
-		appStoreDeploymentService: appStoreDeploymentService,
-		validator:                 validator,
-		helmAppService:            helmAppService,
+		Logger:                     Logger,
+		userAuthService:            userAuthService,
+		enforcer:                   enforcer,
+		enforcerUtil:               enforcerUtil,
+		enforcerUtilHelm:           enforcerUtilHelm,
+		appStoreDeploymentService:  appStoreDeploymentService,
+		validator:                  validator,
+		helmAppService:             helmAppService,
+		appStoreDeploymentServiceC: appStoreDeploymentServiceC,
 	}
 }
 
@@ -307,13 +310,15 @@ func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStor
 		handler.Logger.Errorw("Error in UpdateApplicationWithChartStoreLinking", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
-	}else if !isChartRepoActive {
+	} else if !isChartRepoActive {
 		common.WriteJsonResp(w, fmt.Errorf("chart repo is disabled"), nil, http.StatusNotAcceptable)
 		return
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
+
+
 
 func (handler *AppStoreDeploymentRestHandlerImpl) RollbackApplication(w http.ResponseWriter, r *http.Request) {
 	request := &openapi2.RollbackReleaseRequest{}
