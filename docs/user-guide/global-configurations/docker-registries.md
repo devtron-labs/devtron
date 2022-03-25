@@ -13,7 +13,7 @@ You will see below the input fields to configure the container registry.
 * Registry URL
 * Set as default
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-First-page-registry.PNG)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/First-page-registry.JPG)
 
 ### Name
 
@@ -30,7 +30,7 @@ Registries we are Supporting are-:
   * Azure Container Registry (ACR)
   * Google Artifact Registry (GAR)
   * Google Container Registry (GCR)
-  * Quay
+  * [](### Quay Container Registry)Quay
   * Others
 
 ### Registry URL
@@ -49,7 +49,7 @@ Inside the Access key ID box, provide your AWS access key.
 
 Provide your AWS secret access key ID.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-ECR.PNG)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/ECR+.JPG)
 
 
 ### Registry Type- Docker Hub 
@@ -64,28 +64,28 @@ Give the username of the docker hub account you used for creating your registry 
 
 Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) corresponding to your docker hub account.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-docker-hub.PNG)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/docker-hub+copy.JPG)
 
 
 ### Azure Container Registry (ACR)
 
  Service principal authentication method can be used to authenticate with username and password. Please follow [link](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) for getting the Username and password for this registry.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-Azure-registry.PNG)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/Azure-registry.jpg)
 
 
 ### Google Artifact Registry (GAR) 
 
 JSON key file authentication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key) for getting username and password for this registry. Please remove all the white spaces from JSON key and wrap it in a single quote while putting it in the password field.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-Artifact-registry.PNG)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/Artifact-registry.JPG)
 
 
 ### Google Container Registry (GCR)
  
 JSON key file authentication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) for getting the username and password for this registry. Please remove all the white spaces from json key and wrap it in single quote while putting in the password field.  
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-GCR.PNG)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/GCR.JPG)
 
 
 
@@ -101,7 +101,7 @@ Give the username of your account, where you have created your registry in.
 
 Give the password corresponding to the username of your registry.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-Quay.PNG)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/Quay.JPG)
 
 
 ### Registry Type Others:
@@ -116,7 +116,7 @@ Give the username of your account, where you have created your registry in.
 
 Give the password corresponding to the username of your registry.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/gc-other-registry.PNG)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/other-registry.JPG)
 
 
 ### Advance Registry Url connection options:
