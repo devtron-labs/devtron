@@ -25,17 +25,19 @@ Select type of Registry from the drop-down, Currently we are Supporting Multiple
 
 Registries we are Supporting are-:
 
-  * Elastic Container Registry (ECR)
-  * Docker-Hub
-  * Azure Container Registry (ACR)
-  * Google Artifact Registry (GAR)
-  * Google Container Registry (GCR)
+  * <a href= #ECR>Elastic Container Registry (ECR)</a>
+  * <a href= #Docker>Docker-Hub</a>
+  * <a href= #Azure>Azure Container Registry (ACR)</a>
+  * <a href= #GAR>Google Artifact Registry (GAR)</a>
+  * <a href= #GCR>Google Container Registry (GCR)</a>
   * <a href= #Quay>Quay</a>
   * Others
 
 ### Registry URL
 
  You have to provide the URL of your registry. Create your registry and provide the URL of that registry in the URL box.
+
+<section id="ECR"></section>
 
 ### Registry Type- ECR:
 
@@ -52,6 +54,8 @@ Provide your AWS secret access key ID.
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/ECR+.JPG)
 
 
+<section id="Docker"></section>
+
 ### Registry Type- Docker Hub 
 
 You have to provide the below information if you select the registry type as Docker Hub.
@@ -67,6 +71,8 @@ Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) cor
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/docker-hub+copy.JPG)
 
 
+<section id="#Azure"></section>
+
 ### Azure Container Registry (ACR)
 
  Service principal authentication method can be used to authenticate with username and password. Please follow [link](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) for getting the Username and password for this registry.
@@ -74,12 +80,16 @@ Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) cor
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/Azure-registry.jpg)
 
 
+<section id="#GAR"></section>
+
 ### Google Artifact Registry (GAR) 
 
 JSON key file authentication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key) for getting username and password for this registry. Please remove all the white spaces from JSON key and wrap it in a single quote while putting it in the password field.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/Artifact-registry.JPG)
 
+
+<section id="#GCR"></section>
 
 ### Google Container Registry (GCR)
  
