@@ -168,7 +168,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 
 	installedApp.InstalledAppVersionId = installedAppVersion.Id
 	installedApp.AppStoreVersion = installedAppVersion.AppStoreApplicationVersionId
-	installedApp.ValuesOverrideYaml = activeInstalledAppVersion.ValuesYaml
+	installedApp.ValuesOverrideYaml = installedAppVersion.ValuesYaml
 	installedApp.AppStoreId = installedAppVersion.AppStoreApplicationVersion.AppStoreId
 	installedApp.AppStoreName = installedAppVersion.AppStoreApplicationVersion.AppStore.Name
 	installedApp.GitOpsRepoName = installedAppVersion.InstalledApp.GitOpsRepoName
