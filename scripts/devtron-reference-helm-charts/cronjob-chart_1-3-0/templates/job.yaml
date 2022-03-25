@@ -61,6 +61,7 @@ spec:
 {{ toYaml .Values.podLabels | indent 8 }}
 {{- end }}
     spec:
+      shareProcessNamespace: {{ $.Values.shareProcessNamespace }}
       terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
       restartPolicy: OnFailure
 {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
