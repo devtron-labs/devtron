@@ -4,7 +4,7 @@ The global configuration helps you add your `Container Registry`. In the contain
 
 ## Add Container Registry configuration:
 
-Go to the `Container Registry` section of `Global Configuration`. Click on `Add Container registry`.
+Go to the `Container Registry` section of `Global Configuration`. click on `Add Container registry`.
 
 You will see below the input fields to configure the container registry.
 
@@ -17,13 +17,13 @@ You will see below the input fields to configure the container registry.
 
 ### Name
 
-Provide a name to your registry, this name will be shown to you in Docker Build Config as a drop-down.
+Provide a `Name` to your registry, this name will be shown to you in `Docker Build Config` as a drop-down.
 
 ### Registry type
 
-Select type of Registry from the drop-down, Currently we are Supporting Multiple Types of Container Registry across Global Platforms. By default `ECR` is Selected
+Select `Registry type` from the drop-down, currently we are supporting multiple types of container registry across different global platforms. by default `ECR` is selected
 
-Registries we are Supporting are-:
+Registries we are supporting are-:
 
   * <a href= #ECR>Elastic Container Registry (ECR)</a>
   * <a href= #Docker>Docker-Hub</a>
@@ -35,45 +35,45 @@ Registries we are Supporting are-:
 
 ### Registry URL
 
- You have to provide the URL of your registry. Create your registry and provide the URL of that registry in the URL box.
+ You have to provide the `Registry URL` of your registry. create your registry and provide the URL of that registry in the URL box.
 
 <section id="ECR"></section>
 
-### Registry Type- ECR:
+### Elastic Container Registry (ECR):
 
-You have to provide the below information if you select the registry type as ECR.
+You have to provide the below information if you select the registry type as `ECR`.
 
 * **Access key ID**
 
-Inside the Access key ID box, provide your AWS access key.
+Inside the `Access key ID` box, provide your AWS access key.
 
 * **Secret access key**
 
-Provide your AWS secret access key ID.
+Provide your AWS `Secret access key` ID.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/ECR+.JPG)
 
 
 <section id="Docker"></section>
 
-### Registry Type- Docker Hub 
+### Docker-Hub:
 
 You have to provide the below information if you select the registry type as Docker Hub.
 
 * **Username**
 
-Give the username of the docker hub account you used for creating your registry in.
+Give the `Username` of the docker hub account you used for creating your registry in.
 
 * **Password**
 
-Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) corresponding to your docker hub account.
+Give the `password/[token]`(https://docs.docker.com/docker-hub/access-tokens/) corresponding to your docker hub account.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/docker-hub+copy.JPG)
 
 
 <section id="Azure"></section>
 
-### Azure Container Registry (ACR)
+### Azure Container Registry (ACR):
 
  Service principal authentication method can be used to authenticate with username and password. Please follow [link](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) for getting the Username and password for this registry.
 
@@ -82,7 +82,7 @@ Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) cor
 
 <section id="GAR"></section>
 
-### Google Artifact Registry (GAR) 
+### Google Artifact Registry (GAR):
 
 JSON key file authentication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key) for getting username and password for this registry. Please remove all the white spaces from JSON key and wrap it in a single quote while putting it in the password field.
 
@@ -91,7 +91,7 @@ JSON key file authentication method can be used to authenticate with username an
 
 <section id="GCR"></section>
 
-### Google Container Registry (GCR)
+### Google Container Registry (GCR):
  
 JSON key file authentication method can be used to authenticate with username and password. Please follow [link](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) for getting the username and password for this registry. Please remove all the white spaces from json key and wrap it in single quote while putting in the password field.  
 
@@ -100,23 +100,23 @@ JSON key file authentication method can be used to authenticate with username an
 
 <section id="Quay"></section>
 
-### Quay Container Registry
+### Quay Container Registry:
 
 You have to provide the below information if you select the registry type as Quay.
 
 * **Username**
 
-Give the username of your account, where you have created your registry in.
+Give the `Username` of your account, where you have created your registry in.
 
 * **Password**
 
-Give the password corresponding to the username of your registry.
+Give the `Token` corresponding to the username of your registry.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/Quay.JPG)
 
 <section id="others"></section>
 
-### Registry Type Others:
+### Docker-HubOthers:
 
 You have to provide the below information if you select the registry type as others.
 
