@@ -89,6 +89,7 @@ JSON key file authentication method can be used to authenticate with username an
 
 
 <section id="Quay"></section>
+
 ### Quay Container Registry
 
 You have to provide the below information if you select the registry type as Quay.
