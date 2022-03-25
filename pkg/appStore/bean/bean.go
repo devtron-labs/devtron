@@ -29,10 +29,11 @@ type InstallAppVersionHistoryDto struct {
 	IAVHistory       []*IAVHistory    `json:"deploymentHistory"`
 }
 type IAVHistory struct {
-	ChartMetaData IAVHistoryChartMetaData `json:"chartMetadata"`
-	DeployedAt    IAVHistoryDeployedAt    `json:"deployedAt"`
-	DockerImages  []string                `json:"dockerImages"`
-	Version       int                     `json:"version"`
+	ChartMetaData         IAVHistoryChartMetaData `json:"chartMetadata"`
+	DeployedAt            IAVHistoryDeployedAt    `json:"deployedAt"`
+	DockerImages          []string                `json:"dockerImages"`
+	Version               int                     `json:"version"`
+	InstalledAppVersionId int                     `json:"installedAppVersionId"`
 }
 type IAVHistoryChartMetaData struct {
 	ChartName    string   `json:"chartName"`

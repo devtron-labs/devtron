@@ -1129,7 +1129,8 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId
 					Nanos:   updateHistory.CreatedOn.Nanosecond(),
 					Seconds: updateHistory.CreatedOn.Unix(),
 				},
-				Version: updateHistory.Id,
+				Version:               updateHistory.Id,
+				InstalledAppVersionId: installedAppVersionModel.Id,
 			})
 		}
 	}
