@@ -166,6 +166,12 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 		return installedApp, false, nil
 	}
 
+	//validate relations
+	if versionHistory.InstalledAppVersionId != installedApp.Id || installedApp.InstalledAppId != installedAppVersion.InstalledAppId {
+		impl.Logger.Errorw("error", "err", err)
+		return installedApp, false, fmt.Errorf("bad request, ids are not inter-linked")
+	}
+
 	installedApp.InstalledAppVersionId = installedAppVersion.Id
 	installedApp.AppStoreVersion = installedAppVersion.AppStoreApplicationVersionId
 	installedApp.ValuesOverrideYaml = versionHistory.ValuesYamlRaw
