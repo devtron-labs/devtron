@@ -407,7 +407,7 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledApp(id int) (*appStoreBean
 func (impl AppStoreDeploymentServiceImpl) chartAdaptor2(chart *appStoreRepository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
 	return &appStoreBean.InstallAppVersionDTO{
 		EnvironmentId:   chart.EnvironmentId,
-		Id:              chart.Id,
+		InstalledAppId:  chart.Id,
 		AppId:           chart.AppId,
 		AppOfferingMode: chart.App.AppOfferingMode,
 		ClusterId:       chart.Environment.ClusterId,
@@ -547,7 +547,6 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 	return installAppVersionRequest, nil
 }
 
-
 func (impl AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest,
 	appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error) {
 
@@ -563,7 +562,6 @@ func (impl AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx co
 		return nil, isChartRepoActive, nil
 	}
 	// check if chart repo is active ends
-
 
 	// STEP-1 check if the app is installed or not
 	isInstalled, err := impl.helmAppService.IsReleaseInstalled(ctx, appIdentifier)
@@ -665,7 +663,6 @@ func (impl AppStoreDeploymentServiceImpl) createEnvironmentIfNotExists(installAp
 
 func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest,
 	installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error) {
-
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -680,27 +677,39 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 		impl.logger.Errorw("error while fetching chart installed version", "error", err)
 		return false, err
 	}
-
-	var valuesYaml string
+	installedApp.Id = installedAppVersion.Id
 	var success bool
 	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
-		valuesYaml, success, err = impl.appStoreDeploymentHelmService.RollbackRelease(ctx, installedApp, request.GetVersion())
+		installedApp, success, err = impl.appStoreDeploymentHelmService.RollbackRelease(ctx, installedApp, request.GetVersion())
 		if err != nil {
 			impl.logger.Errorw("error while rollback helm release", "error", err)
 			return false, err
 		}
 	} else {
-		// TODO : handle acd
+		installedApp, success, err = impl.appStoreDeploymentArgoCdService.RollbackRelease(ctx, installedApp, request.GetVersion())
+		if err != nil {
+			impl.logger.Errorw("error while rollback helm release", "error", err)
+			return false, err
+		}
 	}
 
 	//DB operation
-	installedAppVersion.ValuesYaml = valuesYaml
+	installedAppVersion.ValuesYaml = installedApp.ValuesOverrideYaml
 	installedAppVersion.UpdatedOn = time.Now()
 	installedAppVersion.UpdatedBy = userId
 	_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
 	if err != nil {
 		impl.logger.Errorw("error while updating db", "error", err)
 		return false, err
+	}
+
+	if installedApp.AppOfferingMode == util2.SERVER_MODE_FULL {
+		// create build history for version upgrade, chart upgrade or simple update
+		err = impl.UpdateInstallAppVersionHistory(installedApp)
+		if err != nil {
+			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
+			return false, err
+		}
 	}
 
 	//STEP 8: finish with return response
@@ -710,5 +719,4 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 		return false, err
 	}
 	return success, nil
-
 }

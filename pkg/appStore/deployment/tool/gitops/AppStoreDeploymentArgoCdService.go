@@ -22,7 +22,7 @@ type AppStoreDeploymentArgoCdService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	GetAppStatus(installedAppAndEnvDetails appStoreRepository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error
-	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (string, bool, error)
+	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error)
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -30,15 +30,20 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	acdClient                         application2.ServiceClient
 	chartGroupDeploymentRepository    appStoreRepository.ChartGroupDeploymentRepository
+	installedAppRepository            appStoreRepository.InstalledAppRepository
+	installedAppRepositoryHistory     appStoreRepository.InstalledAppVersionHistoryRepository
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
-	acdClient application2.ServiceClient, chartGroupDeploymentRepository appStoreRepository.ChartGroupDeploymentRepository) *AppStoreDeploymentArgoCdServiceImpl {
+	acdClient application2.ServiceClient, chartGroupDeploymentRepository appStoreRepository.ChartGroupDeploymentRepository,
+	installedAppRepository appStoreRepository.InstalledAppRepository, installedAppRepositoryHistory appStoreRepository.InstalledAppVersionHistoryRepository) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
 		acdClient:                         acdClient,
 		chartGroupDeploymentRepository:    chartGroupDeploymentRepository,
+		installedAppRepository:            installedAppRepository,
+		installedAppRepositoryHistory:     installedAppRepositoryHistory,
 	}
 }
 
@@ -143,9 +148,54 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.C
 }
 
 // returns - valuesYamlStr, success, error
-func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (string, bool, error) {
-	// TODO: implement this
-	return "", false, nil
+func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int32) (*appStoreBean.InstallAppVersionDTO, bool, error) {
+	//request version id for
+	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installedAppVersionHistoryId))
+	if err != nil {
+		impl.Logger.Errorw("error", "err", err)
+		return installedApp, false, nil
+	}
+	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(versionHistory.InstalledAppVersionId)
+	if err != nil {
+		impl.Logger.Errorw("error", "err", err)
+		return installedApp, false, nil
+	}
+	activeInstalledAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installedApp.InstalledAppId)
+	if err != nil {
+		impl.Logger.Errorw("error", "err", err)
+		return installedApp, false, nil
+	}
+	request := &appStoreBean.InstallAppVersionDTO{
+		AppId:                 installedAppVersion.InstalledApp.AppId,
+		AppName:               installedAppVersion.InstalledApp.App.AppName,
+		EnvironmentId:         installedAppVersion.InstalledApp.EnvironmentId,
+		InstalledAppId:        installedAppVersion.InstalledAppId,
+		InstalledAppVersionId: installedAppVersion.Id,
+		AppStoreVersion:       installedAppVersion.AppStoreApplicationVersionId,
+		ValuesOverrideYaml:    activeInstalledAppVersion.ValuesYaml,
+		AppStoreId:            installedAppVersion.AppStoreApplicationVersion.AppStoreId,
+		AppStoreName:          installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+		GitOpsRepoName:        installedAppVersion.InstalledApp.GitOpsRepoName,
+		EnvironmentName:       installedAppVersion.InstalledApp.Environment.Name,
+		ACDAppName:            fmt.Sprintf("%s-%s", installedAppVersion.InstalledApp.App.AppName, installedAppVersion.InstalledApp.Environment.Name),
+	}
+	//If current version upgrade/degrade to another, update requirement dependencies
+	if versionHistory.InstalledAppVersionId != activeInstalledAppVersion.Id {
+		err = impl.appStoreDeploymentFullModeService.UpdateRequirementYaml(request, &installedAppVersion.AppStoreApplicationVersion)
+		if err != nil {
+			impl.Logger.Errorw("error", "err", err)
+			return installedApp, false, nil
+		}
+	}
+	//Update Values config
+	installedApp, err = impl.appStoreDeploymentFullModeService.UpdateValuesYaml(request)
+	if err != nil {
+		impl.Logger.Errorw("error", "err", err)
+		return installedApp, false, nil
+	}
+	//ACD sync operation
+	impl.appStoreDeploymentFullModeService.SyncACD(installedApp.ACDAppName, ctx)
+	return installedApp, true, nil
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx context.Context) error {
