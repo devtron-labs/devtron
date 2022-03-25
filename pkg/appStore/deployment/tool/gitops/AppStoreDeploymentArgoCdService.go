@@ -165,30 +165,32 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 		impl.Logger.Errorw("error", "err", err)
 		return installedApp, false, nil
 	}
-	request := &appStoreBean.InstallAppVersionDTO{
-		AppId:                 installedAppVersion.InstalledApp.AppId,
-		AppName:               installedAppVersion.InstalledApp.App.AppName,
-		EnvironmentId:         installedAppVersion.InstalledApp.EnvironmentId,
-		InstalledAppId:        installedAppVersion.InstalledAppId,
-		InstalledAppVersionId: installedAppVersion.Id,
-		AppStoreVersion:       installedAppVersion.AppStoreApplicationVersionId,
-		ValuesOverrideYaml:    activeInstalledAppVersion.ValuesYaml,
-		AppStoreId:            installedAppVersion.AppStoreApplicationVersion.AppStoreId,
-		AppStoreName:          installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
-		GitOpsRepoName:        installedAppVersion.InstalledApp.GitOpsRepoName,
-		EnvironmentName:       installedAppVersion.InstalledApp.Environment.Name,
-		ACDAppName:            fmt.Sprintf("%s-%s", installedAppVersion.InstalledApp.App.AppName, installedAppVersion.InstalledApp.Environment.Name),
-	}
+
+	installedApp.InstalledAppVersionId = installedAppVersion.Id
+	installedApp.AppStoreVersion = installedAppVersion.AppStoreApplicationVersionId
+	installedApp.ValuesOverrideYaml = activeInstalledAppVersion.ValuesYaml
+	installedApp.AppStoreId = installedAppVersion.AppStoreApplicationVersion.AppStoreId
+	installedApp.AppStoreName = installedAppVersion.AppStoreApplicationVersion.AppStore.Name
+	installedApp.GitOpsRepoName = installedAppVersion.InstalledApp.GitOpsRepoName
+	installedApp.EnvironmentName = installedAppVersion.InstalledApp.Environment.Name
+	installedApp.ACDAppName = fmt.Sprintf("%s-%s", installedAppVersion.InstalledApp.App.AppName, installedAppVersion.InstalledApp.Environment.Name)
 	//If current version upgrade/degrade to another, update requirement dependencies
 	if versionHistory.InstalledAppVersionId != activeInstalledAppVersion.Id {
-		err = impl.appStoreDeploymentFullModeService.UpdateRequirementYaml(request, &installedAppVersion.AppStoreApplicationVersion)
+		err = impl.appStoreDeploymentFullModeService.UpdateRequirementYaml(installedApp, &installedAppVersion.AppStoreApplicationVersion)
+		if err != nil {
+			impl.Logger.Errorw("error", "err", err)
+			return installedApp, false, nil
+		}
+
+		activeInstalledAppVersion.Active = false
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(activeInstalledAppVersion, nil)
 		if err != nil {
 			impl.Logger.Errorw("error", "err", err)
 			return installedApp, false, nil
 		}
 	}
 	//Update Values config
-	installedApp, err = impl.appStoreDeploymentFullModeService.UpdateValuesYaml(request)
+	installedApp, err = impl.appStoreDeploymentFullModeService.UpdateValuesYaml(installedApp)
 	if err != nil {
 		impl.Logger.Errorw("error", "err", err)
 		return installedApp, false, nil

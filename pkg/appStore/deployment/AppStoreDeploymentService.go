@@ -672,7 +672,7 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 	defer tx.Rollback()
 
 	// Rollback starts
-	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(int(request.GetInstalledAppVersionId()))
+	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(int(request.GetInstalledAppVersionId()))
 	if err != nil {
 		impl.logger.Errorw("error while fetching chart installed version", "error", err)
 		return false, err
@@ -694,12 +694,20 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 	}
 
 	//DB operation
+	installedAppVersion.Active = true
 	installedAppVersion.ValuesYaml = installedApp.ValuesOverrideYaml
 	installedAppVersion.UpdatedOn = time.Now()
 	installedAppVersion.UpdatedBy = userId
 	_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
 	if err != nil {
 		impl.logger.Errorw("error while updating db", "error", err)
+		return false, err
+	}
+
+	//STEP 8: finish with return response
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while committing transaction to db", "error", err)
 		return false, err
 	}
 
@@ -710,13 +718,6 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 			return false, err
 		}
-	}
-
-	//STEP 8: finish with return response
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error while committing transaction to db", "error", err)
-		return false, err
 	}
 	return success, nil
 }

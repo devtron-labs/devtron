@@ -154,7 +154,12 @@ func (impl InstalledAppRepositoryImpl) UpdateInstalledApp(model *InstalledApps, 
 }
 
 func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error) {
-	err := tx.Update(model)
+	var err error
+	if tx == nil {
+		err = impl.dbConnection.Update(model)
+	} else {
+		err = tx.Update(model)
+	}
 	if err != nil {
 		impl.Logger.Error(err)
 		return model, err
