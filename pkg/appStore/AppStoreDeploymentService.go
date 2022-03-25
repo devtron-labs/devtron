@@ -184,15 +184,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 	gitOpsRepoName := installedApp.GitOpsRepoName
 	if len(gitOpsRepoName) == 0 {
-		application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &argocdAppName})
-		if err != nil {
-			impl.logger.Errorw("no argo app exists", "app", argocdAppName)
-			return nil, err
-		}
-		if application != nil {
-			gitOpsRepoUrl := application.Spec.Source.RepoURL
-			gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
-		}
+		gitOpsRepoName=impl.appStoreDeploymentFullModeService.GetGitOpsRepoName(installAppVersionRequest)
 	}
 	installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	var installedAppVersion *appStoreRepository.InstalledAppVersions

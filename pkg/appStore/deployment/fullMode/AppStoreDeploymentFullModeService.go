@@ -59,6 +59,7 @@ type AppStoreDeploymentFullModeService interface {
 	SyncACD(acdAppName string, ctx context.Context)
 	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
+	GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) string
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
@@ -304,19 +305,26 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 	return nil
 }
 
+func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) string {
+	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
+	gitOpsRepoName := ""
+	application, err := impl.acdClient.Get(context.Background(), &application.ApplicationQuery{Name: &acdAppName})
+	if err != nil {
+		impl.logger.Errorw("no argo app exists", "app", acdAppName)
+		return ""
+	}
+	if application != nil {
+		gitOpsRepoUrl := application.Spec.Source.RepoURL
+		gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
+	}
+	return gitOpsRepoName
+}
+
 func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
 	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
-	gitOpsRepoName := installAppVersionRequest.GitOpsRepoName
-	if len(gitOpsRepoName) == 0 {
-		application, err := impl.acdClient.Get(context.Background(), &application.ApplicationQuery{Name: &acdAppName})
-		if err != nil {
-			impl.logger.Errorw("no argo app exists", "app", acdAppName)
-			return installAppVersionRequest, err
-		}
-		if application != nil {
-			gitOpsRepoUrl := application.Spec.Source.RepoURL
-			gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
-		}
+	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
+		gitOpsRepoName := impl.GetGitOpsRepoName(installAppVersionRequest)
+		installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	}
 	valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
 	if err != nil {
