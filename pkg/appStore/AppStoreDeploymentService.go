@@ -1197,13 +1197,5 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installe
 		return nil, err
 	}
 	values.ValuesYaml = versionHistory.ValuesYamlRaw
-	ValuesByte, err := yaml.YAMLToJSON([]byte(versionHistory.ValuesYamlRaw))
-	if err != nil {
-		impl.logger.Errorw("error in json patch", "err", err)
-		return nil, err
-	}
-	if ValuesByte != nil {
-		values.ValuesYaml = string(ValuesByte)
-	}
 	return values, err
 }
