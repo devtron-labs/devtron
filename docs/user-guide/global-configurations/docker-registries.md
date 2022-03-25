@@ -21,7 +21,7 @@ Provide a name to your registry, this name will be shown to you in Docker Build 
 
 ### Registry type
 
-Select type of Registry from the drop-down, Currently we are Supporting Multiple Types of Container Registry across Global Platforms. Default `ECR` is Selected
+Select type of Registry from the drop-down, Currently we are Supporting Multiple Types of Container Registry across Global Platforms. By default `ECR` is Selected
 
 Registries we are Supporting are-:
 
@@ -31,7 +31,7 @@ Registries we are Supporting are-:
   * <a href= #GAR>Google Artifact Registry (GAR)</a>
   * <a href= #GCR>Google Container Registry (GCR)</a>
   * <a href= #Quay>Quay</a>
-  * Others
+  * <a href= #others>Others</a>
 
 ### Registry URL
 
@@ -114,6 +114,7 @@ Give the password corresponding to the username of your registry.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/Quay.JPG)
 
+<section id="others"></section>
 
 ### Registry Type Others:
 
