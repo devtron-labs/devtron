@@ -49,7 +49,7 @@ Inside the `Access key ID` box, provide your AWS access key.
 
 * **Secret access key**
 
-Provide your AWS `Secret access key` ID.
+Inside the `Secret access key` box, provide your AWS secret access kek ID.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/ECR+.JPG)
 
@@ -66,7 +66,7 @@ Give the `Username` of the docker hub account you used for creating your registr
 
 * **Password**
 
-Give the `password/[token]`(https://docs.docker.com/docker-hub/access-tokens/) corresponding to your docker hub account.
+Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) corresponding to your docker hub account.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/docker-hub+copy.JPG)
 
