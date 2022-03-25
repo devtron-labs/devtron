@@ -71,7 +71,7 @@ Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) cor
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/docker-hub+copy.JPG)
 
 
-<section id="#Azure"></section>
+<section id="Azure"></section>
 
 ### Azure Container Registry (ACR)
 
@@ -80,7 +80,7 @@ Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) cor
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/Azure-registry.jpg)
 
 
-<section id="#GAR"></section>
+<section id="GAR"></section>
 
 ### Google Artifact Registry (GAR) 
 
@@ -89,7 +89,7 @@ JSON key file authentication method can be used to authenticate with username an
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/Artifact-registry.JPG)
 
 
-<section id="#GCR"></section>
+<section id="GCR"></section>
 
 ### Google Container Registry (GCR)
  
