@@ -30,7 +30,7 @@ Registries we are Supporting are-:
   * Azure Container Registry (ACR)
   * Google Artifact Registry (GAR)
   * Google Container Registry (GCR)
-  * [](### Quay Container Registry)Quay
+  * <a href= #Quay>Quay</a>
   * Others
 
 ### Registry URL
@@ -88,7 +88,7 @@ JSON key file authentication method can be used to authenticate with username an
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/GCR.JPG)
 
 
-
+<section id="Quay"></section>
 ### Quay Container Registry
 
 You have to provide the below information if you select the registry type as Quay.
