@@ -4,7 +4,7 @@ The global configuration helps you add your `Container Registry`. In the contain
 
 ## Add Container Registry configuration:
 
-Go to the `Container Registry` section of `Global Configuration`. click on `Add Container registry`.
+Go to the `Container Registry` section of `Global Configuration`. Click on `Add Container registry`.
 
 You will see below the input fields to configure the container registry.
 
@@ -21,9 +21,9 @@ Provide a `Name` to your registry, this name will be shown to you in `Docker Bui
 
 ### Registry type
 
-Select `Registry type` from the drop-down, currently we are supporting multiple types of container registry across different global platforms. by default `ECR` is selected
+Select `Registry type` from the drop-down, currently we are supporting multiple types of container registry across different global platforms. By default `ECR` is selected.
 
-Registries we are supporting are-:
+Registries we are supporting are:
 
   * <a href= #ECR>Elastic Container Registry (ECR)</a>
   * <a href= #Docker>Docker-Hub</a>
@@ -31,11 +31,11 @@ Registries we are supporting are-:
   * <a href= #GAR>Google Artifact Registry (GAR)</a>
   * <a href= #GCR>Google Container Registry (GCR)</a>
   * <a href= #Quay>Quay</a>
-  * <a href= #others>Others</a>
+  * <a href= #others>Other</a>
 
 ### Registry URL
 
- You have to provide the `Registry URL` of your registry. create your registry and provide the URL of that registry in the URL box.
+ You have to provide the `Registry URL` of your registry. Create your registry and provide the URL of that registry in the `Registry URL` box.
 
 <section id="ECR"></section>
 
@@ -49,7 +49,7 @@ Inside the `Access key ID` box, provide your AWS access key.
 
 * **Secret access key**
 
-Inside the `Secret access key` box, provide your AWS secret access kek ID.
+Inside the `Secret access key` box, provide your AWS secret access key ID.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/ECR+.JPG)
 
@@ -75,7 +75,7 @@ Give the password/[token](https://docs.docker.com/docker-hub/access-tokens/) cor
 
 ### Azure Container Registry (ACR):
 
- Service principal authentication method can be used to authenticate with username and password. Please follow [link](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) for getting the Username and password for this registry.
+Service principal authentication method can be used to authenticate with username and password. Please follow [link](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) for getting the Username and password for this registry.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/Azure-registry.jpg)
 
@@ -102,7 +102,7 @@ JSON key file authentication method can be used to authenticate with username an
 
 ### Quay Container Registry:
 
-You have to provide the below information if you select the registry type as Quay.
+You have to provide the below information if you select the registry type as `Quay`.
 
 * **Username**
 
@@ -116,9 +116,9 @@ Give the `Token` corresponding to the username of your registry.
 
 <section id="others"></section>
 
-### Others:
+### Other:
 
-You have to provide the below information if you select the registry type as others.
+You have to provide the below information if you select the registry type as `Other`.
 
 * **Username**
 
