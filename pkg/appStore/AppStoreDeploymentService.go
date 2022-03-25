@@ -1118,7 +1118,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId
 		for _, updateHistory := range versionHistory {
 			history = append(history, &appStoreBean.IAVHistory{
 				ChartMetaData: appStoreBean.IAVHistoryChartMetaData{
-					ChartName:    installedAppVersionModel.InstalledApp.App.AppName,
+					ChartName:    installedAppVersionModel.AppStoreApplicationVersion.AppStore.Name,
 					ChartVersion: installedAppVersionModel.AppStoreApplicationVersion.Version,
 					Description:  installedAppVersionModel.AppStoreApplicationVersion.Description,
 					Home:         installedAppVersionModel.AppStoreApplicationVersion.Home,
