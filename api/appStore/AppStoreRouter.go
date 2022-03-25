@@ -39,9 +39,9 @@ func NewAppStoreRouterImpl(restHandler InstalledAppRestHandler,
 	appStoreValuesRouter appStoreValues.AppStoreValuesRouter, appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter) *AppStoreRouterImpl {
 	return &AppStoreRouterImpl{
-		deployRestHandler:      restHandler,
-		appStoreValuesRouter:   appStoreValuesRouter,
-		appStoreDiscoverRouter: appStoreDiscoverRouter,
+		deployRestHandler:        restHandler,
+		appStoreValuesRouter:     appStoreValuesRouter,
+		appStoreDiscoverRouter:   appStoreDiscoverRouter,
 		appStoreDeploymentRouter: appStoreDeploymentRouter,
 	}
 }
@@ -83,4 +83,9 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 
 	configRouter.Path("/cluster-component/install/{clusterId}").
 		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")
+
+	configRouter.Path("/installed-app/deployment-history").Queries("installedAppId", "{installedAppId}").
+		HandlerFunc(router.deployRestHandler.GetDeploymentHistory).Methods("GET")
+	configRouter.Path("/installed-app/deployment-history/info").Queries("installedAppId", "{installedAppId}").Queries("version", "{version}").
+		HandlerFunc(router.deployRestHandler.GetDeploymentHistoryValues).Methods("GET")
 }

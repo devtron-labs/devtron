@@ -36,18 +36,18 @@
 </p>
 <h1></h1>
 
-Devtron is a web based CI/CD orchestrator for Kubernetes. It integrates various Open Source tools to provide AppOps, that also includes Security Scanning, GitOps, Access Control and Debugging / Observability.
+Devtron is a web based CI/CD orchestrator for Kubernetes. It integrates various Open Source tools to provide AppOps, that also includes Security Scanning, GitOps, Access Control, Debugging and Observability.
 
 <br>
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
-<h3><b>Devtron is built in a modular fashion. It consists of the below modules which can be installed independently:</b></h3>
+<h3><b>Devtron is built in a modular fashion. It consists of the below modules which can be installed independently.</b></h3>
 
 
 | Module  | Features |
 | :-----------: | :-----------: |
-| [Hyperion](https://github.com/devtron-labs/devtron#-hyperion)  | Deploy, observe manage & debug existing Helm apps in all your clusters  |
-| [Devtron](https://github.com/devtron-labs/devtron#bulb-devtron)  | CI/CD, Security Scanning, GitOps, Access Control, Debugging / Observability. Also comes with Hyperion included. |
+| [Hyperion](https://github.com/devtron-labs/devtron#-hyperion)  | Deploy, Observe, Manage & Debug existing Helm apps in all your clusters  |
+| [Devtron](https://github.com/devtron-labs/devtron#bulb-devtron)  | Perform CI/CD, Security Scanning, GitOps, Access Control, Debugging and Observability. Comes with Hyperion included. |
  
 
 <!--- 
@@ -92,7 +92,7 @@ https://user-images.githubusercontent.com/66381465/159458292-a4d8e212-54b6-444f-
 
 </details>
 
-Hyperion is a great way to get familiar with Devtron's UI and some of its light weight features. You can always [upgrade to Devtron full stack](https://docs.devtron.ai/hyperion/upgrade-to-devtron), that includes all the features.
+Hyperion is a great way to get familiar with Devtron's UI and some of its light weight features. You can always [upgrade to Devtron full stack](https://docs.devtron.ai/hyperion/upgrade-to-devtron), that comes loaded with all the features.
  
 ## :rocket: Getting Started
 
@@ -114,13 +114,15 @@ helm install devtron devtron-operator-latest.tgz --create-namespace --namespace 
 
 ### Hyperion Dashboard
 
-If you did not provide a **BASE\_URL** during install or have used the default installation, Devtron creates a Load Balancer for you. Use the following command to get the dashboard URL. Please note it may take some time for cloud provider to provision the load balancer and in case of on-prem installation of kubernetes, please use port-forward or ingress.
+If you did not provide a **BASE\_URL** during install or have used the default installation, Devtron creates a load balancer for you. Use the following command to get the dashboard URL.
 
 ```text
 kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
 ```
 
-You will get result something like this
+Please note that it may take some time for the Cloud provider to provision the load balancer and in case of on-prem installation of Kubernetes, please use port-forward or ingress.
+
+You will get an output, something like this
 
 ```text
 [test2@server ~]$ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
@@ -144,7 +146,7 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 
 # :bulb: Devtron
 
-Devtron is a No-Code CI/CD Orchestrator with a complete experience - providing you with CI/CD, Security Scanning, GitOps, Access Control and Debugging / Observability from a single web-console. Hyperion module is included in Devtron.
+Devtron is a No-Code CI/CD Orchestrator with a complete experience - providing you with CI/CD, Security Scanning, GitOps, Access Control, Debugging and Observability from a single web-console. Hyperion module is included by default, in Devtron.
 
 ## :tada: Features
 <br>
@@ -215,11 +217,13 @@ For detailed setup instructions and other options, check out [Devtron setup](htt
 
 ### :key: Devtron Dashboard
 
-By default, Devtron creates a Load Balancer. Use the following command to get the dashboard URL. Please note it may take some time for cloud provider to provision the load balancer and in case of on-prem installation of Kubernetes, please use port-forward or ingress.
+By default, Devtron creates a load balancer. Use the following command to get the dashboard URL.
 
 ```text
 kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
 ```
+
+Please note that it may take some time for the Cloud provider to provision the load balancer and in case of on-prem installation of Kubernetes, please use port-forward or ingress.
 
 *****Devtron admin credentials*****
 
@@ -227,7 +231,7 @@ For admin login, use
 <br>
 Username:`admin` 
 <br>
-And for the password, run the following command:
+And for the password, run the following command
 
 ```bash
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
@@ -252,11 +256,11 @@ Devtron is built on some of the most trusted and loved technologies
 Devtron is trusted by Enterprises and Community, all across the globe:
 <br>
 
-- [Delhivery:](https://www.delhivery.com/) Delhivery is one the largest and most profitable logistics company in India
-- [BharatPe:](https://bharatpe.com/) Bharatpe is a business utility application to accept payments transactions in settlements
-- [Livspace:](https://www.livspace.com/in) Livspace is an one-stop shop for all home interiors and renovation services
-- [Moglix:](https://www.moglix.com/) A B2B commerce company working in the procurement of industrial supplies
-- [Xoxoday:](https://www.xoxoday.com/) Xoxoday helps to send rewards, perks & incentives to employees, customers and partners
+- [Delhivery:](https://www.delhivery.com/) Delhivery is an Indian delivery and e-commerce logistics company, that provides end-to-end Supply Chain solutions through cutting-edge technology
+- [BharatPe:](https://bharatpe.com/) Bharatpe is a Indian fintech company that offers a range of products including interoperable QR code for UPI payments, POS machines for card acceptance, and small business financing
+- [Livspace:](https://www.livspace.com/in) Livspace is a home interior and renovation company, that provides interior design and renovation services in Singapore and India
+- [Moglix:](https://www.moglix.com/) Moglix is an industrial B2B marketplace and an e-commerce platform for industrial tools and equipment, used largely by businesses in India
+- [Xoxoday:](https://www.xoxoday.com/) Xoxoday provides technology infrastructure to enable businesses to automate rewards, incentives & payouts for employees, customers & channel partners
 
 # :question: FAQ & Troubleshooting
 
@@ -292,7 +296,7 @@ Get updates on Devtron's development and chat with project maintainers, contribu
  
 ## :handshake: Contribute
 
-Check out our [contributing guidelines](CONTRIBUTING.md). Included are directions for opening issues, coding standards and notes on our development processes. We deeply appreciate your contributions.
+Check out our [contributing guidelines](CONTRIBUTING.md). Included, are directions for opening issues, coding standards and notes on our development processes. We deeply appreciate your contribution.
 
 Please look at our [community contributions](COMMUNITY_CONTRIBUTIONS.md) and feel free to create a video or blog around Devtron and add your valuable contribution in the list.
 
@@ -306,7 +310,7 @@ We are deeply grateful to all our amazing contributors!
 
 ## :bug: Vulnerability Reporting
 
-We at Devtron take security and our users' trust very seriously. If you believe you have found a security issue, please disclose this to us at <b>security@devtron.ai</b>.
+We at Devtron, take security and our users' trust very seriously. If you believe you have found a security issue, please report to <b>security@devtron.ai</b>.
 
 # :bookmark: License
 
