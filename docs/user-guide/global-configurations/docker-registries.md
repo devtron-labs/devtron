@@ -116,17 +116,17 @@ Give the `Token` corresponding to the username of your registry.
 
 <section id="others"></section>
 
-### Docker-HubOthers:
+### Others:
 
 You have to provide the below information if you select the registry type as others.
 
 * **Username**
 
-Give the username of your account, where you have created your registry in.
+Give the `Username` of your account, where you have created your registry in.
 
 * **Password**
 
-Give the password corresponding to the username of your registry.
+Give the `Password` corresponding to the username of your registry.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/docker-registries/other-registry.JPG)
 
