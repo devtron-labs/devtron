@@ -692,7 +692,9 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 			return false, err
 		}
 	}
-
+	if !success {
+		return false, fmt.Errorf("rollback request failed")
+	}
 	//DB operation
 	installedAppVersion.Active = true
 	installedAppVersion.ValuesYaml = installedApp.ValuesOverrideYaml
