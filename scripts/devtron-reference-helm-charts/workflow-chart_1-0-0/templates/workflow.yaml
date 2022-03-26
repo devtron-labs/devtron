@@ -27,7 +27,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  name: {{ include ".Chart.Name .fullname" $ }}
+  name: {{ include ".Chart.Name .fullname" $ }}-{{ randAlphaNum 5 | lower }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
