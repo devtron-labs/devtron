@@ -153,23 +153,25 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installedAppVersionHistoryId))
 	if err != nil {
 		impl.Logger.Errorw("error", "err", err)
-		return installedApp, false, nil
+		err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: fmt.Sprintf("No deployment history version found for id: %d", installedAppVersionHistoryId), InternalMessage: err.Error()}
+		return installedApp, false, err
 	}
 	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(versionHistory.InstalledAppVersionId)
 	if err != nil {
 		impl.Logger.Errorw("error", "err", err)
-		return installedApp, false, nil
+		err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: fmt.Sprintf("No installed app version found for id: %d", versionHistory.InstalledAppVersionId), InternalMessage: err.Error()}
+		return installedApp, false, err
 	}
 	activeInstalledAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installedApp.InstalledAppId)
 	if err != nil {
 		impl.Logger.Errorw("error", "err", err)
-		return installedApp, false, nil
+		return installedApp, false, err
 	}
 
 	//validate relations
 	if versionHistory.InstalledAppVersionId != installedApp.Id || installedApp.InstalledAppId != installedAppVersion.InstalledAppId {
-		impl.Logger.Errorw("error", "err", err)
-		return installedApp, false, fmt.Errorf("bad request, ids are not inter-linked")
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "bad request, requested version are not belongs to each other", InternalMessage: ""}
+		return installedApp, false, err
 	}
 
 	installedApp.InstalledAppVersionId = installedAppVersion.Id
