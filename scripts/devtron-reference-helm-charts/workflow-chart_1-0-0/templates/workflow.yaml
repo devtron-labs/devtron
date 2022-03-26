@@ -9,7 +9,10 @@ metadata:
     releaseVersion: {{ $.Values.releaseVersion | quote }}
     pipelineName: {{ .Values.pipelineName }}
 spec:
-  arguments: {}
+  {{- if $.Values.arguments}}
+  arguments:
+{{ toYaml $.Values.arguments | indent 4 -}}
+  {{- end }}
   {{- if $.Values.imagePullSecrets}}
   imagePullSecrets:
     {{- range .Values.imagePullSecrets }}
