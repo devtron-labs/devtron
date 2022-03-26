@@ -1325,6 +1325,10 @@ func (impl ChartServiceImpl) ReadChartYamlForLocation(chartDir string, fileName 
 					impl.logger.Errorw("Unmarshal error of yaml file", "err", err)
 					return "", "", err
 				}
+				if chartYaml.Name == "" || chartYaml.Version == "" {
+					impl.logger.Errorw("Missing values in yaml file either name or version", "err", err)
+					return "", "", errors.New("Missing values in yaml file either name or version")
+				}
 				return chartYaml.Name, chartYaml.Version, nil
 			}
 		}
