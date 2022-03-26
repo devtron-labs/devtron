@@ -81,11 +81,12 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 					impl.logger.Errorw("Error while building config from flags", "error", err)
 				}
 			} else {
-				restConfig, err := rest.InClusterConfig()
+				clusterConfig, err := rest.InClusterConfig()
 				if err != nil {
 					impl.logger.Errorw("error in fetch default cluster config", "err", err, "servername", restConfig.ServerName)
 					continue
 				}
+				restConfig = clusterConfig
 			}
 
 			impl.buildInformerAndNamespaceList(info.ClusterName, restConfig, &impl.mutex)
