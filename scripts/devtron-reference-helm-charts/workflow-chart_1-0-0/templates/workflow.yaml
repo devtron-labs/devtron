@@ -1,3 +1,29 @@
+  {{- $hasCMEnvExists := false -}}
+  {{- $hasCMVolumeExists := false -}}
+  {{- if .Values.ConfigMaps.enabled }}
+  {{- range .Values.ConfigMaps.maps }}
+  {{- if eq .type "volume"}}
+  {{- $hasCMVolumeExists = true}}
+  {{- end }}
+  {{- if eq .type "environment"}}
+  {{- $hasCMEnvExists = true}}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+
+  {{- $hasSecretEnvExists := false -}}
+  {{- $hasSecretVolumeExists := false -}}
+  {{- if .Values.ConfigSecrets.enabled }}
+  {{- range .Values.ConfigSecrets.secrets }}
+  {{- if eq .type "volume"}}
+  {{- $hasSecretVolumeExists = true}}
+  {{- end }}
+  {{- if eq .type "environment"}}
+  {{- $hasSecretEnvExists = true}}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
@@ -9,11 +35,11 @@ metadata:
     releaseVersion: {{ $.Values.releaseVersion | quote }}
     pipelineName: {{ .Values.pipelineName }}
 spec:
-  {{- if $.Values.arguments}}
+  {{- if $.Values.arguments }}
   arguments:
 {{ toYaml $.Values.arguments | indent 4 -}}
   {{- end }}
-  {{- if $.Values.imagePullSecrets}}
+  {{- if $.Values.imagePullSecrets }}
   imagePullSecrets:
     {{- range .Values.imagePullSecrets }}
     - name: {{ . }}
@@ -24,20 +50,25 @@ spec:
   nodeSelector:
 {{ toYaml $.Values.nodeSelector | indent 4 -}}
   {{- end }}
-  serviceAccountName: {}
+  {{- if $.Values.serviceAccountName }}
+  serviceAccountName: {{ $.Values.serviceAccountName }}
+  {{- end }}
   {{- if $.Values.tolerations }}
   tolerations:
 {{ toYaml $.Values.tolerations | indent 4 -}}
   {{- end }}
   templates:
   {{- range .Values.templates }}
-   # for tag type
    {{- if eq .type "dag"}}
   - name: {{ .name }}
     dag:
       tasks:
       {{- range .tasks }}
       - name: {{ .name }}
+        {{- if .dependencies }}
+        dependencies:
+{{ toYaml .dependencies | indent 10 -}}
+        {{- end }}
         template: {{ .template }}
         arguments:
           parameters:
@@ -47,7 +78,6 @@ spec:
           {{- end }}
       {{- end }}
    {{- end }}
-   # for container type
    {{- if eq .type "container"}}
   - name: {{ .name }}
     {{- if .inputs }}
@@ -63,7 +93,7 @@ spec:
       name: {{ .container.name }}
       image: {{ .container.image }}
       {{- if .container.command }}
-      commands:
+      command:
 {{ toYaml .container.command | indent 8 -}}
       {{- end }}
       {{- if .container.containerPorts }}

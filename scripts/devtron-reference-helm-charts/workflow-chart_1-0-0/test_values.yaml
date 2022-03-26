@@ -12,67 +12,47 @@ GracePeriod: 30
 entrypoint: wf
 nodeSelector:
   purpose: ci
-tolerations:
-- effect: NoSchedule
-  key: dedicated
-  operator: Equal
-  value: ci
+tolerations: []
 templates:
-- name: wf
-  type: dag
-  tasks:
-  - name: transform
-    template: wf-template
-    parameters:
-    - name: image
-      value: gcr.io/tall-ridge/argo-test:latest
-  - name: job2
-    template: wf-template
-    parameters:
-    - name: image
-      value: gcr.io/tall-ridge/argo-test2a:latest
-  - name: job3
-    template: wf-template
-    parameters:
-    - name: image
-      value: gcr.io/tall-ridge/argo-test2b:latest
-- name: wf-template
-  type: container
-  outputs:
-    parameters:
-    - name: hello-param
-      valueFrom:
-        path: /tmp/hello_world.txt
-      globalName: my-global-param
-    artifacts:
-    - name: hello-art
-      path: /tmp/hello_world.txt
-      globalName: my-global-art
-  inputs:
-    parameters:
-    - name: test
-  container:
-   image: "inputs.parameters.image"
-   name: test
-   ContainerPort:
-   - name: app
-     port: 8080
-   command:
-   - cowsay
-   args:
-   - test
-   resources:
-     limits:
-       cpu: 3500m
-       memory: 10G
-     requests:
-       cpu: 3500m
-       memory: 10G
-   env:
-   - name: IMAGE_SCANNER_ENDPOINT
-     value: http://image-scanner-new-delhivery-dcd-service.devtroncd:80
-   - name: message
-     value: hello world
+  - name: wf
+    type: dag
+    tasks:
+      - name: transform
+        template: wf-template
+        parameters:
+          - name: image
+            value: gcr.io/tall-ridge/argo-test:latest
+      - name: job2
+        template: wf-template
+        parameters:
+          - name: image
+            value: gcr.io/tall-ridge/argo-test2a:latest
+      - name: job3
+        template: wf-template
+        parameters:
+          - name: image
+            value: gcr.io/tall-ridge/argo-test2b:latest
+  - name: wf-template
+    type: container
+    inputs: {}
+    container:
+      image: docker/whalesay:latest
+      name: test
+      command:
+        - sh
+        - -c
+      args:
+        - cowsay
+        - hello world
+      resources:
+        limits:
+          cpu: 200m
+          memory: 10G
+        requests:
+          cpu: 200m
+          memory: 10G
+      env: []
+
 ContainerPort:
   - name: app
     port: 8080
