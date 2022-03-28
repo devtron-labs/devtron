@@ -114,7 +114,7 @@ paths:
                     type: string
                     description: status
                   result:
-                      $ref: '#/components/schemas/PluginDetailDto'
+                    $ref: '#/components/schemas/PluginDetailDto'
         '400':
           description: Bad Request. Input Validation error/wrong request body.
           content:
@@ -261,6 +261,17 @@ paths:
     get:
       description: get CI pipeline details
       operationId: GetCiPipeline
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: ciPipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
       responses:
         '200':
           description: Successfully get the pipeline config
@@ -552,7 +563,7 @@ components:
         configureMountPath:
           type: boolean
         mountPathMap:
-          type: array
+          type: object
           properties:
             filePathOnDisk:
               type: string
