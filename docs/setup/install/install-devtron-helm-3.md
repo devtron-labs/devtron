@@ -66,8 +66,8 @@ The install commands initiates Devtron-operator which spins up all the Devtron m
 
 | Status | Description |
 | :--- | :--- |
-| `Downloaded` | Installation is still in progress |
-| `Applied` | Installation is completed |
+| `Downloaded` | Installer has downloaded all the manifests and installation is in progress. |
+| `Applied` | Installer has successfully applied all the manifest and installation is complete. |
 
 Meanwhile, you can check logs of the installer by executing the following command:
 
