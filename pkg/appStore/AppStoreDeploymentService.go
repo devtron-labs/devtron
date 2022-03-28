@@ -181,24 +181,10 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
-	team, err := impl.teamRepository.FindOne(installedApp.App.TeamId)
-	if err != nil {
-		impl.logger.Errorw("fetching error", "err", err)
-		return nil, err
-	}
-	impl.logger.Info(team)
-	argocdAppName := installedApp.App.AppName + "-" + environment.Name
+	argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 	gitOpsRepoName := installedApp.GitOpsRepoName
 	if len(gitOpsRepoName) == 0 {
-		application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &argocdAppName})
-		if err != nil {
-			impl.logger.Errorw("no argo app exists", "app", argocdAppName)
-			return nil, err
-		}
-		if application != nil {
-			gitOpsRepoUrl := application.Spec.Source.RepoURL
-			gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
-		}
+		gitOpsRepoName=impl.appStoreDeploymentFullModeService.GetGitOpsRepoName(installAppVersionRequest)
 	}
 	installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	var installedAppVersion *appStoreRepository.InstalledAppVersions

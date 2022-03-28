@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -56,6 +57,9 @@ type AppStoreDeploymentFullModeService interface {
 	AppStoreDeployOperationACD(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 	SyncACD(acdAppName string, ctx context.Context)
+	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
+	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
+	GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) string
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
@@ -71,6 +75,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
 	globalEnvVariables                   *util3.GlobalEnvVariables
+	installedAppRepository               appStoreRepository.InstalledAppRepository
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -81,7 +86,8 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	acdClient application2.ServiceClient,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
-	gitOpsRepository repository3.GitOpsConfigRepository, globalEnvVariables *util3.GlobalEnvVariables) *AppStoreDeploymentFullModeServiceImpl {
+	gitOpsRepository repository3.GitOpsConfigRepository, globalEnvVariables *util3.GlobalEnvVariables,
+	installedAppRepository appStoreRepository.InstalledAppRepository) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
@@ -95,6 +101,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		aCDAuthConfig:                        aCDAuthConfig,
 		gitOpsRepository:                     gitOpsRepository,
 		globalEnvVariables:                   globalEnvVariables,
+		installedAppRepository:               installedAppRepository,
 	}
 }
 
@@ -295,5 +302,115 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 		return err
 	}
 
+	return nil
+}
+
+func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) string {
+	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
+	gitOpsRepoName := ""
+	application, err := impl.acdClient.Get(context.Background(), &application.ApplicationQuery{Name: &acdAppName})
+	if err != nil {
+		impl.logger.Errorw("no argo app exists", "app", acdAppName)
+		return ""
+	}
+	if application != nil {
+		gitOpsRepoUrl := application.Spec.Source.RepoURL
+		gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
+	}
+	return gitOpsRepoName
+}
+
+func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
+	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
+	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
+		gitOpsRepoName := impl.GetGitOpsRepoName(installAppVersionRequest)
+		installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
+	}
+	valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
+	if err != nil {
+		impl.logger.Errorw("error in json patch", "err", err)
+		return installAppVersionRequest, err
+	}
+	var dat map[string]interface{}
+	err = json.Unmarshal(valuesOverrideByte, &dat)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshal", "err", err)
+		return installAppVersionRequest, err
+	}
+	valuesMap := make(map[string]map[string]interface{})
+	valuesMap[installAppVersionRequest.AppStoreName] = dat
+	valuesByte, err := json.Marshal(valuesMap)
+	if err != nil {
+		impl.logger.Errorw("error in marshaling", "err", err)
+		return installAppVersionRequest, err
+	}
+	valuesConfig := &util.ChartConfig{
+		FileName:       appStoreBean.VALUES_YAML_FILE,
+		FileContent:    string(valuesByte),
+		ChartName:      installAppVersionRequest.AppStoreName,
+		ChartLocation:  acdAppName,
+		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
+		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installAppVersionRequest.AppStoreVersion, installAppVersionRequest.EnvironmentId),
+	}
+	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
+			return installAppVersionRequest, err
+		}
+	}
+	commitHash, err := impl.gitFactory.Client.CommitValues(valuesConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	if err != nil {
+		impl.logger.Errorw("error in git commit", "err", err)
+		return installAppVersionRequest, err
+	}
+	installAppVersionRequest.GitHash = commitHash
+	return installAppVersionRequest, nil
+}
+
+func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
+	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
+	dependency := appStoreBean.Dependency{
+		Name:       appStoreAppVersion.AppStore.Name,
+		Version:    appStoreAppVersion.Version,
+		Repository: appStoreAppVersion.AppStore.ChartRepo.Url,
+	}
+	var dependencies []appStoreBean.Dependency
+	dependencies = append(dependencies, dependency)
+	requirementDependencies := &appStoreBean.Dependencies{
+		Dependencies: dependencies,
+	}
+	requirementDependenciesByte, err := json.Marshal(requirementDependencies)
+	if err != nil {
+		return err
+	}
+	requirementDependenciesByte, err = yaml.JSONToYAML(requirementDependenciesByte)
+	if err != nil {
+		return err
+	}
+	requirmentYamlConfig := &util.ChartConfig{
+		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
+		FileContent:    string(requirementDependenciesByte),
+		ChartName:      appStoreAppVersion.AppStore.Name,
+		ChartLocation:  acdAppName,
+		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
+		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, installAppVersionRequest.EnvironmentId),
+	}
+	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
+			return err
+		}
+	}
+	_, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	if err != nil {
+		impl.logger.Errorw("error in git commit", "err", err)
+		return err
+	}
 	return nil
 }

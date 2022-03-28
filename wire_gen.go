@@ -398,7 +398,7 @@ func InitializeApp() (*App, error) {
 	appStoreVersionValuesRepositoryImpl := appStoreValuesRepository.NewAppStoreVersionValuesRepositoryImpl(sugaredLogger, db)
 	appStoreValuesServiceImpl := appStoreValues.NewAppStoreValuesServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl)
 	chartGroupDeploymentRepositoryImpl := appStoreRepository.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
-	appStoreDeploymentFullModeServiceImpl := appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl(sugaredLogger, chartTemplateServiceImpl, refChartProxyDir, repositoryServiceClientImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, serviceClientImpl, argoK8sClientImpl, gitFactory, acdAuthConfig, gitOpsConfigRepositoryImpl, globalEnvVariables)
+	appStoreDeploymentFullModeServiceImpl := appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl(sugaredLogger, chartTemplateServiceImpl, refChartProxyDir, repositoryServiceClientImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, serviceClientImpl, argoK8sClientImpl, gitFactory, acdAuthConfig, gitOpsConfigRepositoryImpl, globalEnvVariables, installedAppRepositoryImpl)
 	clusterInstalledAppsRepositoryImpl := appStoreRepository.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
 	helmClientConfig, err := client4.GetConfig()
 	if err != nil {
@@ -408,9 +408,9 @@ func InitializeApp() (*App, error) {
 	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl)
 	helmAppServiceImpl := client4.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImplExtended, helmAppClientImpl, pumpImpl, enforcerUtilHelmImpl)
 	appStoreDeploymentHelmServiceImpl := appStoreDeploymentTool.NewAppStoreDeploymentHelmServiceImpl(sugaredLogger, helmAppServiceImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl)
-	appStoreDeploymentArgoCdServiceImpl := appStoreDeploymentGitopsTool.NewAppStoreDeploymentArgoCdServiceImpl(sugaredLogger, appStoreDeploymentFullModeServiceImpl, serviceClientImpl, chartGroupDeploymentRepositoryImpl)
-	appStoreDeploymentCommonServiceImpl := appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl(sugaredLogger, installedAppRepositoryImpl)
 	installedAppVersionHistoryRepositoryImpl := appStoreRepository.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
+	appStoreDeploymentArgoCdServiceImpl := appStoreDeploymentGitopsTool.NewAppStoreDeploymentArgoCdServiceImpl(sugaredLogger, appStoreDeploymentFullModeServiceImpl, serviceClientImpl, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, installedAppVersionHistoryRepositoryImpl)
+	appStoreDeploymentCommonServiceImpl := appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl(sugaredLogger, installedAppRepositoryImpl)
 	appStoreDeploymentServiceImpl := appStoreDeployment.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, appStoreDeploymentHelmServiceImpl, appStoreDeploymentArgoCdServiceImpl, environmentServiceImpl, clusterServiceImplExtended, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, globalEnvVariables, appStoreChartsHistoryServiceImpl, installedAppVersionHistoryRepositoryImpl)
 	installedAppServiceImpl, err := appStore.NewInstalledAppServiceImpl(sugaredLogger, installedAppRepositoryImpl, chartTemplateServiceImpl, refChartProxyDir, repositoryServiceClientImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, serviceClientImpl, appStoreValuesServiceImpl, pubSubClient, tokenCache, chartGroupDeploymentRepositoryImpl, environmentServiceImpl, argoK8sClientImpl, gitFactory, acdAuthConfig, gitOpsConfigRepositoryImpl, userServiceImpl, appStoreDeploymentFullModeServiceImpl, appStoreDeploymentServiceImpl, appStoreChartsHistoryServiceImpl, installedAppVersionHistoryRepositoryImpl)
 	if err != nil {
