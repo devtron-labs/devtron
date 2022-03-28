@@ -172,45 +172,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /orchestrator/plugin/global/list/operator/options:
-    get:
-      description: Get list of all operators for conditions(trigger, skip, success, failure)
-      operationId: GetAllPluginConditionOperators
-      responses:
-        '200':
-          description: Successfully return all operators
-          content:
-            application/json:
-              schema:
-                properties:
-                  code:
-                    type: integer
-                    description: status code
-                  status:
-                    type: string
-                    description: status
-                  result:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/PluginConditionOperators'
-        '400':
-          description: Bad Request. Input Validation error/wrong request body.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Unauthorized User
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
   /orchestrator/plugin/global/list/global-variable:
     get:
       description: Get list of all global variables
@@ -361,8 +322,9 @@ components:
           type: string
           example:
             - "PRESET"
-            - "SHARED"
         description:
+          type: string
+        icon:
           type: string
         tags:
           type: array
@@ -386,7 +348,17 @@ components:
           type: string
         defaultValue:
           type: string
-
+        RefVariableUsed:
+          type: boolean
+        RefVariableType:
+          type: string
+          example:
+            - "GLOBAL"
+            - "FROM_PREVIOUS_STEP"
+        RefVariableStepIndex:
+          type: integer
+        RefVariableName:
+          type: string
     PluginListFilters:
       type: object
       properties:
@@ -419,15 +391,6 @@ components:
           type: array
           items:
             type: string
-    PluginConditionOperators:
-      type: object
-      properties:
-        id:
-          type: integer
-        operatorName:
-          type: string
-        operatorCondition:
-          type: string
     GlobalVariable:
       type: object
       properties:
@@ -543,19 +506,7 @@ components:
         id:
           type: integer
           description: pipelineStageId(every stage is given a Id)
-        stageType:
-          type: string
-          example:
-            - "PRE_CI"
-            - "POST_CI"
-        stageTaskType:
-          type: string
-          example:
-            - "GUI"
-            - "YAML"
-        globalYamlScript:
-          type: string
-        guiSteps:
+        steps:
           type: array
           items:
             $ref: '#/components/schemas/stageStepDetails'
@@ -567,23 +518,15 @@ components:
         index:
           type: integer
           description: sequence of step in all steps
-        stepName:
+        name:
           type: string
         description:
           type: string
-        pipelineStageId:
-          type: integer
-          description: id of pre/post stage (foreign key)
         stepType:
           type: string
           example:
             - "INLINE"
             - "PLUGIN REF"
-        stepTaskType:
-          type: string
-          example:
-            - "GUI"
-            - "YAML"
         directoryPath:
           type: string
         inlineStepDetail:
@@ -600,14 +543,33 @@ components:
             - "DOCKERFILE"
         script:
           type: string
+        dockerFileExists:
+          type: boolean
+        mountPath:
+          type: string
+        mountCodeToContainer:
+          type: boolean
+        configureMountPath:
+          type: boolean
+        mountPathMap:
+          type: array
+          properties:
+            filePathOnDisk:
+              type: string
+            filePathOnContainer:
+              type: string
         inputVariables:
           type: array
           items:
-            $ref: '#/components/schemas/PluginVariableDto'
+            $ref: '#/components/schemas/PipelineStepsVariableDto'
         outputVariables:
           type: array
           items:
-            $ref: '#/components/schemas/PluginVariableDto'
+            $ref: '#/components/schemas/PipelineStepsVariableDto'
+        conditionDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConditionDetail'
     PluginRefStepDetail:
       type: object
       properties:
@@ -628,15 +590,42 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ConditionDetail'
+    PipelineStepsVariableDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        value:
+          type: integer
+        format:
+          type: string
+        description:
+          type: string
+        defaultValue:
+          type: string
+        RefVariableUsed:
+          type: boolean
+        RefVariableType:
+          type: string
+          example:
+            - "GLOBAL"
+            - "FROM_PREVIOUS_STEP"
+        RefVariableStepIndex:
+          type: integer
+        RefVariableName:
+          type: string
     ConditionDetail:
       type: object
       properties:
         id:
           type: integer
         ConditionOnVariable:
-          $ref: '#/components/schemas/PluginVariableDto'
+          type: string
+          description: name of the variable on which condition is applied
         ConditionOperator:
-          $ref: '#/components/schemas/PluginConditionOperators'
+          type: string
         ConditionType:
           type: string
           example:
