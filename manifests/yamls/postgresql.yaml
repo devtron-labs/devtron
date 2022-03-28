@@ -5,7 +5,7 @@ metadata:
   name: postgresql-postgresql
   labels:
     app: postgresql
-    chart: postgresql-8.6.4
+    chart: postgresql-11.1.6
     release: "devtron"
 type: Opaque
 ---
@@ -16,14 +16,16 @@ metadata:
   name: postgresql-postgresql-init-scripts
   labels:
     app: postgresql
-    chart: postgresql-8.6.4
+    chart: postgresql-11.1.6
     release: "devtron"
 data:
   db_create.sql: |
     create database casbin;
     create database git_sensor;
     create database lens;
-    create database clair;
+    create database clairv4;
+    \c clairv4;
+    create extension "uuid-ossp";
 ---
 # Source: postgresql/templates/metrics-svc.yaml
 apiVersion: v1
@@ -32,7 +34,7 @@ metadata:
   name: postgresql-postgresql-metrics
   labels:
     app: postgresql
-    chart: postgresql-8.6.4
+    chart: postgresql-11.1.6
     release: "devtron"
   annotations:
     prometheus.io/port: "9187"
@@ -55,7 +57,7 @@ metadata:
   name: postgresql-postgresql-headless
   labels:
     app: postgresql
-    chart: postgresql-8.6.4
+    chart: postgresql-11.1.6
     release: "devtron"
 spec:
   type: ClusterIP
@@ -75,7 +77,7 @@ metadata:
   name: postgresql-postgresql
   labels:
     app: postgresql
-    chart: postgresql-8.6.4
+    chart: postgresql-11.1.6
     release: "devtron"
 spec:
   type: ClusterIP
@@ -95,7 +97,7 @@ metadata:
   name: postgresql-postgresql
   labels:
     app: postgresql
-    chart: postgresql-8.6.4
+    chart: postgresql-11.1.6
     release: "devtron"
 spec:
   serviceName: postgresql-postgresql-headless
@@ -112,7 +114,7 @@ spec:
       name: postgresql-postgresql
       labels:
         app: postgresql
-        chart: postgresql-8.6.4
+        chart: postgresql-11.1.6
         release: "devtron"
         role: master
     spec:      
@@ -147,7 +149,7 @@ spec:
         
       containers:
         - name: postgresql-postgresql
-          image: quay.io/bitnami/postgresql:11.3.0-debian-9-r28
+          image: quay.io/bitnami/postgresql:14.2.0-debian-10-r25
           imagePullPolicy: "IfNotPresent"
           securityContext:
             runAsUser: 1001
@@ -171,6 +173,8 @@ spec:
               value: "orchestrator"
             - name: POSTGRESQL_ENABLE_LDAP
               value: "no"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: pgaudit, uuid-ossp
           ports:
             - name: tcp-postgresql
               containerPort: 5432
