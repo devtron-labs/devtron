@@ -92,6 +92,8 @@ You will get result something like below
 
 The hostname mentioned here \( aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com \) is the Loadbalancer URL where you can access the Devtron dashboard.
 
+Incase you don't see the results or get a message "service doesnt exist", it means devtron is still installing, please check again after 5 minutes.
+
 **PS:** You can also do a CNAME entry corresponding to your domain/subdomain to point to this Loadbalancer URL to access it at a custom domain.
 
 | Host | Type | Points to |
