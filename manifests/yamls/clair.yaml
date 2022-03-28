@@ -70,7 +70,7 @@ spec:
           value: /etc/clair/config.yaml
         - name: CLAIR_MODE
           value: combo
-      - name: clair
+        name: clair
         image: "quay.io/coreos/clair:v4.3.6"
         imagePullPolicy: IfNotPresent
         ports:
