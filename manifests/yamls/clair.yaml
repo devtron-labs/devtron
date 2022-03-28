@@ -82,11 +82,11 @@ spec:
           protocol: TCP
         livenessProbe:
           httpGet:
-            path: /health
+            path: /healthz
             port: 6061
         readinessProbe:
           httpGet:
-            path: /health
+            path: /healthz
             port: 6061
         volumeMounts:
         - name: "clair-config"
