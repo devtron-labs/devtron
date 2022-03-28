@@ -24,8 +24,8 @@ data:
     create database git_sensor;
     create database lens;
     create database clairv4;
-    \c clairv4;
-    create extension "uuid-ossp";
+#    \c clairv4;
+#    create extension "uuid-ossp";
 ---
 # Source: postgresql/templates/metrics-svc.yaml
 apiVersion: v1
