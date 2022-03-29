@@ -47,7 +47,9 @@ type InstalledAppRepository interface {
 	DeleteInstalledAppVersion(model *InstalledAppVersions) (*InstalledAppVersions, error)
 	GetInstalledAppVersionByInstalledAppId(id int) ([]*InstalledAppVersions, error)
 	GetConnection() (dbConnection *pg.DB)
-	GetInstalledAppVersionByInstalledAppIdMeta(appStoreApplicationId int) ([]*InstalledAppVersions, error)
+	GetInstalledAppVersionByInstalledAppIdMeta(installedAppId int) ([]*InstalledAppVersions, error)
+	GetActiveInstalledAppVersionByInstalledAppId(installedAppId int) (*InstalledAppVersions, error)
+	GetLatestInstalledAppVersionByGitHash(gitHash string) (*InstalledAppVersions, error)
 	GetClusterComponentByClusterId(clusterId int) ([]*InstalledApps, error)     //unused
 	GetClusterComponentByClusterIds(clusterIds []int) ([]*InstalledApps, error) //unused
 	GetInstalledAppVersionByAppIdAndEnvId(appId int, envId int) (*InstalledAppVersions, error)
@@ -152,7 +154,12 @@ func (impl InstalledAppRepositoryImpl) UpdateInstalledApp(model *InstalledApps, 
 }
 
 func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error) {
-	err := tx.Update(model)
+	var err error
+	if tx == nil {
+		err = impl.dbConnection.Update(model)
+	} else {
+		err = tx.Update(model)
+	}
 	if err != nil {
 		impl.Logger.Error(err)
 		return model, err
@@ -184,7 +191,28 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdMet
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore").
 		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
 		Where("installed_app_versions.installed_app_id = ?", installedAppId).
-		Where("installed_app_versions.active = true").Select()
+		Order("installed_app_versions.id desc").
+		Select()
+	return model, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppVersionByInstalledAppId(installedAppId int) (*InstalledAppVersions, error) {
+	model := &InstalledAppVersions{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore").
+		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
+		Where("installed_app_versions.installed_app_id = ?", installedAppId).
+		Where("installed_app_versions.active = true").Order("installed_app_versions.id desc").Limit(1).Select()
+	return model, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetLatestInstalledAppVersionByGitHash(gitHash string) (*InstalledAppVersions, error) {
+	model := &InstalledAppVersions{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_app_versions.*", "InstalledApp").
+		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
+		Where("installed_app_versions.git_hash = ?", gitHash).
+		Where("installed_app_versions.active = true").Order("installed_app_versions.id desc").Limit(1).Select()
 	return model, err
 }
 
@@ -197,6 +225,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*Installe
 	return model, err
 }
 
+//it returns enable and disabled both version
 func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
@@ -333,11 +362,11 @@ func (impl InstalledAppRepositoryImpl) DeleteInstalledAppVersion(model *Installe
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppId(id int) ([]*InstalledAppVersions, error) {
+func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppId(installedAppId int) ([]*InstalledAppVersions, error) {
 	model := make([]*InstalledAppVersions, 0)
 	err := impl.dbConnection.Model(&model).
 		Column("installed_app_versions.*").
-		Where("installed_app_versions.installed_app_id = ?", id).
+		Where("installed_app_versions.installed_app_id = ?", installedAppId).
 		Where("installed_app_versions.active = true").Select()
 
 	return model, err

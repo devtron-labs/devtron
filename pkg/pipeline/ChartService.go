@@ -22,12 +22,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	dirCopy "github.com/otiai10/copy"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -128,25 +130,32 @@ type ChartService interface {
 	DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
+	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error)
+	CheckChartExists(chartRefId int) error
+	GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string
+	ValidateUploadedFileFormat(fileName string) error
+	ReadChartMetaDataForLocation(chartDir string, fileName string) (string, string, error)
 }
 type ChartServiceImpl struct {
-	chartRepository           chartRepoRepository.ChartRepository
-	logger                    *zap.SugaredLogger
-	repoRepository            chartRepoRepository.ChartRepoRepository
-	chartTemplateService      util.ChartTemplateService
-	pipelineGroupRepository   app.AppRepository
-	mergeUtil                 util.MergeUtil
-	repositoryService         repository.ServiceClient
-	refChartDir               RefChartDir
-	defaultChart              DefaultChart
-	chartRefRepository        chartRepoRepository.ChartRefRepository
-	envOverrideRepository     chartConfig.EnvConfigOverrideRepository
-	pipelineConfigRepository  chartConfig.PipelineConfigRepository
-	configMapRepository       chartConfig.ConfigMapRepository
-	environmentRepository     repository4.EnvironmentRepository
-	pipelineRepository        pipelineConfig.PipelineRepository
-	appLevelMetricsRepository repository3.AppLevelMetricsRepository
-	client                    *http.Client
+	chartRepository                  chartRepoRepository.ChartRepository
+	logger                           *zap.SugaredLogger
+	repoRepository                   chartRepoRepository.ChartRepoRepository
+	chartTemplateService             util.ChartTemplateService
+	pipelineGroupRepository          app.AppRepository
+	mergeUtil                        util.MergeUtil
+	repositoryService                repository.ServiceClient
+	refChartDir                      RefChartDir
+	defaultChart                     DefaultChart
+	chartRefRepository               chartRepoRepository.ChartRefRepository
+	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
+	pipelineConfigRepository         chartConfig.PipelineConfigRepository
+	configMapRepository              chartConfig.ConfigMapRepository
+	environmentRepository            repository4.EnvironmentRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
+	appLevelMetricsRepository        repository3.AppLevelMetricsRepository
+	envLevelAppMetricsRepository     repository3.EnvLevelAppMetricsRepository
+	client                           *http.Client
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 }
 
 func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -165,27 +174,29 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	environmentRepository repository4.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
+	envLevelAppMetricsRepository repository3.EnvLevelAppMetricsRepository,
 	client *http.Client,
-	CustomFormatCheckers *util2.CustomFormatCheckers,
-) *ChartServiceImpl {
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService) *ChartServiceImpl {
 	return &ChartServiceImpl{
-		chartRepository:           chartRepository,
-		logger:                    logger,
-		chartTemplateService:      chartTemplateService,
-		repoRepository:            repoRepository,
-		pipelineGroupRepository:   pipelineGroupRepository,
-		mergeUtil:                 mergeUtil,
-		refChartDir:               refChartDir,
-		defaultChart:              defaultChart,
-		repositoryService:         repositoryService,
-		chartRefRepository:        chartRefRepository,
-		envOverrideRepository:     envOverrideRepository,
-		pipelineConfigRepository:  pipelineConfigRepository,
-		configMapRepository:       configMapRepository,
-		environmentRepository:     environmentRepository,
-		pipelineRepository:        pipelineRepository,
-		appLevelMetricsRepository: appLevelMetricsRepository,
-		client:                    client,
+		chartRepository:                  chartRepository,
+		logger:                           logger,
+		chartTemplateService:             chartTemplateService,
+		repoRepository:                   repoRepository,
+		pipelineGroupRepository:          pipelineGroupRepository,
+		mergeUtil:                        mergeUtil,
+		refChartDir:                      refChartDir,
+		defaultChart:                     defaultChart,
+		repositoryService:                repositoryService,
+		chartRefRepository:               chartRefRepository,
+		envOverrideRepository:            envOverrideRepository,
+		pipelineConfigRepository:         pipelineConfigRepository,
+		configMapRepository:              configMapRepository,
+		environmentRepository:            environmentRepository,
+		pipelineRepository:               pipelineRepository,
+		appLevelMetricsRepository:        appLevelMetricsRepository,
+		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
+		client:                           client,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 	}
 }
 
@@ -209,6 +220,12 @@ func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefI
 }
 
 func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, error) {
+	err := impl.CheckChartExists(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
+		return nil, err
+	}
+
 	refChart, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		return nil, err
@@ -246,6 +263,11 @@ type AppMetricsEnabled struct {
 }
 
 func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
+	err := impl.CheckChartExists(templateRequest.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
+		return nil, err
+	}
 	chartMeta, err := impl.getChartMetaData(templateRequest)
 	if err != nil {
 		return nil, err
@@ -376,12 +398,20 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
+	//creating history entry for deployment template
+	//TODO : remove default value(false) app metrics flag for history when app metrics request is combined with template save request
+	appLevelAppMetricsEnabled := false
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(templateRequest.AppId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in app metrics app level flag", "error", err)
+		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+	} else if err == nil {
+		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, appLevelAppMetricsEnabled)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 		return nil, err
 	}
-
 	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
 		appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
 		_, err = impl.updateAppLevelMetrics(&appMetricsRequest)
@@ -396,6 +426,12 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 }
 
 func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
+	err := impl.CheckChartExists(templateRequest.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
+		return nil, err
+	}
+
 	chartMeta, err := impl.getChartMetaData(templateRequest)
 	if err != nil {
 		return nil, err
@@ -492,10 +528,18 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		impl.logger.Errorw("error in saving chart ", "chart", chart, "error", err)
 		return nil, err
 	}
-
+	//creating history entry for deployment template
+	//TODO : remove default value(false) app metrics flag for history when app metrics request is combined with template save request
+	appLevelAppMetricsEnabled := false
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(templateRequest.AppId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in app metrics app level flag", "error", err)
+		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+	} else if err == nil {
+		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, appLevelAppMetricsEnabled)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
 		return nil, err
 	}
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
@@ -759,7 +803,20 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 			return nil, err
 		}
 	}
-
+	//creating history entry for deployment template
+	//TODO : remove fetching and setting app metrics flag for history when app metrics update request is combined with template update request
+	appLevelAppMetricsEnabled := false
+	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(template.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+	} else if err == nil {
+		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(template, nil, appLevelAppMetricsEnabled)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", template)
+		return nil, err
+	}
 	return templateRequest, nil
 }
 
@@ -845,6 +902,18 @@ type chartRefResponse struct {
 	LatestChartRef    int        `json:"latestChartRef"`
 	LatestAppChartRef int        `json:"latestAppChartRef"`
 	LatestEnvChartRef int        `json:"latestEnvChartRef,omitempty"`
+}
+
+type ChartYamlStruct struct {
+	Name    string `yaml:"name"`
+	Version string `yaml:"version"`
+}
+
+type ChartDataInfo struct {
+	ChartLocation   string `json:"chartLocation"`
+	ChartName       string `json:"chartName"`
+	ChartVersion    string `json:"chartVersion"`
+	TemporaryFolder string `json:"temporaryFolder"`
 }
 
 func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
@@ -980,6 +1049,29 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 			impl.logger.Errorw("error in creating env config", "data", envOverride, "error", err)
 			return false, err
 		}
+		//creating history entry for deployment template
+		//TODO : remove fetching and setting app metrics flag for history when app metrics update request is combined with template update request
+		isAppMetricsEnabled := false
+		envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(appId, envOverrideNew.TargetEnvironment)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", appId, "envId", envOverrideNew.TargetEnvironment)
+			return false, err
+		} else if err == pg.ErrNoRows {
+			appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", appId)
+				return false, err
+			} else if err == nil {
+				isAppMetricsEnabled = appLevelAppMetrics.AppMetrics
+			}
+		} else {
+			isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
+		}
+		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverrideNew, nil, isAppMetricsEnabled, 0)
+		if err != nil {
+			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverrideNew)
+			return false, err
+		}
 	}
 
 	return true, nil
@@ -1027,23 +1119,22 @@ func (impl ChartServiceImpl) filterDeploymentTemplateForBackground(deploymentTem
 }
 
 func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error) {
-
+	currentChart, err := impl.chartRepository.FindLatestChartForAppByAppId(appMetricRequest.AppId)
+	if err != nil && pg.ErrNoRows != err {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	if pg.ErrNoRows == err {
+		impl.logger.Errorw("no chart configured for this app", "appId", appMetricRequest.AppId)
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusNotFound,
+			InternalMessage: "no chart configured for this app",
+			UserMessage:     "no chart configured for this app",
+		}
+		return nil, err
+	}
 	// validate app metrics compatibility
 	if appMetricRequest.IsAppMetricsEnabled == true {
-		currentChart, err := impl.chartRepository.FindLatestChartForAppByAppId(appMetricRequest.AppId)
-		if err != nil && pg.ErrNoRows != err {
-			impl.logger.Error(err)
-			return nil, err
-		}
-		if pg.ErrNoRows == err {
-			impl.logger.Errorw("no chart configured for this app", "appId", appMetricRequest.AppId)
-			err = &util.ApiError{
-				HttpStatusCode:  http.StatusNotFound,
-				InternalMessage: "no chart configured for this app",
-				UserMessage:     "no chart configured for this app",
-			}
-			return nil, err
-		}
 		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(currentChart.ChartVersion)
 		if err != nil {
 			impl.logger.Errorw("chart version parsing", "err", err)
@@ -1058,11 +1149,16 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 			return nil, err
 		}
 	}
-
 	//update or create app level app metrics
 	appLevelMetrics, err := impl.updateAppLevelMetrics(&appMetricRequest)
 	if err != nil {
 		impl.logger.Errorw("error in saving app level metrics flag", "error", err)
+		return nil, err
+	}
+	//creating history entry for deployment template
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(currentChart, nil, appMetricRequest.IsAppMetricsEnabled)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", currentChart)
 		return nil, err
 	}
 	if appLevelMetrics.Id > 0 {
@@ -1166,4 +1262,158 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 		}
 		return schemajson, nil
 	}
+}
+
+func (impl ChartServiceImpl) CheckChartExists(chartRefId int) error {
+	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in finding ref chart by id", "err", err)
+		return err
+	}
+
+	refChartDir := filepath.Join(string(impl.refChartDir), chartRef.Location)
+	if _, err := os.Stat(refChartDir); os.IsNotExist(err) {
+		_, err = impl.ExtractChartIfMissing(chartRef.ChartData, refChartDir, chartRef.Location)
+		return err
+	}
+	return nil
+}
+
+func (impl *ChartServiceImpl) GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string {
+	var chartLocation string
+
+	chartname := strings.ReplaceAll(chartName, ".", "-")
+	chartname = strings.ReplaceAll(chartname, " ", "_")
+	chartversion := strings.ReplaceAll(chartVersion, ".", "-")
+	if !strings.Contains(chartname, chartversion) {
+		chartLocation = chartname + "_" + chartversion
+	} else {
+		chartLocation = chartname
+	}
+	return chartLocation
+}
+
+func (impl *ChartServiceImpl) ValidateUploadedFileFormat(fileName string) error {
+	if !strings.HasSuffix(fileName, ".tar.gz") {
+		return errors.New("unsupported format")
+	}
+	return nil
+}
+
+func (impl ChartServiceImpl) ReadChartMetaDataForLocation(chartDir string, fileName string) (string, string, error) {
+	chartLocation := filepath.Join(chartDir, fileName)
+
+	files, err := ioutil.ReadDir(chartLocation)
+	if err != nil {
+		impl.logger.Errorw("failed reading directory", "err", err)
+		return "", "", err
+	}
+
+	for _, file := range files {
+		if !file.IsDir() {
+			name := strings.ToLower(file.Name())
+			if name == "chart.yaml" || name == "chart.yml" {
+				data, err := ioutil.ReadFile(filepath.Join(chartLocation, file.Name()))
+				if err != nil {
+					impl.logger.Errorw("failed reading data from file", "err", err)
+					return "", "", err
+				}
+				//println(data)
+				var chartYaml ChartYamlStruct
+				err = yaml.Unmarshal(data, &chartYaml)
+				if err != nil {
+					impl.logger.Errorw("Unmarshal error of yaml file", "err", err)
+					return "", "", err
+				}
+				if chartYaml.Name == "" || chartYaml.Version == "" {
+					impl.logger.Errorw("Missing values in yaml file either name or version", "err", err)
+					return "", "", errors.New("Missing values in yaml file either name or version")
+				}
+				return chartYaml.Name, chartYaml.Version, nil
+			}
+		}
+	}
+	return "", "", errors.New("Charts yaml file not found")
+}
+
+func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error) {
+	binaryDataReader := bytes.NewReader(chartData)
+	dir := impl.chartTemplateService.GetDir()
+	chartInfo := &ChartDataInfo{
+		ChartName:       "",
+		ChartVersion:    "",
+		ChartLocation:   "",
+		TemporaryFolder: "",
+	}
+	temporaryChartWorkingDir := filepath.Join(refChartDir, location)
+	if location == "" {
+		temporaryChartWorkingDir = filepath.Join(refChartDir, dir)
+	}
+	err := os.MkdirAll(temporaryChartWorkingDir, os.ModePerm)
+	if err != nil {
+		impl.logger.Errorw("error in creating directory, CallbackConfigMap", "err", err)
+		return chartInfo, err
+	}
+	chartInfo.TemporaryFolder = temporaryChartWorkingDir
+	err = util2.ExtractTarGz(binaryDataReader, temporaryChartWorkingDir)
+	if err != nil {
+		impl.logger.Errorw("error in extracting binary data of charts", "err", err)
+		return chartInfo, err
+	}
+
+	var chartLocation string
+	var chartName string
+	var chartVersion string
+	var fileName string
+	if location == "" {
+		files, err := ioutil.ReadDir(temporaryChartWorkingDir)
+		if err != nil {
+			impl.logger.Errorw("error in reading err dir", "err", err)
+			return chartInfo, err
+		}
+
+		fileName = files[0].Name()
+		if strings.HasPrefix(files[0].Name(), ".") {
+			fileName = files[1].Name()
+		}
+		chartName, chartVersion, err = impl.ReadChartMetaDataForLocation(temporaryChartWorkingDir, fileName)
+		if err != nil {
+			impl.logger.Errorw("Chart yaml file not found")
+			return chartInfo, err
+		}
+		exists, err := impl.chartRefRepository.CheckIfDataExists(chartName, chartVersion)
+		if exists {
+			impl.logger.Errorw("request err, chart name and version exists already in the database")
+			return chartInfo, errors.New("chart name and version exists already in the database")
+		}
+		if err != nil {
+			impl.logger.Errorw("Error in searching the database")
+			return chartInfo, err
+		}
+		chartLocation = impl.GetLocationFromChartNameAndVersion(chartName, chartVersion)
+		if err != nil {
+			impl.logger.Errorw("error in fetching name and version in Chart yaml", "err", err)
+			return chartInfo, err
+		}
+
+		currentChartWorkingDir := filepath.Join(temporaryChartWorkingDir, fileName)
+
+		err = util2.CheckForMissingFiles(currentChartWorkingDir)
+		if err != nil {
+			impl.logger.Errorw("Missing files in the folder", "err", err)
+			return chartInfo, err
+		}
+
+		err = dirCopy.Copy(currentChartWorkingDir, filepath.Join(refChartDir, chartLocation))
+		if err != nil {
+			impl.logger.Errorw("error in copying chart from temp dir to ref chart dir", "err", err)
+			return chartInfo, err
+		}
+
+		location = chartLocation
+	}
+	chartInfo.ChartLocation = location
+	chartInfo.ChartName = chartName
+	chartInfo.ChartVersion = chartVersion
+	return chartInfo, nil
 }

@@ -38,4 +38,6 @@ func (impl *HelmAppRouterImpl) InitAppListRouter(helmRouter *mux.Router) {
 
 	helmRouter.Path("/deployment-detail").Queries("appId", "{appId}").Queries("version", "{version}").
 		HandlerFunc(impl.helmAppRestHandler.GetDeploymentDetail).Methods("GET")
+
+	helmRouter.Path("/rollback").HandlerFunc(impl.helmAppRestHandler.RollbackApplication).Methods("PUT")
 }

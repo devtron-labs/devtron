@@ -116,7 +116,7 @@ To add secrets from AWS secret manager, navigate to `Secrets` of the application
 
 3. Provide a name to your secret.
 
-4. Select how you want to use the secret. You many leave it selected as environment variable and also you may leave `Role ARN` empty.
+4. Select how you want to use the secret. You may leave it selected as environment variable and also you may leave `Role ARN` empty.
 
 5. In `Data` section, you will have to provide data in key-value format.
 
@@ -133,8 +133,8 @@ All the required field to pass your data to fetch secrets on devtron are describ
 
 To add secrets in AWS secret manager, do the following steps :
 
-Step 1: Go to AWS secret manager console.
-Step 2: Click on `Store a new secret`.
-Step 3: Add and save your secret.
+1. Go to AWS secret manager console.
+2. Click on `Store a new secret`.
+3. Add and save your secret.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/creating-applications-secrets-10.jpg)
