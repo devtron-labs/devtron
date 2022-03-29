@@ -133,7 +133,6 @@ func CheckForMissingFiles(chartLocation string) error {
 		".image_descriptor_template.json": true,
 		"chart":                           true,
 	}
-	missingFilesMap[".image_descriptor_template.json"] = true
 
 	files, err := ioutil.ReadDir(chartLocation)
 	if err != nil {
@@ -159,7 +158,7 @@ func CheckForMissingFiles(chartLocation string) error {
 			}
 		}
 		if len(missingFiles) != 0 {
-			return errors.New("Missing files " + strings.Join(missingFiles, ",") + " files")
+			return errors.New("Missing files " + strings.Join(missingFiles, ",") + " yaml or yml files")
 		}
 	}
 	return nil
