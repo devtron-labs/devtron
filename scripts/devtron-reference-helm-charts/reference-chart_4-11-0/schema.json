@@ -12,7 +12,7 @@
           "properties": {
             "envoyPort": {
               "type": "integer",
-              "description": "envoy port for the container",
+              "description": "envoy port for the container
               "title": "Envoy Port"
             },
             "idleTimeout": {
@@ -335,9 +335,21 @@
         "description": " used to run side-car containers along with the main container within same pod"
       },
       "dbMigrationConfig": {
-        "type": "array",
+        "type": "object",
         "description": "used to configure database migration",
         "title": "Db Migration Config"
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether to run pre-sync Job or Not",
+            "title": "enabled"
+          },
+          "jobs": {
+            "type": "array",
+            "description": "Jobs config to run before deployment",
+            "title": "Job"
+          }
+        }
       },
       "envoyproxy": {
         "type": "object",

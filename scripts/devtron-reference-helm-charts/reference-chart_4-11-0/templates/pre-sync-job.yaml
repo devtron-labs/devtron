@@ -1,4 +1,5 @@
-{{- range .Values.dbMigrationConfig }}
+{{- if $.Values.dbMigrationConfig.enabled }}
+{{- range .Values.dbMigrationConfig.jobs }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -62,4 +63,5 @@ spec:
 {{- end}}
       restartPolicy: Never
   backoffLimit: 0
+{{- end }}
 {{- end }}

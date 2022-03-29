@@ -134,7 +134,7 @@ LivenessProbe:
 ReadinessProbe:
   Path: /
   port: 8080
-  initialDelaySeconds: 20
+  initialDelaySeconds: 
   periodSeconds: 10
   successThreshold: 1
   timeoutSeconds: 5
@@ -227,7 +227,40 @@ ingressInternal:
   #    hosts:
   #      - chart-example.local
 
-dbMigrationConfig: []
+dbMigrationConfig:
+  enabled: true
+  jobs:
+  - image: quay.io/devtron/migrator:6687f572-133-2208
+    name: postgres-migrate-orchestrator
+    GracePeriod: 30
+    backoffLimit: 5
+    activeDeadlineSeconds: 100
+    parallelism: 1
+    completions: 2
+    suspend: false
+    ttlSecondsAfterFinished: 100
+    shareProcessNamespace: true
+    resources:
+      limits:
+        cpu: "0.05"
+        memory: 50Mi
+      requests:
+        cpu: "0.01"
+        memory: 10Mi
+    args:
+      enabled: false
+      value: []
+    commands:
+      enabled: false
+      value: []
+    envValues:
+    - key: Key1
+      value: vlaue1
+    - key: key1
+      value: value2
+    envFrom:
+     - secretName: test
+
 
 command:
   enabled: false
