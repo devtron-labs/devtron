@@ -180,8 +180,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	installedApp.AppStoreId = installedAppVersion.AppStoreApplicationVersion.AppStoreId
 	installedApp.AppStoreName = installedAppVersion.AppStoreApplicationVersion.AppStore.Name
 	installedApp.GitOpsRepoName = installedAppVersion.InstalledApp.GitOpsRepoName
-	installedApp.EnvironmentName = installedAppVersion.InstalledApp.Environment.Name
-	installedApp.ACDAppName = fmt.Sprintf("%s-%s", installedAppVersion.InstalledApp.App.AppName, installedAppVersion.InstalledApp.Environment.Name)
+	installedApp.ACDAppName = fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
 	//If current version upgrade/degrade to another, update requirement dependencies
 	if versionHistory.InstalledAppVersionId != activeInstalledAppVersion.Id {
 		err = impl.appStoreDeploymentFullModeService.UpdateRequirementYaml(installedApp, &installedAppVersion.AppStoreApplicationVersion)

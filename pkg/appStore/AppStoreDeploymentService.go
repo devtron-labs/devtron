@@ -175,7 +175,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	}
 	installAppVersionRequest.EnvironmentId = installedApp.EnvironmentId
 	installAppVersionRequest.AppName = installedApp.App.AppName
-
+	installAppVersionRequest.EnvironmentName = installedApp.Environment.Name
 	environment, err := impl.environmentRepository.FindById(installedApp.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
