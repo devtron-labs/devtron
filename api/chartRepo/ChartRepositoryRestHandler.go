@@ -23,17 +23,26 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 )
 
 const CHART_REPO_DELETE_SUCCESS_RESP = "Chart repo deleted successfully."
+
+type ChartBinary struct {
+	Version        string         `json:"binaryVersion"  validate:"required"`
+	BinaryFile     multipart.File `json:"binaryFile"  validate:"required"`
+	BinaryFileName string         `json:"binaryFileName" validate:"required"`
+}
 
 type ChartRepositoryRestHandler interface {
 	GetChartRepoById(w http.ResponseWriter, r *http.Request)
@@ -52,10 +61,13 @@ type ChartRepositoryRestHandlerImpl struct {
 	enforcer               casbin.Enforcer
 	validator              *validator.Validate
 	deleteService          delete2.DeleteService
+	chartRefRepository     chartRepoRepository.ChartRefRepository
+	refChartDir            pipeline.RefChartDir
 }
 
 func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, chartRepositoryService chartRepo.ChartRepositoryService,
-	enforcer casbin.Enforcer, validator *validator.Validate, deleteService delete2.DeleteService) *ChartRepositoryRestHandlerImpl {
+	enforcer casbin.Enforcer, validator *validator.Validate, deleteService delete2.DeleteService,
+	chartRefRepository chartRepoRepository.ChartRefRepository, refChartDir pipeline.RefChartDir) *ChartRepositoryRestHandlerImpl {
 	return &ChartRepositoryRestHandlerImpl{
 		Logger:                 Logger,
 		chartRepositoryService: chartRepositoryService,
@@ -63,6 +75,8 @@ func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServic
 		enforcer:               enforcer,
 		validator:              validator,
 		deleteService:          deleteService,
+		chartRefRepository:     chartRefRepository,
+		refChartDir:            refChartDir,
 	}
 }
 

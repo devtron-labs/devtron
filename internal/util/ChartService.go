@@ -46,6 +46,7 @@ type ChartTemplateService interface {
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
+	GetDir() string
 	GetGitOpsRepoName(appName string) string
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 }
@@ -107,7 +108,7 @@ func (ChartTemplateServiceImpl) GetChartVersion(location string) (string, error)
 
 func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
-	dir := impl.getDir()
+	dir := impl.GetDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
@@ -115,6 +116,7 @@ func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, 
 		impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
 		return nil, nil, err
 	}
+
 	defer impl.CleanDir(chartDir)
 	err = dirCopy.Copy(refChartLocation, chartDir)
 
@@ -176,7 +178,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(gitOpsRepoName, baseTemp
 		}
 	}
 
-	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.getDir())
+	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.GetDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
@@ -317,7 +319,7 @@ func (impl ChartTemplateServiceImpl) CleanDir(dir string) {
 	}
 }
 
-func (impl ChartTemplateServiceImpl) getDir() string {
+func (impl ChartTemplateServiceImpl) GetDir() string {
 	/* #nosec */
 	r1 := rand.New(impl.randSource).Int63()
 	return strconv.FormatInt(r1, 10)
@@ -325,7 +327,7 @@ func (impl ChartTemplateServiceImpl) getDir() string {
 
 func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v2" // ensure always v2
-	dir := impl.getDir()
+	dir := impl.GetDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
@@ -388,7 +390,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			return nil, err
 		}
 	}
-	chartDir := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, impl.getDir())
+	chartDir := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, impl.GetDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)

@@ -18,11 +18,17 @@
 package util
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/juju/errors"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -118,4 +124,88 @@ func HttpRequest(url string) (map[string]interface{}, error) {
 		return apiRes, err
 	}
 	return nil, err
+}
+
+func CheckForMissingFiles(chartLocation string) error {
+	listofFiles := [1]string{"chart"}
+
+	missingFilesMap := map[string]bool{
+		".image_descriptor_template.json": true,
+		"chart":                           true,
+	}
+
+	files, err := ioutil.ReadDir(chartLocation)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		if !file.IsDir() {
+			name := strings.ToLower(file.Name())
+			if name == listofFiles[0]+".yaml" || name == listofFiles[0]+".yml" {
+				missingFilesMap[listofFiles[0]] = false
+			} else if name == ".image_descriptor_template.json" {
+				missingFilesMap[".image_descriptor_template.json"] = false
+			}
+		}
+	}
+
+	if len(missingFilesMap) != 0 {
+		missingFiles := make([]string, 0, len(missingFilesMap))
+		for k, v := range missingFilesMap {
+			if v {
+				missingFiles = append(missingFiles, k)
+			}
+		}
+		if len(missingFiles) != 0 {
+			return errors.New("Missing files " + strings.Join(missingFiles, ",") + " yaml or yml files")
+		}
+	}
+	return nil
+}
+
+func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
+	uncompressedStream, err := gzip.NewReader(gzipStream)
+	if err != nil {
+		return err
+	}
+
+	tarReader := tar.NewReader(uncompressedStream)
+	for true {
+		header, err := tarReader.Next()
+
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if _, err := os.Stat(filepath.Join(chartDir, header.Name)); os.IsNotExist(err) {
+				if err := os.Mkdir(filepath.Join(chartDir, header.Name), 0755); err != nil {
+					return err
+				}
+			} else {
+				break
+			}
+
+		case tar.TypeReg:
+			outFile, err := os.Create(filepath.Join(chartDir, header.Name))
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(outFile, tarReader); err != nil {
+				return err
+			}
+			outFile.Close()
+
+		default:
+			return err
+
+		}
+
+	}
+	return nil
 }

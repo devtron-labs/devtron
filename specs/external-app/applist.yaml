@@ -360,6 +360,53 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HelmAppDeploymentManifestDetail"
+  /orchestrator/app-store/installed-app/deployment-history:
+    get:
+      description: deployment history of helm app
+      parameters:
+        - in: query
+          name: installedAppId
+          example: "100"
+          description: devtron charts installed instance id
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: number
+      responses:
+        "200":
+          description: deployment history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentHistoryAndInstalledAppInfo"
+  /orchestrator/app-store/installed-app/deployment-history/info:
+    get:
+      description: deployment history detail info, values
+      parameters:
+        - in: query
+          name: installedAppId
+          example: "100"
+          description: devtron charts installed instance id
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+        - in: query
+          name: version
+          example: 1
+          description: installed app version id
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: deployment history detail info response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelmAppDeploymentManifestDetail"
 components:
   schemas:
     appListRequest:
