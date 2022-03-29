@@ -8,7 +8,4 @@ Welcome! This is the documentation for Deploying Charts.
 
 [Charts Create, Update, Upgrade, Deploy, Delete](deployment-of-charts.md)
 
-[Chart Group Create Edit And Deploy](chart-group.md)
-
 [Examples](examples/)
-
