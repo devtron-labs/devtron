@@ -274,8 +274,6 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-
-
 func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request) {
 	request := &openapi.UpdateReleaseWithChartLinkingRequest{}
 	decoder := json.NewDecoder(r.Body)
@@ -318,8 +316,6 @@ func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStor
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-
-
 func (handler *AppStoreDeploymentRestHandlerImpl) RollbackApplication(w http.ResponseWriter, r *http.Request) {
 	request := &openapi2.RollbackReleaseRequest{}
 	decoder := json.NewDecoder(r.Body)
@@ -342,6 +338,7 @@ func (handler *AppStoreDeploymentRestHandlerImpl) RollbackApplication(w http.Res
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	installedApp.UserId = userId
 	if installedApp == nil {
 		handler.Logger.Errorw("Installed App can not be null", "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -370,7 +367,7 @@ func (handler *AppStoreDeploymentRestHandlerImpl) RollbackApplication(w http.Res
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	res := &openapi2.RollbackReleaseResponse {
+	res := &openapi2.RollbackReleaseResponse{
 		Success: &success,
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)

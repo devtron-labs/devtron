@@ -48,7 +48,7 @@ type InstalledAppRepository interface {
 	GetInstalledAppVersionByInstalledAppId(id int) ([]*InstalledAppVersions, error)
 	GetConnection() (dbConnection *pg.DB)
 	GetInstalledAppVersionByInstalledAppIdMeta(installedAppId int) ([]*InstalledAppVersions, error)
-	GetLatestInstalledAppVersion(installedAppId int) (*InstalledAppVersions, error)
+	GetActiveInstalledAppVersionByInstalledAppId(installedAppId int) (*InstalledAppVersions, error)
 	GetLatestInstalledAppVersionByGitHash(gitHash string) (*InstalledAppVersions, error)
 	GetClusterComponentByClusterId(clusterId int) ([]*InstalledApps, error)     //unused
 	GetClusterComponentByClusterIds(clusterIds []int) ([]*InstalledApps, error) //unused
@@ -154,7 +154,12 @@ func (impl InstalledAppRepositoryImpl) UpdateInstalledApp(model *InstalledApps, 
 }
 
 func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error) {
-	err := tx.Update(model)
+	var err error
+	if tx == nil {
+		err = impl.dbConnection.Update(model)
+	} else {
+		err = tx.Update(model)
+	}
 	if err != nil {
 		impl.Logger.Error(err)
 		return model, err
@@ -191,7 +196,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdMet
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetLatestInstalledAppVersion(installedAppId int) (*InstalledAppVersions, error) {
+func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppVersionByInstalledAppId(installedAppId int) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion", "AppStoreApplicationVersion.AppStore").
@@ -220,6 +225,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*Installe
 	return model, err
 }
 
+//it returns enable and disabled both version
 func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).

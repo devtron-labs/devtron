@@ -21,7 +21,7 @@ type AppStoreDeploymentHelmService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	GetAppStatus(installedAppAndEnvDetails appStoreRepository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error
-	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (string, bool, error)
+	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error)
 }
 
 type AppStoreDeploymentHelmServiceImpl struct {
@@ -133,7 +133,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Con
 }
 
 // returns - valuesYamlStr, success, error
-func (impl AppStoreDeploymentHelmServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (string, bool, error) {
+func (impl AppStoreDeploymentHelmServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error) {
 
 	// TODO : fetch values yaml from DB instead of fetching from helm cli
 	// TODO Dependency : on updating helm APP, DB is not being updated. values yaml is sent directly to helm cli. After DB updatation development, we can fetch values yaml from DB, not from CLI.
@@ -147,21 +147,21 @@ func (impl AppStoreDeploymentHelmServiceImpl) RollbackRelease(ctx context.Contex
 	helmAppDeploymentDetail, err := impl.helmAppService.GetDeploymentDetail(ctx, helmAppIdeltifier, deploymentVersion)
 	if err != nil {
 		impl.Logger.Errorw("Error in getting helm application deployment detail", "err", err)
-		return "", false, err
+		return installedApp, false, err
 	}
 	valuesYamlJson := helmAppDeploymentDetail.GetValuesYaml()
 	valuesYamlByteArr, err := yaml.JSONToYAML([]byte(valuesYamlJson))
 	if err != nil {
 		impl.Logger.Errorw("Error in converting json to yaml", "err", err)
-		return "", false, err
+		return installedApp, false, err
 	}
 
 	// send to helm
 	success, err := impl.helmAppService.RollbackRelease(ctx, helmAppIdeltifier, deploymentVersion)
 	if err != nil {
 		impl.Logger.Errorw("Error in helm rollback release", "err", err)
-		return "", false, err
+		return installedApp, false, err
 	}
-
-	return string(valuesYamlByteArr), success, nil
+	installedApp.ValuesOverrideYaml = string(valuesYamlByteArr)
+	return installedApp, success, nil
 }
