@@ -1,6 +1,3 @@
-entrypoint: diamond
-nodeSelector: []
-tolerations: []
 templates:
   - name: diamond
     type: dag
