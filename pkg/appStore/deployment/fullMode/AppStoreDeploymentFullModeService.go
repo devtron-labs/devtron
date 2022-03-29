@@ -76,6 +76,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	gitOpsRepository                     repository3.GitOpsConfigRepository
 	globalEnvVariables                   *util3.GlobalEnvVariables
 	installedAppRepository               appStoreRepository.InstalledAppRepository
+	tokenCache                           *util2.TokenCache
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -87,7 +88,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
 	gitOpsRepository repository3.GitOpsConfigRepository, globalEnvVariables *util3.GlobalEnvVariables,
-	installedAppRepository appStoreRepository.InstalledAppRepository) *AppStoreDeploymentFullModeServiceImpl {
+	installedAppRepository appStoreRepository.InstalledAppRepository, tokenCache *util2.TokenCache) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
@@ -102,6 +103,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		gitOpsRepository:                     gitOpsRepository,
 		globalEnvVariables:                   globalEnvVariables,
 		installedAppRepository:               installedAppRepository,
+		tokenCache:                           tokenCache,
 	}
 }
 
@@ -306,9 +308,14 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 }
 
 func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) string {
+	ctx, err := impl.tokenCache.BuildACDSynchContext()
+	if err != nil {
+		impl.logger.Errorw("error in creating acd synch context", "err", err)
+		return ""
+	}
 	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
 	gitOpsRepoName := ""
-	application, err := impl.acdClient.Get(context.Background(), &application.ApplicationQuery{Name: &acdAppName})
+	application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
 	if err != nil {
 		impl.logger.Errorw("no argo app exists", "app", acdAppName)
 		return ""
