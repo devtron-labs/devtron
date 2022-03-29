@@ -134,7 +134,7 @@ type ChartService interface {
 	CheckChartExists(chartRefId int) error
 	GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string
 	ValidateUploadedFileFormat(fileName string) error
-	ReadChartYamlForLocation(chartDir string, fileName string) (string, string, error)
+	ReadChartMetaDataForLocation(chartDir string, fileName string) (string, string, error)
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -1300,7 +1300,7 @@ func (impl *ChartServiceImpl) ValidateUploadedFileFormat(fileName string) error 
 	return nil
 }
 
-func (impl ChartServiceImpl) ReadChartYamlForLocation(chartDir string, fileName string) (string, string, error) {
+func (impl ChartServiceImpl) ReadChartMetaDataForLocation(chartDir string, fileName string) (string, string, error) {
 	chartLocation := filepath.Join(chartDir, fileName)
 
 	files, err := ioutil.ReadDir(chartLocation)
@@ -1376,7 +1376,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		if strings.HasPrefix(files[0].Name(), ".") {
 			fileName = files[1].Name()
 		}
-		chartName, chartVersion, err = impl.ReadChartYamlForLocation(temporaryChartWorkingDir, fileName)
+		chartName, chartVersion, err = impl.ReadChartMetaDataForLocation(temporaryChartWorkingDir, fileName)
 		if err != nil {
 			impl.logger.Errorw("Chart yaml file not found")
 			return chartInfo, err
