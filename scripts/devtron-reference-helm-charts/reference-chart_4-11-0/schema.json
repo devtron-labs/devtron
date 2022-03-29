@@ -12,7 +12,7 @@
           "properties": {
             "envoyPort": {
               "type": "integer",
-              "description": "envoy port for the container
+              "description": "envoy port for the container",
               "title": "Envoy Port"
             },
             "idleTimeout": {
