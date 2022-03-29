@@ -337,7 +337,7 @@
       "dbMigrationConfig": {
         "type": "object",
         "description": "used to configure database migration",
-        "title": "Db Migration Config"
+        "title": "Db Migration Config",
         "properties": {
           "enabled": {
             "type": "boolean",
