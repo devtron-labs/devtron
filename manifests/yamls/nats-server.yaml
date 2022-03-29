@@ -16,7 +16,6 @@ data:
   nats.conf: |
     # PID file shared with configuration reloader.
     pid_file: "/var/run/nats/nats.pid"
-
     ###############
     #             #
     # Monitoring  #
@@ -24,6 +23,15 @@ data:
     ###############
     http: 8222
     server_name:$POD_NAME
+    ###################################
+    #                                 #
+    # NATS JetStream                  #
+    #                                 #
+    ###################################
+    jetstream {
+      max_mem: 1Gi
+      domain: devtron-jet
+    }
     lame_duck_duration: 120s
 ---
 # Source: nats/templates/service.yaml
