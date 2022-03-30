@@ -341,13 +341,12 @@
         "properties": {
           "enabled": {
             "type": "boolean",
-            "description": "Whether to run pre-sync Job or Not",
-            "title": "enabled"
+            "description": "Whether to run pre-sync Job or Not"
           },
           "jobs": {
             "type": "array",
             "description": "Jobs config to run before deployment",
-            "title": "Job"
+            "items": {}
           }
         }
       },
