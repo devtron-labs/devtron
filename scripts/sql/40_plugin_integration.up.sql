@@ -55,11 +55,15 @@ CREATE TABLE "public"."plugin_pipeline_script"
 (
     "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_pipeline_script'::regclass),
     "script"                      text,
-    "type"                        varchar(255),   -- SHELL, DOCKERFILE etc
+    "type"                        varchar(255),   -- SHELL, DOCKERFILE, CONTAINER_IMAGE etc
     "dockerfile_exists"           bool,
+    "store_script_at"             text,
     "mount_path"                  text,
     "mount_code_to_container"     bool,
     "configure_mount_path"        bool,
+    "container_image_path"        text,
+    "image_pull_secret_type"      varchar(255),   -- CONTAINER_REGISTRY or SECRET_PATH
+    "image_pull_secret"           text,
     "deleted"                     bool,
     "created_on"                  timestamptz,
     "created_by"                  int4,
@@ -68,20 +72,25 @@ CREATE TABLE "public"."plugin_pipeline_script"
     PRIMARY KEY ("id")
 );
 
-CREATE SEQUENCE IF NOT EXISTS id_seq_script_mount_path_map;
+CREATE SEQUENCE IF NOT EXISTS id_seq_script_path_arg_port_mappings;
 
 -- Table Definition
-CREATE TABLE "public"."script_mount_path_map"
+CREATE TABLE "public"."script_path_arg_port_mappings"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_script_mount_path_map'::regclass),
+    "id"                          integer NOT NULL DEFAULT nextval('id_seq_script_path_arg_port_mappings'::regclass),
+    "type_of_mapping"             varchar(255),      -- FILE_PATH, DOCKER_ARG, PORT
     "file_path_on_disk"           text,
     "file_path_on_container"      text,
+    "command"                     text,
+    "arg"                         text,
+    "port_on_local"               integer,
+    "port_on_container"           integer,
     "script_id"                   integer,
     "created_on"                  timestamptz,
     "created_by"                  int4,
     "updated_on"                  timestamptz,
     "updated_by"                  int4,
-    CONSTRAINT "script_mount_path_map_script_id_fkey" FOREIGN KEY ("script_id") REFERENCES "public"."plugin_pipeline_script" ("id"),
+    CONSTRAINT "script_path_arg_port_mappings_script_id_fkey" FOREIGN KEY ("script_id") REFERENCES "public"."plugin_pipeline_script" ("id"),
     PRIMARY KEY ("id")
 );
 
@@ -116,7 +125,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_plugin_step_variables;
 CREATE TABLE "public"."plugin_step_variables"
 (
     "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_variables'::regclass),
-    "plugin_step_id"                   integer,
+    "plugin_step_id"              integer,
     "name"                        varchar(255),
     "format"                      varchar(255),
     "description"                 text,
@@ -126,7 +135,7 @@ CREATE TABLE "public"."plugin_step_variables"
     "value"                       varchar(255),
     "variable_type"               varchar(255),   -- INPUT or OUTPUT
     "index"                       integer,
-    "variable_value_type"         varchar(255),   -- NEW, FROM_PREVIOUS_STEP or GLOBAL
+    "value_type"                  varchar(255),   -- NEW, FROM_PREVIOUS_STEP or GLOBAL
     "previous_step_index"         integer,
     "reference_variable_name"     text,
     "deleted"                     bool,
