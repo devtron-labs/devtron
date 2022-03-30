@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
@@ -39,10 +40,6 @@ type ApplicationStatusUpdateHandlerImpl struct {
 	workflowDagExecutor pipeline.WorkflowDagExecutor
 }
 
-const applicationStatusUpdate = "KUBEWATCH.APPLICATION_STATUS_UPDATE"
-const applicationStatusUpdateGroup = "APPLICATION_STATUS_UPDATE_GROUP-1"
-const applicationStatusUpdateDurable = "APPLICATION_STATUS_UPDATE_DURABLE-1"
-
 func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, appService app.AppService,
 	workflowDagExecutor pipeline.WorkflowDagExecutor) *ApplicationStatusUpdateHandlerImpl {
 	appStatusUpdateHandlerImpl := &ApplicationStatusUpdateHandlerImpl{
@@ -51,7 +48,12 @@ func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClie
 		appService:          appService,
 		workflowDagExecutor: workflowDagExecutor,
 	}
-	err := appStatusUpdateHandlerImpl.Subscribe()
+	err := util.AddStream(appStatusUpdateHandlerImpl.pubsubClient.JetStrCtxt, util.KUBEWATCH_STREAM)
+	if err != nil {
+		logger.Error("err", err)
+		return nil
+	}
+	err = appStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
 		logger.Error("err", err)
 		return nil
@@ -60,7 +62,7 @@ func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClie
 }
 
 func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(applicationStatusUpdate, applicationStatusUpdateGroup, func(msg *nats.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.APPLICATION_STATUS_UPDATE_TOPIC, util.APPLICATION_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("received app update request")
 		defer msg.Ack()
 		application := v1alpha12.Application{}
@@ -92,7 +94,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			}
 		}
 		impl.logger.Debug("app" + application.Name + " updated")
-	}, nats.Durable(applicationStatusUpdateDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(KUBEWATCH_STREAM))
+	}, nats.Durable(util.APPLICATION_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.KUBEWATCH_STREAM))
 
 	if err != nil {
 		impl.logger.Error(err)

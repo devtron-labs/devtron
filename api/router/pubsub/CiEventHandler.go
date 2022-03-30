@@ -22,11 +22,11 @@ import (
 	"fmt"
 
 	"github.com/devtron-labs/devtron/client/pubsub"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
@@ -54,17 +54,18 @@ type CiCompleteEvent struct {
 	MaterialType     string                      `json:"materialType" validate:"required"`
 }
 
-const CI_COMPLETE_TOPIC = "CI-RUNNER.CI-COMPLETE"
-const CI_COMPLETE_GROUP = "CI-RUNNER.CI-COMPLETE_GROUP-1"
-const CI_COMPLETE_DURABLE = "CI-RUNNER-CI-COMPLETE_DURABLE-1"
-
 func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, webhookService pipeline.WebhookService) *CiEventHandlerImpl {
 	ciEventHandlerImpl := &CiEventHandlerImpl{
 		logger:         logger,
 		pubsubClient:   pubsubClient,
 		webhookService: webhookService,
 	}
-	err := ciEventHandlerImpl.Subscribe()
+	err := util.AddStream(ciEventHandlerImpl.pubsubClient.JetStrCtxt, util.CI_RUNNER_STREAM)
+	if err != nil {
+		logger.Error(err)
+		return nil
+	}
+	err = ciEventHandlerImpl.Subscribe()
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -73,7 +74,7 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 }
 
 func (impl *CiEventHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(CI_COMPLETE_TOPIC, CI_COMPLETE_GROUP, func(msg *nats.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.CI_COMPLETE_TOPIC, util.CI_COMPLETE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("ci complete event received")
 		defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
@@ -93,7 +94,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			return
 		}
 		impl.logger.Debug(resp)
-	}, nats.Durable(CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(constants.CI_RUNNER_STREAM))
+	}, nats.Durable(util.CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.CI_RUNNER_STREAM))
 	if err != nil {
 		impl.logger.Error(err)
 		return err

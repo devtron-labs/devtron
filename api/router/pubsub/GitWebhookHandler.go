@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/git"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
@@ -37,18 +38,18 @@ type GitWebhookHandlerImpl struct {
 	gitWebhookService git.GitWebhookService
 }
 
-const newCiMaterialTopic = "GIT-SENSOR.NEW-CI-MATERIAL"
-const newCiMaterialTopicGroup = "GIT-SENSOR.NEW-CI-MATERIAL_GROUP-1"
-const newCiMaterialTopicDurable = "GIT-SENSOR-NEW-CI-MATERIAL_DURABLE-1"
-const GIT_SENSOR_STREAM = "GIT-SENSOR"
-
 func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, gitWebhookService git.GitWebhookService) *GitWebhookHandlerImpl {
 	gitWebhookHandlerImpl := &GitWebhookHandlerImpl{
 		logger:            logger,
 		pubsubClient:      pubsubClient,
 		gitWebhookService: gitWebhookService,
 	}
-	err := gitWebhookHandlerImpl.Subscribe()
+	err := util.AddStream(gitWebhookHandlerImpl.pubsubClient.JetStrCtxt, util.GIT_SENSOR_STREAM)
+	if err != nil {
+		logger.Error("err", err)
+		return nil
+	}
+	err = gitWebhookHandlerImpl.Subscribe()
 	if err != nil {
 		logger.Error("err", err)
 		return nil
@@ -57,7 +58,7 @@ func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSub
 }
 
 func (impl *GitWebhookHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(newCiMaterialTopic, newCiMaterialTopicGroup, func(msg *nats.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.NEW_CI_MATERIAL_TOPIC, util.NEW_CI_MATERIAL_TOPIC_GROUP, func(msg *nats.Msg) {
 		defer msg.Ack()
 		ciPipelineMaterial := gitSensor.CiPipelineMaterial{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciPipelineMaterial)
@@ -71,7 +72,7 @@ func (impl *GitWebhookHandlerImpl) Subscribe() error {
 			impl.logger.Error("err", err)
 			return
 		}
-	}, nats.Durable(newCiMaterialTopicDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(GIT_SENSOR_STREAM))
+	}, nats.Durable(util.NEW_CI_MATERIAL_TOPIC_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.GIT_SENSOR_STREAM))
 
 	if err != nil {
 		impl.logger.Error("err", err)

@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/pubsub"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -260,23 +259,10 @@ func (impl *EventRESTClientImpl) WriteNatsEvent(topic string, payload interface{
 	if err != nil {
 		return err
 	}
-
-	streamInfo, err := impl.pubsubClient.JetStrCtxt.StreamInfo(constants.ORCHESTRATOR_STREAM)
+	err = util1.AddStream(impl.pubsubClient.JetStrCtxt, util1.ORCHESTRATOR_STREAM)
 	if err != nil {
-		impl.logger.Errorw("Error while getting stream info", "stream name", constants.ORCHESTRATOR_STREAM, "error", err)
+		return err
 	}
-	if streamInfo == nil {
-		//Stream doesn't already exist. Create a new stream from jetStreamContext
-		_, err = impl.pubsubClient.JetStrCtxt.AddStream(&nats.StreamConfig{
-			Name:     constants.ORCHESTRATOR_STREAM,
-			Subjects: []string{constants.ORCHESTRATOR_STREAM + ".*"},
-		})
-		if err != nil {
-			impl.logger.Errorw("Error while creating stream", "stream name", constants.ORCHESTRATOR_STREAM, "error", err)
-			return err
-		}
-	}
-
 	//Generate random string for passing as Header Id in message
 	randString := "MsgHeaderId-" + util1.Generate(10)
 	_, err = impl.pubsubClient.JetStrCtxt.Publish(topic, body, nats.MsgId(randString))

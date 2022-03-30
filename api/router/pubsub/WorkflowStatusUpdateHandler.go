@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	util1 "github.com/devtron-labs/devtron/util"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -45,15 +46,6 @@ type WorkflowStatusUpdateHandlerImpl struct {
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
 }
 
-const workflowStatusUpdate = "KUBEWATCH.WORKFLOW_STATUS_UPDATE"
-const workflowStatusUpdateGroup = "WORKFLOW_STATUS_UPDATE_GROUP-1"
-const workflowStatusUpdateDurable = "WORKFLOW_STATUS_UPDATE_DURABLE-1"
-
-const cdWorkflowStatusUpdate = "KUBEWATCH.CD_WORKFLOW_STATUS_UPDATE"
-const cdWorkflowStatusUpdateGroup = "CD_WORKFLOW_STATUS_UPDATE_GROUP-1"
-const cdWorkflowStatusUpdateDurable = "CD_WORKFLOW_STATUS_UPDATE_DURABLE-1"
-const KUBEWATCH_STREAM = "KUBEWATCH"
-
 func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, ciHandler pipeline.CiHandler, cdHandler pipeline.CdHandler,
 	eventFactory client.EventFactory, eventClient client.EventClient, cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *WorkflowStatusUpdateHandlerImpl {
 	workflowStatusUpdateHandlerImpl := &WorkflowStatusUpdateHandlerImpl{
@@ -65,7 +57,12 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 		eventClient:          eventClient,
 		cdWorkflowRepository: cdWorkflowRepository,
 	}
-	err := workflowStatusUpdateHandlerImpl.Subscribe()
+	err := util1.AddStream(workflowStatusUpdateHandlerImpl.pubsubClient.JetStrCtxt, util1.KUBEWATCH_STREAM)
+	if err != nil {
+		logger.Error("err", err)
+		return nil
+	}
+	err = workflowStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
 		logger.Error("err", err)
 		return nil
@@ -79,7 +76,7 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 }
 
 func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(workflowStatusUpdate, workflowStatusUpdateGroup, func(msg *nats.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util1.WORKFLOW_STATUS_UPDATE_TOPIC, util1.WORKFLOW_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("received wf update request")
 		defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
@@ -93,7 +90,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))
 			return
 		}
-	}, nats.Durable(workflowStatusUpdateDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(KUBEWATCH_STREAM))
+	}, nats.Durable(util1.WORKFLOW_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util1.KUBEWATCH_STREAM))
 
 	if err != nil {
 		impl.logger.Error("err", err)
@@ -103,7 +100,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 }
 
 func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(cdWorkflowStatusUpdate, cdWorkflowStatusUpdateGroup, func(msg *nats.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util1.CD_WORKFLOW_STATUS_UPDATE, util1.CD_WORKFLOW_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("received cd wf update request")
 		defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
@@ -152,7 +149,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				}
 			}
 		}
-	}, nats.Durable(cdWorkflowStatusUpdateDurable), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(KUBEWATCH_STREAM))
+	}, nats.Durable(util1.CD_WORKFLOW_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util1.KUBEWATCH_STREAM))
 
 	if err != nil {
 		impl.logger.Error("err", err)

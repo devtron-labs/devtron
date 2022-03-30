@@ -172,7 +172,11 @@ func NewInstalledAppServiceImpl(chartRepository chartConfig.ChartRepository,
 		aCDAuthConfig:                        aCDAuthConfig,
 		gitOpsRepository:                     gitOpsRepository,
 	}
-	err := impl.Subscribe()
+	err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
+	if err != nil {
+		return nil, err
+	}
+	err = impl.Subscribe()
 	if err != nil {
 		return nil, err
 	}
@@ -1444,25 +1448,14 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 		if err != nil {
 			status = appstore.QUE_ERROR
 		} else {
-			streamInfo, err := impl.pubsubClient.JetStrCtxt.StreamInfo(constants.ORCHESTRATOR_STREAM)
-			if err != nil {
-				impl.logger.Errorw("Error while getting stream info", "stream name", constants.ORCHESTRATOR_STREAM, "error", err)
-			}
-			if streamInfo == nil {
-				//Stream doesn't already exist. Create a new stream from jetStreamContext
-				_, err = impl.pubsubClient.JetStrCtxt.AddStream(&nats.StreamConfig{
-					Name:     constants.ORCHESTRATOR_STREAM,
-					Subjects: []string{constants.ORCHESTRATOR_STREAM + ".*"},
-				})
-				if err != nil {
-					impl.logger.Errorw("Error while creating stream", "stream name", constants.ORCHESTRATOR_STREAM, "error", err)
-					return
-				}
-			}
+			err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
 
+			if err != nil {
+				impl.logger.Errorw("Error while adding stream.", "error", err)
+			}
 			//Generate random string for passing as Header Id in message
 			randString := "MsgHeaderId-" + util3.Generate(10)
-			_, err = impl.pubsubClient.JetStrCtxt.Publish(BULK_APPSTORE_DEPLOY_TOPIC, data, nats.MsgId(randString))
+			_, err = impl.pubsubClient.JetStrCtxt.Publish(util3.BULK_APPSTORE_DEPLOY_TOPIC, data, nats.MsgId(randString))
 			if err != nil {
 				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
 				status = appstore.QUE_ERROR
@@ -1482,7 +1475,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 }
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(BULK_APPSTORE_DEPLOY_TOPIC, BULK_APPSTORE_DEPLOY_GROUP, func(msg *nats.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util3.BULK_APPSTORE_DEPLOY_TOPIC, util3.BULK_APPSTORE_DEPLOY_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("cd stage event received")
 		defer msg.Ack()
 		deployPayload := &DeployPayload{}
@@ -1496,7 +1489,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
 		}
-	}, nats.Durable(BULK_APPSTORE_DEPLOY_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(constants.ORCHESTRATOR_STREAM))
+	}, nats.Durable(util3.BULK_APPSTORE_DEPLOY_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util3.ORCHESTRATOR_STREAM))
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err

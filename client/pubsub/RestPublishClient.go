@@ -20,7 +20,6 @@ package pubsub
 import (
 	"encoding/json"
 
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -47,23 +46,13 @@ type PublishRequest struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
+//TODO : adhiran : check the req.topic. We dont have dynamic topics listed in stream subjects arrary.So this might fail in
+//subscription if the subject name passed is not listed
 func (impl *NatsPublishClientImpl) Publish(req *PublishRequest) error {
-	streamInfo, err := impl.pubSubClient.JetStrCtxt.StreamInfo(constants.ORCHESTRATOR_STREAM)
+	err := util.AddStream(impl.pubSubClient.JetStrCtxt, util.ORCHESTRATOR_STREAM)
 	if err != nil {
-		impl.logger.Errorw("Error while getting stream info", "stream name", constants.ORCHESTRATOR_STREAM, "error", err)
+		impl.logger.Errorw("Error while adding stream", "err", err)
 	}
-	if streamInfo == nil {
-		//Stream doesn't already exist. Create a new stream from jetStreamContext
-		_, err = impl.pubSubClient.JetStrCtxt.AddStream(&nats.StreamConfig{
-			Name:     constants.ORCHESTRATOR_STREAM,
-			Subjects: []string{constants.ORCHESTRATOR_STREAM + ".*"},
-		})
-		if err != nil {
-			impl.logger.Errorw("Error while creating stream", "Stream name", constants.ORCHESTRATOR_STREAM, "error", err)
-			return err
-		}
-	}
-
 	//Generate random string for passing as Header Id in message
 	randString := "MsgHeaderId-" + util.Generate(10)
 	_, err = impl.pubSubClient.JetStrCtxt.Publish(req.Topic, req.Payload, nats.MsgId(randString))
