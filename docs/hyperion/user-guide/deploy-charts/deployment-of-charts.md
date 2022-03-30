@@ -6,7 +6,7 @@ Discover, Create, Deploy, Update, Upgrade, Delete charts.
 
 ## 1. Discover the chart from the Chart Store
 
-Select the `Charts` section from the left pane, you will be landed to the `Chart Store` page. 
+Select the `Charts` section from the left pane, you will land to the `Chart Store` page. 
 Search `nginx` or any other charts in search filter.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/overview-of-charts/deployment-of-charts/charts-1.jpg)
@@ -23,8 +23,7 @@ Enter the following details, to deploy chart:
 
 | Key | Description |
 | :--- | :--- |
-| `App Name` | Name of the Chart Unique|
-| `Project` |  Project in which you want to deploy the chart |
+| `App Name` | Name of the Chart Unique |
 | `Environment` | Environment in which you want to deploy the chart |
 | `Chart Version` | Chart version |
 | `Chart Value` | Latest default value or create a custom value |
