@@ -53,7 +53,6 @@ func NewMuxRouter(
 	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
-
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),

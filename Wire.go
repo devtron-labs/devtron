@@ -28,6 +28,7 @@ import (
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
+	"github.com/devtron-labs/devtron/api/deployment"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
@@ -163,6 +164,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(chartConfig.PipelineOverrideRepository), new(*chartConfig.PipelineOverrideRepositoryImpl)),
 		util.MergeUtil{},
 		util.NewSugardLogger,
+
+		deployment.NewDeploymentConfigRestHandlerImpl,
+		wire.Bind(new(deployment.DeploymentConfigRestHandler), new(*deployment.DeploymentConfigRestHandlerImpl)),
+		deployment.NewDeploymentRouterImpl,
+		wire.Bind(new(deployment.DeploymentConfigRouter), new(*deployment.DeploymentConfigRouterImpl)),
 		router.NewMuxRouter,
 
 		app2.NewAppRepositoryImpl,
@@ -300,6 +306,7 @@ func InitializeApp() (*App, error) {
 		pipeline.GetEcrConfig,
 		NewApp,
 		//session.NewK8sClient,
+
 		util.NewK8sUtil,
 		argocdServer.NewVersionServiceImpl,
 		wire.Bind(new(argocdServer.VersionService), new(*argocdServer.VersionServiceImpl)),
