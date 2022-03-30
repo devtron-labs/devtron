@@ -23,7 +23,7 @@ Enter the following details, to deploy chart:
 
 | Key | Description |
 | :--- | :--- |
-| `App Name` | Name of the Chart Unique |
+| `App Name` | Name of the Chart (Unique) |
 | `Environment` | Environment in which you want to deploy the chart |
 | `Chart Version` | Chart version |
 | `Chart Value` | Latest default value or create a custom value |
