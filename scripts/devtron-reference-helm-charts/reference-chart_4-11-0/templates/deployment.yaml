@@ -161,17 +161,15 @@ spec:
         - name: {{ $.Chart.Name }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
-{{- if $.Values.privileged }}
-          securityContext:
-            privileged: true
-{{- end}}
-{{- if $.Values.containerSecurityContext }}
-          securityContext:
-{{ toYaml .Values.containerSecurityContext | indent 12 }}
-{{- end }}
 {{- if and $.Values.containerSecurityContext $.Values.privileged }}
           securityContext:
             privileged: true
+{{ toYaml .Values.containerSecurityContext | indent 12 }}
+{{- else if $.Values.privileged }}
+          securityContext:
+            privileged: true
+{{- else if $.Values.containerSecurityContext }}
+          securityContext:
 {{ toYaml .Values.containerSecurityContext | indent 12 }}
 {{- end }}
           ports:

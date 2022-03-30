@@ -20,8 +20,11 @@ defaultCacheBucketRegion = jsonSelect(operatorConfigMap, "data.DEFAULT_CACHE_BUC
 defaultBuildLogsBucket = jsonSelect(operatorConfigMap, "data.DEFAULT_BUILD_LOGS_BUCKET");
 externalSecretAmazonRegion = jsonSelect(operatorConfigMap, "data.EXTERNAL_SECRET_AMAZON_REGION");
 prometheusUrl = jsonSelect(operatorConfigMap, "data.PROMETHEUS_URL");
+helmInstallation = jsonSelect(operatorConfigMap, "data.INSTALLATION_THROUGH_HELM");
+devtronServiceType = jsonSelect(operatorConfigMap, "data.DEVTRON_SERVICE_TYPE");
 setupDevtronIngress = jsonSelect(operatorConfigMap, "data.ENABLE_INGRESS");
 devtronIngressAnnotations = jsonSelect(operatorConfigMap, "data.INGRESS_ANNOTATIONS");
+devtronIngressClassName = jsonSelect(operatorConfigMap, "data.INGRESS_CLASS_NAME");
 
 cloudProvider = jsonSelect(operatorConfigMap, "data.BLOB_STORAGE_PROVIDER");
 azureAccountName = jsonSelect(operatorConfigMap, "data.AZURE_ACCOUNT_NAME");
@@ -577,38 +580,89 @@ externaSecretRegion = `env:
 
 kubeYamlEdit(devtron, `data.dt-k8s-external-secrets\.yaml`, externaSecretRegion, `/ConfigMap//devtron-cluster-components`);
 
-if !setupDevtronIngress {
-  kubeYamlEdit(devtron, "spec.type", "LoadBalancer", `/Service//devtron-service`);
+if helmInstallation {
+  kubeYamlDelete(devtron, filter=`/Service//devtron-service`);
+}
+
+if !helmInstallation {
+  kubeYamlEdit(devtron, "spec.type", devtronServiceType, `/Service//devtron-service`);
 }
 
 devtron = kubectl apply -n devtroncd devtron -u devtronOverride;
 log("executed devtron setup");
 
-if devtronIngressAnnotations {
-    log("editing ingress");
-	kubeYamlEdit(devtronIngress, "metadata.annotations", devtronIngressAnnotations, `extensions/Ingress//devtron-ingress`, "asObject");
+if helmInstallation {
+  log("executed devtron ingress setup");
 }
 
-if setupDevtronIngress {
-  log("fetch ingress");
-  existingIngress = kubectl get -n devtroncd ing devtron-ingress;
+if !helmInstallation {
+  if enableLegacyApi=="true" {
+    if devtronIngressAnnotations {
+      log("editing ingress");
+      kubeYamlEdit(devtronIngress, "metadata.annotations", devtronIngressAnnotations, `extensions/Ingress//devtron-ingress`, "asObject");
+    }
+
+    if devtronIngressClassName {
+      log("for legacy ingress class is managed in annotations");
+    }
+
+    if setupDevtronIngress {
+      log("fetch ingress");
+      existingIngress = kubectl get -n devtroncd ing devtron-ingress;
+    }
+
+    if existingIngress {
+      annotations = jsonSelect(existingIngress, "metadata.annotations");
+    }
+
+    if annotations {
+      kubeYamlEdit(devtronIngress, "metadata.annotations", annotations, `extensions/Ingress//devtron-ingress`, "asObject");
+    }
+
+    if setupDevtronIngress {
+      log("setup ingress");
+      log(devtronIngress);
+      devtronIngress = kubectl apply -n devtroncd devtronIngress -u devtronIngressOverride;
+    }
+  }
+  else {
+    if devtronIngressAnnotations {
+      log("editing ingress");
+      kubeYamlEdit(devtronIngress, "metadata.annotations", devtronIngressAnnotations, `networking.k8s.io/Ingress//devtron-ingress`, "asObject");
+    }
+
+    if devtronIngressClassName {
+      log("editing ingressClassName");
+      kubeYamlEdit(devtronIngress, "spec.ingressClassName", devtronIngressClassName, `networking.k8s.io/Ingress//devtron-ingress`);
+    }
+
+    if setupDevtronIngress {
+      log("fetch ingress");
+      existingIngress = kubectl get -n devtroncd ing devtron-ingress;
+    }
+
+    if existingIngress {
+      annotations = jsonSelect(existingIngress, "metadata.annotations");
+      className = jsonSelect(existingIngress, "spec.ingressClassName");
+    }
+
+    if annotations {
+      kubeYamlEdit(devtronIngress, "metadata.annotations", annotations, `networking.k8s.io/Ingress//devtron-ingress`, "asObject");
+    }
+
+    if className {
+      kubeYamlEdit(devtronIngress, "spec.ingressClassName", annotations, `networking.k8s.io/Ingress//devtron-ingress`);
+    }
+
+    if setupDevtronIngress {
+      log("setup ingress");
+      log(devtronIngress);
+      devtronIngress = kubectl apply -n devtroncd devtronIngress -u devtronIngressOverride;
+    }
+  }
+  log("executed devtron ingress setup");
 }
 
-if existingIngress {
-	annotations = jsonSelect(existingIngress, "metadata.annotations");
-}
-
-if annotations {
-  kubeYamlEdit(devtronIngress, "metadata.annotations", annotations, `extensions/Ingress//devtron-ingress`, "asObject");
-}
-
-if setupDevtronIngress {
-  log("setup ingress");
-  log(devtronIngress);
-  devtronIngress = kubectl apply -n devtroncd devtronIngress -u devtronIngressOverride;
-}
-
-log("executed devtron ingress setup");
 guard = kubectl apply -n devtroncd guard -u guardOverride;
 log("executed guard setup");
 dashboard = kubectl apply -n devtroncd dashboard -u dashboardOverride;
