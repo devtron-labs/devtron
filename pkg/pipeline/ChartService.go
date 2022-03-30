@@ -1345,9 +1345,9 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		ChartLocation:   "",
 		TemporaryFolder: "",
 	}
-	temporaryChartWorkingDir := filepath.Join(refChartDir, location)
+	temporaryChartWorkingDir := filepath.Clean(filepath.Join(refChartDir, location))
 	if location == "" {
-		temporaryChartWorkingDir = filepath.Join(refChartDir, dir)
+		temporaryChartWorkingDir = filepath.Clean(filepath.Join(refChartDir, dir))
 	}
 	err := os.MkdirAll(temporaryChartWorkingDir, os.ModePerm)
 	if err != nil {
@@ -1396,7 +1396,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			return chartInfo, err
 		}
 
-		currentChartWorkingDir := filepath.Join(temporaryChartWorkingDir, fileName)
+		currentChartWorkingDir := filepath.Clean(filepath.Join(temporaryChartWorkingDir, fileName))
 
 		err = util2.CheckForMissingFiles(currentChartWorkingDir)
 		if err != nil {
@@ -1404,7 +1404,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			return chartInfo, err
 		}
 
-		err = dirCopy.Copy(currentChartWorkingDir, filepath.Join(refChartDir, chartLocation))
+		err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, chartLocation)))
 		if err != nil {
 			impl.logger.Errorw("error in copying chart from temp dir to ref chart dir", "err", err)
 			return chartInfo, err

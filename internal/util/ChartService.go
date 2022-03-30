@@ -99,7 +99,7 @@ func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, e
 		if !file.IsDir() {
 			name := strings.ToLower(file.Name())
 			if name == "chart.yaml" || name == "chart.yml" {
-				chartYamlContent, err := ioutil.ReadFile(filepath.Join(location, file.Name()))
+				chartYamlContent, err := ioutil.ReadFile(filepath.Clean(filepath.Join(location, file.Name())))
 				if err != nil {
 					impl.logger.Errorw("failed reading data from file", "err", err)
 				}
