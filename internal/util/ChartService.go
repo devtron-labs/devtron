@@ -82,28 +82,37 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (ChartTemplateServiceImpl) GetChartVersion(location string) (string, error) {
+func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, error) {
 	if fi, err := os.Stat(location); err != nil {
 		return "", err
 	} else if !fi.IsDir() {
 		return "", fmt.Errorf("%q is not a directory", location)
 	}
 
-	chartYaml := filepath.Join(location, "Chart.yaml")
-	if _, err := os.Stat(chartYaml); os.IsNotExist(err) {
-		return "", fmt.Errorf("no Chart.yaml exists in directory %q", location)
-	}
-	//chartYaml = filepath.Join(chartYaml,filepath.Clean(chartYaml))
-	chartYamlContent, err := ioutil.ReadFile(filepath.Clean(chartYaml))
+	files, err := ioutil.ReadDir(location)
 	if err != nil {
-		return "", fmt.Errorf("cannot read Chart.Yaml in directory %q", location)
+		impl.logger.Errorw("failed reading directory", "err", err)
+		return "", fmt.Errorf(" Couldn't read the %q", location)
 	}
 
-	chartContent, err := chartutil.UnmarshalChartfile(chartYamlContent)
-	if err != nil {
-		return "", fmt.Errorf("cannot read Chart.Yaml in directory %q", location)
+	for _, file := range files {
+		if !file.IsDir() {
+			name := strings.ToLower(file.Name())
+			if name == "chart.yaml" || name == "chart.yml" {
+				chartYamlContent, err := ioutil.ReadFile(filepath.Join(location, file.Name()))
+				if err != nil {
+					impl.logger.Errorw("failed reading data from file", "err", err)
+				}
+				chartContent, err := chartutil.UnmarshalChartfile(chartYamlContent)
+				if err != nil {
+					return "", fmt.Errorf("cannot read Chart yaml or yml in directory %q", location)
+				}
+				return chartContent.Version, nil
+			}
+		}
 	}
-	return chartContent.Version, nil
+
+	return "", fmt.Errorf("no Chart.yaml or yml exists in directory %q", location)
 }
 
 func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error) {
@@ -230,38 +239,65 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(gitOpsRepoName, baseTemp
 }
 
 func (impl ChartTemplateServiceImpl) getValues(directory string) (values *ChartValues, err error) {
-	appOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(directory, "app-values.yaml")))
-	if err != nil {
+
+	if fi, err := os.Stat(directory); err != nil {
 		return nil, err
-	}
-	appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
-	if err != nil {
-		return nil, err
-	}
-	envOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(directory, "env-values.yaml")))
-	if err != nil {
-		return nil, err
-	}
-	envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
-	if err != nil {
-		return nil, err
-	}
-	releaseOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(directory, "release-values.yaml")))
-	if err != nil {
-		return nil, err
-	}
-	releaseOverrideByte, err = yaml.YAMLToJSON(releaseOverrideByte)
-	if err != nil {
-		return nil, err
+	} else if !fi.IsDir() {
+		return nil, fmt.Errorf("%q is not a directory", directory)
 	}
 
-	pipelineOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(directory, "pipeline-values.yaml")))
+	files, err := ioutil.ReadDir(directory)
 	if err != nil {
-		return nil, err
+		impl.logger.Errorw("failed reading directory", "err", err)
+		return nil, fmt.Errorf(" Couldn't read the %q", directory)
 	}
-	pipelineOverrideByte, err = yaml.YAMLToJSON(pipelineOverrideByte)
-	if err != nil {
-		return nil, err
+
+	var appOverrideByte, envOverrideByte, releaseOverrideByte, pipelineOverrideByte []byte
+
+	for _, file := range files {
+		if !file.IsDir() {
+			name := strings.ToLower(file.Name())
+			if name == "app-values.yaml" || name == "app-values.yml" {
+				appOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
+				if err != nil {
+					impl.logger.Errorw("failed reading data from file", "err", err)
+				}
+				appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if name == "env-values.yaml" || name == "env-values.yml" {
+				envOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
+				if err != nil {
+					impl.logger.Errorw("failed reading data from file", "err", err)
+				}
+				envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if name == "release-values.yaml" || name == "release-values.yml" {
+				releaseOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
+				if err != nil {
+					impl.logger.Errorw("failed reading data from file", "err", err)
+				}
+				releaseOverrideByte, err = yaml.YAMLToJSON(releaseOverrideByte)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if name == "pipeline-values.yaml" || name == "pipeline-values.yml" {
+				pipelineOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
+				if err != nil {
+					impl.logger.Errorw("failed reading data from file", "err", err)
+				}
+				pipelineOverrideByte, err = yaml.YAMLToJSON(pipelineOverrideByte)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
 	}
 
 	val := &ChartValues{
