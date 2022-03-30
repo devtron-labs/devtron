@@ -9,11 +9,11 @@ Discover, Create, Deploy, Update, Upgrade, Delete charts.
 Select the `Charts` section from the left pane, you will land to the `Chart Store` page. 
 Search `nginx` or any other charts in search filter.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/overview-of-charts/deployment-of-charts/charts-1.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-1.jpg)
 
 Click on chart and it will redirect you to `Chart Details` page where you can see number of instances deployed by using the same chart.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-2.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-2.jpg)
 
 ## 2. Configure the Chart
 
@@ -28,7 +28,7 @@ Enter the following details, to deploy chart:
 | `Chart Version` | Chart version |
 | `Chart Value` | Latest default value or create a custom value |
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-3.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-3.jpg)
 
 you can choose any chart version, values and update it on values.yaml
 
@@ -41,7 +41,7 @@ After clicking on `Deploy` you will land on a page that shows the status of the 
 The status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
 In case the status of the deployment is `Degraded` or takes a long time to get deployed, click on `Details` in `Application Status` section on same page or check the logs of the pods to debug the issue.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-4.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-4.jpg)
 
 1. shows status of deployed chart.
 
@@ -53,22 +53,25 @@ In case the status of the deployment is `Degraded` or takes a long time to get d
 
 ## 4. Update or Upgrade Chart
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-5.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-5.jpg)
 
 For update you can change its `chart version` or `values.yaml` and then click on `Update And Deploy`.
 
 For upgrade click on `Repo/Chart` field and search any chart name like `nginx-ingress` and change values corresponding to that chart and Click on `Update And Deploy`.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-6.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-6.jpg)
 
 
 After update or upgrade you again will land on `App Detail` page, where you can check pods and service name.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-7.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-7.jpg)
+
+You can also see deployment history Helm application and values.yaml corresponding to the deployment by clicking on `Deployment history`.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-9.jpg)
 
 ## 5. Chart Details and Delete Charts
 
 By clicking on `View Chart` in `Chart Used` section on `App Details` page, it will redirect you to `Chart Details` page where you can see number of instances installed by this chart and also you can delete chart instance from here.
 
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-8.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-8.jpg)
