@@ -374,6 +374,15 @@ This defines annotations and the type of service, optionally can define name als
     type: ClusterIP
     annotations: {}
 ```
+| Key | Description |
+| :--- | :--- |
+| `type` | Select the type of service, default `ClusterIP` |
+| `annotations` | Annotations are widely used to attach metadata and configs in Kubernetes. |
+| `name` | Optional field to assign name to service  |
+| `loadBalancerSourceRanges` | If service type is `LoadBalancer`, In order to limit which client IP's can access the Network Load Balancer. |
+
+Note - If `loadBalancerSourceRanges` is not set, Kubernetes allows traffic from 0.0.0.0/0 to the Node Security Group(s). 
+
 
 ### Volumes
 
