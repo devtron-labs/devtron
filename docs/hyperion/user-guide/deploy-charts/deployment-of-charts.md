@@ -55,9 +55,9 @@ In case the status of the deployment is `Degraded` or takes a long time to get d
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-5.jpg)
 
-For update you can change its `chart version` or `values.yaml` and then click on `Update And Deploy`.
+For update you can change its `values.yaml` and then click on `Update And Deploy`.
 
-For upgrade click on `Repo/Chart` field and search any chart name like `nginx-ingress` and change values corresponding to that chart and Click on `Update And Deploy`.
+For upgrade change values corresponding to that chart and Click on `Update And Deploy`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-6.jpg)
 
