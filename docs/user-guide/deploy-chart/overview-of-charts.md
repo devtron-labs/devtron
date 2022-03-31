@@ -36,15 +36,19 @@ Readme.md present on the left can be used by the user to set configuration value
 
 Click on `Deploy Chart` to deploy the chart.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-5.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-5-2.jpg)
 
 Click on `App Details` to see the status and details of the deployed chart  and click on `Values` to reconfigure the deployment.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-6.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-6-2.jpg)
 
 Configuration values can be edited over here by the help of Readme.md .
 
-Select Update And Deploy to update new settings.
+Click on `Update And Deploy` to update new settings.
+You can also see deployment history Helm application and values.yaml corresponding to the deployment by clicking on `Deployment history`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-9-2.jpg)
+
 ### Custom Values
 
 You can use the default values or create Custom value by clicking on `Create Custom`.
@@ -53,7 +57,7 @@ You can use the default values or create Custom value by clicking on `Create Cus
 
 You can name your Custom Value, select the Chart Version and change the configurations in YAML file.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-8.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-8-2.jpg)
 
 Click on `Save Template` to save the configurations.
 

@@ -29,6 +29,7 @@ Create Chart Group And Deploy App store applications.
 ## 3.Bulk Deploy and Edit Option for Charts
 
 1. You can see all the charts in the chart group in right panel. Click on `Deploy to..`, this will pop up a dialog box.
+
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-4.jpg)
 
 2. Select `Project` and `Environment` where you want to deploy the chart group.
