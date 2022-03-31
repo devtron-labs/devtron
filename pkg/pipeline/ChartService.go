@@ -1336,7 +1336,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		ChartLocation:   "",
 		TemporaryFolder: "",
 	}
-	temporaryChartWorkingDir := filepath.Clean(filepath.Join(refChartDir, location))
+	temporaryChartWorkingDir := filepath.Clean(refChartDir)
 	if location == "" {
 		temporaryChartWorkingDir = filepath.Clean(filepath.Join(refChartDir, dir))
 	}
