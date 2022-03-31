@@ -47,7 +47,7 @@ Configuration values can be edited over here by the help of Readme.md .
 Click on `Update And Deploy` to update new settings.
 You can also see deployment history Helm application and values.yaml corresponding to the deployment by clicking on `Deployment history`.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-9-2.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-9-2.jpg)
 
 ### Custom Values
 
