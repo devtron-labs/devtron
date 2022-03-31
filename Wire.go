@@ -83,6 +83,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/pkg/plugin"
+	repository4 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -670,8 +672,22 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history3.ConfigMapHistoryService), new(*history3.ConfigMapHistoryServiceImpl)),
 		history3.NewPipelineStrategyHistoryServiceImpl,
 		wire.Bind(new(history3.PipelineStrategyHistoryService), new(*history3.PipelineStrategyHistoryServiceImpl)),
-
 		//history ends
+
+		//plugin starts
+		repository4.NewGlobalPluginRepository,
+		wire.Bind(new(repository4.GlobalPluginRepository), new(*repository4.GlobalPluginRepositoryImpl)),
+
+		plugin.NewGlobalPluginService,
+		wire.Bind(new(plugin.GlobalPluginService), new(*plugin.GlobalPluginServiceImpl)),
+
+		restHandler.NewGlobalPluginRestHandler,
+		wire.Bind(new(restHandler.GlobalPluginRestHandler), new(*restHandler.GlobalPluginRestHandlerImpl)),
+
+		router.NewGlobalPluginRouter,
+		wire.Bind(new(router.GlobalPluginRouter), new(*router.GlobalPluginRouterImpl)),
+		//plugin ends
+
 		//	AuthWireSet,
 	)
 	return &App{}, nil

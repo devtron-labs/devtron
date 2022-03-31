@@ -94,6 +94,7 @@ type MuxRouter struct {
 	k8sApplicationRouter             k8s.K8sApplicationRouter
 	pProfRouter                      PProfRouter
 	deploymentConfigRouter           deployment.DeploymentConfigRouter
+	globalPluginRouter               GlobalPluginRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -115,7 +116,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
-	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter) *MuxRouter {
+	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter,
+	globalPluginRouter GlobalPluginRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -169,6 +171,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		k8sApplicationRouter:             k8sApplicationRouter,
 		pProfRouter:                      pProfRouter,
 		deploymentConfigRouter:           deploymentConfigRouter,
+		globalPluginRouter:               globalPluginRouter,
 	}
 	return r
 }
@@ -325,6 +328,9 @@ func (r MuxRouter) Init() {
 
 	pProfListenerRouter := r.Router.PathPrefix("/orchestrator/debug/pprof").Subrouter()
 	r.pProfRouter.initPProfRouter(pProfListenerRouter)
+
+	globalPluginRouter := r.Router.PathPrefix("/orchestrator/plugin").Subrouter()
+	r.globalPluginRouter.initGlobalPluginRouter(globalPluginRouter)
 
 	//  deployment router starts
 	deploymentConfigSubRouter := r.Router.PathPrefix("/orchestrator/deployment/template").Subrouter()

@@ -134,7 +134,6 @@ CREATE TABLE "public"."plugin_step_variables"
     "default_value"               varchar(255),
     "value"                       varchar(255),
     "variable_type"               varchar(255),   -- INPUT or OUTPUT
-    "index"                       integer,
     "value_type"                  varchar(255),   -- NEW, FROM_PREVIOUS_STEP or GLOBAL
     "previous_step_index"         integer,
     "reference_variable_name"     text,
