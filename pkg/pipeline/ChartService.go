@@ -1396,7 +1396,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 
 		location = chartLocation
 	}
-	err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, chartLocation)))
+	err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, location)))
 	if err != nil {
 		impl.logger.Errorw("error in copying chart from temp dir to ref chart dir", "err", err)
 		return chartInfo, err
