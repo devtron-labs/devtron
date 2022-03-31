@@ -1273,7 +1273,7 @@ func (impl ChartServiceImpl) CheckChartExists(chartRefId int) error {
 
 	refChartDir := filepath.Clean(filepath.Join(string(impl.refChartDir), chartRef.Location))
 	if _, err := os.Stat(refChartDir); os.IsNotExist(err) {
-		_, err = impl.ExtractChartIfMissing(chartRef.ChartData, refChartDir, chartRef.Location)
+		_, err = impl.ExtractChartIfMissing(chartRef.ChartData, string(impl.refChartDir), chartRef.Location)
 		return err
 	}
 	return nil
