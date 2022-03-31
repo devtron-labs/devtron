@@ -1273,7 +1273,13 @@ func (impl ChartServiceImpl) CheckChartExists(chartRefId int) error {
 
 	refChartDir := filepath.Clean(filepath.Join(string(impl.refChartDir), chartRef.Location))
 	if _, err := os.Stat(refChartDir); os.IsNotExist(err) {
-		_, err = impl.ExtractChartIfMissing(chartRef.ChartData, string(impl.refChartDir), chartRef.Location)
+		chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, string(impl.refChartDir), chartRef.Location)
+		if chartInfo.TemporaryFolder != "" {
+			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+			if err1 != nil {
+				impl.logger.Errorw("error in deleting temp dir ", "err", err)
+			}
+		}
 		return err
 	}
 	return nil
