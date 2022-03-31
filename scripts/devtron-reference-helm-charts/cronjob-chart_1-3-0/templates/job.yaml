@@ -28,7 +28,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include ".Chart.Name .fullname" $ }}-{{ .Release.Revision }}
+  name: {{ include ".Chart.Name .fullname" $ }}-{{ randAlphaNum 5 | lower }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
@@ -61,6 +61,7 @@ spec:
 {{ toYaml .Values.podLabels | indent 8 }}
 {{- end }}
     spec:
+      shareProcessNamespace: {{ $.Values.shareProcessNamespace }}
       terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
       restartPolicy: OnFailure
 {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
@@ -85,7 +86,7 @@ spec:
 {{- if $.Values.podSecurityContext }}
       securityContext:
 {{ toYaml .Values.podSecurityContext | indent 8 }}
-{{- end }}
+{{- end }}  
 {{- if $.Values.imagePullSecrets}}
       imagePullSecrets:
   {{- range .Values.imagePullSecrets }}
