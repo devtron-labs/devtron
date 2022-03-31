@@ -5,6 +5,7 @@ server:
    enabled: false
 dbMigrationConfig:
   enabled: false
+  jobs: []
 
 pauseForSecondsBeforeSwitchActive: 0
 waitForSecondsBeforeScalingDown: 0
