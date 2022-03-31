@@ -21,11 +21,11 @@ import (
 	"testing"
 )
 
-var client *K8sUtil
+var k8sUtilClient *K8sUtil
 var clusterConfig *ClusterConfig
 
 func init() {
-	client = NewK8sUtil(NewSugardLogger())
+	k8sUtilClient = NewK8sUtil(NewSugardLogger())
 	clusterConfig = &ClusterConfig{
 		Host:        "",
 		BearerToken: "",
@@ -53,7 +53,7 @@ func TestK8sUtil_checkIfNsExists(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			impl := client
+			impl := k8sUtilClient
 			k8s, _ := impl.GetClient(clusterConfig)
 			gotExists, err := impl.checkIfNsExists(tt.namespace, k8s)
 			if (err != nil) != tt.wantErr {
@@ -81,7 +81,7 @@ func TestK8sUtil_CreateNsIfNotExists(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			impl := client
+			impl := k8sUtilClient
 			if err := impl.CreateNsIfNotExists(tt.namespace, clusterConfig); (err != nil) != tt.wantErr {
 				t.Errorf("K8sUtil.CreateNsIfNotExists() error = %v, wantErr %v", err, tt.wantErr)
 			}

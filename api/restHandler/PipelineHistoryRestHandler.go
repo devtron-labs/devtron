@@ -3,7 +3,6 @@ package restHandler
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/appStore/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -37,7 +36,6 @@ type PipelineHistoryRestHandlerImpl struct {
 	configMapHistoryService          history2.ConfigMapHistoryService
 	prePostCiScriptHistoryService    history2.PrePostCiScriptHistoryService
 	prePostCdScriptHistoryService    history2.PrePostCdScriptHistoryService
-	appStoreChartsHistoryService     history.AppStoreChartsHistoryService
 	pipelineBuilder                  pipeline.PipelineBuilder
 	enforcerUtil                     rbac.EnforcerUtil
 }
@@ -48,7 +46,6 @@ func NewPipelineHistoryRestHandlerImpl(logger *zap.SugaredLogger, userAuthServic
 	configMapHistoryService history2.ConfigMapHistoryService,
 	prePostCiScriptHistoryService history2.PrePostCiScriptHistoryService,
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService,
-	appStoreChartsHistoryService history.AppStoreChartsHistoryService,
 	pipelineBuilder pipeline.PipelineBuilder,
 	enforcerUtil rbac.EnforcerUtil) *PipelineHistoryRestHandlerImpl {
 	return &PipelineHistoryRestHandlerImpl{
@@ -60,7 +57,6 @@ func NewPipelineHistoryRestHandlerImpl(logger *zap.SugaredLogger, userAuthServic
 		configMapHistoryService:          configMapHistoryService,
 		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
 		prePostCiScriptHistoryService:    prePostCiScriptHistoryService,
-		appStoreChartsHistoryService:     appStoreChartsHistoryService,
 		pipelineBuilder:                  pipelineBuilder,
 		enforcerUtil:                     enforcerUtil,
 	}

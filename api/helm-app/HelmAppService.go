@@ -32,6 +32,7 @@ type HelmAppService interface {
 	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (*InstallReleaseResponse, error)
 	UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, updateReleaseRequest *InstallReleaseRequest) (*openapi.UpdateReleaseResponse, error)
 	IsReleaseInstalled(ctx context.Context, app *AppIdentifier) (bool, error)
+	RollbackRelease(ctx context.Context, app *AppIdentifier, version int32) (bool, error)
 }
 
 type HelmAppServiceImpl struct {
@@ -378,7 +379,6 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfo(ctx context.Conte
 	return response, nil
 }
 
-
 func (impl *HelmAppServiceImpl) IsReleaseInstalled(ctx context.Context, app *AppIdentifier) (bool, error) {
 	config, err := impl.getClusterConf(app.ClusterId)
 	if err != nil {
@@ -401,6 +401,30 @@ func (impl *HelmAppServiceImpl) IsReleaseInstalled(ctx context.Context, app *App
 	return apiResponse.Result, nil
 }
 
+func (impl *HelmAppServiceImpl) RollbackRelease(ctx context.Context, app *AppIdentifier, version int32) (bool, error) {
+	config, err := impl.getClusterConf(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
+		return false, err
+	}
+
+	req := &RollbackReleaseRequest{
+		ReleaseIdentifier: &ReleaseIdentifier{
+			ClusterConfig:    config,
+			ReleaseName:      app.ReleaseName,
+			ReleaseNamespace: app.Namespace,
+		},
+		Version: version,
+	}
+
+	apiResponse, err := impl.helmAppClient.RollbackRelease(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in rollback release", "err", err)
+		return false, err
+	}
+
+	return apiResponse.Result, nil
+}
 
 type AppIdentifier struct {
 	ClusterId   int    `json:"clusterId"`

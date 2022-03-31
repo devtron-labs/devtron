@@ -53,6 +53,8 @@ type InstalledAppRestHandler interface {
 	CheckAppExists(w http.ResponseWriter, r *http.Request)
 	DefaultComponentInstallation(w http.ResponseWriter, r *http.Request)
 	FetchAppDetailsForInstalledApp(w http.ResponseWriter, r *http.Request)
+	GetDeploymentHistory(w http.ResponseWriter, r *http.Request)
+	GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -466,4 +468,74 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		handler.Logger.Infow("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
+}
+
+func (handler *InstalledAppRestHandlerImpl) GetDeploymentHistory(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	installedAppId, err := strconv.Atoi(vars["installedAppId"])
+	if err != nil {
+		handler.Logger.Errorw("request err", "error", err, "installedAppId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetDeploymentHistoryValues", "err", err, "installedAppId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	//rbac block starts from here
+	object := handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rback block ends here
+	response, err := handler.installedAppService.GetInstalledAppVersionHistory(installedAppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, response, http.StatusOK)
+}
+
+func (handler *InstalledAppRestHandlerImpl) GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	installedAppId, err := strconv.Atoi(vars["installedAppId"])
+	if err != nil {
+		handler.Logger.Errorw("request err", "error", err, "installedAppId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	installedAppVersionHistoryId, err := strconv.Atoi(vars["version"])
+	if err != nil {
+		handler.Logger.Errorw("request err", "error", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetDeploymentHistoryValues", "err", err, "installedAppId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	//rbac block starts from here
+	object := handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rback block ends here
+
+	response, err := handler.installedAppService.GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, response, http.StatusOK)
 }

@@ -1270,7 +1270,6 @@ func (impl ChartServiceImpl) CheckChartExists(chartRefId int) error {
 		impl.logger.Errorw("error in finding ref chart by id", "err", err)
 		return err
 	}
-
 	refChartDir := filepath.Clean(filepath.Join(string(impl.refChartDir), chartRef.Location))
 	if _, err := os.Stat(refChartDir); os.IsNotExist(err) {
 		chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, string(impl.refChartDir), chartRef.Location)
@@ -1393,13 +1392,11 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			impl.logger.Errorw("error in fetching name and version in Chart yaml", "err", err)
 			return chartInfo, err
 		}
-
 		err = util2.CheckForMissingFiles(currentChartWorkingDir)
 		if err != nil {
 			impl.logger.Errorw("Missing files in the folder", "err", err)
 			return chartInfo, err
 		}
-
 		location = chartLocation
 	}
 	err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, location)))
