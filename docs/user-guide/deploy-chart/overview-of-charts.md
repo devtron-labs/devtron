@@ -45,7 +45,7 @@ Click on `App Details` to see the status and details of the deployed chart  and 
 Configuration values can be edited over here by the help of Readme.md .
 
 Click on `Update And Deploy` to update new settings.
-You can also see deployment history Helm application and values.yaml corresponding to the deployment by clicking on `Deployment history`.
+You can also see deployment history of Helm application and values.yaml corresponding to the deployment by clicking on `Deployment history`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-9-2.jpg)
 

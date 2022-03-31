@@ -42,7 +42,7 @@ After clicking on `Deploy` you will land on a page that shows the status of the 
 The status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
 In case the status of the deployment is `Degraded` or takes a long time to get deployed, click on `Details` in `Application Status` section on same page or check the logs of the pods to debug the issue.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-4.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-4-2.jpg)
 
 1. shows status of deployed chart.
 
@@ -54,22 +54,22 @@ In case the status of the deployment is `Degraded` or takes a long time to get d
 
 ## 4. Update or Upgrade Chart
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-5.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-5-2.jpg)
 
 For update you can change its `chart version` or `values.yaml` and then click on `Update And Deploy`.
 
 For upgrade click on `Repo/Chart` field and search any chart name like `nginx-ingress` and change values corresponding to that chart and Click on `Update And Deploy`.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-6.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-6-2.jpg)
 
 
 After update or upgrade you again will land on `App Detail` page, where you can check pods and service name.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-7.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-7-2.jpg)
 
 ## 5. Chart Details and Delete Charts
 
 By clicking on `View Chart` in `Chart Used` section on `App Details` page, it will redirect you to `Chart Details` page where you can see number of instances installed by this chart and also you can delete chart instance from here.
 
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-8.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-8-2.jpg)
