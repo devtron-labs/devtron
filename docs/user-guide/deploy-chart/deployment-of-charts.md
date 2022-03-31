@@ -52,6 +52,11 @@ In case the status of the deployment is `Degraded` or takes a long time to get d
 
 4. Clicking on `View Chart` will land you to the page where you can see all the running instances of this chart.
 
+To see deployment history of Helm application, click on `Deployment history` from `App details` page.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/overview-of-charts/overview-of-charts-9.jpg)
+
+
 ## 4. Update or Upgrade Chart
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-5-2.jpg)
