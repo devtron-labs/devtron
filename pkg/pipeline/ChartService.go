@@ -1336,10 +1336,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		ChartLocation:   "",
 		TemporaryFolder: "",
 	}
-	temporaryChartWorkingDir := filepath.Clean(refChartDir)
-	if location == "" {
-		temporaryChartWorkingDir = filepath.Clean(filepath.Join(refChartDir, dir))
-	}
+	temporaryChartWorkingDir := filepath.Clean(filepath.Join(refChartDir, dir))
 	err := os.MkdirAll(temporaryChartWorkingDir, os.ModePerm)
 	if err != nil {
 		impl.logger.Errorw("error in creating directory, CallbackConfigMap", "err", err)
@@ -1356,17 +1353,21 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 	var chartName string
 	var chartVersion string
 	var fileName string
-	if location == "" {
-		files, err := ioutil.ReadDir(temporaryChartWorkingDir)
-		if err != nil {
-			impl.logger.Errorw("error in reading err dir", "err", err)
-			return chartInfo, err
-		}
 
-		fileName = files[0].Name()
-		if strings.HasPrefix(files[0].Name(), ".") {
-			fileName = files[1].Name()
-		}
+	files, err := ioutil.ReadDir(temporaryChartWorkingDir)
+	if err != nil {
+		impl.logger.Errorw("error in reading err dir", "err", err)
+		return chartInfo, err
+	}
+
+	fileName = files[0].Name()
+	if strings.HasPrefix(files[0].Name(), ".") {
+		fileName = files[1].Name()
+	}
+
+	currentChartWorkingDir := filepath.Clean(filepath.Join(temporaryChartWorkingDir, fileName))
+
+	if location == "" {
 		chartName, chartVersion, err = impl.ReadChartMetaDataForLocation(temporaryChartWorkingDir, fileName)
 		if err != nil {
 			impl.logger.Errorw("Chart yaml file not found")
@@ -1387,21 +1388,18 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			return chartInfo, err
 		}
 
-		currentChartWorkingDir := filepath.Clean(filepath.Join(temporaryChartWorkingDir, fileName))
-
 		err = util2.CheckForMissingFiles(currentChartWorkingDir)
 		if err != nil {
 			impl.logger.Errorw("Missing files in the folder", "err", err)
 			return chartInfo, err
 		}
 
-		err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, chartLocation)))
-		if err != nil {
-			impl.logger.Errorw("error in copying chart from temp dir to ref chart dir", "err", err)
-			return chartInfo, err
-		}
-
 		location = chartLocation
+	}
+	err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, chartLocation)))
+	if err != nil {
+		impl.logger.Errorw("error in copying chart from temp dir to ref chart dir", "err", err)
+		return chartInfo, err
 	}
 	chartInfo.ChartLocation = location
 	chartInfo.ChartName = chartName
