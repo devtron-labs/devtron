@@ -91,7 +91,7 @@ func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, e
 
 	chartYaml := filepath.Join(location, "Chart.yaml")
 	if _, err := os.Stat(chartYaml); os.IsNotExist(err) {
-		return "", fmt.Errorf("no Chart.yaml exists in directory %q", location)
+		return "", fmt.Errorf("Chart.yaml file not present in the directory %q", location)
 	}
 	//chartYaml = filepath.Join(chartYaml,filepath.Clean(chartYaml))
 	chartYamlContent, err := ioutil.ReadFile(filepath.Clean(chartYaml))

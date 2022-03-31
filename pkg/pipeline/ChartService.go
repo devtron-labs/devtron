@@ -1305,7 +1305,7 @@ func (impl ChartServiceImpl) ReadChartMetaDataForLocation(chartDir string, fileN
 
 	chartYamlPath := filepath.Clean(filepath.Join(chartLocation, "Chart.yaml"))
 	if _, err := os.Stat(chartYamlPath); os.IsNotExist(err) {
-		return "", "", fmt.Errorf("no Chart.yaml exists in directory")
+		return "", "", fmt.Errorf("Chart.yaml file not present in the directory")
 	}
 
 	data, err := ioutil.ReadFile(chartYamlPath)
