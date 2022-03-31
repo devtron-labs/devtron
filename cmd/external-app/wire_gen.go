@@ -28,8 +28,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
-	"github.com/devtron-labs/devtron/pkg/appStore/discover"
 	"github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/discover/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/history/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/repository"
@@ -160,7 +160,7 @@ func InitializeApp() (*App, error) {
 	chartRepositoryRestHandlerImpl := chartRepo2.NewChartRepositoryRestHandlerImpl(sugaredLogger, userServiceImpl, chartRepositoryServiceImpl, enforcerImpl, validate, deleteServiceImpl, chartRefRepositoryImpl, refChartDir)
 	chartRepositoryRouterImpl := chartRepo2.NewChartRepositoryRouterImpl(chartRepositoryRestHandlerImpl)
 	appStoreApplicationVersionRepositoryImpl := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
-	appStoreServiceImpl := appStoreDiscover.NewAppStoreServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl)
+	appStoreServiceImpl := service.NewAppStoreServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl)
 	appStoreRestHandlerImpl := appStoreDiscover2.NewAppStoreRestHandlerImpl(sugaredLogger, userServiceImpl, appStoreServiceImpl, enforcerImpl)
 	appStoreDiscoverRouterImpl := appStoreDiscover2.NewAppStoreDiscoverRouterImpl(appStoreRestHandlerImpl)
 	appStoreVersionValuesRepositoryImpl := appStoreValuesRepository.NewAppStoreVersionValuesRepositoryImpl(sugaredLogger, db)

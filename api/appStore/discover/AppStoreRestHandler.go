@@ -20,7 +20,7 @@ package appStoreDiscover
 import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDiscover "github.com/devtron-labs/devtron/pkg/appStore/discover"
+	"github.com/devtron-labs/devtron/pkg/appStore/discover/service"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -39,13 +39,13 @@ type AppStoreRestHandler interface {
 }
 
 type AppStoreRestHandlerImpl struct {
-	Logger           *zap.SugaredLogger
-	appStoreService  appStoreDiscover.AppStoreService
-	userAuthService  user.UserService
-	enforcer         casbin.Enforcer
+	Logger          *zap.SugaredLogger
+	appStoreService service.AppStoreService
+	userAuthService user.UserService
+	enforcer        casbin.Enforcer
 }
 
-func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appStoreService appStoreDiscover.AppStoreService,
+func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appStoreService service.AppStoreService,
 	enforcer casbin.Enforcer) *AppStoreRestHandlerImpl {
 	return &AppStoreRestHandlerImpl{
 		Logger:           Logger,

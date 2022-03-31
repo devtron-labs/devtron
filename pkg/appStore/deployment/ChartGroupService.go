@@ -15,7 +15,7 @@
  *
  */
 
-package appStore
+package appStoreDeployment
 
 import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"

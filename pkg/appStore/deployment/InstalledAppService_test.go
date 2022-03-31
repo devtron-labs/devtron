@@ -1,4 +1,4 @@
-package appStore
+package appStoreDeployment
 
 import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -9,7 +9,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
@@ -45,7 +44,7 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		aCDAuthConfig                        *util2.ACDAuthConfig
 		gitOpsRepository                     repository3.GitOpsConfigRepository
 		userService                          user.UserService
-		appStoreDeploymentService            appStoreDeployment.AppStoreDeploymentService
+		appStoreDeploymentService            AppStoreDeploymentService
 		appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	}
 	type args struct {

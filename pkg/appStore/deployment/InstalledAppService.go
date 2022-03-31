@@ -15,7 +15,7 @@
  *
  */
 
-package appStore
+package appStoreDeployment
 
 import (
 	"bytes"
@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
@@ -100,7 +99,7 @@ type InstalledAppServiceImpl struct {
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
 	userService                          user.UserService
-	appStoreDeploymentService            appStoreDeployment.AppStoreDeploymentService
+	appStoreDeploymentService            AppStoreDeploymentService
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	installedAppRepositoryHistory        appStoreRepository.InstalledAppVersionHistoryRepository
 }
@@ -120,7 +119,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	envService cluster2.EnvironmentService, argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
-	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
+	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory appStoreRepository.InstalledAppVersionHistoryRepository) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,

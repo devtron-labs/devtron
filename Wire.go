@@ -64,8 +64,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
-	appStore "github.com/devtron-labs/devtron/pkg/appStore"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDeployment2 "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
@@ -422,8 +422,8 @@ func InitializeApp() (*App, error) {
 
 		appStoreRestHandler.NewInstalledAppRestHandlerImpl,
 		wire.Bind(new(appStoreRestHandler.InstalledAppRestHandler), new(*appStoreRestHandler.InstalledAppRestHandlerImpl)),
-		appStore.NewInstalledAppServiceImpl,
-		wire.Bind(new(appStore.InstalledAppService), new(*appStore.InstalledAppServiceImpl)),
+		appStoreDeployment2.NewInstalledAppServiceImpl,
+		wire.Bind(new(appStoreDeployment2.InstalledAppService), new(*appStoreDeployment2.InstalledAppServiceImpl)),
 
 		appStoreRestHandler.NewAppStoreRouterImpl,
 		wire.Bind(new(appStoreRestHandler.AppStoreRouter), new(*appStoreRestHandler.AppStoreRouterImpl)),
@@ -510,8 +510,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appStoreRepository.ChartGroupReposotory), new(*appStoreRepository.ChartGroupReposotoryImpl)),
 		appStoreRepository.NewChartGroupEntriesRepositoryImpl,
 		wire.Bind(new(appStoreRepository.ChartGroupEntriesRepository), new(*appStoreRepository.ChartGroupEntriesRepositoryImpl)),
-		appStore.NewChartGroupServiceImpl,
-		wire.Bind(new(appStore.ChartGroupService), new(*appStore.ChartGroupServiceImpl)),
+		appStoreDeployment2.NewChartGroupServiceImpl,
+		wire.Bind(new(appStoreDeployment2.ChartGroupService), new(*appStoreDeployment2.ChartGroupServiceImpl)),
 		restHandler.NewChartGroupRestHandlerImpl,
 		wire.Bind(new(restHandler.ChartGroupRestHandler), new(*restHandler.ChartGroupRestHandlerImpl)),
 		router.NewChartGroupRouterImpl,

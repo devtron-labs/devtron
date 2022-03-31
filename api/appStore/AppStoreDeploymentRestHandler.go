@@ -28,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/appStore"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -60,7 +59,7 @@ type InstalledAppRestHandlerImpl struct {
 	userAuthService           user.UserService
 	enforcer                  casbin.Enforcer
 	enforcerUtil              rbac.EnforcerUtil
-	installedAppService       appStore.InstalledAppService
+	installedAppService       appStoreDeployment.InstalledAppService
 	validator                 *validator.Validate
 	clusterService            cluster.ClusterService
 	acdServiceClient          application.ServiceClient
@@ -68,7 +67,7 @@ type InstalledAppRestHandlerImpl struct {
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, installedAppService appStore.InstalledAppService,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, installedAppService appStoreDeployment.InstalledAppService,
 	validator *validator.Validate, clusterService cluster.ClusterService, acdServiceClient application.ServiceClient,
 	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
 ) *InstalledAppRestHandlerImpl {
