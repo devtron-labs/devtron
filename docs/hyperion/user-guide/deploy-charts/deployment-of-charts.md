@@ -51,7 +51,7 @@ In case the status of the deployment is `Degraded` or takes a long time to get d
 
 4. Clicking on `View Chart` will land you to the page where you can see all the running instances of this chart.
 
-## 4. Update or Upgrade Chart
+## 4. Update Chart
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-5.jpg)
 
@@ -60,11 +60,11 @@ For update you can change its `values.yaml` and then click on `Update And Deploy
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-6.jpg)
 
 
-After update or upgrade you again will land on `App Detail` page, where you can check pods and service name.
+After update you again will land on `App Detail` page, where you can check pods and service name.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-7.jpg)
 
-You can also see deployment history Helm application and values.yaml corresponding to the deployment by clicking on `Deployment history`.
+You can also see deployment history of Helm application and values.yaml corresponding to the deployment by clicking on `Deployment history`.
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/deployment-of-charts/charts-9.jpg)
 
 ## 5. Chart Details and Delete Charts
