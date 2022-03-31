@@ -404,7 +404,7 @@ func (impl AppServiceImpl) getDbMigrationOverride(overrideRequest *bean.ValuesOv
 	envVal := &EnvironmentOverride{}
 	if notConfigured {
 		impl.logger.Warnw("no active db migration found", "pipeline", overrideRequest.PipelineId)
-		envVal.Enabled = false
+		envVal.Enabled = true
 	} else {
 		materialInfos, err := artifact.ParseMaterialInfo()
 		if err != nil {
