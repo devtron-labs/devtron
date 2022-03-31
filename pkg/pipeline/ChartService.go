@@ -1271,7 +1271,7 @@ func (impl ChartServiceImpl) CheckChartExists(chartRefId int) error {
 		return err
 	}
 
-	refChartDir := filepath.Join(string(impl.refChartDir), chartRef.Location)
+	refChartDir := filepath.Clean(filepath.Join(string(impl.refChartDir), chartRef.Location))
 	if _, err := os.Stat(refChartDir); os.IsNotExist(err) {
 		_, err = impl.ExtractChartIfMissing(chartRef.ChartData, refChartDir, chartRef.Location)
 		return err
@@ -1301,39 +1301,30 @@ func (impl *ChartServiceImpl) ValidateUploadedFileFormat(fileName string) error 
 }
 
 func (impl ChartServiceImpl) ReadChartMetaDataForLocation(chartDir string, fileName string) (string, string, error) {
-	chartLocation := filepath.Join(chartDir, fileName)
+	chartLocation := filepath.Clean(filepath.Join(chartDir, fileName))
 
-	files, err := ioutil.ReadDir(chartLocation)
+	chartYamlPath := filepath.Clean(filepath.Join(chartLocation, "Chart.yaml"))
+	if _, err := os.Stat(chartYamlPath); os.IsNotExist(err) {
+		return "", "", fmt.Errorf("no Chart.yaml exists in directory")
+	}
+
+	data, err := ioutil.ReadFile(chartYamlPath)
 	if err != nil {
-		impl.logger.Errorw("failed reading directory", "err", err)
+		impl.logger.Errorw("failed reading data from file", "err", err)
 		return "", "", err
 	}
-
-	for _, file := range files {
-		if !file.IsDir() {
-			name := strings.ToLower(file.Name())
-			if name == "chart.yaml" || name == "chart.yml" {
-				data, err := ioutil.ReadFile(filepath.Join(chartLocation, file.Name()))
-				if err != nil {
-					impl.logger.Errorw("failed reading data from file", "err", err)
-					return "", "", err
-				}
-				//println(data)
-				var chartYaml ChartYamlStruct
-				err = yaml.Unmarshal(data, &chartYaml)
-				if err != nil {
-					impl.logger.Errorw("Unmarshal error of yaml file", "err", err)
-					return "", "", err
-				}
-				if chartYaml.Name == "" || chartYaml.Version == "" {
-					impl.logger.Errorw("Missing values in yaml file either name or version", "err", err)
-					return "", "", errors.New("Missing values in yaml file either name or version")
-				}
-				return chartYaml.Name, chartYaml.Version, nil
-			}
-		}
+	//println(data)
+	var chartYaml ChartYamlStruct
+	err = yaml.Unmarshal(data, &chartYaml)
+	if err != nil {
+		impl.logger.Errorw("Unmarshal error of yaml file", "err", err)
+		return "", "", err
 	}
-	return "", "", errors.New("Charts yaml file not found")
+	if chartYaml.Name == "" || chartYaml.Version == "" {
+		impl.logger.Errorw("Missing values in yaml file either name or version", "err", err)
+		return "", "", errors.New("Missing values in yaml file either name or version")
+	}
+	return chartYaml.Name, chartYaml.Version, nil
 }
 
 func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error) {

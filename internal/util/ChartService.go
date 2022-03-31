@@ -89,30 +89,22 @@ func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, e
 		return "", fmt.Errorf("%q is not a directory", location)
 	}
 
-	files, err := ioutil.ReadDir(location)
+	chartYaml := filepath.Join(location, "Chart.yaml")
+	if _, err := os.Stat(chartYaml); os.IsNotExist(err) {
+		return "", fmt.Errorf("no Chart.yaml exists in directory %q", location)
+	}
+	//chartYaml = filepath.Join(chartYaml,filepath.Clean(chartYaml))
+	chartYamlContent, err := ioutil.ReadFile(filepath.Clean(chartYaml))
 	if err != nil {
-		impl.logger.Errorw("failed reading directory", "err", err)
-		return "", fmt.Errorf(" Couldn't read the %q", location)
+		return "", fmt.Errorf("cannot read Chart.Yaml in directory %q", location)
 	}
 
-	for _, file := range files {
-		if !file.IsDir() {
-			name := strings.ToLower(file.Name())
-			if name == "chart.yaml" || name == "chart.yml" {
-				chartYamlContent, err := ioutil.ReadFile(filepath.Clean(filepath.Join(location, file.Name())))
-				if err != nil {
-					impl.logger.Errorw("failed reading data from file", "err", err)
-				}
-				chartContent, err := chartutil.UnmarshalChartfile(chartYamlContent)
-				if err != nil {
-					return "", fmt.Errorf("cannot read Chart yaml or yml in directory %q", location)
-				}
-				return chartContent.Version, nil
-			}
-		}
+	chartContent, err := chartutil.UnmarshalChartfile(chartYamlContent)
+	if err != nil {
+		return "", fmt.Errorf("cannot read Chart.Yaml in directory %q", location)
 	}
 
-	return "", fmt.Errorf("no Chart.yaml or yml exists in directory %q", location)
+	return chartContent.Version, nil
 }
 
 func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error) {
