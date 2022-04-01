@@ -50,7 +50,6 @@ type AppStoreDeploymentRestHandler interface {
 	DeleteInstalledApp(w http.ResponseWriter, r *http.Request)
 	LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request)
 	RollbackApplication(w http.ResponseWriter, r *http.Request)
-	GetDeploymentHistory(w http.ResponseWriter, r *http.Request)
 	GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request)
 }
 
@@ -378,17 +377,6 @@ func (handler *AppStoreDeploymentRestHandlerImpl) RollbackApplication(w http.Res
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistory(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	mode := vars["mode"]
-	if mode == util2.SERVER_MODE_HYPERION {
-		//handler.GetDeploymentHistoryFromHelm(w, r)
-		handler.helmAppRestHandler.GetDeploymentHistory(w, r)
-	} else if mode == util2.SERVER_MODE_FULL {
-		handler.GetDeploymentHistoryFromDb(w, r)
-	}
-}
-
 func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	mode := vars["mode"]
@@ -398,72 +386,6 @@ func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w h
 	} else if mode == util2.SERVER_MODE_FULL {
 		handler.GetDeploymentHistoryValuesFromDb(w, r)
 	}
-}
-
-func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistoryFromDb(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	installedAppId, err := strconv.Atoi(vars["installedAppId"])
-	if err != nil {
-		handler.Logger.Errorw("request err", "error", err, "installedAppId", installedAppId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	token := r.Header.Get("token")
-	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
-	if err != nil {
-		handler.Logger.Errorw("service err, GetDeploymentHistoryValues", "err", err, "installedAppId", installedAppId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	//rbac block starts from here
-	object := handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
-	//rback block ends here
-	response, err := handler.appStoreDeploymentService.GetInstalledAppVersionHistory(installedAppId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	common.WriteJsonResp(w, err, response, http.StatusOK)
-}
-func (handler *AppStoreDeploymentRestHandlerImpl) GetDeploymentHistoryFromHelm(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	appId := vars["appId"]
-	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtilHelm.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-
-	deploymentHistory, err := handler.helmAppService.GetDeploymentHistory(context.Background(), appIdentifier)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	installedApp, err := handler.appStoreDeploymentServiceC.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	res := &client.DeploymentHistoryAndInstalledAppInfo{
-		DeploymentHistory: deploymentHistory.GetDeploymentHistory(),
-		InstalledAppInfo:  convertToInstalledAppInfo(installedApp),
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) *client.InstalledAppInfo {

@@ -36,6 +36,7 @@ type MuxRouter struct {
 	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
 	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
+	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
 }
 
 func NewMuxRouter(
@@ -53,6 +54,7 @@ func NewMuxRouter(
 	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
+	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -70,6 +72,7 @@ func NewMuxRouter(
 		appStoreDiscoverRouter:   appStoreDiscoverRouter,
 		appStoreValuesRouter:     appStoreValuesRouter,
 		appStoreDeploymentRouter: appStoreDeploymentRouter,
+		commonDeploymentRouter:   commonDeploymentRouter,
 	}
 	return r
 }
@@ -126,6 +129,8 @@ func (r *MuxRouter) Init() {
 
 	helmApp := r.Router.PathPrefix("/orchestrator/application").Subrouter()
 	r.helmAppRouter.InitAppListRouter(helmApp)
+	r.commonDeploymentRouter.Init(helmApp)
+
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
 	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
 
