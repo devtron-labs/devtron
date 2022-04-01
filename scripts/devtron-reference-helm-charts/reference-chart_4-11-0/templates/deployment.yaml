@@ -310,6 +310,7 @@ spec:
           {{- if eq .subPath false }}
             - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath }}
+	  
           {{- else }}
           {{- range $k, $v := .data }}
             - name: {{ $cmName | replace "." "-"}}-vol
