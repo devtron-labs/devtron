@@ -360,7 +360,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HelmAppDeploymentManifestDetail"
-  /orchestrator/app-store/installed-app/deployment-history:
+  /orchestrator/app-store/deployment/deployment-history:
     get:
       description: deployment history of helm app
       parameters:
@@ -369,9 +369,26 @@ paths:
           example: "100"
           description: devtron charts installed instance id
           required: true
-          allowEmptyValue: false
+          allowEmptyValue: true
           schema:
             type: number
+            format: int32
+        - in: query
+          name: mode
+          example: "FULL"
+          description: devtron offering EA_ONLY/FULL
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+        - in: query
+          name: appId
+          example: "12|helm-app|cluster1-ns1"
+          description: app identifier
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: string
       responses:
         "200":
           description: deployment history
@@ -379,22 +396,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeploymentHistoryAndInstalledAppInfo"
-  /orchestrator/app-store/installed-app/deployment-history/info:
+  /orchestrator/app-store/deployment/deployment-history/info:
     get:
       description: deployment history detail info, values
       parameters:
         - in: query
-          name: installedAppId
-          example: "100"
-          description: devtron charts installed instance id
+          name: mode
+          example: "FULL"
+          description: devtron offering EA_ONLY/FULL
           required: true
           allowEmptyValue: false
           schema:
             type: string
         - in: query
+          name: installedAppId
+          example: "100"
+          description: devtron charts installed id
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: integer
+            format: int32
+        - in: query
+          name: appId
+          example: "12|helm-app|cluster1-ns1"
+          description: app identifier
+          required: true
+          allowEmptyValue: true
+          schema:
+            type: string
+        - in: query
           name: version
           example: 1
-          description: installed app version id
+          description: installed app version history id
           required: true
           allowEmptyValue: false
           schema:
