@@ -83,11 +83,15 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 	appOfferingMode, err := handler.getAppOfferingMode(vars["installedAppId"], vars["appId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
+		return
 	}
 	if appOfferingMode == util2.SERVER_MODE_HYPERION {
 		handler.helmAppRestHandler.GetDeploymentHistory(w, r)
 	} else if appOfferingMode == util2.SERVER_MODE_FULL {
 		handler.GetDeploymentHistoryFromDb(w, r)
+	} else if len(appOfferingMode) == 0 {
+		//here is case when unable to find data in db for helm apps, helm CLI app could be the reason
+		handler.helmAppRestHandler.GetDeploymentHistory(w, r)
 	} else {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
 	}
@@ -149,8 +153,11 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 			err = &util.ApiError{HttpStatusCode: http.StatusInternalServerError, UserMessage: "unable to find app in database"}
 			return appOfferingMode, err
 		}
+	} else {
+		err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "both types of app ids are present in request"}
+		return appOfferingMode, err
 	}
-	if installedApp.Id > 0 {
+	if installedApp != nil && installedApp.InstalledAppId > 0 {
 		appOfferingMode = installedApp.AppOfferingMode
 	}
 	return appOfferingMode, nil
@@ -165,6 +172,9 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 		handler.helmAppRestHandler.GetDeploymentDetail(w, r)
 	} else if appOfferingMode == util2.SERVER_MODE_FULL {
 		handler.GetDeploymentHistoryValuesFromDb(w, r)
+	} else if len(appOfferingMode) == 0 {
+		//here is case when unable to find data in db for helm apps, helm CLI app could be the reason
+		handler.helmAppRestHandler.GetDeploymentDetail(w, r)
 	} else {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
 	}
