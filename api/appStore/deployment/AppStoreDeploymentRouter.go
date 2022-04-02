@@ -48,13 +48,4 @@ func (router AppStoreDeploymentRouterImpl) Init(configRouter *mux.Router) {
 
 	configRouter.Path("/application/helm/link-to-chart-store").
 		HandlerFunc(router.appStoreDeploymentRestHandler.LinkHelmApplicationToChartStore).Methods("PUT")
-
-	configRouter.Path("/application/rollback").
-		HandlerFunc(router.appStoreDeploymentRestHandler.RollbackApplication).Methods("PUT")
-
-	configRouter.Path("/deployment-history/info").
-		Queries("appId", "{appId}").
-		Queries("installedAppId", "{installedAppId}").
-		Queries("version", "{version}").
-		HandlerFunc(router.appStoreDeploymentRestHandler.GetDeploymentHistoryValues).Methods("GET")
 }

@@ -164,4 +164,5 @@ func (impl AppStoreDeploymentHelmServiceImpl) RollbackRelease(ctx context.Contex
 	}
 	installedApp.ValuesOverrideYaml = string(valuesYamlByteArr)
 	return installedApp, success, nil
+	//VIKI
 }

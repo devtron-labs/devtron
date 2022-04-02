@@ -43,4 +43,12 @@ func (router CommonDeploymentRouterImpl) Init(configRouter *mux.Router) {
 		Queries("appId", "{appId}").
 		HandlerFunc(router.commonDeploymentRestHandler.GetDeploymentHistory).Methods("GET")
 
+	configRouter.Path("/deployment-history/info").
+		Queries("appId", "{appId}").
+		Queries("installedAppId", "{installedAppId}").
+		Queries("version", "{version}").
+		HandlerFunc(router.commonDeploymentRestHandler.GetDeploymentHistoryValues).Methods("GET")
+
+	configRouter.Path("/rollback").
+		HandlerFunc(router.commonDeploymentRestHandler.RollbackApplication).Methods("PUT")
 }

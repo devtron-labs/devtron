@@ -321,9 +321,6 @@ func (r MuxRouter) Init() {
 	webhookListenerRouter := r.Router.PathPrefix("/orchestrator/webhook/git").Subrouter()
 	r.WebhookListenerRouter.InitWebhookListenerRouter(webhookListenerRouter)
 
-	externalApp := r.Router.PathPrefix("/orchestrator/application").Subrouter()
-	r.helmAppRouter.InitAppListRouter(externalApp)
-
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
 	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
 
@@ -335,7 +332,9 @@ func (r MuxRouter) Init() {
 	r.deploymentConfigRouter.Init(deploymentConfigSubRouter)
 	// deployment router ends
 
-	//GitAcd + HelmCLi both apps deployment history
-	helmApp := r.Router.PathPrefix("/orchestrator/helm-app").Subrouter()
+	//GitOps,Acd + HelmCLi both apps deployment related api's
+	helmApp := r.Router.PathPrefix("/orchestrator/application").Subrouter()
 	r.commonDeploymentRouter.Init(helmApp)
+	//this router must placed after commonDeploymentRouter
+	r.helmAppRouter.InitAppListRouter(helmApp)
 }

@@ -36,7 +36,7 @@ func (impl *HelmAppRouterImpl) InitAppListRouter(helmRouter *mux.Router) {
 	helmRouter.Path("/delete").Queries("appId", "{appId}").
 		HandlerFunc(impl.helmAppRestHandler.DeleteApplication).Methods("DELETE")
 
-	helmRouter.Path("/deployment-detail").Queries("appId", "{appId}").Queries("version", "{version}").
+	helmRouter.Path("/deployment-history/info").Queries("appId", "{appId}").Queries("version", "{version}").
 		HandlerFunc(impl.helmAppRestHandler.GetDeploymentDetail).Methods("GET")
 
 	helmRouter.Path("/rollback").HandlerFunc(impl.helmAppRestHandler.RollbackApplication).Methods("PUT")
