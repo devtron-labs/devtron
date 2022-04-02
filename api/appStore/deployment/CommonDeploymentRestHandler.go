@@ -24,12 +24,15 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/util"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -77,11 +80,16 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 
 func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	mode := vars["mode"]
-	if mode == util2.SERVER_MODE_HYPERION {
+	appOfferingMode, err := handler.getAppOfferingMode(vars["installedAppId"], vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
+	}
+	if appOfferingMode == util2.SERVER_MODE_HYPERION {
 		handler.helmAppRestHandler.GetDeploymentHistory(w, r)
-	} else if mode == util2.SERVER_MODE_FULL {
+	} else if appOfferingMode == util2.SERVER_MODE_FULL {
 		handler.GetDeploymentHistoryFromDb(w, r)
+	} else {
+		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
 	}
 }
 
@@ -116,13 +124,49 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryFromDb(w htt
 	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 
+func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppId string, appId string) (string, error) {
+	var installedApp *appStoreBean.InstallAppVersionDTO
+	var appOfferingMode string
+	if len(installedAppId) == 0 && len(appId) > 0 {
+		appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
+		if err != nil {
+			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id"}
+			return appOfferingMode, err
+		}
+		installedApp, err = handler.appStoreDeploymentServiceC.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+		if err != nil && err != pg.ErrNoRows {
+			err = &util.ApiError{HttpStatusCode: http.StatusInternalServerError, UserMessage: "unable to find app in database"}
+			return appOfferingMode, err
+		}
+	} else if len(installedAppId) > 0 && len(appId) == 0 {
+		installedAppId, err := strconv.Atoi(installedAppId)
+		if err != nil {
+			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid installed app id"}
+			return appOfferingMode, err
+		}
+		installedApp, err = handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
+		if err != nil {
+			err = &util.ApiError{HttpStatusCode: http.StatusInternalServerError, UserMessage: "unable to find app in database"}
+			return appOfferingMode, err
+		}
+	}
+	if installedApp.Id > 0 {
+		appOfferingMode = installedApp.AppOfferingMode
+	}
+	return appOfferingMode, nil
+}
 func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	mode := vars["mode"]
-	if mode == util2.SERVER_MODE_HYPERION {
+	appOfferingMode, err := handler.getAppOfferingMode(vars["installedAppId"], vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
+	}
+	if appOfferingMode == util2.SERVER_MODE_HYPERION {
 		handler.helmAppRestHandler.GetDeploymentDetail(w, r)
-	} else if mode == util2.SERVER_MODE_FULL {
+	} else if appOfferingMode == util2.SERVER_MODE_FULL {
 		handler.GetDeploymentHistoryValuesFromDb(w, r)
+	} else {
+		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
 	}
 }
 
