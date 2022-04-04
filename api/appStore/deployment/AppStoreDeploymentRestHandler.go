@@ -141,7 +141,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 	}
 	ctx = context.WithValue(r.Context(), "token", token)
 	defer cancel()
-	res, err := handler.appStoreDeploymentService.InstallApp(&request, ctx, true)
+	res, err := handler.appStoreDeploymentService.InstallApp(&request, ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "application spec is invalid") {
 			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}
