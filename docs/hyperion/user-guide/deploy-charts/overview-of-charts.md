@@ -16,14 +16,13 @@ Click on `README.md` to get more idea about the configurations of the chart.
 
 Select the Chart Version that you want to use and Chart Value, you can either use the Default Values or Custom Values.
 
-To know about Custom Values, Click On: [Custom Values](overview-of-charts.md#custom-values)
+To know about Custom Values, click on [Custom Values](overview-of-charts.md#custom-values)
 
 The configuration values can be edited in the section given below Chart Version.
 
 | Key | Description |
 | :--- | :--- |
 | `App Name` | Name of the app |
-| `Project` | Project of the app |
 | `Environment` | Environment of the app to be deployed in |
 | `Chart Version` | Version of the chart to be used |
 
