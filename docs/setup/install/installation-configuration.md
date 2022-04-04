@@ -43,6 +43,10 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 |CD_NODE_LABEL_SELECTOR | Label of CD node | kubernetes.io/os=linux| Optional|
 |CD_NODE_TAINTS_KEY| Taint key name of CD node| dedicated | Optional|
 |CD_NODE_TAINTS_VALUE| Value of taint key of CD node| ci | Optional|
+|CD_LIMIT_CI_CPU|CPU limit for pre and post CD Pod |0.5| Optional|
+|CD_LIMIT_CI_MEM| Memory limit for pre and post CD Pod|3G|Optional|
+|CD_REQ_CI_CPU|CPU request for pre and post post CD Pod|0.5|Optional|
+|CD_REQ_CI_MEM|Memory request for pre and post CD Pod |1G|Optional|
 |CD_DEFAULT_ADDRESS_POOL_BASE_CIDR | CIDR ranges used to allocate subnets in each IP address pool for CD | "" | Optional|
 |CD_DEFAULT_ADDRESS_POOL_SIZE | The subnet size to allocate from the base pool for CD | "" | Optional|
 |GITOPS_REPO_PREFIX | Prefix for Gitops repository | devtron |Optional|
