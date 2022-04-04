@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
@@ -18,7 +17,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type HelmAppRestHandler interface {
@@ -32,7 +30,6 @@ type HelmAppRestHandler interface {
 	DeleteApplication(w http.ResponseWriter, r *http.Request)
 	UpdateApplication(w http.ResponseWriter, r *http.Request)
 	GetDeploymentDetail(w http.ResponseWriter, r *http.Request)
-	RollbackApplication(w http.ResponseWriter, r *http.Request)
 }
 
 type HelmAppRestHandlerImpl struct {
@@ -418,41 +415,6 @@ func (handler *HelmAppRestHandlerImpl) GetDeploymentDetail(w http.ResponseWriter
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *HelmAppRestHandlerImpl) RollbackApplication(w http.ResponseWriter, r *http.Request) {
-	request := &openapi2.RollbackReleaseRequest{}
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(request)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(request.GetHAppId())
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-	success, err := handler.helmAppService.RollbackRelease(ctx, appIdentifier, request.GetVersion())
-	if err != nil {
-		handler.logger.Errorw("error in rollback helm release", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	res := &openapi2.RollbackReleaseResponse{
-		Success: &success,
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
 
 func (handler *HelmAppRestHandlerImpl) checkHelmAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, strings.ToLower(object)); !ok {

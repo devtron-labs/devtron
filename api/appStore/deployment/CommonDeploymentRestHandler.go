@@ -80,7 +80,7 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 
 func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	appOfferingMode, err := handler.getAppOfferingMode(vars["installedAppId"], vars["appId"])
+	appOfferingMode, _, err := handler.getAppOfferingMode(vars["installedAppId"], vars["appId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
 		return
@@ -89,9 +89,6 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 		handler.helmAppRestHandler.GetDeploymentHistory(w, r)
 	} else if appOfferingMode == util2.SERVER_MODE_FULL {
 		handler.GetDeploymentHistoryFromDb(w, r)
-	} else if len(appOfferingMode) == 0 {
-		//here is case when unable to find data in db for helm apps, helm CLI app could be the reason
-		handler.helmAppRestHandler.GetDeploymentHistory(w, r)
 	} else {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
 	}
@@ -128,43 +125,56 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryFromDb(w htt
 	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 
-func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppId string, appId string) (string, error) {
-	var installedApp *appStoreBean.InstallAppVersionDTO
+func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppId string, appId string) (string, *appStoreBean.InstallAppVersionDTO, error) {
+	installedAppDto := &appStoreBean.InstallAppVersionDTO{}
 	var appOfferingMode string
-	if len(installedAppId) == 0 && len(appId) > 0 {
+	if len(appId) > 0 {
 		appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
 		if err != nil {
 			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id"}
-			return appOfferingMode, err
+			return appOfferingMode, installedAppDto, err
 		}
-		installedApp, err = handler.appStoreDeploymentServiceC.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+		installedAppDto, err = handler.appStoreDeploymentServiceC.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 		if err != nil && err != pg.ErrNoRows {
 			err = &util.ApiError{HttpStatusCode: http.StatusInternalServerError, UserMessage: "unable to find app in database"}
-			return appOfferingMode, err
+			return appOfferingMode, installedAppDto, err
 		}
-	} else if len(installedAppId) > 0 && len(appId) == 0 {
+		if err == pg.ErrNoRows {
+			appOfferingMode = util2.SERVER_MODE_HYPERION
+			installedAppDto.InstalledAppId = 0
+			installedAppDto.AppOfferingMode = appOfferingMode
+			appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
+			if err != nil {
+				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id"}
+				return appOfferingMode, installedAppDto, err
+			}
+			installedAppDto.ClusterId = appIdentifier.ClusterId
+			installedAppDto.Namespace = appIdentifier.Namespace
+			installedAppDto.AppName = appIdentifier.ReleaseName
+		}
+	} else if len(installedAppId) > 0 {
 		installedAppId, err := strconv.Atoi(installedAppId)
 		if err != nil {
 			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid installed app id"}
-			return appOfferingMode, err
+			return appOfferingMode, installedAppDto, err
 		}
-		installedApp, err = handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
+		installedAppDto, err = handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
 		if err != nil {
 			err = &util.ApiError{HttpStatusCode: http.StatusInternalServerError, UserMessage: "unable to find app in database"}
-			return appOfferingMode, err
+			return appOfferingMode, installedAppDto, err
 		}
 	} else {
-		err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "both types of app ids are present in request"}
-		return appOfferingMode, err
+		err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "app id missing in request"}
+		return appOfferingMode, installedAppDto, err
 	}
-	if installedApp != nil && installedApp.InstalledAppId > 0 {
-		appOfferingMode = installedApp.AppOfferingMode
+	if installedAppDto != nil && installedAppDto.InstalledAppId > 0 {
+		appOfferingMode = installedAppDto.AppOfferingMode
 	}
-	return appOfferingMode, nil
+	return appOfferingMode, installedAppDto, nil
 }
 func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	appOfferingMode, err := handler.getAppOfferingMode(vars["installedAppId"], vars["appId"])
+	appOfferingMode, _, err := handler.getAppOfferingMode(vars["installedAppId"], vars["appId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
 	}
@@ -172,9 +182,6 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 		handler.helmAppRestHandler.GetDeploymentDetail(w, r)
 	} else if appOfferingMode == util2.SERVER_MODE_FULL {
 		handler.GetDeploymentHistoryValuesFromDb(w, r)
-	} else if len(appOfferingMode) == 0 {
-		//here is case when unable to find data in db for helm apps, helm CLI app could be the reason
-		handler.helmAppRestHandler.GetDeploymentDetail(w, r)
 	} else {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
 	}
@@ -218,41 +225,34 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValuesFromDb
 }
 
 func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.ResponseWriter, r *http.Request) {
-	request := &openapi2.RollbackReleaseRequest{}
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(request)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
-	// get installed app which can not be null
-	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(int(request.GetInstalledAppId()))
+	request := &openapi2.RollbackReleaseRequest{}
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(request)
 	if err != nil {
-		handler.Logger.Errorw("Error in getting installed app", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	installedApp.UserId = userId
-	if installedApp == nil {
-		handler.Logger.Errorw("Installed App can not be null", "request", request)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+	installedAppId := ""
+	if request.GetInstalledAppId() > 0 {
+		installedAppId = string(request.GetInstalledAppId())
 	}
-
+	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(installedAppId, *request.HAppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
+	}
+	installedAppDto.UserId = userId
 	//rbac block starts from here
 	var rbacObject string
 	token := r.Header.Get("token")
-	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
-		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+	if appOfferingMode == util2.SERVER_MODE_HYPERION {
+		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedAppDto.ClusterId, installedAppDto.Namespace, installedAppDto.AppName)
 	} else {
-		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.AppName, installedApp.EnvironmentId)
+		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedAppDto.AppName, installedAppDto.EnvironmentId)
 	}
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
@@ -262,7 +262,7 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	success, err := handler.appStoreDeploymentService.RollbackApplication(ctx, request, installedApp, userId)
+	success, err := handler.appStoreDeploymentService.RollbackApplication(ctx, request, installedAppDto, userId)
 	if err != nil {
 		handler.Logger.Errorw("Error in Rollback release", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
