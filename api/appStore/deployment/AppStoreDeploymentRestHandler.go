@@ -108,7 +108,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(request.ClusterId, request.Namespace, request.AppName)
 	} else {
-		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(request.AppName, request.EnvironmentId)
+		rbacObject = handler.enforcerUtil.GetHelmObjectByProjectIdAndEnvId(request.TeamId, request.EnvironmentId)
 	}
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
