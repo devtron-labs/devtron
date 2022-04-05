@@ -238,7 +238,7 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 	}
 	installedAppId := ""
 	if request.GetInstalledAppId() > 0 {
-		installedAppId = string(request.GetInstalledAppId())
+		installedAppId = fmt.Sprint(request.GetInstalledAppId())
 	}
 	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(installedAppId, *request.HAppId)
 	if err != nil {
