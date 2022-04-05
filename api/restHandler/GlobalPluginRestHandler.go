@@ -47,7 +47,7 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailById(w http.ResponseW
 		return
 	}
 	//TODO: add rbac
-	pluginDetail, err := handler.globalPluginService.ListAllPlugins()
+	pluginDetail, err := handler.globalPluginService.GetPluginDetailById(pluginId)
 	if err != nil {
 		handler.logger.Errorw("error in getting plugin detail by id", "err", err, "pluginId", pluginId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
