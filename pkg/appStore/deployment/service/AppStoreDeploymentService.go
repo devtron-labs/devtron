@@ -56,8 +56,8 @@ type AppStoreDeploymentService interface {
 	LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error)
 	RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest, installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error)
 	UpdateInstallAppVersionHistory(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
-	GetInstalledAppVersionHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (interface{}, error)
-	GetInstalledAppVersionHistoryValues(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int) (*openapi.HelmAppDeploymentManifestDetail, error)
+	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (interface{}, error)
+	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int) (*openapi.HelmAppDeploymentManifestDetail, error)
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -766,7 +766,7 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 	return nil
 }
 
-func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersionHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (interface{}, error) {
+func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (interface{}, error) {
 	var result interface{}
 	var err error
 	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
@@ -803,23 +803,22 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersionHistory(ctx cont
 	return result, err
 }
 
-func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersionHistoryValues(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int) (*openapi.HelmAppDeploymentManifestDetail, error) {
+func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int) (*openapi.HelmAppDeploymentManifestDetail, error) {
 	//var result interface{}
 	result := &openapi.HelmAppDeploymentManifestDetail{}
 	var err error
 	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
-		result, err = impl.appStoreDeploymentHelmService.GetInstalledAppVersionHistoryValues(ctx, installedApp, int32(installedAppVersionHistoryId))
+		result, err = impl.appStoreDeploymentHelmService.GetDeploymentHistoryInfo(ctx, installedApp, int32(version))
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history info", "error", err)
 			return nil, err
 		}
 	} else {
-		res, err := impl.appStoreDeploymentArgoCdService.GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId)
+		result, err = impl.appStoreDeploymentArgoCdService.GetDeploymentHistoryInfo(ctx, installedApp, int32(version))
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history info", "error", err)
 			return nil, err
 		}
-		result.ValuesYaml = &res.ValuesYaml
 	}
 	return result, err
 }

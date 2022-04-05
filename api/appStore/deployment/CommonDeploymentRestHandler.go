@@ -158,7 +158,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	res, err := handler.appStoreDeploymentService.GetInstalledAppVersionHistory(ctx, installedAppDto)
+	res, err := handler.appStoreDeploymentService.GetDeploymentHistory(ctx, installedAppDto)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -203,7 +203,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	res, err := handler.appStoreDeploymentService.GetInstalledAppVersionHistoryValues(ctx, installedAppDto, installedAppVersionHistoryId)
+	res, err := handler.appStoreDeploymentService.GetDeploymentHistoryInfo(ctx, installedAppDto, installedAppVersionHistoryId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
