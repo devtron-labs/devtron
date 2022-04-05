@@ -112,7 +112,7 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid installed app id"}
 			return appOfferingMode, installedAppDto, err
 		}
-		installedAppDto, err = handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
+		installedAppDto, err = handler.appStoreDeploymentServiceC.GetInstalledAppByInstalledAppId(installedAppId)
 		if err != nil {
 			err = &util.ApiError{HttpStatusCode: http.StatusInternalServerError, UserMessage: "unable to find app in database"}
 			return appOfferingMode, installedAppDto, err

@@ -649,7 +649,7 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 	}
 	//DB operation
 	if installedApp.InstalledAppId > 0 && installedApp.InstalledAppVersionId > 0 {
-		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(int(request.GetInstalledAppVersionId()))
+		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(installedApp.InstalledAppVersionId)
 		if err != nil {
 			impl.logger.Errorw("error while fetching chart installed version", "error", err)
 			return false, err
@@ -785,16 +785,19 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Conte
 		result.DeploymentHistory = deploymentHistory.GetDeploymentHistory()
 	}
 
-	result.InstalledAppInfo = &client.InstalledAppInfo{
-		AppId:                 installedApp.AppId,
-		EnvironmentName:       installedApp.EnvironmentName,
-		AppOfferingMode:       installedApp.AppOfferingMode,
-		InstalledAppId:        installedApp.InstalledAppId,
-		InstalledAppVersionId: installedApp.InstalledAppVersionId,
-		AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
-		ClusterId:             installedApp.ClusterId,
-		EnvironmentId:         installedApp.EnvironmentId,
+	if installedApp.InstalledAppId > 0 {
+		result.InstalledAppInfo = &client.InstalledAppInfo{
+			AppId:                 installedApp.AppId,
+			EnvironmentName:       installedApp.EnvironmentName,
+			AppOfferingMode:       installedApp.AppOfferingMode,
+			InstalledAppId:        installedApp.InstalledAppId,
+			InstalledAppVersionId: installedApp.InstalledAppVersionId,
+			AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+			ClusterId:             installedApp.ClusterId,
+			EnvironmentId:         installedApp.EnvironmentId,
+		}
 	}
+
 	return result, err
 }
 
