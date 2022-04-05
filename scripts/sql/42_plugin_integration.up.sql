@@ -125,7 +125,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_plugin_step_variable;
 -- Table Definition
 CREATE TABLE "public"."plugin_step_variable"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_variable'::regclass),
+    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_step_variable'::regclass),
     "plugin_step_id"              integer,
     "name"                        varchar(255),
     "format"                      varchar(255),
@@ -219,7 +219,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_stage_step_variable;
 -- Table Definition
 CREATE TABLE "public"."pipeline_stage_step_variable"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_stage_step_variable'::regclass),
+    "id"                          integer NOT NULL DEFAULT nextval('id_seq_pipeline_stage_step_variable'::regclass),
     "pipeline_stage_step_id"      integer,
     "name"                        varchar(255),
     "format"                      varchar(255),
