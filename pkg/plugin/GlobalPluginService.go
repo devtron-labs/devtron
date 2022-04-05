@@ -95,10 +95,8 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailById(pluginId int) (*PluginD
 			DefaultValue:          pluginVariable.DefaultValue,
 			Value:                 pluginVariable.Value,
 			ValueType:             string(pluginVariable.ValueType),
-			VariableType:          string(pluginVariable.VariableType),
 			PreviousStepIndex:     pluginVariable.PreviousStepIndex,
 			ReferenceVariableName: pluginVariable.ReferenceVariableName,
-			Deleted:               pluginVariable.Deleted,
 		}
 		if pluginVariable.VariableType == repository.PLUGIN_VARIABLE_TYPE_INPUT {
 			inputVariablesDto = append(inputVariablesDto, variableDto)

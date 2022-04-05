@@ -28,7 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/cluster"
-	repository5 "github.com/devtron-labs/devtron/client/argocdServer/repository"
+	repository6 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/events"
@@ -63,7 +63,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/discover"
 	"github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	history2 "github.com/devtron-labs/devtron/pkg/appStore/history"
-	repository6 "github.com/devtron-labs/devtron/pkg/appStore/history/repository"
+	repository7 "github.com/devtron-labs/devtron/pkg/appStore/history/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/repository"
@@ -85,8 +85,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin"
-	repository7 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	repository8 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -276,7 +277,9 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	pipelineBuilderImpl := pipeline.NewPipelineBuilderImpl(sugaredLogger, dbPipelineOrchestratorImpl, dockerArtifactStoreRepositoryImpl, materialRepositoryImpl, appRepositoryImpl, pipelineRepositoryImpl, propertiesConfigServiceImpl, ciTemplateRepositoryImpl, ciPipelineRepositoryImpl, serviceClientImpl, chartRepositoryImpl, ciArtifactRepositoryImpl, ecrConfig, envConfigOverrideRepositoryImpl, environmentRepositoryImpl, pipelineConfigRepositoryImpl, utilMergeUtil, appWorkflowRepositoryImpl, ciConfig, cdWorkflowRepositoryImpl, appServiceImpl, imageScanResultRepositoryImpl, argoK8sClientImpl, gitFactory, attributesServiceImpl, acdAuthConfig, gitOpsConfigRepositoryImpl, pipelineStrategyHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, prePostCdScriptHistoryServiceImpl, deploymentTemplateHistoryServiceImpl, appLevelMetricsRepositoryImpl)
+	pipelineStageRepositoryImpl := repository5.NewPipelineStageRepository(sugaredLogger, db)
+	pipelineStageServiceImpl := pipeline.NewPipelineStageService(sugaredLogger, pipelineStageRepositoryImpl)
+	pipelineBuilderImpl := pipeline.NewPipelineBuilderImpl(sugaredLogger, dbPipelineOrchestratorImpl, dockerArtifactStoreRepositoryImpl, materialRepositoryImpl, appRepositoryImpl, pipelineRepositoryImpl, propertiesConfigServiceImpl, ciTemplateRepositoryImpl, ciPipelineRepositoryImpl, serviceClientImpl, chartRepositoryImpl, ciArtifactRepositoryImpl, ecrConfig, envConfigOverrideRepositoryImpl, environmentRepositoryImpl, pipelineConfigRepositoryImpl, utilMergeUtil, appWorkflowRepositoryImpl, ciConfig, cdWorkflowRepositoryImpl, appServiceImpl, imageScanResultRepositoryImpl, argoK8sClientImpl, gitFactory, attributesServiceImpl, acdAuthConfig, gitOpsConfigRepositoryImpl, pipelineStrategyHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, prePostCdScriptHistoryServiceImpl, deploymentTemplateHistoryServiceImpl, appLevelMetricsRepositoryImpl, pipelineStageServiceImpl)
 	chartWorkingDir := _wireChartWorkingDirValue
 	globalEnvVariables, err := util3.GetGlobalEnvVariables()
 	if err != nil {
@@ -286,7 +289,7 @@ func InitializeApp() (*App, error) {
 	chartRepoRepositoryImpl := chartRepoRepository.NewChartRepoRepositoryImpl(db)
 	refChartDir := _wireRefChartDirValue
 	defaultChart := _wireDefaultChartValue
-	repositoryServiceClientImpl := repository5.NewServiceClientImpl(argoCDSettings, sugaredLogger)
+	repositoryServiceClientImpl := repository6.NewServiceClientImpl(argoCDSettings, sugaredLogger)
 	chartServiceImpl := pipeline.NewChartServiceImpl(chartRepositoryImpl, sugaredLogger, chartTemplateServiceImpl, chartRepoRepositoryImpl, appRepositoryImpl, refChartDir, defaultChart, utilMergeUtil, repositoryServiceClientImpl, chartRefRepositoryImpl, envConfigOverrideRepositoryImpl, pipelineConfigRepositoryImpl, configMapRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, appLevelMetricsRepositoryImpl, envLevelAppMetricsRepositoryImpl, httpClient, deploymentTemplateHistoryServiceImpl)
 	dbMigrationServiceImpl := pipeline.NewDbMogrationService(sugaredLogger, dbMigrationConfigRepositoryImpl)
 	workflowServiceImpl := pipeline.NewWorkflowServiceImpl(sugaredLogger, ciConfig)
@@ -322,7 +325,7 @@ func InitializeApp() (*App, error) {
 	webhookEventDataRepositoryImpl := repository.NewWebhookEventDataRepositoryImpl(db)
 	webhookEventDataConfigImpl := pipeline.NewWebhookEventDataConfigImpl(sugaredLogger, webhookEventDataRepositoryImpl)
 	webhookDataRestHandlerImpl := restHandler.NewWebhookDataRestHandlerImpl(sugaredLogger, userServiceImpl, ciPipelineMaterialRepositoryImpl, enforcerUtilImpl, enforcerImpl, gitSensorClientImpl, webhookEventDataConfigImpl)
-	appStoreChartsHistoryRepositoryImpl := repository6.NewAppStoreChartsHistoryRepositoryImpl(sugaredLogger, db)
+	appStoreChartsHistoryRepositoryImpl := repository7.NewAppStoreChartsHistoryRepositoryImpl(sugaredLogger, db)
 	appStoreChartsHistoryServiceImpl := history2.NewAppStoreChartsHistoryServiceImpl(sugaredLogger, appStoreChartsHistoryRepositoryImpl)
 	pipelineHistoryRestHandlerImpl := restHandler.NewPipelineHistoryRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, pipelineStrategyHistoryServiceImpl, deploymentTemplateHistoryServiceImpl, configMapHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, prePostCdScriptHistoryServiceImpl, appStoreChartsHistoryServiceImpl, pipelineBuilderImpl, enforcerUtilImpl)
 	pipelineConfigRouterImpl := router.NewPipelineRouterImpl(pipelineConfigRestHandlerImpl, appWorkflowRestHandlerImpl, webhookDataRestHandlerImpl, pipelineHistoryRestHandlerImpl)
@@ -527,7 +530,7 @@ func InitializeApp() (*App, error) {
 	pProfRouterImpl := router.NewPProfRouter(sugaredLogger, pProfRestHandlerImpl)
 	deploymentConfigRestHandlerImpl := deployment.NewDeploymentConfigRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, validate, refChartDir, chartServiceImpl, chartRefRepositoryImpl)
 	deploymentConfigRouterImpl := deployment.NewDeploymentRouterImpl(deploymentConfigRestHandlerImpl)
-	globalPluginRepositoryImpl := repository7.NewGlobalPluginRepository(sugaredLogger, db)
+	globalPluginRepositoryImpl := repository8.NewGlobalPluginRepository(sugaredLogger, db)
 	globalPluginServiceImpl := plugin.NewGlobalPluginService(sugaredLogger, globalPluginRepositoryImpl)
 	globalPluginRestHandlerImpl := restHandler.NewGlobalPluginRestHandler(sugaredLogger, globalPluginServiceImpl)
 	globalPluginRouterImpl := router.NewGlobalPluginRouter(sugaredLogger, globalPluginRestHandlerImpl)

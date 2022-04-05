@@ -83,6 +83,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository4 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
@@ -686,6 +687,12 @@ func InitializeApp() (*App, error) {
 
 		router.NewGlobalPluginRouter,
 		wire.Bind(new(router.GlobalPluginRouter), new(*router.GlobalPluginRouterImpl)),
+
+		repository5.NewPipelineStageRepository,
+		wire.Bind(new(repository5.PipelineStageRepository), new(*repository5.PipelineStageRepositoryImpl)),
+
+		pipeline.NewPipelineStageService,
+		wire.Bind(new(pipeline.PipelineStageService), new(*pipeline.PipelineStageServiceImpl)),
 		//plugin ends
 
 		//	AuthWireSet,

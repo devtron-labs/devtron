@@ -137,6 +137,7 @@ type PipelineBuilderImpl struct {
 	prePostCdScriptHistoryService    history.PrePostCdScriptHistoryService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
+	pipelineStageService             PipelineStageService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -168,7 +169,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	appLevelMetricsRepository repository.AppLevelMetricsRepository) *PipelineBuilderImpl {
+	appLevelMetricsRepository repository.AppLevelMetricsRepository,
+	pipelineStageService PipelineStageService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -202,6 +204,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
+		pipelineStageService:             pipelineStageService,
 	}
 }
 
@@ -2324,5 +2327,13 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		ciPipeline.AppWorkflowId = mapping.AppWorkflowId
 	}
 
+	//getting pre stage and post stage details
+	preStageDetail, postStageDetail, err := impl.pipelineStageService.GetCiPipelineStageData(ciPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", ciPipeline.Id)
+		return nil, err
+	}
+	ciPipeline.PreBuildStage = preStageDetail
+	ciPipeline.PostBuildStage = postStageDetail
 	return ciPipeline, err
 }

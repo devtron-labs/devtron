@@ -11,32 +11,32 @@ type ScriptType string
 type ScriptImagePullSecretType string
 type ScriptMappingType string
 type PluginStepType string
-type PluginVariableType string
-type PluginVariableValueType string
-type PluginConditionType string
+type PluginStepVariableType string
+type PluginStepVariableValueType string
+type PluginStepConditionType string
 
 const (
-	PLUGIN_TYPE_SHARED                  PluginType                = "SHARED"
-	PLUGIN_TYPE_PRESET                  PluginType                = "PRESET"
-	SCRIPT_TYPE_SHELL                   ScriptType                = "SHELL"
-	SCRIPT_TYPE_DOCKERFILE              ScriptType                = "DOCKERFILE"
-	SCRIPT_TYPE_CONTAINER_IMAGE         ScriptType                = "CONTAINER_IMAGE"
-	IMAGE_PULL_TYPE_CONTAINER_REGISTRY  ScriptImagePullSecretType = "CONTAINER_REGISTRY"
-	IMAGE_PULL_TYPE_SECRET_PATH         ScriptImagePullSecretType = "SECRET_PATH"
-	SCRIPT_MAPPING_TYPE_FILE_PATH       ScriptMappingType         = "FILE_PATH"
-	SCRIPT_MAPPING_TYPE_DOCKER_ARG      ScriptMappingType         = "DOCKER_ARG"
-	SCRIPT_MAPPING_TYPE_PORT            ScriptMappingType         = "PORT"
-	PLUGIN_STEP_TYPE_INLINE             PluginStepType            = "INLINE"
-	PLUGIN_STEP_TYPE_REF_PLUGIN         PluginStepType            = "REF_PLUGIN"
-	PLUGIN_VARIABLE_TYPE_INPUT          PluginVariableType        = "INPUT"
-	PLUGIN_VARIABLE_TYPE_OUTPUT         PluginVariableType        = "OUTPUT"
-	PLUGIN_VARIABLE_VALUR_TYPE_NEW      PluginVariableValueType   = "NEW"
-	PLUGIN_VARIABLE_VALUR_TYPE_PREVIOUS PluginVariableValueType   = "FROM_PREVIOUS_STEP"
-	PLUGIN_VARIABLE_VALUR_TYPE_GLOBAL   PluginVariableValueType   = "GLOBAL"
-	PLUGIN_CONDITION_TYPE_SKIP          PluginConditionType       = "SKIP"
-	PLUGIN_CONDITION_TYPE_TRIGGER       PluginConditionType       = "TRIGGER"
-	PLUGIN_CONDITION_TYPE_SUCCESS       PluginConditionType       = "SUCCESS"
-	PLUGIN_CONDITION_TYPE_FAIL          PluginConditionType       = "FAIL"
+	PLUGIN_TYPE_SHARED                  PluginType                  = "SHARED"
+	PLUGIN_TYPE_PRESET                  PluginType                  = "PRESET"
+	SCRIPT_TYPE_SHELL                   ScriptType                  = "SHELL"
+	SCRIPT_TYPE_DOCKERFILE              ScriptType                  = "DOCKERFILE"
+	SCRIPT_TYPE_CONTAINER_IMAGE         ScriptType                  = "CONTAINER_IMAGE"
+	IMAGE_PULL_TYPE_CONTAINER_REGISTRY  ScriptImagePullSecretType   = "CONTAINER_REGISTRY"
+	IMAGE_PULL_TYPE_SECRET_PATH         ScriptImagePullSecretType   = "SECRET_PATH"
+	SCRIPT_MAPPING_TYPE_FILE_PATH       ScriptMappingType           = "FILE_PATH"
+	SCRIPT_MAPPING_TYPE_DOCKER_ARG      ScriptMappingType           = "DOCKER_ARG"
+	SCRIPT_MAPPING_TYPE_PORT            ScriptMappingType           = "PORT"
+	PLUGIN_STEP_TYPE_INLINE             PluginStepType              = "INLINE"
+	PLUGIN_STEP_TYPE_REF_PLUGIN         PluginStepType              = "REF_PLUGIN"
+	PLUGIN_VARIABLE_TYPE_INPUT          PluginStepVariableType      = "INPUT"
+	PLUGIN_VARIABLE_TYPE_OUTPUT         PluginStepVariableType      = "OUTPUT"
+	PLUGIN_VARIABLE_VALUE_TYPE_NEW      PluginStepVariableValueType = "NEW"
+	PLUGIN_VARIABLE_VALUE_TYPE_PREVIOUS PluginStepVariableValueType = "FROM_PREVIOUS_STEP"
+	PLUGIN_VARIABLE_VALUE_TYPE_GLOBAL   PluginStepVariableValueType = "GLOBAL"
+	PLUGIN_CONDITION_TYPE_SKIP          PluginStepConditionType     = "SKIP"
+	PLUGIN_CONDITION_TYPE_TRIGGER       PluginStepConditionType     = "TRIGGER"
+	PLUGIN_CONDITION_TYPE_SUCCESS       PluginStepConditionType     = "SUCCESS"
+	PLUGIN_CONDITION_TYPE_FAIL          PluginStepConditionType     = "FAIL"
 )
 
 type PluginMetadata struct {
@@ -50,8 +50,8 @@ type PluginMetadata struct {
 	sql.AuditLog
 }
 
-type PluginTags struct {
-	tableName struct{} `sql:"plugin_tags" pg:",discard_unknown_columns"`
+type PluginTag struct {
+	tableName struct{} `sql:"plugin_tag" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id,pk"`
 	Name      string   `sql:"name"`
 	Deleted   bool     `sql:"deleted, notnull"`
@@ -84,8 +84,8 @@ type PluginPipelineScript struct {
 	sql.AuditLog
 }
 
-type ScriptPathArgPortMappings struct {
-	tableName           struct{}          `sql:"script_path_arg_port_mappings" pg:",discard_unknown_columns"`
+type ScriptPathArgPortMapping struct {
+	tableName           struct{}          `sql:"script_path_arg_port_mapping" pg:",discard_unknown_columns"`
 	Id                  int               `sql:"id,pk"`
 	TypeOfMapping       ScriptMappingType `sql:"type_of_mapping"`
 	FilePathOnDisk      string            `sql:"file_path_on_disk"`
@@ -98,8 +98,8 @@ type ScriptPathArgPortMappings struct {
 	sql.AuditLog
 }
 
-type PluginSteps struct {
-	tableName   struct{}       `sql:"plugin_steps" pg:",discard_unknown_columns"`
+type PluginStep struct {
+	tableName   struct{}       `sql:"plugin_step" pg:",discard_unknown_columns"`
 	Id          int            `sql:"id,pk"`
 	PluginId    int            `sql:"plugin_id"` //id of plugin - parent of this step
 	Name        string         `sql:"name"`
@@ -112,34 +112,34 @@ type PluginSteps struct {
 	sql.AuditLog
 }
 
-type PluginStepVariables struct {
-	tableName             struct{}                `sql:"plugin_step_variables" pg:",discard_unknown_columns"`
-	Id                    int                     `sql:"id,pk"`
-	PluginStepId          int                     `sql:"plugin_step_id"`
-	Name                  string                  `sql:"name"`
-	Format                string                  `sql:"format"`
-	Description           string                  `sql:"description"`
-	IsExposed             bool                    `sql:"is_exposed,notnull"`
-	AllowEmptyValue       bool                    `sql:"allow_empty_value,notnull"`
-	DefaultValue          string                  `sql:"default_value"`
-	Value                 string                  `sql:"value"`
-	VariableType          PluginVariableType      `sql:"variable_type"`
-	ValueType             PluginVariableValueType `sql:"value_type"`
-	PreviousStepIndex     int                     `sql:"previous_step_index"`
-	ReferenceVariableName string                  `sql:"reference_variable_name"`
-	Deleted               bool                    `sql:"deleted,notnull"`
+type PluginStepVariable struct {
+	tableName             struct{}                    `sql:"plugin_step_variable" pg:",discard_unknown_columns"`
+	Id                    int                         `sql:"id,pk"`
+	PluginStepId          int                         `sql:"plugin_step_id"`
+	Name                  string                      `sql:"name"`
+	Format                string                      `sql:"format"`
+	Description           string                      `sql:"description"`
+	IsExposed             bool                        `sql:"is_exposed,notnull"`
+	AllowEmptyValue       bool                        `sql:"allow_empty_value,notnull"`
+	DefaultValue          string                      `sql:"default_value"`
+	Value                 string                      `sql:"value"`
+	VariableType          PluginStepVariableType      `sql:"variable_type"`
+	ValueType             PluginStepVariableValueType `sql:"value_type"`
+	PreviousStepIndex     int                         `sql:"previous_step_index"`
+	ReferenceVariableName string                      `sql:"reference_variable_name"`
+	Deleted               bool                        `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
-type PluginStepConditions struct {
-	tableName           struct{}            `sql:"plugin_step_conditions" pg:",discard_unknown_columns"`
-	Id                  int                 `sql:"id,pk"`
-	PluginStepId        int                 `sql:"plugin_step_id"`
-	ConditionVariableId int                 `sql:"condition_variable_id"` //id of variable on which condition is written
-	ConditionType       PluginConditionType `sql:"condition_type"`
-	ConditionalOperator string              `sql:"conditional_operator"`
-	ConditionalValue    string              `sql:"conditional_value"`
-	Deleted             bool                `sql:"deleted,notnull"`
+type PluginStepCondition struct {
+	tableName           struct{}                `sql:"plugin_step_condition" pg:",discard_unknown_columns"`
+	Id                  int                     `sql:"id,pk"`
+	PluginStepId        int                     `sql:"plugin_step_id"`
+	ConditionVariableId int                     `sql:"condition_variable_id"` //id of variable on which condition is written
+	ConditionType       PluginStepConditionType `sql:"condition_type"`
+	ConditionalOperator string                  `sql:"conditional_operator"`
+	ConditionalValue    string                  `sql:"conditional_value"`
+	Deleted             bool                    `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
@@ -147,8 +147,8 @@ type GlobalPluginRepository interface {
 	GetMetaDataForAllPlugins() ([]*PluginMetadata, error)
 	GetMetaDataByPluginId(pluginId int) (*PluginMetadata, error)
 	GetTagsByPluginId(pluginId int) ([]string, error)
-	GetExposedVariablesByPluginIdAndVariableType(pluginId int, variableType PluginVariableType) ([]*PluginStepVariables, error)
-	GetExposedVariablesByPluginId(pluginId int) ([]*PluginStepVariables, error)
+	GetExposedVariablesByPluginIdAndVariableType(pluginId int, variableType PluginStepVariableType) ([]*PluginStepVariable, error)
+	GetExposedVariablesByPluginId(pluginId int) ([]*PluginStepVariable, error)
 }
 
 func NewGlobalPluginRepository(logger *zap.SugaredLogger, dbConnection *pg.DB) *GlobalPluginRepositoryImpl {
@@ -196,8 +196,8 @@ func (impl *GlobalPluginRepositoryImpl) GetMetaDataByPluginId(pluginId int) (*Pl
 	return &plugin, nil
 }
 
-func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesByPluginIdAndVariableType(pluginId int, variableType PluginVariableType) ([]*PluginStepVariables, error) {
-	var pluginVariables []*PluginStepVariables
+func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesByPluginIdAndVariableType(pluginId int, variableType PluginStepVariableType) ([]*PluginStepVariable, error) {
+	var pluginVariables []*PluginStepVariable
 	err := impl.dbConnection.Model(&pluginVariables).
 		Column("plugin_step_variables.*").
 		Join("INNER JOIN plugin_steps ps on ps.id = plugin_step_variables.plugin_step_id").
@@ -215,8 +215,8 @@ func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesByPluginIdAndVariable
 	return pluginVariables, nil
 }
 
-func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesByPluginId(pluginId int) ([]*PluginStepVariables, error) {
-	var pluginVariables []*PluginStepVariables
+func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesByPluginId(pluginId int) ([]*PluginStepVariable, error) {
+	var pluginVariables []*PluginStepVariable
 	err := impl.dbConnection.Model(&pluginVariables).
 		Column("plugin_step_variables.*").
 		Join("INNER JOIN plugin_steps ps on ps.id = plugin_step_variables.plugin_step_id").

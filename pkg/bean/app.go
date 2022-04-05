@@ -99,6 +99,8 @@ type CiPipeline struct {
 	PipelineType             PipelineType      `json:"pipelineType,omitempty"`
 	ScanEnabled              bool              `json:"scanEnabled,notnull"`
 	AppWorkflowId            int               `json:"appWorkflowId,omitempty"`
+	PreBuildStage            *PipelineStageDto `json:"preBuildStage,omitempty"`
+	PostBuildStage           *PipelineStageDto `json:"postBuildStage,omitempty"`
 }
 
 type CiPipelineMin struct {

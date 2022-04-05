@@ -16,12 +16,12 @@ CREATE TABLE "public"."plugin_metadata"
     PRIMARY KEY ("id")
 );
 
-CREATE SEQUENCE IF NOT EXISTS id_seq_plugin_tags;
+CREATE SEQUENCE IF NOT EXISTS id_seq_plugin_tag;
 
 -- Table Definition
-CREATE TABLE "public"."plugin_tags"
+CREATE TABLE "public"."plugin_tag"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_tags'::regclass),
+    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_tag'::regclass),
     "name"                        varchar(255),
     "deleted"                     bool,
     "created_on"                  timestamptz,
@@ -43,7 +43,7 @@ CREATE TABLE "public"."plugin_tag_relation"
     "created_by"                  int4,
     "updated_on"                  timestamptz,
     "updated_by"                  int4,
-    CONSTRAINT "plugin_tag_relation_tag_id_fkey" FOREIGN KEY ("tag_id") REFERENCES "public"."plugin_tags" ("id"),
+    CONSTRAINT "plugin_tag_relation_tag_id_fkey" FOREIGN KEY ("tag_id") REFERENCES "public"."plugin_tag" ("id"),
     CONSTRAINT "plugin_tag_relation_plugin_id_fkey" FOREIGN KEY ("plugin_id") REFERENCES "public"."plugin_metadata" ("id"),
     PRIMARY KEY ("id")
 );
@@ -72,12 +72,12 @@ CREATE TABLE "public"."plugin_pipeline_script"
     PRIMARY KEY ("id")
 );
 
-CREATE SEQUENCE IF NOT EXISTS id_seq_script_path_arg_port_mappings;
+CREATE SEQUENCE IF NOT EXISTS id_seq_script_path_arg_port_mapping;
 
 -- Table Definition
-CREATE TABLE "public"."script_path_arg_port_mappings"
+CREATE TABLE "public"."script_path_arg_port_mapping"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_script_path_arg_port_mappings'::regclass),
+    "id"                          integer NOT NULL DEFAULT nextval('id_seq_script_path_arg_port_mapping'::regclass),
     "type_of_mapping"             varchar(255),      -- FILE_PATH, DOCKER_ARG, PORT
     "file_path_on_disk"           text,
     "file_path_on_container"      text,
@@ -86,21 +86,22 @@ CREATE TABLE "public"."script_path_arg_port_mappings"
     "port_on_local"               integer,
     "port_on_container"           integer,
     "script_id"                   integer,
+    "deleted"                     bool,
     "created_on"                  timestamptz,
     "created_by"                  int4,
     "updated_on"                  timestamptz,
     "updated_by"                  int4,
-    CONSTRAINT "script_path_arg_port_mappings_script_id_fkey" FOREIGN KEY ("script_id") REFERENCES "public"."plugin_pipeline_script" ("id"),
+    CONSTRAINT "script_path_arg_port_mapping_script_id_fkey" FOREIGN KEY ("script_id") REFERENCES "public"."plugin_pipeline_script" ("id"),
     PRIMARY KEY ("id")
 );
 
 
-CREATE SEQUENCE IF NOT EXISTS id_seq_plugin_steps;
+CREATE SEQUENCE IF NOT EXISTS id_seq_plugin_step;
 
 -- Table Definition
-CREATE TABLE "public"."plugin_steps"
+CREATE TABLE "public"."plugin_step"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_steps'::regclass),
+    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_step'::regclass),
     "plugin_id"                   integer,        -- id of plugin - parent of this step
     "name"                        varchar(255),
     "description"                 text,
@@ -113,18 +114,18 @@ CREATE TABLE "public"."plugin_steps"
     "created_by"                  int4,
     "updated_on"                  timestamptz,
     "updated_by"                  int4,
-    CONSTRAINT "plugin_steps_plugin_id_fkey" FOREIGN KEY ("plugin_id") REFERENCES "public"."plugin_metadata" ("id"),
-    CONSTRAINT "plugin_steps_script_id_fkey" FOREIGN KEY ("script_id") REFERENCES "public"."plugin_pipeline_script" ("id"),
-    CONSTRAINT "plugin_steps_ref_plugin_id_fkey" FOREIGN KEY ("ref_plugin_id") REFERENCES "public"."plugin_metadata" ("id"),
+    CONSTRAINT "plugin_step_plugin_id_fkey" FOREIGN KEY ("plugin_id") REFERENCES "public"."plugin_metadata" ("id"),
+    CONSTRAINT "plugin_step_script_id_fkey" FOREIGN KEY ("script_id") REFERENCES "public"."plugin_pipeline_script" ("id"),
+    CONSTRAINT "plugin_step_ref_plugin_id_fkey" FOREIGN KEY ("ref_plugin_id") REFERENCES "public"."plugin_metadata" ("id"),
     PRIMARY KEY ("id")
 );
 
-CREATE SEQUENCE IF NOT EXISTS id_seq_plugin_step_variables;
+CREATE SEQUENCE IF NOT EXISTS id_seq_plugin_step_variable;
 
 -- Table Definition
-CREATE TABLE "public"."plugin_step_variables"
+CREATE TABLE "public"."plugin_step_variable"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_variables'::regclass),
+    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_variable'::regclass),
     "plugin_step_id"              integer,
     "name"                        varchar(255),
     "format"                      varchar(255),
@@ -142,16 +143,16 @@ CREATE TABLE "public"."plugin_step_variables"
     "created_by"                  int4,
     "updated_on"                  timestamptz,
     "updated_by"                  int4,
-    CONSTRAINT "plugin_step_variables_plugin_step_id_fkey" FOREIGN KEY ("plugin_step_id") REFERENCES "public"."plugin_steps" ("id"),
+    CONSTRAINT "plugin_step_variable_plugin_step_id_fkey" FOREIGN KEY ("plugin_step_id") REFERENCES "public"."plugin_step" ("id"),
     PRIMARY KEY ("id")
 );
 
-CREATE SEQUENCE IF NOT EXISTS id_seq_plugin_step_conditions;
+CREATE SEQUENCE IF NOT EXISTS id_seq_plugin_step_condition;
 
 -- Table Definition
-CREATE TABLE "public"."plugin_step_conditions"
+CREATE TABLE "public"."plugin_step_condition"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_step_conditions'::regclass),
+    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_step_condition'::regclass),
     "plugin_step_id"              integer,
     "condition_variable_id"       integer,      -- id of variable on which condition is written
     "condition_type"              varchar(255), -- SKIP, TRIGGER, SUCCESS or FAILURE
@@ -162,22 +163,21 @@ CREATE TABLE "public"."plugin_step_conditions"
     "created_by"                  int4,
     "updated_on"                  timestamptz,
     "updated_by"                  int4,
-    CONSTRAINT "plugin_step_conditions_plugin_step_id_fkey" FOREIGN KEY ("plugin_step_id") REFERENCES "public"."plugin_steps" ("id"),
-    CONSTRAINT "plugin_step_conditions_condition_variable_id_fkey" FOREIGN KEY ("condition_variable_id") REFERENCES "public"."plugin_step_variables" ("id"),
+    CONSTRAINT "plugin_step_condition_plugin_step_id_fkey" FOREIGN KEY ("plugin_step_id") REFERENCES "public"."plugin_step" ("id"),
+    CONSTRAINT "plugin_step_condition_condition_variable_id_fkey" FOREIGN KEY ("condition_variable_id") REFERENCES "public"."plugin_step_variable" ("id"),
     PRIMARY KEY ("id")
 );
 
 
-CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_stages;
+CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_stage;
 
 -- Table Definition
-CREATE TABLE "public"."pipeline_stages"
+CREATE TABLE "public"."pipeline_stage"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_pipeline_stages'::regclass),
+    "id"                          integer NOT NULL DEFAULT nextval('id_seq_pipeline_stage'::regclass),
     "name"                        text,
     "description"                 text,
     "type"                        varchar(255),  -- PRE_CI, POST_CI, PRE_CD, POST_CD etc
-    "icon"                        text,
     "deleted"                     bool,
     "ci_pipeline_id"              integer,
     "cd_pipeline_id"              integer,
@@ -185,17 +185,17 @@ CREATE TABLE "public"."pipeline_stages"
     "created_by"                  int4,
     "updated_on"                  timestamptz,
     "updated_by"                  int4,
-    CONSTRAINT "pipeline_stages_ci_pipeline_id_fkey" FOREIGN KEY ("ci_pipeline_id") REFERENCES "public"."ci_pipeline" ("id"),
-    CONSTRAINT "pipeline_stages_cd_pipeline_id_fkey" FOREIGN KEY ("cd_pipeline_id") REFERENCES "public"."pipeline" ("id"),
+    CONSTRAINT "pipeline_stage_ci_pipeline_id_fkey" FOREIGN KEY ("ci_pipeline_id") REFERENCES "public"."ci_pipeline" ("id"),
+    CONSTRAINT "pipeline_stage_cd_pipeline_id_fkey" FOREIGN KEY ("cd_pipeline_id") REFERENCES "public"."pipeline" ("id"),
     PRIMARY KEY ("id")
 );
 
-CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_stage_steps;
+CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_stage_step;
 
 -- Table Definition
-CREATE TABLE "public"."pipeline_stage_steps"
+CREATE TABLE "public"."pipeline_stage_step"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_pipeline_stage_steps'::regclass),
+    "id"                          integer NOT NULL DEFAULT nextval('id_seq_pipeline_stage_step'::regclass),
     "pipeline_stage_id"           integer,
     "name"                        varchar(255),
     "description"                 text,
@@ -209,18 +209,18 @@ CREATE TABLE "public"."pipeline_stage_steps"
     "created_by"                  int4,
     "updated_on"                  timestamptz,
     "updated_by"                  int4,
-    CONSTRAINT "pipeline_stage_steps_script_id_fkey" FOREIGN KEY ("script_id") REFERENCES "public"."plugin_pipeline_script" ("id"),
-    CONSTRAINT "pipeline_stage_steps_ref_plugin_id_fkey" FOREIGN KEY ("ref_plugin_id") REFERENCES "public"."plugin_metadata" ("id"),
+    CONSTRAINT "pipeline_stage_step_script_id_fkey" FOREIGN KEY ("script_id") REFERENCES "public"."plugin_pipeline_script" ("id"),
+    CONSTRAINT "pipeline_stage_step_ref_plugin_id_fkey" FOREIGN KEY ("ref_plugin_id") REFERENCES "public"."plugin_metadata" ("id"),
     PRIMARY KEY ("id")
 );
 
-CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_stage_step_variables;
+CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_stage_step_variable;
 
 -- Table Definition
-CREATE TABLE "public"."pipeline_stage_step_variables"
+CREATE TABLE "public"."pipeline_stage_step_variable"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_stage_step_variables'::regclass),
-    "pipeline_stage_step_id"                   integer,
+    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_stage_step_variable'::regclass),
+    "pipeline_stage_step_id"      integer,
     "name"                        varchar(255),
     "format"                      varchar(255),
     "description"                 text,
@@ -230,7 +230,7 @@ CREATE TABLE "public"."pipeline_stage_step_variables"
     "value"                       varchar(255),
     "variable_type"               varchar(255),   -- INPUT or OUTPUT
     "index"                       integer,
-    "variable_value_type"         varchar(255),   -- NEW, FROM_PREVIOUS_STEP or GLOBAL
+    "value_type"                  varchar(255),   -- NEW, FROM_PREVIOUS_STEP or GLOBAL
     "previous_step_index"         integer,
     "reference_variable_name"     text,
     "deleted"                     bool,
@@ -238,17 +238,17 @@ CREATE TABLE "public"."pipeline_stage_step_variables"
     "created_by"                  int4,
     "updated_on"                  timestamptz,
     "updated_by"                  int4,
-    CONSTRAINT "pipeline_stage_step_variables_pipeline_stage_step_id_fkey" FOREIGN KEY ("pipeline_stage_step_id") REFERENCES "public"."pipeline_stage_steps" ("id"),
+    CONSTRAINT "pipeline_stage_step_variable_pipeline_stage_step_id_fkey" FOREIGN KEY ("pipeline_stage_step_id") REFERENCES "public"."pipeline_stage_step" ("id"),
     PRIMARY KEY ("id")
 );
 
 
-CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_stage_step_conditions;
+CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_stage_step_condition;
 
 -- Table Definition
-CREATE TABLE "public"."pipeline_stage_step_conditions"
+CREATE TABLE "public"."pipeline_stage_step_condition"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_pipeline_stage_step_conditions'::regclass),
+    "id"                          integer NOT NULL DEFAULT nextval('id_seq_pipeline_stage_step_condition'::regclass),
     "pipeline_stage_step_id"      integer,
     "condition_variable_id"       integer,      -- id of variable on which condition is written
     "condition_type"              varchar(255), -- SKIP, TRIGGER, SUCCESS or FAILURE
@@ -259,7 +259,7 @@ CREATE TABLE "public"."pipeline_stage_step_conditions"
     "created_by"                  int4,
     "updated_on"                  timestamptz,
     "updated_by"                  int4,
-    CONSTRAINT "pipeline_stage_step_conditions_plugin_step_id_fkey" FOREIGN KEY ("pipeline_stage_step_id") REFERENCES "public"."pipeline_stage_steps" ("id"),
-    CONSTRAINT "pipeline_stage_step_conditions_condition_variable_id_fkey" FOREIGN KEY ("condition_variable_id") REFERENCES "public"."pipeline_stage_step_variables" ("id"),
+    CONSTRAINT "pipeline_stage_step_condition_plugin_step_id_fkey" FOREIGN KEY ("pipeline_stage_step_id") REFERENCES "public"."pipeline_stage_step" ("id"),
+    CONSTRAINT "pipeline_stage_step_condition_condition_variable_id_fkey" FOREIGN KEY ("condition_variable_id") REFERENCES "public"."pipeline_stage_step_variable" ("id"),
     PRIMARY KEY ("id")
 );
