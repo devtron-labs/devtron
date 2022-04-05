@@ -33,7 +33,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -88,12 +87,13 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 			return appOfferingMode, installedAppDto, err
 		}
 		installedAppDto, err = handler.appStoreDeploymentServiceC.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-		if err != nil && err != pg.ErrNoRows {
+		if err != nil {
 			err = &util.ApiError{HttpStatusCode: http.StatusInternalServerError, UserMessage: "unable to find app in database"}
 			return appOfferingMode, installedAppDto, err
 		}
 		// this is the case when hyperion apps does not linked yet
-		if err == pg.ErrNoRows {
+		if installedAppDto == nil {
+			installedAppDto = &appStoreBean.InstallAppVersionDTO{}
 			appOfferingMode = util2.SERVER_MODE_HYPERION
 			installedAppDto.InstalledAppId = 0
 			installedAppDto.AppOfferingMode = appOfferingMode
