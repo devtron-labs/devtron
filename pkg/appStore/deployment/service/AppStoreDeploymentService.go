@@ -650,28 +650,27 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 	//DB operation
 	if installedApp.InstalledAppId > 0 && request.GetInstalledAppVersionId() > 0 {
 		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(int(request.GetInstalledAppVersionId()))
-	if err != nil {
-		impl.logger.Errorw("error while fetching chart installed version", "error", err)
-		return false, err
+		if err != nil {
+			impl.logger.Errorw("error while fetching chart installed version", "error", err)
+			return false, err
+		}
+		installedApp.Id = installedAppVersion.Id
+		installedAppVersion.Active = true
+		installedAppVersion.ValuesYaml = installedApp.ValuesOverrideYaml
+		installedAppVersion.UpdatedOn = time.Now()
+		installedAppVersion.UpdatedBy = userId
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
+		if err != nil {
+			impl.logger.Errorw("error while updating db", "error", err)
+			return false, err
+		}
 	}
-	installedApp.Id = installedAppVersion.Id
-	installedAppVersion.Active = true
-	installedAppVersion.ValuesYaml = installedApp.ValuesOverrideYaml
-	installedAppVersion.UpdatedOn = time.Now()
-	installedAppVersion.UpdatedBy = userId
-	_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
-	if err != nil {
-		impl.logger.Errorw("error while updating db", "error", err)
-		return false, err
-	}
-
 	//STEP 8: finish with return response
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error while committing transaction to db", "error", err)
 		return false, err
 	}
-}
 
 	if installedApp.AppOfferingMode == util2.SERVER_MODE_FULL {
 		// create build history for version upgrade, chart upgrade or simple update
@@ -747,7 +746,6 @@ func (impl AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(instal
 	return res, nil
 }
 
-
 func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	//step 4 db operation status update to deploy success
 	_, err := impl.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appStoreBean.DEPLOY_SUCCESS)
@@ -772,13 +770,31 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersionHistory(ctx cont
 	var result interface{}
 	var err error
 	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
-		result, err = impl.appStoreDeploymentHelmService.GetDeploymentHistory(ctx, installedApp)
+		deploymentHistory, err := impl.appStoreDeploymentHelmService.GetDeploymentHistory(ctx, installedApp)
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history", "error", err)
 			return nil, err
 		}
+		installedApp, err := impl.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+		if err != nil {
+			return nil, err
+		}
+
+		result = &client.DeploymentHistoryAndInstalledAppInfo{
+			DeploymentHistory: deploymentHistory.GetDeploymentHistory(),
+			InstalledAppInfo: &client.InstalledAppInfo{
+				AppId:                 installedApp.AppId,
+				EnvironmentName:       installedApp.EnvironmentName,
+				AppOfferingMode:       installedApp.AppOfferingMode,
+				InstalledAppId:        installedApp.InstalledAppId,
+				InstalledAppVersionId: installedApp.InstalledAppVersionId,
+				AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+				ClusterId:             installedApp.ClusterId,
+				EnvironmentId:         installedApp.EnvironmentId,
+			},
+		}
 	} else {
-		result, err = impl.appStoreDeploymentArgoCdService.GetInstalledAppVersionHistory(ctx, installedApp)
+		result, err = impl.appStoreDeploymentArgoCdService.GetDeploymentHistory(ctx, installedApp)
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history", "error", err)
 			return nil, err
@@ -807,4 +823,3 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersionHistoryValues(ct
 	}
 	return result, err
 }
-

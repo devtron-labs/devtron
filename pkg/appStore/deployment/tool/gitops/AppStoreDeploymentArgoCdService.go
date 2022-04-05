@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -23,7 +24,7 @@ type AppStoreDeploymentArgoCdService interface {
 	GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error)
-	GetInstalledAppVersionHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionHistoryDto, error)
+	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client.HelmAppDeploymentHistory, error)
 	GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId int) (*appStoreBean.IAVHistoryValues, error)
 }
 
@@ -223,9 +224,9 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx
 	return nil
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) GetInstalledAppVersionHistory(ctx context.Context, installedAppDto *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionHistoryDto, error) {
-	result := &appStoreBean.InstallAppVersionHistoryDto{}
-	var history []*appStoreBean.IAVHistory
+func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context.Context, installedAppDto *appStoreBean.InstallAppVersionDTO) (*client.HelmAppDeploymentHistory, error) {
+	result := &client.HelmAppDeploymentHistory{}
+	var history []*client.HelmAppDeploymentDetail
 	//TODO - response setup
 
 	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppDto.InstalledAppId)
@@ -240,8 +241,8 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetInstalledAppVersionHistory(ct
 			return result, err
 		}
 		for _, updateHistory := range versionHistory {
-			history = append(history, &appStoreBean.IAVHistory{
-				ChartMetaData: appStoreBean.IAVHistoryChartMetaData{
+			history = append(history, &client.HelmAppDeploymentDetail{
+				ChartMetadata: &client.ChartMetadata{
 					ChartName:    installedAppVersionModel.AppStoreApplicationVersion.AppStore.Name,
 					ChartVersion: installedAppVersionModel.AppStoreApplicationVersion.Version,
 					Description:  installedAppVersionModel.AppStoreApplicationVersion.Description,
@@ -249,33 +250,17 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetInstalledAppVersionHistory(ct
 					Sources:      []string{installedAppVersionModel.AppStoreApplicationVersion.Source},
 				},
 				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
-				DeployedAt: appStoreBean.IAVHistoryDeployedAt{
-					Nanos:   updateHistory.CreatedOn.Nanosecond(),
-					Seconds: updateHistory.CreatedOn.Unix(),
-				},
-				Version:               updateHistory.Id,
-				InstalledAppVersionId: installedAppVersionModel.Id,
+				//DeployedAt: timestamp,
+				Version: int32(updateHistory.Id),
+				//InstalledAppVersionId: installedAppVersionModel.Id,
 			})
 		}
 	}
 
 	if len(history) == 0 {
-		history = make([]*appStoreBean.IAVHistory, 0)
+		history = make([]*client.HelmAppDeploymentDetail, 0)
 	}
-	result.IAVHistory = history
-	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppDto.InstalledAppId)
-	if err != nil {
-		impl.Logger.Errorw("error while fetching installed version", "error", err)
-		return result, err
-	}
-	result.InstalledAppInfo = &appStoreBean.InstalledAppDto{
-		AppId:           installedApp.AppId,
-		EnvironmentName: installedApp.Environment.Name,
-		AppOfferingMode: installedApp.App.AppOfferingMode,
-		InstalledAppId:  installedApp.Id,
-		ClusterId:       installedApp.Environment.ClusterId,
-		EnvironmentId:   installedApp.EnvironmentId,
-	}
+	result.DeploymentHistory = history
 	return result, err
 }
 
