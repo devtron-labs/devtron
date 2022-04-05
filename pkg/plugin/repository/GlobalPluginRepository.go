@@ -176,7 +176,7 @@ func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins() ([]*PluginMet
 
 func (impl *GlobalPluginRepositoryImpl) GetTagsByPluginId(pluginId int) ([]string, error) {
 	var tags []string
-	query := "SELECT pt.name from plugin_tags pt INNER JOIN plugin_tag_relation ptr on pt.id = ptr.tag_id where ptr.plugin_id = ? and pt.deleted = false"
+	query := "SELECT pt.name from plugin_tag pt INNER JOIN plugin_tag_relation ptr on pt.id = ptr.tag_id where ptr.plugin_id = ? and pt.deleted = false"
 	_, err := impl.dbConnection.Query(&tags, query, pluginId)
 	if err != nil {
 		impl.logger.Errorw("err in getting tags by pluginId", "err", err, "pluginId", pluginId)
@@ -199,12 +199,12 @@ func (impl *GlobalPluginRepositoryImpl) GetMetaDataByPluginId(pluginId int) (*Pl
 func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesByPluginIdAndVariableType(pluginId int, variableType PluginStepVariableType) ([]*PluginStepVariable, error) {
 	var pluginVariables []*PluginStepVariable
 	err := impl.dbConnection.Model(&pluginVariables).
-		Column("plugin_step_variables.*").
-		Join("INNER JOIN plugin_steps ps on ps.id = plugin_step_variables.plugin_step_id").
+		Column("plugin_step_variable.*").
+		Join("INNER JOIN plugin_step ps on ps.id = plugin_step_variable.plugin_step_id").
 		Join("INNER JOIN plugin_metadata pm on pm.id = ps.plugin_id").
-		Where("plugin_step_variables.deleted = ?", false).
-		Where("plugin_step_variables.is_exposed = ?", true).
-		Where("plugin_step_variables.variable_type = ?", variableType).
+		Where("plugin_step_variable.deleted = ?", false).
+		Where("plugin_step_variable.is_exposed = ?", true).
+		Where("plugin_step_variable.variable_type = ?", variableType).
 		Where("ps.deleted = ?", false).
 		Where("pm.deleted = ?", false).
 		Where("pm.id = ?", pluginId).Select()
@@ -218,11 +218,11 @@ func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesByPluginIdAndVariable
 func (impl *GlobalPluginRepositoryImpl) GetExposedVariablesByPluginId(pluginId int) ([]*PluginStepVariable, error) {
 	var pluginVariables []*PluginStepVariable
 	err := impl.dbConnection.Model(&pluginVariables).
-		Column("plugin_step_variables.*").
-		Join("INNER JOIN plugin_steps ps on ps.id = plugin_step_variables.plugin_step_id").
+		Column("plugin_step_variable.*").
+		Join("INNER JOIN plugin_step ps on ps.id = plugin_step_variable.plugin_step_id").
 		Join("INNER JOIN plugin_metadata pm on pm.id = ps.plugin_id").
-		Where("plugin_step_variables.deleted = ?", false).
-		Where("plugin_step_variables.is_exposed = ?", true).
+		Where("plugin_step_variable.deleted = ?", false).
+		Where("plugin_step_variable.is_exposed = ?", true).
 		Where("ps.deleted = ?", false).
 		Where("pm.deleted = ?", false).
 		Where("pm.id = ?", pluginId).Select()
