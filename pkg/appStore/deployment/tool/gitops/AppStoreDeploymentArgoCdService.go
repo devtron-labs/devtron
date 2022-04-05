@@ -14,6 +14,7 @@ import (
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/go-pg/pg"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -173,7 +174,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	}
 
 	//validate relations
-	if versionHistory.InstalledAppVersionId != installedApp.Id || installedApp.InstalledAppId != installedAppVersion.InstalledAppId {
+	if installedApp.InstalledAppId != installedAppVersion.InstalledAppId {
 		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "bad request, requested version are not belongs to each other", InternalMessage: ""}
 		return installedApp, false, err
 	}
@@ -251,7 +252,10 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 					Sources:      []string{installedAppVersionModel.AppStoreApplicationVersion.Source},
 				},
 				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
-				//DeployedAt: timestamp,
+				DeployedAt: &timestamp.Timestamp{
+					Seconds: updateHistory.UpdatedOn.Unix(),
+					Nanos:   int32(updateHistory.UpdatedOn.Nanosecond()),
+				},
 				Version: int32(updateHistory.Id),
 				//InstalledAppVersionId: installedAppVersionModel.Id,
 			})

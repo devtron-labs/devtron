@@ -648,7 +648,7 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 		return false, fmt.Errorf("rollback request failed")
 	}
 	//DB operation
-	if installedApp.InstalledAppId > 0 && request.GetInstalledAppVersionId() > 0 {
+	if installedApp.InstalledAppId > 0 && installedApp.InstalledAppVersionId > 0 {
 		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(int(request.GetInstalledAppVersionId()))
 		if err != nil {
 			impl.logger.Errorw("error while fetching chart installed version", "error", err)
@@ -789,7 +789,7 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Conte
 		AppId:                 installedApp.AppId,
 		EnvironmentName:       installedApp.EnvironmentName,
 		AppOfferingMode:       installedApp.AppOfferingMode,
-		InstalledAppId: installedApp.InstalledAppId,
+		InstalledAppId:        installedApp.InstalledAppId,
 		InstalledAppVersionId: installedApp.InstalledAppVersionId,
 		AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
 		ClusterId:             installedApp.ClusterId,
