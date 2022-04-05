@@ -134,7 +134,9 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 		return
 	}
 	vars := mux.Vars(r)
-	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(vars["installedAppId"], vars["appId"])
+	v := r.URL.Query()
+	installedAppId := v.Get("installedAppId")
+	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(installedAppId, vars["appId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
 		return
@@ -171,7 +173,9 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 		return
 	}
 	vars := mux.Vars(r)
-	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(vars["installedAppId"], vars["appId"])
+	v := r.URL.Query()
+	installedAppId := v.Get("installedAppId")
+	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(installedAppId, vars["appId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
 		return
