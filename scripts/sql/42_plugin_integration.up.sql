@@ -57,7 +57,6 @@ CREATE TABLE "public"."plugin_pipeline_script"
     "script"                      text,
     "type"                        varchar(255),   -- SHELL, DOCKERFILE, CONTAINER_IMAGE etc
     "dockerfile_exists"           bool,
-    "store_script_at"             text,
     "mount_path"                  text,
     "mount_code_to_container"     bool,
     "configure_mount_path"        bool,

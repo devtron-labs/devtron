@@ -85,6 +85,7 @@ type DbPipelineOrchestratorImpl struct {
 	userAuthService               user.UserAuthService
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService
 	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService
+	pipelineStageService          PipelineStageService
 }
 
 func NewDbPipelineOrchestrator(
@@ -102,7 +103,8 @@ func NewDbPipelineOrchestrator(
 	appLabelsService app.AppLabelService,
 	userAuthService user.UserAuthService,
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService,
-	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService) *DbPipelineOrchestratorImpl {
+	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService,
+	pipelineStageService PipelineStageService) *DbPipelineOrchestratorImpl {
 	return &DbPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -120,6 +122,7 @@ func NewDbPipelineOrchestrator(
 		userAuthService:               userAuthService,
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
+		pipelineStageService:          pipelineStageService,
 	}
 }
 
@@ -394,22 +397,6 @@ func (impl DbPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig
 func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfigRequest, templateId int) (*bean.CiConfigRequest, error) {
 	//save pipeline in db start
 	for _, ciPipeline := range createRequest.CiPipelines {
-		scriptNames := make(map[string]bool)
-		for _, s := range ciPipeline.BeforeDockerBuildScripts {
-			if _, ok := scriptNames[s.Name]; ok {
-				impl.logger.Errorw("duplicate script names")
-				return nil, errors.New("duplicate script names")
-			}
-			scriptNames[s.Name] = true
-		}
-		for _, s := range ciPipeline.AfterDockerBuildScripts {
-			if _, ok := scriptNames[s.Name]; ok {
-				impl.logger.Errorw("duplicate script names")
-				return nil, errors.New("duplicate script names")
-			}
-			scriptNames[s.Name] = true
-		}
-
 		argByte, err := json.Marshal(ciPipeline.DockerArgs)
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
@@ -444,39 +431,22 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 			impl.logger.Errorw("error in saving pipeline", "ciPipelineObject", ciPipelineObject, "err", err)
 			return nil, err
 		}
-
-		for i, ciScript := range ciPipeline.BeforeDockerBuildScripts {
-			ciPipelineScript := impl.BuildCiPipelineScript(createRequest.UserId, ciScript, BEFORE_DOCKER_BUILD, ciPipeline)
-			err = impl.ciPipelineRepository.SaveCiPipelineScript(ciPipelineScript, tx)
+		if ciPipeline.PreBuildStage != nil {
+			//creating pre stage
+			err = impl.pipelineStageService.CreateCiPreStage(ciPipeline.PreBuildStage, ciPipeline.Id, createRequest.UserId)
 			if err != nil {
-				impl.logger.Errorw("error while saving ci script", "err", err)
+				impl.logger.Errorw("error in creating pre stage", "err", err, "preBuildStage", ciPipeline.PreBuildStage)
 				return nil, err
 			}
-			//creating history entry
-			_, err = impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
-			if err != nil {
-				impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
-				return nil, err
-			}
-			ciPipeline.BeforeDockerBuildScripts[i].Id = ciPipelineScript.Id
 		}
-
-		for i, ciScript := range ciPipeline.AfterDockerBuildScripts {
-			ciPipelineScript := impl.BuildCiPipelineScript(createRequest.UserId, ciScript, AFTER_DOCKER_BUILD, ciPipeline)
-			err = impl.ciPipelineRepository.SaveCiPipelineScript(ciPipelineScript, tx)
+		if ciPipeline.PostBuildStage != nil {
+			//creating post stage
+			err = impl.pipelineStageService.CreateCiPostStage(ciPipeline.PostBuildStage, ciPipeline.Id, createRequest.UserId)
 			if err != nil {
-				impl.logger.Errorw("error while saving ci script", "err", err)
+				impl.logger.Errorw("error in creating post stage", "err", err, "postBuildStage", ciPipeline.PostBuildStage)
 				return nil, err
 			}
-			//creating history entry
-			_, err = impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
-			if err != nil {
-				impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
-				return nil, err
-			}
-			ciPipeline.AfterDockerBuildScripts[i].Id = ciPipelineScript.Id
 		}
-
 		var pipelineMaterials []*pipelineConfig.CiPipelineMaterial
 		for _, r := range ciPipeline.CiMaterial {
 			material := &pipelineConfig.CiPipelineMaterial{

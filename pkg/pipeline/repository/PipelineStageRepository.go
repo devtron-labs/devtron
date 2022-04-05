@@ -66,7 +66,6 @@ type PluginPipelineScript struct {
 	Script               string                               `sql:"name"`
 	Type                 repository.ScriptType                `sql:"type"`
 	DockerfileExists     bool                                 `sql:"dockerfile_exists, notnull"`
-	StoreScriptAt        string                               `sql:"store_script_at"`
 	MountPath            string                               `sql:"mount_path"`
 	MountCodeToContainer bool                                 `sql:"mount_code_to_container,notnull"`
 	ConfigureMountPath   bool                                 `sql:"configure_mount_path,notnull"`
@@ -124,11 +123,21 @@ type PipelineStageStepCondition struct {
 }
 
 type PipelineStageRepository interface {
+	CreateCiStage(ciStage *PipelineStage) (*PipelineStage, error)
 	GetAllCiStagesByCiPipelineId(ciPipelineId int) ([]*PipelineStage, error)
+
+	CreatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error)
 	GetAllStepsByStageId(stageId int) ([]*PipelineStageStep, error)
+
+	CreatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error)
 	GetScriptDetailById(id int) (*PluginPipelineScript, error)
+	CreateScriptMapping(mappings []ScriptPathArgPortMapping) error
 	GetScriptMappingDetailByScriptId(scriptId int) ([]*ScriptPathArgPortMapping, error)
+
+	CreatePipelineStageStepVariables([]PipelineStageStepVariable) ([]PipelineStageStepVariable, error)
 	GetVariablesByStepId(stepId int) ([]*PipelineStageStepVariable, error)
+
+	CreatePipelineStageStepConditions([]PipelineStageStepCondition) ([]PipelineStageStepCondition, error)
 	GetConditionsByVariableId(variableId int) ([]*PipelineStageStepCondition, error)
 }
 
@@ -157,6 +166,24 @@ func (impl *PipelineStageRepositoryImpl) GetAllCiStagesByCiPipelineId(ciPipeline
 	return pipelineStages, nil
 }
 
+func (impl *PipelineStageRepositoryImpl) CreateCiStage(ciStage *PipelineStage) (*PipelineStage, error) {
+	err := impl.dbConnection.Insert(ciStage)
+	if err != nil {
+		impl.logger.Errorw("error in creating pre stage entry", "err", err, "ciStage", ciStage)
+		return nil, err
+	}
+	return ciStage, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error) {
+	err := impl.dbConnection.Insert(step)
+	if err != nil {
+		impl.logger.Errorw("error in creating pipeline stage step", "err", err, "step", step)
+		return nil, err
+	}
+	return step, nil
+}
+
 func (impl *PipelineStageRepositoryImpl) GetAllStepsByStageId(stageId int) ([]*PipelineStageStep, error) {
 	var steps []*PipelineStageStep
 	err := impl.dbConnection.Model(&steps).
@@ -167,6 +194,15 @@ func (impl *PipelineStageRepositoryImpl) GetAllStepsByStageId(stageId int) ([]*P
 		return nil, err
 	}
 	return steps, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) CreatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error) {
+	err := impl.dbConnection.Insert(pipelineScript)
+	if err != nil {
+		impl.logger.Errorw("error in creating pipeline script", "err", err, "scriptEntry", pipelineScript)
+		return nil, err
+	}
+	return pipelineScript, nil
 }
 
 func (impl *PipelineStageRepositoryImpl) GetScriptDetailById(id int) (*PluginPipelineScript, error) {
@@ -181,6 +217,14 @@ func (impl *PipelineStageRepositoryImpl) GetScriptDetailById(id int) (*PluginPip
 	return &scriptDetail, nil
 }
 
+func (impl *PipelineStageRepositoryImpl) CreateScriptMapping(mappings []ScriptPathArgPortMapping) error {
+	err := impl.dbConnection.Insert(&mappings)
+	if err != nil {
+		impl.logger.Errorw("error in creating pipeline script mappings", "err", err, "mappings", mappings)
+		return err
+	}
+	return nil
+}
 func (impl *PipelineStageRepositoryImpl) GetScriptMappingDetailByScriptId(scriptId int) ([]*ScriptPathArgPortMapping, error) {
 	var scriptMappingDetail []*ScriptPathArgPortMapping
 	err := impl.dbConnection.Model(&scriptMappingDetail).
@@ -193,6 +237,15 @@ func (impl *PipelineStageRepositoryImpl) GetScriptMappingDetailByScriptId(script
 	return scriptMappingDetail, nil
 }
 
+func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStepVariables(variables []PipelineStageStepVariable) ([]PipelineStageStepVariable, error) {
+	err := impl.dbConnection.Insert(&variables)
+	if err != nil {
+		impl.logger.Errorw("error in creating pipeline stage step variables", "err", err, "variables", variables)
+		return variables, err
+	}
+	return variables, nil
+}
+
 func (impl *PipelineStageRepositoryImpl) GetVariablesByStepId(stepId int) ([]*PipelineStageStepVariable, error) {
 	var variables []*PipelineStageStepVariable
 	err := impl.dbConnection.Model(&variables).
@@ -203,6 +256,15 @@ func (impl *PipelineStageRepositoryImpl) GetVariablesByStepId(stepId int) ([]*Pi
 		return nil, err
 	}
 	return variables, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStepConditions(conditions []PipelineStageStepCondition) ([]PipelineStageStepCondition, error) {
+	err := impl.dbConnection.Insert(&conditions)
+	if err != nil {
+		impl.logger.Errorw("error in creating pipeline stage step conditions", "err", err, "conditions", conditions)
+		return conditions, err
+	}
+	return conditions, nil
 }
 
 func (impl *PipelineStageRepositoryImpl) GetConditionsByVariableId(variableId int) ([]*PipelineStageStepCondition, error) {

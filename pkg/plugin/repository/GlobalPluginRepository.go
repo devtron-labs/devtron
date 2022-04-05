@@ -73,7 +73,6 @@ type PluginPipelineScript struct {
 	Script               string                    `sql:"name"`
 	Type                 ScriptType                `sql:"type"`
 	DockerfileExists     bool                      `sql:"dockerfile_exists, notnull"`
-	StoreScriptAt        string                    `sql:"store_script_at"`
 	MountPath            string                    `sql:"mount_path"`
 	MountCodeToContainer bool                      `sql:"mount_code_to_container,notnull"`
 	ConfigureMountPath   bool                      `sql:"configure_mount_path,notnull"`
