@@ -14,6 +14,12 @@ metadata:
 {{- end}}
 spec:
   type: {{ .Values.service.type | default "ClusterIP" }}
+{{- if (and (eq .Values.service.type "LoadBalancer") .Values.service.loadBalancerSourceRanges )}}
+  loadBalancerSourceRanges: 
+ {{- range .Values.service.loadBalancerSourceRanges }}
+  - {{ . }}
+ {{- end }}
+{{- end }}
   ports:
     {{- range .Values.ContainerPort }}
       {{- if .servicePort }}
