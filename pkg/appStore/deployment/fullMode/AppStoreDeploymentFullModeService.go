@@ -21,8 +21,8 @@ import (
 	"context"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -75,7 +75,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
 	globalEnvVariables                   *util3.GlobalEnvVariables
-	installedAppRepository               appStoreRepository.InstalledAppRepository
+	installedAppRepository               repository4.InstalledAppRepository
 	tokenCache                           *util2.TokenCache
 }
 
@@ -88,7 +88,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
 	gitOpsRepository repository3.GitOpsConfigRepository, globalEnvVariables *util3.GlobalEnvVariables,
-	installedAppRepository appStoreRepository.InstalledAppRepository, tokenCache *util2.TokenCache) *AppStoreDeploymentFullModeServiceImpl {
+	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,

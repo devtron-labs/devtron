@@ -15,7 +15,7 @@
  *
  */
 
-package appStoreDeployment
+package service
 
 import (
 	"context"
@@ -29,10 +29,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
@@ -62,10 +62,10 @@ type AppStoreDeploymentService interface {
 
 type AppStoreDeploymentServiceImpl struct {
 	logger                               *zap.SugaredLogger
-	installedAppRepository               appStoreRepository.InstalledAppRepository
+	installedAppRepository               repository.InstalledAppRepository
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentRepository                clusterRepository.EnvironmentRepository
-	clusterInstalledAppsRepository       appStoreRepository.ClusterInstalledAppsRepository
+	clusterInstalledAppsRepository       repository.ClusterInstalledAppsRepository
 	appRepository                        app.AppRepository
 	appStoreDeploymentHelmService        appStoreDeploymentTool.AppStoreDeploymentHelmService
 	appStoreDeploymentArgoCdService      appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService
@@ -74,17 +74,17 @@ type AppStoreDeploymentServiceImpl struct {
 	helmAppService                       client.HelmAppService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	globalEnvVariables                   *util2.GlobalEnvVariables
-	installedAppRepositoryHistory        appStoreRepository.InstalledAppVersionHistoryRepository
+	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 }
 
-func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository appStoreRepository.InstalledAppRepository,
+func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, environmentRepository clusterRepository.EnvironmentRepository,
-	clusterInstalledAppsRepository appStoreRepository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
+	clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
 	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
 	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	globalEnvVariables *util2.GlobalEnvVariables,
-	installedAppRepositoryHistory appStoreRepository.InstalledAppVersionHistoryRepository) *AppStoreDeploymentServiceImpl {
+	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -146,7 +146,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	}
 	installAppVersionRequest.AppId = appCreateRequest.Id
 
-	installedAppModel := &appStoreRepository.InstalledApps{
+	installedAppModel := &repository.InstalledApps{
 		AppId:         appCreateRequest.Id,
 		EnvironmentId: environment.Id,
 		Status:        appStoreBean.DEPLOY_INIT,
@@ -167,7 +167,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	}
 	installAppVersionRequest.InstalledAppId = installedApp.Id
 
-	installedAppVersions := &appStoreRepository.InstalledAppVersions{
+	installedAppVersions := &repository.InstalledAppVersions{
 		InstalledAppId:               installAppVersionRequest.InstalledAppId,
 		AppStoreApplicationVersionId: appStoreAppVersion.Id,
 		ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
@@ -188,7 +188,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installAppVersionRequest.InstalledAppVersionId = installedAppVersions.Id
 	installAppVersionRequest.Id = installedAppVersions.Id
 	if installAppVersionRequest.DefaultClusterComponent {
-		clusterInstalledAppsModel := &appStoreRepository.ClusterInstalledApps{
+		clusterInstalledAppsModel := &repository.ClusterInstalledApps{
 			ClusterId:      environment.ClusterId,
 			InstalledAppId: installAppVersionRequest.InstalledAppId,
 		}
@@ -300,7 +300,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(install
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	installedAppVersionHistory := &appStoreRepository.InstalledAppVersionHistory{
+	installedAppVersionHistory := &repository.InstalledAppVersionHistory{
 		InstalledAppVersionId: installAppVersionRequest.Id,
 	}
 	installedAppVersionHistory.ValuesYamlRaw = installAppVersionRequest.ValuesOverrideYaml
@@ -390,7 +390,7 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledApp(id int) (*appStoreBean
 }
 
 //converts db object to bean
-func (impl AppStoreDeploymentServiceImpl) chartAdaptor2(chart *appStoreRepository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
+func (impl AppStoreDeploymentServiceImpl) chartAdaptor2(chart *repository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
 	return &appStoreBean.InstallAppVersionDTO{
 		EnvironmentId:   chart.EnvironmentId,
 		InstalledAppId:  chart.Id,

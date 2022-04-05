@@ -27,8 +27,8 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -54,7 +54,7 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	enforcer                   casbin.Enforcer
 	enforcerUtil               rbac.EnforcerUtil
 	enforcerUtilHelm           rbac.EnforcerUtilHelm
-	appStoreDeploymentService  appStoreDeployment.AppStoreDeploymentService
+	appStoreDeploymentService  service.AppStoreDeploymentService
 	appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	validator                  *validator.Validate
 	helmAppService             client.HelmAppService
@@ -62,7 +62,7 @@ type AppStoreDeploymentRestHandlerImpl struct {
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService service.AppStoreDeploymentService,
 	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 ) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{

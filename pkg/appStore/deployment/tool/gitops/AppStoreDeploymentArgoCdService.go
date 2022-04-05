@@ -10,7 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -20,8 +20,8 @@ import (
 
 type AppStoreDeploymentArgoCdService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
-	GetAppStatus(installedAppAndEnvDetails appStoreRepository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
-	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error
+	GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
+	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error)
 	GetInstalledAppVersionHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionHistoryDto, error)
 	GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId int) (*appStoreBean.IAVHistoryValues, error)
@@ -31,14 +31,14 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	Logger                            *zap.SugaredLogger
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	acdClient                         application2.ServiceClient
-	chartGroupDeploymentRepository    appStoreRepository.ChartGroupDeploymentRepository
-	installedAppRepository            appStoreRepository.InstalledAppRepository
-	installedAppRepositoryHistory     appStoreRepository.InstalledAppVersionHistoryRepository
+	chartGroupDeploymentRepository    repository.ChartGroupDeploymentRepository
+	installedAppRepository            repository.InstalledAppRepository
+	installedAppRepositoryHistory     repository.InstalledAppVersionHistoryRepository
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
-	acdClient application2.ServiceClient, chartGroupDeploymentRepository appStoreRepository.ChartGroupDeploymentRepository,
-	installedAppRepository appStoreRepository.InstalledAppRepository, installedAppRepositoryHistory appStoreRepository.InstalledAppVersionHistoryRepository) *AppStoreDeploymentArgoCdServiceImpl {
+	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
+	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
@@ -68,7 +68,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequ
 }
 
 // TODO: Test ACD to get status
-func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvDetails appStoreRepository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error) {
+func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error) {
 	if len(installedAppAndEnvDetails.AppName) > 0 && len(installedAppAndEnvDetails.EnvironmentName) > 0 {
 		acdAppName := installedAppAndEnvDetails.AppName + "-" + installedAppAndEnvDetails.EnvironmentName
 		query := &application.ResourcesQuery{
@@ -106,7 +106,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvD
 	return "", errors.New("invalid app name or env name")
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error {
+func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error {
 	acdAppName := appName + "-" + environmentName
 	err := impl.deleteACD(acdAppName, ctx)
 	if err != nil {

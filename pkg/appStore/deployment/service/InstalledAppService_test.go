@@ -1,4 +1,4 @@
-package appStore
+package service
 
 import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -9,11 +9,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
-	appStoreValues "github.com/devtron-labs/devtron/pkg/appStore/values"
+	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -26,7 +25,7 @@ import (
 func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 	type fields struct {
 		logger                               *zap.SugaredLogger
-		installedAppRepository               appStoreRepository.InstalledAppRepository
+		installedAppRepository               repository4.InstalledAppRepository
 		chartTemplateService                 util.ChartTemplateService
 		refChartDir                          appStoreBean.RefChartProxyDir
 		repositoryService                    repository2.ServiceClient
@@ -35,18 +34,18 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		teamRepository                       team.TeamRepository
 		appRepository                        app.AppRepository
 		acdClient                            application.ServiceClient
-		appStoreValuesService                appStoreValues.AppStoreValuesService
-		pubsubClient                         *pubsub.PubSubClient
-		tokenCache                           *util2.TokenCache
-		chartGroupDeploymentRepository       appStoreRepository.ChartGroupDeploymentRepository
-		envService                           cluster.EnvironmentService
-		ArgoK8sClient                        argocdServer.ArgoK8sClient
-		gitFactory                           *util.GitFactory
-		aCDAuthConfig                        *util2.ACDAuthConfig
-		gitOpsRepository                     repository3.GitOpsConfigRepository
-		userService                          user.UserService
-		appStoreDeploymentService            appStoreDeployment.AppStoreDeploymentService
-		appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
+		appStoreValuesService             service.AppStoreValuesService
+		pubsubClient                      *pubsub.PubSubClient
+		tokenCache                        *util2.TokenCache
+		chartGroupDeploymentRepository    repository4.ChartGroupDeploymentRepository
+		envService                        cluster.EnvironmentService
+		ArgoK8sClient                     argocdServer.ArgoK8sClient
+		gitFactory                        *util.GitFactory
+		aCDAuthConfig                     *util2.ACDAuthConfig
+		gitOpsRepository                  repository3.GitOpsConfigRepository
+		userService                       user.UserService
+		appStoreDeploymentService         AppStoreDeploymentService
+		appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	}
 	type args struct {
 		bean   *cluster.ClusterBean

@@ -11,7 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	"net/http"
@@ -23,14 +23,14 @@ import (
 type ClusterServiceImplExtended struct {
 	environmentRepository  repository.EnvironmentRepository
 	grafanaClient          grafana.GrafanaClient
-	installedAppRepository appStoreRepository.InstalledAppRepository
+	installedAppRepository repository2.InstalledAppRepository
 	clusterServiceCD       cluster2.ServiceClient
 	K8sInformerFactory     informer.K8sInformerFactory
 	*ClusterServiceImpl
 }
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
-	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository appStoreRepository.InstalledAppRepository,
+	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
 	K8sUtil *util.K8sUtil,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
@@ -59,7 +59,7 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	for _, cluster := range beans {
 		clusterIds = append(clusterIds, cluster.Id)
 	}
-	clusterComponentsMap := make(map[int][]*appStoreRepository.InstalledAppVersions)
+	clusterComponentsMap := make(map[int][]*repository2.InstalledAppVersions)
 	charts, err := impl.installedAppRepository.GetInstalledAppVersionByClusterIdsV2(clusterIds)
 	if err != nil {
 		impl.logger.Errorw("error on fetching installed apps for cluster ids", "err", err, "clusterIds", clusterIds)
@@ -67,7 +67,7 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	}
 	for _, item := range charts {
 		if _, ok := clusterComponentsMap[item.InstalledApp.Environment.ClusterId]; !ok {
-			var charts []*appStoreRepository.InstalledAppVersions
+			var charts []*repository2.InstalledAppVersions
 			charts = append(charts, item)
 			clusterComponentsMap[item.InstalledApp.Environment.ClusterId] = charts
 		} else {

@@ -19,7 +19,7 @@ package appStoreDeploymentCommon
 
 import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -30,10 +30,10 @@ type AppStoreDeploymentCommonService interface {
 
 type AppStoreDeploymentCommonServiceImpl struct {
 	logger                 *zap.SugaredLogger
-	installedAppRepository appStoreRepository.InstalledAppRepository
+	installedAppRepository repository.InstalledAppRepository
 }
 
-func NewAppStoreDeploymentCommonServiceImpl(logger *zap.SugaredLogger, installedAppRepository appStoreRepository.InstalledAppRepository) *AppStoreDeploymentCommonServiceImpl {
+func NewAppStoreDeploymentCommonServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository) *AppStoreDeploymentCommonServiceImpl {
 	return &AppStoreDeploymentCommonServiceImpl{
 		logger:                 logger,
 		installedAppRepository: installedAppRepository,
@@ -65,7 +65,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetInstalledAppByClusterNamespac
 }
 
 //converts db object to bean
-func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *appStoreRepository.InstalledApps, installedAppVersion *appStoreRepository.InstalledAppVersions) *appStoreBean.InstallAppVersionDTO {
+func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.InstalledApps, installedAppVersion *repository.InstalledAppVersions) *appStoreBean.InstallAppVersionDTO {
 	chartVersionApp := installedAppVersion.AppStoreApplicationVersion
 	chartRepo := installedAppVersion.AppStoreApplicationVersion.AppStore.ChartRepo
 	return &appStoreBean.InstallAppVersionDTO{

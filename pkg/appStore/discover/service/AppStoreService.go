@@ -15,7 +15,7 @@
  *
  */
 
-package appStoreDiscover
+package service
 
 import (
 	"github.com/devtron-labs/devtron/internal/util"
