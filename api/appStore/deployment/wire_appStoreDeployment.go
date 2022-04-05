@@ -23,4 +23,9 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 	wire.Bind(new(AppStoreDeploymentRouter), new(*AppStoreDeploymentRouterImpl)),
 	appStoreRepository.NewInstalledAppVersionHistoryRepositoryImpl,
 	wire.Bind(new(appStoreRepository.InstalledAppVersionHistoryRepository), new(*appStoreRepository.InstalledAppVersionHistoryRepositoryImpl)),
+
+	NewCommonDeploymentRestHandlerImpl,
+	wire.Bind(new(CommonDeploymentRestHandler), new(*CommonDeploymentRestHandlerImpl)),
+	NewCommonDeploymentRouterImpl,
+	wire.Bind(new(CommonDeploymentRouter), new(*CommonDeploymentRouterImpl)),
 )

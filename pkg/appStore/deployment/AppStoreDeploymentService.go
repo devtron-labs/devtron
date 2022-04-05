@@ -56,6 +56,8 @@ type AppStoreDeploymentService interface {
 	LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error)
 	RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest, installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error)
 	UpdateInstallAppVersionHistory(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
+	GetInstalledAppVersionHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (interface{}, error)
+	GetInstalledAppVersionHistoryValues(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int) (*openapi.HelmAppDeploymentManifestDetail, error)
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -628,12 +630,6 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 	defer tx.Rollback()
 
 	// Rollback starts
-	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(int(request.GetInstalledAppVersionId()))
-	if err != nil {
-		impl.logger.Errorw("error while fetching chart installed version", "error", err)
-		return false, err
-	}
-	installedApp.Id = installedAppVersion.Id
 	var success bool
 	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
 		installedApp, success, err = impl.appStoreDeploymentHelmService.RollbackRelease(ctx, installedApp, request.GetVersion())
@@ -652,6 +648,13 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 		return false, fmt.Errorf("rollback request failed")
 	}
 	//DB operation
+	if installedApp.InstalledAppId > 0 && request.GetInstalledAppVersionId() > 0 {
+		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(int(request.GetInstalledAppVersionId()))
+	if err != nil {
+		impl.logger.Errorw("error while fetching chart installed version", "error", err)
+		return false, err
+	}
+	installedApp.Id = installedAppVersion.Id
 	installedAppVersion.Active = true
 	installedAppVersion.ValuesYaml = installedApp.ValuesOverrideYaml
 	installedAppVersion.UpdatedOn = time.Now()
@@ -668,6 +671,7 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 		impl.logger.Errorw("error while committing transaction to db", "error", err)
 		return false, err
 	}
+}
 
 	if installedApp.AppOfferingMode == util2.SERVER_MODE_FULL {
 		// create build history for version upgrade, chart upgrade or simple update
@@ -763,3 +767,44 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 
 	return nil
 }
+
+func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersionHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (interface{}, error) {
+	var result interface{}
+	var err error
+	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		result, err = impl.appStoreDeploymentHelmService.GetDeploymentHistory(ctx, installedApp)
+		if err != nil {
+			impl.logger.Errorw("error while getting deployment history", "error", err)
+			return nil, err
+		}
+	} else {
+		result, err = impl.appStoreDeploymentArgoCdService.GetInstalledAppVersionHistory(ctx, installedApp)
+		if err != nil {
+			impl.logger.Errorw("error while getting deployment history", "error", err)
+			return nil, err
+		}
+	}
+	return result, err
+}
+
+func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersionHistoryValues(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int) (*openapi.HelmAppDeploymentManifestDetail, error) {
+	//var result interface{}
+	result := &openapi.HelmAppDeploymentManifestDetail{}
+	var err error
+	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		result, err = impl.appStoreDeploymentHelmService.GetInstalledAppVersionHistoryValues(ctx, installedApp, int32(installedAppVersionHistoryId))
+		if err != nil {
+			impl.logger.Errorw("error while getting deployment history info", "error", err)
+			return nil, err
+		}
+	} else {
+		res, err := impl.appStoreDeploymentArgoCdService.GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId)
+		if err != nil {
+			impl.logger.Errorw("error while getting deployment history info", "error", err)
+			return nil, err
+		}
+		result.ValuesYaml = &res.ValuesYaml
+	}
+	return result, err
+}
+

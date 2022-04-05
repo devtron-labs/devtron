@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
@@ -18,7 +17,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type HelmAppRestHandler interface {
@@ -26,13 +24,10 @@ type HelmAppRestHandler interface {
 	GetApplicationDetail(w http.ResponseWriter, r *http.Request)
 	Hibernate(w http.ResponseWriter, r *http.Request)
 	UnHibernate(w http.ResponseWriter, r *http.Request)
-	GetDeploymentHistory(w http.ResponseWriter, r *http.Request)
 	GetReleaseInfo(w http.ResponseWriter, r *http.Request)
 	GetDesiredManifest(w http.ResponseWriter, r *http.Request)
 	DeleteApplication(w http.ResponseWriter, r *http.Request)
 	UpdateApplication(w http.ResponseWriter, r *http.Request)
-	GetDeploymentDetail(w http.ResponseWriter, r *http.Request)
-	RollbackApplication(w http.ResponseWriter, r *http.Request)
 }
 
 type HelmAppRestHandlerImpl struct {
@@ -170,42 +165,6 @@ func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *htt
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler *HelmAppRestHandlerImpl) GetDeploymentHistory(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	appId := vars["appId"]
-	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-
-	deploymentHistory, err := handler.helmAppService.GetDeploymentHistory(context.Background(), appIdentifier)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	installedApp, err := handler.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	res := &DeploymentHistoryAndInstalledAppInfo{
-		DeploymentHistory: deploymentHistory.GetDeploymentHistory(),
-		InstalledAppInfo:  convertToInstalledAppInfo(installedApp),
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
@@ -376,83 +335,6 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *HelmAppRestHandlerImpl) GetDeploymentDetail(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	appId := vars["appId"]
-	version, err := strconv.ParseInt(vars["version"], 10, 32)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-	res, err := handler.helmAppService.GetDeploymentDetail(context.Background(), appIdentifier, int32(version))
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	// Obfuscate secrets if user does not have edit access
-	canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
-	if !canUpdate && res != nil && res.Manifest != nil {
-		modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecretForWholeYamlInput(*res.Manifest)
-		if err != nil {
-			handler.logger.Errorw("error in hiding secret values", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		res.Manifest = &modifiedManifest
-	}
-
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler *HelmAppRestHandlerImpl) RollbackApplication(w http.ResponseWriter, r *http.Request) {
-	request := &openapi2.RollbackReleaseRequest{}
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(request)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(request.GetHAppId())
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-	success, err := handler.helmAppService.RollbackRelease(ctx, appIdentifier, request.GetVersion())
-	if err != nil {
-		handler.logger.Errorw("error in rollback helm release", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	res := &openapi2.RollbackReleaseResponse{
-		Success: &success,
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
 
 func (handler *HelmAppRestHandlerImpl) checkHelmAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, strings.ToLower(object)); !ok {

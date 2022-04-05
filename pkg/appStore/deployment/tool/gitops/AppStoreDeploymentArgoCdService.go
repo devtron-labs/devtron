@@ -23,6 +23,8 @@ type AppStoreDeploymentArgoCdService interface {
 	GetAppStatus(installedAppAndEnvDetails appStoreRepository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error)
+	GetInstalledAppVersionHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionHistoryDto, error)
+	GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId int) (*appStoreBean.IAVHistoryValues, error)
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -219,4 +221,71 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx
 		return err
 	}
 	return nil
+}
+
+func (impl AppStoreDeploymentArgoCdServiceImpl) GetInstalledAppVersionHistory(ctx context.Context, installedAppDto *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionHistoryDto, error) {
+	result := &appStoreBean.InstallAppVersionHistoryDto{}
+	var history []*appStoreBean.IAVHistory
+	//TODO - response setup
+
+	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppDto.InstalledAppId)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching installed version", "error", err)
+		return result, err
+	}
+	for _, installedAppVersionModel := range installedAppVersions {
+		versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistoryByVersionId(installedAppVersionModel.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error while fetching installed version history", "error", err)
+			return result, err
+		}
+		for _, updateHistory := range versionHistory {
+			history = append(history, &appStoreBean.IAVHistory{
+				ChartMetaData: appStoreBean.IAVHistoryChartMetaData{
+					ChartName:    installedAppVersionModel.AppStoreApplicationVersion.AppStore.Name,
+					ChartVersion: installedAppVersionModel.AppStoreApplicationVersion.Version,
+					Description:  installedAppVersionModel.AppStoreApplicationVersion.Description,
+					Home:         installedAppVersionModel.AppStoreApplicationVersion.Home,
+					Sources:      []string{installedAppVersionModel.AppStoreApplicationVersion.Source},
+				},
+				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
+				DeployedAt: appStoreBean.IAVHistoryDeployedAt{
+					Nanos:   updateHistory.CreatedOn.Nanosecond(),
+					Seconds: updateHistory.CreatedOn.Unix(),
+				},
+				Version:               updateHistory.Id,
+				InstalledAppVersionId: installedAppVersionModel.Id,
+			})
+		}
+	}
+
+	if len(history) == 0 {
+		history = make([]*appStoreBean.IAVHistory, 0)
+	}
+	result.IAVHistory = history
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppDto.InstalledAppId)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching installed version", "error", err)
+		return result, err
+	}
+	result.InstalledAppInfo = &appStoreBean.InstalledAppDto{
+		AppId:           installedApp.AppId,
+		EnvironmentName: installedApp.Environment.Name,
+		AppOfferingMode: installedApp.App.AppOfferingMode,
+		InstalledAppId:  installedApp.Id,
+		ClusterId:       installedApp.Environment.ClusterId,
+		EnvironmentId:   installedApp.EnvironmentId,
+	}
+	return result, err
+}
+
+func (impl AppStoreDeploymentArgoCdServiceImpl) GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId int) (*appStoreBean.IAVHistoryValues, error) {
+	values := &appStoreBean.IAVHistoryValues{}
+	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching installed version history", "error", err)
+		return nil, err
+	}
+	values.ValuesYaml = versionHistory.ValuesYamlRaw
+	return values, err
 }
