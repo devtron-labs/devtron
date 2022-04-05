@@ -56,7 +56,7 @@ type AppStoreDeploymentService interface {
 	LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *client.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error)
 	RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest, installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error)
 	UpdateInstallAppVersionHistory(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
-	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (interface{}, error)
+	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client.DeploymentHistoryAndInstalledAppInfo, error)
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int) (*openapi.HelmAppDeploymentManifestDetail, error)
 }
 
@@ -766,8 +766,8 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 	return nil
 }
 
-func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (interface{}, error) {
-	var result interface{}
+func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client.DeploymentHistoryAndInstalledAppInfo, error) {
+	result := &client.DeploymentHistoryAndInstalledAppInfo{}
 	var err error
 	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
 		deploymentHistory, err := impl.appStoreDeploymentHelmService.GetDeploymentHistory(ctx, installedApp)
@@ -775,30 +775,25 @@ func (impl AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Conte
 			impl.logger.Errorw("error while getting deployment history", "error", err)
 			return nil, err
 		}
-		installedApp, err := impl.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
-		if err != nil {
-			return nil, err
-		}
-
-		result = &client.DeploymentHistoryAndInstalledAppInfo{
-			DeploymentHistory: deploymentHistory.GetDeploymentHistory(),
-			InstalledAppInfo: &client.InstalledAppInfo{
-				AppId:                 installedApp.AppId,
-				EnvironmentName:       installedApp.EnvironmentName,
-				AppOfferingMode:       installedApp.AppOfferingMode,
-				InstalledAppId:        installedApp.InstalledAppId,
-				InstalledAppVersionId: installedApp.InstalledAppVersionId,
-				AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
-				ClusterId:             installedApp.ClusterId,
-				EnvironmentId:         installedApp.EnvironmentId,
-			},
-		}
+		result.DeploymentHistory = deploymentHistory.GetDeploymentHistory()
 	} else {
-		result, err = impl.appStoreDeploymentArgoCdService.GetDeploymentHistory(ctx, installedApp)
+		deploymentHistory, err := impl.appStoreDeploymentArgoCdService.GetDeploymentHistory(ctx, installedApp)
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history", "error", err)
 			return nil, err
 		}
+		result.DeploymentHistory = deploymentHistory.GetDeploymentHistory()
+	}
+
+	result.InstalledAppInfo = &client.InstalledAppInfo{
+		AppId:                 installedApp.AppId,
+		EnvironmentName:       installedApp.EnvironmentName,
+		AppOfferingMode:       installedApp.AppOfferingMode,
+		InstalledAppId: installedApp.InstalledAppId,
+		InstalledAppVersionId: installedApp.InstalledAppVersionId,
+		AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+		ClusterId:             installedApp.ClusterId,
+		EnvironmentId:         installedApp.EnvironmentId,
 	}
 	return result, err
 }
