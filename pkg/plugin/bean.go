@@ -1,5 +1,7 @@
 package plugin
 
+import "github.com/devtron-labs/devtron/pkg/plugin/repository"
+
 type PluginDetailDto struct {
 	Metadata        *PluginMetadataDto   `json:"metadata"`
 	InputVariables  []*PluginVariableDto `json:"inputVariables"`
@@ -16,15 +18,15 @@ type PluginMetadataDto struct {
 }
 
 type PluginVariableDto struct {
-	Id                    int    `json:"id,omitempty"`
-	Name                  string `json:"name"`
-	Format                string `json:"format"`
-	Description           string `json:"description"`
-	IsExposed             bool   `json:"isExposed,omitempty"`
-	AllowEmptyValue       bool   `json:"allowEmptyValue,omitempty"`
-	DefaultValue          string `json:"defaultValue,omitempty"`
-	Value                 string `json:"value,omitempty"`
-	ValueType             string `json:"valueType,omitempty"` //NEW, FROM_PREVIOUS_STEP or GLOBAL
-	PreviousStepIndex     int    `json:"previousStepIndex,omitempty"`
-	ReferenceVariableName string `json:"referenceVariableName,omitempty"`
+	Id                    int                                    `json:"id,omitempty"`
+	Name                  string                                 `json:"name"`
+	Format                string                                 `json:"format"`
+	Description           string                                 `json:"description"`
+	IsExposed             bool                                   `json:"isExposed,omitempty"`
+	AllowEmptyValue       bool                                   `json:"allowEmptyValue,omitempty"`
+	DefaultValue          string                                 `json:"defaultValue,omitempty"`
+	Value                 string                                 `json:"value,omitempty"`
+	ValueType             repository.PluginStepVariableValueType `json:"valueType,omitempty"` //NEW, FROM_PREVIOUS_STEP or GLOBAL
+	PreviousStepIndex     int                                    `json:"previousStepIndex,omitempty"`
+	ReferenceVariableName string                                 `json:"referenceVariableName,omitempty"`
 }

@@ -94,7 +94,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailById(pluginId int) (*PluginD
 			AllowEmptyValue:       pluginVariable.AllowEmptyValue,
 			DefaultValue:          pluginVariable.DefaultValue,
 			Value:                 pluginVariable.Value,
-			ValueType:             string(pluginVariable.ValueType),
+			ValueType:             pluginVariable.ValueType,
 			PreviousStepIndex:     pluginVariable.PreviousStepIndex,
 			ReferenceVariableName: pluginVariable.ReferenceVariableName,
 		}
