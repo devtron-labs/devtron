@@ -20,7 +20,9 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 
@@ -59,13 +61,15 @@ type EnvironmentPropertiesResponse struct {
 	GlobalChartRefId  int                   `json:"globalChartRefId,omitempty"  validate:"number"`
 	ChartRefId        int                   `json:"chartRefId,omitempty"  validate:"number"`
 	Namespace         string                `json:"namespace" validate:"name-component"`
+	Schema            json.RawMessage       `json:"schema"`
+	Readme            string                `json:"readme"`
 }
 
 type PropertiesConfigService interface {
 	CreateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties) (*EnvironmentProperties, error)
 	UpdateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties, userId int32) (*EnvironmentProperties, error)
 	//create environment entry for each new environment
-	CreateIfRequired(chart *chartConfig.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride bool, namespace string, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error)
+	CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride bool, namespace string, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error)
 	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *EnvironmentPropertiesResponse, err error)
 	GetEnvironmentPropertiesById(environmentId int) ([]EnvironmentProperties, error)
 
@@ -77,37 +81,39 @@ type PropertiesConfigService interface {
 	EnvMetricsEnableDisable(appMetricRequest *AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
 }
 type PropertiesConfigServiceImpl struct {
-	logger                       *zap.SugaredLogger
-	envConfigRepo                chartConfig.EnvConfigOverrideRepository
-	chartRepo                    chartConfig.ChartRepository
-	mergeUtil                    util.MergeUtil
-	environmentRepository        repository2.EnvironmentRepository
-	dbPipelineOrchestrator       DbPipelineOrchestrator
-	application                  application.ServiceClient
-	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository
-	appLevelMetricsRepository    repository.AppLevelMetricsRepository
+	logger                           *zap.SugaredLogger
+	envConfigRepo                    chartConfig.EnvConfigOverrideRepository
+	chartRepo                        chartRepoRepository.ChartRepository
+	mergeUtil                        util.MergeUtil
+	environmentRepository            repository2.EnvironmentRepository
+	dbPipelineOrchestrator           DbPipelineOrchestrator
+	application                      application.ServiceClient
+	envLevelAppMetricsRepository     repository.EnvLevelAppMetricsRepository
+	appLevelMetricsRepository        repository.AppLevelMetricsRepository
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
-	chartRepo chartConfig.ChartRepository,
+	chartRepo chartRepoRepository.ChartRepository,
 	mergeUtil util.MergeUtil,
 	environmentRepository repository2.EnvironmentRepository,
 	dbPipelineOrchestrator DbPipelineOrchestrator,
 	application application.ServiceClient,
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-) *PropertiesConfigServiceImpl {
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
-		logger:                       logger,
-		envConfigRepo:                envConfigRepo,
-		chartRepo:                    chartRepo,
-		mergeUtil:                    mergeUtil,
-		environmentRepository:        environmentRepository,
-		dbPipelineOrchestrator:       dbPipelineOrchestrator,
-		application:                  application,
-		envLevelAppMetricsRepository: envLevelAppMetricsRepository,
-		appLevelMetricsRepository:    appLevelMetricsRepository,
+		logger:                           logger,
+		envConfigRepo:                    envConfigRepo,
+		chartRepo:                        chartRepo,
+		mergeUtil:                        mergeUtil,
+		environmentRepository:            environmentRepository,
+		dbPipelineOrchestrator:           dbPipelineOrchestrator,
+		application:                      application,
+		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
+		appLevelMetricsRepository:        appLevelMetricsRepository,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 	}
 
 }
@@ -310,10 +316,12 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	override := &chartConfig.EnvConfigOverride{
 		Active:            propertiesRequest.Active,
 		Id:                propertiesRequest.Id,
+		ChartId:           oldEnvOverride.ChartId,
 		EnvOverrideValues: string(overrideByte),
 		Status:            propertiesRequest.Status,
 		ManualReviewed:    propertiesRequest.ManualReviewed,
 		Namespace:         propertiesRequest.Namespace,
+		TargetEnvironment: propertiesRequest.EnvironmentId,
 		AuditLog:          sql.AuditLog{UpdatedBy: propertiesRequest.UserId, UpdatedOn: time.Now()},
 	}
 
@@ -341,6 +349,30 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		}
 	}
 
+	//creating history
+	//TODO : remove fetching and setting app metrics flag for history when app metrics update request is combined with template update request
+	isAppMetricsEnabled := false
+	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(appId, propertiesRequest.EnvironmentId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", appId, "envId", propertiesRequest.EnvironmentId)
+		return nil, err
+	} else if err == pg.ErrNoRows {
+		appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", appId)
+			return nil, err
+		} else if err == nil {
+			isAppMetricsEnabled = appLevelAppMetrics.AppMetrics
+		}
+	} else {
+		isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(override, nil, isAppMetricsEnabled, 0)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", override)
+		return nil, err
+	}
+
 	return propertiesRequest, err
 }
 
@@ -356,7 +388,7 @@ func (impl PropertiesConfigServiceImpl) buildAppMetricsJson() ([]byte, error) {
 	return appMetricsJson, nil
 }
 
-func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride bool, namespace string, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error) {
+func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride bool, namespace string, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error) {
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
 		return nil, err
@@ -420,6 +452,28 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartConfig.Char
 		}
 		if err != nil {
 			impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
+			return nil, err
+		}
+		//TODO : remove fetching and setting app metrics flag for history when app metrics update request is combined with template update request
+		isAppMetricsEnabled := false
+		envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(chart.AppId, environmentId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", chart.AppId, "envId", environmentId)
+			return nil, err
+		} else if err == pg.ErrNoRows {
+			appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chart.AppId)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", chart.AppId)
+				return nil, err
+			} else if err == nil {
+				isAppMetricsEnabled = appLevelAppMetrics.AppMetrics
+			}
+		} else {
+			isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
+		}
+		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, isAppMetricsEnabled, 0)
+		if err != nil {
+			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
 			return nil, err
 		}
 	}
@@ -509,7 +563,6 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool
 	if err != nil {
 		impl.logger.Warnw("error in update envOverride", "envOverrideId", id)
 	}
-
 	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(envOverride.Chart.AppId, envOverride.TargetEnvironment)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error while fetching env level app metric", "err", err)
@@ -584,23 +637,23 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 }
 
 func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest *AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error) {
-
 	// validate app metrics compatibility
+	var currentChart *chartConfig.EnvConfigOverride
+	var err error
+	currentChart, err = impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appMetricRequest.AppId, appMetricRequest.EnvironmentId)
+	if err != nil && !errors.IsNotFound(err) {
+		impl.logger.Error(err)
+		return nil, err
+	}
+	if errors.IsNotFound(err) {
+		impl.logger.Errorw("no chart configured for this app", "appId", appMetricRequest.AppId)
+		err = &util.ApiError{
+			InternalMessage: "no chart configured for this app",
+			UserMessage:     "no chart configured for this app",
+		}
+		return nil, err
+	}
 	if appMetricRequest.IsAppMetricsEnabled == true {
-		currentChart, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appMetricRequest.AppId, appMetricRequest.EnvironmentId)
-		if err != nil && !errors.IsNotFound(err) {
-			impl.logger.Error(err)
-			return nil, err
-		}
-		if errors.IsNotFound(err) {
-			impl.logger.Errorw("no chart configured for this app", "appId", appMetricRequest.AppId)
-			err = &util.ApiError{
-				InternalMessage: "no chart configured for this app",
-				UserMessage:     "no chart configured for this app",
-			}
-			return nil, err
-		}
-
 		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(currentChart.Chart.ChartVersion)
 		if err != nil {
 			impl.logger.Errorw("chart version parsing", "err", err)
@@ -648,6 +701,12 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 			impl.logger.Error("err", err)
 			return nil, err
 		}
+	}
+	//creating history entry
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(currentChart, nil, appMetricRequest.IsAppMetricsEnabled, 0)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", currentChart)
+		return nil, err
 	}
 	return appMetricRequest, err
 }

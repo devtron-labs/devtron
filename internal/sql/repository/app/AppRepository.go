@@ -24,13 +24,14 @@ import (
 )
 
 type App struct {
-	tableName struct{} `sql:"app" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id,pk"`
-	AppName   string   `sql:"app_name,notnull"` //same as app name
-	Active    bool     `sql:"active, notnull"`
-	TeamId    int      `sql:"team_id"`
-	AppStore  bool     `sql:"app_store, notnull"`
-	Team      team.Team
+	tableName       struct{} `sql:"app" pg:",discard_unknown_columns"`
+	Id              int      `sql:"id,pk"`
+	AppName         string   `sql:"app_name,notnull"` //same as app name
+	Active          bool     `sql:"active, notnull"`
+	TeamId          int      `sql:"team_id"`
+	AppStore        bool     `sql:"app_store, notnull"`
+	AppOfferingMode string   `sql:"app_offering_mode,notnull"`
+	Team            team.Team
 	sql.AuditLog
 }
 
@@ -134,7 +135,8 @@ func (repo AppRepositoryImpl) FindById(id int) (*App, error) {
 
 func (repo AppRepositoryImpl) FindAppsByTeamId(teamId int) ([]App, error) {
 	var apps []App
-	err := repo.dbConnection.Model(&apps).Where("team_id = ?", teamId).Select()
+	err := repo.dbConnection.Model(&apps).Where("team_id = ?", teamId).
+		Where("active = ?", true).Select()
 	return apps, err
 }
 
@@ -152,7 +154,8 @@ func (repo AppRepositoryImpl) FindAppsByTeamIds(teamId []int, appType string) ([
 func (repo AppRepositoryImpl) FindAppsByTeamName(teamName string) ([]App, error) {
 	var apps []App
 	err := repo.dbConnection.Model(&apps).Column("app.*").
-		Join("inner join team t on t.id = app.team_id").Where("t.name = ?", teamName).
+		Join("inner join team t on t.id = app.team_id").
+		Where("t.name = ?", teamName).Where("t.active = ?", true).
 		Select()
 	return apps, err
 }

@@ -49,6 +49,7 @@ type UserService interface {
 	IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
 	UserExists(emailId string) bool
+	UpdateTriggerPolicyForTerminalAccess() (err error)
 }
 
 type UserServiceImpl struct {
@@ -675,14 +676,19 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 		}
 	}
 
-	filterGroupsModels, err := impl.roleGroupRepository.GetRoleGroupListByCasbinNames(filterGroups)
-	if err != nil {
-		impl.logger.Warnw("No Roles Found for user", "id", model.Id)
+	if len(filterGroups) > 0 {
+		filterGroupsModels, err := impl.roleGroupRepository.GetRoleGroupListByCasbinNames(filterGroups)
+		if err != nil {
+			impl.logger.Warnw("No Roles Found for user", "id", model.Id)
+		}
+		filterGroups = nil
+		for _, item := range filterGroupsModels {
+			filterGroups = append(filterGroups, item.Name)
+		}
+	} else {
+		impl.logger.Warnw("no roles found for user", "email", model.EmailId)
 	}
-	filterGroups = nil
-	for _, item := range filterGroupsModels {
-		filterGroups = append(filterGroups, item.Name)
-	}
+
 	if len(filterGroups) == 0 {
 		filterGroups = make([]string, 0)
 	}
@@ -802,8 +808,8 @@ func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
 	email := jwt.GetField(mapClaims, "email")
 	sub := jwt.GetField(mapClaims, "sub")
 
-	if email == "" && sub == "admin" {
-		email = sub
+	if email == "" && (sub == "admin" || sub == "admin:login") {
+		email = "admin"
 	}
 
 	userInfo, err := impl.GetUserByEmail(email)
@@ -958,4 +964,13 @@ func (impl UserServiceImpl) GetByIdIncludeDeleted(id int32) (*bean.UserInfo, err
 		EmailId: model.EmailId,
 	}
 	return response, nil
+}
+
+func (impl UserServiceImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
+	err = impl.userAuthRepository.UpdateTriggerPolicyForTerminalAccess()
+	if err != nil {
+		impl.logger.Errorw("error in updating policy for terminal access to trigger role", "err", err)
+		return err
+	}
+	return nil
 }

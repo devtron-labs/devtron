@@ -18,7 +18,6 @@ cronjobConfigs:
   failedJobsHistoryLimit: 1
   restartPolicy: OnFailure
 
-replicaCount: 1
 MinReadySeconds: 60
 GracePeriod: 30
 image:
@@ -62,79 +61,6 @@ resources:
 
 
 # Optional configs
-LivenessProbe:
-  Path: ""
-  port: 8080
-  scheme: ""
-  httpHeader:
-    name: ""
-    value: ""
-  tcp: false
-  command: []
-  initialDelaySeconds: 20
-  periodSeconds: 10
-  successThreshold: 1
-  timeoutSeconds: 5
-  failureThreshold: 3
-
-ReadinessProbe:
-  Path: ""
-  port: 8080
-  scheme: ""
-  httpHeader:
-    name: ""
-    value: ""
-  tcp: false
-  command: []
-  initialDelaySeconds: 20
-  periodSeconds: 10
-  successThreshold: 1
-  timeoutSeconds: 5
-  failureThreshold: 3
-
-ingress:
-  enabled: false
-  annotations:
-    nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
-    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
-    kubernetes.io/ingress.class: nginx
-#    nginx.ingress.kubernetes.io/rewrite-target: /$2
-#    nginx.ingress.kubernetes.io/canary: "true"
-#    nginx.ingress.kubernetes.io/canary-weight: "10"
-
-  hosts:
-    - host: chart-example1.local
-      paths:
-        - /example1
-    - host: chart-example2.local
-      paths:
-        - /example2
-        - /example2/healthz
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
-
-ingressInternal:
-  enabled: false
-  annotations: {}
- #    kubernetes.io/ingress.class: nginx
- #    kubernetes.io/tls-acme: "true"
- #    nginx.ingress.kubernetes.io/canary: "true"
- #    nginx.ingress.kubernetes.io/canary-weight: "10"
-
-  hosts:
-    - host: chart-example1.internal
-      paths:
-        - /example1
-    - host: chart-example2.internal
-      paths:
-        - /example2
-        - /example2/healthz
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
 
 command:
   enabled: false
@@ -184,8 +110,6 @@ volumes: []
 #     - name: log-volume
 #       emptyDir: {}
 
-dbMigrationConfig:
-  enabled: false
 
 tolerations: []
 
@@ -194,22 +118,6 @@ Spec:
     Key:
     #  Key: kops.k8s.io/instancegroup
     Values:
-
-autoscaling:
-  enabled: false
-  MinReplicas: 1
-  MaxReplicas: 2
-  TargetCPUUtilizationPercentage: 70
-  TargetMemoryUtilizationPercentage: 80
-  extraMetrics: []
-#    - external:
-#        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
-#        metricSelector:
-#          matchLabels:
-#            resource.labels.subscription_id: echo-read
-#        targetAverageValue: "2"
-#      type: External
-#
 
 prometheus:
   release: monitoring
@@ -222,18 +130,14 @@ server:
 servicemonitor:
   additionalLabels: {}
 
-envoyproxy:
-  image: envoyproxy/envoy:v1.14.1
-  configMapName: ""
-  resources:
-    limits:
-      cpu: 50m
-      memory: 50Mi
-    requests:
-      cpu: 50m
-      memory: 50Mi
-
-
 imagePullSecrets: []
   # - test1
   # - test2
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+
+podSecurityContext: {}
+  # runAsUser: 1000
+  # runAsGroup: 3000
+  # fsGroup: 2000

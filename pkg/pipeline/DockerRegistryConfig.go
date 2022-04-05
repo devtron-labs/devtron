@@ -35,6 +35,7 @@ type DockerRegistryConfig interface {
 	FetchOneDockerAccount(storeId string) (*DockerArtifactStoreBean, error)
 	Update(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error)
 	Delete(storeId string) (string, error)
+	DeleteReg(bean *DockerArtifactStoreBean) error
 }
 
 type DockerArtifactStoreBean struct {
@@ -59,7 +60,8 @@ type DockerRegistryConfigImpl struct {
 	logger                        *zap.SugaredLogger
 }
 
-func NewDockerRegistryConfigImpl(dockerArtifactStoreRepository repository.DockerArtifactStoreRepository, logger *zap.SugaredLogger) *DockerRegistryConfigImpl {
+func NewDockerRegistryConfigImpl(dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
+	logger *zap.SugaredLogger) *DockerRegistryConfigImpl {
 	return &DockerRegistryConfigImpl{
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 		logger:                        logger,
@@ -110,9 +112,10 @@ func (impl DockerRegistryConfigImpl) ListAllActive() ([]DockerArtifactStoreBean,
 	var storeBeans []DockerArtifactStoreBean
 	for _, store := range stores {
 		storeBean := DockerArtifactStoreBean{
-			Id:          store.Id,
-			RegistryURL: store.RegistryURL,
-			IsDefault:   store.IsDefault,
+			Id:           store.Id,
+			RegistryURL:  store.RegistryURL,
+			IsDefault:    store.IsDefault,
+			RegistryType: store.RegistryType,
 		}
 		storeBeans = append(storeBeans, storeBean)
 	}
@@ -237,4 +240,21 @@ func (impl DockerRegistryConfigImpl) Delete(storeId string) (string, error) {
 
 	impl.logger.Infow("delete docker registry ", "storeId", storeId)
 	return storeId, nil
+}
+
+func (impl DockerRegistryConfigImpl) DeleteReg(bean *DockerArtifactStoreBean) error {
+	dockerReg, err := impl.dockerArtifactStoreRepository.FindOne(bean.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id, "err", err)
+		return err
+	}
+	deleteReq := dockerReg
+	deleteReq.UpdatedOn = time.Now()
+	deleteReq.UpdatedBy = bean.User
+	err = impl.dockerArtifactStoreRepository.MarkRegistryDeleted(deleteReq)
+	if err != nil {
+		impl.logger.Errorw("err in deleting docker registry", "id", bean.Id, "err", err)
+		return err
+	}
+	return nil
 }

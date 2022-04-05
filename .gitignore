@@ -3,3 +3,4 @@ devtron
 .DS_Store
 .vscode
 .env
+/cmd/external-app/devtron-ea

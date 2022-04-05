@@ -18,8 +18,8 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -74,6 +74,7 @@ type PipelineRepository interface {
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
 	FindAutomaticByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
 	GetByEnvOverrideId(envOverrideId int) ([]Pipeline, error)
+	GetByEnvOverrideIdAndEnvId(envOverrideId, envId int) (Pipeline, error)
 	FindActiveByAppIdAndEnvironmentId(appId int, environmentId int) (pipelines []*Pipeline, err error)
 	UndoDelete(id int) error
 	UniqueAppEnvironmentPipelines() ([]*Pipeline, error)
@@ -84,6 +85,8 @@ type PipelineRepository interface {
 	FindActiveByAppIdAndEnvironmentIdV2() (pipelines []*Pipeline, err error)
 	GetConnection() *pg.DB
 	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
+	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
+	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 }
 
 type CiArtifactDTO struct {
@@ -274,7 +277,7 @@ func (impl PipelineRepositoryImpl) GetByEnvOverrideId(envOverrideId int) ([]Pipe
 	query := "" +
 		" SELECT p.*" +
 		" FROM chart_env_config_override ceco" +
-		" INNER JOIN chart ch on ch.id = ceco.chart_id" +
+		" INNER JOIN charts ch on ch.id = ceco.chart_id" +
 		" INNER JOIN environment env on env.id = ceco.target_environment" +
 		" INNER JOIN app ap on ap.id = ch.app_id" +
 		" INNER JOIN pipeline p on p.app_id = ap.id" +
@@ -285,6 +288,24 @@ func (impl PipelineRepositoryImpl) GetByEnvOverrideId(envOverrideId int) ([]Pipe
 		return nil, err
 	}
 	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) GetByEnvOverrideIdAndEnvId(envOverrideId, envId int) (Pipeline, error) {
+	var pipeline Pipeline
+	query := "" +
+		" SELECT p.*" +
+		" FROM chart_env_config_override ceco" +
+		" INNER JOIN charts ch on ch.id = ceco.chart_id" +
+		" INNER JOIN environment env on env.id = ceco.target_environment" +
+		" INNER JOIN app ap on ap.id = ch.app_id" +
+		" INNER JOIN pipeline p on p.app_id = ap.id" +
+		" WHERE ceco.id=? and p.environment_id=?;"
+	_, err := impl.dbConnection.Query(&pipeline, query, envOverrideId, envId)
+
+	if err != nil {
+		return pipeline, err
+	}
+	return pipeline, err
 }
 
 func (impl PipelineRepositoryImpl) UniqueAppEnvironmentPipelines() ([]*Pipeline, error) {
@@ -316,6 +337,28 @@ func (impl PipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []*P
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*").
 		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
+		Select()
+	return pipelines, err
+}
+func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Where("environment_id = ?", envId).
+		Where("deleted = ?", false).
+		Select()
+	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndChartId(hasConfigOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.*").
+		Join("inner join charts on pipeline.app_id = charts.app_id").
+		Join("inner join chart_env_config_override ceco on charts.id = ceco.chart_id").
+		Where("pipeline.app_id = ?", appId).
+		Where("charts.id = ?", chartId).
+		Where("ceco.is_override = ?", hasConfigOverridden).
+		Where("pipeline.deleted = ?", false).
+		Where("ceco.active = ?", true).
+		Where("charts.active = ?", true).
 		Select()
 	return pipelines, err
 }

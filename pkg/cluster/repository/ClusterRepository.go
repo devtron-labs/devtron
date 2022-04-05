@@ -52,6 +52,7 @@ type ClusterRepository interface {
 	FindByIds(id []int) ([]Cluster, error)
 	Update(model *Cluster) error
 	Delete(model *Cluster) error
+	MarkClusterDeleted(model *Cluster) error
 }
 
 func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterRepositoryImpl {
@@ -75,6 +76,7 @@ func (impl ClusterRepositoryImpl) FindOne(clusterName string) (*Cluster, error) 
 	err := impl.dbConnection.
 		Model(cluster).
 		Where("cluster_name =?", clusterName).
+		Where("active =?", true).
 		Limit(1).
 		Select()
 	return cluster, err
@@ -95,6 +97,7 @@ func (impl ClusterRepositoryImpl) FindAll() ([]Cluster, error) {
 	var clusters []Cluster
 	err := impl.dbConnection.
 		Model(&clusters).
+		Where("active =?", true).
 		Select()
 	return clusters, err
 }
@@ -113,6 +116,7 @@ func (impl ClusterRepositoryImpl) FindById(id int) (*Cluster, error) {
 	err := impl.dbConnection.
 		Model(cluster).
 		Where("id =?", id).
+		Where("active =?", true).
 		Limit(1).
 		Select()
 	return cluster, err
@@ -123,6 +127,7 @@ func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 	err := impl.dbConnection.
 		Model(&cluster).
 		Where("id in(?)", pg.In(id)).
+		Where("active =?", true).
 		Select()
 	return cluster, err
 }
@@ -133,4 +138,9 @@ func (impl ClusterRepositoryImpl) Update(model *Cluster) error {
 
 func (impl ClusterRepositoryImpl) Delete(model *Cluster) error {
 	return impl.dbConnection.Delete(model)
+}
+
+func (impl ClusterRepositoryImpl) MarkClusterDeleted(model *Cluster) error {
+	model.Active = false
+	return impl.dbConnection.Update(model)
 }

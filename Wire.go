@@ -21,8 +21,14 @@
 package main
 
 import (
+	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
+	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
+	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
+	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
+	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
+	"github.com/devtron-labs/devtron/api/deployment"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
@@ -48,8 +54,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	appstore2 "github.com/devtron-labs/devtron/internal/sql/repository/appstore"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appstore/chartGroup"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
@@ -60,10 +64,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
+	appStore "github.com/devtron-labs/devtron/pkg/appStore"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
+	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
+	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
-	"github.com/devtron-labs/devtron/pkg/appstore"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/devtron-labs/devtron/pkg/event"
@@ -72,6 +81,8 @@ import (
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -96,6 +107,10 @@ func InitializeApp() (*App, error) {
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
+		chartRepo.ChartRepositoryWireSet,
+		appStoreDiscover.AppStoreDiscoverWireSet,
+		appStoreValues.AppStoreValuesWireSet,
+		appStoreDeployment.AppStoreDeploymentWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -104,11 +119,12 @@ func InitializeApp() (*App, error) {
 		helper.NewAppListingRepositoryQueryBuilder,
 		//sql.GetConfig,
 		eClient.GetEventClientConfig,
+		util2.GetGlobalEnvVariables,
 		//sql.NewDbConnection,
 		//app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
 		wire.Value(pipeline.RefChartDir("scripts/devtron-reference-helm-charts")),
-		wire.Value(appstore.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
+		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(pipeline.DefaultChart("reference-app-rolling")),
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
 		session.SettingsManager,
@@ -125,6 +141,14 @@ func InitializeApp() (*App, error) {
 		router.NewHelmRouter,
 		wire.Bind(new(router.HelmRouter), new(*router.HelmRouterImpl)),
 
+		//---- pprof start ----
+		restHandler.NewPProfRestHandler,
+		wire.Bind(new(restHandler.PProfRestHandler), new(*restHandler.PProfRestHandlerImpl)),
+
+		router.NewPProfRouter,
+		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
+		//---- pprof end ----
+
 		restHandler.NewPipelineRestHandler,
 		wire.Bind(new(restHandler.PipelineTriggerRestHandler), new(*restHandler.PipelineTriggerRestHandlerImpl)),
 
@@ -134,14 +158,17 @@ func InitializeApp() (*App, error) {
 		bulkUpdate.NewBulkUpdateRepository,
 		wire.Bind(new(bulkUpdate.BulkUpdateRepository), new(*bulkUpdate.BulkUpdateRepositoryImpl)),
 
-		chartConfig.NewChartRepository,
-		wire.Bind(new(chartConfig.ChartRepository), new(*chartConfig.ChartRepositoryImpl)),
 		chartConfig.NewEnvConfigOverrideRepository,
 		wire.Bind(new(chartConfig.EnvConfigOverrideRepository), new(*chartConfig.EnvConfigOverrideRepositoryImpl)),
 		chartConfig.NewPipelineOverrideRepository,
 		wire.Bind(new(chartConfig.PipelineOverrideRepository), new(*chartConfig.PipelineOverrideRepositoryImpl)),
 		util.MergeUtil{},
 		util.NewSugardLogger,
+
+		deployment.NewDeploymentConfigRestHandlerImpl,
+		wire.Bind(new(deployment.DeploymentConfigRestHandler), new(*deployment.DeploymentConfigRestHandlerImpl)),
+		deployment.NewDeploymentRouterImpl,
+		wire.Bind(new(deployment.DeploymentConfigRouter), new(*deployment.DeploymentConfigRouterImpl)),
 		router.NewMuxRouter,
 
 		app2.NewAppRepositoryImpl,
@@ -172,10 +199,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.ChartService), new(*pipeline.ChartServiceImpl)),
 		pipeline.NewBulkUpdateServiceImpl,
 		wire.Bind(new(pipeline.BulkUpdateService), new(*pipeline.BulkUpdateServiceImpl)),
-		chartConfig.NewChartRepoRepositoryImpl,
-		wire.Bind(new(chartConfig.ChartRepoRepository), new(*chartConfig.ChartRepoRepositoryImpl)),
-		chartConfig.NewChartRefRepositoryImpl,
-		wire.Bind(new(chartConfig.ChartRefRepository), new(*chartConfig.ChartRefRepositoryImpl)),
 
 		repository.NewGitProviderRepositoryImpl,
 		wire.Bind(new(repository.GitProviderRepository), new(*repository.GitProviderRepositoryImpl)),
@@ -283,6 +306,7 @@ func InitializeApp() (*App, error) {
 		pipeline.GetEcrConfig,
 		NewApp,
 		//session.NewK8sClient,
+
 		util.NewK8sUtil,
 		argocdServer.NewVersionServiceImpl,
 		wire.Bind(new(argocdServer.VersionService), new(*argocdServer.VersionServiceImpl)),
@@ -396,27 +420,13 @@ func InitializeApp() (*App, error) {
 		event.NewEventServiceImpl,
 		wire.Bind(new(event.EventService), new(*event.EventServiceImpl)),
 
-		restHandler.NewInstalledAppRestHandlerImpl,
-		wire.Bind(new(restHandler.InstalledAppRestHandler), new(*restHandler.InstalledAppRestHandlerImpl)),
-		appstore.NewInstalledAppServiceImpl,
-		wire.Bind(new(appstore.InstalledAppService), new(*appstore.InstalledAppServiceImpl)),
-		appstore2.NewInstalledAppRepositoryImpl,
-		wire.Bind(new(appstore2.InstalledAppRepository), new(*appstore2.InstalledAppRepositoryImpl)),
+		appStoreRestHandler.NewInstalledAppRestHandlerImpl,
+		wire.Bind(new(appStoreRestHandler.InstalledAppRestHandler), new(*appStoreRestHandler.InstalledAppRestHandlerImpl)),
+		appStore.NewInstalledAppServiceImpl,
+		wire.Bind(new(appStore.InstalledAppService), new(*appStore.InstalledAppServiceImpl)),
 
-		router.NewAppStoreRouterImpl,
-		wire.Bind(new(router.AppStoreRouter), new(*router.AppStoreRouterImpl)),
-
-		restHandler.NewAppStoreRestHandlerImpl,
-		wire.Bind(new(restHandler.AppStoreRestHandler), new(*restHandler.AppStoreRestHandlerImpl)),
-
-		appstore.NewAppStoreServiceImpl,
-		wire.Bind(new(appstore.AppStoreService), new(*appstore.AppStoreServiceImpl)),
-
-		appstore2.NewAppStoreRepositoryImpl,
-		wire.Bind(new(appstore2.AppStoreRepository), new(*appstore2.AppStoreRepositoryImpl)),
-
-		appstore2.NewAppStoreApplicationVersionRepositoryImpl,
-		wire.Bind(new(appstore2.AppStoreApplicationVersionRepository), new(*appstore2.AppStoreApplicationVersionRepositoryImpl)),
+		appStoreRestHandler.NewAppStoreRouterImpl,
+		wire.Bind(new(appStoreRestHandler.AppStoreRouter), new(*appStoreRestHandler.AppStoreRouterImpl)),
 
 		restHandler.NewAppWorkflowRestHandlerImpl,
 		wire.Bind(new(restHandler.AppWorkflowRestHandler), new(*restHandler.AppWorkflowRestHandlerImpl)),
@@ -480,13 +490,6 @@ func InitializeApp() (*App, error) {
 		pubsub2.NewNatsPublishClientImpl,
 		wire.Bind(new(pubsub2.NatsPublishClient), new(*pubsub2.NatsPublishClientImpl)),
 
-		restHandler.NewAppStoreValuesRestHandlerImpl,
-		wire.Bind(new(restHandler.AppStoreValuesRestHandler), new(*restHandler.AppStoreValuesRestHandlerImpl)),
-		appstore.NewAppStoreValuesServiceImpl,
-		wire.Bind(new(appstore.AppStoreValuesService), new(*appstore.AppStoreValuesServiceImpl)),
-		appstore2.NewAppStoreVersionValuesRepositoryImpl,
-		wire.Bind(new(appstore2.AppStoreVersionValuesRepository), new(*appstore2.AppStoreVersionValuesRepositoryImpl)),
-
 		//Batch actions
 		batch.NewWorkflowActionImpl,
 		wire.Bind(new(batch.WorkflowAction), new(*batch.WorkflowActionImpl)),
@@ -503,18 +506,18 @@ func InitializeApp() (*App, error) {
 		router.NewBatchOperationRouterImpl,
 		wire.Bind(new(router.BatchOperationRouter), new(*router.BatchOperationRouterImpl)),
 
-		chartGroup.NewChartGroupReposotoryImpl,
-		wire.Bind(new(chartGroup.ChartGroupReposotory), new(*chartGroup.ChartGroupReposotoryImpl)),
-		chartGroup.NewChartGroupEntriesRepositoryImpl,
-		wire.Bind(new(chartGroup.ChartGroupEntriesRepository), new(*chartGroup.ChartGroupEntriesRepositoryImpl)),
-		appstore.NewChartGroupServiceImpl,
-		wire.Bind(new(appstore.ChartGroupService), new(*appstore.ChartGroupServiceImpl)),
+		appStoreRepository.NewChartGroupReposotoryImpl,
+		wire.Bind(new(appStoreRepository.ChartGroupReposotory), new(*appStoreRepository.ChartGroupReposotoryImpl)),
+		appStoreRepository.NewChartGroupEntriesRepositoryImpl,
+		wire.Bind(new(appStoreRepository.ChartGroupEntriesRepository), new(*appStoreRepository.ChartGroupEntriesRepositoryImpl)),
+		appStore.NewChartGroupServiceImpl,
+		wire.Bind(new(appStore.ChartGroupService), new(*appStore.ChartGroupServiceImpl)),
 		restHandler.NewChartGroupRestHandlerImpl,
 		wire.Bind(new(restHandler.ChartGroupRestHandler), new(*restHandler.ChartGroupRestHandlerImpl)),
 		router.NewChartGroupRouterImpl,
 		wire.Bind(new(router.ChartGroupRouter), new(*router.ChartGroupRouterImpl)),
-		chartGroup.NewChartGroupDeploymentRepositoryImpl,
-		wire.Bind(new(chartGroup.ChartGroupDeploymentRepository), new(*chartGroup.ChartGroupDeploymentRepositoryImpl)),
+		appStoreRepository.NewChartGroupDeploymentRepositoryImpl,
+		wire.Bind(new(appStoreRepository.ChartGroupDeploymentRepository), new(*appStoreRepository.ChartGroupDeploymentRepositoryImpl)),
 
 		commonService.NewCommonServiceImpl,
 		wire.Bind(new(commonService.CommonService), new(*commonService.CommonServiceImpl)),
@@ -548,8 +551,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(security.PolicyService), new(*security.PolicyServiceImpl)),
 		security2.NewPolicyRepositoryImpl,
 		wire.Bind(new(security2.CvePolicyRepository), new(*security2.CvePolicyRepositoryImpl)),
-		appstore2.NewClusterInstalledAppsRepositoryImpl,
-		wire.Bind(new(appstore2.ClusterInstalledAppsRepository), new(*appstore2.ClusterInstalledAppsRepositoryImpl)),
 
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
@@ -632,7 +633,46 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
-		util2.NewGoJsonSchemaCustomFormatChecker,
+
+		delete2.NewDeleteServiceExtendedImpl,
+		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceExtendedImpl)),
+		delete2.NewDeleteServiceFullModeImpl,
+		wire.Bind(new(delete2.DeleteServiceFullMode), new(*delete2.DeleteServiceFullModeImpl)),
+
+		appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl,
+		wire.Bind(new(appStoreDeploymentFullMode.AppStoreDeploymentFullModeService), new(*appStoreDeploymentFullMode.AppStoreDeploymentFullModeServiceImpl)),
+		appStoreDeploymentGitopsTool.NewAppStoreDeploymentArgoCdServiceImpl,
+		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdServiceImpl)),
+		//	util2.NewGoJsonSchemaCustomFormatChecker,
+
+		//history starts
+		restHandler.NewPipelineHistoryRestHandlerImpl,
+		wire.Bind(new(restHandler.PipelineHistoryRestHandler), new(*restHandler.PipelineHistoryRestHandlerImpl)),
+
+		repository3.NewConfigMapHistoryRepositoryImpl,
+		wire.Bind(new(repository3.ConfigMapHistoryRepository), new(*repository3.ConfigMapHistoryRepositoryImpl)),
+		repository3.NewDeploymentTemplateHistoryRepositoryImpl,
+		wire.Bind(new(repository3.DeploymentTemplateHistoryRepository), new(*repository3.DeploymentTemplateHistoryRepositoryImpl)),
+		repository3.NewPrePostCiScriptHistoryRepositoryImpl,
+		wire.Bind(new(repository3.PrePostCiScriptHistoryRepository), new(*repository3.PrePostCiScriptHistoryRepositoryImpl)),
+		repository3.NewPrePostCdScriptHistoryRepositoryImpl,
+		wire.Bind(new(repository3.PrePostCdScriptHistoryRepository), new(*repository3.PrePostCdScriptHistoryRepositoryImpl)),
+		repository3.NewPipelineStrategyHistoryRepositoryImpl,
+		wire.Bind(new(repository3.PipelineStrategyHistoryRepository), new(*repository3.PipelineStrategyHistoryRepositoryImpl)),
+
+		history3.NewPrePostCdScriptHistoryServiceImpl,
+		wire.Bind(new(history3.PrePostCdScriptHistoryService), new(*history3.PrePostCdScriptHistoryServiceImpl)),
+		history3.NewPrePostCiScriptHistoryServiceImpl,
+		wire.Bind(new(history3.PrePostCiScriptHistoryService), new(*history3.PrePostCiScriptHistoryServiceImpl)),
+		history3.NewDeploymentTemplateHistoryServiceImpl,
+		wire.Bind(new(history3.DeploymentTemplateHistoryService), new(*history3.DeploymentTemplateHistoryServiceImpl)),
+		history3.NewConfigMapHistoryServiceImpl,
+		wire.Bind(new(history3.ConfigMapHistoryService), new(*history3.ConfigMapHistoryServiceImpl)),
+		history3.NewPipelineStrategyHistoryServiceImpl,
+		wire.Bind(new(history3.PipelineStrategyHistoryService), new(*history3.PipelineStrategyHistoryServiceImpl)),
+
+		//history ends
+		//	AuthWireSet,
 	)
 	return &App{}, nil
 }

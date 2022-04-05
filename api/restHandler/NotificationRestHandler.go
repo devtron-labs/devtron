@@ -44,6 +44,11 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 )
 
+const(
+	SLACK_CONFIG_DELETE_SUCCESS_RESP = "Slack config deleted successfully."
+	SES_CONFIG_DELETE_SUCCESS_RESP = "SES config deleted successfully."
+)
+
 type NotificationRestHandler interface {
 	SaveNotificationSettings(w http.ResponseWriter, r *http.Request)
 	UpdateNotificationSettings(w http.ResponseWriter, r *http.Request)
@@ -54,6 +59,7 @@ type NotificationRestHandler interface {
 	FindAllNotificationConfig(w http.ResponseWriter, r *http.Request)
 	GetAllNotificationSettings(w http.ResponseWriter, r *http.Request)
 	DeleteNotificationSettings(w http.ResponseWriter, r *http.Request)
+	DeleteNotificationChannelConfig(w http.ResponseWriter, r *http.Request)
 
 	RecipientListingSuggestion(w http.ResponseWriter, r *http.Request)
 	FindAllNotificationConfigAutocomplete(w http.ResponseWriter, r *http.Request)
@@ -779,4 +785,87 @@ func (impl NotificationRestHandlerImpl) GetOptionsForNotificationSettings(w http
 		filteredSettingViews = make([]*notifier.SearchFilterResponse, 0)
 	}
 	common.WriteJsonResp(w, err, filteredSettingViews, http.StatusOK)
+}
+
+func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.ResponseWriter, r *http.Request){
+	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	data, err := ioutil.ReadAll(r.Body)
+	var channelReq ChannelDto
+	err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&channelReq)
+	if err != nil {
+		impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "payload", channelReq)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	impl.logger.Infow("request payload, DeleteNotificationChannelConfig", "err", err, "payload", channelReq)
+	if util.Slack == channelReq.Channel {
+		var deleteReq *notifier.SlackConfigDto
+		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
+		if err != nil {
+			impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		err = impl.validator.Struct(deleteReq)
+		if err != nil {
+			impl.logger.Errorw("validation err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		// RBAC enforcer applying
+		token := r.Header.Get("token")
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
+			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+			return
+		}
+		//RBAC enforcer Ends
+
+		cErr := impl.slackService.DeleteNotificationConfig(deleteReq, userId)
+		if cErr != nil {
+			impl.logger.Errorw("service err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			common.WriteJsonResp(w, cErr, nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, nil, SLACK_CONFIG_DELETE_SUCCESS_RESP, http.StatusOK)
+	} else if util.SES == channelReq.Channel {
+		var deleteReq *notifier.SESConfigDto
+		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
+		if err != nil {
+			impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		err = impl.validator.Struct(deleteReq)
+		if err != nil {
+			impl.logger.Errorw("validation err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		// RBAC enforcer applying
+		token := r.Header.Get("token")
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
+			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+			return
+		}
+		//RBAC enforcer Ends
+
+		cErr := impl.sesService.DeleteNotificationConfig(deleteReq, userId)
+		if cErr != nil {
+			impl.logger.Errorw("service err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			common.WriteJsonResp(w, cErr, nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, nil, SES_CONFIG_DELETE_SUCCESS_RESP, http.StatusOK)
+	} else {
+		common.WriteJsonResp(w, fmt.Errorf(" The channel you requested is not supported"), nil, http.StatusBadRequest)
+	}
 }

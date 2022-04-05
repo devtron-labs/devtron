@@ -18,6 +18,10 @@ var UserWireSet = wire.NewSet(
 	wire.Bind(new(user.UserAuthService), new(*user.UserAuthServiceImpl)),
 	repository.NewUserAuthRepositoryImpl,
 	wire.Bind(new(repository.UserAuthRepository), new(*repository.UserAuthRepositoryImpl)),
+	repository.NewDefaultAuthPolicyRepositoryImpl,
+	wire.Bind(new(repository.DefaultAuthPolicyRepository), new(*repository.DefaultAuthPolicyRepositoryImpl)),
+	repository.NewDefaultAuthRoleRepositoryImpl,
+	wire.Bind(new(repository.DefaultAuthRoleRepository), new(*repository.DefaultAuthRoleRepositoryImpl)),
 
 	NewUserRouterImpl,
 	wire.Bind(new(UserRouter), new(*UserRouterImpl)),

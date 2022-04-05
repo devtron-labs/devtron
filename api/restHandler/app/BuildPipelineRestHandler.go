@@ -20,6 +20,8 @@ import (
 	"strings"
 )
 
+const GIT_MATERIAL_DELETE_SUCCESS_RESP = "Git material deleted successfully."
+
 type DevtronAppBuildRestHandler interface {
 	CreateCiConfig(w http.ResponseWriter, r *http.Request)
 	UpdateCiTemplate(w http.ResponseWriter, r *http.Request)
@@ -43,6 +45,7 @@ type DevtronAppBuildMaterialRestHandler interface {
 	RefreshMaterials(w http.ResponseWriter, r *http.Request)
 	FetchMaterialInfo(w http.ResponseWriter, r *http.Request)
 	FetchChanges(w http.ResponseWriter, r *http.Request)
+	DeleteMaterial(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildHistoryRestHandler interface {
@@ -232,32 +235,21 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	handler.Logger.Infow("request payload, TriggerCiPipeline", "payload", ciTriggerRequest)
 
 	//RBAC CHECK CD PIPELINE - FOR USER
-	pipelines, err := handler.pipelineRepository.FindAutomaticByCiPipelineId(ciTriggerRequest.PipelineId)
-	var authorizedPipelines []pipelineConfig.Pipeline
-	var unauthorizedPipelines []pipelineConfig.Pipeline
-	//fetching user only for getting token
-	triggeredBy, err := handler.userAuthService.GetById(ciTriggerRequest.TriggeredBy)
-	if err != nil {
-		handler.Logger.Errorw("service err, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	pipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
+	if err!= nil{
+		handler.Logger.Errorw("error in finding ccd pipelines by ciPipelineId", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	token := triggeredBy.AccessToken
+	var authorizedPipelines []pipelineConfig.Pipeline
+	var unauthorizedPipelines []pipelineConfig.Pipeline
+	token := r.Header.Get("token")
 	for _, p := range pipelines {
-		pass := 0
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(p.AppId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-			handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		} else {
-			pass = 1
-		}
+		appRbacOk := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
 		object = handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(p.AppId, p.Id)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
-			handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		} else {
-			pass = 2
-		}
-		if pass == 2 {
+		envRbacOk := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object)
+		if appRbacOk && envRbacOk {
 			authorizedPipelines = append(authorizedPipelines, *p)
 		} else {
 			unauthorizedPipelines = append(unauthorizedPipelines, *p)
@@ -266,7 +258,24 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	resMessage := "allowed for all pipelines"
 	response := make(map[string]string)
 	if len(unauthorizedPipelines) > 0 {
-		resMessage = "not authorized for few pipelines, will not effected"
+		resMessage = "some pipelines not authorized"
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	if len(authorizedPipelines) == 0{
+		//user has no cd pipeline
+		ciPipeline, err := handler.ciPipelineRepository.FindById(ciTriggerRequest.PipelineId)
+		if err != nil {
+			handler.Logger.Errorw("err in finding ci pipeline, TriggerCiPipeline", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+			handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
 	}
 	//RBAC CHECK CD PIPELINE - FOR USER
 
@@ -274,6 +283,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	if err != nil {
 		handler.Logger.Errorw("service err, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
 		common.WriteJsonResp(w, err, response, http.StatusInternalServerError)
+		return
 	}
 	response["apiResponse"] = strconv.Itoa(resp)
 	response["authStatus"] = resMessage
@@ -770,6 +780,45 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWriter, r *http.Request){
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var deleteMaterial bean.UpdateMaterialDTO
+	err = decoder.Decode(&deleteMaterial)
+	deleteMaterial.UserId = userId
+	if err != nil {
+		handler.Logger.Errorw("request err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, DeleteMaterial", "DeleteMaterial", deleteMaterial)
+	err = handler.validator.Struct(deleteMaterial)
+	if err != nil {
+		handler.Logger.Errorw("validation err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//rbac starts
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(deleteMaterial.AppId)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//rbac ends
+	err = handler.pipelineBuilder.DeleteMaterial(&deleteMaterial)
+	if err != nil {
+		handler.Logger.Errorw("service err, DeleteMaterial", "err", err, "DeleteMaterial", deleteMaterial)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, GIT_MATERIAL_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request) {

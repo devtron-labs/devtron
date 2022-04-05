@@ -1,12 +1,11 @@
 package informer
 
 import (
+	"flag"
+	"os/user"
 	"path/filepath"
 	"sync"
 	"time"
-
-	"flag"
-	"os/user"
 
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/api/bean"

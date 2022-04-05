@@ -22,6 +22,8 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/user"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -61,6 +63,7 @@ type EnvironmentService interface {
 	Create(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
 	GetAll() ([]EnvironmentBean, error)
 	GetAllActive() ([]EnvironmentBean, error)
+	Delete(deleteReq *EnvironmentBean, userId int32) error
 
 	FindById(id int) (*EnvironmentBean, error)
 	Update(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
@@ -80,13 +83,14 @@ type EnvironmentServiceImpl struct {
 	K8sUtil               *util.K8sUtil
 	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
+	userAuthService         user.UserAuthService
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
-//	propertiesConfigService pipeline.PropertiesConfigService,
-) *EnvironmentServiceImpl {
+//  propertiesConfigService pipeline.PropertiesConfigService,
+	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
 		logger:                logger,
@@ -94,6 +98,7 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		K8sUtil:               K8sUtil,
 		k8sInformerFactory:    k8sInformerFactory,
 		//propertiesConfigService: propertiesConfigService,
+		userAuthService:         userAuthService,
 	}
 }
 
@@ -459,8 +464,9 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		clusterId := clusterMap[clusterName]
 		for namespace := range namespaces {
 			//deduplication for cluster and namespace combination
+			key := fmt.Sprintf("%s__%s", clusterName, namespace)
 			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
-			if _, ok := uniqueComboMap[groupKey]; !ok {
+			if _, ok := uniqueComboMap[key]; !ok {
 				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
 				// isActionUserSuperAdmin tell that user is super admin or not. auth check skip for admin
 				if !isActionUserSuperAdmin {
@@ -540,8 +546,9 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 		}
 		for namespace := range namespaces {
 			//deduplication for cluster and namespace combination
+			key := fmt.Sprintf("%s__%s", clusterName, namespace)
 			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
-			if _, ok := uniqueComboMap[groupKey]; !ok {
+			if _, ok := uniqueComboMap[key]; !ok {
 				environmentIdentifier := fmt.Sprintf("%s__%s", clusterName, namespace)
 				// auth enforcer applied here
 				isValidAuth := auth(token, environmentIdentifier)
@@ -572,4 +579,39 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 		})
 	}
 	return namespaceGroupByClusterResponse, nil
+}
+
+func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int32) error {
+	existingEnv, err := impl.environmentRepository.FindById(deleteReq.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete.", "id", deleteReq.Id)
+		return err
+	}
+	dbConnection := impl.environmentRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in establishing connection", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	deleteRequest := existingEnv
+	deleteRequest.UpdatedOn = time.Now()
+	deleteRequest.UpdatedBy = userId
+	err = impl.environmentRepository.MarkEnvironmentDeleted(deleteRequest, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting environment", "envId", deleteReq.Id, "envName", deleteReq.Environment)
+		return err
+	}
+	//deleting auth roles entries for this environment
+	err = impl.userAuthService.DeleteRoles(repository2.ENV_TYPE, deleteRequest.Name, tx, existingEnv.EnvironmentIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in deleting auth roles", "err", err)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
 }

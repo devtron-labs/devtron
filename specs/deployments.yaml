@@ -1,0 +1,54 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/deployment/template/upload:
+    post:
+      description: upload template file from this api.
+      requestBody:
+        description: form-data as request body
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              properties:
+                binaryFile:
+                  type: object
+                  description: zipped chart template file
+      responses:
+        '200':
+          description: template file upload response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: string
+                    description: result
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ErrorResponse:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

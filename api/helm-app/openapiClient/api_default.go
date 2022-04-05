@@ -637,6 +637,126 @@ func (a *DefaultApiService) OrchestratorApplicationDeleteDeleteExecute(r ApiOrch
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
+type ApiOrchestratorApplicationDeploymentDetailGetRequest struct {
+	ctx _context.Context
+	ApiService *DefaultApiService
+	appId *string
+	version *int32
+}
+
+// project ids
+func (r ApiOrchestratorApplicationDeploymentDetailGetRequest) AppId(appId string) ApiOrchestratorApplicationDeploymentDetailGetRequest {
+	r.appId = &appId
+	return r
+}
+// deployment version
+func (r ApiOrchestratorApplicationDeploymentDetailGetRequest) Version(version int32) ApiOrchestratorApplicationDeploymentDetailGetRequest {
+	r.version = &version
+	return r
+}
+
+func (r ApiOrchestratorApplicationDeploymentDetailGetRequest) Execute() (HelmAppDeploymentManifestDetail, *_nethttp.Response, error) {
+	return r.ApiService.OrchestratorApplicationDeploymentDetailGetExecute(r)
+}
+
+/*
+OrchestratorApplicationDeploymentDetailGet Method for OrchestratorApplicationDeploymentDetailGet
+
+deployment details of helm app
+
+ @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiOrchestratorApplicationDeploymentDetailGetRequest
+*/
+func (a *DefaultApiService) OrchestratorApplicationDeploymentDetailGet(ctx _context.Context) ApiOrchestratorApplicationDeploymentDetailGetRequest {
+	return ApiOrchestratorApplicationDeploymentDetailGetRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return HelmAppDeploymentManifestDetail
+func (a *DefaultApiService) OrchestratorApplicationDeploymentDetailGetExecute(r ApiOrchestratorApplicationDeploymentDetailGetRequest) (HelmAppDeploymentManifestDetail, *_nethttp.Response, error) {
+	var (
+		localVarHTTPMethod   = _nethttp.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  HelmAppDeploymentManifestDetail
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationDeploymentDetailGet")
+	if err != nil {
+		return localVarReturnValue, nil, GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/orchestrator/application/deployment-detail"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := _neturl.Values{}
+	localVarFormParams := _neturl.Values{}
+	if r.appId == nil {
+		return localVarReturnValue, nil, reportError("appId is required and must be specified")
+	}
+	if r.version == nil {
+		return localVarReturnValue, nil, reportError("version is required and must be specified")
+	}
+
+	localVarQueryParams.Add("appId", parameterToString(*r.appId, ""))
+	localVarQueryParams.Add("version", parameterToString(*r.version, ""))
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := _ioutil.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = _ioutil.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
 type ApiOrchestratorApplicationDeploymentHistoryGetRequest struct {
 	ctx _context.Context
 	ApiService *DefaultApiService
@@ -1084,7 +1204,7 @@ func (r ApiOrchestratorApplicationReleaseInfoGetRequest) AppId(appId string) Api
 	return r
 }
 
-func (r ApiOrchestratorApplicationReleaseInfoGetRequest) Execute() (ReleaseInfo, *_nethttp.Response, error) {
+func (r ApiOrchestratorApplicationReleaseInfoGetRequest) Execute() (ReleaseAndInstalledAppInfo, *_nethttp.Response, error) {
 	return r.ApiService.OrchestratorApplicationReleaseInfoGetExecute(r)
 }
 
@@ -1104,13 +1224,13 @@ func (a *DefaultApiService) OrchestratorApplicationReleaseInfoGet(ctx _context.C
 }
 
 // Execute executes the request
-//  @return ReleaseInfo
-func (a *DefaultApiService) OrchestratorApplicationReleaseInfoGetExecute(r ApiOrchestratorApplicationReleaseInfoGetRequest) (ReleaseInfo, *_nethttp.Response, error) {
+//  @return ReleaseAndInstalledAppInfo
+func (a *DefaultApiService) OrchestratorApplicationReleaseInfoGetExecute(r ApiOrchestratorApplicationReleaseInfoGetRequest) (ReleaseAndInstalledAppInfo, *_nethttp.Response, error) {
 	var (
 		localVarHTTPMethod   = _nethttp.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  ReleaseInfo
+		localVarReturnValue  ReleaseAndInstalledAppInfo
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationReleaseInfoGet")
@@ -1359,6 +1479,116 @@ func (a *DefaultApiService) OrchestratorApplicationUpdatePutExecute(r ApiOrchest
 	}
 	// body params
 	localVarPostBody = r.updateReleaseRequest
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := _ioutil.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = _ioutil.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest struct {
+	ctx _context.Context
+	ApiService *DefaultApiService
+	updateReleaseWithChartLinkingRequest *UpdateReleaseWithChartLinkingRequest
+}
+
+func (r ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest) UpdateReleaseWithChartLinkingRequest(updateReleaseWithChartLinkingRequest UpdateReleaseWithChartLinkingRequest) ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest {
+	r.updateReleaseWithChartLinkingRequest = &updateReleaseWithChartLinkingRequest
+	return r
+}
+
+func (r ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest) Execute() (UpdateReleaseResponse, *_nethttp.Response, error) {
+	return r.ApiService.OrchestratorApplicationUpdateWithChartLinkingPutExecute(r)
+}
+
+/*
+OrchestratorApplicationUpdateWithChartLinkingPut Method for OrchestratorApplicationUpdateWithChartLinkingPut
+
+update the application with chartstore linking
+
+ @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest
+*/
+func (a *DefaultApiService) OrchestratorApplicationUpdateWithChartLinkingPut(ctx _context.Context) ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest {
+	return ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return UpdateReleaseResponse
+func (a *DefaultApiService) OrchestratorApplicationUpdateWithChartLinkingPutExecute(r ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest) (UpdateReleaseResponse, *_nethttp.Response, error) {
+	var (
+		localVarHTTPMethod   = _nethttp.MethodPut
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  UpdateReleaseResponse
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationUpdateWithChartLinkingPut")
+	if err != nil {
+		return localVarReturnValue, nil, GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/orchestrator/application/update-with-chart-linking"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := _neturl.Values{}
+	localVarFormParams := _neturl.Values{}
+	if r.updateReleaseWithChartLinkingRequest == nil {
+		return localVarReturnValue, nil, reportError("updateReleaseWithChartLinkingRequest is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.updateReleaseWithChartLinkingRequest
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err

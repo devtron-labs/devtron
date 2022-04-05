@@ -38,7 +38,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HelmAppDeploymentHistory"
+                $ref: "#/components/schemas/DeploymentHistoryAndInstalledAppInfo"
   /orchestrator/application/release-info:
     get:
       description: deployment values.yaml/release-info
@@ -53,11 +53,11 @@ paths:
             type: string
       responses:
         "200":
-          description: release info
+          description: release and installed app info
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReleaseInfo"
+                $ref: "#/components/schemas/ReleaseAndInstalledAppInfo"
   /orchestrator/application/hibernate:
     post:
       description: hibernate the app
@@ -316,6 +316,97 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UpdateReleaseResponse"
+  /orchestrator/app-store/deployment/application/helm/link-to-chart-store:
+    put:
+      description: update the helm EA application with chartstore linking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReleaseWithChartLinkingRequest'
+      responses:
+        "200":
+          description: application update success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateReleaseResponse"
+  /orchestrator/application/deployment-detail:
+    get:
+      description: deployment details of helm app
+      parameters:
+        - in: query
+          name: appId
+          example: "12|helm-app|cluster1-ns1"
+          description: project ids
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+        - in: query
+          name: version
+          example: 1
+          description: deployment version
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: deployment detail response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelmAppDeploymentManifestDetail"
+  /orchestrator/app-store/installed-app/deployment-history:
+    get:
+      description: deployment history of helm app
+      parameters:
+        - in: query
+          name: installedAppId
+          example: "100"
+          description: devtron charts installed instance id
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: number
+      responses:
+        "200":
+          description: deployment history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentHistoryAndInstalledAppInfo"
+  /orchestrator/app-store/installed-app/deployment-history/info:
+    get:
+      description: deployment history detail info, values
+      parameters:
+        - in: query
+          name: installedAppId
+          example: "100"
+          description: devtron charts installed instance id
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+        - in: query
+          name: version
+          example: 1
+          description: installed app version id
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: deployment history detail info response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelmAppDeploymentManifestDetail"
 components:
   schemas:
     appListRequest:
@@ -578,9 +669,6 @@ components:
           type: object
           $ref: "#/components/schemas/ChartMetadata"
           description: metadata of the chart
-        manifest:
-          type: string
-          description: final manifest of the chart
         dockerImages:
           type: array
           description: docker images presrnt insise the chart
@@ -594,11 +682,61 @@ components:
           type: string
           format: date-time
           example: "2021-12-15T05:44:05Z"
+    DeploymentHistoryAndInstalledAppInfo:
+      type: object
+      properties:
+        deploymentHistory:
+          type: array
+          description: deployment history
+          items:
+            $ref: "#/components/schemas/HelmAppDeploymentDetail"
+        installedAppInfo:
+          type: object
+          $ref: "#/components/schemas/InstalledAppInfo"
+          description: Installed app info
     HelmAppDeploymentHistory:
       type: array
       description: deployment history
       items:
         $ref: "#/components/schemas/HelmAppDeploymentDetail"
+    InstalledAppInfo:
+      type: object
+      properties:
+        appId:
+          type: integer
+          description: appId
+        installedAppId:
+          type: integer
+          description: installedAppId
+        environmentName:
+          type: string
+          description: environment Name
+        appOfferingMode:
+          type: string
+          description: EA_ONLY/FULL
+        appStoreChartId:
+          type: number
+          description: App store chart Id
+        installedAppVersionId:
+          type: number
+          description: App store installed app version Id
+        clusterId:
+          type: number
+          description: Cluster Id
+        environmentId:
+          type: number
+          description: Environment Id
+    ReleaseAndInstalledAppInfo:
+      type: object
+      properties:
+        releaseInfo:
+          type: object
+          $ref: "#/components/schemas/ReleaseInfo"
+          description: release info
+        installedAppInfo:
+          type: object
+          $ref: "#/components/schemas/InstalledAppInfo"
+          description: Installed app info
     ReleaseInfo:
       type: object
       properties:
@@ -676,6 +814,29 @@ components:
           type: string
           description: updated values yaml string
           example: ""
+    UpdateReleaseWithChartLinkingRequest:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: helm app id
+          example: "1|test|testapp"
+        valuesYaml:
+          type: string
+          description: updated values yaml string
+          example: ""
+        appStoreApplicationVersionId:
+          type: number
+          description: app store application version Id
+          example: 1
+        referenceValueId:
+          type: number
+          description: Reference value Id of selected chart values
+          example: 1
+        referenceValueKind:
+          type: string
+          description: Reference value Kind of selected chart values "oneof=DEFAULT TEMPLATE DEPLOYED EXISTING" (can be null)
+          example: 1
     UpdateReleaseResponse:
       type: object
       properties:
@@ -683,4 +844,15 @@ components:
           type: boolean
           description: success or failure
           example: true
+    HelmAppDeploymentManifestDetail:
+      type: object
+      properties:
+        manifest:
+          type: string
+          description: manifest of deployment
+          example: "abcd"
+        valuesYaml:
+          type: string
+          description: values YAML of deployment
+          example: "abcd"
 

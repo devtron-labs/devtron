@@ -34,8 +34,18 @@ Run following command
 kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.status}'
 ```
 
-The install commands initiates Devtron-operator which spins up all the Devtron micro-services one by one in about 20 mins. You can use the above command to check the status of the installation if the installation is still in progress, it will print `Downloaded`. When the installation is complete, it prints `Applied`.
+The install commands initiates Devtron-operator which spins up all the Devtron micro-services one by one in about 20 mins. You can use the above command to check the status of the installation.
 
+| Status | Description |
+| :--- | :--- |
+| `Downloaded` | Installer has downloaded all the manifests and installation is in progress. |
+| `Applied` | Installer has successfully applied all the manifest and installation is complete. |
+
+Meanwhile, you can check logs of the installer by executing the following command:
+
+```bash
+kubectl logs -f -l app=inception -n devtroncd
+```
 ## Access Devtron dashboard
 
 If you did not provide a **BASE\_URL** during install or have used the default installation, Devtron creates a loadbalancer for you on its own. Use the following command to get the dashboard url.
@@ -52,6 +62,8 @@ You will get result something like below
 ```
 
 The hostname mentioned here \( aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com \) is the Loadbalancer URL where you can access the Devtron dashboard.
+
+Incase you don't see the results or get a message "service doesnt exist", it means devtron is still installing, please check again after 5 minutes.
 
 **PS:** You can also do a CNAME entry corresponding to your domain/subdomain to point to this Loadbalancer URL to access it at a custom domain.
 

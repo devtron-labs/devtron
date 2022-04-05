@@ -27,6 +27,8 @@ import (
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -67,29 +69,30 @@ type WorkflowDagExecutor interface {
 }
 
 type WorkflowDagExecutorImpl struct {
-	logger                     *zap.SugaredLogger
-	pipelineRepository         pipelineConfig.PipelineRepository
-	cdWorkflowRepository       pipelineConfig.CdWorkflowRepository
-	pubsubClient               *pubsub.PubSubClient
-	appService                 app.AppService
-	cdWorkflowService          CdWorkflowService
-	ciPipelineRepository       pipelineConfig.CiPipelineRepository
-	materialRepository         pipelineConfig.MaterialRepository
-	cdConfig                   *CdConfig
-	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
-	ciArtifactRepository       repository.CiArtifactRepository
-	user                       user.UserService
-	enforcer                   casbin.Enforcer
-	enforcerUtil               rbac.EnforcerUtil
-	groupRepository            repository.DeploymentGroupRepository
-	tokenCache                 *util3.TokenCache
-	acdAuthConfig              *util3.ACDAuthConfig
-	envRepository              repository2.EnvironmentRepository
-	eventFactory               client.EventFactory
-	eventClient                client.EventClient
-	cvePolicyRepository        security.CvePolicyRepository
-	scanResultRepository       security.ImageScanResultRepository
-	appWorkflowRepository      appWorkflow.AppWorkflowRepository
+	logger                        *zap.SugaredLogger
+	pipelineRepository            pipelineConfig.PipelineRepository
+	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
+	pubsubClient                  *pubsub.PubSubClient
+	appService                    app.AppService
+	cdWorkflowService             CdWorkflowService
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	materialRepository            pipelineConfig.MaterialRepository
+	cdConfig                      *CdConfig
+	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
+	ciArtifactRepository          repository.CiArtifactRepository
+	user                          user.UserService
+	enforcer                      casbin.Enforcer
+	enforcerUtil                  rbac.EnforcerUtil
+	groupRepository               repository.DeploymentGroupRepository
+	tokenCache                    *util3.TokenCache
+	acdAuthConfig                 *util3.ACDAuthConfig
+	envRepository                 repository2.EnvironmentRepository
+	eventFactory                  client.EventFactory
+	eventClient                   client.EventClient
+	cvePolicyRepository           security.CvePolicyRepository
+	scanResultRepository          security.ImageScanResultRepository
+	appWorkflowRepository         appWorkflow.AppWorkflowRepository
+	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
 }
 
 type CiArtifactDTO struct {
@@ -132,30 +135,32 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	acdAuthConfig *util3.ACDAuthConfig, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository,
-	appWorkflowRepository appWorkflow.AppWorkflowRepository) *WorkflowDagExecutorImpl {
+	appWorkflowRepository appWorkflow.AppWorkflowRepository,
+	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
-		pipelineRepository:         pipelineRepository,
-		cdWorkflowRepository:       cdWorkflowRepository,
-		pubsubClient:               pubsubClient,
-		appService:                 appService,
-		cdWorkflowService:          cdWorkflowService,
-		ciPipelineRepository:       ciPipelineRepository,
-		cdConfig:                   cdConfig,
-		ciArtifactRepository:       ciArtifactRepository,
-		materialRepository:         materialRepository,
-		pipelineOverrideRepository: pipelineOverrideRepository,
-		user:                       user,
-		enforcer:                   enforcer,
-		enforcerUtil:               enforcerUtil,
-		groupRepository:            groupRepository,
-		tokenCache:                 tokenCache,
-		acdAuthConfig:              acdAuthConfig,
-		envRepository:              envRepository,
-		eventFactory:               eventFactory,
-		eventClient:                eventClient,
-		cvePolicyRepository:        cvePolicyRepository,
-		scanResultRepository:       scanResultRepository,
-		appWorkflowRepository:      appWorkflowRepository,
+		pipelineRepository:            pipelineRepository,
+		cdWorkflowRepository:          cdWorkflowRepository,
+		pubsubClient:                  pubsubClient,
+		appService:                    appService,
+		cdWorkflowService:             cdWorkflowService,
+		ciPipelineRepository:          ciPipelineRepository,
+		cdConfig:                      cdConfig,
+		ciArtifactRepository:          ciArtifactRepository,
+		materialRepository:            materialRepository,
+		pipelineOverrideRepository:    pipelineOverrideRepository,
+		user:                          user,
+		enforcer:                      enforcer,
+		enforcerUtil:                  enforcerUtil,
+		groupRepository:               groupRepository,
+		tokenCache:                    tokenCache,
+		acdAuthConfig:                 acdAuthConfig,
+		envRepository:                 envRepository,
+		eventFactory:                  eventFactory,
+		eventClient:                   eventClient,
+		cvePolicyRepository:           cvePolicyRepository,
+		scanResultRepository:          scanResultRepository,
+		appWorkflowRepository:         appWorkflowRepository,
+		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
 	}
 	err := util4.AddStream(wde.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM, util4.CI_RUNNER_STREAM)
 	if err != nil {
@@ -299,6 +304,8 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 }
 
 func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, triggeredBy int32, applyAuth bool) error {
+	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
+	triggeredAt := time.Now()
 
 	//in case of pre stage manual trigger auth is already applied
 	if applyAuth {
@@ -320,7 +327,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
 			PipelineId:   pipeline.Id,
-			AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
+			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 		if err != nil {
@@ -333,7 +340,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		Status:       WorkflowStarting, //starting
 		TriggeredBy:  triggeredBy,
-		StartedOn:    time.Now(),
+		StartedOn:    triggeredAt,
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
@@ -372,8 +379,13 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 	if evtErr != nil {
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
 	}
-	return err
-
+	//creating cd config history entry
+	err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, nil, repository3.PRE_CD_TYPE, true, triggeredBy, triggeredAt)
+	if err != nil {
+		impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
+		return err
+	}
+	return nil
 }
 
 func convert(ts string) (*time.Time, error) {
@@ -385,21 +397,24 @@ func convert(ts string) (*time.Time, error) {
 	return &t, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cpipeline *pipelineConfig.Pipeline, triggeredBy int32) error {
+func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, triggeredBy int32) error {
+	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
+	triggeredAt := time.Now()
+
 	runner := &pipelineConfig.CdWorkflowRunner{
-		Name:         cpipeline.Name,
+		Name:         pipeline.Name,
 		WorkflowType: bean.CD_WORKFLOW_TYPE_POST,
 		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 		Status:       WorkflowStarting,
 		TriggeredBy:  triggeredBy,
-		StartedOn:    time.Now(),
+		StartedOn:    triggeredAt,
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
 	var env *repository2.Environment
 	var err error
-	if cpipeline.RunPostStageInEnv {
-		env, err = impl.envRepository.FindById(cpipeline.EnvironmentId)
+	if pipeline.RunPostStageInEnv {
+		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw(" unable to find env ", "err", err)
 			return err
@@ -411,12 +426,12 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	if err != nil {
 		return err
 	}
-	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, cpipeline, triggeredBy)
+	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, triggeredBy)
 	if err != nil {
 		return err
 	}
 	cdStageWorkflowRequest.StageType = POST
-	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, cpipeline, env)
+	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	if err != nil {
 		return err
 	}
@@ -426,14 +441,20 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		return err
 	}
 
-	event := impl.eventFactory.Build(util2.Trigger, &cpipeline.Id, cpipeline.AppId, &cpipeline.EnvironmentId, util2.CD)
+	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util2.CD)
 	impl.logger.Debugw("event Cd Post Trigger", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, &wfr, 0, bean.CD_WORKFLOW_TYPE_POST)
 	_, evtErr := impl.eventClient.WriteEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
 	}
-	return err
+	//creating cd config history entry
+	err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, nil, repository3.POST_CD_TYPE, true, triggeredBy, triggeredAt)
+	if err != nil {
+		impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
+		return err
+	}
+	return nil
 }
 func (impl *WorkflowDagExecutorImpl) buildArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string {
 	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
@@ -597,6 +618,8 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	default:
 		return nil, fmt.Errorf("cloudprovider %s not supported", cdStageWorkflowRequest.CloudProvider)
 	}
+	cdStageWorkflowRequest.DefaultAddressPoolBaseCidr = impl.cdConfig.DefaultAddressPoolBaseCidr
+	cdStageWorkflowRequest.DefaultAddressPoolSize = impl.cdConfig.DefaultAddressPoolSize
 	return cdStageWorkflowRequest, nil
 }
 
@@ -684,11 +707,14 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		}
 	}
 
+	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
+	triggeredAt := time.Now()
+
 	if cdWf == nil {
 		cdWf = &pipelineConfig.CdWorkflow{
 			CiArtifactId: artifact.Id,
 			PipelineId:   pipeline.Id,
-			AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: 1, UpdatedOn: time.Now(), UpdatedBy: 1},
+			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 		}
 		err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 		if err != nil {
@@ -702,7 +728,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
 		Status:       WorkflowStarting, //starting
 		TriggeredBy:  1,
-		StartedOn:    time.Now(),
+		StartedOn:    triggeredAt,
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
@@ -753,8 +779,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		return nil
 	}
 
-	err = impl.appService.TriggerCD(artifact, cdWf.Id, pipeline, async)
-	err1 := impl.updatePreviousDeploymentStatus(runner, pipeline.Id, err)
+	err = impl.appService.TriggerCD(artifact, cdWf.Id, pipeline, async, triggeredAt)
+	err1 := impl.updatePreviousDeploymentStatus(runner, pipeline.Id, err, triggeredAt)
 	if err1 != nil || err != nil {
 		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
 		return err
@@ -762,12 +788,12 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, err error) error {
+func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, err error, triggeredAt time.Time) error {
 	if err != nil {
 		impl.logger.Errorw("error in triggering cd WF, setting wf status as fail ", "wfId", currentRunner.Id, "err", err)
 		currentRunner.Status = WorkflowFailed
 		currentRunner.Message = err.Error()
-		currentRunner.FinishedOn = time.Now()
+		currentRunner.FinishedOn = triggeredAt
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(currentRunner)
 		if err != nil {
 			impl.logger.Errorw("error updating cd wf runner status", "err", err, "currentRunner", currentRunner)
@@ -796,7 +822,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 				return nil
 			}
 			impl.logger.Infow("updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
-			previousRunner.FinishedOn = time.Now()
+			previousRunner.FinishedOn = triggeredAt
 			previousRunner.Message = "triggered new deployment"
 			previousRunner.Status = WorkflowAborted
 		}
@@ -876,6 +902,8 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 }
 
 func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, error) {
+	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
+	triggeredAt := time.Now()
 	releaseId := 0
 	var err error
 	cdPipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
@@ -910,7 +938,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			cdWf := &pipelineConfig.CdWorkflow{
 				CiArtifactId: overrideRequest.CiArtifactId,
 				PipelineId:   overrideRequest.PipelineId,
-				AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 			if err != nil {
@@ -926,7 +954,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
 			Status:       WorkflowStarting,
 			TriggeredBy:  overrideRequest.UserId,
-			StartedOn:    time.Now(),
+			StartedOn:    triggeredAt,
 			Namespace:    impl.cdConfig.DefaultNamespace,
 			CdWorkflowId: cdWorkflowId,
 		}
@@ -970,7 +998,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
 				Status:       WorkflowFailed, //starting
 				TriggeredBy:  1,
-				StartedOn:    time.Now(),
+				StartedOn:    triggeredAt,
 				Namespace:    impl.cdConfig.DefaultNamespace,
 				CdWorkflowId: cdWorkflowId,
 				Message:      "Found vulnerability on image",
@@ -983,12 +1011,12 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			return 0, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
 		}
 
-		releaseId, err = impl.appService.TriggerRelease(overrideRequest, ctx)
+		releaseId, err = impl.appService.TriggerRelease(overrideRequest, ctx, triggeredAt)
 		//	return after error handling
 		/*if err != nil {
 			return 0, err
 		}*/
-		err1 := impl.updatePreviousDeploymentStatus(runner, cdPipeline.Id, err)
+		err1 := impl.updatePreviousDeploymentStatus(runner, cdPipeline.Id, err, triggeredAt)
 		if err1 != nil || err != nil {
 			impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
 			return 0, err
@@ -1004,7 +1032,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			cdWf := &pipelineConfig.CdWorkflow{
 				CiArtifactId: overrideRequest.CiArtifactId,
 				PipelineId:   overrideRequest.PipelineId,
-				AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: overrideRequest.UserId, UpdatedOn: time.Now(), UpdatedBy: overrideRequest.UserId},
+				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}
 			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
 			if err != nil {

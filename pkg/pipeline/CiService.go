@@ -19,6 +19,7 @@ package pipeline
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -39,29 +40,34 @@ type CiService interface {
 }
 
 type CiServiceImpl struct {
-	Logger                       *zap.SugaredLogger
-	workflowService              WorkflowService
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
-	ciConfig                     *CiConfig
-	eventClient                  client.EventClient
-	eventFactory                 client.EventFactory
-	mergeUtil                    *util.MergeUtil
-	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	Logger                        *zap.SugaredLogger
+	workflowService               WorkflowService
+	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	ciConfig                      *CiConfig
+	eventClient                   client.EventClient
+	eventFactory                  client.EventFactory
+	mergeUtil                     *util.MergeUtil
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
 }
 
-func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, ciConfig *CiConfig, eventClient client.EventClient, eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository) *CiServiceImpl {
+func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, ciConfig *CiConfig, eventClient client.EventClient,
+	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService) *CiServiceImpl {
 	return &CiServiceImpl{
-		Logger:                       Logger,
-		workflowService:              workflowService,
-		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
-		ciWorkflowRepository:         ciWorkflowRepository,
-		ciConfig:                     ciConfig,
-		eventClient:                  eventClient,
-		eventFactory:                 eventFactory,
-		mergeUtil:                    mergeUtil,
-		ciPipelineRepository:         ciPipelineRepository,
+		Logger:                        Logger,
+		workflowService:               workflowService,
+		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		ciConfig:                      ciConfig,
+		eventClient:                   eventClient,
+		eventFactory:                  eventFactory,
+		mergeUtil:                     mergeUtil,
+		ciPipelineRepository:          ciPipelineRepository,
+		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 	}
 }
 
@@ -129,6 +135,14 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	impl.Logger.Debugw("ci triggered", "wf name ", createdWf.Name, " pipeline ", trigger.PipelineId)
 	middleware.CiTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(trigger.PipelineId)).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
+	//creating entry of ci script history for build details
+	for _, ciPipelineScript := range ciPipelineScripts {
+		_, err = impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, nil, true, trigger.TriggeredBy, time.Now())
+		if err != nil {
+			impl.Logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			return 0, err
+		}
+	}
 	return savedCiWf.Id, err
 }
 
@@ -338,36 +352,38 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 	dockerfilePath := filepath.Join(pipeline.CiTemplate.GitMaterial.CheckoutPath, pipeline.CiTemplate.DockerfilePath)
 	workflowRequest := &WorkflowRequest{
-		WorkflowNamePrefix:       strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
-		PipelineName:             pipeline.Name,
-		PipelineId:               pipeline.Id,
-		DockerRegistryId:         pipeline.CiTemplate.DockerRegistry.Id,
-		DockerRegistryType:       string(pipeline.CiTemplate.DockerRegistry.RegistryType),
-		DockerImageTag:           dockerImageTag,
-		DockerRegistryURL:        pipeline.CiTemplate.DockerRegistry.RegistryURL,
-		DockerRepository:         pipeline.CiTemplate.DockerRepository,
-		DockerBuildArgs:          string(merged),
-		DockerFileLocation:       dockerfilePath,
-		DockerUsername:           pipeline.CiTemplate.DockerRegistry.Username,
-		DockerPassword:           pipeline.CiTemplate.DockerRegistry.Password,
-		AwsRegion:                pipeline.CiTemplate.DockerRegistry.AWSRegion,
-		AccessKey:                pipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
-		SecretKey:                pipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
-		DockerConnection:         pipeline.CiTemplate.DockerRegistry.Connection,
-		DockerCert:               pipeline.CiTemplate.DockerRegistry.Cert,
-		CiCacheFileName:          pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
-		CiProjectDetails:         ciProjectDetails,
-		Namespace:                ciWorkflowConfig.Namespace,
-		CiImage:                  ciWorkflowConfig.CiImage,
-		ActiveDeadlineSeconds:    ciWorkflowConfig.CiTimeout,
-		WorkflowId:               savedWf.Id,
-		TriggeredBy:              savedWf.TriggeredBy,
-		CacheLimit:               impl.ciConfig.CacheLimit,
-		BeforeDockerBuildScripts: beforeDockerBuildScripts,
-		AfterDockerBuildScripts:  afterDockerBuildScripts,
-		InvalidateCache:          trigger.InvalidateCache,
-		ScanEnabled:              pipeline.ScanEnabled,
-		CloudProvider:            impl.ciConfig.CloudProvider,
+		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
+		PipelineName:               pipeline.Name,
+		PipelineId:                 pipeline.Id,
+		DockerRegistryId:           pipeline.CiTemplate.DockerRegistry.Id,
+		DockerRegistryType:         string(pipeline.CiTemplate.DockerRegistry.RegistryType),
+		DockerImageTag:             dockerImageTag,
+		DockerRegistryURL:          pipeline.CiTemplate.DockerRegistry.RegistryURL,
+		DockerRepository:           pipeline.CiTemplate.DockerRepository,
+		DockerBuildArgs:            string(merged),
+		DockerFileLocation:         dockerfilePath,
+		DockerUsername:             pipeline.CiTemplate.DockerRegistry.Username,
+		DockerPassword:             pipeline.CiTemplate.DockerRegistry.Password,
+		AwsRegion:                  pipeline.CiTemplate.DockerRegistry.AWSRegion,
+		AccessKey:                  pipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
+		SecretKey:                  pipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
+		DockerConnection:           pipeline.CiTemplate.DockerRegistry.Connection,
+		DockerCert:                 pipeline.CiTemplate.DockerRegistry.Cert,
+		CiCacheFileName:            pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
+		CiProjectDetails:           ciProjectDetails,
+		Namespace:                  ciWorkflowConfig.Namespace,
+		CiImage:                    ciWorkflowConfig.CiImage,
+		ActiveDeadlineSeconds:      ciWorkflowConfig.CiTimeout,
+		WorkflowId:                 savedWf.Id,
+		TriggeredBy:                savedWf.TriggeredBy,
+		CacheLimit:                 impl.ciConfig.CacheLimit,
+		BeforeDockerBuildScripts:   beforeDockerBuildScripts,
+		AfterDockerBuildScripts:    afterDockerBuildScripts,
+		InvalidateCache:            trigger.InvalidateCache,
+		ScanEnabled:                pipeline.ScanEnabled,
+		CloudProvider:              impl.ciConfig.CloudProvider,
+		DefaultAddressPoolBaseCidr: impl.ciConfig.DefaultAddressPoolBaseCidr,
+		DefaultAddressPoolSize:     impl.ciConfig.DefaultAddressPoolSize,
 	}
 
 	switch workflowRequest.CloudProvider {

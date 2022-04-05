@@ -22,7 +22,10 @@ import (
 	"encoding/json"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
@@ -71,6 +74,7 @@ type PipelineBuilder interface {
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	CreateMaterialsForApp(request *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error)
 	UpdateMaterialsForApp(request *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
+	DeleteMaterial(request *bean.UpdateMaterialDTO) error
 	DeleteApp(appId int, userId int32) error
 	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
 	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
@@ -101,33 +105,38 @@ type PipelineBuilder interface {
 }
 
 type PipelineBuilderImpl struct {
-	logger                        *zap.SugaredLogger
-	dbPipelineOrchestrator        DbPipelineOrchestrator
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
-	materialRepo                  pipelineConfig.MaterialRepository
-	appRepo                       app2.AppRepository
-	pipelineRepository            pipelineConfig.PipelineRepository
-	propertiesConfigService       PropertiesConfigService
-	ciTemplateRepository          pipelineConfig.CiTemplateRepository
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	application                   application.ServiceClient
-	chartRepository               chartConfig.ChartRepository
-	ciArtifactRepository          repository.CiArtifactRepository
-	ecrConfig                     *EcrConfig
-	envConfigOverrideRepository   chartConfig.EnvConfigOverrideRepository
-	environmentRepository         repository2.EnvironmentRepository
-	pipelineConfigRepository      chartConfig.PipelineConfigRepository
-	mergeUtil                     util.MergeUtil
-	appWorkflowRepository         appWorkflow.AppWorkflowRepository
-	ciConfig                      *CiConfig
-	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	appService                    app.AppService
-	imageScanResultRepository     security.ImageScanResultRepository
-	GitFactory                    *util.GitFactory
-	ArgoK8sClient                 argocdServer.ArgoK8sClient
-	attributesService             attributes.AttributesService
-	aCDAuthConfig                 *util3.ACDAuthConfig
-	gitOpsRepository              repository.GitOpsConfigRepository
+	logger                           *zap.SugaredLogger
+	dbPipelineOrchestrator           DbPipelineOrchestrator
+	dockerArtifactStoreRepository    repository.DockerArtifactStoreRepository
+	materialRepo                     pipelineConfig.MaterialRepository
+	appRepo                          app2.AppRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
+	propertiesConfigService          PropertiesConfigService
+	ciTemplateRepository             pipelineConfig.CiTemplateRepository
+	ciPipelineRepository             pipelineConfig.CiPipelineRepository
+	application                      application.ServiceClient
+	chartRepository                  chartRepoRepository.ChartRepository
+	ciArtifactRepository             repository.CiArtifactRepository
+	ecrConfig                        *EcrConfig
+	envConfigOverrideRepository      chartConfig.EnvConfigOverrideRepository
+	environmentRepository            repository2.EnvironmentRepository
+	pipelineConfigRepository         chartConfig.PipelineConfigRepository
+	mergeUtil                        util.MergeUtil
+	appWorkflowRepository            appWorkflow.AppWorkflowRepository
+	ciConfig                         *CiConfig
+	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	appService                       app.AppService
+	imageScanResultRepository        security.ImageScanResultRepository
+	GitFactory                       *util.GitFactory
+	ArgoK8sClient                    argocdServer.ArgoK8sClient
+	attributesService                attributes.AttributesService
+	aCDAuthConfig                    *util3.ACDAuthConfig
+	gitOpsRepository                 repository.GitOpsConfigRepository
+	pipelineStrategyHistoryService   history.PipelineStrategyHistoryService
+	prePostCiScriptHistoryService    history.PrePostCiScriptHistoryService
+	prePostCdScriptHistoryService    history.PrePostCdScriptHistoryService
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
+	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -140,7 +149,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	application application.ServiceClient,
-	chartRepository chartConfig.ChartRepository,
+	chartRepository chartRepoRepository.ChartRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	ecrConfig *EcrConfig,
 	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository,
@@ -154,35 +163,45 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	imageScanResultRepository security.ImageScanResultRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	GitFactory *util.GitFactory, attributesService attributes.AttributesService,
-	aCDAuthConfig *util3.ACDAuthConfig, gitOpsRepository repository.GitOpsConfigRepository) *PipelineBuilderImpl {
+	aCDAuthConfig *util3.ACDAuthConfig, gitOpsRepository repository.GitOpsConfigRepository,
+	pipelineStrategyHistoryService history.PipelineStrategyHistoryService,
+	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
+	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	appLevelMetricsRepository repository.AppLevelMetricsRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
-		logger:                        logger,
-		dbPipelineOrchestrator:        dbPipelineOrchestrator,
-		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
-		materialRepo:                  materialRepo,
-		appService:                    appService,
-		appRepo:                       pipelineGroupRepo,
-		pipelineRepository:            pipelineRepository,
-		propertiesConfigService:       propertiesConfigService,
-		ciTemplateRepository:          ciTemplateRepository,
-		ciPipelineRepository:          ciPipelineRepository,
-		application:                   application,
-		chartRepository:               chartRepository,
-		ciArtifactRepository:          ciArtifactRepository,
-		ecrConfig:                     ecrConfig,
-		envConfigOverrideRepository:   envConfigOverrideRepository,
-		environmentRepository:         environmentRepository,
-		pipelineConfigRepository:      pipelineConfigRepository,
-		mergeUtil:                     mergeUtil,
-		appWorkflowRepository:         appWorkflowRepository,
-		ciConfig:                      ciConfig,
-		cdWorkflowRepository:          cdWorkflowRepository,
-		imageScanResultRepository:     imageScanResultRepository,
-		ArgoK8sClient:                 ArgoK8sClient,
-		GitFactory:                    GitFactory,
-		attributesService:             attributesService,
-		aCDAuthConfig:                 aCDAuthConfig,
-		gitOpsRepository:              gitOpsRepository,
+		logger:                           logger,
+		dbPipelineOrchestrator:           dbPipelineOrchestrator,
+		dockerArtifactStoreRepository:    dockerArtifactStoreRepository,
+		materialRepo:                     materialRepo,
+		appService:                       appService,
+		appRepo:                          pipelineGroupRepo,
+		pipelineRepository:               pipelineRepository,
+		propertiesConfigService:          propertiesConfigService,
+		ciTemplateRepository:             ciTemplateRepository,
+		ciPipelineRepository:             ciPipelineRepository,
+		application:                      application,
+		chartRepository:                  chartRepository,
+		ciArtifactRepository:             ciArtifactRepository,
+		ecrConfig:                        ecrConfig,
+		envConfigOverrideRepository:      envConfigOverrideRepository,
+		environmentRepository:            environmentRepository,
+		pipelineConfigRepository:         pipelineConfigRepository,
+		mergeUtil:                        mergeUtil,
+		appWorkflowRepository:            appWorkflowRepository,
+		ciConfig:                         ciConfig,
+		cdWorkflowRepository:             cdWorkflowRepository,
+		imageScanResultRepository:        imageScanResultRepository,
+		ArgoK8sClient:                    ArgoK8sClient,
+		GitFactory:                       GitFactory,
+		attributesService:                attributesService,
+		aCDAuthConfig:                    aCDAuthConfig,
+		gitOpsRepository:                 gitOpsRepository,
+		pipelineStrategyHistoryService:   pipelineStrategyHistoryService,
+		prePostCiScriptHistoryService:    prePostCiScriptHistoryService,
+		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		appLevelMetricsRepository:        appLevelMetricsRepository,
 	}
 }
 
@@ -222,6 +241,40 @@ func (impl PipelineBuilderImpl) UpdateMaterialsForApp(request *bean.UpdateMateri
 		impl.logger.Errorw("error in updating materials req", "req", request, "err", err)
 	}
 	return res, err
+}
+
+func (impl PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO) error {
+	//finding ci pipelines for this app; if found any, will not delete git material
+	pipelines, err := impl.ciPipelineRepository.FindByAppId(request.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in deleting git material", "gitMaterial", request.Material, "err", err)
+		return err
+	}
+	if len(pipelines) > 0 {
+		//pipelines are present, in this case we will check if this material is used in docker config
+		//if it is used, then we won't delete
+		ciTemplate, err := impl.ciTemplateRepository.FindByAppId(request.AppId)
+		if err != nil && err == errors.NotFoundf(err.Error()) {
+			impl.logger.Errorw("err in getting docker registry", "appId", request.AppId, "err", err)
+			return err
+		}
+		if ciTemplate != nil && ciTemplate.GitMaterialId == request.Material.Id {
+			return fmt.Errorf("cannot delete git material, is being used in docker config")
+		}
+	}
+	existingMaterial, err := impl.materialRepo.FindById(request.Material.Id)
+	if err != nil {
+		impl.logger.Errorw("No matching entry found for delete", "gitMaterial", request.Material)
+		return err
+	}
+	existingMaterial.UpdatedOn = time.Now()
+	existingMaterial.UpdatedBy = request.UserId
+	err = impl.materialRepo.MarkMaterialDeleted(existingMaterial)
+	if err != nil {
+		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
+		return err
+	}
+	return nil
 }
 
 func (impl PipelineBuilderImpl) GetApp(appId int) (application *bean.CreateAppDTO, err error) {
@@ -565,6 +618,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		Id:                originalCiConf.Id,
 		DockerRepository:  originalCiConf.DockerRepository,
 		DockerRegistryId:  originalCiConf.DockerRegistry,
+		Active:            true,
 	}
 
 	err = impl.ciTemplateRepository.Update(ciTemplate)
@@ -880,6 +934,24 @@ func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*b
 			return nil, err
 		}
 	}
+	for _, ciScript := range request.CiPipeline.BeforeDockerBuildScripts {
+		ciPipelineScript := impl.dbPipelineOrchestrator.BuildCiPipelineScript(request.UserId, ciScript, BEFORE_DOCKER_BUILD, request.CiPipeline)
+		//creating history entry
+		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			return nil, err
+		}
+	}
+	for _, ciScript := range request.CiPipeline.AfterDockerBuildScripts {
+		ciPipelineScript := impl.dbPipelineOrchestrator.BuildCiPipelineScript(request.UserId, ciScript, AFTER_DOCKER_BUILD, request.CiPipeline)
+		//creating history entry
+		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			return nil, err
+		}
+	}
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -1059,6 +1131,20 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 		}
 	}
 
+	if pipeline.PreStageConfig != "" {
+		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.PRE_CD_TYPE, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
+			return err
+		}
+	}
+	if pipeline.PostStageConfig != "" {
+		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.POST_CD_TYPE, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
+			return err
+		}
+	}
 	//delete app from argo cd
 	envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
 	if err != nil {
@@ -1167,11 +1253,13 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 
+	chartRepoName := impl.appService.GetChartRepoName(chart.GitRepoUrl)
 	chartGitAttr := &util.ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
 		FileContent:    string(DefaultPipelineValue),
 		ChartName:      chart.ChartName,
 		ChartLocation:  chart.ChartLocation,
+		ChartRepoName:  chartRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
 	}
 	//FIXME: why only bitbucket?
@@ -1195,9 +1283,9 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	//new pipeline
 	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
 	name, err := impl.createArgoPipelineIfRequired(ctx, app, pipeline, envOverride)
-	if err != nil {
-		return 0, err
-	}
+	//if err != nil {
+	//	return 0, err
+	//}
 	impl.logger.Debugw("argocd application created", "name", name)
 
 	// Get pipeline override based on Deployment strategy
@@ -1237,7 +1325,19 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			return 0, err
 		}
 	}
-
+	//getting global app metrics for cd pipeline create because env level metrics is not created yet
+	appLevelAppMetricsEnabled := false
+	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(app.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+	} else if err == nil {
+		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, appLevelAppMetricsEnabled, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
+		return 0, err
+	}
 	// strategies for pipeline ids, there is only one is default
 	defaultCount := 0
 	for _, item := range pipeline.Strategies {
@@ -1261,6 +1361,13 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
 			return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
 		}
+		//creating history entry for strategy
+		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating strategy history entry", "err", err)
+			return 0, err
+		}
+
 	}
 
 	err = tx.Commit()
@@ -1351,6 +1458,12 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				impl.logger.Errorw("error in updating strategy", "strategy", item.DeploymentTemplate)
 				return fmt.Errorf("pipeline updated but failed to update one strategy")
 			}
+			//creating history entry for strategy
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating strategy history entry", "err", err)
+				return err
+			}
 		} else {
 			strategy := &chartConfig.PipelineStrategy{
 				PipelineId: pipeline.Id,
@@ -1364,6 +1477,12 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 			if err != nil {
 				impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
 				return fmt.Errorf("pipeline created but failed to add strategy")
+			}
+			//creating history entry for strategy
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating strategy history entry", "err", err)
+				return err
 			}
 		}
 	}
@@ -1575,6 +1694,11 @@ func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage
 		impl.logger.Errorw("error in getting cd parent details", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		return ciArtifactsResponse, err
 	}
+	//setting parent cd id for checking latest image running on parent cd
+	parentCdId := 0
+	if parentType == bean2.CD_WORKFLOW_TYPE_POST || (parentType == bean2.CD_WORKFLOW_TYPE_DEPLOY && stage != bean2.CD_WORKFLOW_TYPE_POST) {
+		parentCdId = parentId
+	}
 	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("Error in getting cd pipeline details", err, "cdPipelineId", cdPipelineId)
@@ -1587,7 +1711,7 @@ func (impl PipelineBuilderImpl) GetArtifactsByCDPipeline(cdPipelineId int, stage
 		parentId = cdPipelineId
 		parentType = bean2.CD_WORKFLOW_TYPE_DEPLOY
 	}
-	ciArtifactsResponse, err = impl.GetArtifactsForCdStage(cdPipelineId, parentId, parentType, stage)
+	ciArtifactsResponse, err = impl.GetArtifactsForCdStage(cdPipelineId, parentId, parentType, stage, parentCdId)
 	if err != nil {
 		impl.logger.Errorw("error in getting artifacts for cd", "err", err, "stage", stage, "cdPipelineId", cdPipelineId)
 		return ciArtifactsResponse, err
@@ -1616,22 +1740,21 @@ func (impl PipelineBuilderImpl) GetCdParentDetails(cdPipelineId int) (parentId i
 			return parentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, nil
 		}
 	}
-	// empty string used to denote CI pipeline
 	return parentId, bean2.CI_WORKFLOW_TYPE, nil
 }
 
-func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentId int, parentType bean2.WorkflowType, stage bean2.WorkflowType) (bean.CiArtifactResponse, error) {
+func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentId int, parentType bean2.WorkflowType, stage bean2.WorkflowType, parentCdId int) (bean.CiArtifactResponse, error) {
 	var ciArtifacts []bean.CiArtifactBean
 	var ciArtifactsResponse bean.CiArtifactResponse
 	var err error
 	artifactMap := make(map[int]int)
 	limit := 30
-	ciArtifacts, artifactMap, err = impl.BuildArtifactsForCdStage(cdPipelineId, stage, ciArtifacts, artifactMap, false, limit)
+	ciArtifacts, artifactMap, err = impl.BuildArtifactsForCdStage(cdPipelineId, stage, ciArtifacts, artifactMap, false, limit, parentCdId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for child cd stage", "err", err, "stage", stage)
 		return ciArtifactsResponse, err
 	}
-	ciArtifacts, err = impl.BuildArtifactsForParentStage(cdPipelineId, parentId, parentType, ciArtifacts, artifactMap, limit)
+	ciArtifacts, err = impl.BuildArtifactsForParentStage(cdPipelineId, parentId, parentType, ciArtifacts, artifactMap, limit, parentCdId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for cd", "err", err, "parentStage", parentType, "stage", stage)
 		return ciArtifactsResponse, err
@@ -1650,19 +1773,29 @@ func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentI
 	return ciArtifactsResponse, nil
 }
 
-func (impl PipelineBuilderImpl) BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, limit int) ([]bean.CiArtifactBean, error) {
+func (impl PipelineBuilderImpl) BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, limit int, parentCdId int) ([]bean.CiArtifactBean, error) {
 	var ciArtifactsFinal []bean.CiArtifactBean
 	var err error
 	if parentType == bean2.CI_WORKFLOW_TYPE {
 		ciArtifactsFinal, err = impl.BuildArtifactsForCIParent(cdPipelineId, ciArtifacts, artifactMap, limit)
 	} else {
 		//parent type is PRE, POST or DEPLOY type
-		ciArtifactsFinal, _, err = impl.BuildArtifactsForCdStage(parentId, parentType, ciArtifacts, artifactMap, true, limit)
+		ciArtifactsFinal, _, err = impl.BuildArtifactsForCdStage(parentId, parentType, ciArtifacts, artifactMap, true, limit, parentCdId)
 	}
 	return ciArtifactsFinal, err
 }
 
-func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, parent bool, limit int) ([]bean.CiArtifactBean, map[int]int, error) {
+func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, parent bool, limit int, parentCdId int) ([]bean.CiArtifactBean, map[int]int, error) {
+	//getting running artifact id for parent cd
+	parentCdRunningArtifactId := 0
+	if parentCdId > 0 && parent {
+		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(parentCdId, bean2.CD_WORKFLOW_TYPE_DEPLOY, 1)
+		if err != nil {
+			impl.logger.Errorw("error in getting artifact for parent cd", "parentCdPipelineId", parentCdId)
+			return ciArtifacts, artifactMap, err
+		}
+		parentCdRunningArtifactId = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
+	}
 	//getting wfr for parent and updating artifacts
 	parentWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(pipelineId, stageType, limit)
 	if err != nil {
@@ -1677,8 +1810,9 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 	}
 	for index, wfr := range parentWfrList {
 		if wfr.Status == acceptedStatus {
-			runningOnParent := parent && index == 0
+			lastSuccessfulTriggerOnParent := parent && index == 0
 			latest := !parent && index == 0
+			runningOnParentCd := parentCdRunningArtifactId == wfr.CdWorkflow.CiArtifact.Id
 			if ciArtifactIndex, ok := artifactMap[wfr.CdWorkflow.CiArtifact.Id]; !ok {
 				//entry not present, creating new entry
 				mInfo, err := parseMaterialInfo([]byte(wfr.CdWorkflow.CiArtifact.MaterialInfo), wfr.CdWorkflow.CiArtifact.DataSource)
@@ -1687,18 +1821,21 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 					impl.logger.Errorw("Error in parsing artifact material info", "err", err)
 				}
 				ciArtifact := bean.CiArtifactBean{
-					Id:                     wfr.CdWorkflow.CiArtifact.Id,
-					Image:                  wfr.CdWorkflow.CiArtifact.Image,
-					ImageDigest:            wfr.CdWorkflow.CiArtifact.ImageDigest,
-					MaterialInfo:           mInfo,
-					RunningOnParent:        runningOnParent,
-					Latest:                 latest,
-					Scanned:                wfr.CdWorkflow.CiArtifact.Scanned,
-					ScanEnabled:            wfr.CdWorkflow.CiArtifact.ScanEnabled,
+					Id:                            wfr.CdWorkflow.CiArtifact.Id,
+					Image:                         wfr.CdWorkflow.CiArtifact.Image,
+					ImageDigest:                   wfr.CdWorkflow.CiArtifact.ImageDigest,
+					MaterialInfo:                  mInfo,
+					LastSuccessfulTriggerOnParent: lastSuccessfulTriggerOnParent,
+					Latest:                        latest,
+					Scanned:                       wfr.CdWorkflow.CiArtifact.Scanned,
+					ScanEnabled:                   wfr.CdWorkflow.CiArtifact.ScanEnabled,
 				}
 				if !parent {
 					ciArtifact.Deployed = true
 					ciArtifact.DeployedTime = formatDate(wfr.StartedOn, bean.LayoutRFC3339)
+				}
+				if runningOnParentCd {
+					ciArtifact.RunningOnParentCd = runningOnParentCd
 				}
 				ciArtifacts = append(ciArtifacts, ciArtifact)
 				//storing index of ci artifact for using when updating old entry
@@ -1706,7 +1843,10 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 			} else {
 				//entry already present, updating running on parent
 				if parent {
-					ciArtifacts[ciArtifactIndex].RunningOnParent = runningOnParent
+					ciArtifacts[ciArtifactIndex].LastSuccessfulTriggerOnParent = lastSuccessfulTriggerOnParent
+				}
+				if runningOnParentCd {
+					ciArtifacts[ciArtifactIndex].RunningOnParentCd = runningOnParentCd
 				}
 			}
 		}
@@ -1730,12 +1870,12 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, ciAr
 				impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
 			}
 			ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
-				Id:                     artifact.Id,
-				Image:                  artifact.Image,
-				ImageDigest:            artifact.ImageDigest,
-				MaterialInfo:           mInfo,
-				ScanEnabled:            artifact.ScanEnabled,
-				Scanned:                artifact.Scanned,
+				Id:           artifact.Id,
+				Image:        artifact.Image,
+				ImageDigest:  artifact.ImageDigest,
+				MaterialInfo: mInfo,
+				ScanEnabled:  artifact.ScanEnabled,
+				Scanned:      artifact.Scanned,
 			})
 		}
 	}

@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strconv"
@@ -34,6 +35,8 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 )
 
+const CLUSTER_DELETE_SUCCESS_RESP = "Cluster deleted successfully."
+
 type ClusterRestHandler interface {
 	Save(w http.ResponseWriter, r *http.Request)
 	FindOne(w http.ResponseWriter, r *http.Request)
@@ -43,6 +46,7 @@ type ClusterRestHandler interface {
 	Update(w http.ResponseWriter, r *http.Request)
 
 	FindAllForAutoComplete(w http.ResponseWriter, r *http.Request)
+	DeleteCluster(w http.ResponseWriter, r *http.Request)
 }
 
 type ClusterRestHandlerImpl struct {
@@ -51,6 +55,7 @@ type ClusterRestHandlerImpl struct {
 	userService    user.UserService
 	validator      *validator.Validate
 	enforcer       casbin.Enforcer
+	deleteService  delete2.DeleteService
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
@@ -58,6 +63,7 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	userService user.UserService,
 	validator *validator.Validate,
 	enforcer casbin.Enforcer,
+	deleteService delete2.DeleteService,
 ) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
 		clusterService: clusterService,
@@ -65,6 +71,7 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 		userService:    userService,
 		validator:      validator,
 		enforcer:       enforcer,
+		deleteService:  deleteService,
 	}
 }
 
@@ -283,4 +290,43 @@ func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter,
 		result = make([]cluster.ClusterBean, 0)
 	}
 	common.WriteJsonResp(w, err, result, http.StatusOK)
+}
+
+func (impl ClusterRestHandlerImpl) DeleteCluster(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		impl.logger.Errorw("service err, Delete", "error", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var bean cluster.ClusterBean
+	err = decoder.Decode(&bean)
+	if err != nil {
+		impl.logger.Errorw("request err, Delete", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	impl.logger.Debugw("request payload, Delete", "payload", bean)
+	err = impl.validator.Struct(bean)
+	if err != nil {
+		impl.logger.Errorw("validate err, Delete", "error", err, "payload", bean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	err = impl.deleteService.DeleteCluster(&bean, userId)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster", "err", err, "id", bean.Id, "name", bean.ClusterName)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, CLUSTER_DELETE_SUCCESS_RESP, http.StatusOK)
 }

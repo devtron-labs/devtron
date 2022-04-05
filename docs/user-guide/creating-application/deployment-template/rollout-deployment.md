@@ -7,7 +7,7 @@ Deployment configuration is the Manifest for the application, it defines the run
 2. Yaml file
 3. Show application metrics
 
-![](../../../.gitbook/assets/deployment-template%20%282%29.gif)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-template.gif)
 
 ## 1. Chart version
 
@@ -34,6 +34,7 @@ This defines ports on which application services will be exposed to other servic
 ```yaml
 ContainerPort:
   - envoyPort: 8799
+    envoyTimeout: 15s
     idleTimeout:
     name: app
     port: 8080
@@ -45,6 +46,7 @@ ContainerPort:
 | Key | Description |
 | :--- | :--- |
 | `envoyPort` | envoy port for the container. |
+| `envoyTimeout` | envoy Timeout for the container,envoy supports a wide range of timeouts that may need to be configured depending on the deployment.By default the envoytimeout is 15s. |
 | `idleTimeout` | the duration of time that a connection is idle before the connection is terminated. |
 | `name` | name of the port. |
 | `port` | port for the container. |
@@ -56,7 +58,40 @@ ContainerPort:
 ```yaml
 EnvVariables: []
 ```
+`EnvVariables` provide run-time information to containers and allow to customize how the application works and the behavior of the applications on the system.
+
+Here we can pass the list of env variables , every record is an object which contain the `name` of variable along with `value`.
+
 To set environment variables for the containers that run in the Pod.
+
+### Example of env variables
+
+`IMP` Docker image should have env variables, whatever we want to set.
+```yaml
+EnvVariables: 
+  - name: HOSTNAME
+    value: www.xyz.com
+  - name: DB_NAME
+    value: mydb
+  - name: USER_NAME
+    value: xyz
+```
+
+But `ConfigMap` and `Secret` are the prefered way to inject env variables. So we can create this in `App Configuration` Section
+
+### ConfigMap
+
+It is a centralized storage, specific to k8s namespace where key-value pairs are stored in plain text.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/configure-configmap.jpg)
+
+### Secret
+
+It is a centralized storage, specific to k8s namespace where we can store the key-value pairs in plain text as well as in encrypted(`Base64`) form.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/created-secret.gif)
+
+`IMP` All key-values of `Secret` and `CofigMap` will reflect to your application.
 
 ### Liveness Probe
 
@@ -71,6 +106,9 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  command:
+    - python
+    - /etc/app/healthcheck.py
   httpHeaders:
     - name: Custom-Header
       value: abc
@@ -86,6 +124,7 @@ LivenessProbe:
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
 | `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
+| `command` | The mentioned command is executed to perform the livenessProbe. If the command returns a non-zero value, it's equivalent to a failed probe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
@@ -126,6 +165,9 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  command:
+    - python
+    - /etc/app/healthcheck.py
   httpHeaders:
     - name: Custom-Header
       value: abc
@@ -141,6 +183,7 @@ ReadinessProbe:
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
 | `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
+| `command` | The mentioned command is executed to perform the readinessProbe. If the command returns a non-zero value, it's equivalent to a failed probe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
@@ -206,9 +249,11 @@ ingress:
   annotations: {}
   hosts:
       - host: example1.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example
       - host: example2.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example2
             - /example2/healthz
@@ -231,8 +276,9 @@ ingress:
 | :--- | :--- |
 | `enabled` | Enable or disable ingress |
 | `annotations` | To configure some options depending on the Ingress controller |
-| `path` | Path name |
 | `host` | Host name |
+| `pathType` | Path in an Ingress is required to have a corresponding path type. Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`. |
+| `path` | Path name |
 | `tls` | It contains security details |
 
 ### Ingress Internal
@@ -247,9 +293,11 @@ ingressInternal:
   annotations: {}
   hosts:
       - host: example1.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example
       - host: example2.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example2
             - /example2/healthz
@@ -260,8 +308,10 @@ ingressInternal:
 | :--- | :--- |
 | `enabled` | Enable or disable ingress |
 | `annotations` | To configure some options depending on the Ingress controller |
-| `path` | Path name |
 | `host` | Host name |
+| `pathType` | Path in an Ingress is required to have a corresponding path type. Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`. |
+| `path` | Path name |
+| `pathType` | Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`.|
 | `tls` | It contains security details |
 
 ### Init Containers
@@ -656,7 +706,7 @@ Wait for given period of time before scaling down the container.
 
 If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
 
-![](../../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment_application_metrics.png)
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
 

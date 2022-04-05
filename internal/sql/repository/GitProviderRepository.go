@@ -42,6 +42,7 @@ type GitProvider struct {
 	AccessToken   string   `sql:"access_token"`
 	AuthMode      AuthMode `sql:"auth_mode,notnull"`
 	Active        bool     `sql:"active,notnull"`
+	Deleted       bool     `sql:"deleted,notnull"`
 	GitHostId     int      `sql:"git_host_id"` //id stored in db git_host( foreign key)
 	sql.AuditLog
 }
@@ -54,6 +55,7 @@ type GitProviderRepository interface {
 	FindOne(providerId string) (GitProvider, error)
 	FindByUrl(providerUrl string) (GitProvider, error)
 	Update(gitProvider *GitProvider) error
+	MarkProviderDeleted(gitProvider *GitProvider) error
 }
 
 type GitProviderRepositoryImpl struct {
@@ -74,6 +76,7 @@ func (impl GitProviderRepositoryImpl) ProviderExists(url string) (bool, error) {
 	exists, err := impl.dbConnection.
 		Model(provider).
 		Where("url = ?", url).
+		Where("deleted = ?", false).
 		Exists()
 	return exists, err
 }
@@ -81,31 +84,41 @@ func (impl GitProviderRepositoryImpl) ProviderExists(url string) (bool, error) {
 func (impl GitProviderRepositoryImpl) FindAllActiveForAutocomplete() ([]GitProvider, error) {
 	var providers []GitProvider
 	err := impl.dbConnection.Model(&providers).
-		Where("active = ?", true).Column("id", "name", "url", "auth_mode").Select()
+		Where("active = ?", true).Column("id", "name", "url", "auth_mode").
+		Where("deleted = ?", false).Select()
 	return providers, err
 }
 
 func (impl GitProviderRepositoryImpl) FindAll() ([]GitProvider, error) {
 	var providers []GitProvider
-	err := impl.dbConnection.Model(&providers).Select()
+	err := impl.dbConnection.Model(&providers).
+		Where("deleted = ?", false).Select()
 	return providers, err
 }
 
 func (impl GitProviderRepositoryImpl) FindOne(providerId string) (GitProvider, error) {
 	var provider GitProvider
 	err := impl.dbConnection.Model(&provider).
-		Where("id = ?", providerId).Select()
+		Where("id = ?", providerId).
+		Where("deleted = ?", false).
+		Select()
 	return provider, err
 }
 
 func (impl GitProviderRepositoryImpl) FindByUrl(providerUrl string) (GitProvider, error) {
 	var provider GitProvider
 	err := impl.dbConnection.Model(&provider).
-		Where("url = ?", providerUrl).Where("active = ?", true).Select()
+		Where("url = ?", providerUrl).Where("active = ?", true).
+		Where("deleted = ?", false).Select()
 	return provider, err
 }
 
 func (impl GitProviderRepositoryImpl) Update(gitProvider *GitProvider) error {
 	err := impl.dbConnection.Update(gitProvider)
 	return err
+}
+
+func (impl GitProviderRepositoryImpl) MarkProviderDeleted(gitProvider *GitProvider) error {
+	gitProvider.Deleted = true
+	return impl.dbConnection.Update(gitProvider)
 }
