@@ -27,7 +27,6 @@ import (
 	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/history"
 	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	appStoreValues "github.com/devtron-labs/devtron/pkg/appStore/values"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -102,7 +101,6 @@ type InstalledAppServiceImpl struct {
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
-	appStoreChartsHistoryService         history.AppStoreChartsHistoryService
 	userService                          user.UserService
 	appStoreDeploymentService            appStoreDeployment.AppStoreDeploymentService
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
@@ -125,7 +123,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
-	appStoreChartsHistoryService history.AppStoreChartsHistoryService,
 	installedAppRepositoryHistory appStoreRepository.InstalledAppVersionHistoryRepository) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
@@ -147,7 +144,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		gitFactory:                           gitFactory,
 		aCDAuthConfig:                        aCDAuthConfig,
 		gitOpsRepository:                     gitOpsRepository,
-		appStoreChartsHistoryService:         appStoreChartsHistoryService,
 		userService:                          userService,
 		appStoreDeploymentService:            appStoreDeploymentService,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
@@ -184,7 +180,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 	gitOpsRepoName := installedApp.GitOpsRepoName
 	if len(gitOpsRepoName) == 0 {
-		gitOpsRepoName=impl.appStoreDeploymentFullModeService.GetGitOpsRepoName(installAppVersionRequest)
+		gitOpsRepoName = impl.appStoreDeploymentFullModeService.GetGitOpsRepoName(installAppVersionRequest)
 	}
 	installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	var installedAppVersion *appStoreRepository.InstalledAppVersions

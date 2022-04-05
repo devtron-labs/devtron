@@ -62,6 +62,7 @@ spec:
 {{ toYaml .Values.podLabels | indent 12 }}
     {{- end }}
         spec:
+          shareProcessNamespace: {{ $.Values.shareProcessNamespace }}
           terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
           restartPolicy: {{ $.Values.cronjobConfigs.restartPolicy }}
     {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
@@ -83,10 +84,10 @@ spec:
           tolerations:
     {{- toYaml .Values.tolerations | nindent 12 }}
       {{- end }}
-{{- if $.Values.podSecurityContext }}
+    {{- if $.Values.podSecurityContext }}
           securityContext:
-{{ toYaml .Values.podSecurityContext | indent 12 }}
-{{- end }}
+    {{- toYaml .Values.podSecurityContext | nindent 12 }}
+    {{- end }}      
     {{- if $.Values.imagePullSecrets}}
           imagePullSecrets:
       {{- range .Values.imagePullSecrets }}
@@ -129,15 +130,15 @@ spec:
               securityContext:
                 privileged: true
     {{- end}}
-{{- if $.Values.containerSecurityContext }}
+    {{- if $.Values.containerSecurityContext }}
               securityContext:
-{{ toYaml .Values.containerSecurityContext | indent 16 }}
-{{- end }}
-{{- if and $.Values.containerSecurityContext $.Values.privileged }}
+    {{- toYaml .Values.containerSecurityContext | nindent 16 }}
+    {{- end }}
+    {{- if and $.Values.containerSecurityContext $.Values.privileged }}
               securityContext:
                 privileged: true
-{{ toYaml .Values.containerSecurityContext | indent 16 }}
-{{- end }}
+    {{- toYaml .Values.containerSecurityContext | nindent 16 }}
+    {{- end }}    
               ports:
               {{- range $.Values.ContainerPort }}
                 - name: {{ .name}}
