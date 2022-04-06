@@ -135,14 +135,6 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	impl.Logger.Debugw("ci triggered", "wf name ", createdWf.Name, " pipeline ", trigger.PipelineId)
 	middleware.CiTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(trigger.PipelineId)).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
-	//creating entry of ci script history for build details
-	for _, ciPipelineScript := range ciPipelineScripts {
-		_, err = impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, nil, true, trigger.TriggeredBy, time.Now())
-		if err != nil {
-			impl.Logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
-			return 0, err
-		}
-	}
 	return savedCiWf.Id, err
 }
 

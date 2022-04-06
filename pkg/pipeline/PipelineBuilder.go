@@ -371,16 +371,6 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)
 		return nil, err
 	}
-	var beforeDockerBuild []*bean.Task
-	var afterDockerBuild []*bean.Task
-	if err := json.Unmarshal([]byte(template.BeforeDockerBuild), &beforeDockerBuild); err != nil {
-		impl.logger.Debugw("error in BeforeDockerBuild json unmarshal", "app", appId, "err", err)
-		return nil, err
-	}
-	if err := json.Unmarshal([]byte(template.AfterDockerBuild), &afterDockerBuild); err != nil {
-		impl.logger.Debugw("error in AfterDockerBuild json unmarshal", "app", appId, "err", err)
-		return nil, err
-	}
 	regHost, err := template.DockerRegistry.GetRegistryLocation()
 	if err != nil {
 		impl.logger.Errorw("invalid reg url", "err", err)
@@ -393,8 +383,6 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		DockerRepository:  template.DockerRepository,
 		DockerRegistry:    template.DockerRegistry.Id,
 		DockerRegistryUrl: regHost,
-		BeforeDockerBuild: beforeDockerBuild,
-		AfterDockerBuild:  afterDockerBuild,
 		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId},
 		Version:           template.Version,
 		CiTemplateName:    template.TemplateName,

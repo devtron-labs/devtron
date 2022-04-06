@@ -29,6 +29,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
@@ -160,23 +161,21 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 		return nil, err
 	}
 
-	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(createRequest.Id)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("failed to fetch ciPipelineScripts", "err", err)
-		return nil, err
+	if createRequest.PreBuildStage != nil {
+		//updating pre stage
+		err = impl.pipelineStageService.UpdateCiStage(createRequest.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, createRequest.Id, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating pre stage", "err", err, "preBuildStage", createRequest.PreBuildStage)
+			return nil, err
+		}
 	}
-
-	existingCiScriptMap := make(map[int]bool)
-	existingCiScriptModelMap := make(map[int]*pipelineConfig.CiPipelineScript)
-	for _, script := range ciPipelineScripts {
-		existingCiScriptMap[script.Id] = true
-		existingCiScriptModelMap[script.Id] = script
-	}
-
-	err = impl.patchCiScripts(userId, createRequest, existingCiScriptMap, existingCiScriptModelMap, tx)
-	if err != nil {
-		impl.logger.Errorw("error while patching ci scripts", "err", err)
-		return nil, err
+	if createRequest.PostBuildStage != nil {
+		//updating post stage
+		err = impl.pipelineStageService.UpdateCiStage(createRequest.PostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_CI, createRequest.Id, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating post stage", "err", err, "postBuildStage", createRequest.PostBuildStage)
+			return nil, err
+		}
 	}
 
 	var materials []*pipelineConfig.CiPipelineMaterial
@@ -433,7 +432,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 		}
 		if ciPipeline.PreBuildStage != nil {
 			//creating pre stage
-			err = impl.pipelineStageService.CreateCiPreStage(ciPipeline.PreBuildStage, ciPipeline.Id, createRequest.UserId)
+			err = impl.pipelineStageService.CreateCiStage(ciPipeline.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, ciPipeline.Id, createRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating pre stage", "err", err, "preBuildStage", ciPipeline.PreBuildStage)
 				return nil, err
@@ -441,7 +440,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 		}
 		if ciPipeline.PostBuildStage != nil {
 			//creating post stage
-			err = impl.pipelineStageService.CreateCiPostStage(ciPipeline.PostBuildStage, ciPipeline.Id, createRequest.UserId)
+			err = impl.pipelineStageService.CreateCiStage(ciPipeline.PostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_CI, ciPipeline.Id, createRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating post stage", "err", err, "postBuildStage", ciPipeline.PostBuildStage)
 				return nil, err

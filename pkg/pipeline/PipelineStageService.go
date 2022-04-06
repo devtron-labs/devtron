@@ -12,8 +12,8 @@ import (
 
 type PipelineStageService interface {
 	GetCiPipelineStageData(ciPipelineId int) (preCiStage *bean.PipelineStageDto, postCiStage *bean.PipelineStageDto, err error)
-	CreateCiPreStage(createRequest *bean.PipelineStageDto, ciPipelineId int, userId int32) error
-	CreateCiPostStage(createRequest *bean.PipelineStageDto, ciPipelineId int, userId int32) error
+	CreateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error
+	UpdateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error
 }
 
 func NewPipelineStageService(logger *zap.SugaredLogger,
@@ -59,11 +59,11 @@ func (impl *PipelineStageServiceImpl) GetCiPipelineStageData(ciPipelineId int) (
 	return preCiStage, postCiStage, nil
 }
 
-func (impl *PipelineStageServiceImpl) CreateCiPreStage(preStageReq *bean.PipelineStageDto, ciPipelineId int, userId int32) error {
-	preStage := &repository.PipelineStage{
-		Name:         preStageReq.Name,
-		Description:  preStageReq.Description,
-		Type:         repository.PIPELINE_STAGE_TYPE_PRE_CI,
+func (impl *PipelineStageServiceImpl) CreateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error {
+	stage := &repository.PipelineStage{
+		Name:         stageReq.Name,
+		Description:  stageReq.Description,
+		Type:         stageType,
 		Deleted:      false,
 		CiPipelineId: ciPipelineId,
 		AuditLog: sql.AuditLog{
@@ -73,45 +73,213 @@ func (impl *PipelineStageServiceImpl) CreateCiPreStage(preStageReq *bean.Pipelin
 			UpdatedBy: userId,
 		},
 	}
-	preStage, err := impl.pipelineStageRepository.CreateCiStage(preStage)
+	stage, err := impl.pipelineStageRepository.CreateCiStage(stage)
 	if err != nil {
-		impl.logger.Errorw("error in creating entry for preCiStage", "err", err, "preCiStage", preStage)
+		impl.logger.Errorw("error in creating entry for ciStage", "err", err, "ciStage", stage)
 		return err
 	}
-
 	//creating stage steps and all related data
-	err = impl.CreateStageSteps(preStageReq.Steps, preStage.Id, userId)
+	err = impl.CreateStageSteps(stageReq.Steps, stage.Id, userId)
 	if err != nil {
-		impl.logger.Errorw("error in creating stage steps for pre ci stage", "err", err, "preStageId", preStage.Id)
+		impl.logger.Errorw("error in creating stage steps for ci stage", "err", err, "stageId", stage.Id)
 		return err
 	}
 	return nil
 }
 
-func (impl *PipelineStageServiceImpl) CreateCiPostStage(postStageReq *bean.PipelineStageDto, ciPipelineId int, userId int32) error {
-	postStage := &repository.PipelineStage{
-		Name:         postStageReq.Name,
-		Description:  postStageReq.Description,
-		Type:         repository.PIPELINE_STAGE_TYPE_POST_CI,
-		Deleted:      false,
-		CiPipelineId: ciPipelineId,
-		AuditLog: sql.AuditLog{
-			CreatedOn: time.Now(),
-			CreatedBy: userId,
-			UpdatedOn: time.Now(),
-			UpdatedBy: userId,
-		},
+func (impl *PipelineStageServiceImpl) UpdateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error {
+	//getting stage by stageType and ciPipelineId
+	stageOld, err := impl.pipelineStageRepository.GetCiStageByCiPipelineIdAndStageType(ciPipelineId, stageType)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting stageId by ciPipelineId and stageType", "err", err, "ciPipelineId", ciPipelineId, "stageType", stageType)
+		return err
+	} else if err == pg.ErrNoRows {
+		//no stage found, creating new stage
+		stageReq.Id = 0
+		err = impl.CreateCiStage(stageReq, stageType, ciPipelineId, userId)
+		if err != nil {
+			impl.logger.Errorw("error in creating new ci stage", "err", err, "ciStageReq", stageReq)
+			return err
+		}
+	} else {
+		//stageId found, to handle as an update request
+		stageReq.Id = stageOld.Id
+		stageUpdateReq := stageOld
+		stageUpdateReq.Name = stageReq.Name
+		stageUpdateReq.Description = stageReq.Description
+		stageUpdateReq.UpdatedBy = userId
+		stageUpdateReq.UpdatedOn = time.Now()
+		_, err = impl.pipelineStageRepository.UpdateCiStage(stageUpdateReq)
+		if err != nil {
+			impl.logger.Errorw("error in updating entry for ciStage", "err", err, "ciStage", stageUpdateReq)
+			return err
+		}
+		// filtering(if steps/variables/conditions are updated or newly added) and performing relevant actions on update request
+		err = impl.FilterAndActOnStepsInCiStageUpdateRequest(stageReq, userId)
+		if err != nil {
+			impl.logger.Errorw("error in filtering and performing actions on steps in ci stage update request", "err", err, "stageReq", stageReq)
+		}
 	}
-	postStage, err := impl.pipelineStageRepository.CreateCiStage(postStage)
+	return nil
+}
+
+func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInCiStageUpdateRequest(stageReq *bean.PipelineStageDto, userId int32) error {
+	//getting all stepIds for current active (steps not deleted) steps
+	activeStepIds, err := impl.pipelineStageRepository.GetStepIdsByStageId(stageReq.Id)
 	if err != nil {
-		impl.logger.Errorw("error in creating entry for postCiStage", "err", err, "postCiStage", postStage)
+		impl.logger.Errorw("error in getting stepIds by stageId", "err", err, "stageId", stageReq.Id)
 		return err
 	}
-	//creating stage steps and all related data
-	err = impl.CreateStageSteps(postStageReq.Steps, postStage.Id, userId)
+	//creating map of the above ids
+	activeStepIdsMap := make(map[int]bool)
+	for _, activeStepId := range activeStepIds {
+		activeStepIdsMap[activeStepId] = true
+	}
+
+	var stepsToBeCreated []*bean.PipelineStageStepDto
+	var stepsToBeUpdated []*bean.PipelineStageStepDto
+	var activeStepIdsPresentInReq []int
+	idsOfStepsToBeUpdated := make(map[int]bool)
+	for _, step := range stageReq.Steps {
+		_, ok := activeStepIdsMap[step.Id]
+		_, ok2 := idsOfStepsToBeUpdated[step.Id]
+		if ok && !ok2 {
+			// stepId present in current active steps and not repeated in request, will be updated
+			stepsToBeUpdated = append(stepsToBeUpdated, step)
+			idsOfStepsToBeUpdated[step.Id] = true
+			activeStepIdsPresentInReq = append(activeStepIdsPresentInReq, step.Id)
+		} else {
+			// stepId present in current active steps but repeated in request, will be handled as new step
+			// OR
+			// stepId not present in current active steps, will be handled as new step
+			step.Id = 0
+			stepsToBeCreated = append(stepsToBeCreated, step)
+		}
+	}
+	// deleting all steps which are currently active but not present in update request
+	err = impl.pipelineStageRepository.MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq)
 	if err != nil {
-		impl.logger.Errorw("error in creating stage steps for post ci stage", "err", err, "postStageId", postStage.Id)
+		impl.logger.Errorw("error in marking all steps deleted excluding active steps in update req", "err", err, "activeStepIdsPresentInReq", activeStepIdsPresentInReq)
 		return err
+	}
+
+	//creating new steps
+	err = impl.CreateStageSteps(stepsToBeCreated, stageReq.Id, userId)
+	if err != nil {
+		impl.logger.Errorw("error in creating stage steps for ci stage", "err", err, "stageId", stageReq.Id)
+		return err
+	}
+
+	//updating steps
+	err = impl.UpdateStageSteps(stepsToBeUpdated, userId)
+	if err != nil {
+		impl.logger.Errorw("error in updating stage steps for ci stage", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *PipelineStageServiceImpl) UpdateStageSteps(steps []*bean.PipelineStageStepDto, userId int32) error {
+	for _, step := range steps {
+		//getting saved step from db
+		savedStep, err := impl.pipelineStageRepository.GetStepById(step.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting saved step from db", "err", err, "stepId", step.Id)
+			return err
+		}
+		stepUpdateReq := &repository.PipelineStageStep{
+			Id:                  step.Id,
+			Name:                step.Name,
+			Description:         step.Description,
+			Index:               step.Index,
+			StepType:            step.StepType,
+			ReportDirectoryPath: step.ReportDirectoryPath,
+			AuditLog: sql.AuditLog{
+				CreatedOn: savedStep.CreatedOn,
+				CreatedBy: savedStep.CreatedBy,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		var inputVariables []*bean.StepVariableDto
+		var outputVariables []*bean.StepVariableDto
+		var conditionDetails []*bean.ConditionDetailDto
+		//handling changes in stepType
+		if step.StepType == repository.PIPELINE_STEP_TYPE_REF_PLUGIN {
+			if savedStep.StepType == repository.PIPELINE_STEP_TYPE_INLINE {
+				//step changed from inline to ref plugin, delete script and its mappings
+				idOfScriptToBeDeleted := savedStep.ScriptId
+
+				//deleting script
+				err = impl.pipelineStageRepository.MarkScriptDeletedById(idOfScriptToBeDeleted)
+				if err != nil {
+					impl.logger.Errorw("error in marking script deleted by id", "err", err, "scriptId", idOfScriptToBeDeleted)
+					return err
+				}
+				//deleting mappings
+				err = impl.pipelineStageRepository.MarkScriptMappingDeletedByScriptId(idOfScriptToBeDeleted)
+				if err != nil {
+					impl.logger.Errorw("error in marking script mappings deleted by scriptId", "err", err)
+					return err
+				}
+			}
+			//updating ref plugin id in step update req
+			stepUpdateReq.RefPluginId = step.RefPluginStepDetail.PluginId
+			inputVariables = step.RefPluginStepDetail.InputVariables
+			outputVariables = step.RefPluginStepDetail.OutputVariables
+			conditionDetails = step.RefPluginStepDetail.ConditionDetails
+		} else if step.StepType == repository.PIPELINE_STEP_TYPE_INLINE {
+			if savedStep.StepType == repository.PIPELINE_STEP_TYPE_REF_PLUGIN {
+				//step changed from ref plugin to inline, create script and mapping
+				scriptEntryId, err := impl.CreateScriptAndMappingForInlineStep(step.InlineStepDetail, userId)
+				if err != nil {
+					impl.logger.Errorw("error in creating script and mapping for inline step", "err", err, "inlineStepDetail", step.InlineStepDetail)
+					return err
+				}
+				//updating scriptId in step update req
+				stepUpdateReq.ScriptId = scriptEntryId
+			} else {
+				//update script and its mappings
+				err = impl.UpdateScriptAndMappingForInlineStep(step.InlineStepDetail, savedStep.ScriptId, userId)
+				if err != nil {
+					impl.logger.Errorw("error in updating script and its mapping", "err", err)
+					return err
+				}
+				stepUpdateReq.ScriptId = savedStep.ScriptId
+			}
+			inputVariables = step.InlineStepDetail.InputVariables
+			outputVariables = step.InlineStepDetail.OutputVariables
+			conditionDetails = step.InlineStepDetail.ConditionDetails
+		}
+		//updating step
+		_, err = impl.pipelineStageRepository.UpdatePipelineStageStep(stepUpdateReq)
+		if err != nil {
+			impl.logger.Errorw("error in updating pipeline stage step", "err", err, "stepUpdateReq", stepUpdateReq)
+			return err
+		}
+		//updating input variable
+		inputVarNameIdMap, err := impl.UpdatePipelineStageStepVariables(step.Id, inputVariables, repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating input variables", "err", err)
+			return err
+		}
+		//updating output variable
+		outputVarNameIdMap, err := impl.UpdatePipelineStageStepVariables(step.Id, outputVariables, repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_OUTPUT, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating output variables", "err", err)
+			return err
+		}
+		//combining both maps
+		varNameIdMap := inputVarNameIdMap
+		for k, v := range outputVarNameIdMap {
+			varNameIdMap[k] = v
+		}
+		//updating conditions
+		_, err = impl.UpdatePipelineStageStepConditions(step.Id, conditionDetails, varNameIdMap, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating step conditions", "err", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -261,6 +429,63 @@ func (impl *PipelineStageServiceImpl) CreateScriptAndMappingForInlineStep(inline
 	return scriptEntry.Id, nil
 }
 
+func (impl *PipelineStageServiceImpl) UpdateScriptAndMappingForInlineStep(inlineStepDetail *bean.InlineStepDetailDto, scriptId int, userId int32) (err error) {
+	scriptEntry := &repository.PluginPipelineScript{
+		Id:                   scriptId,
+		Script:               inlineStepDetail.Script,
+		Type:                 inlineStepDetail.ScriptType,
+		DockerfileExists:     inlineStepDetail.DockerfileExists,
+		MountPath:            inlineStepDetail.MountPath,
+		MountCodeToContainer: inlineStepDetail.MountCodeToContainer,
+		ConfigureMountPath:   inlineStepDetail.ConfigureMountPath,
+		ContainerImagePath:   inlineStepDetail.ContainerImagePath,
+		ImagePullSecretType:  inlineStepDetail.ImagePullSecretType,
+		ImagePullSecret:      inlineStepDetail.ImagePullSecret,
+		Deleted:              false,
+		AuditLog: sql.AuditLog{
+			UpdatedOn: time.Now(),
+			UpdatedBy: userId,
+		},
+	}
+	scriptEntry, err = impl.pipelineStageRepository.UpdatePipelineScript(scriptEntry)
+	if err != nil {
+		impl.logger.Errorw("error in updating script entry for inline step", "err", err, "scriptEntry", scriptEntry)
+		return err
+	}
+	var mountPathMap []repository.ScriptPathArgPortMapping
+	for _, mountPath := range inlineStepDetail.MountPathMap {
+		ifMappingExists, err := impl.pipelineStageRepository.CheckIfFilePathMappingExists(mountPath.FilePathOnDisk, mountPath.FilePathOnContainer, scriptId)
+		if err != nil {
+			impl.logger.Errorw("error in checking if file path mapping exists or not", "err", err)
+			return err
+		}
+		if !ifMappingExists {
+			//creating only if mapping already do not exist
+			repositoryEntry := repository.ScriptPathArgPortMapping{
+				TypeOfMapping:       repository2.SCRIPT_MAPPING_TYPE_FILE_PATH,
+				FilePathOnDisk:      mountPath.FilePathOnDisk,
+				FilePathOnContainer: mountPath.FilePathOnContainer,
+				ScriptId:            scriptId,
+				Deleted:             false,
+				AuditLog: sql.AuditLog{
+					CreatedOn: time.Now(),
+					CreatedBy: userId,
+					UpdatedOn: time.Now(),
+					UpdatedBy: userId,
+				},
+			}
+			mountPathMap = append(mountPathMap, repositoryEntry)
+		}
+	}
+	//creating mapping which do not exist already
+	err = impl.pipelineStageRepository.CreateScriptMapping(mountPathMap)
+	if err != nil {
+		impl.logger.Errorw("error in creating script mappings", "err", err, "scriptMappings", mountPathMap)
+		return err
+	}
+	return nil
+}
+
 func (impl *PipelineStageServiceImpl) CreateVariablesEntryInDb(stepId int, variables []*bean.StepVariableDto, variableType repository.PipelineStageStepVariableType, userId int32) ([]repository.PipelineStageStepVariable, error) {
 	var variablesRepo []repository.PipelineStageStepVariable
 	var err error
@@ -288,13 +513,98 @@ func (impl *PipelineStageServiceImpl) CreateVariablesEntryInDb(stepId int, varia
 		}
 		variablesRepo = append(variablesRepo, inVarRepo)
 	}
-	//saving input variables
+	//saving variables
 	variablesRepo, err = impl.pipelineStageRepository.CreatePipelineStageStepVariables(variablesRepo)
 	if err != nil {
 		impl.logger.Errorw("error in creating variables for pipeline stage steps", "err", err, "variables", variablesRepo)
 		return nil, err
 	}
 	return variablesRepo, nil
+}
+
+func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepVariables(stepId int, variables []*bean.StepVariableDto, variableType repository.PipelineStageStepVariableType, userId int32) (map[string]int, error) {
+	//getting ids of all current active variables
+	variableIds, err := impl.pipelineStageRepository.GetVariableIdsByStepId(stepId)
+	if err != nil {
+		impl.logger.Errorw("error in getting variablesIds by stepId", "err", err, "stepId", stepId)
+		return nil, err
+	}
+	activeVariableIdsMap := make(map[int]bool)
+	for _, variableId := range variableIds {
+		activeVariableIdsMap[variableId] = true
+	}
+	var variablesToBeCreated []*bean.StepVariableDto
+	var variablesToBeUpdated []*bean.StepVariableDto
+	var activeVariableIdsPresentInReq []int
+	idsOfVariablesToBeUpdated := make(map[int]bool)
+	for _, variable := range variables {
+		_, ok := activeVariableIdsMap[variable.Id]
+		_, ok2 := idsOfVariablesToBeUpdated[variable.Id]
+		if ok && !ok2 {
+			// variableId present in current active variables and not repeated in request, will be updated
+			variablesToBeUpdated = append(variablesToBeUpdated, variable)
+			idsOfVariablesToBeUpdated[variable.Id] = true
+			activeVariableIdsPresentInReq = append(activeVariableIdsPresentInReq, variable.Id)
+		} else {
+			// variableId present in current active variables but repeated in request, will be handled as new variable
+			// OR
+			// variableId not present in current active variables, will be handled as new variable
+			variable.Id = 0
+			variablesToBeCreated = append(variablesToBeCreated, variable)
+		}
+	}
+
+	// deleting all variables which are currently active but not present in update request
+	err = impl.pipelineStageRepository.MarkVariablesDeletedExcludingActiveVariablesInUpdateReq(activeVariableIdsPresentInReq)
+	if err != nil {
+		impl.logger.Errorw("error in marking all variables deleted excluding active variables in update req", "err", err, "activeVariableIdsPresentInReq", activeVariableIdsPresentInReq)
+		return nil, err
+	}
+
+	//creating new variables
+	newVariables, err := impl.CreateVariablesEntryInDb(stepId, variablesToBeCreated, variableType, userId)
+	if err != nil {
+		impl.logger.Errorw("error in creating variables", "err", err, "stepId", stepId)
+		return nil, err
+	}
+
+	variableNameIdMap := make(map[string]int)
+	for _, inVar := range newVariables {
+		variableNameIdMap[inVar.Name] = inVar.Id
+	}
+
+	//updating variables
+	var variablesRepo []repository.PipelineStageStepVariable
+	for _, v := range variablesToBeUpdated {
+		variableNameIdMap[v.Name] = v.Id
+		inVarRepo := repository.PipelineStageStepVariable{
+			Id:                    v.Id,
+			PipelineStageStepId:   stepId,
+			Name:                  v.Name,
+			Format:                v.Format,
+			Description:           v.Description,
+			IsExposed:             v.IsExposed,
+			AllowEmptyValue:       v.AllowEmptyValue,
+			DefaultValue:          v.DefaultValue,
+			Value:                 v.Value,
+			ValueType:             v.ValueType,
+			VariableType:          variableType,
+			PreviousStepIndex:     v.PreviousStepIndex,
+			ReferenceVariableName: v.ReferenceVariableName,
+			Deleted:               false,
+			AuditLog: sql.AuditLog{
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		variablesRepo = append(variablesRepo, inVarRepo)
+	}
+	variablesRepo, err = impl.pipelineStageRepository.UpdatePipelineStageStepVariables(variablesRepo)
+	if err != nil {
+		impl.logger.Errorw("error in updating variables for pipeline stage steps", "err", err, "variables", variablesRepo)
+		return nil, err
+	}
+	return variableNameIdMap, nil
 }
 
 func (impl *PipelineStageServiceImpl) CreateConditionsEntryInDb(stepId int, conditions []*bean.ConditionDetailDto, variableNameIdMap map[string]int, userId int32) ([]repository.PipelineStageStepCondition, error) {
@@ -322,6 +632,79 @@ func (impl *PipelineStageServiceImpl) CreateConditionsEntryInDb(stepId int, cond
 	conditionsRepo, err = impl.pipelineStageRepository.CreatePipelineStageStepConditions(conditionsRepo)
 	if err != nil {
 		impl.logger.Errorw("error in creating pipeline stage step conditions", "err", err, "conditionsRepo", conditionsRepo)
+		return nil, err
+	}
+	return conditionsRepo, nil
+}
+
+func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepConditions(stepId int, conditions []*bean.ConditionDetailDto, variableNameIdMap map[string]int, userId int32) ([]repository.PipelineStageStepCondition, error) {
+	//getting ids of all current active variables
+	conditionIds, err := impl.pipelineStageRepository.GetConditionIdsByStepId(stepId)
+	if err != nil {
+		impl.logger.Errorw("error in getting variablesIds by stepId", "err", err, "stepId", stepId)
+		return nil, err
+	}
+	activeConditionIdsMap := make(map[int]bool)
+	for _, conditionId := range conditionIds {
+		activeConditionIdsMap[conditionId] = true
+	}
+	var conditionsToBeCreated []*bean.ConditionDetailDto
+	var conditionsToBeUpdated []*bean.ConditionDetailDto
+	var activeConditionIdsPresentInReq []int
+	idsOfConditionsToBeUpdated := make(map[int]bool)
+	for _, condition := range conditions {
+		_, ok := activeConditionIdsMap[condition.Id]
+		_, ok2 := idsOfConditionsToBeUpdated[condition.Id]
+		if ok && !ok2 {
+			// conditionId present in current active conditions and not repeated in request, will be updated
+			conditionsToBeUpdated = append(conditionsToBeUpdated, condition)
+			idsOfConditionsToBeUpdated[condition.Id] = true
+			activeConditionIdsPresentInReq = append(activeConditionIdsPresentInReq, condition.Id)
+		} else {
+			// conditionId present in current active conditions but repeated in request, will be handled as new condition
+			// OR
+			// conditionId not present in current active conditions, will be handled as new condition
+			condition.Id = 0
+			conditionsToBeCreated = append(conditionsToBeCreated, condition)
+		}
+	}
+
+	// deleting all conditions which are currently active but not present in update request
+	err = impl.pipelineStageRepository.MarkConditionsDeletedExcludingActiveVariablesInUpdateReq(activeConditionIdsPresentInReq)
+	if err != nil {
+		impl.logger.Errorw("error in marking all conditions deleted excluding active conditions in update req", "err", err, "activeConditionIdsPresentInReq", activeConditionIdsPresentInReq)
+		return nil, err
+	}
+
+	//creating new conditions
+	_, err = impl.CreateConditionsEntryInDb(stepId, conditionsToBeCreated, variableNameIdMap, userId)
+	if err != nil {
+		impl.logger.Errorw("error in creating conditions", "err", err, "stepId", stepId)
+		return nil, err
+	}
+
+	var conditionsRepo []repository.PipelineStageStepCondition
+	for _, condition := range conditionsToBeUpdated {
+		varId := variableNameIdMap[condition.ConditionOnVariable]
+		conditionRepo := repository.PipelineStageStepCondition{
+			Id:                  condition.Id,
+			PipelineStageStepId: stepId,
+			ConditionVariableId: varId,
+			ConditionType:       condition.ConditionType,
+			ConditionalOperator: condition.ConditionalOperator,
+			ConditionalValue:    condition.ConditionalValue,
+			Deleted:             false,
+			AuditLog: sql.AuditLog{
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		conditionsRepo = append(conditionsRepo, conditionRepo)
+	}
+	//saving conditions
+	conditionsRepo, err = impl.pipelineStageRepository.UpdatePipelineStageStepConditions(conditionsRepo)
+	if err != nil {
+		impl.logger.Errorw("error in updating pipeline stage step conditions", "err", err, "conditionsRepo", conditionsRepo)
 		return nil, err
 	}
 	return conditionsRepo, nil
