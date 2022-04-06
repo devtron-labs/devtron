@@ -363,7 +363,7 @@ components:
           type: boolean
         RefVariableType:
           type: string
-          example:
+          oneOf:
             - "GLOBAL"
             - "FROM_PREVIOUS_STEP"
         RefVariableStepIndex:
@@ -381,14 +381,13 @@ components:
             type: string
             example:
               - "GIT"
-              - "DATABASE"
         sortBy:
           type: string
         sortOrder:
           type: string
         pluginType:
           type: string
-          example:
+          oneOf:
             - "PRESET"
             - "SHARED"
     PluginFilterOptions:
@@ -535,10 +534,10 @@ components:
           type: string
         stepType:
           type: string
-          example:
+          oneOf:
             - "INLINE"
-            - "PLUGIN REF"
-        directoryPath:
+            - "REF_PLUGIN"
+        reportDirectoryPath:
           type: string
         inlineStepDetail:
           $ref: '#/components/schemas/InlineStepDetail'
@@ -620,9 +619,10 @@ components:
           type: boolean
         RefVariableType:
           type: string
-          example:
+          oneOf:
             - "GLOBAL"
             - "FROM_PREVIOUS_STEP"
+            - "NEW"
         RefVariableStepIndex:
           type: integer
         RefVariableName:
@@ -639,7 +639,7 @@ components:
           type: string
         ConditionType:
           type: string
-          example:
+          oneOf:
             - "SKIP"
             - "TRIGGER"
             - "SUCCESS"
