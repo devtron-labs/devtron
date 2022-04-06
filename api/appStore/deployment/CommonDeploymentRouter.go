@@ -37,13 +37,9 @@ func NewCommonDeploymentRouterImpl(commonDeploymentRestHandler CommonDeploymentR
 
 func (router CommonDeploymentRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/deployment-history").
-		//Queries("installedAppId", "{installedAppId}").
-		Queries("appId", "{appId}").
 		HandlerFunc(router.commonDeploymentRestHandler.GetDeploymentHistory).Methods("GET")
 
 	configRouter.Path("/deployment-history/info").
-		//Queries("installedAppId", "{installedAppId}").
-		Queries("appId", "{appId}").
 		Queries("version", "{version}").
 		HandlerFunc(router.commonDeploymentRestHandler.GetDeploymentHistoryValues).Methods("GET")
 

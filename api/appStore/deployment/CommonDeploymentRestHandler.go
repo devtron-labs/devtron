@@ -133,10 +133,10 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	vars := mux.Vars(r)
 	v := r.URL.Query()
 	installedAppId := v.Get("installedAppId")
-	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(installedAppId, vars["appId"])
+	appId := v.Get("appId")
+	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(installedAppId, appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
 		return
@@ -175,7 +175,8 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 	vars := mux.Vars(r)
 	v := r.URL.Query()
 	installedAppId := v.Get("installedAppId")
-	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(installedAppId, vars["appId"])
+	appId := v.Get("appId")
+	appOfferingMode, installedAppDto, err := handler.getAppOfferingMode(installedAppId, appId)
 	if err != nil {
 		common.WriteJsonResp(w, err, "bad request", http.StatusBadRequest)
 		return

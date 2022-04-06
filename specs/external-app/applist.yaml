@@ -376,8 +376,8 @@ paths:
           name: appId
           example: "12|helm-app|cluster1-ns1"
           description: project ids
-          required: true
-          allowEmptyValue: true
+          required: false
+          allowEmptyValue: false
           schema:
             type: string
         - in: query
@@ -385,7 +385,7 @@ paths:
           example: "100"
           description: devtron charts installed instance id
           required: false
-          allowEmptyValue: true
+          allowEmptyValue: false
           schema:
             type: number
       responses:
@@ -403,8 +403,8 @@ paths:
           name: appId
           example: "12|helm-app|cluster1-ns1"
           description: project ids
-          required: true
-          allowEmptyValue: true
+          required: false
+          allowEmptyValue: false
           schema:
             type: string
         - in: query
@@ -412,7 +412,7 @@ paths:
           example: "100"
           description: devtron charts installed instance id
           required: false
-          allowEmptyValue: true
+          allowEmptyValue: false
           schema:
             type: string
         - in: query
