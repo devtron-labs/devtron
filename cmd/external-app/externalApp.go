@@ -43,7 +43,7 @@ func (app *App) Start() {
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
 
-	_, err := app.telemetry.SendTelemtryInstallEventEA()
+	_, err := app.telemetry.SendTelemetryInstallEventEA()
 
 	if err != nil {
 		app.Logger.Warnw("telemetry installation success event failed", "err", err)
