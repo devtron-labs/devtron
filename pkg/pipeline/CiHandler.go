@@ -638,11 +638,13 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 
 func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
 	workflowName, status, podStatus, message := impl.extractWorkfowStatus(workflowStatus)
+	impl.Logger.Infow("onexit testing", "workflowName: ", workflowName, " status: ", status, " podstatus: ", podStatus, " message: ", message) // need to be removed
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "podStatus", podStatus, "message", message)
 		return 0, errors.New("invalid wf name")
 	}
 	workflowId, err := strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
+	impl.Logger.Infow("onexit testing", "workflowIdGen: ", workflowName[:strings.Index(workflowName, "-")])
 	if err != nil {
 		impl.Logger.Errorw("invalid wf status update req", "err", err)
 		return 0, err
