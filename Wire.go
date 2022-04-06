@@ -28,6 +28,7 @@ import (
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
+	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler"
@@ -169,6 +170,13 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(deployment.DeploymentConfigRestHandler), new(*deployment.DeploymentConfigRestHandlerImpl)),
 		deployment.NewDeploymentRouterImpl,
 		wire.Bind(new(deployment.DeploymentConfigRouter), new(*deployment.DeploymentConfigRouterImpl)),
+
+		dashboardEvent.NewDashboardTelemetryRestHandlerImpl,
+		wire.Bind(new(dashboardEvent.DashboardTelemetryRestHandler), new(*dashboardEvent.DashboardTelemetryRestHandlerImpl)),
+		dashboardEvent.NewDashboardTelemetryRouterImpl,
+		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
+			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
+
 		router.NewMuxRouter,
 
 		app2.NewAppRepositoryImpl,

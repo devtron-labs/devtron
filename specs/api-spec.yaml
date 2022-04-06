@@ -19,22 +19,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RollbackReleaseResponse"
-  /orchestrator/application/rollback/deprecated:
-    put:
-      description: Rollback application if the application is installed externally using helm (external-app)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RollbackReleaseRequest'
-      responses:
-        "200":
-          description: application rollback response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RollbackReleaseResponse"
 components:
   schemas:
     RollbackReleaseResponse:

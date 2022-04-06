@@ -44,6 +44,7 @@ type EnforcerUtil interface {
 	GetProjectAdminRBACNameBYAppName(appName string) string
 	GetHelmObject(appId int, envId int) string
 	GetHelmObjectByAppNameAndEnvId(appName string, envId int) string
+	GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) string
 }
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
@@ -296,4 +297,22 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
 	}*/
 	return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier, strings.ToLower(application.AppName))
+}
+
+func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) string {
+	team, err := impl.teamRepository.FindOne(teamId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	env, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	environmentIdentifier := env.EnvironmentIdentifier
+	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
+	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
+	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
+		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
+	}*/
+	return fmt.Sprintf("%s/%s/%s", strings.ToLower(team.Name), environmentIdentifier, "*")
 }

@@ -425,6 +425,8 @@ func WhitelistChecker(url string) bool {
 		"/orchestrator/security/policy/verify/webhook",
 		"/orchestrator/sso/list",
 		"/",
+		"/orchestrator/dashboard-event/dashboardAccessed",
+		"/orchestrator/dashboard-event/dashboardLoggedIn",
 	}
 	for _, a := range urls {
 		if a == url {

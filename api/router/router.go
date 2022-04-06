@@ -23,6 +23,7 @@ import (
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
+	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -95,6 +96,7 @@ type MuxRouter struct {
 	k8sApplicationRouter             k8s.K8sApplicationRouter
 	pProfRouter                      PProfRouter
 	deploymentConfigRouter           deployment.DeploymentConfigRouter
+	dashboardTelemetryRouter         dashboardEvent.DashboardTelemetryRouter
 	commonDeploymentRouter           appStoreDeployment.CommonDeploymentRouter
 }
 
@@ -117,7 +119,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
-	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter,
+	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
@@ -172,6 +174,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		k8sApplicationRouter:             k8sApplicationRouter,
 		pProfRouter:                      pProfRouter,
 		deploymentConfigRouter:           deploymentConfigRouter,
+		dashboardTelemetryRouter:         dashboardTelemetryRouter,
 		commonDeploymentRouter:           commonDeploymentRouter,
 	}
 	return r
@@ -332,9 +335,14 @@ func (r MuxRouter) Init() {
 	r.deploymentConfigRouter.Init(deploymentConfigSubRouter)
 	// deployment router ends
 
+	//  dashboard event router starts
+	dashboardTelemetryRouter := r.Router.PathPrefix("/orchestrator/dashboard-event").Subrouter()
+	r.dashboardTelemetryRouter.Init(dashboardTelemetryRouter)
+	// dashboard event router ends
+
 	//GitOps,Acd + HelmCLi both apps deployment related api's
-	helmApp := r.Router.PathPrefix("/orchestrator/application").Subrouter()
-	r.commonDeploymentRouter.Init(helmApp)
+	applicationSubRouter := r.Router.PathPrefix("/orchestrator/application").Subrouter()
+	r.commonDeploymentRouter.Init(applicationSubRouter)
 	//this router must placed after commonDeploymentRouter
-	r.helmAppRouter.InitAppListRouter(helmApp)
+	r.helmAppRouter.InitAppListRouter(applicationSubRouter)
 }
