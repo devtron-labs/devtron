@@ -45,7 +45,7 @@ const (
 	TimeoutSlow = 30 * time.Second
 	TimeoutLazy = 60 * time.Second
 	HIBERNATING = "HIBERNATING"
-	SUCCEEDED = "Succeeded"
+	SUCCEEDED   = "Succeeded"
 )
 
 type ServiceClient interface {
@@ -409,6 +409,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*Result) (podMetaData []*PodMetadata, newReplicaSet string) {
 	rolloutManifest := make(map[string]interface{})
 	statefulSetManifest := make(map[string]interface{})
+	workflowSetManifest := make(map[string]interface{})
 	deploymentManifest := make(map[string]interface{})
 	daemonSetManifest := make(map[string]interface{})
 	replicaSetManifests := make([]map[string]interface{}, 0)
@@ -426,6 +427,12 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 			if err != nil {
 				c.logger.Error(err)
 			}
+		} else if response != nil && response.Response != nil && response.Request.Kind == "Workflow" {
+			err := json.Unmarshal([]byte(response.Response.Manifest), &workflowSetManifest)
+			if err != nil {
+				c.logger.Error(err)
+			}
+			c.logger.Infow("onexit testing", "manifest", workflowSetManifest) //for testing (should be removed)
 		} else if response != nil && response.Response != nil && response.Request.Kind == "StatefulSet" {
 			err := json.Unmarshal([]byte(response.Response.Manifest), &statefulSetManifest)
 			if err != nil {
@@ -472,6 +479,10 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 
 	if _, ok := deploymentManifest["kind"]; ok {
 		newReplicaSet = c.getDeploymentNewReplicaSetName(deploymentManifest, replicaSetManifests)
+	}
+
+	if _, ok := workflowSetManifest["kind"]; ok {
+		newReplicaSet = c.getRolloutNewReplicaSetName(workflowSetManifest, replicaSetManifests)
 	}
 
 	if _, ok := statefulSetManifest["kind"]; ok {
@@ -860,6 +871,9 @@ func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSe
 			parentName := ""
 			for _, p := range node.ParentRefs {
 				if p.Kind == "ReplicaSet" {
+					parentName = p.Name
+				}
+				if p.Kind == "Workflow" {
 					parentName = p.Name
 				}
 			}
