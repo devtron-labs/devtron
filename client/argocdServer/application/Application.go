@@ -764,7 +764,9 @@ func (c ServiceClientImpl) getRolloutNewReplicaSetName(rManifest map[string]inte
 		if podHash == rPodHash {
 			newReplicaSet = getResourceName(rs)
 		}
+		c.logger.Infow("onexit1 testing", "podhash", podHash) //testing purpose
 	}
+	c.logger.Infow("onexit2 testing", "rPodHash", rPodHash, "newReplicaSet", newReplicaSet) //testing purpose
 	return newReplicaSet
 }
 

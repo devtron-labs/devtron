@@ -644,7 +644,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		return 0, errors.New("invalid wf name")
 	}
 	workflowId, err := strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
-	impl.Logger.Infow("onexit testing", "workflowIdGen: ", workflowName[:strings.Index(workflowName, "-")])
+	impl.Logger.Infow("onexit testing", "workflowIdGen: ", workflowName[:strings.Index(workflowName, "-")]) //testing purpose
 	if err != nil {
 		impl.Logger.Errorw("invalid wf status update req", "err", err)
 		return 0, err
