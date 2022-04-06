@@ -15,14 +15,14 @@
  *
  */
 
-package appStoreValues
+package service
 
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	"go.uber.org/zap"
 	"time"
@@ -42,12 +42,12 @@ type AppStoreValuesService interface {
 type AppStoreValuesServiceImpl struct {
 	logger                          *zap.SugaredLogger
 	appStoreApplicationRepository   appStoreDiscoverRepository.AppStoreApplicationVersionRepository
-	installedAppRepository          appStoreRepository.InstalledAppRepository
+	installedAppRepository          repository.InstalledAppRepository
 	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository
 }
 
 func NewAppStoreValuesServiceImpl(logger *zap.SugaredLogger,
-	appStoreApplicationRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, installedAppRepository appStoreRepository.InstalledAppRepository,
+	appStoreApplicationRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, installedAppRepository repository.InstalledAppRepository,
 	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository) *AppStoreValuesServiceImpl {
 	return &AppStoreValuesServiceImpl{
 		logger:                          logger,

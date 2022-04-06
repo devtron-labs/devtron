@@ -65,11 +65,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
-	appStore "github.com/devtron-labs/devtron/pkg/appStore"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/commonService"
@@ -430,8 +430,8 @@ func InitializeApp() (*App, error) {
 
 		appStoreRestHandler.NewInstalledAppRestHandlerImpl,
 		wire.Bind(new(appStoreRestHandler.InstalledAppRestHandler), new(*appStoreRestHandler.InstalledAppRestHandlerImpl)),
-		appStore.NewInstalledAppServiceImpl,
-		wire.Bind(new(appStore.InstalledAppService), new(*appStore.InstalledAppServiceImpl)),
+		service.NewInstalledAppServiceImpl,
+		wire.Bind(new(service.InstalledAppService), new(*service.InstalledAppServiceImpl)),
 
 		appStoreRestHandler.NewAppStoreRouterImpl,
 		wire.Bind(new(appStoreRestHandler.AppStoreRouter), new(*appStoreRestHandler.AppStoreRouterImpl)),
@@ -514,18 +514,18 @@ func InitializeApp() (*App, error) {
 		router.NewBatchOperationRouterImpl,
 		wire.Bind(new(router.BatchOperationRouter), new(*router.BatchOperationRouterImpl)),
 
-		appStoreRepository.NewChartGroupReposotoryImpl,
-		wire.Bind(new(appStoreRepository.ChartGroupReposotory), new(*appStoreRepository.ChartGroupReposotoryImpl)),
-		appStoreRepository.NewChartGroupEntriesRepositoryImpl,
-		wire.Bind(new(appStoreRepository.ChartGroupEntriesRepository), new(*appStoreRepository.ChartGroupEntriesRepositoryImpl)),
-		appStore.NewChartGroupServiceImpl,
-		wire.Bind(new(appStore.ChartGroupService), new(*appStore.ChartGroupServiceImpl)),
+		repository4.NewChartGroupReposotoryImpl,
+		wire.Bind(new(repository4.ChartGroupReposotory), new(*repository4.ChartGroupReposotoryImpl)),
+		repository4.NewChartGroupEntriesRepositoryImpl,
+		wire.Bind(new(repository4.ChartGroupEntriesRepository), new(*repository4.ChartGroupEntriesRepositoryImpl)),
+		service.NewChartGroupServiceImpl,
+		wire.Bind(new(service.ChartGroupService), new(*service.ChartGroupServiceImpl)),
 		restHandler.NewChartGroupRestHandlerImpl,
 		wire.Bind(new(restHandler.ChartGroupRestHandler), new(*restHandler.ChartGroupRestHandlerImpl)),
 		router.NewChartGroupRouterImpl,
 		wire.Bind(new(router.ChartGroupRouter), new(*router.ChartGroupRouterImpl)),
-		appStoreRepository.NewChartGroupDeploymentRepositoryImpl,
-		wire.Bind(new(appStoreRepository.ChartGroupDeploymentRepository), new(*appStoreRepository.ChartGroupDeploymentRepositoryImpl)),
+		repository4.NewChartGroupDeploymentRepositoryImpl,
+		wire.Bind(new(repository4.ChartGroupDeploymentRepository), new(*repository4.ChartGroupDeploymentRepositoryImpl)),
 
 		commonService.NewCommonServiceImpl,
 		wire.Bind(new(commonService.CommonService), new(*commonService.CommonServiceImpl)),

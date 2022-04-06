@@ -28,9 +28,8 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/appStore"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -53,8 +52,6 @@ type InstalledAppRestHandler interface {
 	CheckAppExists(w http.ResponseWriter, r *http.Request)
 	DefaultComponentInstallation(w http.ResponseWriter, r *http.Request)
 	FetchAppDetailsForInstalledApp(w http.ResponseWriter, r *http.Request)
-	GetDeploymentHistory(w http.ResponseWriter, r *http.Request)
-	GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -62,17 +59,17 @@ type InstalledAppRestHandlerImpl struct {
 	userAuthService           user.UserService
 	enforcer                  casbin.Enforcer
 	enforcerUtil              rbac.EnforcerUtil
-	installedAppService       appStore.InstalledAppService
+	installedAppService       service.InstalledAppService
 	validator                 *validator.Validate
 	clusterService            cluster.ClusterService
 	acdServiceClient          application.ServiceClient
-	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService
+	appStoreDeploymentService service.AppStoreDeploymentService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, installedAppService appStore.InstalledAppService,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, installedAppService service.InstalledAppService,
 	validator *validator.Validate, clusterService cluster.ClusterService, acdServiceClient application.ServiceClient,
-	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
+	appStoreDeploymentService service.AppStoreDeploymentService,
 ) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
 		Logger:                    Logger,
@@ -468,74 +465,4 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		handler.Logger.Infow("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
-}
-
-func (handler *InstalledAppRestHandlerImpl) GetDeploymentHistory(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	installedAppId, err := strconv.Atoi(vars["installedAppId"])
-	if err != nil {
-		handler.Logger.Errorw("request err", "error", err, "installedAppId", installedAppId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	token := r.Header.Get("token")
-	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
-	if err != nil {
-		handler.Logger.Errorw("service err, GetDeploymentHistoryValues", "err", err, "installedAppId", installedAppId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	//rbac block starts from here
-	object := handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
-	//rback block ends here
-	response, err := handler.installedAppService.GetInstalledAppVersionHistory(installedAppId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	common.WriteJsonResp(w, err, response, http.StatusOK)
-}
-
-func (handler *InstalledAppRestHandlerImpl) GetDeploymentHistoryValues(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	installedAppId, err := strconv.Atoi(vars["installedAppId"])
-	if err != nil {
-		handler.Logger.Errorw("request err", "error", err, "installedAppId", installedAppId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	installedAppVersionHistoryId, err := strconv.Atoi(vars["version"])
-	if err != nil {
-		handler.Logger.Errorw("request err", "error", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	token := r.Header.Get("token")
-	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
-	if err != nil {
-		handler.Logger.Errorw("service err, GetDeploymentHistoryValues", "err", err, "installedAppId", installedAppId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	//rbac block starts from here
-	object := handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
-	//rback block ends here
-
-	response, err := handler.installedAppService.GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	common.WriteJsonResp(w, err, response, http.StatusOK)
 }

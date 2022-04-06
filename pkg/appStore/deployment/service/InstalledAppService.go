@@ -15,7 +15,7 @@
  *
  */
 
-package appStore
+package service
 
 import (
 	"bytes"
@@ -24,11 +24,10 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDeployment "github.com/devtron-labs/devtron/pkg/appStore/deployment"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
-	appStoreValues "github.com/devtron-labs/devtron/pkg/appStore/values"
+	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
@@ -76,14 +75,12 @@ type InstalledAppService interface {
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
-	GetInstalledAppVersionHistory(installedAppId int) (*appStoreBean.InstallAppVersionHistoryDto, error)
 	UpdateInstalledAppVersionStatus(application v1alpha1.Application) (bool, error)
-	GetInstalledAppVersionHistoryValues(installedAppVersionHistoryId int) (*appStoreBean.IAVHistoryValues, error)
 }
 
 type InstalledAppServiceImpl struct {
 	logger                               *zap.SugaredLogger
-	installedAppRepository               appStoreRepository.InstalledAppRepository
+	installedAppRepository               repository2.InstalledAppRepository
 	chartTemplateService                 util.ChartTemplateService
 	refChartDir                          appStoreBean.RefChartProxyDir
 	repositoryService                    repository.ServiceClient
@@ -92,38 +89,38 @@ type InstalledAppServiceImpl struct {
 	teamRepository                       repository4.TeamRepository
 	appRepository                        app.AppRepository
 	acdClient                            application2.ServiceClient
-	appStoreValuesService                appStoreValues.AppStoreValuesService
-	pubsubClient                         *pubsub.PubSubClient
-	tokenCache                           *util2.TokenCache
-	chartGroupDeploymentRepository       appStoreRepository.ChartGroupDeploymentRepository
-	envService                           cluster2.EnvironmentService
-	ArgoK8sClient                        argocdServer.ArgoK8sClient
-	gitFactory                           *util.GitFactory
-	aCDAuthConfig                        *util2.ACDAuthConfig
-	gitOpsRepository                     repository3.GitOpsConfigRepository
-	userService                          user.UserService
-	appStoreDeploymentService            appStoreDeployment.AppStoreDeploymentService
-	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
-	installedAppRepositoryHistory        appStoreRepository.InstalledAppVersionHistoryRepository
+	appStoreValuesService             service.AppStoreValuesService
+	pubsubClient                      *pubsub.PubSubClient
+	tokenCache                        *util2.TokenCache
+	chartGroupDeploymentRepository    repository2.ChartGroupDeploymentRepository
+	envService                        cluster2.EnvironmentService
+	ArgoK8sClient                     argocdServer.ArgoK8sClient
+	gitFactory                        *util.GitFactory
+	aCDAuthConfig                     *util2.ACDAuthConfig
+	gitOpsRepository                  repository3.GitOpsConfigRepository
+	userService                       user.UserService
+	appStoreDeploymentService         AppStoreDeploymentService
+	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
+	installedAppRepositoryHistory     repository2.InstalledAppVersionHistoryRepository
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
-	installedAppRepository appStoreRepository.InstalledAppRepository,
+	installedAppRepository repository2.InstalledAppRepository,
 	chartTemplateService util.ChartTemplateService, refChartDir appStoreBean.RefChartProxyDir,
 	repositoryService repository.ServiceClient,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentRepository repository5.EnvironmentRepository, teamRepository repository4.TeamRepository,
 	appRepository app.AppRepository,
 	acdClient application2.ServiceClient,
-	appStoreValuesService appStoreValues.AppStoreValuesService,
+	appStoreValuesService service.AppStoreValuesService,
 	pubsubClient *pubsub.PubSubClient,
 	tokenCache *util2.TokenCache,
-	chartGroupDeploymentRepository appStoreRepository.ChartGroupDeploymentRepository,
+	chartGroupDeploymentRepository repository2.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService, argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
-	appStoreDeploymentService appStoreDeployment.AppStoreDeploymentService,
-	installedAppRepositoryHistory appStoreRepository.InstalledAppVersionHistoryRepository) (*InstalledAppServiceImpl, error) {
+	appStoreDeploymentService AppStoreDeploymentService,
+	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -183,7 +180,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 		gitOpsRepoName = impl.appStoreDeploymentFullModeService.GetGitOpsRepoName(installAppVersionRequest)
 	}
 	installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
-	var installedAppVersion *appStoreRepository.InstalledAppVersions
+	var installedAppVersion *repository2.InstalledAppVersions
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
 		_, installedAppVersion, err = impl.upgradeInstalledApp(ctx, installAppVersionRequest, installedApp, tx)
@@ -213,7 +210,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 				impl.logger.Errorw("fetching error", "err", err)
 				return nil, err
 			}
-			installedAppVersion = &appStoreRepository.InstalledAppVersions{
+			installedAppVersion = &repository2.InstalledAppVersions{
 				InstalledAppId:               installAppVersionRequest.InstalledAppId,
 				AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
 				ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
@@ -283,7 +280,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	return installAppVersionRequest, nil
 }
 
-func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *repository5.Environment, installedAppVersion *appStoreRepository.InstalledAppVersions,
+func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *repository5.Environment, installedAppVersion *repository2.InstalledAppVersions,
 	installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
 
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
@@ -330,7 +327,7 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *r
 	return nil
 }
 
-func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.Environment, installedAppVersion *appStoreRepository.InstalledAppVersions,
+func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.Environment, installedAppVersion *repository2.InstalledAppVersions,
 	installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
 
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
@@ -378,8 +375,8 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 	return installAppVersionRequest, nil
 }
 
-func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApp *appStoreRepository.InstalledApps, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, *appStoreRepository.InstalledAppVersions, error) {
-	var installedAppVersion *appStoreRepository.InstalledAppVersions
+func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApp *repository2.InstalledApps, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, *repository2.InstalledAppVersions, error) {
+	var installedAppVersion *repository2.InstalledAppVersions
 	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching installed version", "error", err)
@@ -401,7 +398,7 @@ func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, ins
 		impl.logger.Errorw("fetching error", "err", err)
 		return installAppVersionRequest, installedAppVersion, err
 	}
-	installedAppVersion = &appStoreRepository.InstalledAppVersions{
+	installedAppVersion = &repository2.InstalledAppVersions{
 		InstalledAppId:               installAppVersionRequest.InstalledAppId,
 		AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
 		ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
@@ -521,7 +518,7 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 }
 
 //converts db object to bean
-func (impl InstalledAppServiceImpl) chartAdaptor(chart *appStoreRepository.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl InstalledAppServiceImpl) chartAdaptor(chart *repository2.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error) {
 
 	return &appStoreBean.InstallAppVersionDTO{
 		InstalledAppId:     chart.InstalledAppId,
@@ -632,8 +629,8 @@ func (impl InstalledAppServiceImpl) getInstallationId(installAppVersions []*appS
 	return fmt.Sprintf("%x", bs), nil
 }
 
-func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersionDTO *appStoreBean.InstallAppVersionDTO, chartGroupId int, groupINstallationId string) *appStoreRepository.ChartGroupDeployment {
-	return &appStoreRepository.ChartGroupDeployment{
+func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersionDTO *appStoreBean.InstallAppVersionDTO, chartGroupId int, groupINstallationId string) *repository2.ChartGroupDeployment {
+	return &repository2.ChartGroupDeployment{
 		ChartGroupId:        chartGroupId,
 		ChartGroupEntryId:   installAppVersionDTO.ChartGroupEntryId,
 		InstalledAppId:      installAppVersionDTO.InstalledAppId,
