@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -17,7 +17,7 @@ type DeleteServiceExtendedImpl struct {
 	appRepository          app.AppRepository
 	environmentRepository  repository.EnvironmentRepository
 	pipelineRepository     pipelineConfig.PipelineRepository
-	installedAppRepository appStoreRepository.InstalledAppRepository
+	installedAppRepository repository2.InstalledAppRepository
 	*DeleteServiceImpl
 }
 
@@ -27,7 +27,7 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	environmentService cluster.EnvironmentService,
 	appRepository app.AppRepository,
 	environmentRepository repository.EnvironmentRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, chartRepositoryService chartRepo.ChartRepositoryService, installedAppRepository appStoreRepository.InstalledAppRepository,
+	pipelineRepository pipelineConfig.PipelineRepository, chartRepositoryService chartRepo.ChartRepositoryService, installedAppRepository repository2.InstalledAppRepository,
 ) *DeleteServiceExtendedImpl {
 	return &DeleteServiceExtendedImpl{
 		appRepository:          appRepository,
