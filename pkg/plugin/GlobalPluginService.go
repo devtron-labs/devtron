@@ -1,12 +1,18 @@
 package plugin
 
 import (
+	"errors"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
+type GlobalVariables struct {
+}
+
 type GlobalPluginService interface {
+	GetAllGlobalVariables() (*GlobalVariables, error)
 	ListAllPlugins() ([]*PluginMetadataDto, error)
 	GetPluginDetailById(pluginId int) (*PluginDetailDto, error)
 }
@@ -21,6 +27,15 @@ func NewGlobalPluginService(logger *zap.SugaredLogger, globalPluginRepository re
 type GlobalPluginServiceImpl struct {
 	logger                 *zap.SugaredLogger
 	globalPluginRepository repository.GlobalPluginRepository
+}
+
+func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() (*GlobalVariables, error) {
+	globalVariables := &GlobalVariables{}
+	err := env.Parse(globalVariables)
+	if err != nil {
+		return nil, errors.New("could not get global variables from environment")
+	}
+	return globalVariables, err
 }
 
 func (impl *GlobalPluginServiceImpl) ListAllPlugins() ([]*PluginMetadataDto, error) {

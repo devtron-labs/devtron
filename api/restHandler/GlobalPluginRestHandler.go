@@ -10,6 +10,7 @@ import (
 )
 
 type GlobalPluginRestHandler interface {
+	GetAllGlobalVariables(w http.ResponseWriter, r *http.Request)
 	ListAllPlugins(w http.ResponseWriter, r *http.Request)
 	GetPluginDetailById(w http.ResponseWriter, r *http.Request)
 }
@@ -24,6 +25,18 @@ func NewGlobalPluginRestHandler(logger *zap.SugaredLogger, globalPluginService p
 type GlobalPluginRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
 	globalPluginService plugin.GlobalPluginService
+}
+
+func (handler *GlobalPluginRestHandlerImpl) GetAllGlobalVariables(w http.ResponseWriter, r *http.Request) {
+
+	//TODO: add rbac
+	globalVariables, err := handler.globalPluginService.GetAllGlobalVariables()
+	if err != nil {
+		handler.logger.Errorw("error in getting global variable list", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, globalVariables, http.StatusOK)
 }
 
 func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter, r *http.Request) {
