@@ -564,6 +564,8 @@ components:
           type: boolean
         mountCodeToContainerPath:
           type: string
+        mountDirectoryFromHost:
+          type: boolean
         configureMountPath:
           type: boolean
         cotainerImagePath:

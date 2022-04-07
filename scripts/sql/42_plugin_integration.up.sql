@@ -61,6 +61,7 @@ CREATE TABLE "public"."plugin_pipeline_script"
     "mount_path"                   text,
     "mount_code_to_container"      bool,
     "mount_code_to_container_path" text,
+    "mount_directory_from_host"    bool,
     "configure_mount_path"         bool,
     "container_image_path"         text,
     "image_pull_secret_type"       varchar(255),   -- CONTAINER_REGISTRY or SECRET_PATH

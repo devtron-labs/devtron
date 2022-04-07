@@ -71,6 +71,7 @@ type PluginPipelineScript struct {
 	MountPath                string                               `sql:"mount_path"`
 	MountCodeToContainer     bool                                 `sql:"mount_code_to_container,notnull"`
 	MountCodeToContainerPath string                               `sql:"mount_code_to_container_path"`
+	MountDirectoryFromHost   bool                                 `sql:"mount_directory_from_host,notnull"`
 	ConfigureMountPath       bool                                 `sql:"configure_mount_path,notnull"`
 	ContainerImagePath       string                               `sql:"container_image_path"`
 	ImagePullSecretType      repository.ScriptImagePullSecretType `sql:"image_pull_secret_type"`

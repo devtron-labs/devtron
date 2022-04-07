@@ -32,6 +32,7 @@ type InlineStepDetailDto struct {
 	MountPath                string                                `json:"mountPath,omitempty"`
 	MountCodeToContainer     bool                                  `json:"mountCodeToContainer,omitempty"`
 	MountCodeToContainerPath string                                `json:"mountCodeToContainerPath,omitempty"`
+	MountDirectoryFromHost   bool                                  `json:"mountDirectoryFromHost"`
 	ConfigureMountPath       bool                                  `json:"configureMountPath,omitempty"`
 	ContainerImagePath       string                                `json:"containerImagePath,omitempty"`
 	ImagePullSecretType      repository2.ScriptImagePullSecretType `json:"imagePullSecretType,omitempty"`
