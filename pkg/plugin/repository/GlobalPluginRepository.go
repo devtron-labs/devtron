@@ -72,6 +72,7 @@ type PluginPipelineScript struct {
 	tableName            struct{}                  `sql:"plugin_pipeline_script" pg:",discard_unknown_columns"`
 	Id                   int                       `sql:"id,pk"`
 	Script               string                    `sql:"name"`
+	StoreScriptAt        string                    `sql:"store_script_at"`
 	Type                 ScriptType                `sql:"type"`
 	DockerfileExists     bool                      `sql:"dockerfile_exists, notnull"`
 	MountPath            string                    `sql:"mount_path"`
