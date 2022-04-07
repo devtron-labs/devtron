@@ -63,6 +63,7 @@ type PluginTagRelation struct {
 	Id        int      `sql:"id,pk"`
 	TagId     int      `sql:"tag_id"`
 	PluginId  int      `sql:"plugin_id"`
+	sql.AuditLog
 }
 
 // Below two tables are used at pipeline-steps level too
