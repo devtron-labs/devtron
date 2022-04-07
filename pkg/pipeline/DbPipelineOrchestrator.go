@@ -292,6 +292,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 	return createRequest, nil
 }
 
+// below function is not usable after plugin integration
 func (impl DbPipelineOrchestratorImpl) patchCiScripts(userId int32, pipeline *bean.CiPipeline, existingCiScriptMap map[int]bool, existingCiScriptModelMap map[int]*pipelineConfig.CiPipelineScript, tx *pg.Tx) error {
 	for _, ciScript := range pipeline.BeforeDockerBuildScripts {
 		ciPipelineScript := impl.BuildCiPipelineScript(userId, ciScript, BEFORE_DOCKER_BUILD, pipeline)

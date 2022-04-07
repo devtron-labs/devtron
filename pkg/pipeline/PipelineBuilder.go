@@ -925,21 +925,19 @@ func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*b
 			return nil, err
 		}
 	}
-	for _, ciScript := range request.CiPipeline.BeforeDockerBuildScripts {
-		ciPipelineScript := impl.dbPipelineOrchestrator.BuildCiPipelineScript(request.UserId, ciScript, BEFORE_DOCKER_BUILD, request.CiPipeline)
-		//creating history entry
-		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+	if request.CiPipeline.PreBuildStage != nil {
+		//deleting pre stage
+		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			impl.logger.Errorw("error in deleting pre stage", "err", err, "preBuildStage", request.CiPipeline.PreBuildStage)
 			return nil, err
 		}
 	}
-	for _, ciScript := range request.CiPipeline.AfterDockerBuildScripts {
-		ciPipelineScript := impl.dbPipelineOrchestrator.BuildCiPipelineScript(request.UserId, ciScript, AFTER_DOCKER_BUILD, request.CiPipeline)
-		//creating history entry
-		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+	if request.CiPipeline.PostBuildStage != nil {
+		//deleting post stage
+		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			impl.logger.Errorw("error in deleting post stage", "err", err, "postBuildStage", request.CiPipeline.PostBuildStage)
 			return nil, err
 		}
 	}

@@ -14,6 +14,7 @@ type PipelineStageService interface {
 	GetCiPipelineStageData(ciPipelineId int) (preCiStage *bean.PipelineStageDto, postCiStage *bean.PipelineStageDto, err error)
 	CreateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error
 	UpdateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error
+	DeleteCiStage(stageReq *bean.PipelineStageDto, userId int32, tx *pg.Tx) error
 }
 
 func NewPipelineStageService(logger *zap.SugaredLogger,
@@ -119,6 +120,46 @@ func (impl *PipelineStageServiceImpl) UpdateCiStage(stageReq *bean.PipelineStage
 		if err != nil {
 			impl.logger.Errorw("error in filtering and performing actions on steps in ci stage update request", "err", err, "stageReq", stageReq)
 		}
+	}
+	return nil
+}
+
+func (impl *PipelineStageServiceImpl) DeleteCiStage(stageReq *bean.PipelineStageDto, userId int32, tx *pg.Tx) error {
+	//marking stage deleted
+	err := impl.pipelineStageRepository.MarkCiStageDeletedById(stageReq.Id, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in marking ci stage deleted", "err", err, "ciStageId", stageReq.Id)
+		return err
+	}
+	//marking all steps deleted
+	err = impl.pipelineStageRepository.MarkCiStageStepsDeletedByStageId(stageReq.Id, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in marking ci stage steps deleted by stageId", "err", err, "ciStageId", stageReq.Id)
+		return err
+	}
+	//marking all scripts deleted
+	err = impl.pipelineStageRepository.MarkPipelineScriptsDeletedByStageId(stageReq.Id, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in marking pipeline stage scripts deleted by stageId", "err", err, "ciStageId", stageReq.Id)
+		return err
+	}
+	//marking all script mappings deleted
+	err = impl.pipelineStageRepository.MarkPipelineScriptMappingsDeletedByStageId(stageReq.Id, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in marking pipeline script mapping deleted by stageId", "err", err, "ciStageId", stageReq.Id)
+		return err
+	}
+	//marking all variables deleted
+	err = impl.pipelineStageRepository.MarkPipelineStageStepVariablesDeletedByStageId(stageReq.Id, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in marking ci stage step variables deleted by stageId", "err", err, "ciStageId", stageReq.Id)
+		return err
+	}
+	//marking all conditions deleted
+	err = impl.pipelineStageRepository.MarkPipelineStageStepConditionDeletedByStageId(stageReq.Id, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in marking ci stage step conditions deleted by stageId", "err", err, "ciStageId", stageReq.Id)
+		return err
 	}
 	return nil
 }
