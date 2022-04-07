@@ -1,0 +1,175 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: External links create api
+paths:
+  /orchestrator/global/externalLinks:
+    post:
+      description: Save newly created linkout 
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExternalLinks'
+            
+      responses:
+        "200":
+          type: boolean
+          description: True- Successfully created external link, false- error in saving
+
+  /orchestrator/global/externalLinks:
+    get:
+      description: Get all available external links for all clusters 
+      requestBody:
+        required: false
+      
+      responses:
+        "200":
+          description: Successfully fetched external links
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetAllExternalLinks"
+  
+  /orchestrator/global/externalLinks/{cluster_id}:
+    get:
+      description: Get all available linkout for particular clusters 
+      requestBody:
+        required: false
+            
+      responses:
+        "200":
+          description: Successfully fetched all external links
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClusterSpecificLink"
+
+  /orchestrator/global/externalLinks:
+    get:
+      description: Get all available monitoring tools in record 
+      requestBody:
+        required: false
+   
+      responses:
+        "200":
+          description: Successfully fetched monitoring tools
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetAllMonitoringTools"
+
+  /orchestrator/global/externalLinks/{id}:
+    put:
+      description: Update parameters of available external link 
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateExternalLinks'
+            
+      responses:
+        "200":
+          type: boolean
+          description: True- Successfully updated external link, false- error
+
+
+  /orchestrator/global/externalLinks/{id}:
+    delete:
+      description: Change the is_active status of selected link to false
+      requestBody:
+        required: false
+        
+      responses:
+        "200":
+          type: boolean
+          description: True - Successfully deleted external link, false- error
+
+  
+
+
+
+
+# Components
+
+components:
+  schemas:
+    CreateExternalLinks:
+      type: object
+      required:
+        - monitoringToolId
+        - name
+        - url
+        - cluster_id
+      properties:
+        monitoringToolId:
+          type: integer
+          description: Id assigned to perticular Monitoring tool (from External_Links_Monitoring_Tools table)
+        name:
+          type: string
+          description: monitoring tool name entered by user
+        url:
+          type: string
+          description: url entered by user
+        cluster_id:
+          type: string
+          description: clusters to which this url is applied e.g 1,2,3... (* for all) (from External_Links_Clusters table)
+    
+    GetAllExternalLinks:
+      type: object
+      required:
+        - name
+        - url
+        - cluster_id
+      properties:
+        name:
+          type: string
+          description: monitoring tool name provided by user
+        url:
+          type: string
+          description: url entered by user
+        cluster_id:
+          type: string
+          description: clusters to which this url is applied e.g 1,2,3... (* for all)
+
+      GetAllMonitoringTools:
+        type: object
+        required:
+          - monitoringToolName
+        properties:
+          monitoringToolName:
+            type: string
+            description: default monitoring tool name e.g. Grafana (from External_Links_Monitoring_Tools)
+
+      UpdateExternalLinks:
+        type: object
+        required:
+          - name
+          - url
+          - cluster_id
+        properties:
+          name:
+            type: string
+            description: monitoring tool name entered by user from External_Links table
+          url:
+            type: string
+            description: url entered by user from External_Links table
+          cluster_id:
+            type: string
+            description: clusters to which this url is applied e.g 1,2,3... (* for all)
+
+      ClusterSpecificLink:
+        type: object
+        required:
+          - name
+          - url
+        properties:
+          name:
+            type: string
+            description: monitoring tool name provided by user
+          url:
+            type: string
+            description: url entered by user
+  
